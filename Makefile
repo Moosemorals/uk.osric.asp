@@ -64,7 +64,7 @@ BUILD_INPUTS := $(shell find src test -type f -not -name '*.feature.cs' 2>/dev/n
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore test test-unit test-spec e2e run publish image format format-check clean
+.PHONY: help build restore test test-unit test-spec e2e run publish image deploy format format-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -80,6 +80,7 @@ help:
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image into podman.' \
+		'deploy             Build, push to $(REGISTRY) and restart on HOST=deploy@server.' \
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
 		'clean              Delete the artifacts folder.' \
@@ -124,6 +125,22 @@ image:
 	$(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) \
 		-p:ContainerBaseImage=$(CONTAINER_BASE_IMAGE) \
 		-t:PublishContainer -p:ContainerImageTags=$(IMAGE_TAG)
+
+# Pushes the image, installs the quadlets (the source of truth), and restarts. The app runs rootless
+# as HOST's user; Caddy is the only rootful unit and is installed with sudo. The quadlet's Image= line
+# is rewritten on the way so REGISTRY and IMAGE_TAG overrides reach the host.
+deploy: image
+	@test -n "$(HOST)" || { echo "usage: make deploy HOST=deploy@your.server"; exit 1; }
+	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
+	podman push $(IMAGE_REF)
+	ssh $(HOST) podman pull $(IMAGE_REF)
+	sed 's|^Image=.*|Image=$(IMAGE_REF)|' deploy/uk.osric.asp.container | ssh $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
+	scp deploy/Caddyfile $(HOST):caddy/Caddyfile
+	ssh $(HOST) systemctl --user daemon-reload
+	ssh $(HOST) systemctl --user enable --now uk.osric.asp.service
+	ssh $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
+	ssh $(HOST) sudo systemctl daemon-reload
+	ssh $(HOST) sudo systemctl enable --now caddy.service
 
 format:
 	$(DOTNET) format $(SOLUTION)

@@ -1,0 +1,9 @@
+# Replace example.com with your domain, and set the email for ACME notices.
+{
+	email admin@example.com
+}
+
+example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080
+}

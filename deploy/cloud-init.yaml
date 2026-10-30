@@ -1,0 +1,53 @@
+#cloud-config
+# Debian 13 (trixie) bootstrap for the Hetzner Cloud VM.
+# Paste this into the server's user-data (or use `hcloud server create --user-data-from-file`).
+# It prepares the host only: the app runs rootless as the deploy user, Caddy runs rootful as the
+# public edge, and `make deploy` installs the quadlets and the image.
+
+package_update: true
+package_upgrade: true
+timezone: Europe/London
+ssh_pwauth: false
+
+users:
+  - name: deploy
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAA...replace-with-your-public-key
+
+packages:
+  # Rootless podman: id mapping, user-mode networking, and an overlay driver for user namespaces.
+  - podman
+  - uidmap
+  - passt
+  - slirp4netns
+  - fuse-overlayfs
+  - dbus-user-session
+  - ufw
+  - unattended-upgrades
+  - ca-certificates
+  - curl
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/10-hardening.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin prohibit-password
+
+runcmd:
+  # Rootless podman needs subordinate id ranges and a user manager that outlives the login session.
+  - grep -q '^deploy:' /etc/subuid || usermod --add-subuids 100000-165535 --add-subgids 100000-165535 deploy
+  - loginctl enable-linger deploy
+  - install -d -o deploy -g deploy -m 0755 /home/deploy/.config/containers/systemd /home/deploy/caddy
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw allow 443/udp
+  - ufw --force enable
+  - systemctl enable --now unattended-upgrades
+  - systemctl reload ssh

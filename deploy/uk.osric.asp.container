@@ -1,0 +1,24 @@
+[Unit]
+Description=uk.osric.asp web app (rootless)
+
+[Container]
+ContainerName=uk.osric.asp
+Image=registry.osric.uk/uk.osric.asp:latest
+# Rootful Caddy cannot join a rootless podman network, so the app publishes on the host loopback
+# only. Nothing outside the machine can reach it directly.
+PublishPort=127.0.0.1:8080:8080
+Environment=ASPNETCORE_ENVIRONMENT=Production
+# The image ships APP_UID 1654; inside the user namespace it maps to a subuid on the host.
+User=1654:1654
+Tmpfs=/tmp
+NoNewPrivileges=true
+DropCapability=all
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+# User units are pulled in by default.target; multi-user.target does not exist here.
+WantedBy=default.target
