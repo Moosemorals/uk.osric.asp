@@ -11,10 +11,9 @@ public sealed class MainEndpoint() {
     public static async Task Handle(HttpContext context, IStorage storage, ILogger<MainEndpoint> logger) {
         string path = context.Request.RouteValues["path"] as string ?? "";
 
-        string? content = !string.IsNullOrEmpty(path) ? await storage.GetFileContentsAsync(path, context.RequestAborted) : null;
+        string? content = !string.IsNullOrWhiteSpace(path) ? await storage.GetFileContentsAsync(path, context.RequestAborted) : null;
         if (content is null) {
-            context.Response.StatusCode = 404;
-            await context.Response.WriteAsync("File not found.");
+            await WriteNotFoundAsync(context);
             return;
         }
 
@@ -44,5 +43,11 @@ public sealed class MainEndpoint() {
             }
             await context.Response.WriteAsync(Framework.GetFooter());
         }
+    }
+
+    private static async Task WriteNotFoundAsync(HttpContext context) {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        context.Response.ContentType = "text/plain; charset=utf-8";
+        await context.Response.WriteAsync("File not found.");
     }
 }

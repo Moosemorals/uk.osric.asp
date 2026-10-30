@@ -13,6 +13,7 @@ using uk.osric.asp.Web;
 public sealed class MainEndpointTests {
     [TestCase(null)]
     [TestCase("")]
+    [TestCase("   ")]
     [TestCase("missing.cs")]
     public async Task MissingPageReturnsNotFoundAsync(string? path) {
         DefaultHttpContext context = TestHttp.CreateContext(path);
@@ -21,8 +22,9 @@ public sealed class MainEndpointTests {
         await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/plain; charset=utf-8"));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("File not found."));
-        Assert.That(storage.ReadPath, Is.EqualTo(string.IsNullOrEmpty(path) ? null : path));
+        Assert.That(storage.ReadPath, Is.EqualTo(string.IsNullOrWhiteSpace(path) ? null : path));
     }
 
     [Test]
