@@ -11,6 +11,10 @@ SPDX-License-Identifier: MIT
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.9.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="NUnit" Version="4.6.1" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.15.0" />

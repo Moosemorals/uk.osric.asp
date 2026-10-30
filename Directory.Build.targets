@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
     Test projects are recognised by name suffix so none of them repeats test settings.
   -->
   <PropertyGroup>
-    <IsTestProject Condition="$(MSBuildProjectName.EndsWith('.UnitTests')) Or $(MSBuildProjectName.EndsWith('.Specs'))">true</IsTestProject>
+    <IsTestProject Condition="$(MSBuildProjectName.EndsWith('.UnitTests')) Or $(MSBuildProjectName.EndsWith('.Specs')) Or $(MSBuildProjectName.EndsWith('.WebTests'))">true</IsTestProject>
   </PropertyGroup>
 
   <!--

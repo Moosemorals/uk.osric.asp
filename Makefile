@@ -21,6 +21,7 @@ ARTIFACTS := artifacts
 WEB_PROJECT := src/uk.osric.asp.Web/uk.osric.asp.Web.csproj
 UNIT_TESTS := test/uk.osric.asp.UnitTests/uk.osric.asp.UnitTests.csproj
 SPECS := test/uk.osric.asp.Specs/uk.osric.asp.Specs.csproj
+WEB_TESTS := test/uk.osric.asp.WebTests/uk.osric.asp.WebTests.csproj
 
 # ---- Container image and deployment --------------------------------------------------------------
 #
@@ -66,7 +67,7 @@ BUILD_INPUTS := $(shell find src test -type f -not -name '*.feature.cs' 2>/dev/n
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore test test-unit test-spec run publish image deploy format format-check license-check clean
+.PHONY: help build restore test test-unit test-spec test-web migration run publish image deploy format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -75,9 +76,11 @@ help:
 	@printf '%s\n' \
 		'build              Build the solution when anything changed (default target).' \
 		'restore            Force a NuGet restore (build restores only when inputs change).' \
-		'test               Run the unit and specification tests (no browser required).' \
+		'test               Run the unit, specification and web tests (no browser required).' \
 		'test-unit          Run the NUnit unit tests only.' \
 		'test-spec          Run the Reqnroll specifications only.' \
+		'test-web           Run the web storage tests only.' \
+		'migration          Add a storage migration with NAME=... (restores local dotnet-ef).' \
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image into podman.' \
@@ -105,13 +108,24 @@ $(BUILD_STAMP): $(BUILD_INPUTS) $(RESTORE_STAMP)
 	@mkdir -p $(dir $@)
 	@touch $@
 
-test: test-unit test-spec
+test: test-unit test-spec test-web
 
 test-unit: build
 	$(DOTNET) test $(UNIT_TESTS) -c $(CONFIGURATION) --no-build
 
 test-spec: build
 	$(DOTNET) test $(SPECS) -c $(CONFIGURATION) --no-build
+
+test-web: build
+	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build
+
+migration:
+	@test -n "$(strip $(NAME))" || { echo "usage: make migration NAME=MigrationName"; exit 1; }
+	$(DOTNET) tool restore
+	@$(MAKE) --no-print-directory build
+	$(DOTNET) tool run dotnet-ef migrations add "$(NAME)" \
+		--project $(WEB_PROJECT) --startup-project $(WEB_PROJECT) \
+		--configuration $(CONFIGURATION) --no-build --output-dir Storage/Migrations
 
 run:
 	$(DOTNET) run --project $(WEB_PROJECT)

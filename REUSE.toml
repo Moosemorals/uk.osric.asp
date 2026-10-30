@@ -6,7 +6,13 @@ version = 1
 # JSON has no comment syntax, and the licence text itself should not be edited. Everything else
 # carries its two SPDX tags inline.
 [[annotations]]
-path = ["LICENSE", "global.json", "src/uk.osric.asp.Web/appsettings.json", ".vscode/launch.json", ".vscode/tasks.json", ".vscode/extensions.json"]
+path = ["LICENSE", "global.json", ".config/dotnet-tools.json", "src/uk.osric.asp.Web/appsettings.json", ".vscode/launch.json", ".vscode/tasks.json", ".vscode/extensions.json"]
+SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
+SPDX-License-Identifier = "MIT"
+
+# EF generates migrations and snapshots from our model.
+[[annotations]]
+path = ["src/uk.osric.asp.Web/Storage/Migrations/*.cs"]
 SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
 SPDX-License-Identifier = "MIT"
 

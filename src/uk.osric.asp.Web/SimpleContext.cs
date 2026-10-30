@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Core;
+namespace uk.osric.asp.Web;
 
 using Microsoft.CodeAnalysis.Emit;
+using uk.osric.asp.Core;
 
 public class SimpleContext : IContext {
     public EmitResult? BuildResult { get; set; }

@@ -7,6 +7,12 @@ artifacts/
 [Bb]in/
 [Oo]bj/
 
+# Local SQLite data and journals
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
 # Keep shared VS Code configs; ignore personal workspace settings.
 /.vscode/*
 !/.vscode/launch.json
