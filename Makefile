@@ -21,7 +21,6 @@ ARTIFACTS := artifacts
 WEB_PROJECT := src/uk.osric.asp.Web/uk.osric.asp.Web.csproj
 UNIT_TESTS := test/uk.osric.asp.UnitTests/uk.osric.asp.UnitTests.csproj
 SPECS := test/uk.osric.asp.Specs/uk.osric.asp.Specs.csproj
-E2E_TESTS := test/uk.osric.asp.EndToEnd/uk.osric.asp.EndToEnd.csproj
 
 # ---- Container image and deployment --------------------------------------------------------------
 #
@@ -67,7 +66,7 @@ BUILD_INPUTS := $(shell find src test -type f -not -name '*.feature.cs' 2>/dev/n
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore test test-unit test-spec e2e run publish image deploy format format-check license-check clean
+.PHONY: help build restore test test-unit test-spec run publish image deploy format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -79,7 +78,6 @@ help:
 		'test               Run the unit and specification tests (no browser required).' \
 		'test-unit          Run the NUnit unit tests only.' \
 		'test-spec          Run the Reqnroll specifications only.' \
-		'e2e                Run the Playwright end-to-end tests (installs Chromium if missing).' \
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image into podman.' \
@@ -114,9 +112,6 @@ test-unit: build
 
 test-spec: build
 	$(DOTNET) test $(SPECS) -c $(CONFIGURATION) --no-build
-
-e2e: build
-	$(DOTNET) test $(E2E_TESTS) -c $(CONFIGURATION) --no-build
 
 run:
 	$(DOTNET) run --project $(WEB_PROJECT)

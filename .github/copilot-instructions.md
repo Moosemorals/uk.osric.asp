@@ -15,7 +15,6 @@ src/uk.osric.asp.Core      functional core: pure functions and values, no refere
 src/uk.osric.asp.Web       imperative shell: controllers, Razor views, hosting, configuration
 test/uk.osric.asp.UnitTests  NUnit, tests the core directly
 test/uk.osric.asp.Specs      Reqnroll/Gherkin, describes business behaviour
-test/uk.osric.asp.EndToEnd   Playwright, drives the real app in a real browser
 docs/                        architecture and testing notes
 ```
 
@@ -33,7 +32,7 @@ The `Makefile` is the task runner; use it instead of inventing parallel scripts.
 
 - Build (default target): `make build` — only runs MSBuild when a source, project, or build file
   changed since the last build (stamp in `artifacts/`). Use `make -B build` to force a rebuild.
-- Tests: `make test` (unit + specifications), `make test-unit`, `make test-spec`, `make e2e`
+- Tests: `make test` (unit + specifications), `make test-unit`, `make test-spec`
 - Run the site: `make run`
 - Format: `make format`; verify: `make format-check`
 - Licence headers: `make license-check` (REUSE, needs the `reuse` tool)
@@ -41,7 +40,6 @@ The `Makefile` is the task runner; use it instead of inventing parallel scripts.
 - NuGet restore: automatic — `build` restores only when `global.json`, the solution, `Directory.*`
   files, a `.csproj`, or a NuGet config is newer than `artifacts/restore.stamp`. Use `make restore`
   to force one.
-- Single test: `dotnet test test/uk.osric.asp.UnitTests --filter "FullyQualifiedName~GreeterTests.Names_the_visitor"`
 
 ## Architecture: functional core, imperative shell
 
@@ -58,8 +56,7 @@ See `docs/architecture.md`. In short:
 Test-driven. See `docs/testing.md`.
 
 - Write the failing test first for anything in `Core`, then make it pass, then refactor.
-- NUnit for individual rules, Reqnroll for business behaviour in plain language, Playwright only for a
-  few end-to-end journeys that prove the shell is wired up.
+- NUnit for individual rules, Reqnroll for business behaviour in plain language.
 - Anything a unit test can prove does not belong in a browser test.
 
 ## Dependencies
@@ -67,7 +64,7 @@ Test-driven. See `docs/testing.md`.
 - Reach for `System.*` and `Microsoft.*` first: they are positively encouraged.
 - Strongly prefer writing the code ourselves over adding a third-party package; a new dependency needs
   a clear justification and its version pinned in `Directory.Packages.props`.
-- The sanctioned third-party exceptions are the test tools: NUnit, Reqnroll, and Playwright.
+- The sanctioned third-party exceptions are the test tools: NUnit and Reqnroll.
 
 ## Simplicity
 
