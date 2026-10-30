@@ -48,7 +48,7 @@ public static class TemplateCompiler {
         try {
             Assembly assembly = context.LoadFromStream(image);
 
-            if (assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IHandler)))?.FirstOrDefault() is not Type handler) {
+            if (assembly.GetTypes().FirstOrDefault(t => t.IsAssignableTo(typeof(IHandler))) is not Type handler) {
                 throw new InvalidOperationException("No handler found in the assembly.");
             }
 
