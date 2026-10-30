@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using uk.osric.asp.Web.Endpoints;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>Imperative shell: wires the web host to the functional core.</summary>

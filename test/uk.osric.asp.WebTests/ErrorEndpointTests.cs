@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
 using System.Reflection;
 using uk.osric.asp.Core;
-using uk.osric.asp.Web;
+using uk.osric.asp.Web.Endpoints;
 
 [TestFixture]
 public sealed class ErrorEndpointTests {

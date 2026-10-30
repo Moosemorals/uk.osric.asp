@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using System.Reflection;
 using uk.osric.asp.Web;
+using uk.osric.asp.Web.Endpoints;
 
 [TestFixture]
 public sealed class MainEndpointTests {

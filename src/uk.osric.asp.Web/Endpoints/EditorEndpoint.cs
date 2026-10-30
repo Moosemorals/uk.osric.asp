@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Web;
+namespace uk.osric.asp.Web.Endpoints;
 
 using Microsoft.Extensions.Primitives;
 using System.Net;

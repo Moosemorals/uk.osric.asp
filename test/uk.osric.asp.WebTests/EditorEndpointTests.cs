@@ -9,6 +9,7 @@ using NUnit.Framework;
 using System.Net;
 using System.Text;
 using uk.osric.asp.Web;
+using uk.osric.asp.Web.Endpoints;
 
 [TestFixture]
 public sealed class EditorEndpointTests {
