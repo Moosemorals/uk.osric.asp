@@ -42,7 +42,8 @@ public static class Program {
         app.UseStaticFiles();
 
         app.UseRouting();
-        app.Map("/edit/{**path}", EditorEndpoint.Handler);
+        app.MapGet("/edit/{**path}", EditorEndpoint.Handler);
+        app.MapPost("/edit/{**path}", EditorEndpoint.Handler);
         app.Map("{**path}", MainEndpoint.Handle);
 
         await app.RunAsync();
