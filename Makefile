@@ -20,6 +20,24 @@ UNIT_TESTS := test/uk.osric.asp.UnitTests/uk.osric.asp.UnitTests.csproj
 SPECS := test/uk.osric.asp.Specs/uk.osric.asp.Specs.csproj
 E2E_TESTS := test/uk.osric.asp.EndToEnd/uk.osric.asp.EndToEnd.csproj
 
+# ---- Container image and deployment --------------------------------------------------------------
+#
+# The image is framework-dependent on Alpine: the runtime lives in shared base layers, so a release
+# pushes only the ~180 kB app layer to the registry. Trimming is not an option, MVC does not support it.
+
+REGISTRY ?= registry.osric.uk
+IMAGE_REPOSITORY := uk.osric.asp
+IMAGE_TAG ?= latest
+IMAGE_REF := $(REGISTRY)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
+LOCAL_IMAGE := localhost/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
+
+CONTAINER_BASE_IMAGE := mcr.microsoft.com/dotnet/aspnet:10.0-alpine
+# RID of the server. On an ARM (CAX) server: linux-musl-arm64.
+CONTAINER_RID ?= linux-musl-x64
+
+# Where `make deploy` sends the image and quadlets.
+HOST ?=
+
 # ---- Incremental restore and build ---------------------------------------------------------------
 #
 # Two stamps keep repeat runs cheap: one records the last restore, one the last successful build.
@@ -46,7 +64,7 @@ BUILD_INPUTS := $(shell find src test -type f -not -name '*.feature.cs' 2>/dev/n
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore test test-unit test-spec e2e run publish format format-check clean
+.PHONY: help build restore test test-unit test-spec e2e run publish image format format-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -61,6 +79,7 @@ help:
 		'e2e                Run the Playwright end-to-end tests (installs Chromium if missing).' \
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
+		'image              Build the container image into podman.' \
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
 		'clean              Delete the artifacts folder.' \
@@ -99,6 +118,12 @@ run:
 
 publish:
 	$(DOTNET) publish $(WEB_PROJECT) -c Release
+
+# The SDK builds the OCI image itself and hands it to podman; there is no Dockerfile.
+image:
+	$(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) \
+		-p:ContainerBaseImage=$(CONTAINER_BASE_IMAGE) \
+		-t:PublishContainer -p:ContainerImageTags=$(IMAGE_TAG)
 
 format:
 	$(DOTNET) format $(SOLUTION)
