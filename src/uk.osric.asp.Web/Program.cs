@@ -7,7 +7,6 @@ namespace uk.osric.asp.Web;
 public static class Program {
     public static void Main(string[] args) {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-        builder.Services.AddControllersWithViews();
 
         WebApplication app = builder.Build();
 
@@ -21,7 +20,9 @@ public static class Program {
         app.UseStaticFiles();
         app.UseRouting();
 
-        app.MapControllers();
+        app.MapGet("/error", ErrorEndpoint.Handle);
+        app.MapFallback(MainEndpoint.Handle);
+
         app.Run();
     }
 }
