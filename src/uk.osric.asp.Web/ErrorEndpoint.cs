@@ -8,9 +8,15 @@ using System.Net;
 using System.Reflection;
 using uk.osric.asp.Core;
 
-internal static class ErrorEndpoint {
-    public static IResult Handle(HttpContext context) {
-        Exception? exception = context.Features.Get<IExceptionHandlerPathFeature>()?.Error;
+public static class ErrorEndpoint {
+
+    /// <summary>Writes the error page. Runs inside the exception handler's branch, not from routing.</summary>
+    /// <param name="context">The failing request.</param>
+    public static async Task HandleAsync(HttpContext context) {
+        // The branch form of UseExceptionHandler publishes the failure under both feature names.
+        Exception? exception = context.Features.Get<IExceptionHandlerPathFeature>()?.Error
+            ?? context.Features.Get<IExceptionHandlerFeature>()?.Error;
+
         UserFacingException? userFacingException = exception switch {
             UserFacingException safeException => safeException,
             TargetInvocationException { InnerException: UserFacingException safeException } => safeException,
@@ -27,6 +33,8 @@ internal static class ErrorEndpoint {
                 </main>
         """ + Framework.GetFooter();
 
-        return Results.Content(page, "text/html");
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "text/html; charset=utf-8";
+        await context.Response.WriteAsync(page);
     }
 }

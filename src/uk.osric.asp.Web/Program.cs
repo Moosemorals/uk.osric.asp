@@ -33,7 +33,9 @@ public static class Program {
         if (app.Environment.IsDevelopment()) {
             app.UseDeveloperExceptionPage();
         } else {
-            app.UseExceptionHandler("/error");
+            // An inline branch keeps the error page out of the router. Re-executing a path would run
+            // the failing request's method again, so a failed POST could be answered by the wrong endpoint.
+            app.UseExceptionHandler(errorApplication => errorApplication.Run(ErrorEndpoint.HandleAsync));
             app.UseHsts();
         }
 
@@ -41,7 +43,6 @@ public static class Program {
 
         app.UseRouting();
         app.Map("/edit/{**path}", EditorEndpoint.Handler);
-        app.MapGet("/error", ErrorEndpoint.Handle);
         app.Map("{**path}", MainEndpoint.Handle);
 
         await app.RunAsync();
