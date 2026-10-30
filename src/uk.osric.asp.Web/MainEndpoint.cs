@@ -8,19 +8,23 @@ using uk.osric.asp.Core;
 
 public sealed class MainEndpoint() {
 
-    public static async Task Handle(HttpContext context) {
+    public static async Task Handle(HttpContext context, IStorage storage) {
+        
+
+        string path = context.Request.RouteValues["path"] as string ?? "";
+
+        string? content = !string.IsNullOrEmpty(path) ? await storage.GetFileContentsAsync(path, context.RequestAborted) : null;
+        if (content is null) {
+            context.Response.StatusCode = 404;
+            await context.Response.WriteAsync("File not found.");
+            return;
+        }
+
+
         IContext ctx = new SimpleContext();
 
         MemoryStream assemblyStream = new();
-        ctx.BuildResult = Compiler.Compile("""
-            using uk.osric.asp.Core;
-            public class Hello : IHandler {
-
-                public void Handle(IContext context) {
-                    context.Log("Hello, world!");
-                }
-            }
-        """, assemblyStream);
+        ctx.BuildResult = Compiler.Compile(content, assemblyStream);
 
         if (ctx.BuildResult.Success) {
             assemblyStream.Seek(0, SeekOrigin.Begin);

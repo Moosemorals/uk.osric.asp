@@ -23,6 +23,7 @@ public static class Program {
         builder.Services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
         builder.Services.AddScoped<IStorage, SqliteStorage>();
 
+
         WebApplication app = builder.Build();
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
@@ -39,6 +40,7 @@ public static class Program {
         app.UseStaticFiles();
 
         app.UseRouting();
+        app.Map("/edit/{**path}", EditorEndpoint.Handler);
         app.MapGet("/error", ErrorEndpoint.Handle);
         app.Map("{**path}", MainEndpoint.Handle);
 
