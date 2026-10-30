@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web;
 
+using System.Net;
 using uk.osric.asp.Core;
 using uk.osric.asp.Runtime;
 
@@ -37,10 +38,12 @@ public sealed class MainEndpoint() {
             context.Response.ContentType = "text/html; charset=utf-8";
             context.Response.StatusCode = 500;
             await context.Response.WriteAsync(Framework.GetHeader("Main - Error"));
-            await context.Response.WriteAsync("Handler failed to compile.");
+            await context.Response.WriteAsync("<p>Handler failed to compile.</p><pre>");
             foreach (string diagnostic in buildResult.Diagnostics) {
-                await context.Response.WriteAsync(diagnostic + "\n");
+                await context.Response.WriteAsync(WebUtility.HtmlEncode(diagnostic));
+                await context.Response.WriteAsync("\n");
             }
+            await context.Response.WriteAsync("</pre>");
             await context.Response.WriteAsync(Framework.GetFooter());
         }
     }

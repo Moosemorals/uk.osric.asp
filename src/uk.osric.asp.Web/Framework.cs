@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Web;
 
+using System.Net;
+
 public static class Framework {
 
     public static string GetHeader(string title) =>
@@ -12,7 +14,7 @@ public static class Framework {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>{title}</title>
+            <title>{WebUtility.HtmlEncode(title)}</title>
             <link rel="stylesheet" href="/site.css">
         </head>
         <body>

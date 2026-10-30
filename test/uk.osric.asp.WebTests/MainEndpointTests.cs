@@ -65,6 +65,19 @@ public sealed class MainEndpointTests {
     }
 
     [Test]
+    public async Task CompilationDiagnosticsAreHtmlEncodedAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("broken.cs");
+        PageStorage storage = new("<% int value = new System.Collections.Generic.List<int>(); %>");
+
+        await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(context.Response.StatusCode, Is.EqualTo(500));
+        Assert.That(body, Does.Not.Contain("List<int>"));
+        Assert.That(body, Does.Contain("List&lt;int&gt;"));
+    }
+
+    [Test]
     public void StorageFailurePropagatesAsync() {
         DefaultHttpContext context = TestHttp.CreateContext("hello.cs");
         PageStorage storage = new(null) { Failure = new InvalidOperationException("Storage unavailable.") };
