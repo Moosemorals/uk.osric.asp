@@ -23,7 +23,7 @@ public sealed class MainEndpoint() {
 
         IContext ctx = new SimpleContext(logger, output, path);
 
-        MemoryStream assemblyStream = new();
+        using MemoryStream assemblyStream = new();
         CompileResult buildResult = TemplateCompiler.Compile(templateSource, assemblyStream);
 
         if (buildResult.Success) {
