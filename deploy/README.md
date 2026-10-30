@@ -51,12 +51,67 @@ The quadlets are the source of truth for the server: `make deploy` copies them u
 
 ## Day-to-day
 
-- **New code:** `make deploy HOST=deploy@<server-ip>` (builds, pushes, pulls, restarts).
+- **New code:** back up storage first, then `make deploy HOST=deploy@<server-ip>` (builds, pushes,
+  pulls, restarts).
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
 - **Logs:** `ssh deploy@<server-ip> journalctl --user -u uk.osric.asp.service -f`
 - **Status:** `ssh deploy@<server-ip> systemctl --user status uk.osric.asp.service`
 - **Edge:** `ssh deploy@<server-ip> sudo systemctl status caddy`
 - **Rollback:** build the previous commit and deploy it again; images are replaced, not accumulated.
+  A previous image may not support the migrated schema; restore its matching backup with the app
+  stopped when necessary.
+
+## Storage and migrations
+
+Source storage uses EF Core with SQLite. The local default is `ConnectionStrings:Storage` set to
+`Data Source=data/storage.db`; the app quadlet overrides it with
+`ConnectionStrings__Storage='Data Source=/data/storage.db'`. This is source storage infrastructure
+only: route-to-script lookup, editor persistence and runtime storage access are not wired up yet.
+
+The rootless named volume `uk.osric.asp-storage` is mounted read-write at `/data`. Podman creates it
+on first use and reuses it when the container or image is replaced. It belongs to the `deploy` user's
+Podman storage, not root's. Removing the volume (including pruning unused volumes) or deleting the
+host's storage destroys the data; container replacement is not a backup strategy.
+
+The mount's `:U` option recursively changes the volume's ownership to the host UID/GID mapped from
+the container's `User=1654:1654`. This lets the unprivileged app create the database and SQLite
+journal/WAL files without relaxing permissions. It modifies ownership on the host and may slow
+startup on a volume with many files. Keep this volume dedicated to the app; do not substitute a
+shared host directory without accepting those ownership changes. See Podman's
+[volume ownership documentation](https://docs.podman.io/en/latest/markdown/podman-run.1.html#volume-v).
+
+The app applies pending migrations asynchronously at startup, before serving requests. **Take a
+verified backup before starting a new release with migrations**, including unattended updates.
+Review generated migrations before deployment; startup migration does not make a backup for you.
+
+To add a migration locally from the repository root:
+
+```bash
+make migration NAME=DescribeTheSchemaChange
+make test-web
+```
+
+The target restores the repository's pinned local `dotnet-ef` tool (10.0.14), builds using the normal
+Makefile target, and writes migration sources to the Web project's `Storage/Migrations` directory.
+EF 10 reads the evaluated MSBuild output paths, including `artifacts/obj/uk.osric.asp.Web/`; the old
+`--msbuildprojectextensionspath` override is not needed. Commit and review the generated migration
+with the model change. `make test` includes the Web storage tests as well as unit and specification
+tests.
+
+### Backups
+
+Run storage maintenance as `deploy`. Either stop `uk.osric.asp.service` with `systemctl --user stop`
+and back up the entire volume while no process has the database open, or use SQLite's online backup
+API (for example the `sqlite3` shell's `.backup` command) against the database. Do not simply copy
+`storage.db` while the app is running: committed data may still be in the WAL, and copying database
+files individually can produce an inconsistent backup.
+
+Use `podman volume inspect uk.osric.asp-storage` as `deploy` to locate the volume. Its files are
+owned by mapped subordinate IDs, so offline file access may require `podman unshare`. Keep backups
+outside the volume and off-host, and test restoration. Restore only with the app stopped, retain
+the correct mapped ownership, and start an image compatible with the restored schema. For the
+stop-and-copy approach, keep the app stopped until the backup finishes, then start it again with
+`systemctl --user start uk.osric.asp.service`.
 
 ## Why rootless
 

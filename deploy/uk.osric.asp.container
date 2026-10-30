@@ -11,8 +11,10 @@ Image=registry.osric.uk/uk.osric.asp:latest
 # only. Nothing outside the machine can reach it directly.
 PublishPort=127.0.0.1:8080:8080
 Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment="ConnectionStrings__Storage=Data Source=/data/storage.db"
 # The image ships APP_UID 1654; inside the user namespace it maps to a subuid on the host.
 User=1654:1654
+Volume=uk.osric.asp-storage:/data:U
 Tmpfs=/tmp
 NoNewPrivileges=true
 DropCapability=all
