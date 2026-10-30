@@ -8,49 +8,37 @@ using System.Net;
 
 public sealed class EditorEndpoint {
 
+    private static readonly CookieOptions MessageCookie = new() {
+        HttpOnly = true,
+        SameSite = SameSiteMode.Strict,
+        Secure = true,
+        MaxAge = TimeSpan.FromMinutes(1),
+        Path = "/",
+    };
+
     public static async Task Handler(HttpContext context, IStorage storage) {
 
         string? path = context.Request.RouteValues["path"] as string;
         if (context.Request.Method == "POST") {
-            if (string.IsNullOrWhiteSpace(path)) {
-                context.Response.Cookies.Append("message", "Path is required.");
-                goto done;
-            }
-
-            if (!context.Request.Form.TryGetValue("content", out StringValues content)) {
-                context.Response.Cookies.Append("message", "Content is required.");
-                goto done;
-            }
-
-            if (content.Count != 1) {
-                context.Response.Cookies.Append("message", "Content must have exactly one value.");
-                goto done;
-            }
-
-            await storage.SetFileContentsAsync(path, content.ToString(), context.RequestAborted);
-            context.Response.Cookies.Append("message", "Saved successfully.");
-
-        done:
-
+            context.Response.Cookies.Append("message", await SaveAsync(context, storage, path), MessageCookie);
             context.Response.StatusCode = 302;
             context.Response.Headers.Location = context.Request.Path.ToString();
             return;
+        }
 
-        } else {
+        string? content = !string.IsNullOrWhiteSpace(path) ? await storage.GetFileContentsAsync(path, context.RequestAborted) : null;
 
-            string? content = !string.IsNullOrWhiteSpace(path) ? await storage.GetFileContentsAsync(path, context.RequestAborted) : null;
+        string? message = context.Request.Cookies["message"];
+        if (message is not null) {
+            context.Response.Cookies.Delete("message", MessageCookie);
+        }
 
-            string? message = context.Request.Cookies.FirstOrDefault(c => c.Key == "message").Value;
-            if (message is not null) {
-                context.Response.Cookies.Delete("message");
-            }
+        context.Response.ContentType = "text/html; charset=utf-8";
+        context.Response.StatusCode = 200;
 
-            context.Response.ContentType = "text/html; charset=utf-8";
-            context.Response.StatusCode = 200;
-
-            await context.Response.WriteAsync(Framework.GetHeader("Editor"));
-            await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path)}</h1>");
-            await context.Response.WriteAsync($"""
+        await context.Response.WriteAsync(Framework.GetHeader("Editor"));
+        await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path)}</h1>");
+        await context.Response.WriteAsync($"""
             {(!string.IsNullOrEmpty(message) ? $"<p>{WebUtility.HtmlEncode(message)}</p>" : "")}
             <p><a href="/{WebUtility.HtmlEncode(path)}">Back to file</a></p>
             <form method="post" action="?">
@@ -59,9 +47,26 @@ public sealed class EditorEndpoint {
                 <button type="submit">Save</button>
             </form>
         """);
-            await context.Response.WriteAsync(Framework.GetFooter());
+        await context.Response.WriteAsync(Framework.GetFooter());
+    }
 
+    // Every outcome redirects back to the editor with a flash message, so validation returns text
+    // rather than short-circuiting the response.
+    private static async Task<string> SaveAsync(HttpContext context, IStorage storage, string? path) {
+        if (string.IsNullOrWhiteSpace(path)) {
+            return "Path is required.";
         }
+
+        if (!context.Request.Form.TryGetValue("content", out StringValues content)) {
+            return "Content is required.";
+        }
+
+        if (content.Count != 1) {
+            return "Content must have exactly one value.";
+        }
+
+        await storage.SetFileContentsAsync(path, content.ToString(), context.RequestAborted);
+        return "Saved successfully.";
     }
 
 }
