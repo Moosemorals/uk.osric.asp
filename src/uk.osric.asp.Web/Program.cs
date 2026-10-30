@@ -11,8 +11,10 @@ public static class Program {
 
         WebApplication app = builder.Build();
 
-        if (!app.Environment.IsDevelopment()) {
-            app.UseExceptionHandler("/Home/Error");
+        if (app.Environment.IsDevelopment()) {
+            app.UseDeveloperExceptionPage();
+        } else {
+            app.UseExceptionHandler("/error");
             app.UseHsts();
         }
 
