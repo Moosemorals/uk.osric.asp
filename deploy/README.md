@@ -65,8 +65,8 @@ The quadlets are the source of truth for the server: `make deploy` copies them u
 
 Source storage uses EF Core with SQLite. The local default is `ConnectionStrings:Storage` set to
 `Data Source=data/storage.db`; the app quadlet overrides it with
-`ConnectionStrings__Storage='Data Source=/data/storage.db'`. This is source storage infrastructure
-only: route-to-script lookup, editor persistence and runtime storage access are not wired up yet.
+`ConnectionStrings__Storage='Data Source=/data/storage.db'`. Route-to-script lookup and editor
+persistence both read and write this database; nothing else in the deployment depends on it.
 
 The rootless named volume `uk.osric.asp-storage` is mounted read-write at `/data`. Podman creates it
 on first use and reuses it when the container or image is replaced. It belongs to the `deploy` user's
@@ -136,8 +136,8 @@ the registry and the host. Each release therefore pushes and pulls only the app 
 self-contained single file instead would make the image smaller (64 MB) but would move ~52 MB on every
 release, which is the wrong trade when a registry is available.
 
-Trimming would reach ~29 MB, but ASP.NET MVC does not support it: the trimmed image dies at startup
-with `TypeLoadException`. It is deliberately off.
+Trimming would reach ~29 MB, but ASP.NET Core does not support trimming a hosted web app here: the
+trimmed image dies at startup with `TypeLoadException`. It is deliberately off.
 
 ## The registry
 

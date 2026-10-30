@@ -19,10 +19,9 @@ silently replace a page with attacker-chosen C#. Without authentication the endp
 so a forged request is not even necessary — but the missing token will become the next hole the
 moment SEC-01 is fixed.
 
-The flash message also uses a plain cookie (`EditorEndpoint.cs:16-45`) with default options: not
-`HttpOnly`, not `Secure`, `SameSite` unspecified. It is read with
-`Cookies.FirstOrDefault(c => c.Key == "message")`, and two tabs saving at once overwrite each
-other's message.
+The flash message cookie had default options. It now sets `HttpOnly`, `SameSite = Strict`, `Secure`,
+`Path = /` and a 60-second `MaxAge` (`EditorEndpoint.cs:11-17`, fixed 2026-10-30), so the remaining
+gap is the token. Two tabs saving at once still overwrite each other's message.
 
 ## Fix outline
 
@@ -34,6 +33,4 @@ other's message.
 3. Replace the cookie with server-side state. A `POST` → `303` → `GET` flow can carry the message in
    the redirect's query string, or store it per session; the cookie adds no value for a single user
    and leaks state to the client.
-4. If a cookie is kept, set `HttpOnly = true`, `SameSite = SameSiteMode.Strict`, `Secure` in
-   production, and a short expiry.
-5. Add tests for: missing token rejected, valid token accepted, message shown once.
+4. Add tests for: missing token rejected, valid token accepted, message shown once.

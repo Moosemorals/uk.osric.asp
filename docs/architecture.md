@@ -48,9 +48,9 @@ startup, before serving requests. `ConnectionStrings:Storage` defaults to
 `Data Source=data/storage.db`; deployment overrides it to `Data Source=/data/storage.db` on a durable
 rootless Podman named volume. Database access and migration lifecycle stay in the shell.
 
-This is storage infrastructure only. It does not yet connect routes to stored scripts, persist editor
-changes, or expose storage to the script runtime or `SimpleContext`. Pure rules receive the values
-loaded by the shell rather than being given `IStorage`.
+This is source storage: `MainEndpoint` reads a page's source by route path, compiles it and runs it,
+and `EditorEndpoint` writes it back. Pure rules still receive the values loaded by the shell rather
+than being given `IStorage`.
 
 `make test-web` runs the Web storage tests and is included in `make test`. Schema changes are
 scaffolded with `make migration NAME=...` using the pinned local EF tool into the Web project's

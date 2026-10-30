@@ -7,13 +7,14 @@ SPDX-License-Identifier: MIT
 
 ## Repository status
 
-ASP.NET Core **MVC** (controllers + Razor views) on .NET 10, developed on **Linux** — assume Linux for
+ASP.NET Core **minimal endpoints** on .NET 10 — no MVC controllers, no Razor views: pages are stored C#
+compiled at request time and rendered through `IContext`. Developed on **Linux** — assume Linux for
 all tooling, paths, and scripts; use `/` separators in MSBuild paths.
 
 ```
 src/uk.osric.asp.Core      functional core: pure functions and values, no references at all
 src/uk.osric.asp.Runtime   template compiler and assembly loading; Roslyn, nothing web-facing
-src/uk.osric.asp.Web       imperative shell: controllers, Razor views, hosting, configuration
+src/uk.osric.asp.Web       imperative shell: endpoints, hosting, storage, configuration
 test/uk.osric.asp.UnitTests  NUnit, tests the core directly
 test/uk.osric.asp.Specs      Reqnroll/Gherkin, describes business behaviour
 test/uk.osric.asp.WebTests   NUnit, tests the runtime and the web shell
@@ -37,7 +38,7 @@ The `Makefile` is the task runner; use it instead of inventing parallel scripts.
 
 - Build (default target): `make build` — only runs MSBuild when a source, project, or build file
   changed since the last build (stamp in `artifacts/`). Use `make -B build` to force a rebuild.
-- Tests: `make test` (unit + specifications), `make test-unit`, `make test-spec`
+- Tests: `make test` (unit + specifications + web), `make test-unit`, `make test-spec`, `make test-web`
 - Run the site: `make run`
 - Format: `make format`; verify: `make format-check`
 - Licence headers: `make license-check` (REUSE, needs the `reuse` tool)
@@ -52,7 +53,7 @@ See `docs/architecture.md`. In short:
 
 - Business rules, calculations, parsing, and formatting live in `Core` as short, reusable **pure**
   functions over immutable values — no I/O, clock, configuration, DI, or ASP.NET.
-- Controllers and views are a thin shell: bind the request, call the core, shape the response.
+- Endpoints are a thin shell: bind the request, call the core, shape the response.
 - `Core` must not gain project or package references. If a change needs one, it belongs in the shell.
 - Effects that are not HTTP — compiling and loading pages — live in `Runtime`, between the two.
 - Pass data into the core and get values back; never hand the core a service, logger, or `HttpContext`.
@@ -89,7 +90,7 @@ Test-driven. See `docs/testing.md`.
 - There is deliberately no Dockerfile: the image is built by the SDK, and the host runs podman.
 - Images go through `registry.osric.uk`; the build is framework-dependent on Alpine so only the
   177 kB app layer moves per release. All container knobs live in the `image` target. Do not enable
-  trimming — MVC does not support it.
+  trimming — a trimmed ASP.NET Core host dies at startup.
 
 ## C# style
 
