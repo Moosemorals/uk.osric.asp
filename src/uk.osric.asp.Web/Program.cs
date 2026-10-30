@@ -18,10 +18,10 @@ public static class Program {
         }
 
         app.UseStaticFiles();
-        app.UseRouting();
 
+        app.UseRouting();
         app.MapGet("/error", ErrorEndpoint.Handle);
-        app.MapFallback(MainEndpoint.Handle);
+        app.Map("{**path}", MainEndpoint.Handle);
 
         app.Run();
     }
