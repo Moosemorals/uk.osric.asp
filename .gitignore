@@ -1,0 +1,13 @@
+# Build output. The artifacts layout puts every project's bin/obj under artifacts/;
+# the plain patterns cover a build that bypasses Directory.Build.props.
+artifacts/
+[Bb]in/
+[Oo]bj/
+
+# Reqnroll generated code-behind
+*.feature.cs
+
+# Vim
+*.sw?
+*~
+*.un~
