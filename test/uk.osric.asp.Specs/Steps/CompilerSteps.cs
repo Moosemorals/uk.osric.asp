@@ -6,6 +6,7 @@ namespace uk.osric.asp.Specs.Steps;
 using NUnit.Framework;
 using Reqnroll;
 using uk.osric.asp.Core;
+using uk.osric.asp.Runtime;
 
 [Binding]
 public sealed class CompilerSteps {

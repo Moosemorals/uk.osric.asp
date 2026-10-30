@@ -3,9 +3,8 @@
 
 namespace uk.osric.asp.Web;
 
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Emit;
 using uk.osric.asp.Core;
+using uk.osric.asp.Runtime;
 
 public sealed class MainEndpoint() {
 
@@ -22,11 +21,10 @@ public sealed class MainEndpoint() {
         string templateSource = TemplateSourceGenerator.GenerateTemplateSource(content);
         StringWriter output = new();
 
-
         IContext ctx = new SimpleContext(logger, output, path);
 
         MemoryStream assemblyStream = new();
-        EmitResult buildResult = TemplateCompiler.Compile(templateSource, assemblyStream);
+        CompileResult buildResult = TemplateCompiler.Compile(templateSource, assemblyStream);
 
         if (buildResult.Success) {
             assemblyStream.Seek(0, SeekOrigin.Begin);
@@ -41,8 +39,8 @@ public sealed class MainEndpoint() {
             context.Response.StatusCode = 500;
             await context.Response.WriteAsync(Framework.GetHeader("Main - Error"));
             await context.Response.WriteAsync("Handler failed to compile.");
-            foreach (Diagnostic diagnostic in buildResult.Diagnostics) {
-                await context.Response.WriteAsync(diagnostic.ToString() + "\n");
+            foreach (string diagnostic in buildResult.Diagnostics) {
+                await context.Response.WriteAsync(diagnostic + "\n");
             }
             await context.Response.WriteAsync(Framework.GetFooter());
         }

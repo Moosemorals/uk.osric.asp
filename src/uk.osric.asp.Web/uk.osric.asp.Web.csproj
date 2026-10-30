@@ -19,6 +19,7 @@ SPDX-License-Identifier: MIT
 
   <ItemGroup>
     <ProjectReference Include="../uk.osric.asp.Core/uk.osric.asp.Core.csproj" />
+    <ProjectReference Include="../uk.osric.asp.Runtime/uk.osric.asp.Runtime.csproj" />
   </ItemGroup>
 
 </Project>

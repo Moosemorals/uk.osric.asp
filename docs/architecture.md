@@ -7,19 +7,23 @@ SPDX-License-Identifier: MIT
 
 ## Functional core, imperative shell
 
-The intended boundary is pure rules over values, with effects coordinated by the web shell. The
-current implementation does not make all of `Core` pure.
+The boundary is pure rules over values, with effects isolated in their own project where the compiler
+can enforce it.
 
-- **`src/uk.osric.asp.Core`** contains the compiler/runtime and its handler/context contracts. The
-  compiler depends on Roslyn, reads runtime assembly metadata, generates assembly names, writes
-  streams, and loads and invokes compiled handlers. That is imperative infrastructure, not a pure
-  function with deterministic outputs.
+- **`src/uk.osric.asp.Core`** holds the pure half: the template tokenizer, the source generator, and
+  the `IContext`/`IHandler` contracts. It has no project or package references at all, so it cannot
+  reach for I/O, a clock, DI or ASP.NET. Its only dependency is the base class library.
+- **`src/uk.osric.asp.Runtime`** holds the imperative half of template execution: `TemplateCompiler`
+  reads platform assembly paths, generates assembly names, emits to a stream, and loads and invokes
+  the compiled handler in a collectible `AssemblyLoadContext`. It references `Core` and Roslyn, and
+  nothing else — in particular no ASP.NET, storage or logging types, because it is not built on the
+  Web SDK.
 - **`src/uk.osric.asp.Web`** owns HTTP endpoints, hosting, configuration, `SimpleContext`, and source
-  storage. EF Core, SQLite, database migrations and `IStorage` belong here, not in `Core`.
+  storage. EF Core, SQLite, database migrations and `IStorage` belong here.
 
-The project dependency is one-way: `Web` references `Core`, never the reverse. `Core` currently has
-Roslyn package dependencies; it is not reference-free. Pure business rules should still accept plain
-values and return values, so they can be tested without a web host, database or browser.
+The dependency direction is one-way: `Web` → `Runtime` → `Core`, and `Web` → `Core`. Nothing points
+back up. `TemplateCompiler` returns a `CompileResult` of booleans and strings rather than Roslyn
+`EmitResult`/`Diagnostic` values, so the shell never sees the compiler's types.
 
 ## Where does code go?
 
@@ -27,14 +31,15 @@ values and return values, so they can be tested without a web host, database or 
 | --- | --- |
 | Business rules, calculations, parsing, formatting, validation | `Core`, as pure functions |
 | Values passed between layers | `Core`, as `record`/`readonly record struct` |
+| Compiling templates, loading assemblies, invoking handlers | `Runtime` |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
-| I/O, time, randomness, configuration | `Web`, turned into plain values before calling the core |
+| I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
 | Source storage, `IStorage`, EF Core context and migrations | `Web`, under `Storage` for implementation |
-| Compiler/runtime and handler/context contracts | Currently `Core`, imperative and Roslyn dependent |
 
 When something in the shell needs a decision from a pure rule, pass the data in and return a value;
-do not hand that rule `IStorage`, a database context, a logger, or `HttpContext`. The existing runtime
-passes `IContext` to a compiled handler; that imperative execution contract is not a pure rule.
+do not hand that rule `IStorage`, a database context, a logger, or `HttpContext`. The runtime passes
+`IContext` to a compiled handler; that is the deliberate seam between compiled page code and the
+host, and `SimpleContext` is its only implementation.
 
 ## Source storage
 

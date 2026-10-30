@@ -13,7 +13,6 @@ reviewer's assessment of risk, not an implementation order; the suggested order 
 | --- | --- | --- |
 | [SEC-01](SEC-01.md) | Critical | The editor is unauthenticated, so anyone can execute arbitrary code |
 | [SEC-02](SEC-02.md) | High | Editor POST has no antiforgery protection and its flash cookie is unhardened |
-| [ARCH-01](ARCH-01.md) | High | `Core` is not the functional core: it owns Roslyn, I/O and assembly loading |
 | [ARCH-02](ARCH-02.md) | High | `IContext` is too narrow to be the page runtime's public API |
 | [ARCH-03](ARCH-03.md) | High | No execution timeout, cancellation or concurrency limit for page code |
 | [ARCH-04](ARCH-04.md) | Medium | Reflection wrapper leaks `TargetInvocationException` into the shell |
@@ -57,7 +56,7 @@ reviewer's assessment of risk, not an implementation order; the suggested order 
    expose.
 3. OPS-01 — make HTTPS, HSTS and absolute URLs correct behind the proxy.
 4. ARCH-02 — settle the page runtime API before content depends on it.
-5. ARCH-01 and PERF-01 — split the runtime out of `Core` and stop compiling per request.
+5. PERF-01 — stop compiling every page on every request.
 6. ARCH-05, ARCH-06, ARCH-07 — canonical paths, a page index and revision history.
 7. OPS-03, DOC-01..DOC-05, BUG-10..BUG-12, STYLE-01..STYLE-04 — hygiene, so the next review
    starts from an accurate baseline.

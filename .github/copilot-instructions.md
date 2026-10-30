@@ -12,11 +12,16 @@ all tooling, paths, and scripts; use `/` separators in MSBuild paths.
 
 ```
 src/uk.osric.asp.Core      functional core: pure functions and values, no references at all
+src/uk.osric.asp.Runtime   template compiler and assembly loading; Roslyn, nothing web-facing
 src/uk.osric.asp.Web       imperative shell: controllers, Razor views, hosting, configuration
 test/uk.osric.asp.UnitTests  NUnit, tests the core directly
 test/uk.osric.asp.Specs      Reqnroll/Gherkin, describes business behaviour
+test/uk.osric.asp.WebTests   NUnit, tests the runtime and the web shell
 docs/                        architecture and testing notes
 ```
+
+- Dependency direction is `Web` → `Runtime` → `Core`, plus `Web` → `Core`. `Core` stays
+  reference-free; Roslyn lives in `Runtime` only, so the shell never names a compiler type.
 
 - Build output never lives next to the source: `Directory.Build.props` sets `UseArtifactsOutput`, so
   `bin`/`obj` for every project land under `artifacts/`. Never reference or commit them.
@@ -49,6 +54,7 @@ See `docs/architecture.md`. In short:
   functions over immutable values — no I/O, clock, configuration, DI, or ASP.NET.
 - Controllers and views are a thin shell: bind the request, call the core, shape the response.
 - `Core` must not gain project or package references. If a change needs one, it belongs in the shell.
+- Effects that are not HTTP — compiling and loading pages — live in `Runtime`, between the two.
 - Pass data into the core and get values back; never hand the core a service, logger, or `HttpContext`.
 
 ## Testing

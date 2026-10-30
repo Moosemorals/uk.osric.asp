@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-
-namespace uk.osric.asp.Core;
+namespace uk.osric.asp.Runtime;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -10,6 +9,7 @@ using Microsoft.CodeAnalysis.Emit;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
+using uk.osric.asp.Core;
 
 /// <summary>Compiles C# source code into dynamically linked libraries.</summary>
 public static class TemplateCompiler {
@@ -27,8 +27,8 @@ public static class TemplateCompiler {
     /// <summary>Compiles C# source code into a dynamically linked library.</summary>
     /// <param name="source">The C# source code to compile.</param>
     /// <param name="sink">The stream that receives the compiled assembly.</param>
-    /// <returns>The result of the compilation.</returns>
-    public static EmitResult Compile(string source, Stream sink) {
+    /// <returns>Whether the assembly was written, and the diagnostic text if it was not.</returns>
+    public static CompileResult Compile(string source, Stream sink) {
         CSharpCompilation compilation = CSharpCompilation.Create(
             assemblyName: $"Dynamic_{Guid.NewGuid():N}",
             syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
@@ -36,7 +36,9 @@ public static class TemplateCompiler {
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
         );
 
-        return compilation.Emit(sink);
+        EmitResult result = compilation.Emit(sink);
+
+        return new CompileResult(result.Success, [.. result.Diagnostics.Select(d => d.ToString())]);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

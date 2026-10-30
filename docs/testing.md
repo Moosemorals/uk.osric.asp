@@ -8,22 +8,27 @@ SPDX-License-Identifier: MIT
 Work test-first. Write the failing test, make it pass, then refactor — the refactor step is where the
 core stays pure and the shell stays thin.
 
-## The two suites
+## The three suites
 
 | Project | Tool | Scope | Speed |
 | --- | --- | --- | --- |
 | `test/uk.osric.asp.UnitTests` | NUnit | Individual rules in the functional core | Milliseconds |
 | `test/uk.osric.asp.Specs` | Reqnroll (Gherkin) + NUnit | Business behaviour, in the language of the domain | Milliseconds |
+| `test/uk.osric.asp.WebTests` | NUnit | The template compiler/runtime and the web shell | Milliseconds to seconds |
 
 - **Unit tests** cover one rule at a time and exercise `Core` directly.
 - **Specifications** describe *what* the site does in plain language. Step definitions call the core,
   so the scenarios double as executable documentation. Start a feature here.
+- **Web tests** cover what a unit test cannot reach: compiling and running generated handlers, and
+  the endpoints and storage that talk to them.
+
 ## Running them
 
 ```bash
-make test        # unit + specification suites; no browser needed
+make test        # unit + specification + web suites; no browser needed
 make test-unit   # unit tests only
 make test-spec   # specifications only
+make test-web    # web and runtime tests only
 ```
 
 ## Conventions

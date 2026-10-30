@@ -1,0 +1,16 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+SPDX-License-Identifier: MIT
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../uk.osric.asp.Core/uk.osric.asp.Core.csproj" />
+  </ItemGroup>
+
+</Project>

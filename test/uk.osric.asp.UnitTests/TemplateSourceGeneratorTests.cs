@@ -3,63 +3,47 @@
 
 namespace uk.osric.asp.UnitTests;
 
-using Microsoft.CodeAnalysis.Emit;
 using NUnit.Framework;
-using System.Text;
 using uk.osric.asp.Core;
 
 [TestFixture]
 public sealed class TemplateSourceGeneratorTests {
     [Test]
-    public void EmptyTemplateCompilesAndProducesNoOutput() {
-        TestContext context = CompileAndRun("");
+    public void TextBecomesAWriteRawCall() {
+        string source = TemplateSourceGenerator.GenerateTemplateSource("Hello");
 
-        Assert.That(context.Output, Is.Empty);
+        Assert.That(source, Does.Contain("ctx.WriteRaw(@\"Hello\");"));
     }
 
     [Test]
-    public void TextWithQuotesSlashesAndNewlinesIsPreserved() {
-        string template = "Quote: \"Hello\"\\path\r\n" + "Triple quote: \"\"\"";
+    public void QuotesInTextAreDoubledForAVerbatimLiteral() {
+        string source = TemplateSourceGenerator.GenerateTemplateSource("Quote: \"Hello\"\\path");
 
-        TestContext context = CompileAndRun(template);
-
-        Assert.That(context.Output, Is.EqualTo(template));
+        Assert.That(source, Does.Contain("ctx.WriteRaw(@\"Quote: \"\"Hello\"\"\\path\");"));
     }
 
     [Test]
-    public void CodeBlocksExecuteBetweenText() {
-        TestContext context = CompileAndRun("before<% ctx.Write(\"middle\"); %>after");
+    public void NewlinesInTextArePreserved() {
+        string source = TemplateSourceGenerator.GenerateTemplateSource("first\r\nsecond");
 
-        Assert.That(context.Output, Is.EqualTo("beforemiddleafter"));
+        Assert.That(source, Does.Contain("@\"first\r\nsecond\""));
     }
 
-    private static TestContext CompileAndRun(string template) {
-        string source = TemplateSourceGenerator.GenerateTemplateSource(template);
-        using MemoryStream assembly = new();
-        EmitResult result = TemplateCompiler.Compile(source, assembly);
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    [Test]
+    public void CodeBlocksAreCopiedVerbatimBetweenText() {
+        string source = TemplateSourceGenerator.GenerateTemplateSource("before<% ctx.Write(\"middle\"); %>after");
 
-        assembly.Position = 0;
-        TestContext context = new();
-        TemplateCompiler.Run(assembly, context);
-        return context;
+        Assert.That(source, Does.Contain("ctx.WriteRaw(@\"before\");"));
+        Assert.That(source, Does.Contain("ctx.Write(\"middle\");"));
+        Assert.That(source, Does.Contain("ctx.WriteRaw(@\"after\");"));
     }
 
-    private sealed class TestContext : IContext {
-        private readonly StringBuilder _output = new();
+    [Test]
+    public void GeneratedSourceDeclaresAHandler() {
+        string source = TemplateSourceGenerator.GenerateTemplateSource("");
 
-        public string Path => "test";
-
-        public string Output => _output.ToString();
-
-        public void Log(string message) { }
-
-        public void WriteRaw(string message) {
-            _output.Append(message);
-        }
-
-        public void Write(string message) {
-            _output.Append(message);
-        }
+        Assert.That(source, Does.Contain("using uk.osric.asp.Core;"));
+        Assert.That(source, Does.Contain("class GeneratedPage : IHandler"));
+        Assert.That(source, Does.Contain("void Handle(IContext ctx)"));
     }
 }

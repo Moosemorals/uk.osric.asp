@@ -6,6 +6,7 @@ SPDX-License-Identifier: MIT
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/uk.osric.asp.Core/uk.osric.asp.Core.csproj" />
+    <Project Path="src/uk.osric.asp.Runtime/uk.osric.asp.Runtime.csproj" />
     <Project Path="src/uk.osric.asp.Web/uk.osric.asp.Web.csproj" />
   </Folder>
   <Folder Name="/test/">

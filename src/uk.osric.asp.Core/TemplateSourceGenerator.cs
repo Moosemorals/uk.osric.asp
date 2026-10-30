@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Core;
 
-using Microsoft.CodeAnalysis.CSharp;
 using System.Text;
 
 public static class TemplateSourceGenerator {
@@ -21,9 +20,8 @@ public static class TemplateSourceGenerator {
         foreach (Token token in TemplateTokenizer.Tokenize(template)) {
             switch (token.Type) {
                 case TokenType.Text: {
-                        string literal = SyntaxFactory.Literal(token.Value).ToString();
                         result.Append("ctx.WriteRaw(");
-                        result.Append(literal);
+                        result.Append(ToCSharpLiteral(token.Value));
                         result.Append(");");
 
                         break;
@@ -38,5 +36,11 @@ public static class TemplateSourceGenerator {
         result.Append("}}");
 
         return result.ToString();
+    }
+
+    // A verbatim literal keeps newlines, quotes and backslashes legible in the generated source, and
+    // doubling a quote is the only escape it needs. That keeps Core free of Roslyn.
+    private static string ToCSharpLiteral(string value) {
+        return $"@\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
     }
 }
