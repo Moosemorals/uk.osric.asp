@@ -15,19 +15,19 @@ public sealed class MainEndpointTests {
     [TestCase("")]
     [TestCase("missing.cs")]
     public async Task MissingPageReturnsNotFoundAsync(string? path) {
-        DefaultHttpContext context = CreateContext(path);
+        DefaultHttpContext context = TestHttp.CreateContext(path);
         PageStorage storage = new(null);
 
         await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
-        Assert.That(await ReadBodyAsync(context), Is.EqualTo("File not found."));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("File not found."));
         Assert.That(storage.ReadPath, Is.EqualTo(string.IsNullOrEmpty(path) ? null : path));
     }
 
     [Test]
     public async Task StoredHandlerIsCompiledAndExecutedAsync() {
-        DefaultHttpContext context = CreateContext("pages/hello.cs");
+        DefaultHttpContext context = TestHttp.CreateContext("pages/hello.cs");
         PageStorage storage = new("<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
         TargetInvocationException? failure = Assert.ThrowsAsync<TargetInvocationException>(async () =>
@@ -36,35 +36,35 @@ public sealed class MainEndpointTests {
         Assert.That(failure?.InnerException, Is.TypeOf<InvalidOperationException>());
         Assert.That(failure?.InnerException?.Message, Is.EqualTo("Template executed."));
         Assert.That(storage.ReadPath, Is.EqualTo("pages/hello.cs"));
-        Assert.That(await ReadBodyAsync(context), Is.Empty);
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
     }
 
     [Test]
     public async Task SuccessfulTemplateIsRenderedAsync() {
-        DefaultHttpContext context = CreateContext("hello.cs");
+        DefaultHttpContext context = TestHttp.CreateContext("hello.cs");
         PageStorage storage = new("Hello, <% ctx.Write(\"world\"); %>!");
 
         await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
-        Assert.That(await ReadBodyAsync(context), Is.EqualTo("Hello, world!"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("Hello, world!"));
     }
 
     [Test]
     public async Task InvalidStoredSourceReturnsCompilationErrorAsync() {
-        DefaultHttpContext context = CreateContext("broken.cs");
+        DefaultHttpContext context = TestHttp.CreateContext("broken.cs");
         PageStorage storage = new("<% int value = ; %>");
 
         await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(500));
-        Assert.That(await ReadBodyAsync(context), Does.Contain("Handler failed to compile.").And.Contain("error CS"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("Handler failed to compile.").And.Contain("error CS"));
     }
 
     [Test]
     public void StorageFailurePropagatesAsync() {
-        DefaultHttpContext context = CreateContext("hello.cs");
+        DefaultHttpContext context = TestHttp.CreateContext("hello.cs");
         PageStorage storage = new(null) { Failure = new InvalidOperationException("Storage unavailable.") };
 
         Assert.That(async () => await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance),
@@ -73,7 +73,7 @@ public sealed class MainEndpointTests {
 
     [Test]
     public void RequestCancellationIsForwardedAsync() {
-        DefaultHttpContext context = CreateContext("hello.cs");
+        DefaultHttpContext context = TestHttp.CreateContext("hello.cs");
         using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
         context.RequestAborted = cancellation.Token;
@@ -83,19 +83,6 @@ public sealed class MainEndpointTests {
             Throws.InstanceOf<OperationCanceledException>());
 
         Assert.That(storage.LastCancellationToken, Is.EqualTo(cancellation.Token));
-    }
-
-    private static DefaultHttpContext CreateContext(string? path) {
-        DefaultHttpContext context = new();
-        context.Request.RouteValues["path"] = path;
-        context.Response.Body = new MemoryStream();
-        return context;
-    }
-
-    private static async Task<string> ReadBodyAsync(DefaultHttpContext context) {
-        context.Response.Body.Position = 0;
-        using StreamReader reader = new(context.Response.Body, leaveOpen: true);
-        return await reader.ReadToEndAsync();
     }
 
     private sealed class PageStorage(string? content) : IStorage {

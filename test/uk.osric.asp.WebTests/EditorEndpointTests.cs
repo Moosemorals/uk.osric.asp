@@ -22,7 +22,7 @@ public sealed class EditorEndpointTests {
 
         await EditorEndpoint.Handler(context, storage);
 
-        string body = await ReadBodyAsync(context);
+        string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
         Assert.That(body, Does.Contain($"<textarea name=\"content\" rows=\"10\" cols=\"50\">{WebUtility.HtmlEncode(source)}</textarea>"));
@@ -38,7 +38,7 @@ public sealed class EditorEndpointTests {
         await EditorEndpoint.Handler(context, storage);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
-        Assert.That(await ReadBodyAsync(context), Does.Contain("cols=\"50\"></textarea>"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("cols=\"50\"></textarea>"));
     }
 
     [TestCase(null)]
@@ -61,7 +61,7 @@ public sealed class EditorEndpointTests {
 
         await EditorEndpoint.Handler(context, new RecordingStorage());
 
-        string body = await ReadBodyAsync(context);
+        string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("Editing &lt;page&gt;&amp;"));
         Assert.That(body, Does.Contain("<p>&lt;script&gt;saved&lt;/script&gt;</p>"));
         Assert.That(context.Response.Headers.SetCookie.ToString(), Does.Contain("message=;"));
@@ -91,7 +91,7 @@ public sealed class EditorEndpointTests {
         Assert.That(storage.Content, Is.EqualTo(source));
         Assert.That(storage.ReadCount, Is.Zero);
         AssertRedirect(context, "Saved successfully.");
-        Assert.That(await ReadBodyAsync(context), Is.Empty);
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
     }
 
     [TestCase(null)]
@@ -149,7 +149,7 @@ public sealed class EditorEndpointTests {
 
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
         Assert.That(context.Response.Headers.Location, Is.Empty);
-        Assert.That(await ReadBodyAsync(context), Is.Empty);
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
     }
 
     [TestCase("GET")]
@@ -189,22 +189,11 @@ public sealed class EditorEndpointTests {
     }
 
     private static DefaultHttpContext CreateContext(string method = "GET", string? path = "page.cs") {
-        DefaultHttpContext context = new();
-        context.Request.Method = method;
-        context.Request.Path = "/edit/page.cs";
-        context.Request.RouteValues["path"] = path;
-        context.Response.Body = new MemoryStream();
-        return context;
+        return TestHttp.CreateContext(path, method, "/edit/page.cs");
     }
 
     private static void SetContent(DefaultHttpContext context, StringValues content) {
         context.Request.Form = new FormCollection(new Dictionary<string, StringValues> { ["content"] = content });
-    }
-
-    private static async Task<string> ReadBodyAsync(DefaultHttpContext context) {
-        context.Response.Body.Position = 0;
-        using StreamReader reader = new(context.Response.Body, leaveOpen: true);
-        return await reader.ReadToEndAsync();
     }
 
     private static void AssertRedirect(DefaultHttpContext context, string message) {
