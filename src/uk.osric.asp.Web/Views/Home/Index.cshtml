@@ -1,10 +1,15 @@
-@* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> *@
-@* SPDX-License-Identifier: MIT *@
+@* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+   SPDX-License-Identifier: MIT *@
+   
+@model uk.osric.asp.Core.IContext
 
-@model uk.osric.asp.Core.Greeting
-
-@{
-    ViewData["Title"] = Model.Text;
+@if (Model.BuildResult?.Success == true) {
+    <p>Compilation succeeded!</p>
+} else {
+    <p>Compilation failed.</p>
+    <ul>
+        @foreach (var diagnostic in Model.BuildResult?.Diagnostics ?? []) {
+            <li>@diagnostic</li>
+        }
+    </ul>
 }
-
-<h1>@Model.Text</h1>
