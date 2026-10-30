@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
 # Replace example.com with your domain, and set the email for ACME notices.
 {
 	email admin@example.com

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
 root = true
 
 # Only directives that differ from the .NET/EditorConfig defaults are listed.
@@ -11,6 +14,11 @@ indent_style = space
 # C# files
 [*.cs]
 indent_size = 4
+
+#### File headers ####
+# Every C# file must start with these two lines (SPDX tags, enforced by IDE0073).
+file_header_template = SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>\nSPDX-License-Identifier: MIT
+dotnet_diagnostic.IDE0073.severity = warning
 
 #### Using directives ####
 # One alphabetically sorted group, with no special treatment for System.*
@@ -132,3 +140,8 @@ dotnet_naming_style._camelcase.capitalization = camel_case
 dotnet_naming_style.camelcase.capitalization = camel_case
 dotnet_naming_style.s_camelcase.required_prefix = s_
 dotnet_naming_style.s_camelcase.capitalization = camel_case
+
+#### Generated code ####
+# Reqnroll writes this file next to each .feature; its header is not ours to add.
+[**/*.feature.cs]
+generated_code = true

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
 # uk.osric.asp — task runner. Run `make help` for the menu.
 #
 # Everything a build produces lives under artifacts/ (UseArtifactsOutput), including the stamps that
@@ -64,7 +67,7 @@ BUILD_INPUTS := $(shell find src test -type f -not -name '*.feature.cs' 2>/dev/n
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore test test-unit test-spec e2e run publish image deploy format format-check clean
+.PHONY: help build restore test test-unit test-spec e2e run publish image deploy format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -83,6 +86,7 @@ help:
 		'deploy             Build, push to $(REGISTRY) and restart on HOST=deploy@server.' \
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
+		'license-check      Fail if the tree is not REUSE compliant (needs the reuse tool).' \
 		'clean              Delete the artifacts folder.' \
 		'help               Show this list.'
 
@@ -147,6 +151,10 @@ format:
 
 format-check:
 	$(DOTNET) format $(SOLUTION) --verify-no-changes
+
+# Needs the `reuse` tool (apt install reuse, or pipx install reuse).
+license-check:
+	reuse lint
 
 clean:
 	rm -rf $(ARTIFACTS)

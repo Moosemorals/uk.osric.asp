@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+SPDX-License-Identifier: MIT
+-->
+
 # Testing
 
 Work test-first. Write the failing test, make it pass, then refactor — the refactor step is where the

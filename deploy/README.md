@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+SPDX-License-Identifier: MIT
+-->
+
 # Deployment
 
 The app ships as an OCI image built by the SDK itself (`dotnet publish -t:PublishContainer`) and runs

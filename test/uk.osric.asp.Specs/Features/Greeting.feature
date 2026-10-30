@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
 Feature: Greeting a visitor
   As the owner of this site
   I want visitors to be greeted by name when they give one

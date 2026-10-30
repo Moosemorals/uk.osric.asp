@@ -1,4 +1,7 @@
 #cloud-config
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
 # Debian 13 (trixie) bootstrap for the Hetzner Cloud VM.
 # Paste this into the server's user-data (or use `hcloud server create --user-data-from-file`).
 # It prepares the host only: the app runs rootless as the deploy user, Caddy runs rootful as the

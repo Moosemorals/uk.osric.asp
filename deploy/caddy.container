@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
 [Unit]
 Description=Caddy reverse proxy
 Wants=network-online.target

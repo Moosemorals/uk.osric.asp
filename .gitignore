@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
 # Build output. The artifacts layout puts every project's bin/obj under artifacts/;
 # the plain patterns cover a build that bypasses Directory.Build.props.
 artifacts/

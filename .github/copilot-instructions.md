@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+SPDX-License-Identifier: MIT
+-->
+
 # Copilot Instructions
 
 ## Repository status
@@ -31,6 +36,7 @@ The `Makefile` is the task runner; use it instead of inventing parallel scripts.
 - Tests: `make test` (unit + specifications), `make test-unit`, `make test-spec`, `make e2e`
 - Run the site: `make run`
 - Format: `make format`; verify: `make format-check`
+- Licence headers: `make license-check` (REUSE, needs the `reuse` tool)
 - Clean (deletes `artifacts/`): `make clean`
 - NuGet restore: automatic — `build` restores only when `global.json`, the solution, `Directory.*`
   files, a `.csproj`, or a NuGet config is newer than `artifacts/restore.stamp`. Use `make restore`

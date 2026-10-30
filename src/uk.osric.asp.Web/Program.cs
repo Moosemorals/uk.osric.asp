@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+// SPDX-License-Identifier: MIT
+
 namespace uk.osric.asp.Web;
 
 /// <summary>Imperative shell: wires the web host to the functional core.</summary>
