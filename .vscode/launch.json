@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ASP.NET Core: uk.osric.asp.Web",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/artifacts/bin/uk.osric.asp.Web/debug/uk.osric.asp.Web.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/uk.osric.asp.Web",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    }
+  ]
+}

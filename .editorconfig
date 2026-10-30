@@ -54,6 +54,13 @@ csharp_new_line_before_else = false
 csharp_new_line_before_catch = false
 csharp_new_line_before_finally = false
 
+# Razor files
+[*.cshtml]
+csharp_new_line_before_open_brace = none
+csharp_new_line_before_else = false
+csharp_new_line_before_catch = false
+csharp_new_line_before_finally = false
+
 #### Naming ####
 # Rules
 dotnet_naming_rule.types_and_namespaces_should_be_pascalcase = types_and_namespaces:pascalcase

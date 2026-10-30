@@ -7,6 +7,12 @@ artifacts/
 [Bb]in/
 [Oo]bj/
 
+# Keep shared VS Code configs; ignore personal workspace settings.
+/.vscode/*
+!/.vscode/launch.json
+!/.vscode/tasks.json
+!/.vscode/extensions.json
+
 # Reqnroll generated code-behind
 *.feature.cs
 
