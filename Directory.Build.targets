@@ -1,0 +1,21 @@
+<Project>
+
+  <!--
+    Test projects are recognised by name suffix so none of them repeats test settings.
+  -->
+  <PropertyGroup>
+    <IsTestProject Condition="$(MSBuildProjectName.EndsWith('.UnitTests')) Or $(MSBuildProjectName.EndsWith('.Specs')) Or $(MSBuildProjectName.EndsWith('.EndToEnd'))">true</IsTestProject>
+  </PropertyGroup>
+
+  <!--
+    The repository root is embedded in test assemblies so tests can locate the web app
+    without depending on the working directory they happen to be run from.
+  -->
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>RepoRoot</_Parameter1>
+      <_Parameter2>$(RepoRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>
