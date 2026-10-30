@@ -4,13 +4,12 @@
 namespace uk.osric.asp.Web;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Emit;
 using uk.osric.asp.Core;
 
 public sealed class MainEndpoint() {
 
-    public static async Task Handle(HttpContext context, IStorage storage) {
-        
-
+    public static async Task Handle(HttpContext context, IStorage storage, ILogger<MainEndpoint> logger) {
         string path = context.Request.RouteValues["path"] as string ?? "";
 
         string? content = !string.IsNullOrEmpty(path) ? await storage.GetFileContentsAsync(path, context.RequestAborted) : null;
@@ -20,27 +19,29 @@ public sealed class MainEndpoint() {
             return;
         }
 
+        string templateSource = TemplateSourceGenerator.GenerateTemplateSource(content);
+        StringWriter output = new();
 
-        IContext ctx = new SimpleContext();
+
+        IContext ctx = new SimpleContext(logger, output, path);
 
         MemoryStream assemblyStream = new();
-        ctx.BuildResult = TemplateCompiler.Compile(content, assemblyStream);
+        EmitResult buildResult = TemplateCompiler.Compile(templateSource, assemblyStream);
 
-        if (ctx.BuildResult.Success) {
+        if (buildResult.Success) {
             assemblyStream.Seek(0, SeekOrigin.Begin);
-            TemplateCompiler.Run(assemblyStream, ctx);
 
             context.Response.ContentType = "text/html; charset=utf-8";
             context.Response.StatusCode = 200;
-            await context.Response.WriteAsync(Framework.GetHeader("Main"));
-            await context.Response.WriteAsync("<h1>Handler executed successfully.</h1>");
-            await context.Response.WriteAsync(Framework.GetFooter());
+
+            TemplateCompiler.Run(assemblyStream, ctx);
+            await context.Response.WriteAsync(output.ToString());
         } else {
             context.Response.ContentType = "text/html; charset=utf-8";
             context.Response.StatusCode = 500;
             await context.Response.WriteAsync(Framework.GetHeader("Main - Error"));
             await context.Response.WriteAsync("Handler failed to compile.");
-            foreach (Diagnostic diagnostic in ctx.BuildResult.Diagnostics) {
+            foreach (Diagnostic diagnostic in buildResult.Diagnostics) {
                 await context.Response.WriteAsync(diagnostic.ToString() + "\n");
             }
             await context.Response.WriteAsync(Framework.GetFooter());

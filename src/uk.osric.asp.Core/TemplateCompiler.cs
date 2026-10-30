@@ -14,11 +14,14 @@ using System.Runtime.Loader;
 /// <summary>Compiles C# source code into dynamically linked libraries.</summary>
 public static class TemplateCompiler {
     private static MetadataReference[] GetMetadataReferences() {
+        List<string> metadataPaths = [typeof(IHandler).Assembly.Location];
         if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string tpa) {
-            return [.. tpa.Split(Path.PathSeparator).Select(p => MetadataReference.CreateFromFile(p))];
+            metadataPaths.AddRange(tpa.Split(Path.PathSeparator));
         } else {
             return [];
         }
+
+        return [.. metadataPaths.Select(p => MetadataReference.CreateFromFile(p))];
     }
 
     /// <summary>Compiles C# source code into a dynamically linked library.</summary>

@@ -4,6 +4,7 @@
 namespace uk.osric.asp.WebTests;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using System.Reflection;
 using uk.osric.asp.Web;
@@ -17,7 +18,7 @@ public sealed class MainEndpointTests {
         DefaultHttpContext context = CreateContext(path);
         PageStorage storage = new(null);
 
-        await MainEndpoint.Handle(context, storage);
+        await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
         Assert.That(await ReadBodyAsync(context), Is.EqualTo("File not found."));
@@ -27,58 +28,38 @@ public sealed class MainEndpointTests {
     [Test]
     public async Task StoredHandlerIsCompiledAndExecutedAsync() {
         DefaultHttpContext context = CreateContext("pages/hello.cs");
-        PageStorage storage = new("""
-            using uk.osric.asp.Core;
-            public sealed class Page : IHandler {
-                public void Handle(IContext context) {
-                    throw new System.InvalidOperationException("Stored handler executed.");
-                }
-            }
-            """);
+        PageStorage storage = new("<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
-        TargetInvocationException? failure = Assert.ThrowsAsync<TargetInvocationException>(async () => await MainEndpoint.Handle(context, storage));
+        TargetInvocationException? failure = Assert.ThrowsAsync<TargetInvocationException>(async () =>
+            await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance));
 
         Assert.That(failure?.InnerException, Is.TypeOf<InvalidOperationException>());
-        Assert.That(failure?.InnerException?.Message, Is.EqualTo("Stored handler executed."));
+        Assert.That(failure?.InnerException?.Message, Is.EqualTo("Template executed."));
         Assert.That(storage.ReadPath, Is.EqualTo("pages/hello.cs"));
         Assert.That(await ReadBodyAsync(context), Is.Empty);
     }
 
     [Test]
-    public async Task SuccessfulStoredHandlerReturnsSuccessPageAsync() {
+    public async Task SuccessfulTemplateIsRenderedAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
-        PageStorage storage = new("""
-            using uk.osric.asp.Core;
-            public sealed class Page : IHandler {
-                public void Handle(IContext context) { }
-            }
-            """);
+        PageStorage storage = new("Hello, <% ctx.Write(\"world\"); %>!");
 
-        await MainEndpoint.Handle(context, storage);
+        await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
-        Assert.That(await ReadBodyAsync(context), Does.Contain("Handler executed successfully."));
+        Assert.That(await ReadBodyAsync(context), Is.EqualTo("Hello, world!"));
     }
 
     [Test]
     public async Task InvalidStoredSourceReturnsCompilationErrorAsync() {
         DefaultHttpContext context = CreateContext("broken.cs");
-        PageStorage storage = new("public class Broken {");
+        PageStorage storage = new("<% int value = ; %>");
 
-        await MainEndpoint.Handle(context, storage);
+        await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(500));
-        Assert.That(await ReadBodyAsync(context), Does.Contain("Handler failed to compile.").And.Contain("CS1513"));
-    }
-
-    [Test]
-    public void CompiledSourceWithoutHandlerPropagatesFailureAsync() {
-        DefaultHttpContext context = CreateContext("no-handler.cs");
-        PageStorage storage = new("public class NotAHandler { }");
-
-        Assert.That(async () => await MainEndpoint.Handle(context, storage),
-            Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("No handler found in the assembly."));
+        Assert.That(await ReadBodyAsync(context), Does.Contain("Handler failed to compile.").And.Contain("error CS"));
     }
 
     [Test]
@@ -86,7 +67,7 @@ public sealed class MainEndpointTests {
         DefaultHttpContext context = CreateContext("hello.cs");
         PageStorage storage = new(null) { Failure = new InvalidOperationException("Storage unavailable.") };
 
-        Assert.That(async () => await MainEndpoint.Handle(context, storage),
+        Assert.That(async () => await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance),
             Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Storage unavailable."));
     }
 
@@ -98,7 +79,8 @@ public sealed class MainEndpointTests {
         context.RequestAborted = cancellation.Token;
         PageStorage storage = new(null);
 
-        Assert.That(async () => await MainEndpoint.Handle(context, storage), Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(async () => await MainEndpoint.Handle(context, storage, NullLogger<MainEndpoint>.Instance),
+            Throws.InstanceOf<OperationCanceledException>());
 
         Assert.That(storage.LastCancellationToken, Is.EqualTo(cancellation.Token));
     }

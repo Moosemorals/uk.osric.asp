@@ -51,7 +51,8 @@ public sealed class EditorEndpoint {
             await context.Response.WriteAsync(Framework.GetHeader("Editor"));
             await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path)}</h1>");
             await context.Response.WriteAsync($"""
-            {(!string.IsNullOrEmpty(message) ? $"<p>{WebUtility.HtmlEncode(message)}</p>" : "")}    
+            {(!string.IsNullOrEmpty(message) ? $"<p>{WebUtility.HtmlEncode(message)}</p>" : "")}
+            <p><a href="/{WebUtility.HtmlEncode(path)}">Back to file</a></p>
             <form method="post" action="?">
                 <textarea name="content" rows="10" cols="50">{WebUtility.HtmlEncode(content ?? "")}</textarea>
                 <br>

@@ -3,13 +3,21 @@
 
 namespace uk.osric.asp.Web;
 
-using Microsoft.CodeAnalysis.Emit;
 using uk.osric.asp.Core;
 
-public class SimpleContext : IContext {
-    public EmitResult? BuildResult { get; set; }
+public class SimpleContext(ILogger logger, TextWriter writer, string path) : IContext {
+
+    public string Path => path;
 
     public void Log(string message) {
-        Console.WriteLine(message);
+        logger.LogInformation("Path: {Path} - {Message}", path, message);
+    }
+
+    public void Write(string message) {
+        writer.Write(System.Net.WebUtility.HtmlEncode(message));
+    }
+
+    public void WriteRaw(string message) {
+        writer.Write(message);
     }
 }
