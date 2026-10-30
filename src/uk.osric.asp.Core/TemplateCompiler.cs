@@ -12,7 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 
 /// <summary>Compiles C# source code into dynamically linked libraries.</summary>
-public static class Compiler {
+public static class TemplateCompiler {
     private static MetadataReference[] GetMetadataReferences() {
         if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string tpa) {
             return [.. tpa.Split(Path.PathSeparator).Select(p => MetadataReference.CreateFromFile(p))];

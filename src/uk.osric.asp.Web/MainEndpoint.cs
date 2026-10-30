@@ -24,11 +24,11 @@ public sealed class MainEndpoint() {
         IContext ctx = new SimpleContext();
 
         MemoryStream assemblyStream = new();
-        ctx.BuildResult = Compiler.Compile(content, assemblyStream);
+        ctx.BuildResult = TemplateCompiler.Compile(content, assemblyStream);
 
         if (ctx.BuildResult.Success) {
             assemblyStream.Seek(0, SeekOrigin.Begin);
-            Compiler.Run(assemblyStream, ctx);
+            TemplateCompiler.Run(assemblyStream, ctx);
 
             context.Response.ContentType = "text/html; charset=utf-8";
             context.Response.StatusCode = 200;

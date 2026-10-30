@@ -20,7 +20,7 @@ public sealed class CompilerSteps {
     [When("the source is compiled")]
     public void WhenTheSourceIsCompiled() {
         using MemoryStream assembly = new();
-        _compilationSucceeded = Compiler.Compile(_source, assembly).Success;
+        _compilationSucceeded = TemplateCompiler.Compile(_source, assembly).Success;
     }
 
     [Then("the compilation succeeds")]
