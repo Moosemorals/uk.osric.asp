@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web;
 
 public interface IStorage {
-    Task<IEnumerable<string>> ListFilesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> ListFilesAsync(CancellationToken cancellationToken = default);
 
     Task<string?> GetFileContentsAsync(string path, CancellationToken cancellationToken = default);
 

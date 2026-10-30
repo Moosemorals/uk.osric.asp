@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.Storage;
 using Microsoft.EntityFrameworkCore;
 
 public sealed class SqliteStorage(StorageDbContext database) : IStorage {
-    public async Task<IEnumerable<string>> ListFilesAsync(CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<string>> ListFilesAsync(CancellationToken cancellationToken = default) {
         return await database.Set<StoredFile>().AsNoTracking()
             .Select(file => file.Path).ToListAsync(cancellationToken);
     }

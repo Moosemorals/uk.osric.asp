@@ -211,7 +211,7 @@ public sealed class EditorEndpointTests {
         public Exception? Failure { get; init; }
         public CancellationToken LastCancellationToken { get; private set; }
 
-        public Task<IEnumerable<string>> ListFilesAsync(CancellationToken cancellationToken = default) {
+        public Task<IReadOnlyList<string>> ListFilesAsync(CancellationToken cancellationToken = default) {
             throw new NotSupportedException();
         }
 
