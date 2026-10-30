@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="../uk.osric.asp.Core/uk.osric.asp.Core.csproj" />
+  </ItemGroup>
+
+</Project>
