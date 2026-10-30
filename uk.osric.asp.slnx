@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/uk.osric.asp.Core/uk.osric.asp.Core.csproj" />
+    <Project Path="src/uk.osric.asp.Web/uk.osric.asp.Web.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/uk.osric.asp.EndToEnd/uk.osric.asp.EndToEnd.csproj" />
+    <Project Path="test/uk.osric.asp.Specs/uk.osric.asp.Specs.csproj" />
+    <Project Path="test/uk.osric.asp.UnitTests/uk.osric.asp.UnitTests.csproj" />
+  </Folder>
+</Solution>
