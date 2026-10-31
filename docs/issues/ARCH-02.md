@@ -42,5 +42,5 @@ means rewriting pages, so the decision is urgent even if the implementation is n
    throwing page does not emit half a document — document the choice).
 5. Version the contract: add `IPageRequest`/`IPageResponse`-style records in `Core`, and keep
    `IContext` as the facade so existing pages keep compiling.
-6. Cover the new surface with integration tests (ARCH-08), because this is exactly the seam that is
-   currently untested.
+6. Cover the new surface with integration tests (`test/uk.osric.asp.Web.IntegrationTests`), because
+   this is exactly the seam that only a running host exercises.

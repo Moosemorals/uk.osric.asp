@@ -52,8 +52,9 @@ This is source storage: `MainEndpoint` reads a page's source by route path, comp
 and `EditorEndpoint` writes it back. Pure rules still receive the values loaded by the shell rather
 than being given `IStorage`.
 
-`make test-web` runs the Web storage tests and is included in `make test`. Schema changes are
-scaffolded with `make migration NAME=...` using the pinned local EF tool into the Web project's
+`make test-web` runs the Web storage tests, and `make test-integration` runs the same storage through
+the real host; both are included in `make test`. Schema changes are scaffolded with
+`make migration NAME=...` using the pinned local EF tool into the Web project's
 `Storage/Migrations` directory. Back up the database before deploying startup migrations; see
 [deployment storage and backup guidance](../deploy/README.md#storage-and-migrations).
 

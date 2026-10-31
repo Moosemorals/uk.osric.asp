@@ -95,7 +95,8 @@ The target restores the repository's pinned local `dotnet-ef` tool (10.0.14), bu
 Makefile target, and writes migration sources to the Web project's `Storage/Migrations` directory.
 EF 10 reads the evaluated MSBuild output paths, including `artifacts/obj/uk.osric.asp.Web/`; the old
 `--msbuildprojectextensionspath` override is not needed. Commit and review the generated migration
-with the model change. `make test` includes the Web storage tests as well as the core and runtime tests.
+with the model change. `make test` includes the Web storage and integration tests as well as the core
+and runtime tests.
 
 ### Backups
 

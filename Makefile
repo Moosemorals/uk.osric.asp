@@ -26,6 +26,7 @@ WEB_PROJECT := src/uk.osric.asp.Web/uk.osric.asp.Web.csproj
 CORE_TESTS := test/uk.osric.asp.Core.Tests/uk.osric.asp.Core.Tests.csproj
 RUNTIME_TESTS := test/uk.osric.asp.Runtime.Tests/uk.osric.asp.Runtime.Tests.csproj
 WEB_TESTS := test/uk.osric.asp.Web.Tests/uk.osric.asp.Web.Tests.csproj
+INTEGRATION_TESTS := test/uk.osric.asp.Web.IntegrationTests/uk.osric.asp.Web.IntegrationTests.csproj
 
 # ---- Container image and deployment --------------------------------------------------------------
 #
@@ -70,7 +71,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore test test-core test-runtime test-web migration run publish image deploy format format-check license-check clean
+.PHONY: help build restore test test-core test-runtime test-web test-integration migration run publish image deploy format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -79,10 +80,11 @@ help:
 	@printf '%s\n' \
 		'build              Build the solution when anything changed (default target).' \
 		'restore            Force a NuGet restore (build restores only when inputs change).' \
-		'test               Run the core, runtime and web tests (no browser required).' \
+		'test               Run every suite: core, runtime, web and integration (no browser required).' \
 		'test-core          Run the NUnit core tests only.' \
 		'test-runtime       Run the NUnit runtime tests only.' \
 		'test-web           Run the NUnit web shell and storage tests only.' \
+		'test-integration   Run the composed pipeline tests against a throwaway database.' \
 		'migration          Add a storage migration with NAME=... (restores local dotnet-ef).' \
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
@@ -111,7 +113,7 @@ $(BUILD_STAMP): $(BUILD_INPUTS) $(RESTORE_STAMP)
 	@mkdir -p $(dir $@)
 	@touch $@
 
-test: test-core test-runtime test-web
+test: test-core test-runtime test-web test-integration
 
 test-core: build
 	$(DOTNET) test $(CORE_TESTS) -c $(CONFIGURATION) --no-build
@@ -121,6 +123,11 @@ test-runtime: build
 
 test-web: build
 	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build
+
+# The host is real: routing, middleware order, exception handling and startup migrations. Slower
+# than the other suites, which is why it has its own target rather than living in the unit tests.
+test-integration: build
+	$(DOTNET) test $(INTEGRATION_TESTS) -c $(CONFIGURATION) --no-build
 
 migration:
 	@test -n "$(strip $(NAME))" || { echo "usage: make migration NAME=MigrationName"; exit 1; }

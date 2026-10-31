@@ -21,7 +21,6 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 | [ARCH-05](ARCH-05.md) | Medium | Storage keys are raw route values with no canonical path rule |
 | [ARCH-06](ARCH-06.md) | Medium | There is no way to list pages |
 | [ARCH-07](ARCH-07.md) | Medium | Page content has no history, so an edit cannot be undone |
-| [ARCH-08](ARCH-08.md) | High | The shell seam (routing, middleware, error handling) has no integration tests |
 | [PERF-01](PERF-01.md) | High | Every request compiles the page from source; nothing is cached |
 | [BUG-05](BUG-05.md) | Medium | Compile errors point at generated source line numbers, not the template |
 | [BUG-06](BUG-06.md) | Medium | An unterminated code block produces a generic 500 |
@@ -40,20 +39,20 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 
 1. SEC-01, SEC-02 — close the trust boundary before anything else. If authentication is added,
    data-protection keys must be persisted (see `deploy/README.md`).
-2. ARCH-08 — write integration tests for the shell seam (routing, middleware, error handling).
-3. OPS-01 — make HTTPS, HSTS and absolute URLs correct behind the proxy.
-4. ARCH-02 — settle the page runtime API before content depends on it.
-5. PERF-01 — stop compiling every page on every request.
-6. ARCH-05, ARCH-06, ARCH-07 — canonical paths, a page index and revision history.
-7. OPS-03, BUG-12, STYLE-03, STYLE-04 — hygiene, so the next review starts from an accurate
+2. OPS-01 — make HTTPS, HSTS and absolute URLs correct behind the proxy.
+3. ARCH-02 — settle the page runtime API before content depends on it.
+4. PERF-01 — stop compiling every page on every request.
+5. ARCH-05, ARCH-06, ARCH-07 — canonical paths, a page index and revision history.
+6. OPS-03, BUG-12, STYLE-03, STYLE-04 — hygiene, so the next review starts from an accurate
    baseline.
 
 ## Closed
 
-Resolved by the code-health scan of 2026-10-30; the files were deleted and their history is in git.
+Resolved since the review; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| ARCH-08 | `test/uk.osric.asp.Web.IntegrationTests` drives the real host through `WebApplicationFactory<Program>` against a throwaway database: routing, middleware, the error branch, static files, startup migrations and the editor round-trip; `make test-integration` is part of `make test`. The 401/403 cases wait for SEC-01 |
 | ARCH-09 | The `Specs` suite only restated `TemplateCompiler` unit tests, so it was deleted with Reqnroll; the compiler stays covered by `Runtime.Tests` |
 | BUG-01 | `UseExceptionHandler` now uses an inline branch, so a throwing `POST` returns 500 |
 | BUG-02 | `ErrorEndpoint` sets 500 itself; `/error` is no longer a public route (direct request is a 404) |

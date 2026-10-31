@@ -8,8 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using uk.osric.asp.Web.Endpoints;
 using uk.osric.asp.Web.Storage;
 
+// Not static: WebApplicationFactory<Program> needs a type to name when it looks for the entry point.
 /// <summary>Imperative shell: wires the web host to the functional core.</summary>
-public static class Program {
+public class Program {
     public static async Task Main(string[] args) {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
         string connectionString = builder.Configuration.GetConnectionString("Storage")

@@ -18,6 +18,7 @@ src/uk.osric.asp.Web       imperative shell: endpoints, hosting, storage, config
 test/uk.osric.asp.Core.Tests     NUnit, tests the core directly
 test/uk.osric.asp.Runtime.Tests  NUnit, tests the compiler and assembly loading
 test/uk.osric.asp.Web.Tests      NUnit, tests the endpoints and storage
+test/uk.osric.asp.Web.IntegrationTests  NUnit, tests the composed pipeline through the real host
 docs/                        architecture and testing notes
 ```
 
@@ -38,7 +39,8 @@ The `Makefile` is the task runner; use it instead of inventing parallel scripts.
 
 - Build (default target): `make build` — only runs MSBuild when a source, project, or build file
   changed since the last build (stamp in `artifacts/`). Use `make -B build` to force a rebuild.
-- Tests: `make test` (core + runtime + web), `make test-core`, `make test-runtime`, `make test-web`
+- Tests: `make test` (core + runtime + web + integration), `make test-core`, `make test-runtime`,
+  `make test-web`, `make test-integration`
 - Run the site: `make run`
 - Format: `make format`; verify: `make format-check`
 - Licence headers: `make license-check` (REUSE, needs the `reuse` tool)

@@ -30,5 +30,6 @@ project's "`Async` suffix on asynchronous methods".
 1. Convert the `void` tests to `public async Task ...Async()` and use
    `Assert.ThrowsAsync<T>(async () => await ...)`.
 2. Rename or convert `CancelledOperationsThrowAsync` so the name and signature agree.
-3. Apply the same shape to any new tests (and to the integration tests in ARCH-08) for consistency.
+3. Apply the same shape to any new tests, including the integration suite in
+   `test/uk.osric.asp.Web.IntegrationTests`.
 4. Add an NUnit analyzer rule or a review checklist item if the pattern recurs.

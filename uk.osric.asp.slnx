@@ -12,6 +12,7 @@ SPDX-License-Identifier: MIT
   <Folder Name="/test/">
     <Project Path="test/uk.osric.asp.Core.Tests/uk.osric.asp.Core.Tests.csproj" />
     <Project Path="test/uk.osric.asp.Runtime.Tests/uk.osric.asp.Runtime.Tests.csproj" />
+    <Project Path="test/uk.osric.asp.Web.IntegrationTests/uk.osric.asp.Web.IntegrationTests.csproj" />
     <Project Path="test/uk.osric.asp.Web.Tests/uk.osric.asp.Web.Tests.csproj" />
   </Folder>
 </Solution>
