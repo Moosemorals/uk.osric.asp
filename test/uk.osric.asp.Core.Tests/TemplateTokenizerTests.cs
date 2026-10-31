@@ -24,7 +24,9 @@ public sealed class TemplateTokenizerTests {
     public void TextWithoutAnOpeningDelimiterIsPreserved(string input) {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
 
-        Assert.That(tokens, Is.EqualTo(new Token[] { new(TokenType.Text, input) }));
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Text, input, new TemplatePosition(1, 1)),
+        }));
     }
 
     [TestCase("", "<%%>")]
@@ -34,7 +36,9 @@ public sealed class TemplateTokenizerTests {
     public void CodeBlockExcludesDelimitersAndPreservesContent(string expected, string input) {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
 
-        Assert.That(tokens, Is.EqualTo(new Token[] { new(TokenType.Code, expected) }));
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Code, expected, new TemplatePosition(1, 3)),
+        }));
     }
 
     [Test]
@@ -42,11 +46,11 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("before<%first();%>between<%second();%>after").Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Text, "before"),
-            new(TokenType.Code, "first();"),
-            new(TokenType.Text, "between"),
-            new(TokenType.Code, "second();"),
-            new(TokenType.Text, "after"),
+            new(TokenType.Text, "before", new TemplatePosition(1, 1)),
+            new(TokenType.Code, "first();", new TemplatePosition(1, 9)),
+            new(TokenType.Text, "between", new TemplatePosition(1, 19)),
+            new(TokenType.Code, "second();", new TemplatePosition(1, 28)),
+            new(TokenType.Text, "after", new TemplatePosition(1, 39)),
         }));
     }
 
@@ -55,9 +59,9 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<%first();%><%%><%second();%>").Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Code, "first();"),
-            new(TokenType.Code, ""),
-            new(TokenType.Code, "second();"),
+            new(TokenType.Code, "first();", new TemplatePosition(1, 3)),
+            new(TokenType.Code, "", new TemplatePosition(1, 15)),
+            new(TokenType.Code, "second();", new TemplatePosition(1, 19)),
         }));
     }
 
@@ -66,8 +70,8 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("before<%code%>").Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Text, "before"),
-            new(TokenType.Code, "code"),
+            new(TokenType.Text, "before", new TemplatePosition(1, 1)),
+            new(TokenType.Code, "code", new TemplatePosition(1, 9)),
         }));
     }
 
@@ -75,33 +79,38 @@ public sealed class TemplateTokenizerTests {
     [TestCase("// ", "\n")]
     [TestCase("/* ", " */")]
     public void ClosingDelimiterEndsCodeEvenInsideCSharpStringsOrComments(string before, string after) {
-        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<%" + before + "%>" + after).Tokens;
+        string input = "<%" + before + "%>" + after;
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
+        int textStart = input.IndexOf("%>", StringComparison.Ordinal) + 2;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Code, before),
-            new(TokenType.Text, after),
+            new(TokenType.Code, before, new TemplatePosition(1, 3)),
+            new(TokenType.Text, after, new TemplatePosition(1, textStart + 1)),
         }));
     }
 
-    [TestCase("<%", "line 1, column 1")]
-    [TestCase("<%>", "line 1, column 1")]
-    [TestCase("before<%code", "line 1, column 7")]
-    [TestCase("<%code%", "line 1, column 1")]
-    [TestCase("<%complete%><%unfinished", "line 1, column 13")]
-    [TestCase("first line\r\nsecond <% broken", "line 2, column 8")]
-    public void UnterminatedCodeBlockIsReportedAtItsOpeningDelimiter(string input, string position) {
+    [TestCase("<%", 1, 1)]
+    [TestCase("<%>", 1, 1)]
+    [TestCase("before<%code", 1, 7)]
+    [TestCase("<%code%", 1, 1)]
+    [TestCase("<%complete%><%unfinished", 1, 13)]
+    [TestCase("first line\r\nsecond <% broken", 2, 8)]
+    public void UnterminatedCodeBlockIsReportedAtItsOpeningDelimiter(string input, int line, int column) {
         TokenizeResult result = TemplateTokenizer.Tokenize(input);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Errors, Is.EqualTo([
-            $"TEMPLATE001: unterminated code block; the '<%' at {position} has no matching '%>'.",
-        ]));
+        Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
+                "TEMPLATE001: unterminated code block; the '<%' has no matching '%>'."),
+        }));
     }
 
     [Test]
     public void TokensBeforeAnUnterminatedCodeBlockAreKept() {
         TokenizeResult result = TemplateTokenizer.Tokenize("<%complete%><%unfinished");
 
-        Assert.That(result.Tokens, Is.EqualTo(new Token[] { new(TokenType.Code, "complete") }));
+        Assert.That(result.Tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Code, "complete", new TemplatePosition(1, 3)),
+        }));
     }
 }

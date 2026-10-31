@@ -13,8 +13,8 @@ using System.Collections.Frozen;
 /// <param name="Namespace">The namespace the API lives in, for example <c>System.IO</c>.</param>
 /// <param name="Type">The type name without its namespace, for example <c>File</c>.</param>
 /// <param name="Member">The member used, or <see cref="string.Empty"/> for a plain type reference.</param>
-/// <param name="Line">The line of the page the reference appears on.</param>
-public readonly record struct ApiReference(string Namespace, string Type, string Member, int Line);
+/// <param name="Position">Where the reference appears in template space, or null when it is generated code.</param>
+public readonly record struct ApiReference(string Namespace, string Type, string Member, TemplatePosition? Position);
 
 /// <summary>What page code is allowed to name.</summary>
 /// <remarks>
@@ -87,13 +87,13 @@ public static class PageApiPolicy {
     /// <summary>Reports every reference the policy does not allow.</summary>
     /// <param name="used">The APIs the page referenced, in the order they appear.</param>
     /// <returns>
-    /// One message per distinct API, naming the API and its page line; empty when the page is
-    /// within the policy.
+    /// One diagnostic per distinct API, naming the API and its template position; empty when the
+    /// page is within the policy.
     /// </returns>
-    public static IReadOnlyList<string> Check(IEnumerable<ApiReference> used) {
+    public static IReadOnlyList<PageDiagnostic> Check(IEnumerable<ApiReference> used) {
         ArgumentNullException.ThrowIfNull(used);
 
-        List<string> diagnostics = [];
+        List<PageDiagnostic> diagnostics = [];
         HashSet<string> reported = new(StringComparer.Ordinal);
 
         foreach (ApiReference reference in used) {
@@ -106,9 +106,10 @@ public static class PageApiPolicy {
                 continue;
             }
 
-            diagnostics.Add(reference.Line > 0
-                ? $"PAGE001: pages may not use {name} (line {reference.Line})."
-                : $"PAGE001: pages may not use {name}.");
+            diagnostics.Add(new PageDiagnostic(
+                PageDiagnosticSeverity.Error,
+                reference.Position,
+                $"PAGE001: pages may not use {name}."));
         }
 
         return diagnostics;

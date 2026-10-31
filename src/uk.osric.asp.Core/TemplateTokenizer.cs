@@ -3,14 +3,6 @@
 
 namespace uk.osric.asp.Core;
 
-
-public record Token(TokenType Type, string Value);
-
-public enum TokenType {
-    Text,
-    Code,
-}
-
 public static class TemplateTokenizer {
 
     /// <summary>Splits a page template into its text and code tokens.</summary>
@@ -24,17 +16,18 @@ public static class TemplateTokenizer {
         while (index < input.Length) {
             int codeStart = input.IndexOf("<%", index, StringComparison.Ordinal);
             if (codeStart == -1) {
-                tokens.Add(new Token(TokenType.Text, input[index..]));
+                tokens.Add(new Token(TokenType.Text, input[index..], TemplateLines.PositionOf(input, index)));
                 break;
             }
             if (codeStart > index) {
-                tokens.Add(new Token(TokenType.Text, input[index..codeStart]));
+                tokens.Add(new Token(TokenType.Text, input[index..codeStart], TemplateLines.PositionOf(input, index)));
             }
             int codeEnd = input.IndexOf("%>", codeStart + 2, StringComparison.Ordinal);
             if (codeEnd == -1) {
                 return new TokenizeResult(tokens, [UnterminatedCodeBlock(input, codeStart)]);
             }
-            tokens.Add(new Token(TokenType.Code, input[(codeStart + 2)..codeEnd]));
+            tokens.Add(new Token(TokenType.Code, input[(codeStart + 2)..codeEnd],
+                TemplateLines.PositionOf(input, codeStart + 2)));
             index = codeEnd + 2;
         }
 
@@ -43,18 +36,11 @@ public static class TemplateTokenizer {
 
     // The author is given a position in the text they typed, not in the generated source, and it
     // names the opener they have to close rather than the end of the template.
-    private static string UnterminatedCodeBlock(string input, int codeStart) {
-        int line = 1;
-        int lineStart = 0;
-        for (int position = 0; position < codeStart; position++) {
-            if (input[position] == '\n') {
-                line++;
-                lineStart = position + 1;
-            }
-        }
-
-        int column = codeStart - lineStart + 1;
-        return $"TEMPLATE001: unterminated code block; the '<%' at line {line}, column {column} has no matching '%>'.";
+    private static PageDiagnostic UnterminatedCodeBlock(string input, int codeStart) {
+        return new PageDiagnostic(
+            PageDiagnosticSeverity.Error,
+            TemplateLines.PositionOf(input, codeStart),
+            "TEMPLATE001: unterminated code block; the '<%' has no matching '%>'.");
     }
 }
 

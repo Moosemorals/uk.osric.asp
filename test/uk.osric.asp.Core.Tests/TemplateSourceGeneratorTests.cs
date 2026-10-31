@@ -53,16 +53,56 @@ public sealed class TemplateSourceGeneratorTests {
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Source, Is.Null);
-        Assert.That(result.Errors, Is.EqualTo([
-            "TEMPLATE001: unterminated code block; the '<%' at line 1, column 7 has no matching '%>'.",
-        ]));
+        Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(1, 7),
+                "TEMPLATE001: unterminated code block; the '<%' has no matching '%>'."),
+        }));
     }
 
     [Test]
     public void AnUnterminatedCodeBlockIsReportedOnItsOwnTemplateLine() {
         TemplateParseResult result = TemplateSourceGenerator.GenerateTemplateSource("line one\nline two <% if (true) {");
 
-        Assert.That(result.Errors, Has.Exactly(1).Contains("'<%' at line 2, column 10"));
+        Assert.That(result.Errors, Has.Exactly(1).Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Position == new TemplatePosition(2, 10)));
+    }
+
+    [Test]
+    public void ACodeBlockIsMappedToItsTemplateLineAndResetAfterwards() {
+        string source = Generate("first\n<% int value = 1; %>");
+
+        Assert.That(source, Does.Contain($"#line 2 \"page\"{Environment.NewLine}"));
+        Assert.That(source, Does.Contain($"#line default{Environment.NewLine}"));
+    }
+
+    [Test]
+    public void CodeIsPaddedToItsTemplateColumn() {
+        string source = Generate("first\n<% int value = 1; %>");
+
+        Assert.That(source, Does.Contain("   int value = 1;"));
+    }
+
+    [Test]
+    public void EachCodeBlockKeepsItsOwnTemplateLine() {
+        string source = Generate("alpha\nbeta\n<% int first = 1; %>\ngamma\ndelta\n<% int second = 2; %>");
+
+        Assert.That(source, Does.Contain("#line 3 \"page\""));
+        Assert.That(source, Does.Contain("#line 6 \"page\""));
+    }
+
+    [Test]
+    public void ThePostludeIsMappedToOneLinePastTheTemplate() {
+        string source = Generate("alpha\nbeta");
+
+        Assert.That(source, Does.Contain("#line 3 \"page\"" + Environment.NewLine + "}}"));
+    }
+
+    private static string Generate(string template) {
+        TemplateParseResult result = TemplateSourceGenerator.GenerateTemplateSource(template);
+        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Errors));
+
+        // The assertion above proves source was generated.
+        return result.Source!;
     }
 
     [Test]

@@ -26,45 +26,53 @@ public sealed class PageApiPolicyTests {
     [TestCase("uk.osric.asp.Web", "SimpleContext", "", false)]
     [TestCase("uk.osric.asp.Runtime", "TemplateCompiler", "", false)]
     public void ReferenceIsAllowedAsExpected(string ns, string type, string member, bool allowed) {
-        ApiReference reference = new(ns, type, member, 3);
+        ApiReference reference = new(ns, type, member, new TemplatePosition(3, 1));
 
-        IReadOnlyList<string> diagnostics = PageApiPolicy.Check([reference]);
+        IReadOnlyList<PageDiagnostic> diagnostics = PageApiPolicy.Check([reference]);
 
         Assert.That(diagnostics, allowed ? Is.Empty : Is.Not.Empty);
     }
 
     [Test]
     public void RejectionNamesTheApiAndThePageLine() {
-        IReadOnlyList<string> diagnostics = PageApiPolicy.Check([new ApiReference("System.IO", "File", "ReadAllText", 12)]);
+        IReadOnlyList<PageDiagnostic> diagnostics = PageApiPolicy.Check([
+            new ApiReference("System.IO", "File", "ReadAllText", new TemplatePosition(12, 5)),
+        ]);
 
-        string[] expected = ["PAGE001: pages may not use System.IO.File.ReadAllText (line 12)."];
-
-        Assert.That(diagnostics, Is.EqualTo(expected));
+        Assert.That(diagnostics, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(12, 5),
+                "PAGE001: pages may not use System.IO.File.ReadAllText."),
+        }));
     }
 
     [Test]
     public void ATypeReferenceIsNamedWithoutAMember() {
-        IReadOnlyList<string> diagnostics = PageApiPolicy.Check([new ApiReference("System", "Type", string.Empty, 4)]);
+        IReadOnlyList<PageDiagnostic> diagnostics = PageApiPolicy.Check([
+            new ApiReference("System", "Type", string.Empty, new TemplatePosition(4, 2)),
+        ]);
 
-        string[] expected = ["PAGE001: pages may not use System.Type (line 4)."];
-
-        Assert.That(diagnostics, Is.EqualTo(expected));
+        Assert.That(diagnostics, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(4, 2),
+                "PAGE001: pages may not use System.Type."),
+        }));
     }
 
     [Test]
     public void RejectionWithoutALineOmitsTheLine() {
-        IReadOnlyList<string> diagnostics = PageApiPolicy.Check([new ApiReference("System.IO", "File", "Exists", 0)]);
+        IReadOnlyList<PageDiagnostic> diagnostics = PageApiPolicy.Check([
+            new ApiReference("System.IO", "File", "Exists", null),
+        ]);
 
-        string[] expected = ["PAGE001: pages may not use System.IO.File.Exists."];
-
-        Assert.That(diagnostics, Is.EqualTo(expected));
+        Assert.That(diagnostics, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, null, "PAGE001: pages may not use System.IO.File.Exists."),
+        }));
     }
 
     [Test]
     public void TheSameApiIsReportedOnce() {
-        IReadOnlyList<string> diagnostics = PageApiPolicy.Check([
-            new ApiReference("System.IO", "File", "ReadAllText", 2),
-            new ApiReference("System.IO", "File", "ReadAllText", 5),
+        IReadOnlyList<PageDiagnostic> diagnostics = PageApiPolicy.Check([
+            new ApiReference("System.IO", "File", "ReadAllText", new TemplatePosition(2, 1)),
+            new ApiReference("System.IO", "File", "ReadAllText", new TemplatePosition(5, 1)),
         ]);
 
         Assert.That(diagnostics, Has.Count.EqualTo(1));
@@ -72,9 +80,9 @@ public sealed class PageApiPolicyTests {
 
     [Test]
     public void DifferentApisAreReportedSeparately() {
-        IReadOnlyList<string> diagnostics = PageApiPolicy.Check([
-            new ApiReference("System.IO", "File", "ReadAllText", 2),
-            new ApiReference("System", "Environment", "Exit", 3),
+        IReadOnlyList<PageDiagnostic> diagnostics = PageApiPolicy.Check([
+            new ApiReference("System.IO", "File", "ReadAllText", new TemplatePosition(2, 1)),
+            new ApiReference("System", "Environment", "Exit", new TemplatePosition(3, 1)),
         ]);
 
         Assert.That(diagnostics, Has.Count.EqualTo(2));
