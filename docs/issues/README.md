@@ -18,6 +18,7 @@ BUG-06 fix.
 | [ARCH-03](ARCH-03.md) | High | No execution timeout, cancellation or concurrency limit for page code |
 | [ARCH-06](ARCH-06.md) | Medium | There is no way to list pages |
 | [ARCH-07](ARCH-07.md) | Medium | Page content has no history, so an edit cannot be undone |
+| [ARCH-10](ARCH-10.md) | Medium | A page cannot be deleted |
 | [BUG-05](BUG-05.md) | Medium | Compile errors point at generated source line numbers, not the template |
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
@@ -32,7 +33,7 @@ BUG-06 fix.
 ## Suggested order
 
 1. ARCH-03, SEC-03 — give page code a budget, then a boundary if it ever needs one.
-2. ARCH-06, ARCH-07 — a page index and revision history.
+2. ARCH-06, ARCH-10, ARCH-07 — a page index, a way to delete a page, then revision history.
 3. OPS-03, BUG-12, BUG-13, STYLE-03, STYLE-04 — hygiene, so the next review starts from an
    accurate baseline.
 
