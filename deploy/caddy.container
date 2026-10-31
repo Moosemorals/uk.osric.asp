@@ -5,13 +5,18 @@
 Description=Caddy reverse proxy
 Wants=network-online.target
 After=network-online.target
+# Give up after a few rapid restarts instead of crash-looping forever; see docs/issues/OPS-02.md.
+StartLimitIntervalSec=60s
+StartLimitBurst=3
 
 [Container]
 ContainerName=caddy
-Image=docker.io/library/caddy:2
+# Pinned to an exact patch: Caddy is the public edge, so a version bump should be a deliberate commit.
+Image=docker.io/library/caddy:2.11.7
 # Host networking lets it bind 80/443 and reach the rootless app on 127.0.0.1:8080.
 Network=host
-Volume=/home/deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+# Root-owned: a rootful service must not consume configuration the deploy user can rewrite.
+Volume=/etc/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
 Volume=caddy-data:/data
 Volume=caddy-config:/config
 NoNewPrivileges=true

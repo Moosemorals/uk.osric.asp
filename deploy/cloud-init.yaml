@@ -3,12 +3,16 @@
 # SPDX-License-Identifier: MIT
 
 # Debian 13 (trixie) bootstrap for the Hetzner Cloud VM.
-# Paste this into the server's user-data (or use `hcloud server create --user-data-from-file`).
+# Pass this as the server's user-data; deploy/README.md has the containerised `hcloud`
+# invocation, so nothing has to be installed locally beyond podman.
 # It prepares the host only: the app runs rootless as the deploy user, Caddy runs rootful as the
 # public edge, and `make deploy` installs the quadlets and the image.
 
 package_update: true
 package_upgrade: true
+# An upgraded kernel is not running until the machine reboots, so take the reboot now rather than
+# discovering a stale kernel at some later date.
+package_reboot_if_required: true
 timezone: Europe/London
 ssh_pwauth: false
 
@@ -18,7 +22,8 @@ users:
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
     ssh_authorized_keys:
-      - ssh-ed25519 AAAA...replace-with-your-public-key
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA8mzVwKRsF2RcKGo9EYHfQTavwD+Y+zM1YB7BbZvXTY osric@lucy
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJW4Kmr2GndxBJ13y1udp20C9MvnLzlbnPbgDWbzWu1z osric@Carrot
 
 packages:
   # Rootless podman: id mapping, user-mode networking, and an overlay driver for user namespaces.
@@ -30,6 +35,7 @@ packages:
   - dbus-user-session
   - ufw
   - unattended-upgrades
+  - sqlite3
   - ca-certificates
   - curl
 
@@ -42,9 +48,13 @@ write_files:
 
 runcmd:
   # Rootless podman needs subordinate id ranges and a user manager that outlives the login session.
-  - grep -q '^deploy:' /etc/subuid || usermod --add-subuids 100000-165535 --add-subgids 100000-165535 deploy
+  - grep -q '^deploy:' /etc/subuid && grep -q '^deploy:' /etc/subgid || usermod --add-subuids 100000-165535 --add-subgids 100000-165535 deploy
   - loginctl enable-linger deploy
-  - install -d -o deploy -g deploy -m 0755 /home/deploy/.config/containers/systemd /home/deploy/caddy
+  # install(1) applies owner and mode to the last component only, so every level is named here.
+  - install -d -o deploy -g deploy -m 0755 /home/deploy/.config /home/deploy/.config/containers
+  - install -d -o deploy -g deploy -m 0755 /home/deploy/.config/containers/systemd
+  # The Caddyfile is root-owned: rootful Caddy must not load configuration the deploy user can rewrite.
+  - install -d -o root -g root -m 0755 /etc/caddy
   - ufw default deny incoming
   - ufw default allow outgoing
   - ufw allow 22/tcp
@@ -53,4 +63,9 @@ runcmd:
   - ufw allow 443/udp
   - ufw --force enable
   - systemctl enable --now unattended-upgrades
-  - systemctl reload ssh
+  # Validate before reloading, so a broken drop-in fails here rather than silently leaving the old
+  # configuration in place.
+  - sshd -t && systemctl reload ssh
+  # Proves the rootless stack works before the first deploy; runcmd reports a failure through
+  # `cloud-init status --long` and nothing later depends on this.
+  - su - deploy -c 'podman info --format "{{.Host.Security.Rootless}}"'

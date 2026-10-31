@@ -16,38 +16,64 @@ deploy/
   cloud-init.yaml           one-shot host bootstrap (rootless podman, user, firewall, SSH)
   uk.osric.asp.container    user quadlet: the app, rootless, publishing 127.0.0.1:8080
   caddy.container           system quadlet: Caddy, host network, terminating TLS
-  Caddyfile                 site config, mounted read-only into Caddy
+  Caddyfile                 site config, installed to /etc/caddy/Caddyfile
 ```
 
-The quadlets are the source of truth for the server: `make deploy` copies them up and applies them.
+The quadlets and the Caddyfile are the source of truth for the server: `make deploy` copies them up
+and applies them.
 
 ## First deployment
 
-1. Create the VM (Hetzner CX22, Debian 13, your SSH key):
+1. Create the VM (Hetzner CX22, Debian 13) with the official CLI image — nothing is installed locally
+   except podman. `--ssh-key` takes the *name* of a key registered in the Hetzner project, not a path
+   to a local file, so register it first. `cloud-init.yaml` already lists the two keys `deploy` will
+   accept (the ones on `lucy` and `Carrot`); edit that list if you deploy from another machine. The
+   Hetzner key is a fallback for root if user creation ever fails.
 
    ```bash
-   hcloud server create --name uk.osric.asp --type cx22 --image debian-13 \
-     --location fsn1 --ssh-key ~/.ssh/id_ed25519.pub \
-     --user-data-from-file deploy/cloud-init.yaml
+   export HCLOUD_TOKEN=<token from the Hetzner console>
+
+   podman run --rm -e HCLOUD_TOKEN \
+     -v "$HOME/.ssh/id_ed25519.pub:/keys/id_ed25519.pub:ro" \
+     docker.io/hetznercloud/cli:latest \
+     ssh-key create --name lucy --public-key-from-file /keys/id_ed25519.pub
+
+   podman run --rm -e HCLOUD_TOKEN \
+     -v "$PWD/deploy:/deploy:ro" \
+     docker.io/hetznercloud/cli:latest \
+     server create --name uk.osric.asp --type cx22 --image debian-13 \
+       --location fsn1 --ssh-key lucy \
+       --user-data-from-file /deploy/cloud-init.yaml
    ```
 
+   The image is a distroless binary whose entrypoint is `hcloud`, so arguments are passed straight
+   through; add `:z` to the mounts on a host with SELinux enforcing.
+
    `cloud-init.yaml` installs podman with the rootless pieces (`uidmap`, `passt`, `fuse-overlayfs`),
-   creates the `deploy` user with subuid/subgid ranges, enables lingering so its user manager outlives
-   the login, hardens SSH, and opens 22/80/443 in ufw. Edit the placeholder key first.
+   creates the `deploy` user with subuid/subgid ranges and its own SSH keys, enables lingering so its
+   user manager outlives the login, hardens SSH, and opens 22/80/443 in ufw. It reboots once if the
+   package upgrade installed a new kernel, and ends with a rootless `podman info` that must print
+   `true` — check it with `cloud-init status --long` before relying on the host.
 
 2. Point an `A` (and `AAAA`, if you use IPv6) record at the server.
 
-3. Put your domain and email in `deploy/Caddyfile`.
+3. Put your domain and email in `deploy/Caddyfile`. `make deploy` refuses to run while the
+   `example.com` placeholder is still there, because Caddy would start, fail its ACME challenge, and
+   leave the site unreachable while every command reports success.
 
-4. Ship it:
+4. Log in to the registry locally and on the server — see [The registry](#the-registry). `make deploy`
+   pushes as your local user and pulls as `deploy`, so both need credentials that outlive a reboot.
+
+5. Ship it:
 
    ```bash
    make deploy HOST=deploy@<server-ip>
    ```
 
-   That builds and pushes the image, pulls it as `deploy`, installs the user quadlet and Caddyfile,
-   reloads the user manager, then installs the Caddy unit with sudo and reloads systemd. Caddy obtains
-   a certificate on first request, so the site is reachable a few seconds later.
+   That builds and pushes the image, pulls it as `deploy`, installs the user quadlet, writes the
+   Caddyfile to `/etc/caddy/` with sudo, reloads the user manager, then installs the Caddy unit,
+   reloads systemd and restarts both services. Caddy obtains a certificate on first request, so the
+   site is reachable a few seconds later.
 
 ## Day-to-day
 
@@ -56,7 +82,10 @@ The quadlets are the source of truth for the server: `make deploy` copies them u
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
-  covers `/edit`, `/site.css` and `/favicon.ico`; change it only when the route table changes.
+  covers `/edit`, `/site.css`, `/favicon.ico` and `/heath`; change it only when the route table
+  changes.
+- **Health:** `ssh deploy@<server-ip> curl -s http://127.0.0.1:8080/heath` returns detailed JSON —
+  200 when the app can reach its database, 503 otherwise.
 - **Logs:** `ssh deploy@<server-ip> journalctl --user -u uk.osric.asp.service -f`
 - **Status:** `ssh deploy@<server-ip> systemctl --user status uk.osric.asp.service`
 - **Edge:** `ssh deploy@<server-ip> sudo systemctl status caddy`
@@ -113,9 +142,10 @@ and runtime tests.
 
 Run storage maintenance as `deploy`. Either stop `uk.osric.asp.service` with `systemctl --user stop`
 and back up the entire volume while no process has the database open, or use SQLite's online backup
-API (for example the `sqlite3` shell's `.backup` command) against the database. Do not simply copy
-`storage.db` while the app is running: committed data may still be in the WAL, and copying database
-files individually can produce an inconsistent backup.
+API against the database — `sqlite3` is installed on the host by `cloud-init.yaml`, so
+`sqlite3 storage.db '.backup /tmp/storage-backup.db'` works from inside `podman unshare`. Do not
+simply copy `storage.db` while the app is running: committed data may still be in the WAL, and
+copying database files individually can produce an inconsistent backup.
 
 Use `podman volume inspect uk.osric.asp-storage` as `deploy` to locate the volume. Its files are
 owned by mapped subordinate IDs, so offline file access may require `podman unshare`. Keep backups
@@ -180,9 +210,18 @@ trimmed image dies at startup with `TypeLoadException`. It is deliberately off.
 tells the server to pull:
 
 ```bash
-podman login registry.osric.uk                    # locally, and as deploy on the server
+podman login --authfile ~/.config/containers/auth.json registry.osric.uk            # locally
+ssh -t deploy@<server-ip> podman login --authfile ~/.config/containers/auth.json registry.osric.uk
 make deploy HOST=deploy@<server-ip>
 ```
+
+The `--authfile` on the server is not optional: podman's default is
+`${XDG_RUNTIME_DIR}/containers/auth.json`, which lives under `/run/user/` and is gone after a reboot,
+so a pull would fail on the first deploy after every restart. `make deploy` reads the same file
+(`AUTHFILE` locally, `REMOTE_AUTHFILE` on the server), so override those variables if you keep the
+credentials somewhere else. If the registry serves a certificate the host does not trust, install the
+CA at `/etc/containers/certs.d/registry.osric.uk/ca.crt` (or the same path under
+`~/.config/containers/certs.d/`).
 
 The first push uploads the base layers (~120 MB); later pushes send only the app layer. Rootless
 images live in `~deploy/.local/share/containers`, so `podman images` as root will not show them.

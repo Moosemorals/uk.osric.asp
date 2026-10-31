@@ -39,6 +39,12 @@ IMAGE_TAG ?= latest
 IMAGE_REF := $(REGISTRY)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 LOCAL_IMAGE := localhost/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
+# Registry credentials. Podman writes logins to ${XDG_RUNTIME_DIR}/containers/auth.json by default,
+# which is lost on reboot, so the pull would fail on the first deploy after a restart. The remote
+# path is left unquoted so the shell on the server expands the home directory.
+AUTHFILE ?= $(HOME)/.config/containers/auth.json
+REMOTE_AUTHFILE ?= ~/.config/containers/auth.json
+
 CONTAINER_BASE_IMAGE := mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 # RID of the server. On an ARM (CAX) server: linux-musl-arm64.
 CONTAINER_RID ?= linux-musl-x64
@@ -151,19 +157,26 @@ image:
 
 # Pushes the image, installs the quadlets (the source of truth), and restarts. The app runs rootless
 # as HOST's user; Caddy is the only rootful unit and is installed with sudo. The quadlet's Image= line
-# is rewritten on the way so REGISTRY and IMAGE_TAG overrides reach the host.
+# is rewritten on the way so REGISTRY and IMAGE_TAG overrides reach the host. Both services are
+# restarted rather than started: `enable --now` is a no-op on an already-running unit, so a tag-only
+# image change or a Caddyfile edit would otherwise never take effect.
 deploy: image
 	@test -n "$(HOST)" || { echo "usage: make deploy HOST=deploy@your.server"; exit 1; }
+	@if grep -qE '^[[:space:]]*(example\.com|admin@example\.com)' deploy/Caddyfile; then \
+		echo "deploy/Caddyfile still contains the example.com placeholder"; exit 1; fi
 	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
-	podman push $(IMAGE_REF)
-	ssh $(HOST) podman pull $(IMAGE_REF)
+	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
+	ssh $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_REF)
 	sed 's|^Image=.*|Image=$(IMAGE_REF)|' deploy/uk.osric.asp.container | ssh $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
-	scp deploy/Caddyfile $(HOST):caddy/Caddyfile
+	ssh $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
+	ssh $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
 	ssh $(HOST) systemctl --user daemon-reload
-	ssh $(HOST) systemctl --user enable --now uk.osric.asp.service
+	ssh $(HOST) systemctl --user enable uk.osric.asp.service
+	ssh $(HOST) systemctl --user restart uk.osric.asp.service
 	ssh $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
 	ssh $(HOST) sudo systemctl daemon-reload
-	ssh $(HOST) sudo systemctl enable --now caddy.service
+	ssh $(HOST) sudo systemctl enable caddy.service
+	ssh $(HOST) sudo systemctl restart caddy.service
 
 format:
 	$(DOTNET) format $(SOLUTION)
