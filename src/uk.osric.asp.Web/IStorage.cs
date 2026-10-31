@@ -3,10 +3,10 @@
 
 namespace uk.osric.asp.Web;
 
+using uk.osric.asp.Core;
+
 public interface IStorage {
-    Task<IReadOnlyList<string>> ListFilesAsync(CancellationToken cancellationToken = default);
+    Task<string?> GetFileContentsAsync(PagePath path, CancellationToken cancellationToken = default);
 
-    Task<string?> GetFileContentsAsync(string path, CancellationToken cancellationToken = default);
-
-    Task SetFileContentsAsync(string path, string content, CancellationToken cancellationToken = default);
+    Task SetFileContentsAsync(PagePath path, string content, CancellationToken cancellationToken = default);
 }

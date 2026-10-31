@@ -4,29 +4,23 @@
 namespace uk.osric.asp.Web.Storage;
 
 using Microsoft.EntityFrameworkCore;
+using uk.osric.asp.Core;
 
 public sealed class SqliteStorage(StorageDbContext database) : IStorage {
-    public async Task<IReadOnlyList<string>> ListFilesAsync(CancellationToken cancellationToken = default) {
-        return await database.Set<StoredFile>().AsNoTracking()
-            .Select(file => file.Path).ToListAsync(cancellationToken);
-    }
-
-    public Task<string?> GetFileContentsAsync(string path, CancellationToken cancellationToken = default) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+    public Task<string?> GetFileContentsAsync(PagePath path, CancellationToken cancellationToken = default) {
 
         return database.Set<StoredFile>().AsNoTracking()
-            .Where(file => file.Path == path).Select(file => file.Content)
+            .Where(file => file.Path == path.Path).Select(file => file.Content)
             .SingleOrDefaultAsync(cancellationToken);
     }
 
-    public async Task SetFileContentsAsync(string path, string content, CancellationToken cancellationToken = default) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+    public async Task SetFileContentsAsync(PagePath path, string content, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(content);
 
         StoredFile? file = await database.Set<StoredFile>()
-            .SingleOrDefaultAsync(file => file.Path == path, cancellationToken);
+            .SingleOrDefaultAsync(file => file.Path == path.Path, cancellationToken);
         if (file is null) {
-            database.Add(new StoredFile { Path = path, Content = content });
+            database.Add(new StoredFile { Path = path.Path, Content = content });
         } else {
             file.Content = content;
         }
