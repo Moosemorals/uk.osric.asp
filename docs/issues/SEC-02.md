@@ -19,9 +19,10 @@ silently replace a page with attacker-chosen C#. Without authentication the endp
 so a forged request is not even necessary — but the missing token will become the next hole the
 moment SEC-01 is fixed.
 
-The flash message cookie had default options. It now sets `HttpOnly`, `SameSite = Strict`, `Secure`,
-`Path = /` and a 60-second `MaxAge` (`EditorEndpoint.cs:11-17`, fixed 2026-10-30), so the remaining
-gap is the token. Two tabs saving at once still overwrite each other's message.
+The flash message cookie had default options. It now sets `HttpOnly`, `SameSite = Strict`, `Path = /`
+and a 60-second `MaxAge`, plus `Secure` in production only so local HTTP work still receives it
+(`EditorEndpoint.CreateMessageCookie`, fixed 2026-10-30), so the remaining gap is the token. Two tabs
+saving at once still overwrite each other's message.
 
 ## Fix outline
 

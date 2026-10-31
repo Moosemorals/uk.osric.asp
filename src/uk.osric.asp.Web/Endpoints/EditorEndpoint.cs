@@ -5,42 +5,45 @@ namespace uk.osric.asp.Web.Endpoints;
 
 using Microsoft.Extensions.Primitives;
 using System.Net;
+using uk.osric.asp.Core;
 
 public sealed class EditorEndpoint {
 
-    private static readonly CookieOptions MessageCookie = new() {
-        HttpOnly = true,
-        SameSite = SameSiteMode.Strict,
-        Secure = true,
-        MaxAge = TimeSpan.FromMinutes(1),
-        Path = "/",
-    };
+    public static async Task Handler(HttpContext context, IStorage storage, IWebHostEnvironment environment) {
 
-    public static async Task Handler(HttpContext context, IStorage storage) {
+        PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
+        string editorUrl = "/edit" + path.Path;
+        CookieOptions cookie = CreateMessageCookie(environment);
 
-        string? path = context.Request.RouteValues["path"] as string;
         if (context.Request.Method == "POST") {
-            context.Response.Cookies.Append("message", await SaveAsync(context, storage, path), MessageCookie);
-            context.Response.StatusCode = 302;
-            context.Response.Headers.Location = context.Request.Path.ToString();
+            context.Response.Cookies.Append("message", await SaveAsync(context, storage, path), cookie);
+            context.Response.StatusCode = StatusCodes.Status302Found;
+            context.Response.Headers.Location = new PathString(editorUrl).ToUriComponent();
             return;
         }
 
-        string? content = !string.IsNullOrWhiteSpace(path) ? await storage.GetFileContentsAsync(path, context.RequestAborted) : null;
+        // A POST is saved under the canonical key and only then redirected, so a non-canonical URL can
+        // never cost the edit; only a GET needs the permanent redirect to the canonical editor URL.
+        if (!string.Equals(context.Request.Path.Value, editorUrl, StringComparison.Ordinal)) {
+            Redirects.Permanent(context, editorUrl);
+            return;
+        }
+
+        string? content = await storage.GetFileContentsAsync(path, context.RequestAborted);
 
         string? message = context.Request.Cookies["message"];
         if (message is not null) {
-            context.Response.Cookies.Delete("message", MessageCookie);
+            context.Response.Cookies.Delete("message", cookie);
         }
 
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.StatusCode = 200;
 
         await context.Response.WriteAsync(Framework.GetHeader("Editor"));
-        await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path)}</h1>");
+        await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path.Path)}</h1>");
         await context.Response.WriteAsync($"""
             {(!string.IsNullOrEmpty(message) ? $"<p>{WebUtility.HtmlEncode(message)}</p>" : "")}
-            <p><a href="/{WebUtility.HtmlEncode(path)}">Back to file</a></p>
+            <p><a href="{WebUtility.HtmlEncode(path.Path)}">Back to file</a></p>
             <form method="post" action="?">
                 <textarea name="content" rows="10" cols="50">{WebUtility.HtmlEncode(content ?? "")}</textarea>
                 <br>
@@ -50,13 +53,20 @@ public sealed class EditorEndpoint {
         await context.Response.WriteAsync(Framework.GetFooter());
     }
 
+    // Marked Secure only in production: local HTTP work still gets the flash message. The request
+    // scheme cannot decide this, because production sits behind Caddy and forwarded headers are not
+    // configured yet (OPS-01), so every request arrives looking like plain HTTP.
+    private static CookieOptions CreateMessageCookie(IWebHostEnvironment environment) => new() {
+        HttpOnly = true,
+        SameSite = SameSiteMode.Strict,
+        Secure = environment.IsProduction(),
+        MaxAge = TimeSpan.FromMinutes(1),
+        Path = "/",
+    };
+
     // Every outcome redirects back to the editor with a flash message, so validation returns text
     // rather than short-circuiting the response.
-    private static async Task<string> SaveAsync(HttpContext context, IStorage storage, string? path) {
-        if (string.IsNullOrWhiteSpace(path)) {
-            return "Path is required.";
-        }
-
+    private static async Task<string> SaveAsync(HttpContext context, IStorage storage, PagePath path) {
         if (!context.Request.Form.TryGetValue("content", out StringValues content)) {
             return "Content is required.";
         }
