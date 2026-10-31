@@ -10,7 +10,7 @@ commits, branches and discussion. Severity is the reviewer's assessment of risk,
 implementation order; the suggested order is at the bottom.
 
 Raised by the architecture review and the code-health scan of 2026-10-30; BUG-13 came out of the
-BUG-06 fix.
+BUG-06 fix, and ARCH-11 came out of the BUG-05/BUG-13 planning.
 
 | ID | Severity | Problem |
 | --- | --- | --- |
@@ -19,6 +19,8 @@ BUG-06 fix.
 | [ARCH-06](ARCH-06.md) | Medium | There is no way to list pages |
 | [ARCH-07](ARCH-07.md) | Medium | Page content has no history, so an edit cannot be undone |
 | [ARCH-10](ARCH-10.md) | Medium | A page cannot be deleted |
+| [ARCH-11](ARCH-11.md) | Low | The editor cannot show the generated C# for a page |
+| [ARCH-12](ARCH-12.md) | Medium | A template has no shorthand for writing a value |
 | [BUG-05](BUG-05.md) | Medium | Compile errors point at generated source line numbers, not the template |
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
@@ -36,6 +38,8 @@ BUG-06 fix.
 2. ARCH-06, ARCH-10, ARCH-07 — a page index, a way to delete a page, then revision history.
 3. OPS-03, BUG-12, BUG-13, STYLE-03, STYLE-04 — hygiene, so the next review starts from an
    accurate baseline.
+4. ARCH-11, ARCH-12 — show the generated source in the editor, and give the template language its
+   write shorthand.
 
 ## Closed
 
