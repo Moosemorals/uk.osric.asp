@@ -61,4 +61,4 @@ Resolved since the review; the files were deleted and their history is in git.
 | STYLE-01 | `EditorEndpoint` validates through a `SaveAsync` helper instead of `goto` |
 | STYLE-02 | `IStorage.ListFilesAsync` returns `IReadOnlyList<string>` |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
-| STYLE-04 | Exception tests assert with `Assert.ThrowsAsync`/`Assert.CatchAsync` instead of `Assert.That(async ...)`; the convention is recorded in `docs/testing.md` |
+| STYLE-04 | Exception tests assert with `await Assert.ThrowsAsync`/`Assert.CatchAsync` instead of `Assert.That(async ...)`; the convention is recorded in `docs/testing.md` |

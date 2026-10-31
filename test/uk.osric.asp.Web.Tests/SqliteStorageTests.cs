@@ -175,15 +175,15 @@ public sealed class SqliteStorageTests {
     }
 
     [Test]
-    public void CancelledOperationsThrow() {
-        using StorageDbContext database = new(_options);
+    public async Task CancelledOperationsThrowAsync() {
+        await using StorageDbContext database = new(_options);
         IStorage storage = new SqliteStorage(database);
         CancellationToken cancelled = new(true);
         PageCompilation compilation = new("hash", "1:build", [1], []);
 
-        Assert.CatchAsync<OperationCanceledException>(() => storage.GetPageAsync(Key("/example.cs"), cancelled));
-        Assert.CatchAsync<OperationCanceledException>(() => storage.SavePageAsync(new StoredPage(Key("/example.cs"), "content"), cancelled));
-        Assert.CatchAsync<OperationCanceledException>(() => storage.TrySetCompilationAsync(Key("/example.cs"), "content", compilation, cancelled));
+        await Assert.CatchAsync<OperationCanceledException>(() => storage.GetPageAsync(Key("/example.cs"), cancelled));
+        await Assert.CatchAsync<OperationCanceledException>(() => storage.SavePageAsync(new StoredPage(Key("/example.cs"), "content"), cancelled));
+        await Assert.CatchAsync<OperationCanceledException>(() => storage.TrySetCompilationAsync(Key("/example.cs"), "content", compilation, cancelled));
     }
 
     private static PagePath Key(string path) => PagePath.Normalize(path);

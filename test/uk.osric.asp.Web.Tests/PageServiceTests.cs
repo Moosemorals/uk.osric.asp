@@ -157,12 +157,12 @@ public sealed class PageServiceTests {
     }
 
     [Test]
-    public void TemplateExceptionsPropagate() {
+    public async Task TemplateExceptionsPropagateAsync() {
         FakeStorage storage = new();
         storage["/throw"] = new StoredPage(Key("/throw"), "<% throw new System.InvalidOperationException(\"Boom.\"); %>");
         PageService pages = CreateService(storage);
 
-        InvalidOperationException? thrown = Assert.ThrowsAsync<InvalidOperationException>(() => RenderAsync(pages, "/throw"));
+        InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => RenderAsync(pages, "/throw"));
 
         Assert.That(thrown?.Message, Is.EqualTo("Boom."));
     }

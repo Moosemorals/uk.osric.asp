@@ -66,7 +66,7 @@ public sealed class MainEndpointTests {
             PagePath.Normalize("/pages/hello.cs"),
             "<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
-        InvalidOperationException? failure = Assert.ThrowsAsync<InvalidOperationException>(() =>
+        InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             MainEndpoint.Handle(context, CreatePages(storage), NullLogger<MainEndpoint>.Instance, Reserved));
 
         Assert.That(failure?.Message, Is.EqualTo("Template executed."));
@@ -132,25 +132,25 @@ public sealed class MainEndpointTests {
     }
 
     [Test]
-    public void StorageFailurePropagates() {
+    public async Task StorageFailurePropagatesAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         FakeStorage storage = new() { Failure = new InvalidOperationException("Storage unavailable.") };
 
-        InvalidOperationException? thrown = Assert.ThrowsAsync<InvalidOperationException>(() =>
+        InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             MainEndpoint.Handle(context, CreatePages(storage), NullLogger<MainEndpoint>.Instance, Reserved));
 
         Assert.That(thrown?.Message, Is.EqualTo("Storage unavailable."));
     }
 
     [Test]
-    public void RequestCancellationIsForwarded() {
+    public async Task RequestCancellationIsForwardedAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
         context.RequestAborted = cancellation.Token;
         FakeStorage storage = new();
 
-        Assert.CatchAsync<OperationCanceledException>(() =>
+        await Assert.CatchAsync<OperationCanceledException>(() =>
             MainEndpoint.Handle(context, CreatePages(storage), NullLogger<MainEndpoint>.Instance, Reserved));
 
         Assert.That(storage.LastCancellationToken, Is.EqualTo(cancellation.Token));

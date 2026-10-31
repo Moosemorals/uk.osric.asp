@@ -228,7 +228,7 @@ public sealed class EditorEndpointTests {
         InvalidOperationException failure = new("Storage unavailable.");
         FakeStorage storage = new() { Failure = failure };
 
-        InvalidOperationException? thrown = Assert.ThrowsAsync<InvalidOperationException>(() =>
+        InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved));
 
         Assert.That(thrown?.Message, Is.EqualTo(failure.Message));
@@ -240,7 +240,7 @@ public sealed class EditorEndpointTests {
 
     [TestCase("GET")]
     [TestCase("POST")]
-    public void CancellationReachesStorageAndPropagates(string method) {
+    public async Task CancellationReachesStorageAndPropagatesAsync(string method) {
         DefaultHttpContext context = CreateContext(method);
         SetContent(context, new StringValues("replacement"));
         using CancellationTokenSource cancellation = new();
@@ -248,7 +248,7 @@ public sealed class EditorEndpointTests {
         context.RequestAborted = cancellation.Token;
         FakeStorage storage = new();
 
-        Assert.CatchAsync<OperationCanceledException>(() =>
+        await Assert.CatchAsync<OperationCanceledException>(() =>
             EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved));
 
         Assert.That(storage.LastCancellationToken, Is.EqualTo(cancellation.Token));

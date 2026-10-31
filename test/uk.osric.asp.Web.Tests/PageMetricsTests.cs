@@ -41,7 +41,7 @@ public sealed class PageMetricsTests {
         IReadOnlyList<MetricCapture.Measurement> renders = capture.For("page.render.duration", "/hit");
         Assert.That(renders, Has.Count.EqualTo(2));
         Assert.That(renders, Has.All.Matches<MetricCapture.Measurement>(
-            measurement => measurement.HasTag("cache", "hit") && measurement.HasTag("outcome", "ok")));
+            measurement => measurement is not null && measurement.HasTag("cache", "hit") && measurement.HasTag("outcome", "ok")));
     }
 
     [Test]
@@ -103,13 +103,13 @@ public sealed class PageMetricsTests {
     }
 
     [Test]
-    public void AnExceptionIsMeasuredAsAnErrorAndStillPropagates() {
+    public async Task AnExceptionIsMeasuredAsAnErrorAndStillPropagatesAsync() {
         using MetricCapture capture = MetricCapture.Start();
         FakeStorage storage = new();
         storage["/throw"] = new StoredPage(Key("/throw"), "<% throw new System.InvalidOperationException(); %>");
         PageService pages = CreateService(storage);
 
-        Assert.ThrowsAsync<InvalidOperationException>(() => RenderAsync(pages, "/throw"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => RenderAsync(pages, "/throw"));
 
         IReadOnlyList<MetricCapture.Measurement> renders = capture.For("page.render.duration", "/throw");
         Assert.That(renders, Has.Count.EqualTo(1));
