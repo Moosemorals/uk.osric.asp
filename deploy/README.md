@@ -211,9 +211,12 @@ tells the server to pull:
 
 ```bash
 podman login --authfile ~/.config/containers/auth.json registry.osric.uk            # locally
-ssh -t deploy@<server-ip> podman login --authfile ~/.config/containers/auth.json registry.osric.uk
+ssh -t deploy@<server-ip> podman login --authfile /home/deploy/.config/containers/auth.json registry.osric.uk
 make deploy HOST=deploy@<server-ip>
 ```
+
+The server path is written out in full: an unquoted `~` in an `ssh` command is expanded by the
+**local** shell, so it would point at the wrong home.
 
 The `--authfile` on the server is not optional: podman's default is
 `${XDG_RUNTIME_DIR}/containers/auth.json`, which lives under `/run/user/` and is gone after a reboot,

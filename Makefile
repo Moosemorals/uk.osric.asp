@@ -40,10 +40,10 @@ IMAGE_REF := $(REGISTRY)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 LOCAL_IMAGE := localhost/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
 # Registry credentials. Podman writes logins to ${XDG_RUNTIME_DIR}/containers/auth.json by default,
-# which is lost on reboot, so the pull would fail on the first deploy after a restart. The remote
-# path is left unquoted so the shell on the server expands the home directory.
+# which is lost on reboot, so the pull must use the persistent file. The remote path is absolute: an
+# unquoted ~ or $HOME here would be expanded by the local shell before ssh sees it.
 AUTHFILE ?= $(HOME)/.config/containers/auth.json
-REMOTE_AUTHFILE ?= ~/.config/containers/auth.json
+REMOTE_AUTHFILE ?= /home/deploy/.config/containers/auth.json
 
 CONTAINER_BASE_IMAGE := mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 # RID of the server. On an ARM (CAX) server: linux-musl-arm64.
