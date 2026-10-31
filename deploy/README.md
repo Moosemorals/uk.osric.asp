@@ -16,12 +16,11 @@ deploy/
   cloud-init.yaml           one-shot host bootstrap (rootless podman, user, firewall, SSH)
   uk.osric.asp.container    user quadlet: the app, rootless, publishing 127.0.0.1:8080
   caddy.container           system quadlet: Caddy, host network, terminating TLS
-  Caddyfile.example         site config template, copied to Caddyfile and edited (gitignored)
+  Caddyfile                 site config, installed to /etc/caddy/Caddyfile
 ```
 
 The quadlets and the Caddyfile are the source of truth for the server: `make deploy` copies them up
-and applies them. `Caddyfile` itself is not committed — it holds the real domain and ACME email, so
-each checkout starts from `Caddyfile.example`.
+and applies them.
 
 ## First deployment
 
@@ -58,17 +57,9 @@ each checkout starts from `Caddyfile.example`.
 
 2. Point an `A` (and `AAAA`, if you use IPv6) record at the server.
 
-3. Put your domain and email in the local Caddyfile (it is gitignored, so the real values never get
-   committed):
-
-   ```bash
-   cp deploy/Caddyfile.example deploy/Caddyfile
-   $EDITOR deploy/Caddyfile
-   ```
-
-   `make deploy` refuses to run while the `example.com` placeholder is still there, because Caddy
-   would start, fail its ACME challenge, and leave the site unreachable while every command reports
-   success.
+3. Put your domain and email in `deploy/Caddyfile`. `make deploy` refuses to run while the
+   `example.com` placeholder is still there, because Caddy would start, fail its ACME challenge, and
+   leave the site unreachable while every command reports success.
 
 4. Log in to the registry locally and on the server — see [The registry](#the-registry). `make deploy`
    pushes as your local user and pulls as `deploy`, so both need credentials that outlive a reboot.
@@ -88,8 +79,7 @@ each checkout starts from `Caddyfile.example`.
 
 - **New code:** back up storage first, then `make deploy HOST=deploy@<server-ip>` (builds, pushes,
   pulls, restarts).
-- **Domain or TLS settings:** edit `deploy/Caddyfile` (start from `deploy/Caddyfile.example`), then
-  `make deploy HOST=...`.
+- **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
   covers `/edit`, `/site.css`, `/favicon.ico` and `/heath`; change it only when the route table

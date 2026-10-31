@@ -163,7 +163,6 @@ image:
 # them, and the generator already applies each quadlet's [Install] section on daemon-reload.
 deploy: image
 	@test -n "$(HOST)" || { echo "usage: make deploy HOST=deploy@your.server"; exit 1; }
-	@test -f deploy/Caddyfile || { echo "missing deploy/Caddyfile: cp deploy/Caddyfile.example deploy/Caddyfile and set your domain"; exit 1; }
 	@if grep -qE '^[[:space:]]*(example\.com|admin@example\.com)' deploy/Caddyfile; then \
 		echo "deploy/Caddyfile still contains the example.com placeholder"; exit 1; fi
 	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)

@@ -26,7 +26,3 @@ artifacts/
 *.sw?
 *~
 *.un~
-
-# Local deployment config: carries the real domain and ACME email, never committed.
-# Copy deploy/Caddyfile.example to this path to deploy; see deploy/README.md.
-deploy/Caddyfile

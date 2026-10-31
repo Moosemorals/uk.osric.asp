@@ -1,12 +1,12 @@
 # SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 # SPDX-License-Identifier: MIT
 
-# Replace example.com with your domain, and set the email for ACME notices.
+# Site for moosemorals.com; ACME notices go to the address below.
 {
-	email admin@example.com
+	email osric@fluffypeople.com
 }
 
-example.com {
+moosemorals.com {
 	encode zstd gzip
 	# The app trusts X-Forwarded-Proto and X-Forwarded-Host to learn the browser's scheme and host;
 	# Caddy's defaults supply both, so no header directive is needed here. See deploy/README.md.
