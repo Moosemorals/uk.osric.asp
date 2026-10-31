@@ -48,9 +48,61 @@ startup, before serving requests. `ConnectionStrings:Storage` defaults to
 `Data Source=data/storage.db`; deployment overrides it to `Data Source=/data/storage.db` on a durable
 rootless Podman named volume. Database access and migration lifecycle stay in the shell.
 
-This is source storage: `MainEndpoint` reads a page's source by route path, compiles it and runs it,
-and `EditorEndpoint` writes it back. Pure rules still receive the values loaded by the shell rather
+This is source storage: `EditorEndpoint` writes a page's source, `MainEndpoint` reads it by route
+path and runs its compiled image. Pure rules still receive the values loaded by the shell rather
 than being given `IStorage`.
+
+## Compiled pages
+
+Compiling is the expensive part of serving a page, so it happens when a page is saved rather than
+when it is viewed. `EditorEndpoint` hands the source to `PageService`, which compiles it and stores
+the emitted assembly beside the source in the same row; `MainEndpoint` then reads the image and runs
+it. Four derived columns carry the result: `ContentHash`, `RuntimeId`, `Image` and `Diagnostics`.
+
+A stored image is trusted only when both keys match:
+
+- `ContentHash` is the SHA-256 of the source (`ContentFingerprint` in `Core`), so an edit that
+  bypasses the editor cannot be answered with stale code.
+- `RuntimeId` is the compile format version plus the module version id of `uk.osric.asp.Core`, so a
+  build with a different page contract never runs an image it did not produce. Debug and Release
+  builds differ, as they should.
+
+A page whose image is missing or stale — a row written before images existed, a direct database
+write, or every row after an upgrade that touched `Core` — is compiled on its next request and
+stored. That is the only compile outside a save: there is no startup warm-up, so the first visitor
+after a deploy pays one compile per page. A failure is stored too, so a broken page serves its
+diagnostics without recompiling, and the editor shows them after the save instead of losing the
+edit.
+
+Compilation happens before the database write, so the lazy path stores its result only while the
+page still holds the content it compiled, and re-reads the page when a save landed in between. A
+page that keeps changing is served from the last compile rather than failing.
+
+`IStorage` owns both halves: `GetPageAsync`, `SavePageAsync` and the conditional
+`TrySetCompilationAsync`. `Runtime` knows only how to turn generated source into bytes and bytes into
+a loaded handler (`ITemplateCompiler`, `CompiledTemplate`); it never sees a page.
+
+## Instrumentation
+
+`PageMetrics` owns a `Meter` named `uk.osric.asp` and records:
+
+| Instrument | Type | Unit | Tags |
+| --- | --- | --- | --- |
+| `page.render.duration` | histogram | s | `page.path`, `outcome` (`ok`, `compile-error`, `error`, `not-found`), `cache` (`hit`, `miss`, `none`) |
+| `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`) |
+| `page.handler.load.duration` | histogram | s | `page.path` |
+| `page.handler.invoke.duration` | histogram | s | `page.path`, `outcome` |
+| `page.save.duration` | histogram | s | `page.path`, `outcome` |
+| `page.image.size` | histogram | By | `page.path` |
+| `page.cache.lookups` | counter | — | `result` (`hit`, `stale`, `absent`) |
+| `page.cache.staleness` | counter | — | `page.path`, `reason` (`never-compiled`, `content-changed`, `runtime-changed`) |
+
+Durations are seconds to match OpenTelemetry and ASP.NET Core's own hosting instruments, so do not
+add a request-duration metric of our own. On a cache miss `page.compile.duration` is a subset of
+`page.render.duration`; never add the two together. `page.path` is bounded by the number of stored
+pages, which is small — if that ever stops being true, drop the tag and keep the path in logs.
+Recording costs nothing until an exporter listens, so the instruments are always on. For a quick
+look while the site runs: `dotnet-counters monitor --counters uk.osric.asp <pid>`.
 
 `make test-web` runs the Web storage tests, and `make test-integration` runs the same storage through
 the real host; both are included in `make test`. Schema changes are scaffolded with

@@ -65,8 +65,16 @@ The quadlets are the source of truth for the server: `make deploy` copies them u
 
 Source storage uses EF Core with SQLite. The local default is `ConnectionStrings:Storage` set to
 `Data Source=data/storage.db`; the app quadlet overrides it with
-`ConnectionStrings__Storage='Data Source=/data/storage.db'`. Route-to-script lookup and editor
-persistence both read and write this database; nothing else in the deployment depends on it.
+`ConnectionStrings__Storage='Data Source=/data/storage.db'`. Route-to-script lookup, the compiled
+image of each page and editor persistence all read and write this database; nothing else in the
+deployment depends on it.
+
+Each page row carries the assembly emitted when it was last saved, so the database grows by roughly
+the size of each page's assembly (tens of kilobytes per page) on top of its source. A release that
+changes `uk.osric.asp.Core` changes the runtime id stored beside every image, so each page is
+compiled again on its next request: the first visit after such a deploy is slower, once, and the
+row is rewritten in place. There is no startup warm-up, so a page nobody visits is not recompiled
+until someone asks for it.
 
 The rootless named volume `uk.osric.asp-storage` is mounted read-write at `/data`. Podman creates it
 on first use and reuses it when the container or image is replaced. It belongs to the `deploy` user's

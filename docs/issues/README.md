@@ -21,7 +21,6 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 | [ARCH-05](ARCH-05.md) | Medium | Storage keys are raw route values with no canonical path rule |
 | [ARCH-06](ARCH-06.md) | Medium | There is no way to list pages |
 | [ARCH-07](ARCH-07.md) | Medium | Page content has no history, so an edit cannot be undone |
-| [PERF-01](PERF-01.md) | High | Every request compiles the page from source; nothing is cached |
 | [BUG-05](BUG-05.md) | Medium | Compile errors point at generated source line numbers, not the template |
 | [BUG-06](BUG-06.md) | Medium | An unterminated code block produces a generic 500 |
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
@@ -39,9 +38,8 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 1. SEC-01, SEC-02 — close the trust boundary before anything else. If authentication is added,
    data-protection keys must be persisted (see `deploy/README.md`).
 2. ARCH-02 — settle the page runtime API before content depends on it.
-3. PERF-01 — stop compiling every page on every request.
-4. ARCH-05, ARCH-06, ARCH-07 — canonical paths, a page index and revision history.
-5. OPS-03, BUG-12, STYLE-03, STYLE-04 — hygiene, so the next review starts from an accurate
+3. ARCH-05, ARCH-06, ARCH-07 — canonical paths, a page index and revision history.
+4. OPS-03, BUG-12, STYLE-03, STYLE-04 — hygiene, so the next review starts from an accurate
    baseline.
 
 ## Closed
@@ -50,6 +48,7 @@ Resolved since the review; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| PERF-01 | Pages are compiled when they are saved, and the emitted assembly is stored beside the source in the same row. `ContentHash` (SHA-256 of the source) and `RuntimeId` (format version plus `Core`'s module version id) decide whether a stored image may be used; a page with no usable image is compiled on its next request and stored, and a stored compile failure is served without recompiling. Roslyn's metadata references are built once per process, `ITemplateCompiler` makes compilation injectable, and `PageMetrics` records compile, render, load, invoke, save, image-size and cache instruments on the `uk.osric.asp` meter. `Web.IntegrationTests` register a recording compiler and assert that a second request does not compile |
 | ARCH-08 | `test/uk.osric.asp.Web.IntegrationTests` drives the real host through `WebApplicationFactory<Program>` against a throwaway database: routing, middleware, the error branch, static files, startup migrations and the editor round-trip; `make test-integration` is part of `make test`. The 401/403 cases wait for SEC-01 |
 | OPS-01 | `UseForwardedHeaders` trusts `X-Forwarded-Proto`/`X-Forwarded-Host` from any peer, which the loopback-only publish makes safe; HSTS now emits and the scheme is honest. Covered by `ForwardedHeadersTests` |
 | ARCH-09 | The `Specs` suite only restated `TemplateCompiler` unit tests, so it was deleted with Reqnroll; the compiler stays covered by `Runtime.Tests` |

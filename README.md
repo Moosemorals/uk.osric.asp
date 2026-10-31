@@ -9,15 +9,17 @@ A web server whose pages are C# and can edit themselves.
 
 I have been trying to get back to the site I had in 1999, when I was doing BT support: a textarea
 with the source of the page in it, and a save button that worked. That one was Perl and CGI. This
-one is ASP.NET Core, compiles the page when you ask for it, and gives me the same trick with
+one is ASP.NET Core, compiles the page when you save it, and gives me the same trick with
 autocomplete and real error messages.
 
 ## How it works
 
 - Every page is a row in SQLite, keyed by its canonical path, so `/about` and `/About/` are the same
   page.
-- A page is HTML with `<% %>` blocks of C# in it. The block is compiled by Roslyn, loaded into a
-  collectible `AssemblyLoadContext`, and run against `IContext` when the page is requested.
+- A page is HTML with `<% %>` blocks of C# in it. Saving compiles it with Roslyn and stores the
+  emitted assembly beside the source; a request loads that assembly into a collectible
+  `AssemblyLoadContext` and runs it against `IContext`. Pages that have no usable assembly are
+  compiled on their next request.
 - `/edit/anything` is the editor: a textarea, a save button, and a line telling you it worked.
 - `uk.osric.asp.Core` is pure functions, `uk.osric.asp.Runtime` is Roslyn and assembly loading, and
   `uk.osric.asp.Web` is the endpoints. The core references nothing, not even another project.
@@ -43,8 +45,9 @@ make run
 ```
 
 The database starts empty, so every route answers 404 until you write something. Go to
-`http://localhost:5000/edit/` and make the front page, then `/edit/about` for the next one. Saving
-is live: the next request compiles the new source, so there is no build step in between.
+`http://localhost:5000/edit/` and make the front page, then `/edit/about` for the next one. Saving is
+live: the save compiles the new source, so the next request runs it and there is no build step in
+between.
 
 ## The task runner
 

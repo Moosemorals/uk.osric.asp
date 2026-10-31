@@ -20,18 +20,23 @@ core stays pure and the shell stays thin.
 - **Core tests** cover one rule at a time and exercise `Core` directly.
 - **Runtime tests** cover what the core cannot: Roslyn emitting a handler, loading the assembly and
   invoking it. They reference `Runtime`, never `Web`.
-- **Web tests** cover the shell: endpoints driven through a hand-built `HttpContext` with a fake
-  `IStorage`, and storage against a real SQLite database file.
+- **Web tests** cover the shell: endpoints driven through a hand-built `HttpContext` with an
+  in-memory `IStorage` and the real compiler, and storage against a real SQLite database file. The
+  page-cache tests swap in a counting compiler wrapped around the real one, so "a second request does
+  not compile" is asserted rather than inferred.
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, status codes and content types set by middleware, static files falling
-  through to the page route, startup migrations and DI wiring. They reference only `Web`, start the
-  real application through `WebApplicationFactory<Program>`, and use a throwaway SQLite file per
-  fixture that is deleted with it. The host runs as `Production`, so failures are answered by the
-  error page rather than the developer exception page, and the client speaks HTTPS so the editor's
-  `Secure` flash cookie round-trips.
+  through to the page route, startup migrations, DI wiring and the fact that a page is compiled
+  once. They reference `Web` and `Runtime`, start the real application through
+  `WebApplicationFactory<Program>`, and use a throwaway SQLite file per fixture that is deleted with
+  it. The host runs as `Production`, so failures are answered by the error page rather than the
+  developer exception page, and the client speaks HTTPS so the editor's `Secure` flash cookie
+  round-trips. A recording compiler is registered in place of the real one so a test can count
+  compilations.
 
-Each project references only the layer it proves, so the reference graph stops a test from reaching
-past its subject: `Core.Tests` has no ASP.NET or Roslyn to call, and `Runtime.Tests` has no endpoints.
+Each project references only the layers it exercises, so the reference graph stops a test from
+reaching past its subject: `Core.Tests` has no ASP.NET or Roslyn to call, `Runtime.Tests` has no
+endpoints, and the web suites reach `Runtime` only through `ITemplateCompiler`.
 `Web.Tests` and `Web.IntegrationTests` split on what is under test rather than what is referenced:
 one proves a handler in isolation, the other proves the wiring between handlers.
 
