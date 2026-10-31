@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web;
 
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using uk.osric.asp.Web.Endpoints;
@@ -24,13 +25,25 @@ public class Program {
 
         builder.Services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
         builder.Services.AddScoped<IStorage, SqliteStorage>();
-
+        builder.Services.Configure<ForwardedHeadersOptions>(options => {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+            // Caddy terminates TLS on the host loopback and is the only peer that can reach the port
+            // (the quadlet publishes 127.0.0.1:8080), so any peer may describe the original request.
+            // The loopback-only defaults do not survive podman's user-space networking, so the publish
+            // is what bounds this trust, not an address list.
+            options.KnownProxies.Clear();
+            options.KnownIPNetworks.Clear();
+        });
 
         WebApplication app = builder.Build();
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
         }
+
+        // Before anything that reads the scheme. Without it every request arrives as plain HTTP from
+        // the proxy, so HSTS emits nothing and IsHttps is always false.
+        app.UseForwardedHeaders();
 
         if (app.Environment.IsDevelopment()) {
             app.UseDeveloperExceptionPage();

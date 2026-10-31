@@ -28,7 +28,6 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
 | [BUG-09](BUG-09.md) | Low | Page log entries are categorised as `MainEndpoint`, not the page |
 | [BUG-12](BUG-12.md) | Low | Unused Roslyn Workspaces packages ship in the web app |
-| [OPS-01](OPS-01.md) | Medium | No forwarded-headers support, so HSTS is a no-op behind Caddy |
 | [OPS-02](OPS-02.md) | Low | There is no health endpoint for the container |
 | [OPS-03](OPS-03.md) | Medium | There is no CI pipeline |
 | [OPS-04](OPS-04.md) | Low | EF Core logs every SQL command at Information in production |
@@ -39,11 +38,10 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 
 1. SEC-01, SEC-02 — close the trust boundary before anything else. If authentication is added,
    data-protection keys must be persisted (see `deploy/README.md`).
-2. OPS-01 — make HTTPS, HSTS and absolute URLs correct behind the proxy.
-3. ARCH-02 — settle the page runtime API before content depends on it.
-4. PERF-01 — stop compiling every page on every request.
-5. ARCH-05, ARCH-06, ARCH-07 — canonical paths, a page index and revision history.
-6. OPS-03, BUG-12, STYLE-03, STYLE-04 — hygiene, so the next review starts from an accurate
+2. ARCH-02 — settle the page runtime API before content depends on it.
+3. PERF-01 — stop compiling every page on every request.
+4. ARCH-05, ARCH-06, ARCH-07 — canonical paths, a page index and revision history.
+5. OPS-03, BUG-12, STYLE-03, STYLE-04 — hygiene, so the next review starts from an accurate
    baseline.
 
 ## Closed
@@ -53,6 +51,7 @@ Resolved since the review; the files were deleted and their history is in git.
 | ID | Fix |
 | --- | --- |
 | ARCH-08 | `test/uk.osric.asp.Web.IntegrationTests` drives the real host through `WebApplicationFactory<Program>` against a throwaway database: routing, middleware, the error branch, static files, startup migrations and the editor round-trip; `make test-integration` is part of `make test`. The 401/403 cases wait for SEC-01 |
+| OPS-01 | `UseForwardedHeaders` trusts `X-Forwarded-Proto`/`X-Forwarded-Host` from any peer, which the loopback-only publish makes safe; HSTS now emits and the scheme is honest. Covered by `ForwardedHeadersTests` |
 | ARCH-09 | The `Specs` suite only restated `TemplateCompiler` unit tests, so it was deleted with Reqnroll; the compiler stays covered by `Runtime.Tests` |
 | BUG-01 | `UseExceptionHandler` now uses an inline branch, so a throwing `POST` returns 500 |
 | BUG-02 | `ErrorEndpoint` sets 500 itself; `/error` is no longer a public route (direct request is a 404) |

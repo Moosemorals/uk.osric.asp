@@ -53,9 +53,9 @@ public sealed class EditorEndpoint {
         await context.Response.WriteAsync(Framework.GetFooter());
     }
 
-    // Marked Secure only in production: local HTTP work still gets the flash message. The request
-    // scheme cannot decide this, because production sits behind Caddy and forwarded headers are not
-    // configured yet (OPS-01), so every request arrives looking like plain HTTP.
+    // Secure whenever the host is production, whatever the request says: Caddy terminates TLS, and a
+    // missing or forged forwarded header must not weaken the cookie. Local Development over http
+    // still receives the flash message.
     private static CookieOptions CreateMessageCookie(IWebHostEnvironment environment) => new() {
         HttpOnly = true,
         SameSite = SameSiteMode.Strict,

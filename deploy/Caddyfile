@@ -8,5 +8,7 @@
 
 example.com {
 	encode zstd gzip
+	# The app trusts X-Forwarded-Proto and X-Forwarded-Host to learn the browser's scheme and host;
+	# Caddy's defaults supply both, so no header directive is needed here. See deploy/README.md.
 	reverse_proxy 127.0.0.1:8080
 }

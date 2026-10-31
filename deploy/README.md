@@ -123,6 +123,30 @@ and reaches the app at `127.0.0.1:8080`.
 A rootless container cannot join a rootful podman network, which is why the app publishes to the
 loopback and Caddy uses `Network=host` instead of a shared bridge.
 
+## Proxy trust and forwarded headers
+
+Caddy terminates TLS, so without help the app sees a plain-HTTP request arriving from the loopback
+proxy: `Request.IsHttps` is false and `UseHsts` emits nothing. It therefore calls `UseForwardedHeaders`
+for `X-Forwarded-Proto` and `X-Forwarded-Host`, which Caddy sets by default, and trusts those headers
+from any peer.
+
+That is safe only because of the topology. The quadlet publishes the port on `127.0.0.1` alone, so
+nothing off the machine can reach the app, and the only client that can send those headers is the local
+Caddy. **The loopback-only publish is the control:** do not widen `PublishPort`, and do not place
+another proxy in front that rewrites the headers without revisiting this decision.
+
+What it changes:
+
+- HSTS works: `UseHsts` only sends `Strict-Transport-Security` for requests it believes are HTTPS.
+- `Request.Scheme`, `Request.Host` and `Request.IsHttps` describe the browser's request, so cookies,
+  absolute URLs and redirects derived from them are correct.
+- Caddy redirects HTTP to HTTPS itself; the app deliberately has no `UseHttpsRedirection`, which behind
+  a proxy is a redirect loop waiting to happen.
+
+If the app ever runs somewhere else — another proxy, a load balancer, or a directly published port —
+replace the cleared `KnownProxies`/`KnownIPNetworks` with that proxy's address instead of trusting
+every peer.
+
 ## Image layout and size
 
 Every image goes through `registry.osric.uk`, so the layout is chosen for layers:
