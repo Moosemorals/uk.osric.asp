@@ -26,6 +26,14 @@ public static class Framework {
         </html>
         """;
 
+    /// <summary>Renders compiler messages as an HTML block, encoding every message.</summary>
+    /// <param name="diagnostics">The messages to show.</param>
+    public static string GetDiagnostics(IReadOnlyList<string> diagnostics) {
+        return "<pre class=\"diagnostics\">"
+            + string.Concat(diagnostics.Select(diagnostic => WebUtility.HtmlEncode(diagnostic) + "\n"))
+            + "</pre>";
+    }
+
 }
 
 

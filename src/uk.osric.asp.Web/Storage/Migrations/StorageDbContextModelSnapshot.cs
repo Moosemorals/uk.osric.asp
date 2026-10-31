@@ -26,6 +26,18 @@ namespace uk.osric.asp.Web.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ContentHash")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Diagnostics")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Image")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("RuntimeId")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Path");
 
                     b.ToTable("Files", (string)null);

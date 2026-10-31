@@ -6,59 +6,63 @@ namespace uk.osric.asp.Runtime;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.Loader;
 using uk.osric.asp.Core;
 
-/// <summary>Compiles C# source code into dynamically linked libraries.</summary>
-public static class TemplateCompiler {
-    private static MetadataReference[] GetMetadataReferences() {
+/// <summary>Compiles C# source into page assemblies and loads them for execution.</summary>
+public sealed class TemplateCompiler : ITemplateCompiler {
+
+    // Bump the prefix when a change outside Core invalidates stored images: the compiler options,
+    // the reference set, or how a compiled handler is invoked. Core's module version id covers
+    // everything in the generated source's contract: IContext, IHandler and the source generator.
+    private const string FormatVersion = "1";
+
+    // Built once per process. A compilation needs a reference for every platform assembly, and
+    // re-reading and re-creating them was a large part of the cost of compiling a small page.
+    private static readonly MetadataReference[] s_metadataReferences = CreateMetadataReferences();
+
+    /// <summary>Identifies the build that produced a compiled image.</summary>
+    public static string RuntimeId { get; } =
+        $"{FormatVersion}:{typeof(IHandler).Assembly.ManifestModule.ModuleVersionId:N}";
+
+    string ITemplateCompiler.RuntimeId => RuntimeId;
+
+    /// <summary>Compiles generated C# source into an assembly image.</summary>
+    /// <param name="source">The generated C# source, not the page template.</param>
+    /// <returns>Whether the assembly was emitted, the image, and the diagnostics if it was not.</returns>
+    public CompileResult Compile(string source) {
+        ArgumentNullException.ThrowIfNull(source);
+
+        using MemoryStream image = new();
+        CSharpCompilation compilation = CSharpCompilation.Create(
+            assemblyName: $"Dynamic_{Guid.NewGuid():N}",
+            syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
+            references: s_metadataReferences,
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+        );
+
+        EmitResult result = compilation.Emit(image);
+        IReadOnlyList<string> diagnostics = [.. result.Diagnostics.Select(diagnostic => diagnostic.ToString())];
+
+        return new CompileResult(result.Success, result.Success ? image.ToArray() : null, diagnostics);
+    }
+
+    /// <summary>Loads a compiled image so its handler can be run.</summary>
+    /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
+    /// <returns>The loaded handler; dispose it to release the assembly.</returns>
+    public CompiledTemplate Load(byte[] image) {
+        ArgumentNullException.ThrowIfNull(image);
+
+        return new CompiledTemplate(image);
+    }
+
+    private static MetadataReference[] CreateMetadataReferences() {
         List<string> metadataPaths = [typeof(IHandler).Assembly.Location];
-        if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string tpa) {
-            metadataPaths.AddRange(tpa.Split(Path.PathSeparator));
+        if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string trustedPlatformAssemblies) {
+            metadataPaths.AddRange(trustedPlatformAssemblies.Split(Path.PathSeparator));
         } else {
             return [];
         }
 
-        return [.. metadataPaths.Select(p => MetadataReference.CreateFromFile(p))];
-    }
-
-    /// <summary>Compiles C# source code into a dynamically linked library.</summary>
-    /// <param name="source">The C# source code to compile.</param>
-    /// <param name="sink">The stream that receives the compiled assembly.</param>
-    /// <returns>Whether the assembly was written, and the diagnostic text if it was not.</returns>
-    public static CompileResult Compile(string source, Stream sink) {
-        CSharpCompilation compilation = CSharpCompilation.Create(
-            assemblyName: $"Dynamic_{Guid.NewGuid():N}",
-            syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
-            references: GetMetadataReferences(),
-            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-        );
-
-        EmitResult result = compilation.Emit(sink);
-
-        return new CompileResult(result.Success, [.. result.Diagnostics.Select(d => d.ToString())]);
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static void Run(Stream image, IContext ctx) {
-        AssemblyLoadContext context = new(null, isCollectible: true);
-
-        try {
-            Assembly assembly = context.LoadFromStream(image);
-
-            if (assembly.GetTypes().FirstOrDefault(t => t.IsAssignableTo(typeof(IHandler))) is not Type handler) {
-                throw new InvalidOperationException("No handler found in the assembly.");
-            }
-
-            if (handler.GetMethod("Handle") is not MethodInfo handle) {
-                throw new InvalidOperationException("No handle method found in the handler.");
-            }
-
-            handle.Invoke(Activator.CreateInstance(handler), [ctx]);
-        } finally {
-            context.Unload();
-        }
+        return [.. metadataPaths.Select(path => MetadataReference.CreateFromFile(path))];
     }
 }

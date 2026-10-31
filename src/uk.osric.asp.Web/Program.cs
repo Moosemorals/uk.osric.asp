@@ -6,7 +6,9 @@ namespace uk.osric.asp.Web;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Endpoints;
+using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
 
 // Not static: WebApplicationFactory<Program> needs a type to name when it looks for the entry point.
@@ -25,6 +27,9 @@ public class Program {
 
         builder.Services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
         builder.Services.AddScoped<IStorage, SqliteStorage>();
+        builder.Services.AddScoped<PageService>();
+        builder.Services.AddSingleton<ITemplateCompiler, TemplateCompiler>();
+        builder.Services.AddSingleton<PageMetrics>();
         builder.Services.Configure<ForwardedHeadersOptions>(options => {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
             // Caddy terminates TLS on the host loopback and is the only peer that can reach the port

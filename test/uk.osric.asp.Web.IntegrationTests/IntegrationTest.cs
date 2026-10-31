@@ -38,9 +38,13 @@ public abstract class IntegrationTest {
         });
     }
 
+    /// <summary>Stores a page without a compile result, as a direct write to the database would.</summary>
     protected async Task SavePageAsync(string path, string content) {
         await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
         IStorage storage = scope.ServiceProvider.GetRequiredService<IStorage>();
-        await storage.SetFileContentsAsync(PagePath.Normalize(path), content);
+        await storage.SavePageAsync(new StoredPage(PagePath.Normalize(path), content));
     }
+
+    /// <summary>How many times the running host has compiled a page.</summary>
+    protected int CompileCount => _application.Compiler.CompileCount;
 }

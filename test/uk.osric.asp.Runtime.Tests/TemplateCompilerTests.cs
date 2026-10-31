@@ -4,12 +4,16 @@
 namespace uk.osric.asp.Runtime.Tests;
 
 using NUnit.Framework;
+using System.Reflection;
 using System.Text;
 using uk.osric.asp.Core;
 using uk.osric.asp.Runtime;
 
 [TestFixture]
 public sealed class TemplateCompilerTests {
+
+    private static readonly TemplateCompiler Compiler = new();
+
     [Test]
     public void EmptyTemplateCompilesAndProducesNoOutput() {
         TestContext context = CompileAndRun("");
@@ -34,25 +38,79 @@ public sealed class TemplateCompilerTests {
     }
 
     [Test]
-    public void InvalidSourceReportsDiagnostics() {
-        string source = TemplateSourceGenerator.GenerateTemplateSource("<% int value = ; %>");
-        using MemoryStream assembly = new();
-
-        CompileResult result = TemplateCompiler.Compile(source, assembly);
+    public void InvalidSourceReportsDiagnosticsWithoutAnImage() {
+        CompileResult result = Compile("<% int value = ; %>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Is.Not.Empty);
+        Assert.That(result.Image, Is.Null);
+    }
+
+    [Test]
+    public void ValidSourceEmitsAnImage() {
+        CompileResult result = Compile("Hello.");
+
+        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
+    }
+
+    [Test]
+    public void OneImageCanBeLoadedAndInvokedMoreThanOnce() {
+        using CompiledTemplate template = Load("Hello, <% ctx.Write(\"world\"); %>!");
+        TestContext first = new();
+        TestContext second = new();
+
+        template.Invoke(first);
+        template.Invoke(second);
+
+        Assert.That(first.Output, Is.EqualTo("Hello, world!"));
+        Assert.That(second.Output, Is.EqualTo("Hello, world!"));
+    }
+
+    [Test]
+    public void TemplateExceptionsSurfaceAsTargetInvocationExceptions() {
+        using CompiledTemplate template = Load("<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
+
+        TargetInvocationException? failure = Assert.Throws<TargetInvocationException>(() => template.Invoke(new TestContext()));
+
+        Assert.That(failure?.InnerException, Is.TypeOf<InvalidOperationException>());
+        Assert.That(failure?.InnerException?.Message, Is.EqualTo("Template executed."));
+    }
+
+    [Test]
+    public void RuntimeIdStartsWithTheFormatVersion() {
+        Assert.That(TemplateCompiler.RuntimeId, Does.StartWith("1:"));
+    }
+
+    [Test]
+    public void RuntimeIdContainsTheCoreModuleVersionId() {
+        Assert.That(TemplateCompiler.RuntimeId,
+            Does.EndWith(typeof(IHandler).Assembly.ManifestModule.ModuleVersionId.ToString("N")));
+    }
+
+    [Test]
+    public void EveryCompilerInstanceReportsTheSameRuntimeId() {
+        ITemplateCompiler other = new TemplateCompiler();
+
+        Assert.That(other.RuntimeId, Is.EqualTo(TemplateCompiler.RuntimeId));
+    }
+
+    private static CompileResult Compile(string template) {
+        return Compiler.Compile(TemplateSourceGenerator.GenerateTemplateSource(template));
+    }
+
+    private static CompiledTemplate Load(string template) {
+        CompileResult result = Compile(template);
+        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+
+        // The assertion above proves the image exists when compilation succeeded.
+        return Compiler.Load(result.Image!);
     }
 
     private static TestContext CompileAndRun(string template) {
-        string source = TemplateSourceGenerator.GenerateTemplateSource(template);
-        using MemoryStream assembly = new();
-        CompileResult result = TemplateCompiler.Compile(source, assembly);
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
-
-        assembly.Position = 0;
+        using CompiledTemplate page = Load(template);
         TestContext context = new();
-        TemplateCompiler.Run(assembly, context);
+        page.Invoke(context);
         return context;
     }
 
