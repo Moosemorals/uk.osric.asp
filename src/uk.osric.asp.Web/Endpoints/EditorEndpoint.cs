@@ -94,7 +94,11 @@ public sealed class EditorEndpoint {
             return "Content must have exactly one value.";
         }
 
-        IReadOnlyList<string> diagnostics = await pages.SaveAsync(path, content.ToString(), context.RequestAborted);
-        return diagnostics.Count == 0 ? "Saved successfully." : "Saved with errors.";
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(path, content.ToString(), context.RequestAborted);
+        return diagnostics switch {
+            { Count: 0 } => "Saved successfully.",
+            _ when diagnostics.Any(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error) => "Saved with errors.",
+            _ => "Saved with warnings.",
+        };
     }
 }

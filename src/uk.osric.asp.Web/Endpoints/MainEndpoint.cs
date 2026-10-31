@@ -73,7 +73,7 @@ public sealed class MainEndpoint() {
         }
     }
 
-    private static async Task WriteCompileErrorAsync(HttpContext context, IReadOnlyList<string> diagnostics) {
+    private static async Task WriteCompileErrorAsync(HttpContext context, IReadOnlyList<PageDiagnostic> diagnostics) {
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.StatusCode = 500;
 

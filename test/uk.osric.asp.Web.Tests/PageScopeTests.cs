@@ -25,8 +25,10 @@ public sealed class PageScopeTests {
 
         Assert.That(result.Success, Is.False);
         // CS0234 rather than CS0246: the assembly is absent, so its namespace is unknown too.
-        Assert.That(result.Diagnostics, Has.Some.Contains("error CS02"));
-        Assert.That(result.Diagnostics, Has.None.Contains("PAGE001"));
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains("CS02", StringComparison.Ordinal)));
+        Assert.That(result.Diagnostics, Has.None.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains("PAGE001", StringComparison.Ordinal)));
     }
 
     [Test]
@@ -35,8 +37,10 @@ public sealed class PageScopeTests {
             Generate("<% Microsoft.CodeAnalysis.CSharp.CSharpCompilation compilation = null; %>"));
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Diagnostics, Has.Some.Contains("error CS02"));
-        Assert.That(result.Diagnostics, Has.None.Contains("PAGE001"));
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains("CS02", StringComparison.Ordinal)));
+        Assert.That(result.Diagnostics, Has.None.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains("PAGE001", StringComparison.Ordinal)));
     }
 
     [Test]

@@ -17,6 +17,6 @@ public sealed class StoredFile {
     /// <summary>The emitted assembly; null when compilation failed.</summary>
     public byte[]? Image { get; set; }
 
-    /// <summary>The compiler's messages as a JSON array; null when the page compiled.</summary>
+    /// <summary>The compiler's diagnostics as a JSON array; null when no compile result is stored.</summary>
     public string? Diagnostics { get; set; }
 }

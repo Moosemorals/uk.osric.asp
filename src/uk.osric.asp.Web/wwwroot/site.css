@@ -12,6 +12,14 @@ body {
 .diagnostics {
     padding: 1rem;
     overflow-x: auto;
-    background-color: #fdecea;
-    border-left: 0.25rem solid #c00;
+    background-color: #f5f5f5;
+    border-left: 0.25rem solid #999;
+}
+
+.diagnostics .diagnostic-error {
+    color: #c00;
+}
+
+.diagnostics .diagnostic-warning {
+    color: #8a5a00;
 }

@@ -180,6 +180,45 @@ public sealed class EditorEndpointTests {
         string body = await TestHttp.ReadBodyAsync(get);
         Assert.That(body, Does.Contain("class=\"diagnostics\""));
         Assert.That(body, Does.Contain("error CS"));
+        Assert.That(body, Does.Contain("diagnostic-error"));
+    }
+
+    [Test]
+    public async Task DiagnosticsAreShownInPositionOrderAsync() {
+        DefaultHttpContext get = CreateContext();
+        FakeStorage storage = new();
+        storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "line one\nline two", new PageCompilation(
+            ContentFingerprint.Of("line one\nline two"),
+            "1:build",
+            null,
+            [
+                new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(2, 5), "CS0103: later line"),
+                new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(1, 9), "CS1002: earlier line"),
+            ]));
+
+        await EditorEndpoint.Handler(get, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(get);
+        Assert.That(body.IndexOf("CS1002", StringComparison.Ordinal), Is.LessThan(body.IndexOf("CS0103", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public async Task PostWithAWarningSaysSavedWithWarningsAsync() {
+        DefaultHttpContext post = CreateContext("POST");
+        SetContent(post, new StringValues("<% int unused = 1; %>"));
+        FakeStorage storage = new();
+
+        await EditorEndpoint.Handler(post, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(storage["/page.cs"]?.Compilation?.Image, Is.Not.Null.And.Not.Empty);
+        AssertRedirect(post, "Saved with warnings.");
+
+        DefaultHttpContext get = CreateContext();
+        await EditorEndpoint.Handler(get, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(get);
+        Assert.That(body, Does.Contain("warning CS0219"));
+        Assert.That(body, Does.Contain("diagnostic-warning"));
     }
 
     [TestCase(null)]

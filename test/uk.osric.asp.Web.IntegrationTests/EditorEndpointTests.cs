@@ -64,6 +64,24 @@ public sealed class EditorEndpointTests : IntegrationTest {
     }
 
     [Test]
+    public async Task SavingAWarningOnlyPageReportsAWarningAndServesIt() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        int compiles = CompileCount;
+
+        HttpResponseMessage save = await PostEditorAsync(client, "warned", "<% int unused = 1; %>");
+        Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+
+        string editor = await (await client.GetAsync("/edit/warned")).Content.ReadAsStringAsync();
+        Assert.That(editor, Does.Contain("Saved with warnings."));
+        Assert.That(editor, Does.Contain("warning CS0219"));
+
+        HttpResponseMessage page = await client.GetAsync("/warned");
+        Assert.That(page.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await page.Content.ReadAsStringAsync(), Is.Empty);
+        Assert.That(CompileCount - compiles, Is.EqualTo(1), "the save compiled the page; the view must not");
+    }
+
+    [Test]
     public async Task SavedMessageIsShownOnTheNextRequestOnly() {
         using HttpClient client = await CreateSignedInClientAsync();
 

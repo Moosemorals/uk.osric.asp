@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web;
 
 using System.Net;
+using uk.osric.asp.Core;
 
 public static class Framework {
 
@@ -26,11 +27,16 @@ public static class Framework {
         </html>
         """;
 
-    /// <summary>Renders compiler messages as an HTML block, encoding every message.</summary>
-    /// <param name="diagnostics">The messages to show.</param>
-    public static string GetDiagnostics(IReadOnlyList<string> diagnostics) {
+    /// <summary>Renders compiler diagnostics as an HTML block, encoding every message.</summary>
+    /// <param name="diagnostics">The diagnostics to show, in the order the compiler reported them.</param>
+    public static string GetDiagnostics(IReadOnlyList<PageDiagnostic> diagnostics) {
         return "<pre class=\"diagnostics\">"
-            + string.Concat(diagnostics.Select(diagnostic => WebUtility.HtmlEncode(diagnostic) + "\n"))
+            + string.Concat(PageDiagnostic.SortedForDisplay(diagnostics).Select(diagnostic => {
+                string severity = diagnostic.Severity == PageDiagnosticSeverity.Error
+                    ? "diagnostic-error"
+                    : "diagnostic-warning";
+                return $"<span class=\"{severity}\">{WebUtility.HtmlEncode(diagnostic.ToString())}</span>\n";
+            }))
             + "</pre>";
     }
 

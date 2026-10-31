@@ -118,7 +118,10 @@ public sealed class SqliteStorageTests {
 
     [Test]
     public async Task CompileDiagnosticsSurviveReopeningAsync() {
-        PageCompilation failure = new(ContentFingerprint.Of("<% broken"), "1:build", null, ["error CS1525: broken", "second message"]);
+        PageCompilation failure = new(ContentFingerprint.Of("<% broken"), "1:build", null, [
+            new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(2, 16), "CS1525: broken"),
+            new PageDiagnostic(PageDiagnosticSeverity.Warning, new TemplatePosition(3, 5), "CS0219: unused"),
+        ]);
 
         await using (StorageDbContext writer = new(_options)) {
             IStorage storage = new SqliteStorage(writer);
@@ -130,6 +133,51 @@ public sealed class SqliteStorageTests {
 
         Assert.That(actual?.Image, Is.Null);
         Assert.That(actual?.Diagnostics, Is.EqualTo(failure.Diagnostics).AsCollection);
+    }
+
+    [Test]
+    public async Task LegacyStringDiagnosticsAreReadAsErrorsWithoutAnImageAsync() {
+        await using (StorageDbContext writer = new(_options)) {
+            writer.Add(new StoredFile {
+                Path = Key("/legacy").Path,
+                Content = "broken",
+                RuntimeId = "1:build",
+                ContentHash = "hash",
+                Image = null,
+                Diagnostics = "[\"error CS1525: legacy\"]",
+            });
+            await writer.SaveChangesAsync();
+        }
+
+        await using StorageDbContext reader = new(_options);
+        PageCompilation? actual = (await new SqliteStorage(reader).GetPageAsync(Key("/legacy")))?.Compilation;
+
+        Assert.That(actual?.Diagnostics, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, null, "error CS1525: legacy"),
+        }));
+    }
+
+    [Test]
+    public async Task LegacyStringDiagnosticsAreReadAsWarningsWithAnImageAsync() {
+        await using (StorageDbContext writer = new(_options)) {
+            writer.Add(new StoredFile {
+                Path = Key("/legacy-warning").Path,
+                Content = "warning",
+                RuntimeId = "1:build",
+                ContentHash = "hash",
+                Image = [1, 2, 3],
+                Diagnostics = "[\"warning CS0219: legacy\"]",
+            });
+            await writer.SaveChangesAsync();
+        }
+
+        await using StorageDbContext reader = new(_options);
+        PageCompilation? actual = (await new SqliteStorage(reader).GetPageAsync(Key("/legacy-warning")))?.Compilation;
+
+        Assert.That(actual?.Image, Is.EqualTo(new byte[] { 1, 2, 3 }));
+        Assert.That(actual?.Diagnostics, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Warning, null, "warning CS0219: legacy"),
+        }));
     }
 
     [Test]

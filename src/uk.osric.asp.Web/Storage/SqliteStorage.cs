@@ -5,9 +5,15 @@ namespace uk.osric.asp.Web.Storage;
 
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using uk.osric.asp.Core;
 
 public sealed class SqliteStorage(StorageDbContext database) : IStorage {
+
+    private static readonly JsonSerializerOptions s_jsonOptions = new() {
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     public async Task<StoredPage?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
         StoredFile? file = await database.Set<StoredFile>().AsNoTracking()
             .SingleOrDefaultAsync(file => file.Path == path.Path, cancellationToken);
@@ -62,7 +68,29 @@ public sealed class SqliteStorage(StorageDbContext database) : IStorage {
             file.ContentHash ?? string.Empty,
             file.RuntimeId,
             file.Image,
-            file.Diagnostics is null ? [] : JsonSerializer.Deserialize<string[]>(file.Diagnostics) ?? []);
+            Deserialize(file.Diagnostics, file.Image is not null));
+    }
+
+    private static IReadOnlyList<PageDiagnostic> Deserialize(string? json, bool hasImage) {
+        if (json is null) {
+            return [];
+        }
+
+        try {
+            return JsonSerializer.Deserialize<PageDiagnostic[]>(json, s_jsonOptions) ?? [];
+        } catch (JsonException) {
+            // Rows written before diagnostics carried a severity stored a plain string array. The
+            // image is the only clue to what they meant: no image means they were errors.
+            string[]? legacy = JsonSerializer.Deserialize<string[]>(json);
+            if (legacy is null) {
+                return [];
+            }
+
+            PageDiagnosticSeverity severity = hasImage
+                ? PageDiagnosticSeverity.Warning
+                : PageDiagnosticSeverity.Error;
+            return [.. legacy.Select(message => new PageDiagnostic(severity, null, message))];
+        }
     }
 
     private static void Apply(StoredFile file, PageCompilation? compilation) {
@@ -73,6 +101,6 @@ public sealed class SqliteStorage(StorageDbContext database) : IStorage {
     }
 
     private static string Serialize(PageCompilation compilation) {
-        return JsonSerializer.Serialize(compilation.Diagnostics);
+        return JsonSerializer.Serialize(compilation.Diagnostics, s_jsonOptions);
     }
 }

@@ -29,7 +29,7 @@ public sealed class PageServiceTests {
         FakeStorage storage = new();
         PageService pages = CreateService(storage);
 
-        IReadOnlyList<string> diagnostics = await pages.SaveAsync(Key("/hello"), "Hello.");
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/hello"), "Hello.");
 
         Assert.That(diagnostics, Is.Empty);
         Assert.That(_compiler.CompileCount, Is.EqualTo(1));
@@ -47,10 +47,12 @@ public sealed class PageServiceTests {
         FakeStorage storage = new();
         PageService pages = CreateService(storage);
 
-        IReadOnlyList<string> diagnostics = await pages.SaveAsync(Key("/broken"), "<% int value = ; %>");
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/broken"), "<% int value = ; %>");
 
         Assert.That(diagnostics, Is.Not.Empty);
-        Assert.That(diagnostics, Has.Some.Contains("error CS"));
+        Assert.That(diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains("CS", StringComparison.Ordinal)
+                && diagnostic.Severity == PageDiagnosticSeverity.Error));
 
         StoredPage saved = Stored(storage, "/broken");
         Assert.That(saved.Content, Is.EqualTo("<% int value = ; %>"));
@@ -63,17 +65,54 @@ public sealed class PageServiceTests {
         FakeStorage storage = new();
         PageService pages = CreateService(storage);
 
-        IReadOnlyList<string> diagnostics = await pages.SaveAsync(Key("/unterminated"), "before<% if (true) {");
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/unterminated"), "before<% if (true) {");
 
-        Assert.That(diagnostics, Is.EqualTo([
-            "TEMPLATE001: unterminated code block; the '<%' at line 1, column 7 has no matching '%>'.",
-        ]));
+        Assert.That(diagnostics, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(1, 7),
+                "TEMPLATE001: unterminated code block; the '<%' has no matching '%>'."),
+        }));
         Assert.That(_compiler.CompileCount, Is.Zero, "a template that does not parse never reaches the compiler");
 
         StoredPage saved = Stored(storage, "/unterminated");
         Assert.That(saved.Content, Is.EqualTo("before<% if (true) {"));
         Assert.That(saved.Compilation?.Image, Is.Null);
         Assert.That(saved.Compilation?.Diagnostics, Is.EqualTo(diagnostics).AsCollection);
+    }
+
+    [Test]
+    public async Task SaveReportsAWarningWithoutFailingThePageAsync() {
+        FakeStorage storage = new();
+        PageService pages = CreateService(storage);
+
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/warned"), "<% int unused = 1; %>");
+
+        Assert.That(diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Warning
+                && diagnostic.Message.Contains("CS0219", StringComparison.Ordinal)));
+
+        StoredPage saved = Stored(storage, "/warned");
+        Assert.That(saved.Compilation?.Image, Is.Not.Null.And.Not.Empty);
+    }
+
+    [Test]
+    public async Task RenderPropagatesACompilerFaultAsync() {
+        FakeStorage storage = new();
+        storage["/fault"] = new StoredPage(Key("/fault"), "Hello.");
+        PageService pages = new(storage, new FaultingCompiler(), _metrics, NullLogger<PageService>.Instance);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => RenderAsync(pages, "/fault"));
+    }
+
+    [Test]
+    public async Task SavePreservesTheSourceWhenTheCompilerFaultsAsync() {
+        FakeStorage storage = new();
+        PageService pages = new(storage, new FaultingCompiler(), _metrics, NullLogger<PageService>.Instance);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => pages.SaveAsync(Key("/fault"), "Hello."));
+
+        StoredPage saved = Stored(storage, "/fault");
+        Assert.That(saved.Content, Is.EqualTo("Hello."));
+        Assert.That(saved.Compilation, Is.Null);
     }
 
     [Test]
@@ -139,7 +178,9 @@ public sealed class PageServiceTests {
     [Test]
     public async Task AStoredCompileErrorIsServedWithoutCompilingAgainAsync() {
         FakeStorage storage = new();
-        PageCompilation failed = new(ContentFingerprint.Of("<% int value = ; %>"), _compiler.RuntimeId, null, ["error CS1525: broken"]);
+        PageCompilation failed = new(ContentFingerprint.Of("<% int value = ; %>"), _compiler.RuntimeId, null, [
+            new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(1, 16), "CS1525: broken"),
+        ]);
         storage["/broken"] = new StoredPage(Key("/broken"), "<% int value = ; %>", failed);
         PageService pages = CreateService(storage);
 
@@ -209,5 +250,18 @@ public sealed class PageServiceTests {
 
     private static PagePath Key(string path) {
         return PagePath.Normalize(path);
+    }
+
+    private sealed class FaultingCompiler : ITemplateCompiler {
+
+        public string RuntimeId => "faulting";
+
+        public CompileResult Compile(string source) {
+            throw new InvalidOperationException("The generated page source did not compile.");
+        }
+
+        public CompiledTemplate Load(byte[] image) {
+            throw new NotSupportedException("A faulting compiler never produces an image.");
+        }
     }
 }

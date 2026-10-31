@@ -33,17 +33,27 @@ public sealed class PageService(
     /// <param name="path">The canonical key to save.</param>
     /// <param name="content">The template source.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
-    /// <returns>The compiler's diagnostics; empty when the page compiled.</returns>
-    public async Task<IReadOnlyList<string>> SaveAsync(PagePath path, string content, CancellationToken cancellationToken = default) {
+    /// <returns>The compiler's author-facing diagnostics, errors and warnings; empty when the page compiled cleanly.</returns>
+    public async Task<IReadOnlyList<PageDiagnostic>> SaveAsync(PagePath path, string content, CancellationToken cancellationToken = default) {
         long start = Stopwatch.GetTimestamp();
 
-        PageCompilation compilation = Compile(path, content, PageMetrics.ReasonSave);
+        PageCompilation compilation;
+        try {
+            compilation = Compile(path, content, PageMetrics.ReasonSave);
+        } catch (InvalidOperationException) {
+            // A compiler fault is our bug, but the author's edit must survive it. Store the source
+            // without a compilation; the next request retries, and the failure still answers 500.
+            await storage.SavePageAsync(new StoredPage(path, content), cancellationToken);
+            metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
+            throw;
+        }
+
         await storage.SavePageAsync(new StoredPage(path, content, compilation), cancellationToken);
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
         metrics.RecordSave(path, compilation.Image is not null, duration);
         logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Path, duration.TotalMilliseconds,
-            compilation.Image is null ? "with errors" : "compiled");
+            Outcome(compilation));
 
         return compilation.Diagnostics;
     }
@@ -137,9 +147,23 @@ public sealed class PageService(
         // A template that does not parse never reaches the compiler, but it fails exactly like a
         // syntax error: stored with its diagnostics, so the editor shows the fix and the page is not
         // recompiled on every request.
-        CompileResult result = parse.Source is { } source
-            ? compiler.Compile(source)
-            : new CompileResult(false, null, parse.Errors);
+        CompileResult result;
+        if (parse.Source is { } source) {
+            try {
+                result = compiler.Compile(source);
+            } catch (InvalidOperationException ex) {
+                logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Path, Environment.NewLine, source);
+                logger.LogError(ex, "The generated source for {Path} did not compile; this is a compiler fault", path.Path);
+                metrics.RecordCompile(path, false, reason, Stopwatch.GetElapsedTime(start));
+                throw;
+            }
+
+            if (!result.Success) {
+                logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Path, Environment.NewLine, source);
+            }
+        } else {
+            result = new CompileResult(null, parse.Errors);
+        }
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
         metrics.RecordCompile(path, result.Success, reason, duration);
@@ -151,6 +175,14 @@ public sealed class PageService(
             result.Success ? "ok" : "error");
 
         return new PageCompilation(ContentFingerprint.Of(content), compiler.RuntimeId, result.Image, result.Diagnostics);
+    }
+
+    private static string Outcome(PageCompilation compilation) {
+        if (compilation.Image is null) {
+            return "with errors";
+        }
+
+        return compilation.Diagnostics.Count > 0 ? "compiled with warnings" : "compiled";
     }
 
     private void Run(PagePath path, byte[] image, IContext context) {
