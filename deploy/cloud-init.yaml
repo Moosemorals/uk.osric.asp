@@ -40,6 +40,7 @@ packages:
   - sqlite3
   - ca-certificates
   - curl
+  - btop
 
 write_files:
   - path: /etc/ssh/sshd_config.d/10-hardening.conf
