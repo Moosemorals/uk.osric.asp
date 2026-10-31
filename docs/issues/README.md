@@ -24,9 +24,10 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
 | [BUG-12](BUG-12.md) | Low | Unused Roslyn Workspaces packages ship in the web app |
-| [OPS-02](OPS-02.md) | Low | There is no health endpoint for the container |
+| [OPS-02](OPS-02.md) | Low | The health endpoint exists; it has no monitor or alerting behind it |
 | [OPS-03](OPS-03.md) | Medium | There is no CI pipeline |
 | [OPS-04](OPS-04.md) | Low | EF Core logs every SQL command at Information in production |
+| [OPS-05](OPS-05.md) | Medium | No outbound notifications when the site breaks |
 | [STYLE-03](STYLE-03.md) | Low | Two top-level types share `TemplateTokenizer.cs`; `Token` is a class record |
 
 ## Suggested order
