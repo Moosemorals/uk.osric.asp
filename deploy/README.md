@@ -54,6 +54,9 @@ The quadlets are the source of truth for the server: `make deploy` copies them u
 - **New code:** back up storage first, then `make deploy HOST=deploy@<server-ip>` (builds, pushes,
   pulls, restarts).
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
+- **Reserved page keys:** `Pages:ReservedPaths` (environment form
+  `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
+  covers `/edit`, `/site.css` and `/favicon.ico`; change it only when the route table changes.
 - **Logs:** `ssh deploy@<server-ip> journalctl --user -u uk.osric.asp.service -f`
 - **Status:** `ssh deploy@<server-ip> systemctl --user status uk.osric.asp.service`
 - **Edge:** `ssh deploy@<server-ip> sudo systemctl status caddy`

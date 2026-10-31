@@ -19,11 +19,14 @@ core stays pure and the shell stays thin.
 
 - **Core tests** cover one rule at a time and exercise `Core` directly.
 - **Runtime tests** cover what the core cannot: Roslyn emitting a handler, loading the assembly and
-  invoking it. They reference `Runtime`, never `Web`.
+  invoking it. They also cover the page API policy — one test per banned construct, plus a page of
+  ordinary code that must still compile — and the load context, which is reachable from the tests
+  through `InternalsVisibleTo`. They reference `Runtime`, never `Web`.
 - **Web tests** cover the shell: endpoints driven through a hand-built `HttpContext` with an
   in-memory `IStorage` and the real compiler, and storage against a real SQLite database file. The
   page-cache tests swap in a counting compiler wrapped around the real one, so "a second request does
-  not compile" is asserted rather than inferred.
+  not compile" is asserted rather than inferred. `PageScopeTests` lives here because it names the
+  shell's own types to prove the trimmed reference set cannot resolve them.
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, status codes and content types set by middleware, static files falling
   through to the page route, startup migrations, DI wiring and the fact that a page is compiled

@@ -15,9 +15,10 @@ can enforce it.
   reach for I/O, a clock, DI or ASP.NET. Its only dependency is the base class library.
 - **`src/uk.osric.asp.Runtime`** holds the imperative half of template execution: `TemplateCompiler`
   reads platform assembly paths, generates assembly names, emits to a stream, and loads and invokes
-  the compiled handler in a collectible `AssemblyLoadContext`. It references `Core` and Roslyn, and
-  nothing else — in particular no ASP.NET, storage or logging types, because it is not built on the
-  Web SDK.
+  the compiled handler in a collectible `AssemblyLoadContext`. It also applies the page API policy
+  (`PageApiChecker`) before emitting, and hands each image a `PageLoadContext` that refuses the
+  shell's assemblies. It references `Core` and Roslyn, and nothing else — in particular no ASP.NET,
+  storage or logging types, because it is not built on the Web SDK.
 - **`src/uk.osric.asp.Web`** owns HTTP endpoints, hosting, configuration, `SimpleContext`, and source
   storage. EF Core, SQLite, database migrations and `IStorage` belong here.
 
@@ -35,11 +36,69 @@ back up. `TemplateCompiler` returns a `CompileResult` of booleans and strings ra
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
 | Source storage, `IStorage`, EF Core context and migrations | `Web`, under `Storage` for implementation |
+| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageApiPolicy` | `Core`, as plain values and pure rules |
+| The Roslyn walk that applies the page policy | `Runtime` |
 
 When something in the shell needs a decision from a pure rule, pass the data in and return a value;
 do not hand that rule `IStorage`, a database context, a logger, or `HttpContext`. The runtime passes
 `IContext` to a compiled handler; that is the deliberate seam between compiled page code and the
 host, and `SimpleContext` is its only implementation.
+
+## Page contract
+
+A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it
+touches is a plain record in `Core`. `IContext` is the whole surface — `Request` (method, path, query,
+form, headers, cookies), `Path`, `Aborted`, `Log`, `Write`/`WriteRaw`, `SetStatus`, `SetContentType`,
+`SetHeader` and `Redirect`.
+
+Two rules keep the response safe:
+
+- The body is buffered. Status, content type and headers are applied after `Handle` returns, so a
+  page that throws sends the error page rather than half a document.
+- Headers are bounded by an allow-list in `SimpleContext`: `Cache-Control`, `Content-Language`,
+  `ETag`, `Expires`, `Vary` and any `X-` name. `Set-Cookie`, `Location`, `Content-Type` and the
+  framing headers are refused, so a page cannot clobber the editor's flash cookie or the future auth
+  cookie. Redirects go through `Redirect`; content type through `SetContentType`.
+
+Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
+over 1 MiB is refused with 413 before it is read. Keys the site's own routes answer for are listed
+in `Pages:ReservedPaths`, refused by the editor and never served.
+
+## Page API policy
+
+Stored pages are C#, so the surface they may touch is constrained twice.
+
+- `PageApiPolicy` in `Core` is the default-deny allow-list: the SDK namespace plus a short list of
+  base class library types, checked against the symbol the page actually resolved. It is data plus a
+  pure function, so the list is readable and the diagnostic names the API to add. `System.Object` is
+  deliberately absent: allowing it would allow `GetType()`.
+- `PageApiChecker` in `Runtime` walks the generated syntax tree, projects Roslyn symbols onto
+  `ApiReference` values, rejects `stackalloc`, `dynamic`, pointers and `unsafe`, and enforces the
+  shape rule — one type, `GeneratedPage`, with one method, `Handle`. That rule is what stops a page
+  closing the method to declare statics, its own entry point or a module initializer.
+
+The compiler's reference set is trimmed to the base class library: `uk.osric.asp.*` and `Microsoft.*`
+are not referenced, so naming the shell or Roslyn fails with CS02xx before the policy runs. The trim
+cannot remove `System.IO` or `System.Environment`, which live in `System.Private.CoreLib`; that is the
+policy's job. A post-emit scan of the image's type references was considered and dropped, because it
+could only find what the semantic walk already reports, at the price of false rejections for
+compiler-emitted helpers.
+
+The policy is versioned, because it is applied when a page compiles. `RuntimeId` is
+`{FormatVersion}:{PolicyVersion}:{CoreMvid}`, so tightening the list invalidates every stored image
+and each page is rechecked on its next request.
+
+## Load isolation
+
+`CompiledTemplate` loads each image into a `PageLoadContext`, a collectible `AssemblyLoadContext`
+that refuses `uk.osric.asp.Web`, `uk.osric.asp.Runtime`, `Microsoft.AspNetCore*`,
+`Microsoft.EntityFrameworkCore*` and `Microsoft.Data.Sqlite`, and lets everything else resolve
+through the default context. It throws rather than returning `null`, because `null` means "ask the
+default context" — the exact escape the type exists to close.
+
+This is isolation from the site's internals, not a sandbox: a page still runs in-process with the
+site's identity and the whole base class library. Execution budget and a process boundary are
+[SEC-03](issues/SEC-03.md).
 
 ## Source storage
 
@@ -63,9 +122,9 @@ A stored image is trusted only when both keys match:
 
 - `ContentHash` is the SHA-256 of the source (`ContentFingerprint` in `Core`), so an edit that
   bypasses the editor cannot be answered with stale code.
-- `RuntimeId` is the compile format version plus the module version id of `uk.osric.asp.Core`, so a
-  build with a different page contract never runs an image it did not produce. Debug and Release
-  builds differ, as they should.
+- `RuntimeId` is the compile format version, the page policy version and the module version id of
+  `uk.osric.asp.Core`, so a build with a different page contract — or a tightened policy — never runs
+  an image it did not produce. Debug and Release builds differ, as they should.
 
 A page whose image is missing or stale — a row written before images existed, a direct database
 write, or every row after an upgrade that touched `Core` — is compiled on its next request and
