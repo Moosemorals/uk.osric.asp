@@ -14,7 +14,7 @@ SPDX-License-Identifier: MIT
 ## Problem
 
 `Files` holds one row per path and `SetFileContentsAsync` overwrites `Content` in place. A mistaken
-save — or a forged one (SEC-02) — destroys the previous page with no undo. The site's content is
+save destroys the previous page with no undo. The site's content is
 code, which is exactly the content most likely to need a diff or rollback.
 
 The deployment notes already warn that the database is the only copy of the content and that backups
@@ -26,7 +26,7 @@ are manual, so there is no safety net inside the app either.
    keep `Files` as the current view, or drop it and select the latest revision.
 2. Write the revision and the current row in one transaction.
 3. Add `GET /edit/<path>/history` and `POST /edit/<path>/revert/<revision>` to the editor (behind the
-   SEC-01 boundary).
+   authentication boundary).
 4. Bound retention: keep the last *n* revisions per path, or add a purge job; do not grow without
    limit.
 5. Migrate the existing `Files` rows into revision 1.

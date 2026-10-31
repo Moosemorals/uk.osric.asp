@@ -6,8 +6,9 @@ SPDX-License-Identifier: MIT
 # Page runtime hardening
 
 Implementation plan for ARCH-02, ARCH-04, ARCH-05 (all three closed by this work) and the
-page-code restrictions from the 2026-10-31 hardening discussion. Related open issues that stay open afterwards: [ARCH-03](../issues/ARCH-03.md) (no
-execution budget) and [SEC-01](../issues/SEC-01.md) (the editor is unauthenticated).
+page-code restrictions from the 2026-10-31 hardening discussion. [ARCH-03](../issues/ARCH-03.md)
+(no execution budget) stayed open afterwards; SEC-01 (the editor was unauthenticated) was closed by
+[editor authentication](editor-authentication.md).
 
 ## Threat model
 

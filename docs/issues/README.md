@@ -13,8 +13,6 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 
 | ID | Severity | Problem |
 | --- | --- | --- |
-| [SEC-01](SEC-01.md) | Critical | The editor is unauthenticated, so anyone can execute arbitrary code |
-| [SEC-02](SEC-02.md) | High | Editor POST has no antiforgery protection and its flash cookie is unhardened |
 | [SEC-03](SEC-03.md) | Medium | Page code has no execution budget and no process boundary |
 | [ARCH-03](ARCH-03.md) | High | No execution timeout, cancellation or concurrency limit for page code |
 | [ARCH-06](ARCH-06.md) | Medium | There is no way to list pages |
@@ -32,11 +30,9 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 
 ## Suggested order
 
-1. SEC-01, SEC-02 — close the trust boundary before anything else. If authentication is added,
-   data-protection keys must be persisted (see `deploy/README.md`).
-2. ARCH-03, SEC-03 — give page code a budget, then a boundary if it ever needs one.
-3. ARCH-06, ARCH-07 — a page index and revision history.
-4. OPS-03, BUG-12, STYLE-03, STYLE-04 — hygiene, so the next review starts from an accurate
+1. ARCH-03, SEC-03 — give page code a budget, then a boundary if it ever needs one.
+2. ARCH-06, ARCH-07 — a page index and revision history.
+3. OPS-03, BUG-12, STYLE-03, STYLE-04 — hygiene, so the next review starts from an accurate
    baseline.
 
 ## Closed
@@ -49,7 +45,7 @@ Resolved since the review; the files were deleted and their history is in git.
 | ARCH-04 | `CompiledTemplate.Invoke` unwraps the reflection wrapper with `ExceptionDispatchInfo`, so the shell sees the page's own exception and no longer knows about `TargetInvocationException`. The `NoInlining` attributes were removed with a note on what they would have been protecting |
 | ARCH-05 | `PagePath` normalises every key in `Core` (lowercase, NFC, no dot segments, no trailing slash), the shell redirects to the canonical URL with 308 and stores only canonical keys, and `Pages:ReservedPaths` keeps page keys off the site's own routes. Storage tests use canonical keys |
 | PERF-01 | Pages are compiled when they are saved, and the emitted assembly is stored beside the source in the same row. `ContentHash` (SHA-256 of the source) and `RuntimeId` (format version plus `Core`'s module version id) decide whether a stored image may be used; a page with no usable image is compiled on its next request and stored, and a stored compile failure is served without recompiling. Roslyn's metadata references are built once per process, `ITemplateCompiler` makes compilation injectable, and `PageMetrics` records compile, render, load, invoke, save, image-size and cache instruments on the `uk.osric.asp` meter. `Web.IntegrationTests` register a recording compiler and assert that a second request does not compile |
-| ARCH-08 | `test/uk.osric.asp.Web.IntegrationTests` drives the real host through `WebApplicationFactory<Program>` against a throwaway database: routing, middleware, the error branch, static files, startup migrations and the editor round-trip; `make test-integration` is part of `make test`. The 401/403 cases wait for SEC-01 |
+| ARCH-08 | `test/uk.osric.asp.Web.IntegrationTests` drives the real host through `WebApplicationFactory<Program>` against a throwaway database: routing, middleware, the error branch, static files, startup migrations and the editor round-trip; `make test-integration` is part of `make test`. The authentication tests sign in through the real `/login` form and cover the 401/403 paths |
 | OPS-01 | `UseForwardedHeaders` trusts `X-Forwarded-Proto`/`X-Forwarded-Host` from any peer, which the loopback-only publish makes safe; HSTS now emits and the scheme is honest. Covered by `ForwardedHeadersTests` |
 | ARCH-09 | The `Specs` suite only restated `TemplateCompiler` unit tests, so it was deleted with Reqnroll; the compiler stays covered by `Runtime.Tests` |
 | BUG-01 | `UseExceptionHandler` now uses an inline branch, so a throwing `POST` returns 500 |
@@ -62,4 +58,6 @@ Resolved since the review; the files were deleted and their history is in git.
 | STYLE-01 | `EditorEndpoint` validates through a `SaveAsync` helper instead of `goto` |
 | STYLE-02 | `IStorage.ListFilesAsync` returns `IReadOnlyList<string>` |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
+| SEC-01 | The editor requires a local account. Accounts live in the `Users` table and are created only by the `users` command; `POST`/`GET /edit/**` require the `Editor` policy. Passwords are PBKDF2 hashes, the cookie slides for 30 days and is persistent, and a security stamp revokes it on a password change or account removal. See [the plan](../plans/editor-authentication.md) |
+| SEC-02 | Login, logout and editor POSTs validate an antiforgery token and answer `400` before reading the form or storing anything. The editor's flash message moved from a cookie to server-side session state, and saves answer `303` |
 | STYLE-04 | Exception tests assert with `await Assert.ThrowsAsync`/`Assert.CatchAsync` instead of `Assert.That(async ...)`; the convention is recorded in `docs/testing.md` |

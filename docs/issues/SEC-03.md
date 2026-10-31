@@ -14,7 +14,7 @@ SPDX-License-Identifier: MIT
 ## Problem
 
 The page API policy, the trimmed reference set and `PageLoadContext` keep page code away from the
-site's own types, and the editor is meant to be behind authentication (SEC-01). What remains is the
+site's own types, and the editor is behind authentication. What remains is the
 fact that a page is still arbitrary C# running in the site's process, with the site's identity:
 
 - No execution budget: `while (true) { }` pins a thread, and a timeout can only abandon the thread,

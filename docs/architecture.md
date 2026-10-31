@@ -36,6 +36,8 @@ back up. `TemplateCompiler` returns a `CompileResult` of booleans and strings ra
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
 | Source storage, `IStorage`, EF Core context and migrations | `Web`, under `Storage` for implementation |
+| Local accounts, password hashing and the `users` command | `Web`, under `Users` |
+| Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
 | The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageApiPolicy` | `Core`, as plain values and pure rules |
 | The Roslyn walk that applies the page policy | `Runtime` |
 
@@ -62,12 +64,39 @@ Two rules keep the response safe:
   page that throws sends the error page rather than half a document.
 - Headers are bounded by an allow-list in `SimpleContext`: `Cache-Control`, `Content-Language`,
   `ETag`, `Expires`, `Vary` and any `X-` name. `Set-Cookie`, `Location`, `Content-Type` and the
-  framing headers are refused, so a page cannot clobber the editor's flash cookie or the future auth
-  cookie. Redirects go through `Redirect`; content type through `SetContentType`.
+  framing headers are refused, so a page cannot clobber the editor's authentication, antiforgery or
+  session cookie. Redirects go through `Redirect`; content type through `SetContentType`.
 
 Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
 over 1 MiB is refused with 413 before it is read. Keys the site's own routes answer for are listed
 in `Pages:ReservedPaths`, refused by the editor and never served.
+
+## Authentication and the editor
+
+The editor is the only part of the site that writes, so it is the only part behind a sign-in. Pages
+stay public.
+
+- Accounts live in the `Users` table in the same SQLite database. There is no registration endpoint
+  and no account UI: the `users` command in the Web app creates, lists, resets and removes accounts
+  through the same `StorageDbContext` and migrations as the site.
+- Passwords are PBKDF2-HMAC-SHA256 hashes from `PasswordHasher<LocalUser>`; the plaintext exists only
+  at the CLI prompt and in the login request. The policy is a 12-character minimum and a 1024
+  maximum, with no composition rules.
+- The session is a cookie from `Microsoft.AspNetCore.Authentication.Cookies`. It slides for 30 days
+  of inactivity, and the login form's **Keep me signed in** checkbox makes it persistent across
+  browser restarts.
+- Long-lived cookies are revocable: `users passwd` rotates the account's `SecurityStamp`, and
+  `OnValidatePrincipal` rejects any cookie whose stamp no longer matches the row. Removing the
+  account has the same effect on the next request. Signing in again does **not** rotate the stamp,
+  so several browsers or devices can hold a valid session at the same time; only a password change
+  or account removal revokes them all.
+- `/edit/**` requires the `Editor` policy, which is just an authenticated account. `/login` and
+  `/logout` are the only other routes outside the page catch-all, and both are reserved page keys.
+- Login, logout and editor POSTs validate an antiforgery token. A rejected request is answered
+  `400` before it reads the form or touches storage. The editor's save message lives in the session,
+  not in a cookie, and a successful save answers `303` so the browser follows with a `GET`.
+- The data-protection key ring is persisted on a volume. That is what lets the 30-day cookie and
+  in-flight antiforgery tokens survive a redeploy.
 
 ## Page API policy
 

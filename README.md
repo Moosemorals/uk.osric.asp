@@ -20,7 +20,8 @@ autocomplete and real error messages.
   emitted assembly beside the source; a request loads that assembly into a collectible
   `AssemblyLoadContext` and runs it against `IContext`. Pages that have no usable assembly are
   compiled on their next request.
-- `/edit/anything` is the editor: a textarea, a save button, and a line telling you it worked.
+- `/edit/anything` is the editor: sign in with a local account, then a textarea, a save button, and
+  a line telling you it worked. Accounts are created from the command line, not from the site.
 - `uk.osric.asp.Core` is pure functions, `uk.osric.asp.Runtime` is Roslyn and assembly loading, and
   `uk.osric.asp.Web` is the endpoints. The core references nothing, not even another project.
 
@@ -42,12 +43,14 @@ surface.
 
 ```bash
 make run
+make user-add ACCOUNT=osric     # in another terminal: prompts for a password
 ```
 
-The database starts empty, so every route answers 404 until you write something. Go to
-`http://localhost:5000/edit/` and make the front page, then `/edit/about` for the next one. Saving is
-live: the save compiles the new source, so the next request runs it and there is no build step in
-between.
+The database starts empty, so every route answers 404 until you write something. Sign in at
+`http://localhost:5000/login`, go to `/edit/` and make the front page, then `/edit/about` for the
+next one. Saving is live: the save compiles the new source, so the next request runs it and there is
+no build step in between. "Keep me signed in" is checked by default and the cookie lasts 30 days of
+inactivity; `users passwd` revokes every existing login.
 
 ## The task runner
 
@@ -57,6 +60,10 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | --- | --- |
 | `make build` | Build the solution, but only when a source or project file changed (the default) |
 | `make test` | All four suites: core, runtime, web, integration |
+| `make user-add ACCOUNT=...` | Create a local editor account |
+| `make user-passwd ACCOUNT=...` | Change a password and sign out every existing session |
+| `make user-list` | List local accounts |
+| `make user-remove ACCOUNT=...` | Remove a local account |
 | `make run` | Run the site in Development on `http://localhost:5000` |
 | `make format` | Apply formatting and style fixes |
 | `make license-check` | Fail if the tree is not REUSE compliant |

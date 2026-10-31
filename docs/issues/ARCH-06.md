@@ -29,5 +29,5 @@ orphaned or unreachable keys (see ARCH-05).
    shell concern — it is UI over a list of keys), not in `Core`.
 3. Sort keys ordinals; show a "new page" form that posts to `/edit/<typed path>`.
 4. Keep the page itself unauthenticated if it only lists what is already public; if it lists drafts,
-   put it behind the SEC-01 auth boundary.
+   put it behind the editor's authentication boundary.
 5. Add tests for the listing and for the empty state.

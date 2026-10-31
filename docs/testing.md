@@ -23,19 +23,22 @@ core stays pure and the shell stays thin.
   ordinary code that must still compile — and the load context, which is reachable from the tests
   through `InternalsVisibleTo`. They reference `Runtime`, never `Web`.
 - **Web tests** cover the shell: endpoints driven through a hand-built `HttpContext` with an
-  in-memory `IStorage` and the real compiler, and storage against a real SQLite database file. The
-  page-cache tests swap in a counting compiler wrapped around the real one, so "a second request does
-  not compile" is asserted rather than inferred. `PageScopeTests` lives here because it names the
-  shell's own types to prove the trimmed reference set cannot resolve them.
+  in-memory `IStorage`, a `TestSession`, a `TestAntiforgery` and the real compiler, and storage
+  against a real SQLite database file. The page-cache tests swap in a counting compiler wrapped
+  around the real one, so "a second request does not compile" is asserted rather than inferred.
+  `PageScopeTests` lives here because it names the shell's own types to prove the trimmed reference
+  set cannot resolve them.
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
-  exception-handler branch, status codes and content types set by middleware, static files falling
-  through to the page route, startup migrations, DI wiring and the fact that a page is compiled
-  once. They reference `Web` and `Runtime`, start the real application through
-  `WebApplicationFactory<Program>`, and use a throwaway SQLite file per fixture that is deleted with
-  it. The host runs as `Production`, so failures are answered by the error page rather than the
-  developer exception page, and the client speaks HTTPS so the editor's `Secure` flash cookie
-  round-trips. A recording compiler is registered in place of the real one so a test can count
-  compilations.
+  exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and
+  content types set by middleware, static files falling through to the page route, startup
+  migrations, DI wiring and the fact that a page is compiled once. They reference `Web` and
+  `Runtime`, start the real application through `WebApplicationFactory<Program>`, and use a
+  throwaway SQLite file per fixture that is deleted with it. The host runs as `Production`, so
+  failures are answered by the error page rather than the developer exception page, and the client
+  speaks HTTPS so the auth, antiforgery and session cookies round-trip. Every fixture seeds one
+  account through `IUserStore` and signs in through the real `/login` form; there is no test
+  authentication scheme. A recording compiler is registered in place of the real one so a test can
+  count compilations.
 
 Each project references only the layers it exercises, so the reference graph stops a test from
 reaching past its subject: `Core.Tests` has no ASP.NET or Roslyn to call, `Runtime.Tests` has no
