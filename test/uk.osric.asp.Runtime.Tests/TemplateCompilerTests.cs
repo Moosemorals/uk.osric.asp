@@ -68,13 +68,13 @@ public sealed class TemplateCompilerTests {
     }
 
     [Test]
-    public void TemplateExceptionsSurfaceAsTargetInvocationExceptions() {
+    public void TemplateExceptionsSurfaceUnwrapped() {
         using CompiledTemplate template = Load("<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
-        TargetInvocationException? failure = Assert.Throws<TargetInvocationException>(() => template.Invoke(new TestContext()));
+        InvalidOperationException? failure = Assert.Throws<InvalidOperationException>(() => template.Invoke(new TestContext()));
 
-        Assert.That(failure?.InnerException, Is.TypeOf<InvalidOperationException>());
-        Assert.That(failure?.InnerException?.Message, Is.EqualTo("Template executed."));
+        Assert.That(failure?.Message, Is.EqualTo("Template executed."));
+        Assert.That(failure?.StackTrace, Does.Contain("GeneratedPage.Handle"));
     }
 
     [Test]
@@ -115,9 +115,15 @@ public sealed class TemplateCompilerTests {
     }
 
     private sealed class TestContext : IContext {
+        private static readonly IReadOnlyDictionary<string, string> s_empty = new Dictionary<string, string>();
+
         private readonly StringBuilder _output = new();
 
+        public PageRequest Request { get; } = new("GET", "test", s_empty, s_empty, s_empty, s_empty);
+
         public string Path => "test";
+
+        public CancellationToken Aborted => CancellationToken.None;
 
         public string Output => _output.ToString();
 
@@ -130,5 +136,13 @@ public sealed class TemplateCompilerTests {
         public void Write(string message) {
             _output.Append(message);
         }
+
+        public void SetStatus(int status) { }
+
+        public void SetContentType(string contentType) { }
+
+        public void SetHeader(string name, string value) { }
+
+        public void Redirect(string location, int status = 302) { }
     }
 }

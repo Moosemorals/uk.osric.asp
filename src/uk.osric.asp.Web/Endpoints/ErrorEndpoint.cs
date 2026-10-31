@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Endpoints;
 
 using Microsoft.AspNetCore.Diagnostics;
 using System.Net;
-using System.Reflection;
 using uk.osric.asp.Core;
 
 public static class ErrorEndpoint {
@@ -17,11 +16,7 @@ public static class ErrorEndpoint {
         Exception? exception = context.Features.Get<IExceptionHandlerPathFeature>()?.Error
             ?? context.Features.Get<IExceptionHandlerFeature>()?.Error;
 
-        UserFacingException? userFacingException = exception switch {
-            UserFacingException safeException => safeException,
-            TargetInvocationException { InnerException: UserFacingException safeException } => safeException,
-            _ => null
-        };
+        UserFacingException? userFacingException = exception as UserFacingException;
 
         string message = userFacingException?.Message ?? "An unexpected error occurred. Please try again.";
         string page = Framework.GetHeader("Error") + $"""

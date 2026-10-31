@@ -163,7 +163,7 @@ public sealed class PageServiceTests {
         PageService pages = CreateService(storage);
 
         Assert.That(async () => await RenderAsync(pages, "/throw"),
-            Throws.TypeOf<TargetInvocationException>().With.InnerException.TypeOf<InvalidOperationException>());
+            Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Boom."));
     }
 
     private PageService CreateService(FakeStorage storage) {
@@ -173,7 +173,7 @@ public sealed class PageServiceTests {
     private static async Task<(RenderResult Result, string Output)> RenderAsync(PageService pages, string path) {
         PagePath key = Key(path);
         StringWriter output = new();
-        IContext context = new SimpleContext(NullLogger.Instance, output, key.Path);
+        IContext context = new SimpleContext(NullLogger.Instance, TestHttp.Request(key.Path), CancellationToken.None, output);
 
         RenderResult result = await pages.RenderAsync(key, context, CancellationToken.None);
 

@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Runtime;
 
 using System.Reflection;
-using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Runtime.Loader;
 using uk.osric.asp.Core;
 
@@ -12,6 +12,12 @@ using uk.osric.asp.Core;
 /// <remarks>
 /// One instance is cheap to create from stored bytes and safe to invoke repeatedly; each invocation
 /// still gets a fresh handler instance so page fields cannot leak between requests.
+/// <para>
+/// Nothing here suppresses inlining. <c>MethodInfo.Invoke</c> throws its wrapper whether or not the
+/// caller was inlined, and <see cref="ExceptionDispatchInfo"/> restores the original stack, so the
+/// attribute that used to sit on these members protected nothing. If unloading a collectible context
+/// ever appears to hang, that attribute is the knob to revisit.
+/// </para>
 /// </remarks>
 public sealed class CompiledTemplate : IDisposable {
 
@@ -39,15 +45,20 @@ public sealed class CompiledTemplate : IDisposable {
 
     /// <summary>Runs the page against a request context.</summary>
     /// <param name="context">The context the page writes to.</param>
-    [MethodImpl(MethodImplOptions.NoInlining)]
+    /// <exception cref="System.Exception">Whatever the page threw, unwrapped.</exception>
     public void Invoke(IContext context) {
         ArgumentNullException.ThrowIfNull(context);
 
-        _handle.Invoke(Activator.CreateInstance(_handler), [context]);
+        try {
+            _handle.Invoke(Activator.CreateInstance(_handler), [context]);
+        } catch (TargetInvocationException ex) when (ex.InnerException is not null) {
+            // The runtime owns the reflection, so it owns the reflection's wrapper: callers get the
+            // exception the page threw, with the page's own stack rather than a nested one.
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+        }
     }
 
     /// <summary>Marks the load context for unloading.</summary>
-    [MethodImpl(MethodImplOptions.NoInlining)]
     public void Dispose() {
         _context.Unload();
     }

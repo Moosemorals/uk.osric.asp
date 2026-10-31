@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
-using System.Reflection;
 using uk.osric.asp.Core;
 using uk.osric.asp.Web.Endpoints;
 
@@ -35,13 +34,15 @@ public sealed class ErrorEndpointTests {
     }
 
     [Test]
-    public async Task MessageWrappedByReflectionIsShownAsync() {
-        TargetInvocationException failure = new(new UserFacingException("Template gave up."));
+    public async Task WrappedUserFacingMessageIsNotTrustedAsync() {
+        InvalidOperationException failure = new("Template gave up.", new UserFacingException("Template gave up."));
         DefaultHttpContext context = CreateContext(failure);
 
         await ErrorEndpoint.HandleAsync(context);
 
-        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("Template gave up."));
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Not.Contain("Template gave up."));
+        Assert.That(body, Does.Contain("An unexpected error occurred."));
     }
 
     [Test]

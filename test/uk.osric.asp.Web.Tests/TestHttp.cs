@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
+using uk.osric.asp.Core;
 
 /// <summary>Request and response plumbing shared by the endpoint fixtures.</summary>
 internal static class TestHttp {
@@ -19,6 +20,14 @@ internal static class TestHttp {
         context.Request.RouteValues["path"] = path;
         context.Response.Body = new MemoryStream();
         return context;
+    }
+
+    /// <summary>Builds a request snapshot for pages that never look at one.</summary>
+    /// <param name="path">The canonical page key.</param>
+    /// <param name="method">The HTTP method.</param>
+    public static PageRequest Request(string path = "/", string method = "GET") {
+        Dictionary<string, string> empty = [];
+        return new PageRequest(method, path, empty, empty, empty, empty);
     }
 
     /// <summary>Reads everything written to the response body.</summary>

@@ -75,6 +75,19 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(page.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
+    [Test]
+    public async Task SavingAReservedKeyIsRefused() {
+        using HttpClient client = CreateClient();
+
+        await client.PostAsync("/edit/site.css", Form("hijacked"));
+
+        HttpResponseMessage editor = await client.GetAsync("/edit/site.css");
+        Assert.That(await editor.Content.ReadAsStringAsync(), Does.Contain("/site.css is reserved by the site."));
+
+        HttpResponseMessage page = await client.GetAsync("/site.css");
+        Assert.That(page.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/css"));
+    }
+
     private static FormUrlEncodedContent Form(string? content) {
         Dictionary<string, string> fields = [];
         if (content is not null) {

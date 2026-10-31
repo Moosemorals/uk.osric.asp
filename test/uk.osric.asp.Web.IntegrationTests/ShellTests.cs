@@ -59,6 +59,41 @@ public sealed class ShellTests : IntegrationTest {
     }
 
     [Test]
+    public async Task PostPageReceivesTheForm() {
+        await SavePageAsync("/echo", "<% ctx.Write(ctx.Request.Form[\"name\"]); %>");
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.PostAsync(
+            "/echo", new FormUrlEncodedContent(new Dictionary<string, string> { ["name"] = "Osric" }));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("Osric"));
+    }
+
+    [Test]
+    public async Task PageRedirectIsSentAsFound() {
+        await SavePageAsync("/moved", "<% ctx.Redirect(\"/hello\"); %>");
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/moved");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Found));
+        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/hello"));
+        Assert.That(await response.Content.ReadAsStringAsync(), Is.Empty);
+    }
+
+    [Test]
+    public async Task UnsupportedMethodIsRejectedByRouting() {
+        await SavePageAsync("/hello", "Hello.");
+        using HttpClient client = CreateClient();
+        using HttpRequestMessage request = new(HttpMethod.Put, "/hello");
+
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.MethodNotAllowed));
+    }
+
+    [Test]
     public async Task CompileErrorReturnsDiagnostics() {
         await SavePageAsync("/broken", "<% int value = ; %>");
         using HttpClient client = CreateClient();

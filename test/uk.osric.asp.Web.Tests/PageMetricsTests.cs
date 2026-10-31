@@ -109,7 +109,7 @@ public sealed class PageMetricsTests {
         storage["/throw"] = new StoredPage(Key("/throw"), "<% throw new System.InvalidOperationException(); %>");
         PageService pages = CreateService(storage);
 
-        Assert.That(async () => await RenderAsync(pages, "/throw"), Throws.TypeOf<TargetInvocationException>());
+        Assert.That(async () => await RenderAsync(pages, "/throw"), Throws.TypeOf<InvalidOperationException>());
 
         IReadOnlyList<MetricCapture.Measurement> renders = capture.For("page.render.duration", "/throw");
         Assert.That(renders, Has.Count.EqualTo(1));
@@ -136,7 +136,7 @@ public sealed class PageMetricsTests {
     private static async Task RenderAsync(PageService pages, string path) {
         PagePath key = Key(path);
         StringWriter output = new();
-        IContext context = new SimpleContext(NullLogger.Instance, output, key.Path);
+        IContext context = new SimpleContext(NullLogger.Instance, TestHttp.Request(key.Path), CancellationToken.None, output);
 
         await pages.RenderAsync(key, context, CancellationToken.None);
     }

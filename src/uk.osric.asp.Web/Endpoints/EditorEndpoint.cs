@@ -10,14 +10,14 @@ using uk.osric.asp.Web.Pages;
 
 public sealed class EditorEndpoint {
 
-    public static async Task Handler(HttpContext context, PageService pages, IWebHostEnvironment environment) {
+    public static async Task Handler(HttpContext context, PageService pages, IWebHostEnvironment environment, ReservedPaths reserved) {
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
         string editorUrl = "/edit" + path.Path;
         CookieOptions cookie = CreateMessageCookie(environment);
 
         if (context.Request.Method == "POST") {
-            context.Response.Cookies.Append("message", await SaveAsync(context, pages, path), cookie);
+            context.Response.Cookies.Append("message", await SaveAsync(context, pages, reserved, path), cookie);
             context.Response.StatusCode = StatusCodes.Status302Found;
             context.Response.Headers.Location = new PathString(editorUrl).ToUriComponent();
             return;
@@ -78,7 +78,11 @@ public sealed class EditorEndpoint {
     // Every outcome redirects back to the editor with a flash message, so validation returns text
     // rather than short-circuiting the response. A page that does not compile is still saved: losing
     // the edit to report the error would be the worse failure.
-    private static async Task<string> SaveAsync(HttpContext context, PageService pages, PagePath path) {
+    private static async Task<string> SaveAsync(HttpContext context, PageService pages, ReservedPaths reserved, PagePath path) {
+        if (reserved.IsReserved(path)) {
+            return $"{path.Path} is reserved by the site.";
+        }
+
         if (!context.Request.Form.TryGetValue("content", out StringValues content)) {
             return "Content is required.";
         }
@@ -90,5 +94,4 @@ public sealed class EditorEndpoint {
         IReadOnlyList<string> diagnostics = await pages.SaveAsync(path, content.ToString(), context.RequestAborted);
         return diagnostics.Count == 0 ? "Saved successfully." : "Saved with errors.";
     }
-
 }

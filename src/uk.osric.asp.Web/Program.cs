@@ -30,6 +30,8 @@ public class Program {
         builder.Services.AddScoped<PageService>();
         builder.Services.AddSingleton<ITemplateCompiler, TemplateCompiler>();
         builder.Services.AddSingleton<PageMetrics>();
+        builder.Services.AddSingleton(new ReservedPaths(
+            builder.Configuration.GetSection("Pages:ReservedPaths").Get<string[]>()));
         builder.Services.Configure<ForwardedHeadersOptions>(options => {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
             // Caddy terminates TLS on the host loopback and is the only peer that can reach the port
@@ -64,7 +66,9 @@ public class Program {
         app.UseRouting();
         app.MapGet("/edit/{**path}", EditorEndpoint.Handler);
         app.MapPost("/edit/{**path}", EditorEndpoint.Handler);
-        app.Map("{**path}", MainEndpoint.Handle);
+        // Pages run for the safe verbs only; anything else is answered 405 by routing rather than
+        // by page code that never expected it.
+        app.MapMethods("{**path}", ["GET", "POST", "HEAD"], MainEndpoint.Handle);
 
         await app.RunAsync();
     }
