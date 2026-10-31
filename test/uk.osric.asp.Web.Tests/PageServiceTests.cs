@@ -174,7 +174,7 @@ public sealed class PageServiceTests {
     private static async Task<(RenderResult Result, string Output)> RenderAsync(PageService pages, string path) {
         PagePath key = Key(path);
         StringWriter output = new();
-        IContext context = new SimpleContext(NullLogger.Instance, TestHttp.Request(key.Path), CancellationToken.None, output);
+        IContext context = new SimpleContext(NullLoggerFactory.Instance, TestHttp.Request(key.Path), CancellationToken.None, output);
 
         RenderResult result = await pages.RenderAsync(key, context, CancellationToken.None);
 

@@ -12,7 +12,7 @@ public sealed class MainEndpoint() {
     // this is rejected rather than held in memory.
     private const long MaxFormBytes = 1024 * 1024;
 
-    public static async Task Handle(HttpContext context, PageService pages, ILogger<MainEndpoint> logger, ReservedPaths reserved) {
+    public static async Task Handle(HttpContext context, PageService pages, ILoggerFactory loggerFactory, ReservedPaths reserved) {
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
         if (!string.Equals(context.Request.Path.Value, path.Path, StringComparison.Ordinal)) {
@@ -33,7 +33,7 @@ public sealed class MainEndpoint() {
         }
 
         StringWriter output = new();
-        SimpleContext page = new(logger, PageRequestSnapshot.Create(context.Request), context.RequestAborted, output);
+        SimpleContext page = new(loggerFactory, PageRequestSnapshot.Create(context.Request), context.RequestAborted, output);
         RenderResult result = await pages.RenderAsync(path, page, context.RequestAborted);
 
         switch (result.Status) {

@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Core;
@@ -115,6 +116,44 @@ public sealed class SimpleContextTests {
     }
 
     [Test]
+    public void LogIsFiledUnderThePageCategory() {
+        SimpleContext context = CreateContext("/about", out RecordingLoggerFactory logs);
+
+        context.Log("hello");
+
+        Assert.That(logs.Entries, Has.Count.EqualTo(1));
+        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./about"));
+        Assert.That(logs.Entries[0].Level, Is.EqualTo(LogLevel.Information));
+    }
+
+    [Test]
+    public void LogMessageIsNotPrefixedWithThePath() {
+        SimpleContext context = CreateContext("/about", out RecordingLoggerFactory logs);
+
+        context.Log("hello");
+
+        Assert.That(logs.Entries[0].Message, Is.EqualTo("hello"));
+    }
+
+    [Test]
+    public void RootPageLogsUnderTheRootCategory() {
+        SimpleContext context = CreateContext("/", out RecordingLoggerFactory logs);
+
+        context.Log("hello");
+
+        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./"));
+    }
+
+    [Test]
+    public void NestedPageKeepsItsSegmentsInTheCategory() {
+        SimpleContext context = CreateContext("/a/b", out RecordingLoggerFactory logs);
+
+        context.Log("hello");
+
+        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./a/b"));
+    }
+
+    [Test]
     public void RequestValuesAreExposedToThePage() {
         SimpleContext context = CreateContext(out _);
 
@@ -125,6 +164,11 @@ public sealed class SimpleContextTests {
 
     private static SimpleContext CreateContext(out StringWriter output) {
         output = new StringWriter();
-        return new SimpleContext(NullLogger.Instance, TestHttp.Request("/page"), CancellationToken.None, output);
+        return new SimpleContext(NullLoggerFactory.Instance, TestHttp.Request("/page"), CancellationToken.None, output);
+    }
+
+    private static SimpleContext CreateContext(string path, out RecordingLoggerFactory logs) {
+        logs = new RecordingLoggerFactory();
+        return new SimpleContext(logs, TestHttp.Request(path), CancellationToken.None, new StringWriter());
     }
 }

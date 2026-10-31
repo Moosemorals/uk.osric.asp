@@ -8,8 +8,15 @@ using uk.osric.asp.Core;
 
 /// <summary>The only <see cref="IContext"/> a page ever runs against.</summary>
 /// <remarks>
+/// <para>
 /// Collects what the page asks for instead of applying it, so the response is written once the
 /// handler has returned and a page that throws leaves nothing half-sent.
+/// </para>
+/// <para>
+/// This is the only type that touches <see cref="ILogger"/>, and every entry a page writes is filed
+/// under <c>uk.osric.asp.Pages.{path}</c>, so a page can be filtered or levelled on its own. The
+/// category format is operator-facing: changing it breaks configured filters and log queries.
+/// </para>
 /// </remarks>
 public sealed class SimpleContext : IContext {
 
@@ -25,6 +32,8 @@ public sealed class SimpleContext : IContext {
 
     private const string CustomHeaderPrefix = "X-";
 
+    private const string PageCategoryPrefix = "uk.osric.asp.Pages.";
+
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger _logger;
     private readonly PageRequest _request;
@@ -35,16 +44,17 @@ public sealed class SimpleContext : IContext {
     private int _status = PageResponse.Default.Status;
 
     /// <summary>Creates the context a page runs against.</summary>
-    /// <param name="logger">Where <see cref="Log"/> writes.</param>
+    /// <param name="loggerFactory">Creates the logger named for the page.</param>
     /// <param name="request">The request snapshot.</param>
     /// <param name="aborted">The token from the request being served.</param>
     /// <param name="writer">The buffer the body is written to.</param>
-    public SimpleContext(ILogger logger, PageRequest request, CancellationToken aborted, TextWriter writer) {
-        ArgumentNullException.ThrowIfNull(logger);
+    public SimpleContext(ILoggerFactory loggerFactory, PageRequest request, CancellationToken aborted, TextWriter writer) {
+        ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
 
-        _logger = logger;
+        // The path is canonical here: MainEndpoint redirects anything else before building a context.
+        _logger = loggerFactory.CreateLogger(PageCategoryPrefix + request.Path);
         _request = request;
         Aborted = aborted;
         _writer = writer;
@@ -64,7 +74,9 @@ public sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public void Log(string message) {
-        _logger.LogInformation("Path: {Path} - {Message}", _request.Path, message);
+        ArgumentNullException.ThrowIfNull(message);
+
+        _logger.LogInformation("{Message}", message);
     }
 
     /// <inheritdoc/>
