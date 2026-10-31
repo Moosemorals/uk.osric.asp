@@ -228,7 +228,10 @@ public sealed class EditorEndpointTests {
         InvalidOperationException failure = new("Storage unavailable.");
         FakeStorage storage = new() { Failure = failure };
 
-        Assert.That(async () => await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved), Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message));
+        InvalidOperationException? thrown = Assert.ThrowsAsync<InvalidOperationException>(() =>
+            EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved));
+
+        Assert.That(thrown?.Message, Is.EqualTo(failure.Message));
 
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
         Assert.That(context.Response.Headers.Location, Is.Empty);
@@ -237,7 +240,7 @@ public sealed class EditorEndpointTests {
 
     [TestCase("GET")]
     [TestCase("POST")]
-    public void CancellationReachesStorageAndPropagatesAsync(string method) {
+    public void CancellationReachesStorageAndPropagates(string method) {
         DefaultHttpContext context = CreateContext(method);
         SetContent(context, new StringValues("replacement"));
         using CancellationTokenSource cancellation = new();
@@ -245,7 +248,8 @@ public sealed class EditorEndpointTests {
         context.RequestAborted = cancellation.Token;
         FakeStorage storage = new();
 
-        Assert.That(async () => await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved), Throws.InstanceOf<OperationCanceledException>());
+        Assert.CatchAsync<OperationCanceledException>(() =>
+            EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved));
 
         Assert.That(storage.LastCancellationToken, Is.EqualTo(cancellation.Token));
         Assert.That(storage.WriteCount, Is.Zero);

@@ -29,7 +29,6 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 | [OPS-03](OPS-03.md) | Medium | There is no CI pipeline |
 | [OPS-04](OPS-04.md) | Low | EF Core logs every SQL command at Information in production |
 | [STYLE-03](STYLE-03.md) | Low | Two top-level types share `TemplateTokenizer.cs`; `Token` is a class record |
-| [STYLE-04](STYLE-04.md) | Low | Several tests use `void` methods around `Assert.That(async ...)` |
 
 ## Suggested order
 
@@ -62,3 +61,4 @@ Resolved since the review; the files were deleted and their history is in git.
 | STYLE-01 | `EditorEndpoint` validates through a `SaveAsync` helper instead of `goto` |
 | STYLE-02 | `IStorage.ListFilesAsync` returns `IReadOnlyList<string>` |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
+| STYLE-04 | Exception tests assert with `Assert.ThrowsAsync`/`Assert.CatchAsync` instead of `Assert.That(async ...)`; the convention is recorded in `docs/testing.md` |

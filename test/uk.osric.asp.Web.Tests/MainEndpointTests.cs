@@ -66,8 +66,8 @@ public sealed class MainEndpointTests {
             PagePath.Normalize("/pages/hello.cs"),
             "<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
-        InvalidOperationException? failure = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await MainEndpoint.Handle(context, CreatePages(storage), NullLogger<MainEndpoint>.Instance, Reserved));
+        InvalidOperationException? failure = Assert.ThrowsAsync<InvalidOperationException>(() =>
+            MainEndpoint.Handle(context, CreatePages(storage), NullLogger<MainEndpoint>.Instance, Reserved));
 
         Assert.That(failure?.Message, Is.EqualTo("Template executed."));
         Assert.That(storage.LastReadPath?.Path, Is.EqualTo("/pages/hello.cs"));
@@ -132,24 +132,26 @@ public sealed class MainEndpointTests {
     }
 
     [Test]
-    public void StorageFailurePropagatesAsync() {
+    public void StorageFailurePropagates() {
         DefaultHttpContext context = CreateContext("hello.cs");
         FakeStorage storage = new() { Failure = new InvalidOperationException("Storage unavailable.") };
 
-        Assert.That(async () => await MainEndpoint.Handle(context, CreatePages(storage), NullLogger<MainEndpoint>.Instance, Reserved),
-            Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Storage unavailable."));
+        InvalidOperationException? thrown = Assert.ThrowsAsync<InvalidOperationException>(() =>
+            MainEndpoint.Handle(context, CreatePages(storage), NullLogger<MainEndpoint>.Instance, Reserved));
+
+        Assert.That(thrown?.Message, Is.EqualTo("Storage unavailable."));
     }
 
     [Test]
-    public void RequestCancellationIsForwardedAsync() {
+    public void RequestCancellationIsForwarded() {
         DefaultHttpContext context = CreateContext("hello.cs");
         using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
         context.RequestAborted = cancellation.Token;
         FakeStorage storage = new();
 
-        Assert.That(async () => await MainEndpoint.Handle(context, CreatePages(storage), NullLogger<MainEndpoint>.Instance, Reserved),
-            Throws.InstanceOf<OperationCanceledException>());
+        Assert.CatchAsync<OperationCanceledException>(() =>
+            MainEndpoint.Handle(context, CreatePages(storage), NullLogger<MainEndpoint>.Instance, Reserved));
 
         Assert.That(storage.LastCancellationToken, Is.EqualTo(cancellation.Token));
     }
