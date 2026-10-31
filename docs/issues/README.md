@@ -23,7 +23,6 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 | [BUG-06](BUG-06.md) | Medium | An unterminated code block produces a generic 500 |
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
-| [BUG-09](BUG-09.md) | Low | Page log entries are categorised as `MainEndpoint`, not the page |
 | [BUG-12](BUG-12.md) | Low | Unused Roslyn Workspaces packages ship in the web app |
 | [OPS-02](OPS-02.md) | Low | There is no health endpoint for the container |
 | [OPS-03](OPS-03.md) | Medium | There is no CI pipeline |
@@ -56,6 +55,7 @@ Resolved since the review; the files were deleted and their history is in git.
 | BUG-02 | `ErrorEndpoint` sets 500 itself; `/error` is no longer a public route (direct request is a 404) |
 | BUG-03 | The 404 response sets `text/plain; charset=utf-8` |
 | BUG-04 | Compilation diagnostics are HTML-encoded and wrapped in `<pre>` |
+| BUG-09 | A page's log entries are filed under `uk.osric.asp.Pages.<path>`, the category `SimpleContext` creates from the page's key, so a page can be filtered or levelled on its own. The message template no longer prefixes the path, `MainEndpoint` hands over `ILoggerFactory`, and `IContext` gained `LogWarning`/`LogError` |
 | BUG-10 | `make format-check` passes |
 | BUG-11 | Stale `*.feature.cs` deleted; Reqnroll 3 generates in memory |
 | STYLE-01 | `EditorEndpoint` validates through a `SaveAsync` helper instead of `goto` |

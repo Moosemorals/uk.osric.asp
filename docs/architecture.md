@@ -48,8 +48,13 @@ host, and `SimpleContext` is its only implementation.
 
 A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it
 touches is a plain record in `Core`. `IContext` is the whole surface — `Request` (method, path, query,
-form, headers, cookies), `Path`, `Aborted`, `Log`, `Write`/`WriteRaw`, `SetStatus`, `SetContentType`,
-`SetHeader` and `Redirect`.
+form, headers, cookies), `Path`, `Aborted`, `Log`/`LogWarning`/`LogError`, `Write`/`WriteRaw`,
+`SetStatus`, `SetContentType`, `SetHeader` and `Redirect`.
+
+A page's log entries are filed under `uk.osric.asp.Pages.<path>`, the category `SimpleContext`
+derives from the page's key, so one page can be filtered or levelled without touching another. That
+format is operator-facing — filters, alerts and log queries are written against it. `SimpleContext`
+is the only type that touches `ILogger`, so `Core` never names a logging type.
 
 Two rules keep the response safe:
 
