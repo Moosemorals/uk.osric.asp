@@ -23,14 +23,25 @@ can enforce it.
   storage. EF Core, SQLite, database migrations and `IStorage` belong here.
 
 The dependency direction is one-way: `Web` → `Runtime` → `Core`, and `Web` → `Core`. Nothing points
-back up. `TemplateCompiler` returns a `CompileResult` of booleans and strings rather than Roslyn
-`EmitResult`/`Diagnostic` values, so the shell never sees the compiler's types.
+back up. `TemplateCompiler` returns a `CompileResult` of an optional image and
+`PageDiagnostic` values rather than Roslyn `EmitResult`/`Diagnostic` values, so the shell never sees
+the compiler's types.
 
 Nothing the author types is an exception either. A template that does not parse comes back from
-`TemplateSourceGenerator` as a `TemplateParseResult` with no source and a `TEMPLATE`-coded message
-naming the line and column in the template, so `PageService` stores it beside the source exactly like
-a compile error: the editor shows it, the page answers "Handler failed to compile.", and it is not
-recompiled on every request.
+`TemplateSourceGenerator` as a `TemplateParseResult` with no source and a `TEMPLATE`-coded
+`PageDiagnostic`, so `PageService` stores it beside the source exactly like a compile error: the
+editor shows it, the page answers "Handler failed to compile.", and it is not recompiled on every
+request.
+
+Diagnostics live in template space: `PageDiagnostic.Position` is a 1-based `TemplatePosition` in the
+page the author typed, or `null` when there is no position. The generator wraps each code block in
+`#line` directives that name the template line and pads the first line to the template column, so
+Roslyn reports the author's position rather than a generated one. The closing braces are mapped to
+one line past the template, which turns an unclosed block into a positioned author error. A Roslyn
+error with no mapped position, and no mapped error explaining it, is a fault in generated code:
+`TemplateCompiler` throws instead of returning a diagnostic, `PageService` preserves the source and
+rethrows, and the host answers `500`. Warnings are author-facing only when they are mapped; a
+warning never stops a page compiling.
 
 ## Where does code go?
 
@@ -171,7 +182,9 @@ write, or every row after an upgrade that touched `Core` — is compiled on its 
 stored. That is the only compile outside a save: there is no startup warm-up, so the first visitor
 after a deploy pays one compile per page. A failure is stored too, so a broken page serves its
 diagnostics without recompiling, and the editor shows them after the save instead of losing the
-edit.
+edit. `Diagnostics` is a JSON array of positioned, severity-tagged `PageDiagnostic` values; a
+warning-only page stores its image and reports "Saved with warnings." A compiler fault stores only
+the source, so the author's edit survives and the next request retries.
 
 Compilation happens before the database write, so the lazy path stores its result only while the
 page still holds the content it compiled, and re-reads the page when a save landed in between. A

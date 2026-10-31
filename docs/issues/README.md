@@ -21,23 +21,19 @@ BUG-06 fix, and ARCH-11 came out of the BUG-05/BUG-13 planning.
 | [ARCH-10](ARCH-10.md) | Medium | A page cannot be deleted |
 | [ARCH-11](ARCH-11.md) | Low | The editor cannot show the generated C# for a page |
 | [ARCH-12](ARCH-12.md) | Medium | A template has no shorthand for writing a value |
-| [BUG-05](BUG-05.md) | Medium | Compile errors point at generated source line numbers, not the template |
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
 | [BUG-12](BUG-12.md) | Low | Unused Roslyn Workspaces packages ship in the web app |
-| [BUG-13](BUG-13.md) | Low | A page that compiles with warnings is reported as "Saved with errors." |
 | [OPS-02](OPS-02.md) | Low | The health endpoint exists; it has no monitor or alerting behind it |
 | [OPS-03](OPS-03.md) | Medium | There is no CI pipeline |
 | [OPS-04](OPS-04.md) | Low | EF Core logs every SQL command at Information in production |
 | [OPS-05](OPS-05.md) | Medium | No outbound notifications when the site breaks |
-| [STYLE-03](STYLE-03.md) | Low | Two top-level types share `TemplateTokenizer.cs`; `Token` is a class record |
 
 ## Suggested order
 
 1. ARCH-03, SEC-03 — give page code a budget, then a boundary if it ever needs one.
 2. ARCH-06, ARCH-10, ARCH-07 — a page index, a way to delete a page, then revision history.
-3. OPS-03, BUG-12, BUG-13, STYLE-03, STYLE-04 — hygiene, so the next review starts from an
-   accurate baseline.
+3. OPS-03, BUG-12, STYLE-04 — hygiene, so the next review starts from an accurate baseline.
 4. ARCH-11, ARCH-12 — show the generated source in the editor, and give the template language its
    write shorthand.
 
@@ -68,3 +64,6 @@ Resolved since the review; the files were deleted and their history is in git.
 | SEC-01 | The editor requires a local account. Accounts live in the `Users` table and are created only by the `users` command; `POST`/`GET /edit/**` require the `Editor` policy. Passwords are PBKDF2 hashes, the cookie slides for 30 days and is persistent, and a security stamp revokes it on a password change or account removal. See [the plan](../plans/editor-authentication.md) |
 | SEC-02 | Login, logout and editor POSTs validate an antiforgery token and answer `400` before reading the form or storing anything. The editor's flash message moved from a cookie to server-side session state, and saves answer `303` |
 | STYLE-04 | Exception tests assert with `await Assert.ThrowsAsync`/`Assert.CatchAsync` instead of `Assert.That(async ...)`; the convention is recorded in `docs/testing.md` |
+| BUG-05 | Compile diagnostics carry a `TemplatePosition` mapped from `#line` directives, so the editor shows the line and column the author typed. Generated-code errors with no mapped author error are compiler faults: they throw instead of becoming page diagnostics, and the host answers `500`. See [the plan](../plans/compiler-diagnostics.md) |
+| BUG-13 | `PageDiagnostic` carries severity, `CompileResult.Success` is derived from errors, and warning-only pages store an image, render, and report "Saved with warnings." Warnings are stored, carried through `PageCompilation` and styled separately in the editor |
+| STYLE-03 | `Token` and `TokenType` moved to their own files; `Token` is now a `readonly record struct` carrying a `TemplatePosition` |

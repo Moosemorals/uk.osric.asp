@@ -34,9 +34,9 @@ read the generator.
    `TEMPLATE001` diagnostic instead of a partial source.
 3. Render it as HTML-encoded `<pre>` (or `text/plain`). Do not execute or compile anything for this
    view.
-4. Once BUG-05 lands, the `#line` directives make the view self-explanatory; highlighting the
-   ranges that map to the template is an optional follow-up, but plain source is enough to start.
+4. The `#line` directives from BUG-05 make the view self-explanatory; highlighting the ranges
+   that map to the template is an optional follow-up, but plain source is enough to start.
 5. Tests: an authenticated editor sees a source containing `class GeneratedPage`,
    `ctx.WriteRaw(` and `#line`; an anonymous request is rejected by the editor policy; a template
    that does not parse shows the parse error rather than generated source.
-6. Deliberately out of scope for BUG-05 and BUG-13; those only log the source at `Debug`.
+6. Deliberately out of scope for BUG-05 and BUG-13, which only log the source at `Debug`.

@@ -52,7 +52,7 @@ for unescaped output either; the author has to drop back to `<% ctx.WriteRaw(...
 7. Check the line mapping still holds. An expression may span lines, and the generated statement must
    not add or remove lines the page did not write; text tokens already embed the template's newlines
    in a verbatim literal, so this is a constraint on the new statements rather than a new problem for
-   [BUG-05](BUG-05.md) to absorb.
+   BUG-05 to absorb.
 8. Update the docs: the README's **A page** section gains `<%= %>` and `<%== %>` beside `<% %>`, and
    `docs/architecture.md` still says text becomes a `WriteRaw` call — name the two new statements
    there as well.

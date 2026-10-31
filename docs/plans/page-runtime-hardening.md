@@ -265,7 +265,7 @@ New `PageApiChecker` in `Runtime`:
 5. Project to `PageApiPolicy.Check` and emit diagnostics like
    `PAGE001: pages may not use System.IO.File.ReadAllText (line 12)`. The line is the node's line
    minus the generator's header, which is approximate until
-   [BUG-05](../issues/BUG-05.md) maps generated lines back to the page; note that in a comment.
+   BUG-05 maps generated lines back to the page; note that in a comment.
    Fail with `Success = false`, `Image = null`, and the diagnostics — the shape `PageService.Compile`
    and the editor already handle.
 6. Check **before** `Emit`, so a rejected page never produces or stores an image.
