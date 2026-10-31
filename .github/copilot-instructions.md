@@ -85,6 +85,9 @@ Test-driven. See `docs/testing.md`.
 
 - `make image` builds the OCI image with the SDK's container support (`-t:PublishContainer`) into
   podman; `make deploy HOST=deploy@host` ships the image and the quadlets and restarts them.
+- Accounts on the server are managed through the running container, never by editing `storage.db`:
+  `make remote-user-add HOST=deploy@host ACCOUNT=name` and its `passwd`, `list` and `remove`
+  siblings wrap `podman exec` over SSH.
 - `deploy/` holds the cloud-init bootstrap, the podman quadlets, and the Caddyfile. The quadlets are
   the source of truth for the server — edit them there, not on the host.
 - The app runs **rootless** as a user quadlet for the `deploy` user and publishes only

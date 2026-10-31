@@ -49,8 +49,14 @@ CONTAINER_BASE_IMAGE := mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 # RID of the server. On an ARM (CAX) server: linux-musl-arm64.
 CONTAINER_RID ?= linux-musl-x64
 
-# Where `make deploy` sends the image and quadlets.
+# Where `make deploy` sends the image and quadlets, and where the remote-* targets run.
 HOST ?=
+
+# The running container on HOST: the quadlet's ContainerName= and the entry assembly the SDK puts in
+# /app. Reaching it with `podman exec` reuses the deployment's own storage volume and connection
+# string, so the remote-* targets never have to guess an image tag.
+CONTAINER_NAME ?= uk.osric.asp
+APP_ASSEMBLY := uk.osric.asp.Web.dll
 
 # ---- Incremental restore and build ---------------------------------------------------------------
 #
@@ -77,7 +83,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove run publish image deploy format format-check license-check clean
+.PHONY: help build restore test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image deploy format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -96,6 +102,10 @@ help:
 		'user-passwd        Change an account password with ACCOUNT=...' \
 		'user-list          List local accounts.' \
 		'user-remove        Remove an account with ACCOUNT=...' \
+		'remote-user-add    Same as user-add, in the container on HOST=deploy@server.' \
+		'remote-user-passwd Same as user-passwd, in the container on HOST=...' \
+		'remote-user-list   Same as user-list, in the container on HOST=...' \
+		'remote-user-remove Same as user-remove, in the container on HOST=...' \
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image into podman.' \
@@ -170,6 +180,33 @@ user-remove: build
 	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make user-remove ACCOUNT=name"; exit 1; }
 	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) \
 		$(DOTNET) run --project $(WEB_PROJECT) --no-build -- users remove "$(ACCOUNT)"
+
+# ---- Remote accounts ------------------------------------------------------------------------------
+#
+# The same `users` command inside the container that is already serving the site, so it sees the
+# deployment's storage volume and connection string; nothing is built or published first. `podman
+# exec` needs the unit to be running — for a stopped host use the one-off container in
+# deploy/README.md. add and passwd keep a terminal at both ends, because the password prompt is read
+# a key at a time and must not echo; list and remove need no terminal.
+
+remote-user-add:
+	@test -n "$(strip $(HOST))" || { echo "usage: make remote-user-add HOST=deploy@server ACCOUNT=name"; exit 1; }
+	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make remote-user-add HOST=deploy@server ACCOUNT=name"; exit 1; }
+	ssh -t $(HOST) podman exec -it -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users add '$(ACCOUNT)'
+
+remote-user-passwd:
+	@test -n "$(strip $(HOST))" || { echo "usage: make remote-user-passwd HOST=deploy@server ACCOUNT=name"; exit 1; }
+	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make remote-user-passwd HOST=deploy@server ACCOUNT=name"; exit 1; }
+	ssh -t $(HOST) podman exec -it -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users passwd '$(ACCOUNT)'
+
+remote-user-list:
+	@test -n "$(strip $(HOST))" || { echo "usage: make remote-user-list HOST=deploy@server"; exit 1; }
+	ssh $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users list
+
+remote-user-remove:
+	@test -n "$(strip $(HOST))" || { echo "usage: make remote-user-remove HOST=deploy@server ACCOUNT=name"; exit 1; }
+	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make remote-user-remove HOST=deploy@server ACCOUNT=name"; exit 1; }
+	ssh $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users remove '$(ACCOUNT)'
 
 run:
 	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) $(DOTNET) run --project $(WEB_PROJECT)

@@ -64,6 +64,10 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | `make user-passwd ACCOUNT=...` | Change a password and sign out every existing session |
 | `make user-list` | List local accounts |
 | `make user-remove ACCOUNT=...` | Remove a local account |
+| `make remote-user-add HOST=deploy@server ACCOUNT=...` | Create an account in the container on the server |
+| `make remote-user-passwd HOST=... ACCOUNT=...` | Change a password on the server and sign out every session |
+| `make remote-user-list HOST=...` | List the accounts on the server |
+| `make remote-user-remove HOST=... ACCOUNT=...` | Remove an account on the server |
 | `make run` | Run the site in Development on `http://localhost:5000` |
 | `make format` | Apply formatting and style fixes |
 | `make license-check` | Fail if the tree is not REUSE compliant |

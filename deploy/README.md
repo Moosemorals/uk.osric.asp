@@ -136,14 +136,19 @@ make user-list
 make user-remove ACCOUNT=osric
 ```
 
-On the server, run the command in the running container:
+On the server, run the same command in the running container; `make` reaches it over SSH with
+`podman exec`, so it uses the deployment's own storage volume and connection string:
 
 ```bash
-ssh deploy@<server-ip> podman exec -it uk.osric.asp \
-  dotnet uk.osric.asp.Web.dll users add osric
+make remote-user-add HOST=deploy@<server-ip> ACCOUNT=osric
+make remote-user-passwd HOST=deploy@<server-ip> ACCOUNT=osric
+make remote-user-list HOST=deploy@<server-ip>
+make remote-user-remove HOST=deploy@<server-ip> ACCOUNT=osric
 ```
 
-If the container is stopped, use a one-off container with the same storage volume:
+`remote-user-add` and `remote-user-passwd` need a terminal at both ends, because the password is
+read a key at a time with echo off. The container must be running; if the unit has stopped, use a
+one-off container with the same storage volume instead:
 
 ```bash
 podman run --rm -it \
