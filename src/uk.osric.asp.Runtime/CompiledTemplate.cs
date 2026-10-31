@@ -26,7 +26,7 @@ public sealed class CompiledTemplate : IDisposable {
     private readonly MethodInfo _handle;
 
     internal CompiledTemplate(byte[] image) {
-        _context = new AssemblyLoadContext(null, isCollectible: true);
+        _context = new PageLoadContext();
 
         try {
             using MemoryStream stream = new(image, writable: false);

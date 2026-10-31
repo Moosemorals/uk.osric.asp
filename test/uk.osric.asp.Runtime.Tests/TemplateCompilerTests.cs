@@ -78,8 +78,8 @@ public sealed class TemplateCompilerTests {
     }
 
     [Test]
-    public void RuntimeIdStartsWithTheFormatVersion() {
-        Assert.That(TemplateCompiler.RuntimeId, Does.StartWith("1:"));
+    public void RuntimeIdStartsWithTheFormatAndPolicyVersions() {
+        Assert.That(TemplateCompiler.RuntimeId, Does.StartWith("2:1:"));
     }
 
     [Test]

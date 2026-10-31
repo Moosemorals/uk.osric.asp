@@ -11,18 +11,22 @@ using uk.osric.asp.Core;
 /// <summary>Compiles C# source into page assemblies and loads them for execution.</summary>
 public sealed class TemplateCompiler : ITemplateCompiler {
 
-    // Bump the prefix when a change outside Core invalidates stored images: the compiler options,
-    // the reference set, or how a compiled handler is invoked. Core's module version id covers
-    // everything in the generated source's contract: IContext, IHandler and the source generator.
-    private const string FormatVersion = "1";
+    // Bump this when a change outside Core invalidates stored images: the compiler options, the
+    // reference set, or how a compiled handler is invoked. Core's module version id covers everything
+    // in the generated source's contract: IContext, IHandler and the source generator.
+    private const string FormatVersion = "2";
 
-    // Built once per process. A compilation needs a reference for every platform assembly, and
-    // re-reading and re-creating them was a large part of the cost of compiling a small page.
+    // Bump this whenever PageApiPolicy tightens. The policy is applied when a page compiles, so an
+    // image built under looser rules would otherwise keep being served without ever being rechecked.
+    private const int PolicyVersion = 1;
+
+    // Built once per process: re-reading and re-creating the references was a large part of the cost
+    // of compiling a small page. The set itself is trimmed in CreateMetadataReferences.
     private static readonly MetadataReference[] s_metadataReferences = CreateMetadataReferences();
 
-    /// <summary>Identifies the build that produced a compiled image.</summary>
+    /// <summary>Identifies the build and the page policy that produced a compiled image.</summary>
     public static string RuntimeId { get; } =
-        $"{FormatVersion}:{typeof(IHandler).Assembly.ManifestModule.ModuleVersionId:N}";
+        $"{FormatVersion}:{PolicyVersion}:{typeof(IHandler).Assembly.ManifestModule.ModuleVersionId:N}";
 
     string ITemplateCompiler.RuntimeId => RuntimeId;
 
@@ -32,14 +36,22 @@ public sealed class TemplateCompiler : ITemplateCompiler {
     public CompileResult Compile(string source) {
         ArgumentNullException.ThrowIfNull(source);
 
-        using MemoryStream image = new();
+        SyntaxTree tree = CSharpSyntaxTree.ParseText(source);
         CSharpCompilation compilation = CSharpCompilation.Create(
             assemblyName: $"Dynamic_{Guid.NewGuid():N}",
-            syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
+            syntaxTrees: [tree],
             references: s_metadataReferences,
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
         );
 
+        // The policy runs before emit, so a page that may not use an API never becomes an image that
+        // could be stored and served.
+        IReadOnlyList<string> violations = PageApiChecker.Check(tree, compilation.GetSemanticModel(tree));
+        if (violations.Count > 0) {
+            return new CompileResult(false, null, violations);
+        }
+
+        using MemoryStream image = new();
         EmitResult result = compilation.Emit(image);
         IReadOnlyList<string> diagnostics = [.. result.Diagnostics.Select(diagnostic => diagnostic.ToString())];
 
@@ -56,13 +68,32 @@ public sealed class TemplateCompiler : ITemplateCompiler {
     }
 
     private static MetadataReference[] CreateMetadataReferences() {
-        List<string> metadataPaths = [typeof(IHandler).Assembly.Location];
-        if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string trustedPlatformAssemblies) {
-            metadataPaths.AddRange(trustedPlatformAssemblies.Split(Path.PathSeparator));
-        } else {
+        if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is not string trustedPlatformAssemblies) {
             return [];
         }
 
+        List<string> metadataPaths = [typeof(IHandler).Assembly.Location];
+
+        foreach (string path in trustedPlatformAssemblies.Split(Path.PathSeparator)) {
+            if (!IsReachableFromPages(Path.GetFileNameWithoutExtension(path))) {
+                continue;
+            }
+
+            metadataPaths.Add(path);
+        }
+
         return [.. metadataPaths.Select(path => MetadataReference.CreateFromFile(path))];
+    }
+
+    // The reference set is the cheap half of the page policy: it turns "a page could call this" into
+    // CS0246 before any analysis runs, so the shell, the web stack and Roslyn cannot even be named.
+    // It cannot remove System.IO or System.Environment, which live in or forward from
+    // System.Private.CoreLib, and it cannot stop reflection by name - PageApiPolicy and the load
+    // context do that. A post-emit scan of the image's type references was considered and dropped: it
+    // could only catch what the semantic walk already reports, at the cost of false rejections for
+    // compiler-emitted helpers such as DefaultInterpolatedStringHandler.
+    private static bool IsReachableFromPages(string assemblyName) {
+        return !assemblyName.StartsWith("uk.osric.asp.", StringComparison.OrdinalIgnoreCase)
+            && !assemblyName.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase);
     }
 }

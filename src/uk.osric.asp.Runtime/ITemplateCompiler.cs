@@ -12,8 +12,8 @@ public interface ITemplateCompiler {
 
     /// <summary>Identifies the build that produced a compiled image.</summary>
     /// <remarks>
-    /// Images carrying a different value were produced by a build with a different page contract
-    /// and must be compiled again before they are run.
+    /// Images carrying a different value were produced by a build with a different page contract, or
+    /// under a different page API policy, and must be compiled again before they are run.
     /// </remarks>
     string RuntimeId { get; }
 

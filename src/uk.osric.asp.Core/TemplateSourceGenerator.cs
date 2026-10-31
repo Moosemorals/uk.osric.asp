@@ -7,6 +7,15 @@ using System.Text;
 
 public static class TemplateSourceGenerator {
 
+    /// <summary>The generated line on which the page's own first line appears.</summary>
+    /// <remarks>
+    /// The generator writes a fixed three-line header, and the page's text and code keep their
+    /// newlines, so a diagnostic on generated line <c>n</c> belongs to page line
+    /// <c>n - PageCodeFirstLine + 1</c>. The runtime uses this to report page lines rather than
+    /// generated ones.
+    /// </remarks>
+    public const int PageCodeFirstLine = 3;
+
     public static string GenerateTemplateSource(string template) {
 
         StringBuilder result = new();
