@@ -14,6 +14,8 @@ package_upgrade: true
 # discovering a stale kernel at some later date.
 package_reboot_if_required: true
 timezone: Europe/London
+# cloud-init splits a dotted hostname: short name "moosemorals", fqdn "moosemorals.com".
+hostname: moosemorals.com
 ssh_pwauth: false
 
 users:
