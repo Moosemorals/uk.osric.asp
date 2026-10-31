@@ -77,7 +77,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore test test-core test-runtime test-web test-integration migration run publish image deploy format format-check license-check clean
+.PHONY: help build restore test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove run publish image deploy format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -92,6 +92,10 @@ help:
 		'test-web           Run the NUnit web shell and storage tests only.' \
 		'test-integration   Run the composed pipeline tests against a throwaway database.' \
 		'migration          Add a storage migration with NAME=... (restores local dotnet-ef).' \
+		'user-add           Create a local account with ACCOUNT=... (prompts for a password).' \
+		'user-passwd        Change an account password with ACCOUNT=...' \
+		'user-list          List local accounts.' \
+		'user-remove        Remove an account with ACCOUNT=...' \
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image into podman.' \
@@ -142,6 +146,30 @@ migration:
 	$(DOTNET) tool run dotnet-ef migrations add "$(NAME)" \
 		--project $(WEB_PROJECT) --startup-project $(WEB_PROJECT) \
 		--configuration $(CONFIGURATION) --no-build --output-dir Storage/Migrations
+
+# ---- Local accounts -------------------------------------------------------------------------------
+#
+# Accounts exist only through this command; the site has no registration or account UI. The password
+# is read from the terminal. For a script, append --password-stdin and pipe one line in.
+
+user-add: build
+	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make user-add ACCOUNT=name"; exit 1; }
+	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) \
+		$(DOTNET) run --project $(WEB_PROJECT) --no-build -- users add "$(ACCOUNT)"
+
+user-passwd: build
+	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make user-passwd ACCOUNT=name"; exit 1; }
+	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) \
+		$(DOTNET) run --project $(WEB_PROJECT) --no-build -- users passwd "$(ACCOUNT)"
+
+user-list: build
+	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) \
+		$(DOTNET) run --project $(WEB_PROJECT) --no-build -- users list
+
+user-remove: build
+	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make user-remove ACCOUNT=name"; exit 1; }
+	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) \
+		$(DOTNET) run --project $(WEB_PROJECT) --no-build -- users remove "$(ACCOUNT)"
 
 run:
 	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) $(DOTNET) run --project $(WEB_PROJECT)

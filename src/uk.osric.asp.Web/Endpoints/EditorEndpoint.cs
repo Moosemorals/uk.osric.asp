@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Endpoints;
 
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Extensions.Primitives;
 using System.Net;
 using uk.osric.asp.Core;
@@ -10,16 +11,21 @@ using uk.osric.asp.Web.Pages;
 
 public sealed class EditorEndpoint {
 
-    public static async Task Handler(HttpContext context, PageService pages, IWebHostEnvironment environment, ReservedPaths reserved) {
+    internal const string MessageKey = "editor.message";
+
+    public static async Task Handler(HttpContext context, PageService pages, ReservedPaths reserved, IAntiforgery antiforgery) {
+
+        if (context.Request.Method == "POST" && context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return;
+        }
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
         string editorUrl = "/edit" + path.Path;
-        CookieOptions cookie = CreateMessageCookie(environment);
 
         if (context.Request.Method == "POST") {
-            context.Response.Cookies.Append("message", await SaveAsync(context, pages, reserved, path), cookie);
-            context.Response.StatusCode = StatusCodes.Status302Found;
-            context.Response.Headers.Location = new PathString(editorUrl).ToUriComponent();
+            context.Session.SetString(MessageKey, await SaveAsync(context, pages, reserved, path));
+            Redirects.SeeOther(context, editorUrl);
             return;
         }
 
@@ -32,13 +38,16 @@ public sealed class EditorEndpoint {
 
         StoredPage? page = await pages.GetAsync(path, context.RequestAborted);
 
-        string? message = context.Request.Cookies["message"];
+        string? message = context.Session.GetString(MessageKey);
         if (message is not null) {
-            context.Response.Cookies.Delete("message", cookie);
+            context.Session.Remove(MessageKey);
         }
 
+        AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
+
         context.Response.ContentType = "text/html; charset=utf-8";
-        context.Response.StatusCode = 200;
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.Headers.CacheControl = "no-store";
 
         await context.Response.WriteAsync(Framework.GetHeader("Editor"));
         await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path.Path)}</h1>");
@@ -56,24 +65,18 @@ public sealed class EditorEndpoint {
         await context.Response.WriteAsync($"""
             <p><a href="{WebUtility.HtmlEncode(path.Path)}">Back to file</a></p>
             <form method="post" action="?">
+                <input type="hidden" name="{WebUtility.HtmlEncode(tokens.FormFieldName)}" value="{WebUtility.HtmlEncode(tokens.RequestToken)}">
                 <textarea name="content" rows="10" cols="50">{WebUtility.HtmlEncode(page?.Content ?? "")}</textarea>
                 <br>
                 <button type="submit">Save</button>
             </form>
+            <form method="post" action="/logout">
+                <input type="hidden" name="{WebUtility.HtmlEncode(tokens.FormFieldName)}" value="{WebUtility.HtmlEncode(tokens.RequestToken)}">
+                <button type="submit">Sign out</button>
+            </form>
         """);
         await context.Response.WriteAsync(Framework.GetFooter());
     }
-
-    // Secure whenever the host is production, whatever the request says: Caddy terminates TLS, and a
-    // missing or forged forwarded header must not weaken the cookie. Local Development over http
-    // still receives the flash message.
-    private static CookieOptions CreateMessageCookie(IWebHostEnvironment environment) => new() {
-        HttpOnly = true,
-        SameSite = SameSiteMode.Strict,
-        Secure = environment.IsProduction(),
-        MaxAge = TimeSpan.FromMinutes(1),
-        Path = "/",
-    };
 
     // Every outcome redirects back to the editor with a flash message, so validation returns text
     // rather than short-circuiting the response. A page that does not compile is still saved: losing

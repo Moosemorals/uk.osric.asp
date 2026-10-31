@@ -3,8 +3,9 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 using NUnit.Framework;
@@ -20,10 +21,10 @@ using uk.osric.asp.Web.Pages;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public sealed class EditorEndpointTests {
 
-    private static readonly IWebHostEnvironment Production = new TestEnvironment("Production");
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
     private readonly RecordingCompiler _compiler = new(new TemplateCompiler());
     private readonly PageMetrics _metrics = new();
+    private readonly TestAntiforgery _antiforgery = new();
 
     [TearDown]
     public void StopMetrics() {
@@ -39,7 +40,7 @@ public sealed class EditorEndpointTests {
         FakeStorage storage = new();
         storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), source);
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
@@ -56,7 +57,7 @@ public sealed class EditorEndpointTests {
         storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "uncompiled");
         int compiles = _compiler.CompileCount;
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(_compiler.CompileCount, Is.EqualTo(compiles));
     }
@@ -66,7 +67,7 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = CreateContext();
         FakeStorage storage = new();
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("cols=\"50\"></textarea>"));
@@ -79,33 +80,68 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = CreateContext(path: path);
         FakeStorage storage = new();
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(storage.LastReadPath?.Path, Is.EqualTo("/"));
     }
 
     [Test]
-    public async Task GetEncodesPathAndConsumesEncodedMessageAsync() {
+    public async Task GetEncodesPathAndConsumesTheSessionMessageAsync() {
         DefaultHttpContext context = CreateContext(path: "<page>&");
-        context.Request.Headers.Cookie = "message=" + Uri.EscapeDataString("<script>saved</script>");
+        TestSession session = Session(context);
+        session.SetString(EditorEndpoint.MessageKey, "<script>saved</script>");
 
-        await EditorEndpoint.Handler(context, CreatePages(new FakeStorage()), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(new FakeStorage()), Reserved, _antiforgery);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("Editing /&lt;page&gt;&amp;"));
         Assert.That(body, Does.Contain("<p>&lt;script&gt;saved&lt;/script&gt;</p>"));
-        Assert.That(context.Response.Headers.SetCookie.ToString(), Does.Contain("message=;"));
-        Assert.That(context.Response.Headers.SetCookie.ToString(), Does.Contain("expires="));
+        Assert.That(session.TryGetValue(EditorEndpoint.MessageKey, out _), Is.False);
     }
 
     [Test]
-    public async Task GetWithoutMessageDoesNotSetCookieAsync() {
+    public async Task GetWithoutMessageSetsNoCookieAsync() {
         DefaultHttpContext context = CreateContext();
 
-        await EditorEndpoint.Handler(context, CreatePages(new FakeStorage()), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(new FakeStorage()), Reserved, _antiforgery);
 
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
+    }
+
+    [Test]
+    public async Task GetRendersAnAntiforgeryTokenAsync() {
+        DefaultHttpContext context = CreateContext();
+
+        await EditorEndpoint.Handler(context, CreatePages(new FakeStorage()), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("name=\"__RequestVerificationToken\""));
+        Assert.That(body, Does.Contain("value=\"request-token\""));
+        Assert.That(_antiforgery.TokenRequests, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task GetDoesNotCacheTheSourceAsync() {
+        DefaultHttpContext context = CreateContext();
+
+        await EditorEndpoint.Handler(context, CreatePages(new FakeStorage()), Reserved, _antiforgery);
+
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+    }
+
+    [Test]
+    public async Task PostWithInvalidAntiforgeryWritesNothingAsync() {
+        DefaultHttpContext context = CreateContext("POST");
+        context.Features.Set<IAntiforgeryValidationFeature>(new TestAntiforgeryValidationFeature(false));
+        SetContent(context, new StringValues("hijack"));
+        FakeStorage storage = new();
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+        Assert.That(storage.WriteCount, Is.Zero);
+        Assert.That(storage.ReadCount, Is.Zero);
     }
 
     [TestCase("")]
@@ -115,7 +151,7 @@ public sealed class EditorEndpointTests {
         SetContent(context, new StringValues(source));
         FakeStorage storage = new();
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(storage.WriteCount, Is.EqualTo(1));
         Assert.That(storage.LastWritePath?.Path, Is.EqualTo("/page.cs"));
@@ -132,14 +168,14 @@ public sealed class EditorEndpointTests {
         SetContent(post, new StringValues("<% int value = ; %>"));
         FakeStorage storage = new();
 
-        await EditorEndpoint.Handler(post, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(post, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(storage["/page.cs"]?.Content, Is.EqualTo("<% int value = ; %>"));
         Assert.That(storage["/page.cs"]?.Compilation?.Image, Is.Null);
         AssertRedirect(post, "Saved with errors.");
 
         DefaultHttpContext get = CreateContext();
-        await EditorEndpoint.Handler(get, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(get, CreatePages(storage), Reserved, _antiforgery);
 
         string body = await TestHttp.ReadBodyAsync(get);
         Assert.That(body, Does.Contain("class=\"diagnostics\""));
@@ -156,7 +192,7 @@ public sealed class EditorEndpointTests {
         FakeStorage storage = new();
         storage["/"] = new StoredPage(PagePath.Normalize("/"), "original");
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(storage.LastWritePath?.Path, Is.EqualTo("/"));
         Assert.That(storage["/"]?.Content, Is.EqualTo("replacement"));
@@ -169,7 +205,7 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext(requestPath["/edit/".Length..], "GET", requestPath);
         FakeStorage storage = new();
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(308));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(expectedLocation));
@@ -182,11 +218,11 @@ public sealed class EditorEndpointTests {
         SetContent(context, new StringValues("source"));
         FakeStorage storage = new();
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(storage.LastWritePath?.Path, Is.EqualTo("/hello"));
         Assert.That(storage["/hello"]?.Content, Is.EqualTo("source"));
-        Assert.That(context.Response.StatusCode, Is.EqualTo(302));
+        Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/hello"));
     }
 
@@ -198,7 +234,7 @@ public sealed class EditorEndpointTests {
         FakeStorage storage = new();
         storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "original");
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(storage.WriteCount, Is.Zero);
         Assert.That(storage["/page.cs"]?.Content, Is.EqualTo("original"));
@@ -213,7 +249,7 @@ public sealed class EditorEndpointTests {
         FakeStorage storage = new();
         storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "original");
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(storage.WriteCount, Is.Zero);
         Assert.That(storage["/page.cs"]?.Content, Is.EqualTo("original"));
@@ -222,17 +258,18 @@ public sealed class EditorEndpointTests {
 
     [TestCase("GET")]
     [TestCase("POST")]
-    public async Task StorageFailurePropagatesWithoutSuccessCookieAsync(string method) {
+    public async Task StorageFailurePropagatesWithoutARedirectOrMessageAsync(string method) {
         DefaultHttpContext context = CreateContext(method);
         SetContent(context, new StringValues("replacement"));
         InvalidOperationException failure = new("Storage unavailable.");
         FakeStorage storage = new() { Failure = failure };
 
         InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved));
+            EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery));
 
         Assert.That(thrown?.Message, Is.EqualTo(failure.Message));
 
+        Assert.That(Session(context).Keys, Is.Empty);
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
         Assert.That(context.Response.Headers.Location, Is.Empty);
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
@@ -249,10 +286,11 @@ public sealed class EditorEndpointTests {
         FakeStorage storage = new();
 
         await Assert.CatchAsync<OperationCanceledException>(() =>
-            EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved));
+            EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery));
 
         Assert.That(storage.LastCancellationToken, Is.EqualTo(cancellation.Token));
         Assert.That(storage.WriteCount, Is.Zero);
+        Assert.That(Session(context).Keys, Is.Empty);
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
     }
 
@@ -269,26 +307,11 @@ public sealed class EditorEndpointTests {
         FakeStorage storage = new();
         storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "original");
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(storage["/page.cs"]?.Content, Is.EqualTo(expectedContent));
         Assert.That(storage.WriteCount, Is.EqualTo(writes));
         AssertRedirect(context, message);
-    }
-
-    [TestCase("Production", true)]
-    [TestCase("Development", false)]
-    public async Task FlashCookieIsSecureOnlyInProductionAsync(string environment, bool secure) {
-        DefaultHttpContext context = CreateContext("POST");
-        SetContent(context, new StringValues("source"));
-
-        await EditorEndpoint.Handler(context, CreatePages(new FakeStorage()), new TestEnvironment(environment), Reserved);
-
-        string cookie = context.Response.Headers.SetCookie.ToString();
-        Assert.That(cookie, Does.Contain("message="));
-        Assert.That(cookie, Does.Contain("httponly"));
-        Assert.That(cookie, Does.Contain("samesite=strict"));
-        Assert.That(cookie.Contains("secure", StringComparison.OrdinalIgnoreCase), Is.EqualTo(secure));
     }
 
     [Test]
@@ -297,7 +320,7 @@ public sealed class EditorEndpointTests {
         SetContent(context, new StringValues("hijack"));
         FakeStorage storage = new();
 
-        await EditorEndpoint.Handler(context, CreatePages(storage), Production, Reserved);
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(storage.WriteCount, Is.Zero);
         Assert.That(storage["/site.css"], Is.Null);
@@ -316,9 +339,13 @@ public sealed class EditorEndpointTests {
         context.Request.Form = new FormCollection(new Dictionary<string, StringValues> { ["content"] = content });
     }
 
+    private static TestSession Session(DefaultHttpContext context) {
+        return (TestSession)context.Features.Get<ISessionFeature>()!.Session;
+    }
+
     private static void AssertRedirect(DefaultHttpContext context, string message) {
-        Assert.That(context.Response.StatusCode, Is.EqualTo(302));
+        Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(context.Request.Path.ToString()));
-        Assert.That(context.Response.Headers.SetCookie.ToString(), Does.Contain("message=" + Uri.EscapeDataString(message)));
+        Assert.That(Session(context).GetString(EditorEndpoint.MessageKey), Is.EqualTo(message));
     }
 }

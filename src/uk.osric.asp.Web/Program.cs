@@ -3,21 +3,32 @@
 
 namespace uk.osric.asp.Web;
 
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Endpoints;
 using uk.osric.asp.Web.Health;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
+using uk.osric.asp.Web.Users;
 
 // Not static: WebApplicationFactory<Program> needs a type to name when it looks for the entry point.
 /// <summary>Imperative shell: wires the web host to the functional core.</summary>
 public class Program {
     public static async Task Main(string[] args) {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+        bool isUserCommand = UserCommands.IsCommand(args);
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(
+            isUserCommand ? [] : args);
+
+        if (isUserCommand) {
+            // The command's output is its result; migration chatter belongs in the log, not on stdout.
+            builder.Logging.SetMinimumLevel(LogLevel.Warning);
+            builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
+        }
         string connectionString = builder.Configuration.GetConnectionString("Storage")
             ?? throw new InvalidOperationException("ConnectionStrings:Storage must be configured.");
         SqliteConnectionStringBuilder connection = new(connectionString);
@@ -30,11 +41,15 @@ public class Program {
         builder.Services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
         builder.Services.AddHealthChecks().AddCheck<StorageHealthCheck>("storage");
         builder.Services.AddScoped<IStorage, SqliteStorage>();
+        builder.Services.AddScoped<IUserStore, SqliteUserStore>();
+        builder.Services.AddSingleton<IPasswordService, PasswordService>();
+        builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
         builder.Services.AddScoped<PageService>();
         builder.Services.AddSingleton<ITemplateCompiler, TemplateCompiler>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton(new ReservedPaths(
             builder.Configuration.GetSection("Pages:ReservedPaths").Get<string[]>()));
+        builder.Services.AddEditorAuthentication(builder.Environment);
         builder.Services.Configure<ForwardedHeadersOptions>(options => {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
             // Caddy terminates TLS on the host loopback and is the only peer that can reach the port
@@ -51,6 +66,14 @@ public class Program {
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
         }
 
+        if (isUserCommand) {
+            await using (app) {
+                Environment.ExitCode = await UserCommands.RunAsync(
+                    args[1..], app.Services, app.Lifetime.ApplicationStopping);
+                return;
+            }
+        }
+
         // Before anything that reads the scheme. Without it every request arrives as plain HTTP from
         // the proxy, so HSTS emits nothing and IsHttps is always false.
         app.UseForwardedHeaders();
@@ -64,11 +87,27 @@ public class Program {
             app.UseHsts();
         }
 
+        app.UseSession();
         app.UseStaticFiles();
 
         app.UseRouting();
-        app.MapGet("/edit/{**path}", EditorEndpoint.Handler);
-        app.MapPost("/edit/{**path}", EditorEndpoint.Handler);
+        app.UseRateLimiter();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.UseAntiforgery();
+
+        app.MapGet("/edit/{**path}", EditorEndpoint.Handler)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/edit/{**path}", EditorEndpoint.Handler)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/login", LoginEndpoint.GetAsync).AllowAnonymous();
+        app.MapPost("/login", LoginEndpoint.PostAsync)
+            .AllowAnonymous()
+            .RequireRateLimiting(LoginRateLimitPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapPost("/logout", LoginEndpoint.LogoutAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         // The health route is mapped before the page catch-all, so a page stored under /heath can
         // never shadow it; /heath is also in Pages:ReservedPaths.
         app.MapHealthChecks("/heath", new HealthCheckOptions {

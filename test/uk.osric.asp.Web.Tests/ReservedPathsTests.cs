@@ -18,6 +18,8 @@ public sealed class ReservedPathsTests {
     [TestCase("/site.css")]
     [TestCase("/favicon.ico")]
     [TestCase("/heath")]
+    [TestCase("/login")]
+    [TestCase("/logout")]
     public void DefaultKeysAreReserved(string path) {
         Assert.That(Defaults.IsReserved(PagePath.Normalize(path)), Is.True);
     }

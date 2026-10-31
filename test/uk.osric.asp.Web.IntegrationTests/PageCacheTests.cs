@@ -26,10 +26,10 @@ public sealed class PageCacheTests : IntegrationTest {
 
     [Test]
     public async Task SavingCompilesOnceAndViewingDoesNotCompileAgain() {
-        using HttpClient client = CreateClient();
+        using HttpClient client = await CreateSignedInClientAsync();
         int compiles = CompileCount;
 
-        await client.PostAsync("/edit/saved", Form("Saved."));
+        await PostEditorAsync(client, "saved", "Saved.");
         string body = await (await client.GetAsync("/saved")).Content.ReadAsStringAsync();
 
         Assert.That(body, Is.EqualTo("Saved."));
@@ -38,10 +38,10 @@ public sealed class PageCacheTests : IntegrationTest {
 
     [Test]
     public async Task ABrokenSaveShowsDiagnosticsWithoutCompilingAgain() {
-        using HttpClient client = CreateClient();
+        using HttpClient client = await CreateSignedInClientAsync();
         int compiles = CompileCount;
 
-        await client.PostAsync("/edit/broken", Form("<% int value = ; %>"));
+        await PostEditorAsync(client, "broken", "<% int value = ; %>");
 
         string editor = await (await client.GetAsync("/edit/broken")).Content.ReadAsStringAsync();
         Assert.That(editor, Does.Contain("Saved with errors."));
@@ -55,16 +55,12 @@ public sealed class PageCacheTests : IntegrationTest {
 
     [Test]
     public async Task AnEditIsVisibleOnTheNextRequest() {
-        using HttpClient client = CreateClient();
-        await client.PostAsync("/edit/live", Form("first"));
+        using HttpClient client = await CreateSignedInClientAsync();
+        await PostEditorAsync(client, "live", "first");
         await client.GetAsync("/live");
 
-        await client.PostAsync("/edit/live", Form("second"));
+        await PostEditorAsync(client, "live", "second");
 
         Assert.That(await (await client.GetAsync("/live")).Content.ReadAsStringAsync(), Is.EqualTo("second"));
-    }
-
-    private static FormUrlEncodedContent Form(string content) {
-        return new FormUrlEncodedContent(new Dictionary<string, string> { ["content"] = content });
     }
 }

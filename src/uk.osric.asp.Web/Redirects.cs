@@ -12,4 +12,12 @@ public static class Redirects {
         context.Response.StatusCode = StatusCodes.Status308PermanentRedirect;
         context.Response.Headers.Location = new PathString(url).ToUriComponent();
     }
+
+    /// <summary>Sends a POST result to a GET of <paramref name="url"/>.</summary>
+    /// <param name="context">The request being answered.</param>
+    /// <param name="url">The relative target.</param>
+    public static void SeeOther(HttpContext context, string url) {
+        context.Response.StatusCode = StatusCodes.Status303SeeOther;
+        context.Response.Headers.Location = new PathString(url).ToUriComponent();
+    }
 }
