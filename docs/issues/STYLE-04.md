@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Low |
 | Area | Tests |
-| Location | `test/uk.osric.asp.WebTests/MainEndpointTests.cs:54-70`, `test/uk.osric.asp.WebTests/SqliteStorageTests.cs:113-121` |
+| Location | `test/uk.osric.asp.Web.Tests/MainEndpointTests.cs:54-70`, `test/uk.osric.asp.Web.Tests/SqliteStorageTests.cs:113-121` |
 
 ## Problem
 

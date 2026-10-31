@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.WebTests;
+namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NUnit.Framework;
+using uk.osric.asp.Core;
 using uk.osric.asp.Web;
 using uk.osric.asp.Web.Storage;
 
@@ -31,21 +32,11 @@ public sealed class SqliteStorageTests {
     }
 
     [Test]
-    public async Task EmptyDatabaseHasNoFilesAsync() {
-        await using StorageDbContext database = new(_options);
-        IStorage storage = new SqliteStorage(database);
-
-        IEnumerable<string> paths = await storage.ListFilesAsync();
-
-        Assert.That(paths, Is.Empty);
-    }
-
-    [Test]
     public async Task MissingFileReturnsNullAsync() {
         await using StorageDbContext database = new(_options);
         IStorage storage = new SqliteStorage(database);
 
-        string? content = await storage.GetFileContentsAsync("/missing.cs");
+        string? content = await storage.GetFileContentsAsync(Key("/missing.cs"));
 
         Assert.That(content, Is.Null);
     }
@@ -56,12 +47,12 @@ public sealed class SqliteStorageTests {
     public async Task WrittenContentSurvivesReopeningAsync(string content) {
         await using (StorageDbContext writer = new(_options)) {
             IStorage storage = new SqliteStorage(writer);
-            await storage.SetFileContentsAsync("/example.cs", content);
+            await storage.SetFileContentsAsync(Key("/example.cs"), content);
         }
 
         await using StorageDbContext reader = new(_options);
         IStorage reopened = new SqliteStorage(reader);
-        string? actual = await reopened.GetFileContentsAsync("/example.cs");
+        string? actual = await reopened.GetFileContentsAsync(Key("/example.cs"));
 
         Assert.That(actual, Is.EqualTo(content));
     }
@@ -70,43 +61,39 @@ public sealed class SqliteStorageTests {
     public async Task OverwriteKeepsOneFileWithLatestContentAsync() {
         await using StorageDbContext database = new(_options);
         IStorage storage = new SqliteStorage(database);
-        await storage.SetFileContentsAsync("/example.cs", "first");
+        await storage.SetFileContentsAsync(Key("/example.cs"), "first");
 
-        await storage.SetFileContentsAsync("/example.cs", "second");
+        await storage.SetFileContentsAsync(Key("/example.cs"), "second");
 
-        string[] expectedPaths = ["/example.cs"];
-        Assert.That(await storage.GetFileContentsAsync("/example.cs"), Is.EqualTo("second"));
-        Assert.That(await storage.ListFilesAsync(), Is.EqualTo(expectedPaths));
+        Assert.That(await storage.GetFileContentsAsync(Key("/example.cs")), Is.EqualTo("second"));
+        Assert.That(await database.Set<StoredFile>().CountAsync(), Is.EqualTo(1));
     }
 
     [Test]
-    public async Task PathsAreStoredExactlyAndCaseSensitivelyAsync() {
+    public async Task DistinctKeysAreSeparatePagesAsync() {
         await using StorageDbContext database = new(_options);
         IStorage storage = new SqliteStorage(database);
 
-        await storage.SetFileContentsAsync("/Example.cs", "upper");
-        await storage.SetFileContentsAsync("/example.cs", "lower");
-        await storage.SetFileContentsAsync("/dir/../example.cs", "literal");
+        await storage.SetFileContentsAsync(Key("/example.cs"), "first");
+        await storage.SetFileContentsAsync(Key("/other.cs"), "second");
 
-        string[] expectedPaths = ["/Example.cs", "/example.cs", "/dir/../example.cs"];
-        Assert.That(await storage.ListFilesAsync(), Is.EquivalentTo(expectedPaths));
-        Assert.That(await storage.GetFileContentsAsync("/Example.cs"), Is.EqualTo("upper"));
-        Assert.That(await storage.GetFileContentsAsync("/example.cs"), Is.EqualTo("lower"));
-        Assert.That(await storage.GetFileContentsAsync("/dir/../example.cs"), Is.EqualTo("literal"));
+        Assert.That(await storage.GetFileContentsAsync(Key("/example.cs")), Is.EqualTo("first"));
+        Assert.That(await storage.GetFileContentsAsync(Key("/other.cs")), Is.EqualTo("second"));
+        Assert.That(await database.Set<StoredFile>().CountAsync(), Is.EqualTo(2));
     }
 
     [Test]
     public async Task ReapplyingMigrationsPreservesDataAsync() {
         await using (StorageDbContext writer = new(_options)) {
             IStorage storage = new SqliteStorage(writer);
-            await storage.SetFileContentsAsync("/example.cs", "saved");
+            await storage.SetFileContentsAsync(Key("/example.cs"), "saved");
         }
 
         await using StorageDbContext database = new(_options);
         await database.Database.MigrateAsync();
 
         Assert.That(await database.Database.GetAppliedMigrationsAsync(), Has.Exactly(1).Items);
-        Assert.That(await new SqliteStorage(database).GetFileContentsAsync("/example.cs"), Is.EqualTo("saved"));
+        Assert.That(await new SqliteStorage(database).GetFileContentsAsync(Key("/example.cs")), Is.EqualTo("saved"));
     }
 
     [Test]
@@ -115,8 +102,9 @@ public sealed class SqliteStorageTests {
         IStorage storage = new SqliteStorage(database);
         CancellationToken cancelled = new(true);
 
-        Assert.That(async () => await storage.ListFilesAsync(cancelled), Throws.InstanceOf<OperationCanceledException>());
-        Assert.That(async () => await storage.GetFileContentsAsync("/example.cs", cancelled), Throws.InstanceOf<OperationCanceledException>());
-        Assert.That(async () => await storage.SetFileContentsAsync("/example.cs", "content", cancelled), Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(async () => await storage.GetFileContentsAsync(Key("/example.cs"), cancelled), Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(async () => await storage.SetFileContentsAsync(Key("/example.cs"), "content", cancelled), Throws.InstanceOf<OperationCanceledException>());
     }
+
+    private static PagePath Key(string path) => PagePath.Normalize(path);
 }

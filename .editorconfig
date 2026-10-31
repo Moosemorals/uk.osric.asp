@@ -143,8 +143,3 @@ dotnet_naming_style._camelcase.capitalization = camel_case
 dotnet_naming_style.camelcase.capitalization = camel_case
 dotnet_naming_style.s_camelcase.required_prefix = s_
 dotnet_naming_style.s_camelcase.capitalization = camel_case
-
-#### Generated code ####
-# Reqnroll writes this file next to each .feature; its header is not ours to add.
-[**/*.feature.cs]
-generated_code = true

@@ -1,18 +1,22 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.WebTests;
+namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using NUnit.Framework;
 using System.Net;
 using System.Text;
+using uk.osric.asp.Core;
 using uk.osric.asp.Web;
 using uk.osric.asp.Web.Endpoints;
 
 [TestFixture]
 public sealed class EditorEndpointTests {
+
+    private static readonly IWebHostEnvironment Production = new TestEnvironment("Production");
     [TestCase("plain text")]
     [TestCase("&amp; <tag> \"quoted\"")]
     [TestCase("</textarea><script>alert('source')</script>")]
@@ -21,13 +25,13 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = CreateContext();
         RecordingStorage storage = new() { Content = source };
 
-        await EditorEndpoint.Handler(context, storage);
+        await EditorEndpoint.Handler(context, storage, Production);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
         Assert.That(body, Does.Contain($"<textarea name=\"content\" rows=\"10\" cols=\"50\">{WebUtility.HtmlEncode(source)}</textarea>"));
-        Assert.That(storage.ReadPath, Is.EqualTo("page.cs"));
+        Assert.That(storage.ReadPath?.Path, Is.EqualTo("/page.cs"));
         Assert.That(storage.WriteCount, Is.Zero);
     }
 
@@ -36,7 +40,7 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = CreateContext();
         RecordingStorage storage = new();
 
-        await EditorEndpoint.Handler(context, storage);
+        await EditorEndpoint.Handler(context, storage, Production);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("cols=\"50\"></textarea>"));
@@ -45,14 +49,14 @@ public sealed class EditorEndpointTests {
     [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]
-    public async Task GetWithoutUsablePathDoesNotReadStorageAsync(string? path) {
+    public async Task GetWithoutUsablePathReadsTheRootPageAsync(string? path) {
         DefaultHttpContext context = CreateContext(path: path);
         RecordingStorage storage = new();
 
-        await EditorEndpoint.Handler(context, storage);
+        await EditorEndpoint.Handler(context, storage, Production);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
-        Assert.That(storage.ReadCount, Is.Zero);
+        Assert.That(storage.ReadPath?.Path, Is.EqualTo("/"));
     }
 
     [Test]
@@ -60,10 +64,10 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = CreateContext(path: "<page>&");
         context.Request.Headers.Cookie = "message=" + Uri.EscapeDataString("<script>saved</script>");
 
-        await EditorEndpoint.Handler(context, new RecordingStorage());
+        await EditorEndpoint.Handler(context, new RecordingStorage(), Production);
 
         string body = await TestHttp.ReadBodyAsync(context);
-        Assert.That(body, Does.Contain("Editing &lt;page&gt;&amp;"));
+        Assert.That(body, Does.Contain("Editing /&lt;page&gt;&amp;"));
         Assert.That(body, Does.Contain("<p>&lt;script&gt;saved&lt;/script&gt;</p>"));
         Assert.That(context.Response.Headers.SetCookie.ToString(), Does.Contain("message=;"));
         Assert.That(context.Response.Headers.SetCookie.ToString(), Does.Contain("expires="));
@@ -73,7 +77,7 @@ public sealed class EditorEndpointTests {
     public async Task GetWithoutMessageDoesNotSetCookieAsync() {
         DefaultHttpContext context = CreateContext();
 
-        await EditorEndpoint.Handler(context, new RecordingStorage());
+        await EditorEndpoint.Handler(context, new RecordingStorage(), Production);
 
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
     }
@@ -85,10 +89,10 @@ public sealed class EditorEndpointTests {
         SetContent(context, new StringValues(source));
         RecordingStorage storage = new();
 
-        await EditorEndpoint.Handler(context, storage);
+        await EditorEndpoint.Handler(context, storage, Production);
 
         Assert.That(storage.WriteCount, Is.EqualTo(1));
-        Assert.That(storage.WritePath, Is.EqualTo("page.cs"));
+        Assert.That(storage.WritePath?.Path, Is.EqualTo("/page.cs"));
         Assert.That(storage.Content, Is.EqualTo(source));
         Assert.That(storage.ReadCount, Is.Zero);
         AssertRedirect(context, "Saved successfully.");
@@ -98,16 +102,44 @@ public sealed class EditorEndpointTests {
     [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]
-    public async Task PostWithoutUsablePathDoesNotOverwriteAsync(string? path) {
+    [TestCase("/")]
+    public async Task PostWithoutUsablePathWritesTheRootPageAsync(string? path) {
         DefaultHttpContext context = CreateContext("POST", path);
         SetContent(context, new StringValues("replacement"));
         RecordingStorage storage = new() { Content = "original" };
 
-        await EditorEndpoint.Handler(context, storage);
+        await EditorEndpoint.Handler(context, storage, Production);
 
-        Assert.That(storage.WriteCount, Is.Zero);
-        Assert.That(storage.Content, Is.EqualTo("original"));
-        AssertRedirect(context, "Path is required.");
+        Assert.That(storage.WritePath?.Path, Is.EqualTo("/"));
+        Assert.That(storage.Content, Is.EqualTo("replacement"));
+        AssertRedirect(context, "Saved successfully.");
+    }
+
+    [TestCase("/edit/Hello", "/edit/hello")]
+    [TestCase("/edit/hello/", "/edit/hello")]
+    public async Task NonCanonicalEditorUrlRedirectsPermanentlyAsync(string requestPath, string expectedLocation) {
+        DefaultHttpContext context = TestHttp.CreateContext(requestPath["/edit/".Length..], "GET", requestPath);
+        RecordingStorage storage = new();
+
+        await EditorEndpoint.Handler(context, storage, Production);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(308));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(expectedLocation));
+        Assert.That(storage.ReadCount, Is.Zero);
+    }
+
+    [Test]
+    public async Task PostFromNonCanonicalUrlSavesTheCanonicalKeyAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("Hello/", "POST", "/edit/Hello/");
+        SetContent(context, new StringValues("source"));
+        RecordingStorage storage = new();
+
+        await EditorEndpoint.Handler(context, storage, Production);
+
+        Assert.That(storage.WritePath?.Path, Is.EqualTo("/hello"));
+        Assert.That(storage.Content, Is.EqualTo("source"));
+        Assert.That(context.Response.StatusCode, Is.EqualTo(302));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/hello"));
     }
 
     [Test]
@@ -117,7 +149,7 @@ public sealed class EditorEndpointTests {
         context.Request.Form = new FormCollection(fields);
         RecordingStorage storage = new() { Content = "original" };
 
-        await EditorEndpoint.Handler(context, storage);
+        await EditorEndpoint.Handler(context, storage, Production);
 
         Assert.That(storage.WriteCount, Is.Zero);
         Assert.That(storage.Content, Is.EqualTo("original"));
@@ -131,7 +163,7 @@ public sealed class EditorEndpointTests {
         SetContent(context, new StringValues([.. Enumerable.Repeat("replacement", count)]));
         RecordingStorage storage = new() { Content = "original" };
 
-        await EditorEndpoint.Handler(context, storage);
+        await EditorEndpoint.Handler(context, storage, Production);
 
         Assert.That(storage.WriteCount, Is.Zero);
         Assert.That(storage.Content, Is.EqualTo("original"));
@@ -146,7 +178,7 @@ public sealed class EditorEndpointTests {
         InvalidOperationException failure = new("Storage unavailable.");
         RecordingStorage storage = new() { Failure = failure };
 
-        Assert.That(async () => await EditorEndpoint.Handler(context, storage), Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message));
+        Assert.That(async () => await EditorEndpoint.Handler(context, storage, Production), Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message));
 
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
         Assert.That(context.Response.Headers.Location, Is.Empty);
@@ -163,7 +195,7 @@ public sealed class EditorEndpointTests {
         context.RequestAborted = cancellation.Token;
         RecordingStorage storage = new();
 
-        Assert.That(async () => await EditorEndpoint.Handler(context, storage), Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(async () => await EditorEndpoint.Handler(context, storage, Production), Throws.InstanceOf<OperationCanceledException>());
 
         Assert.That(storage.LastCancellationToken, Is.EqualTo(cancellation.Token));
         Assert.That(storage.WriteCount, Is.Zero);
@@ -182,15 +214,30 @@ public sealed class EditorEndpointTests {
         context.Request.Body = new MemoryStream(bytes);
         RecordingStorage storage = new() { Content = "original" };
 
-        await EditorEndpoint.Handler(context, storage);
+        await EditorEndpoint.Handler(context, storage, Production);
 
         Assert.That(storage.Content, Is.EqualTo(expectedContent));
         Assert.That(storage.WriteCount, Is.EqualTo(writes));
         AssertRedirect(context, message);
     }
 
+    [TestCase("Production", true)]
+    [TestCase("Development", false)]
+    public async Task FlashCookieIsSecureOnlyInProductionAsync(string environment, bool secure) {
+        DefaultHttpContext context = CreateContext("POST");
+        SetContent(context, new StringValues("source"));
+
+        await EditorEndpoint.Handler(context, new RecordingStorage(), new TestEnvironment(environment));
+
+        string cookie = context.Response.Headers.SetCookie.ToString();
+        Assert.That(cookie, Does.Contain("message="));
+        Assert.That(cookie, Does.Contain("httponly"));
+        Assert.That(cookie, Does.Contain("samesite=strict"));
+        Assert.That(cookie.Contains("secure", StringComparison.OrdinalIgnoreCase), Is.EqualTo(secure));
+    }
+
     private static DefaultHttpContext CreateContext(string method = "GET", string? path = "page.cs") {
-        return TestHttp.CreateContext(path, method, "/edit/page.cs");
+        return TestHttp.CreateContext(path, method, "/edit" + PagePath.Normalize(path).Path);
     }
 
     private static void SetContent(DefaultHttpContext context, StringValues content) {
@@ -205,36 +252,31 @@ public sealed class EditorEndpointTests {
 
     private sealed class RecordingStorage : IStorage {
         public string? Content { get; set; }
-        public string? ReadPath { get; private set; }
-        public string? WritePath { get; private set; }
+        public PagePath? ReadPath { get; private set; }
+        public PagePath? WritePath { get; private set; }
         public int ReadCount { get; private set; }
         public int WriteCount { get; private set; }
         public Exception? Failure { get; init; }
         public CancellationToken LastCancellationToken { get; private set; }
 
-        public Task<IReadOnlyList<string>> ListFilesAsync(CancellationToken cancellationToken = default) {
-            throw new NotSupportedException();
-        }
-
-        public Task<string?> GetFileContentsAsync(string path, CancellationToken cancellationToken = default) {
-            CheckOperation(path, cancellationToken);
+        public Task<string?> GetFileContentsAsync(PagePath path, CancellationToken cancellationToken = default) {
+            CheckOperation(cancellationToken);
             ReadPath = path;
             ReadCount++;
             return Task.FromResult(Content);
         }
 
-        public Task SetFileContentsAsync(string path, string content, CancellationToken cancellationToken = default) {
-            CheckOperation(path, cancellationToken);
+        public Task SetFileContentsAsync(PagePath path, string content, CancellationToken cancellationToken = default) {
+            CheckOperation(cancellationToken);
             WritePath = path;
             WriteCount++;
             Content = content;
             return Task.CompletedTask;
         }
 
-        private void CheckOperation(string path, CancellationToken cancellationToken) {
+        private void CheckOperation(CancellationToken cancellationToken) {
             LastCancellationToken = cancellationToken;
             cancellationToken.ThrowIfCancellationRequested();
-            ArgumentException.ThrowIfNullOrWhiteSpace(path);
             if (Failure is not null) {
                 throw Failure;
             }

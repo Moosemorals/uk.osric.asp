@@ -15,9 +15,9 @@ all tooling, paths, and scripts; use `/` separators in MSBuild paths.
 src/uk.osric.asp.Core      functional core: pure functions and values, no references at all
 src/uk.osric.asp.Runtime   template compiler and assembly loading; Roslyn, nothing web-facing
 src/uk.osric.asp.Web       imperative shell: endpoints, hosting, storage, configuration
-test/uk.osric.asp.UnitTests  NUnit, tests the core directly
-test/uk.osric.asp.Specs      Reqnroll/Gherkin, describes business behaviour
-test/uk.osric.asp.WebTests   NUnit, tests the runtime and the web shell
+test/uk.osric.asp.Core.Tests     NUnit, tests the core directly
+test/uk.osric.asp.Runtime.Tests  NUnit, tests the compiler and assembly loading
+test/uk.osric.asp.Web.Tests      NUnit, tests the endpoints and storage
 docs/                        architecture and testing notes
 ```
 
@@ -38,7 +38,7 @@ The `Makefile` is the task runner; use it instead of inventing parallel scripts.
 
 - Build (default target): `make build` — only runs MSBuild when a source, project, or build file
   changed since the last build (stamp in `artifacts/`). Use `make -B build` to force a rebuild.
-- Tests: `make test` (unit + specifications + web), `make test-unit`, `make test-spec`, `make test-web`
+- Tests: `make test` (core + runtime + web), `make test-core`, `make test-runtime`, `make test-web`
 - Run the site: `make run`
 - Format: `make format`; verify: `make format-check`
 - Licence headers: `make license-check` (REUSE, needs the `reuse` tool)
@@ -63,7 +63,7 @@ See `docs/architecture.md`. In short:
 Test-driven. See `docs/testing.md`.
 
 - Write the failing test first for anything in `Core`, then make it pass, then refactor.
-- NUnit for individual rules, Reqnroll for business behaviour in plain language.
+- NUnit for every test: one behaviour per test, named for the behaviour.
 - Anything a unit test can prove does not belong in a browser test.
 
 ## Dependencies
@@ -71,7 +71,7 @@ Test-driven. See `docs/testing.md`.
 - Reach for `System.*` and `Microsoft.*` first: they are positively encouraged.
 - Strongly prefer writing the code ourselves over adding a third-party package; a new dependency needs
   a clear justification and its version pinned in `Directory.Packages.props`.
-- The sanctioned third-party exceptions are the test tools: NUnit and Reqnroll.
+- The sanctioned third-party exception is the test tooling: NUnit and its adapter.
 
 ## Simplicity
 

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.UnitTests;
+namespace uk.osric.asp.Core.Tests;
 
 using NUnit.Framework;
 using uk.osric.asp.Core;

@@ -10,8 +10,8 @@ SPDX-License-Identifier: MIT
     <Project Path="src/uk.osric.asp.Web/uk.osric.asp.Web.csproj" />
   </Folder>
   <Folder Name="/test/">
-    <Project Path="test/uk.osric.asp.Specs/uk.osric.asp.Specs.csproj" />
-    <Project Path="test/uk.osric.asp.UnitTests/uk.osric.asp.UnitTests.csproj" />
-    <Project Path="test/uk.osric.asp.WebTests/uk.osric.asp.WebTests.csproj" />
+    <Project Path="test/uk.osric.asp.Core.Tests/uk.osric.asp.Core.Tests.csproj" />
+    <Project Path="test/uk.osric.asp.Runtime.Tests/uk.osric.asp.Runtime.Tests.csproj" />
+    <Project Path="test/uk.osric.asp.Web.Tests/uk.osric.asp.Web.Tests.csproj" />
   </Folder>
 </Solution>

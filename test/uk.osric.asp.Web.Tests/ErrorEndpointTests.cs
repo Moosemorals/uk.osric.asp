@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.WebTests;
+namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;

@@ -13,15 +13,19 @@
 DOTNET ?= dotnet
 CONFIGURATION ?= Debug
 
+# There is no launchSettings.json, so `dotnet run` would be Production; local runs are Development so
+# the editor's flash cookie is not marked Secure over http. Override for a local production rehearsal.
+ASPNETCORE_ENVIRONMENT ?= Development
+
 # ---- Layout --------------------------------------------------------------------------------------
 
 SOLUTION := uk.osric.asp.slnx
 ARTIFACTS := artifacts
 
 WEB_PROJECT := src/uk.osric.asp.Web/uk.osric.asp.Web.csproj
-UNIT_TESTS := test/uk.osric.asp.UnitTests/uk.osric.asp.UnitTests.csproj
-SPECS := test/uk.osric.asp.Specs/uk.osric.asp.Specs.csproj
-WEB_TESTS := test/uk.osric.asp.WebTests/uk.osric.asp.WebTests.csproj
+CORE_TESTS := test/uk.osric.asp.Core.Tests/uk.osric.asp.Core.Tests.csproj
+RUNTIME_TESTS := test/uk.osric.asp.Runtime.Tests/uk.osric.asp.Runtime.Tests.csproj
+WEB_TESTS := test/uk.osric.asp.Web.Tests/uk.osric.asp.Web.Tests.csproj
 
 # ---- Container image and deployment --------------------------------------------------------------
 #
@@ -59,15 +63,14 @@ RESTORE_INPUTS := global.json $(SOLUTION) \
 	$(PROJECT_FILES) $(wildcard NuGet.config nuget.config)
 
 # Everything that can change what the compiler produces. Directory mtimes catch added and deleted
-# files, generated Reqnroll code-behind is excluded because the build rewrites it, and the output
-# directories are listed so deleting part of artifacts/ forces a rebuild.
-BUILD_INPUTS := $(shell find src test -type f -not -name '*.feature.cs' 2>/dev/null) \
+# files, and the output directories are listed so deleting part of artifacts/ forces a rebuild.
+BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	$(shell find src test -mindepth 1 -type d 2>/dev/null) \
 	global.json .editorconfig \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore test test-unit test-spec test-web migration run publish image deploy format format-check license-check clean
+.PHONY: help build restore test test-core test-runtime test-web migration run publish image deploy format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -76,10 +79,10 @@ help:
 	@printf '%s\n' \
 		'build              Build the solution when anything changed (default target).' \
 		'restore            Force a NuGet restore (build restores only when inputs change).' \
-		'test               Run the unit, specification and web tests (no browser required).' \
-		'test-unit          Run the NUnit unit tests only.' \
-		'test-spec          Run the Reqnroll specifications only.' \
-		'test-web           Run the web storage tests only.' \
+		'test               Run the core, runtime and web tests (no browser required).' \
+		'test-core          Run the NUnit core tests only.' \
+		'test-runtime       Run the NUnit runtime tests only.' \
+		'test-web           Run the NUnit web shell and storage tests only.' \
 		'migration          Add a storage migration with NAME=... (restores local dotnet-ef).' \
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
@@ -108,13 +111,13 @@ $(BUILD_STAMP): $(BUILD_INPUTS) $(RESTORE_STAMP)
 	@mkdir -p $(dir $@)
 	@touch $@
 
-test: test-unit test-spec test-web
+test: test-core test-runtime test-web
 
-test-unit: build
-	$(DOTNET) test $(UNIT_TESTS) -c $(CONFIGURATION) --no-build
+test-core: build
+	$(DOTNET) test $(CORE_TESTS) -c $(CONFIGURATION) --no-build
 
-test-spec: build
-	$(DOTNET) test $(SPECS) -c $(CONFIGURATION) --no-build
+test-runtime: build
+	$(DOTNET) test $(RUNTIME_TESTS) -c $(CONFIGURATION) --no-build
 
 test-web: build
 	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build
@@ -128,7 +131,7 @@ migration:
 		--configuration $(CONFIGURATION) --no-build --output-dir Storage/Migrations
 
 run:
-	$(DOTNET) run --project $(WEB_PROJECT)
+	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) $(DOTNET) run --project $(WEB_PROJECT)
 
 publish:
 	$(DOTNET) publish $(WEB_PROJECT) -c Release

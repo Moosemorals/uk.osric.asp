@@ -19,10 +19,9 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 | [ARCH-03](ARCH-03.md) | High | No execution timeout, cancellation or concurrency limit for page code |
 | [ARCH-04](ARCH-04.md) | Medium | Reflection wrapper leaks `TargetInvocationException` into the shell |
 | [ARCH-05](ARCH-05.md) | Medium | Storage keys are raw route values with no canonical path rule |
-| [ARCH-06](ARCH-06.md) | Medium | There is no way to list pages; `ListFilesAsync` is dead code |
+| [ARCH-06](ARCH-06.md) | Medium | There is no way to list pages |
 | [ARCH-07](ARCH-07.md) | Medium | Page content has no history, so an edit cannot be undone |
 | [ARCH-08](ARCH-08.md) | High | The shell seam (routing, middleware, error handling) has no integration tests |
-| [ARCH-09](ARCH-09.md) | Medium | The specification suite describes the compiler, not business behaviour |
 | [PERF-01](PERF-01.md) | High | Every request compiles the page from source; nothing is cached |
 | [BUG-05](BUG-05.md) | Medium | Compile errors point at generated source line numbers, not the template |
 | [BUG-06](BUG-06.md) | Medium | An unterminated code block produces a generic 500 |
@@ -55,6 +54,7 @@ Resolved by the code-health scan of 2026-10-30; the files were deleted and their
 
 | ID | Fix |
 | --- | --- |
+| ARCH-09 | The `Specs` suite only restated `TemplateCompiler` unit tests, so it was deleted with Reqnroll; the compiler stays covered by `Runtime.Tests` |
 | BUG-01 | `UseExceptionHandler` now uses an inline branch, so a throwing `POST` returns 500 |
 | BUG-02 | `ErrorEndpoint` sets 500 itself; `/error` is no longer a public route (direct request is a 404) |
 | BUG-03 | The 404 response sets `text/plain; charset=utf-8` |

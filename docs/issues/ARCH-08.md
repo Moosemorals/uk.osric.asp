@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | High |
 | Area | Testing, shell |
-| Location | `test/uk.osric.asp.WebTests/*.cs`, `src/uk.osric.asp.Web/Program.cs` |
+| Location | `test/uk.osric.asp.Web.Tests/*.cs`, `src/uk.osric.asp.Web/Program.cs` |
 
 ## Problem
 
@@ -29,7 +29,7 @@ composed pipeline.
 
 ## Fix outline
 
-1. Add a minimal integration test project, or extend `uk.osric.asp.WebTests`, using
+1. Add a minimal integration test project, or extend `uk.osric.asp.Web.Tests`, using
    `Microsoft.AspNetCore.Mvc.Testing` (`WebApplicationFactory<Program>`). `Program` is `static` with a
    `Main`, so expose `public partial class Program` or refactor to a `CreateApp(string[] args)` factory.
 2. Point the app at a temporary SQLite file (or `:memory:`) per fixture, so migrations run against a

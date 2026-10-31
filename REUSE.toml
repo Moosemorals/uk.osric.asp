@@ -15,10 +15,3 @@ SPDX-License-Identifier = "MIT"
 path = ["src/uk.osric.asp.Web/Storage/Migrations/*.cs"]
 SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
 SPDX-License-Identifier = "MIT"
-
-# Reqnroll writes this next to each .feature. It is derived from our MIT-licensed feature files and is
-# never committed, but the tool cannot see the ignore, so declare it explicitly.
-[[annotations]]
-path = ["test/**/*.feature.cs"]
-SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
-SPDX-License-Identifier = "MIT"
