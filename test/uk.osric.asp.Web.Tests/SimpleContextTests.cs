@@ -154,6 +154,28 @@ public sealed class SimpleContextTests {
     }
 
     [Test]
+    public void LogWarningIsFiledAtWarning() {
+        SimpleContext context = CreateContext("/about", out RecordingLoggerFactory logs);
+
+        context.LogWarning("careful");
+
+        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./about"));
+        Assert.That(logs.Entries[0].Level, Is.EqualTo(LogLevel.Warning));
+        Assert.That(logs.Entries[0].Message, Is.EqualTo("careful"));
+    }
+
+    [Test]
+    public void LogErrorIsFiledAtError() {
+        SimpleContext context = CreateContext("/about", out RecordingLoggerFactory logs);
+
+        context.LogError("broken");
+
+        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./about"));
+        Assert.That(logs.Entries[0].Level, Is.EqualTo(LogLevel.Error));
+        Assert.That(logs.Entries[0].Message, Is.EqualTo("broken"));
+    }
+
+    [Test]
     public void RequestValuesAreExposedToThePage() {
         SimpleContext context = CreateContext(out _);
 

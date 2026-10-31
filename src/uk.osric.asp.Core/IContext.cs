@@ -27,9 +27,21 @@ public interface IContext {
     /// <summary>Aborted when the request is abandoned; pages may observe it to stop early.</summary>
     public CancellationToken Aborted { get; }
 
-    /// <summary>Logs a message to the environment.</summary>
+    /// <summary>Logs a message at information level.</summary>
     /// <param name="message">The message to log.</param>
+    /// <remarks>
+    /// Entries are filed under a category the shell derives from <see cref="Path"/>, so a page's
+    /// lines can be filtered or levelled without touching another page's.
+    /// </remarks>
     public void Log(string message);
+
+    /// <summary>Logs a message at warning level.</summary>
+    /// <param name="message">The message to log.</param>
+    public void LogWarning(string message);
+
+    /// <summary>Logs a message at error level.</summary>
+    /// <param name="message">The message to log.</param>
+    public void LogError(string message);
 
     /// <summary>Writes unescaped HTML to the output.</summary>
     /// <param name="message">The HTML to write.</param>

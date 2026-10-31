@@ -80,6 +80,20 @@ public sealed class SimpleContext : IContext {
     }
 
     /// <inheritdoc/>
+    public void LogWarning(string message) {
+        ArgumentNullException.ThrowIfNull(message);
+
+        _logger.LogWarning("{Message}", message);
+    }
+
+    /// <inheritdoc/>
+    public void LogError(string message) {
+        ArgumentNullException.ThrowIfNull(message);
+
+        _logger.LogError("{Message}", message);
+    }
+
+    /// <inheritdoc/>
     public void Write(string message) => _writer.Write(WebUtility.HtmlEncode(message));
 
     /// <inheritdoc/>

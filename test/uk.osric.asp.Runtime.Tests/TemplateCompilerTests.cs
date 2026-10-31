@@ -129,6 +129,10 @@ public sealed class TemplateCompilerTests {
 
         public void Log(string message) { }
 
+        public void LogWarning(string message) { }
+
+        public void LogError(string message) { }
+
         public void WriteRaw(string message) {
             _output.Append(message);
         }
