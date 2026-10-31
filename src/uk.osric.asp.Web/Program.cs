@@ -3,11 +3,13 @@
 
 namespace uk.osric.asp.Web;
 
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Endpoints;
+using uk.osric.asp.Web.Health;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
 
@@ -26,6 +28,7 @@ public class Program {
         }
 
         builder.Services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
+        builder.Services.AddHealthChecks().AddCheck<StorageHealthCheck>("storage");
         builder.Services.AddScoped<IStorage, SqliteStorage>();
         builder.Services.AddScoped<PageService>();
         builder.Services.AddSingleton<ITemplateCompiler, TemplateCompiler>();
@@ -66,6 +69,11 @@ public class Program {
         app.UseRouting();
         app.MapGet("/edit/{**path}", EditorEndpoint.Handler);
         app.MapPost("/edit/{**path}", EditorEndpoint.Handler);
+        // The health route is mapped before the page catch-all, so a page stored under /heath can
+        // never shadow it; /heath is also in Pages:ReservedPaths.
+        app.MapHealthChecks("/heath", new HealthCheckOptions {
+            ResponseWriter = HealthReportWriter.WriteAsync,
+        });
         // Pages run for the safe verbs only; anything else is answered 405 by routing rather than
         // by page code that never expected it.
         app.MapMethods("{**path}", ["GET", "POST", "HEAD"], MainEndpoint.Handle);

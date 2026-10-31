@@ -20,7 +20,7 @@ using uk.osric.asp.Core;
 public sealed class ReservedPaths {
 
     /// <summary>The keys reserved when none are configured.</summary>
-    public static IReadOnlyList<string> Default { get; } = ["/edit", "/site.css", "/favicon.ico"];
+    public static IReadOnlyList<string> Default { get; } = ["/edit", "/site.css", "/favicon.ico", "/heath"];
 
     private readonly IReadOnlyList<string> _prefixes;
 
