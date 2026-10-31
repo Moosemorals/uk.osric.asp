@@ -18,6 +18,9 @@ Environment="ConnectionStrings__Storage=Data Source=/data/storage.db"
 # The image ships APP_UID 1654; inside the user namespace it maps to a subuid on the host.
 User=1654:1654
 Volume=uk.osric.asp-storage:/data:U
+# Authentication, antiforgery and session cookies are protected with these keys. Without the volume,
+# a restart signs everyone out and invalidates forms that were already open.
+Volume=uk.osric.asp-keys:/home/app/.aspnet/DataProtection-Keys:U
 Tmpfs=/tmp
 NoNewPrivileges=true
 DropCapability=all

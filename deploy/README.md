@@ -113,6 +113,52 @@ on first use and reuses it when the container or image is replaced. It belongs t
 Podman storage, not root's. Removing the volume (including pruning unused volumes) or deleting the
 host's storage destroys the data; container replacement is not a backup strategy.
 
+The database also holds the local accounts the editor signs in with: a normalised user name, a
+PBKDF2 password hash and a revocation stamp. Treat a backup of `storage.db` as a credential store.
+There is no registration page and no user management in the site; accounts are created and changed
+only by the `users` command.
+
+The second rootless volume, `uk.osric.asp-keys`, is mounted at
+`/home/app/.aspnet/DataProtection-Keys`. It holds the data-protection key ring used by the auth,
+antiforgery and session cookies. Without it, every restart would invalidate the long-term login and
+any form that was already open.
+
+## Local accounts
+
+Create the first account before using the editor. The command runs the same binary and migrations as
+the site, and prompts for the password with echo off (or reads one line from standard input when
+`--password-stdin` is passed):
+
+```bash
+make user-add ACCOUNT=osric
+make user-passwd ACCOUNT=osric       # also revokes every existing login for that account
+make user-list
+make user-remove ACCOUNT=osric
+```
+
+On the server, run the command in the running container:
+
+```bash
+ssh deploy@<server-ip> podman exec -it uk.osric.asp \
+  dotnet uk.osric.asp.Web.dll users add osric
+```
+
+If the container is stopped, use a one-off container with the same storage volume:
+
+```bash
+podman run --rm -it \
+  -v uk.osric.asp-storage:/data \
+  -e 'ConnectionStrings__Storage=Data Source=/data/storage.db' \
+  registry.osric.uk/uk.osric.asp:latest users add osric
+```
+
+The site starts with no accounts. Until one is created, `/edit` redirects to `/login` and no
+credentials work.
+
+Passwords are hashed with PBKDF2-HMAC-SHA256 at 600,000 iterations. There is no password recovery
+flow: use `users passwd` from the host. That command rotates the security stamp, so it also signs out
+every browser that is already logged in.
+
 The mount's `:U` option recursively changes the volume's ownership to the host UID/GID mapped from
 the container's `User=1654:1654`. This lets the unprivileged app create the database and SQLite
 journal/WAL files without relaxing permissions. It modifies ownership on the host and may slow
@@ -238,5 +284,6 @@ For unattended updates, add `AutoUpdate=registry` to the app quadlet and run
   `make deploy CONTAINER_RID=linux-musl-arm64`.
 - The app container runs as uid 1654 with all capabilities dropped and `no-new-privileges`; only
   Caddy publishes ports that the outside world can reach.
-- Data-protection keys are ephemeral, so restarting the container invalidates any issued cookies. If
-  that matters, mount a volume at `/home/app/.aspnet` and it becomes persistent.
+- Data-protection keys are persistent in `uk.osric.asp-keys`. Deleting that volume signs every
+  account out and invalidates in-flight forms; it is also the bluntest way to revoke a login if the
+  CLI is unavailable.
