@@ -9,7 +9,8 @@ One file per distinct open problem. Each file has a short ID (`SEC-01`, `BUG-05`
 commits, branches and discussion. Severity is the reviewer's assessment of risk, not an
 implementation order; the suggested order is at the bottom.
 
-Raised by the architecture review and the code-health scan of 2026-10-30.
+Raised by the architecture review and the code-health scan of 2026-10-30; BUG-13 came out of the
+BUG-06 fix.
 
 | ID | Severity | Problem |
 | --- | --- | --- |
@@ -21,6 +22,7 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
 | [BUG-12](BUG-12.md) | Low | Unused Roslyn Workspaces packages ship in the web app |
+| [BUG-13](BUG-13.md) | Low | A page that compiles with warnings is reported as "Saved with errors." |
 | [OPS-02](OPS-02.md) | Low | The health endpoint exists; it has no monitor or alerting behind it |
 | [OPS-03](OPS-03.md) | Medium | There is no CI pipeline |
 | [OPS-04](OPS-04.md) | Low | EF Core logs every SQL command at Information in production |
@@ -31,8 +33,8 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 
 1. ARCH-03, SEC-03 — give page code a budget, then a boundary if it ever needs one.
 2. ARCH-06, ARCH-07 — a page index and revision history.
-3. OPS-03, BUG-12, STYLE-03, STYLE-04 — hygiene, so the next review starts from an accurate
-   baseline.
+3. OPS-03, BUG-12, BUG-13, STYLE-03, STYLE-04 — hygiene, so the next review starts from an
+   accurate baseline.
 
 ## Closed
 
