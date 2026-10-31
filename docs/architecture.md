@@ -26,6 +26,12 @@ The dependency direction is one-way: `Web` → `Runtime` → `Core`, and `Web` �
 back up. `TemplateCompiler` returns a `CompileResult` of booleans and strings rather than Roslyn
 `EmitResult`/`Diagnostic` values, so the shell never sees the compiler's types.
 
+Nothing the author types is an exception either. A template that does not parse comes back from
+`TemplateSourceGenerator` as a `TemplateParseResult` with no source and a `TEMPLATE`-coded message
+naming the line and column in the template, so `PageService` stores it beside the source exactly like
+a compile error: the editor shows it, the page answers "Handler failed to compile.", and it is not
+recompiled on every request.
+
 ## Where does code go?
 
 | Kind of code | Home |

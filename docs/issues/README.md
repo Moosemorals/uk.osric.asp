@@ -18,7 +18,6 @@ Raised by the architecture review and the code-health scan of 2026-10-30.
 | [ARCH-06](ARCH-06.md) | Medium | There is no way to list pages |
 | [ARCH-07](ARCH-07.md) | Medium | Page content has no history, so an edit cannot be undone |
 | [BUG-05](BUG-05.md) | Medium | Compile errors point at generated source line numbers, not the template |
-| [BUG-06](BUG-06.md) | Medium | An unterminated code block produces a generic 500 |
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
 | [BUG-12](BUG-12.md) | Low | Unused Roslyn Workspaces packages ship in the web app |
@@ -52,6 +51,7 @@ Resolved since the review; the files were deleted and their history is in git.
 | BUG-02 | `ErrorEndpoint` sets 500 itself; `/error` is no longer a public route (direct request is a 404) |
 | BUG-03 | The 404 response sets `text/plain; charset=utf-8` |
 | BUG-04 | Compilation diagnostics are HTML-encoded and wrapped in `<pre>` |
+| BUG-06 | A template that does not parse is a value, not an exception: `TemplateTokenizer.Tokenize` returns `TokenizeResult` and `TemplateSourceGenerator.GenerateTemplateSource` returns `TemplateParseResult`, whose `TEMPLATE001` message names the line and column of the unclosed `<%`. `PageService` stores it as a compile failure, so the editor shows it inline and the page answers "Handler failed to compile." instead of the generic error page |
 | BUG-09 | A page's log entries are filed under `uk.osric.asp.Pages.<path>`, the category `SimpleContext` creates from the page's key, so a page can be filtered or levelled on its own. The message template no longer prefixes the path, `MainEndpoint` hands over `ILoggerFactory`, and `IContext` gained `LogWarning`/`LogError` |
 | BUG-10 | `make format-check` passes |
 | BUG-11 | Stale `*.feature.cs` deleted; Reqnroll 3 generates in memory |
