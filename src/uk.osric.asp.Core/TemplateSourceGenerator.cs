@@ -16,7 +16,20 @@ public static class TemplateSourceGenerator {
     /// </remarks>
     public const int PageCodeFirstLine = 3;
 
-    public static string GenerateTemplateSource(string template) {
+    /// <summary>Generates the handler source for a page template.</summary>
+    /// <param name="template">The page template.</param>
+    /// <returns>
+    /// The generated source, or the errors and no source when the template does not parse. No partial
+    /// source is generated for a template that does not parse: Roslyn would then report a syntax error
+    /// where the text was cut off on top of the real one, and the author would fix the wrong thing.
+    /// </returns>
+    public static TemplateParseResult GenerateTemplateSource(string template) {
+        ArgumentNullException.ThrowIfNull(template);
+
+        TokenizeResult tokenized = TemplateTokenizer.Tokenize(template);
+        if (!tokenized.Success) {
+            return new TemplateParseResult(null, tokenized.Errors);
+        }
 
         StringBuilder result = new();
 
@@ -26,7 +39,7 @@ public static class TemplateSourceGenerator {
             public void Handle(IContext ctx) {
         """);
 
-        foreach (Token token in TemplateTokenizer.Tokenize(template)) {
+        foreach (Token token in tokenized.Tokens) {
             switch (token.Type) {
                 case TokenType.Text: {
                         result.Append("ctx.WriteRaw(");
@@ -44,7 +57,7 @@ public static class TemplateSourceGenerator {
 
         result.Append("}}");
 
-        return result.ToString();
+        return new TemplateParseResult(result.ToString(), []);
     }
 
     // A verbatim literal keeps newlines, quotes and backslashes legible in the generated source, and

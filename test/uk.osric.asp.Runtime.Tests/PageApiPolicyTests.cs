@@ -82,6 +82,14 @@ public sealed class PageApiPolicyTests {
     }
 
     private static CompileResult Compile(string template) {
-        return Compiler.Compile(TemplateSourceGenerator.GenerateTemplateSource(template));
+        return Compiler.Compile(Generate(template));
+    }
+
+    private static string Generate(string template) {
+        TemplateParseResult parsed = TemplateSourceGenerator.GenerateTemplateSource(template);
+        Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
+
+        // The assertion above proves source was generated.
+        return parsed.Source!;
     }
 }

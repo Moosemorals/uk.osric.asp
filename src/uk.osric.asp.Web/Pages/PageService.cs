@@ -132,7 +132,14 @@ public sealed class PageService(
 
     private PageCompilation Compile(PagePath path, string content, string reason) {
         long start = Stopwatch.GetTimestamp();
-        CompileResult result = compiler.Compile(TemplateSourceGenerator.GenerateTemplateSource(content));
+        TemplateParseResult parse = TemplateSourceGenerator.GenerateTemplateSource(content);
+
+        // A template that does not parse never reaches the compiler, but it fails exactly like a
+        // syntax error: stored with its diagnostics, so the editor shows the fix and the page is not
+        // recompiled on every request.
+        CompileResult result = parse.Source is { } source
+            ? compiler.Compile(source)
+            : new CompileResult(false, null, parse.Errors);
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
         metrics.RecordCompile(path, result.Success, reason, duration);

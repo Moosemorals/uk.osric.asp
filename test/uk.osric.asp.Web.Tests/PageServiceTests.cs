@@ -59,6 +59,24 @@ public sealed class PageServiceTests {
     }
 
     [Test]
+    public async Task SaveStoresAParseErrorWithoutCallingTheCompilerAsync() {
+        FakeStorage storage = new();
+        PageService pages = CreateService(storage);
+
+        IReadOnlyList<string> diagnostics = await pages.SaveAsync(Key("/unterminated"), "before<% if (true) {");
+
+        Assert.That(diagnostics, Is.EqualTo([
+            "TEMPLATE001: unterminated code block; the '<%' at line 1, column 7 has no matching '%>'.",
+        ]));
+        Assert.That(_compiler.CompileCount, Is.Zero, "a template that does not parse never reaches the compiler");
+
+        StoredPage saved = Stored(storage, "/unterminated");
+        Assert.That(saved.Content, Is.EqualTo("before<% if (true) {"));
+        Assert.That(saved.Compilation?.Image, Is.Null);
+        Assert.That(saved.Compilation?.Diagnostics, Is.EqualTo(diagnostics).AsCollection);
+    }
+
+    [Test]
     public async Task RenderOfACompiledPageDoesNotCompileAsync() {
         FakeStorage storage = new();
         PageService pages = CreateService(storage);

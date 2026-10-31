@@ -21,7 +21,7 @@ public sealed class PageScopeTests {
     [TestCase("<% _ = new uk.osric.asp.Web.Program(); %>")]
     [TestCase("<% uk.osric.asp.Runtime.TemplateCompiler compiler = null; %>")]
     public void ShellTypesAreNotReferenced(string template) {
-        CompileResult result = Compiler.Compile(TemplateSourceGenerator.GenerateTemplateSource(template));
+        CompileResult result = Compiler.Compile(Generate(template));
 
         Assert.That(result.Success, Is.False);
         // CS0234 rather than CS0246: the assembly is absent, so its namespace is unknown too.
@@ -32,8 +32,7 @@ public sealed class PageScopeTests {
     [Test]
     public void RoslynIsNotReferenced() {
         CompileResult result = Compiler.Compile(
-            TemplateSourceGenerator.GenerateTemplateSource(
-                "<% Microsoft.CodeAnalysis.CSharp.CSharpCompilation compilation = null; %>"));
+            Generate("<% Microsoft.CodeAnalysis.CSharp.CSharpCompilation compilation = null; %>"));
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Contains("error CS02"));
@@ -43,8 +42,16 @@ public sealed class PageScopeTests {
     [Test]
     public void SdkTypesAreStillReferenced() {
         CompileResult result = Compiler.Compile(
-            TemplateSourceGenerator.GenerateTemplateSource("<% IContext page = ctx; page.Write(page.Path); %>"));
+            Generate("<% IContext page = ctx; page.Write(page.Path); %>"));
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    private static string Generate(string template) {
+        TemplateParseResult parsed = TemplateSourceGenerator.GenerateTemplateSource(template);
+        Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
+
+        // The assertion above proves source was generated.
+        return parsed.Source!;
     }
 }

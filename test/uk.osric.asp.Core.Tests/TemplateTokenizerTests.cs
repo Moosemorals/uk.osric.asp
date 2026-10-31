@@ -10,7 +10,7 @@ using uk.osric.asp.Core;
 public sealed class TemplateTokenizerTests {
     [Test]
     public void EmptyInputProducesNoTokens() {
-        Token[] tokens = [.. TemplateTokenizer.Tokenize("")];
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("").Tokens;
 
         Assert.That(tokens, Is.Empty);
     }
@@ -22,7 +22,7 @@ public sealed class TemplateTokenizerTests {
     [TestCase("< %")]
     [TestCase("text <")]
     public void TextWithoutAnOpeningDelimiterIsPreserved(string input) {
-        Token[] tokens = [.. TemplateTokenizer.Tokenize(input)];
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] { new(TokenType.Text, input) }));
     }
@@ -32,14 +32,14 @@ public sealed class TemplateTokenizerTests {
     [TestCase(" \r\nWrite(42);\n ", "<% \r\nWrite(42);\n %>")]
     [TestCase("<%nested", "<%<%nested%>")]
     public void CodeBlockExcludesDelimitersAndPreservesContent(string expected, string input) {
-        Token[] tokens = [.. TemplateTokenizer.Tokenize(input)];
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] { new(TokenType.Code, expected) }));
     }
 
     [Test]
     public void AlternatingTextAndCodeRemainInSourceOrder() {
-        Token[] tokens = [.. TemplateTokenizer.Tokenize("before<%first();%>between<%second();%>after")];
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("before<%first();%>between<%second();%>after").Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
             new(TokenType.Text, "before"),
@@ -52,7 +52,7 @@ public sealed class TemplateTokenizerTests {
 
     [Test]
     public void AdjacentCodeBlocksDoNotIntroduceEmptyTextTokens() {
-        Token[] tokens = [.. TemplateTokenizer.Tokenize("<%first();%><%%><%second();%>")];
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<%first();%><%%><%second();%>").Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
             new(TokenType.Code, "first();"),
@@ -63,7 +63,7 @@ public sealed class TemplateTokenizerTests {
 
     [Test]
     public void TextBeforeAFinalCodeBlockHasNoEmptyTrailingToken() {
-        Token[] tokens = [.. TemplateTokenizer.Tokenize("before<%code%>")];
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("before<%code%>").Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
             new(TokenType.Text, "before"),
@@ -75,7 +75,7 @@ public sealed class TemplateTokenizerTests {
     [TestCase("// ", "\n")]
     [TestCase("/* ", " */")]
     public void ClosingDelimiterEndsCodeEvenInsideCSharpStringsOrComments(string before, string after) {
-        Token[] tokens = [.. TemplateTokenizer.Tokenize("<%" + before + "%>" + after)];
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<%" + before + "%>" + after).Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
             new(TokenType.Code, before),
@@ -83,13 +83,25 @@ public sealed class TemplateTokenizerTests {
         }));
     }
 
-    [TestCase("<%")]
-    [TestCase("<%>")]
-    [TestCase("before<%code")]
-    [TestCase("<%code%")]
-    [TestCase("<%complete%><%unfinished")]
-    public void UnterminatedCodeBlockThrowsWhenEnumerated(string input) {
-        Assert.That(() => TemplateTokenizer.Tokenize(input).ToArray(),
-            Throws.TypeOf<ArgumentException>().With.Message.EqualTo("Unterminated code block."));
+    [TestCase("<%", "line 1, column 1")]
+    [TestCase("<%>", "line 1, column 1")]
+    [TestCase("before<%code", "line 1, column 7")]
+    [TestCase("<%code%", "line 1, column 1")]
+    [TestCase("<%complete%><%unfinished", "line 1, column 13")]
+    [TestCase("first line\r\nsecond <% broken", "line 2, column 8")]
+    public void UnterminatedCodeBlockIsReportedAtItsOpeningDelimiter(string input, string position) {
+        TokenizeResult result = TemplateTokenizer.Tokenize(input);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Errors, Is.EqualTo([
+            $"TEMPLATE001: unterminated code block; the '<%' at {position} has no matching '%>'.",
+        ]));
+    }
+
+    [Test]
+    public void TokensBeforeAnUnterminatedCodeBlockAreKept() {
+        TokenizeResult result = TemplateTokenizer.Tokenize("<%complete%><%unfinished");
+
+        Assert.That(result.Tokens, Is.EqualTo(new Token[] { new(TokenType.Code, "complete") }));
     }
 }

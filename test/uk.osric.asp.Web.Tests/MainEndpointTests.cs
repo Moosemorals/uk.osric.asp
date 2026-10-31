@@ -105,7 +105,7 @@ public sealed class MainEndpointTests {
     public async Task StoredCompilationIsRenderedWithoutCompilingAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         TemplateCompiler compiler = new();
-        CompileResult compiled = compiler.Compile(TemplateSourceGenerator.GenerateTemplateSource("Hello."));
+        CompileResult compiled = compiler.Compile(Generate("Hello."));
         PageCompilation compilation = new(
             ContentFingerprint.Of("Hello."), TemplateCompiler.RuntimeId, compiled.Image, compiled.Diagnostics);
         FakeStorage storage = new();
@@ -251,6 +251,14 @@ public sealed class MainEndpointTests {
         Assert.That(context.Response.StatusCode, Is.EqualTo(413));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("too large"));
         Assert.That(storage.ReadCount, Is.Zero);
+    }
+
+    private static string Generate(string template) {
+        TemplateParseResult parsed = TemplateSourceGenerator.GenerateTemplateSource(template);
+        Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
+
+        // The assertion above proves source was generated.
+        return parsed.Source!;
     }
 
     private PageService CreatePages(IStorage storage) {

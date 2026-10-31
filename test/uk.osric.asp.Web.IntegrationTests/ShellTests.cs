@@ -104,4 +104,18 @@ public sealed class ShellTests : IntegrationTest {
         Assert.That(await response.Content.ReadAsStringAsync(),
             Does.Contain("Handler failed to compile.").And.Contain("error CS"));
     }
+
+    [Test]
+    public async Task UnterminatedCodeBlockIsReportedAsACompileError() {
+        await SavePageAsync("/unterminated", "<% if (true) {");
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/unterminated");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+        Assert.That(body, Does.Contain("Handler failed to compile.").And.Contain("unterminated code block"));
+        Assert.That(body, Does.Not.Contain("An unexpected error occurred."),
+            "a malformed template is the author's error, not a server fault");
+    }
 }
