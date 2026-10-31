@@ -44,6 +44,100 @@ public sealed class TemplateCompilerTests {
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Is.Not.Empty);
         Assert.That(result.Image, Is.Null);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains("CS1525", StringComparison.Ordinal)
+                && diagnostic.Position == new TemplatePosition(1, 16)));
+    }
+
+    [Test]
+    public void ASyntaxErrorReportsItsTemplateLineAndColumn() {
+        CompileResult result = Compile("line one\nline two\n<% int value = ; %>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS1525", StringComparison.Ordinal));
+
+        Assert.That(error.Severity, Is.EqualTo(PageDiagnosticSeverity.Error));
+        Assert.That(error.Position, Is.EqualTo(new TemplatePosition(3, 16)));
+    }
+
+    [Test]
+    public void AWarningOnlyPageSucceedsAndEmitsAnImage() {
+        CompileResult result = Compile("<% int unused = 1; %>");
+
+        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
+        Assert.That(result.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Warning
+                && diagnostic.Message.Contains("CS0219", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void AWarningDoesNotHideAnError() {
+        CompileResult result = Compile("<% int unused = 1; int value = \"text\"; %>");
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error));
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Warning
+                && diagnostic.Message.Contains("CS0219", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void AnUnclosedBlockIsReportedAtTheEndOfTheTemplate() {
+        CompileResult result = Compile("<% if (true) { %>");
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains("CS1513", StringComparison.Ordinal)
+                && diagnostic.Position == new TemplatePosition(2, 3)));
+    }
+
+    [Test]
+    public void AGeneratedSourceFaultThrowsInsteadOfReturningADiagnostic() {
+        const string source = """
+            using uk.osric.asp.Core;
+            public class GeneratedPage : IHandler {
+            public void Handle(IContext ctx) {
+            int value = ;
+            }}
+            """;
+
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(source));
+    }
+
+    [Test]
+    public void AGeneratedSourcePolicyViolationThrowsInsteadOfReturningADiagnostic() {
+        const string source = """
+            using uk.osric.asp.Core;
+            public class GeneratedPage : IHandler {
+            public void Handle(IContext ctx) {
+            System.IO.File.ReadAllText("page.txt");
+            }}
+            """;
+
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(source));
+    }
+
+    [Test]
+    public void AMappedErrorSuppressesAnUnmappedCascade() {
+        const string source = """
+            using uk.osric.asp.Core;
+            public class GeneratedPage : IHandler {
+            public void Handle(IContext ctx) {
+            #line 1 "page"
+            int value = ;
+            #line default
+            this is not valid;
+            }}
+            """;
+
+        CompileResult result = Compiler.Compile(source);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains("CS1525", StringComparison.Ordinal)
+                && diagnostic.Position?.Line == 1));
     }
 
     [Test]

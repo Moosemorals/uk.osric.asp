@@ -32,7 +32,11 @@ public sealed class TemplateCompiler : ITemplateCompiler {
 
     /// <summary>Compiles generated C# source into an assembly image.</summary>
     /// <param name="source">The generated C# source, not the page template.</param>
-    /// <returns>Whether the assembly was emitted, the image, and the diagnostics if it was not.</returns>
+    /// <returns>The image, and the author-facing diagnostics when the page does not compile.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The generated source itself is broken. A diagnostic without a template position means the
+    /// fault is in code the generator wrote, not in the page, so it must not be shown to the author.
+    /// </exception>
     public CompileResult Compile(string source) {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -46,16 +50,21 @@ public sealed class TemplateCompiler : ITemplateCompiler {
 
         // The policy runs before emit, so a page that may not use an API never becomes an image that
         // could be stored and served.
-        IReadOnlyList<string> violations = PageApiChecker.Check(tree, compilation.GetSemanticModel(tree));
+        IReadOnlyList<PageDiagnostic> violations = PageApiChecker.Check(tree, compilation.GetSemanticModel(tree));
         if (violations.Count > 0) {
-            return new CompileResult(false, null, violations);
+            return new CompileResult(null, violations);
         }
 
         using MemoryStream image = new();
         EmitResult result = compilation.Emit(image);
-        IReadOnlyList<string> diagnostics = [.. result.Diagnostics.Select(diagnostic => diagnostic.ToString())];
+        List<PageDiagnostic> diagnostics = MapDiagnostics(result.Diagnostics);
 
-        return new CompileResult(result.Success, result.Success ? image.ToArray() : null, diagnostics);
+        if (!result.Success && !diagnostics.Exists(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error)) {
+            throw new InvalidOperationException(
+                "The generated page source did not emit an assembly and reported no error diagnostic. This is a compiler fault, not a page error.");
+        }
+
+        return new CompileResult(result.Success ? image.ToArray() : null, diagnostics);
     }
 
     /// <summary>Loads a compiled image so its handler can be run.</summary>
@@ -65,6 +74,45 @@ public sealed class TemplateCompiler : ITemplateCompiler {
         ArgumentNullException.ThrowIfNull(image);
 
         return new CompiledTemplate(image);
+    }
+
+    // Mapped diagnostics belong to the page. Unmapped ones belong to generated code; they are a
+    // fault unless a mapped error already explains the broken parse. Unmapped warnings are dropped.
+    private static List<PageDiagnostic> MapDiagnostics(IEnumerable<Diagnostic> diagnostics) {
+        List<PageDiagnostic> mapped = [];
+        List<Diagnostic> unmappedErrors = [];
+        bool hasMappedError = false;
+
+        foreach (Diagnostic diagnostic in diagnostics) {
+            if (diagnostic.Severity is not (DiagnosticSeverity.Error or DiagnosticSeverity.Warning)) {
+                continue;
+            }
+
+            FileLinePositionSpan span = diagnostic.Location.GetMappedLineSpan();
+            if (!span.HasMappedPath) {
+                if (diagnostic.Severity == DiagnosticSeverity.Error) {
+                    unmappedErrors.Add(diagnostic);
+                }
+
+                continue;
+            }
+
+            bool isError = diagnostic.Severity == DiagnosticSeverity.Error;
+            mapped.Add(new PageDiagnostic(
+                isError ? PageDiagnosticSeverity.Error : PageDiagnosticSeverity.Warning,
+                new TemplatePosition(span.StartLinePosition.Line + 1, span.StartLinePosition.Character + 1),
+                $"{diagnostic.Id}: {diagnostic.GetMessage()}"));
+
+            hasMappedError |= isError;
+        }
+
+        if (unmappedErrors.Count > 0 && !hasMappedError) {
+            string details = string.Join(" ", unmappedErrors.Select(diagnostic => $"{diagnostic.Id}: {diagnostic.GetMessage()}"));
+            throw new InvalidOperationException(
+                $"The generated page source did not compile: {details} This is a compiler fault, not a page error.");
+        }
+
+        return mapped;
     }
 
     private static MetadataReference[] CreateMetadataReferences() {

@@ -24,7 +24,8 @@ public sealed class PageApiPolicyTests {
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Image, Is.Null);
-        Assert.That(result.Diagnostics, Has.Some.Contains(api));
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains(api, StringComparison.Ordinal)));
     }
 
     [TestCase("<% } public static void Other() { } %>")]
@@ -34,14 +35,17 @@ public sealed class PageApiPolicyTests {
         CompileResult result = Compile(template);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Diagnostics, Has.Some.StartsWith("PAGE002:"));
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.StartsWith("PAGE002:", StringComparison.Ordinal)));
     }
 
     [Test]
-    public void RejectionReportsThePageLine() {
+    public void RejectionReportsThePageLineAndColumn() {
         CompileResult result = Compile("first line\n<% System.IO.File.ReadAllText(\"page.txt\"); %>");
 
-        Assert.That(result.Diagnostics, Has.Some.Contains("(line 2)"));
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Position is { Line: 2, Column: > 0 }
+                && diagnostic.Severity == PageDiagnosticSeverity.Error));
     }
 
     [Test]
@@ -71,14 +75,16 @@ public sealed class PageApiPolicyTests {
     public void CallingAnObjectMemberIsRejected() {
         CompileResult result = Compile("<% System.Object value = 1; ctx.Write(value.ToString()); %>");
 
-        Assert.That(result.Diagnostics, Has.Some.Contains("System.Object"));
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains("System.Object", StringComparison.Ordinal)));
     }
 
     [Test]
     public void DynamicIsRejected() {
         CompileResult result = Compile("<% dynamic value = 1; ctx.Write(value.ToString()); %>");
 
-        Assert.That(result.Diagnostics, Has.Some.Contains("dynamic"));
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic.Message.Contains("dynamic", StringComparison.Ordinal)));
     }
 
     private static CompileResult Compile(string template) {

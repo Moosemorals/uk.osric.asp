@@ -19,7 +19,11 @@ public interface ITemplateCompiler {
 
     /// <summary>Compiles generated C# source into an assembly image.</summary>
     /// <param name="source">The generated C# source, not the page template.</param>
-    /// <returns>Whether the assembly was emitted, the image, and the diagnostics if it was not.</returns>
+    /// <returns>The image, and the author-facing diagnostics when the page does not compile.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The generated source itself is broken. A fault is not a page diagnostic and must reach the
+    /// shell as an exception.
+    /// </exception>
     CompileResult Compile(string source);
 
     /// <summary>Loads a compiled image so its handler can be run.</summary>

@@ -22,24 +22,38 @@ internal static class PageApiChecker {
     /// <summary>Reports everything the page may not do.</summary>
     /// <param name="tree">The parsed generated source.</param>
     /// <param name="model">The semantic model bound to <paramref name="tree"/>.</param>
-    /// <returns>The diagnostics to fail the compile with; empty when the page is acceptable.</returns>
-    public static IReadOnlyList<string> Check(SyntaxTree tree, SemanticModel model) {
+    /// <returns>The author-facing diagnostics to fail the compile with; empty when the page is acceptable.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The generated source itself violates the policy. That is a compiler fault, not a page error.
+    /// </exception>
+    public static IReadOnlyList<PageDiagnostic> Check(SyntaxTree tree, SemanticModel model) {
         ArgumentNullException.ThrowIfNull(tree);
         ArgumentNullException.ThrowIfNull(model);
 
-        List<string> shape = CheckShape(tree);
+        List<PageDiagnostic> shape = CheckShape(tree);
         if (shape.Count > 0) {
             return shape;
         }
 
+        List<PageDiagnostic> diagnostics = [];
         List<ApiReference> used = [];
         HashSet<string> banned = new(StringComparer.Ordinal);
 
         foreach (SyntaxNode node in tree.GetRoot().DescendantNodes()) {
-            int line = PageLine(node);
+            TemplatePosition? position = TemplatePositionOf(node);
 
-            if (FindBanned(node, line) is { } violation) {
-                banned.Add(violation);
+            if (FindBanned(node) is { } what) {
+                if (position is null) {
+                    throw CompilerFault($"PAGE001: pages may not use {what}.");
+                }
+
+                if (banned.Add($"{what}@{position.Value.Line}")) {
+                    diagnostics.Add(new PageDiagnostic(
+                        PageDiagnosticSeverity.Error,
+                        position,
+                        $"PAGE001: pages may not use {what}."));
+                }
+
                 continue;
             }
 
@@ -47,45 +61,51 @@ internal static class PageApiChecker {
                 continue;
             }
 
-            used.AddRange(Describe(model.GetSymbolInfo(node).Symbol, tree, line));
-            used.AddRange(Describe(model.GetTypeInfo(node).Type, tree, line));
+            used.AddRange(Describe(model.GetSymbolInfo(node).Symbol, tree, position));
+            used.AddRange(Describe(model.GetTypeInfo(node).Type, tree, position));
         }
 
-        List<string> diagnostics = [.. banned];
-        diagnostics.AddRange(PageApiPolicy.Check(used));
+        foreach (PageDiagnostic violation in PageApiPolicy.Check(used)) {
+            if (violation.Position is null) {
+                throw CompilerFault(violation.Message);
+            }
+
+            diagnostics.Add(violation);
+        }
 
         return diagnostics;
     }
 
     // The page body is a method body. A page that closes the method or the type gains members here,
     // which is what stops it declaring statics, its own entry point or a module initializer.
-    private static List<string> CheckShape(SyntaxTree tree) {
+    private static List<PageDiagnostic> CheckShape(SyntaxTree tree) {
         const string Message =
             "PAGE002: page code must stay inside a code block; a page may not declare types or members.";
 
-        List<string> diagnostics = [];
+        List<PageDiagnostic> diagnostics = [];
+        PageDiagnostic error = new(PageDiagnosticSeverity.Error, null, Message);
 
         if (tree.GetRoot() is not CompilationUnitSyntax unit) {
-            diagnostics.Add(Message);
+            diagnostics.Add(error);
             return diagnostics;
         }
 
         if (unit.Members is not [ClassDeclarationSyntax type]
             || !string.Equals(type.Identifier.ValueText, HandlerTypeName, StringComparison.Ordinal)) {
-            diagnostics.Add(Message);
+            diagnostics.Add(error);
             return diagnostics;
         }
 
         if (type.Members is not [MethodDeclarationSyntax method]
             || !string.Equals(method.Identifier.ValueText, HandlerMethodName, StringComparison.Ordinal)) {
-            diagnostics.Add(Message);
+            diagnostics.Add(error);
         }
 
         return diagnostics;
     }
 
-    private static string? FindBanned(SyntaxNode node, int line) {
-        string? what = node switch {
+    private static string? FindBanned(SyntaxNode node) {
+        return node switch {
             StackAllocArrayCreationExpressionSyntax => "stackalloc",
             PointerTypeSyntax => "a pointer",
             FunctionPointerTypeSyntax => "a function pointer",
@@ -93,14 +113,11 @@ internal static class PageApiChecker {
             IdentifierNameSyntax { Identifier.ValueText: "dynamic" } => "dynamic",
             _ => null,
         };
-
-        return what is null ? null : Banned(what, line);
     }
 
-    private static string Banned(string what, int line) {
-        return line > 0
-            ? $"PAGE001: pages may not use {what} (line {line})."
-            : $"PAGE001: pages may not use {what}.";
+    private static InvalidOperationException CompilerFault(string message) {
+        return new InvalidOperationException(
+            $"The generated page source violates the page API policy: {message} This is a compiler fault, not a page error.");
     }
 
     // Only these node kinds can introduce an API a page did not already have; declarations and
@@ -117,7 +134,7 @@ internal static class PageApiChecker {
             or CastExpressionSyntax;
     }
 
-    private static IEnumerable<ApiReference> Describe(ISymbol? symbol, SyntaxTree tree, int line) {
+    private static IEnumerable<ApiReference> Describe(ISymbol? symbol, SyntaxTree tree, TemplatePosition? position) {
         if (symbol is null or INamespaceSymbol or ILocalSymbol or IParameterSymbol or IRangeVariableSymbol
             or ITypeParameterSymbol or IDiscardSymbol or ILabelSymbol or IErrorTypeSymbol
             or ITypeSymbol { SpecialType: SpecialType.System_Void }) {
@@ -125,7 +142,7 @@ internal static class PageApiChecker {
         }
 
         if (symbol is IAliasSymbol alias) {
-            foreach (ApiReference reference in Describe(alias.Target, tree, line)) {
+            foreach (ApiReference reference in Describe(alias.Target, tree, position)) {
                 yield return reference;
             }
 
@@ -138,7 +155,7 @@ internal static class PageApiChecker {
 
         if (symbol is INamedTypeSymbol type) {
             if (!type.IsAnonymousType) {
-                yield return new ApiReference(NamespaceOf(type), type.Name, string.Empty, line);
+                yield return new ApiReference(NamespaceOf(type), type.Name, string.Empty, position);
             }
 
             yield break;
@@ -153,7 +170,7 @@ internal static class PageApiChecker {
             ? string.Empty
             : symbol.Name;
 
-        yield return new ApiReference(NamespaceOf(container), container.Name, member, line);
+        yield return new ApiReference(NamespaceOf(container), container.Name, member, position);
     }
 
     // A symbol declared in this tree is page code - the handler, a local function, a lambda, an
@@ -175,10 +192,12 @@ internal static class PageApiChecker {
         return containing is null or { IsGlobalNamespace: true } ? string.Empty : containing.ToDisplayString();
     }
 
-    // The generated source keeps the page's newlines, so this mapping is exact, not approximate.
-    private static int PageLine(SyntaxNode node) {
-        int generatedLine = node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
-        int pageLine = generatedLine - TemplateSourceGenerator.PageCodeFirstLine + 1;
-        return pageLine > 0 ? pageLine : 0;
+    // GetMappedLineSpan() falls back to generated space for a node outside a #line region.
+    // HasMappedPath is what makes the pair template space; without it there is no position.
+    private static TemplatePosition? TemplatePositionOf(SyntaxNode node) {
+        FileLinePositionSpan span = node.GetLocation().GetMappedLineSpan();
+        return span.HasMappedPath
+            ? new TemplatePosition(span.StartLinePosition.Line + 1, span.StartLinePosition.Character + 1)
+            : null;
     }
 }
