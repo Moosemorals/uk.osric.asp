@@ -158,8 +158,9 @@ image:
 # Pushes the image, installs the quadlets (the source of truth), and restarts. The app runs rootless
 # as HOST's user; Caddy is the only rootful unit and is installed with sudo. The quadlet's Image= line
 # is rewritten on the way so REGISTRY and IMAGE_TAG overrides reach the host. Both services are
-# restarted rather than started: `enable --now` is a no-op on an already-running unit, so a tag-only
-# image change or a Caddyfile edit would otherwise never take effect.
+# restarted rather than started, so a tag-only image change or a Caddyfile edit takes effect on a
+# redeploy. There is no enable step: quadlet units are transient, so systemctl refuses to enable
+# them, and the generator already applies each quadlet's [Install] section on daemon-reload.
 deploy: image
 	@test -n "$(HOST)" || { echo "usage: make deploy HOST=deploy@your.server"; exit 1; }
 	@test -f deploy/Caddyfile || { echo "missing deploy/Caddyfile: cp deploy/Caddyfile.example deploy/Caddyfile and set your domain"; exit 1; }
@@ -172,11 +173,9 @@ deploy: image
 	ssh $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
 	ssh $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
 	ssh $(HOST) systemctl --user daemon-reload
-	ssh $(HOST) systemctl --user enable uk.osric.asp.service
 	ssh $(HOST) systemctl --user restart uk.osric.asp.service
 	ssh $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
 	ssh $(HOST) sudo systemctl daemon-reload
-	ssh $(HOST) sudo systemctl enable caddy.service
 	ssh $(HOST) sudo systemctl restart caddy.service
 
 format:
