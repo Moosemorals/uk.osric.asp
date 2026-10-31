@@ -11,18 +11,23 @@ using uk.osric.asp.Web;
 public sealed class MainEndpoint() {
 
     public static async Task Handle(HttpContext context, IStorage storage, ILogger<MainEndpoint> logger) {
-        string path = context.Request.RouteValues["path"] as string ?? "";
 
-        string? content = !string.IsNullOrWhiteSpace(path) ? await storage.GetFileContentsAsync(path, context.RequestAborted) : null;
+        PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
+        if (!string.Equals(context.Request.Path.Value, path.Path, StringComparison.Ordinal)) {
+            Redirects.Permanent(context, path.Path);
+            return;
+        }
+
+        string? content = await storage.GetFileContentsAsync(path, context.RequestAborted);
         if (content is null) {
-            await WriteNotFoundAsync(context);
+            await WriteNotFoundAsync(context, path);
             return;
         }
 
         string templateSource = TemplateSourceGenerator.GenerateTemplateSource(content);
         StringWriter output = new();
 
-        IContext ctx = new SimpleContext(logger, output, path);
+        IContext ctx = new SimpleContext(logger, output, path.Path);
 
         using MemoryStream assemblyStream = new();
         CompileResult buildResult = TemplateCompiler.Compile(templateSource, assemblyStream);
@@ -49,9 +54,9 @@ public sealed class MainEndpoint() {
         }
     }
 
-    private static async Task WriteNotFoundAsync(HttpContext context) {
+    private static async Task WriteNotFoundAsync(HttpContext context, PagePath path) {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         context.Response.ContentType = "text/plain; charset=utf-8";
-        await context.Response.WriteAsync("File not found.");
+        await context.Response.WriteAsync($"{path} not found.");
     }
 }
