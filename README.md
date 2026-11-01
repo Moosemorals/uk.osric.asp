@@ -36,8 +36,8 @@ autocomplete and real error messages.
 <% } %>
 ```
 
-`ctx.Write` escapes, `ctx.WriteRaw` does not, and `ctx.Log` writes to the log. That is the whole
-surface.
+`ctx.Write` escapes, `ctx.WriteRaw` does not, and `ctx.Log` writes to the log. The
+[architecture notes](docs/architecture.md#page-contract) list the rest of the surface.
 
 ## Running it
 
@@ -46,7 +46,7 @@ make run
 make user-add ACCOUNT=osric     # in another terminal: prompts for a password
 ```
 
-The database starts empty, so every route answers 404 until you write something. Sign in at
+The database starts empty, so every page answers 404 until you write something. Sign in at
 `http://localhost:5000/login`, go to `/edit/` and make the front page, then `/edit/about` for the
 next one. Saving is live: the save compiles the new source, so the next request runs it and there is
 no build step in between. "Keep me signed in" is checked by default and the cookie lasts 30 days of
@@ -59,7 +59,12 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | Target | What it does |
 | --- | --- |
 | `make build` | Build the solution, but only when a source or project file changed (the default) |
+| `make restore` | Force a NuGet restore; `build` only restores when an input changed |
 | `make test` | All four suites: core, runtime, web, integration |
+| `make test-core` | Core tests only |
+| `make test-runtime` | Runtime tests only |
+| `make test-web` | Web shell and storage tests only |
+| `make test-integration` | The composed pipeline against a throwaway database |
 | `make user-add ACCOUNT=...` | Create a local editor account |
 | `make user-passwd ACCOUNT=...` | Change a password and sign out every existing session |
 | `make user-list` | List local accounts |
@@ -69,7 +74,9 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | `make remote-user-list HOST=...` | List the accounts on the server |
 | `make remote-user-remove HOST=... ACCOUNT=...` | Remove an account on the server |
 | `make run` | Run the site in Development on `http://localhost:5000` |
+| `make publish` | Publish the app to `artifacts/publish` |
 | `make format` | Apply formatting and style fixes |
+| `make format-check` | Fail if the tree is not formatted |
 | `make license-check` | Fail if the tree is not REUSE compliant |
 | `make migration NAME=...` | Add a storage migration |
 | `make image` | Build the OCI image into podman |

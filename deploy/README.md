@@ -51,9 +51,9 @@ and applies them.
 
    `cloud-init.yaml` installs podman with the rootless pieces (`uidmap`, `passt`, `fuse-overlayfs`),
    creates the `deploy` user with subuid/subgid ranges and its own SSH keys, enables lingering so its
-   user manager outlives the login, hardens SSH, and opens 22/80/443 in ufw. It reboots once if the
-   package upgrade installed a new kernel, and ends with a rootless `podman info` that must print
-   `true` — check it with `cloud-init status --long` before relying on the host.
+   user manager outlives the login, hardens SSH, and opens 22, 80 and 443 (TCP and UDP) in ufw. It
+   reboots once if the package upgrade installed a new kernel, and ends with a rootless `podman info`
+   that must print `true` — check it with `cloud-init status --long` before relying on the host.
 
 2. Point an `A` (and `AAAA`, if you use IPv6) record at the server.
 
@@ -82,8 +82,8 @@ and applies them.
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
-  covers `/edit`, `/site.css`, `/favicon.ico` and `/heath`; change it only when the route table
-  changes.
+  covers `/edit`, `/site.css`, `/favicon.ico`, `/heath`, `/login` and `/logout`; change it only when
+  the route table changes.
 - **Health:** `ssh deploy@<server-ip> curl -s http://127.0.0.1:8080/heath` returns detailed JSON —
   200 when the app can reach its database, 503 otherwise.
 - **Logs:** `ssh deploy@<server-ip> journalctl --user -u uk.osric.asp.service -f`

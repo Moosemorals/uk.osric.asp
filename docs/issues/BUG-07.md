@@ -9,19 +9,25 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Low |
 | Area | Storage |
-| Location | `src/uk.osric.asp.Web/Storage/SqliteStorage.cs:23-32` |
+| Location | `src/uk.osric.asp.Web/Storage/SqliteStorage.cs:24-38` |
 
 ## Problem
 
-`SetFileContentsAsync` reads the row, then inserts or updates it:
+`SavePageAsync` reads the row, then inserts or updates it:
 
 ```csharp
-StoredFile? file = await database.Set<StoredFile>().SingleOrDefaultAsync(...);
+StoredFile? file = await database.Set<StoredFile>()
+    .SingleOrDefaultAsync(file => file.Path == page.Path.Path, cancellationToken);
+
 if (file is null) {
-    database.Add(new StoredFile { Path = path, Content = content });
+    file = new StoredFile { Path = page.Path.Path, Content = page.Content };
+    database.Add(file);
 } else {
-    file.Content = content;
+    file.Content = page.Content;
 }
+
+Apply(file, page.Compilation);
+
 await database.SaveChangesAsync(cancellationToken);
 ```
 

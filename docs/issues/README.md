@@ -35,7 +35,7 @@ dashboard planning.
 
 1. ARCH-03, SEC-03 — give page code a budget, then a boundary if it ever needs one.
 2. ARCH-06, ARCH-10, ARCH-07 — a page index, a way to delete a page, then revision history.
-3. OPS-03, BUG-12, STYLE-04 — hygiene, so the next review starts from an accurate baseline.
+3. OPS-03, BUG-12 — hygiene, so the next review starts from an accurate baseline.
 4. ARCH-11, ARCH-12 — show the generated source in the editor, and give the template language its
    write shorthand.
 
@@ -61,7 +61,7 @@ Resolved since the review; the files were deleted and their history is in git.
 | BUG-10 | `make format-check` passes |
 | BUG-11 | Stale `*.feature.cs` deleted; Reqnroll 3 generates in memory |
 | STYLE-01 | `EditorEndpoint` validates through a `SaveAsync` helper instead of `goto` |
-| STYLE-02 | `IStorage.ListFilesAsync` returns `IReadOnlyList<string>` |
+| STYLE-02 | `IStorage.ListFilesAsync` returns `IReadOnlyList<string>`. The query was later removed as unused when listing pages became ARCH-06 |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
 | SEC-01 | The editor requires a local account. Accounts live in the `Users` table and are created only by the `users` command; `POST`/`GET /edit/**` require the `Editor` policy. Passwords are PBKDF2 hashes, the cookie slides for 30 days and is persistent, and a security stamp revokes it on a password change or account removal. See [the plan](../plans/editor-authentication.md) |
 | SEC-02 | Login, logout and editor POSTs validate an antiforgery token and answer `400` before reading the form or storing anything. The editor's flash message moved from a cookie to server-side session state, and saves answer `303` |

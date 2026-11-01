@@ -23,7 +23,8 @@ docs/                        architecture and testing notes
 ```
 
 - Dependency direction is `Web` → `Runtime` → `Core`, plus `Web` → `Core`. `Core` stays
-  reference-free; Roslyn lives in `Runtime` only, so the shell never names a compiler type.
+  reference-free; Roslyn lives in `Runtime` only, so the shell never names a compiler type. (`Web`
+  still carries two unused Roslyn *Workspaces* package references; removing them is BUG-12.)
 
 - Build output never lives next to the source: `Directory.Build.props` sets `UseArtifactsOutput`, so
   `bin`/`obj` for every project land under `artifacts/`. Never reference or commit them.

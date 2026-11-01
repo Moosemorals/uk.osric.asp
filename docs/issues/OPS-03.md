@@ -17,8 +17,8 @@ The Makefile has `format-check` and `license-check` targets, and `docs/architect
 changes are tested with `make test-web`, but nothing runs automatically. There are no GitHub Actions
 workflows at all. As a result:
 
-- `make format-check` is currently broken (BUG-10) and nobody noticed.
-- The stale generated files (BUG-11) accumulated unnoticed.
+- `make format-check` was broken (BUG-10) and nobody noticed.
+- Stale generated files (BUG-11) accumulated unnoticed.
 - A commit can break the build, the tests or the licence headers without any signal.
 - The Makefile is the only task runner, which is good, so CI can simply call it.
 
@@ -28,7 +28,7 @@ workflows at all. As a result:
 2. Steps:
    - `actions/setup-dotnet` with the version from `global.json`;
    - `make build`;
-   - `make test` (unit, specs, web);
+   - `make test` (core, runtime, web and integration);
    - `make format-check`;
    - `make license-check` (install `reuse`, e.g. `pipx install reuse`);
    - optionally `make image` to prove the container build, once it is fast enough.

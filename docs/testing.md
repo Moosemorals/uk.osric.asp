@@ -42,9 +42,10 @@ core stays pure and the shell stays thin.
 
 Each project references only the layers it exercises, so the reference graph stops a test from
 reaching past its subject: `Core.Tests` has no ASP.NET or Roslyn to call, `Runtime.Tests` has no
-endpoints, and the web suites reach `Runtime` only through `ITemplateCompiler`.
-`Web.Tests` and `Web.IntegrationTests` split on what is under test rather than what is referenced:
-one proves a handler in isolation, the other proves the wiring between handlers.
+endpoints, and the web suites use `Runtime` only through `ITemplateCompiler` and the
+`TemplateCompiler` that implements it. `Web.Tests` and `Web.IntegrationTests` split on what is under
+test rather than what is referenced: one proves a handler in isolation, the other proves the wiring
+between handlers.
 
 Every test is an NUnit test. Assert the behaviour, not the method, and keep one behaviour per test.
 

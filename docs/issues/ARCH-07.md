@@ -9,11 +9,11 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Medium |
 | Area | Storage, product |
-| Location | `src/uk.osric.asp.Web/Storage/StoredFile.cs`, `src/uk.osric.asp.Web/Storage/SqliteStorage.cs:23-32` |
+| Location | `src/uk.osric.asp.Web/Storage/StoredFile.cs`, `src/uk.osric.asp.Web/Storage/SqliteStorage.cs:24-38` |
 
 ## Problem
 
-`Files` holds one row per path and `SetFileContentsAsync` overwrites `Content` in place. A mistaken
+`Files` holds one row per path and `SavePageAsync` overwrites `Content` in place. A mistaken
 save destroys the previous page with no undo. The site's content is
 code, which is exactly the content most likely to need a diff or rollback.
 

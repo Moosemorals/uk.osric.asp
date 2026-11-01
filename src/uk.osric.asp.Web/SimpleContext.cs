@@ -13,7 +13,7 @@ using uk.osric.asp.Core;
 /// handler has returned and a page that throws leaves nothing half-sent.
 /// </para>
 /// <para>
-/// This is the only type that touches <see cref="ILogger"/>, and every entry a page writes is filed
+/// This is the only type a page's logging goes through, and every entry it writes is filed
 /// under <c>uk.osric.asp.Pages.{path}</c>, so a page can be filtered or levelled on its own. The
 /// category format is operator-facing: changing it breaks configured filters and log queries.
 /// </para>

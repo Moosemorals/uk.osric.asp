@@ -9,16 +9,17 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | High |
 | Area | Architecture, runtime |
-| Location | `src/uk.osric.asp.Core/IHandler.cs`, `src/uk.osric.asp.Core/IContext.cs`, `src/uk.osric.asp.Core/TemplateCompiler.cs:42-61` |
+| Location | `src/uk.osric.asp.Runtime/CompiledTemplate.cs`, `src/uk.osric.asp.Web/Pages/PageService.cs:188-202`, `src/uk.osric.asp.Web/Endpoints/MainEndpoint.cs` |
 
 ## Problem
 
-`IHandler.Handle` is synchronous and `IContext` has no `CancellationToken`. `TemplateCompiler.Run`
-invokes the handler directly on the request thread. Consequences:
+`IHandler.Handle` is synchronous and nothing bounds it. `PageService.Run` calls
+`CompiledTemplate.Invoke` on the request thread. Consequences:
 
 - A page containing `while (true) { }` pins a thread-pool thread forever; enough such requests
   exhaust the pool and take the site down.
-- Client disconnects (`RequestAborted`) are ignored while a page runs; the work continues.
+- A client disconnect is only visible: `IContext.Aborted` carries the request token, but a page that
+  ignores it runs to completion.
 - Compilation itself has no bound: a pathological template keeps the request (and a core) busy.
 - Graceful shutdown waits on in-flight requests with no way to interrupt a page.
 
@@ -27,8 +28,8 @@ safe assumption.
 
 ## Fix outline
 
-1. Pass `CancellationToken` into the page API (`IContext.CancellationToken` or a request value) so
-   cooperating pages can observe aborts.
+1. ~~Pass a `CancellationToken` into the page API.~~ Done as `IContext.Aborted`, which
+   `SimpleContext` takes from the request; the timeout and the kill below remain.
 2. Wrap handler execution in a bounded wait: run it on a worker and return 503/504 after a
    configurable timeout. Cancellation cannot forcibly stop arbitrary C#, so the token lets good
    pages stop and the timeout bounds the damage.

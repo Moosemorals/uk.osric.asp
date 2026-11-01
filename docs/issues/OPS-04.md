@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Low |
 | Area | Configuration, observability |
-| Location | `src/uk.osric.asp.Web/appsettings.json:5-11` |
+| Location | `src/uk.osric.asp.Web/appsettings.json:8-13` |
 
 ## Problem
 

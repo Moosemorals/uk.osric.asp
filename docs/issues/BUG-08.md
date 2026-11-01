@@ -9,18 +9,19 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Low |
 | Area | Runtime |
-| Location | `src/uk.osric.asp.Core/TemplateCompiler.cs:16-25` |
+| Location | `src/uk.osric.asp.Runtime/TemplateCompiler.cs:118-121` |
 
 ## Problem
 
-`GetMetadataReferences` returns `[]` when `AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")` is not
-a string:
+`CreateMetadataReferences` returns `[]` when `AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")` is
+not a string:
 
 ```csharp
-if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string tpa) {
-    metadataPaths.AddRange(tpa.Split(Path.PathSeparator));
-} else {
-    return [];
+private static MetadataReference[] CreateMetadataReferences() {
+    if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is not string trustedPlatformAssemblies) {
+        return [];
+    }
+    ...
 }
 ```
 

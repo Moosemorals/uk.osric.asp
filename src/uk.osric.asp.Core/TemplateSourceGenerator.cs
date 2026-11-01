@@ -5,6 +5,7 @@ namespace uk.osric.asp.Core;
 
 using System.Text;
 
+/// <summary>Turns a page template into the generated C# source of its handler.</summary>
 public static class TemplateSourceGenerator {
 
     private const string TemplateName = "page";

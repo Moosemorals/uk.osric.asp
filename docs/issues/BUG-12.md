@@ -20,19 +20,20 @@ The web project references:
 <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" PrivateAssets="all" />
 ```
 
-Nothing in the repository uses either namespace. `grep` for `Workspaces` finds only these two lines.
-They are leftovers (likely from an abandoned design-time compilation idea), but they are copied into
-the build output — `artifacts/bin/uk.osric.asp.Web/debug` contains
-`Microsoft.CodeAnalysis.Workspaces.dll`, `Microsoft.CodeAnalysis.Workspaces.MSBuild.dll` and
+Nothing in the repository uses either namespace. `grep` for `Workspaces` finds only these two lines and
+their versions in `Directory.Packages.props`. They are leftovers (likely from an abandoned
+design-time compilation idea), but they are copied into the build output —
+`artifacts/bin/uk.osric.asp.Web/debug` contains `Microsoft.CodeAnalysis.Workspaces.dll`,
+`Microsoft.CodeAnalysis.Workspaces.MSBuild.dll` and
 `Microsoft.CodeAnalysis.ExternalAccess.RazorCompiler.dll` — and they enlarge the publish output.
 
-The only Roslyn package actually needed is `Microsoft.CodeAnalysis.CSharp` (referenced by `Core` and
-used for `Diagnostic`/`EmitResult` in `MainEndpoint`).
+The only Roslyn package the solution needs is `Microsoft.CodeAnalysis.CSharp`, referenced by
+`Runtime`; the shell names no compiler type at all, because compilation diagnostics reach the
+endpoints as `PageDiagnostic` values.
 
 ## Fix outline
 
-1. Delete both `PackageReference` lines.
-2. If Web needs `Diagnostic`/`EmitResult` types explicitly, either keep the transitive reference via
-   `Core` (the default for project references) or add `Microsoft.CodeAnalysis.Common`/`CSharp`
-   explicitly — not the Workspaces packages.
+1. Delete both `PackageReference` lines and drop their versions from `Directory.Packages.props`.
+2. Add nothing in their place: `Web` uses `Runtime` through `ITemplateCompiler`, and
+   `Microsoft.CodeAnalysis.CSharp` stays a `Runtime` dependency.
 3. Run `dotnet list package --include-transitive` and the publish size comparison to confirm.

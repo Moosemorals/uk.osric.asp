@@ -14,7 +14,8 @@ DOTNET ?= dotnet
 CONFIGURATION ?= Debug
 
 # There is no launchSettings.json, so `dotnet run` would be Production; local runs are Development so
-# the editor's flash cookie is not marked Secure over http. Override for a local production rehearsal.
+# the session and antiforgery cookies are not marked Secure over http. Override for a local production
+# rehearsal.
 ASPNETCORE_ENVIRONMENT ?= Development
 
 # ---- Layout --------------------------------------------------------------------------------------

@@ -73,7 +73,7 @@ form, headers, cookies), `Path`, `Aborted`, `Log`/`LogWarning`/`LogError`, `Writ
 A page's log entries are filed under `uk.osric.asp.Pages.<path>`, the category `SimpleContext`
 derives from the page's key, so one page can be filtered or levelled without touching another. That
 format is operator-facing — filters, alerts and log queries are written against it. `SimpleContext`
-is the only type that touches `ILogger`, so `Core` never names a logging type.
+is where a page's logging enters the shell, so `Core` never names a logging type.
 
 Two rules keep the response safe:
 
@@ -107,8 +107,13 @@ stay public.
   account has the same effect on the next request. Signing in again does **not** rotate the stamp,
   so several browsers or devices can hold a valid session at the same time; only a password change
   or account removal revokes them all.
-- `/edit/**` requires the `Editor` policy, which is just an authenticated account. `/login` and
-  `/logout` are the only other routes outside the page catch-all, and both are reserved page keys.
+- `/edit/**` requires the `Editor` policy, which is just an authenticated account. `/login`,
+  `/logout` and `/heath` are the only other routes outside the page catch-all, and each one is a
+  reserved page key.
+- Sign-in is throttled by a fixed window of ten attempts a minute (`LoginRateLimitOptions`), and a
+  request over the limit is answered `429` before any password is hashed. The window is one global
+  partition on purpose: behind Caddy every request arrives from the loopback, so a per-address
+  partition would be one bucket with more moving parts.
 - Login, logout and editor POSTs validate an antiforgery token. A rejected request is answered
   `400` before it reads the form or touches storage. The editor's save message lives in the session,
   not in a cookie, and a successful save answers `303` so the browser follows with a `GET`.
@@ -119,14 +124,16 @@ stay public.
 
 Stored pages are C#, so the surface they may touch is constrained twice.
 
-- `PageApiPolicy` in `Core` is the default-deny allow-list: the SDK namespace plus a short list of
-  base class library types, checked against the symbol the page actually resolved. It is data plus a
-  pure function, so the list is readable and the diagnostic names the API to add. `System.Object` is
-  deliberately absent: allowing it would allow `GetType()`.
+- `PageApiPolicy` in `Core` is the default-deny allow-list: the SDK namespace, a short list of base
+  class library types, and any `System.*` type whose name ends in `Exception`, because catching one
+  should not need an entry of its own. Each entry is checked against the symbol the page actually
+  resolved. It is data plus a pure function, so the list is readable and the diagnostic names the
+  API to add. `System.Object` is deliberately absent: allowing it would allow `GetType()`.
 - `PageApiChecker` in `Runtime` walks the generated syntax tree, projects Roslyn symbols onto
-  `ApiReference` values, rejects `stackalloc`, `dynamic`, pointers and `unsafe`, and enforces the
-  shape rule — one type, `GeneratedPage`, with one method, `Handle`. That rule is what stops a page
-  closing the method to declare statics, its own entry point or a module initializer.
+  `ApiReference` values, rejects `stackalloc`, `dynamic`, pointers, function pointers and `unsafe`,
+  and enforces the shape rule: one type, `GeneratedPage`, with one method, `Handle`. That rule is
+  what stops a page closing the method to declare statics, its own entry point or a module
+  initializer.
 
 The compiler's reference set is trimmed to the base class library: `uk.osric.asp.*` and `Microsoft.*`
 are not referenced, so naming the shell or Roslyn fails with CS02xx before the policy runs. The trim

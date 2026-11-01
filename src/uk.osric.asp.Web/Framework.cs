@@ -28,7 +28,7 @@ public static class Framework {
         """;
 
     /// <summary>Renders compiler diagnostics as an HTML block, encoding every message.</summary>
-    /// <param name="diagnostics">The diagnostics to show, in the order the compiler reported them.</param>
+    /// <param name="diagnostics">The diagnostics to show, ordered for display.</param>
     public static string GetDiagnostics(IReadOnlyList<PageDiagnostic> diagnostics) {
         return "<pre class=\"diagnostics\">"
             + string.Concat(PageDiagnostic.SortedForDisplay(diagnostics).Select(diagnostic => {

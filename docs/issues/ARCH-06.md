@@ -19,7 +19,7 @@ holds — the unused `ListFilesAsync` was removed rather than kept as dead code 
 new query before it can have a UI.
 
 This means pages cannot be discovered at all on a fresh deployment, and there is no way to spot
-orphaned or unreachable keys (see ARCH-05).
+orphaned or unreachable keys.
 
 ## Fix outline
 
