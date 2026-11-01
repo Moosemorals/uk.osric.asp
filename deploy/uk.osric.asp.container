@@ -24,6 +24,23 @@ Volume=uk.osric.asp-keys:/home/app/.aspnet/DataProtection-Keys:U
 Tmpfs=/tmp
 NoNewPrivileges=true
 DropCapability=all
+# A page cannot be interrupted once it runs, so the container is the only thing that can stop one:
+# the memory limit makes the OOM killer take this container rather than the host (the box has no
+# swap), and the health check restarts it when too many page renders have been abandoned.
+PodmanArgs=--memory=768m
+PodmanArgs=--pids-limit=256
+PodmanArgs=--cpus=1
+# Longer than the host's 30 s graceful-shutdown budget, so a normal stop finishes cleanly and only a
+# genuinely stuck page is SIGKILLed.
+StopTimeout=35
+# The liveness signal the app cannot give itself: when a page has wedged thread-pool threads, /heath
+# fails and podman restarts the container. Detection plus restart is about 35 s.
+HealthCmd=wget -q -O /dev/null -T 3 http://127.0.0.1:8080/heath
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=3
+HealthStartPeriod=30s
+HealthOnFailure=restart
 
 [Service]
 Restart=always

@@ -85,13 +85,42 @@ and applies them.
   covers `/edit`, `/site.css`, `/favicon.ico`, `/heath`, `/login` and `/logout`; change it only when
   the route table changes.
 - **Health:** `ssh deploy@<server-ip> curl -s http://127.0.0.1:8080/heath` returns detailed JSON —
-  200 when the app can reach its database, 503 otherwise.
+  200 when the app can reach its database and no page renders have been abandoned, 503 otherwise. The
+  same probe runs inside the container as podman's health check, so a failing check restarts it; see
+  [resource limits and restarts](#resource-limits-and-restarts).
+- **Container health:** `ssh deploy@<server-ip> podman healthcheck run uk.osric.asp` forces a check,
+  and `podman inspect uk.osric.asp --format '{{.State.Health.Status}}'` shows the current one.
 - **Logs:** `ssh deploy@<server-ip> journalctl --user -u uk.osric.asp.service -f`
 - **Status:** `ssh deploy@<server-ip> systemctl --user status uk.osric.asp.service`
 - **Edge:** `ssh deploy@<server-ip> sudo systemctl status caddy`
 - **Rollback:** build the previous commit and deploy it again; images are replaced, not accumulated.
   A previous image may not support the migrated schema; restore its matching backup with the app
   stopped when necessary.
+
+## Resource limits and restarts
+
+The app container is the only thing that can stop a page. .NET cannot interrupt arbitrary C#, so when
+a page loops forever the request answers `504` and the thread is lost; the app stops reporting healthy
+rather than pretending otherwise. Podman then does the killing.
+
+- **Limits.** `--memory=768m` means a page that allocates without bound gets the OOM killer, and it
+  takes this container rather than the host (the box has no swap). `--pids-limit=256` stops a thread
+  or process storm taking the host with it, and `--cpus=1` keeps the container from starving the
+  host-side Caddy. `StopTimeout=35` is longer than the host's 30 s graceful-shutdown budget, so a
+  normal stop finishes cleanly and only a stuck page is `SIGKILL`ed.
+- **Probe.** `HealthCmd` runs
+  `wget -q -O /dev/null -T 3 http://127.0.0.1:8080/heath` every 10 s; three consecutive failures make
+  the container unhealthy, and `HealthOnFailure=restart` restarts it. Detection plus restart is about
+  35 s, which is the cost of the design: nothing else can interrupt a page.
+- **`/heath` reports two things.** Storage reachability, and how many page renders have been
+  abandoned. Two abandoned renders at once is the limit; a page that hangs deterministically therefore
+  costs one restart per attempt, not a permanently wedged site.
+- **The start limit still applies.** `StartLimitBurst=3` in 60 s means a page that wedges on every
+  request will restart three times and leave the unit failed — the intended "stop crash-looping"
+  behaviour, but it needs a fix and `systemctl --user reset-failed uk.osric.asp.service` rather than
+  waiting. `journalctl --user -u uk.osric.asp.service` names the page path in the warning line.
+- **Tuning.** `podman stats` shows the real working set; the memory limit is the knob to raise first if
+  the site is OOM-killed under load rather than because of a page.
 
 ## Storage and migrations
 
