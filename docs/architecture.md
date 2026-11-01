@@ -183,7 +183,7 @@ through the default context. It throws rather than returning `null`, because `nu
 default context" — the exact escape the type exists to close.
 
 This is isolation from the site's internals, not a sandbox: a page still runs in-process with the
-site's identity and the whole base class library. The process boundary is [SEC-03](issues/SEC-03.md),
+site's identity and the whole base class library. The process boundary is [SEC-03](jobs/SEC-03.md),
 and it is deliberately not built — see "Page execution budget" below for what stands in its place.
 
 ## Page execution budget

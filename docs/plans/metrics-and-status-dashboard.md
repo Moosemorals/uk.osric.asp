@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Metrics, Prometheus and a status dashboard
 
-Implementation plan for the monitoring half of [OPS-02](../issues/OPS-02.md): export the instruments
+Implementation plan for the monitoring half of [OPS-02](../jobs/OPS-02.md): export the instruments
 `PageMetrics` already records, run Prometheus beside the app, and render a status page whose charts
 are our own SVG drawn from pure functions in `Core`. Metrics only — no traces, no logs, no OTLP.
 
@@ -34,7 +34,7 @@ Tags are a contract already documented as such in `PageMetrics`: `page.path`, `o
 `result`, `reason`. The dashboard queries depend on these names, so they join the contract.
 
 `/heath` exists but nothing watches it: that is OPS-02. This plan supplies the monitor; alerting
-stays with [OPS-05](../issues/OPS-05.md).
+stays with [OPS-05](../jobs/OPS-05.md).
 
 ## Decisions
 
@@ -323,7 +323,7 @@ earn their keep.
 - `docs/testing.md`: chart math and parsing are unit-level; `/status` and `/metrics` are integration
   level; no browser tests.
 - `deploy/README.md`: the Prometheus unit, the network, retention and the loopback story.
-- `docs/issues/README.md`: OPS-02's monitoring half is answered here; alerting stays with OPS-05.
+- `docs/jobs/README.md`: OPS-02's monitoring half is answered here; alerting stays with OPS-05.
 - Mark this plan Implemented with test counts when it lands.
 
 ## Test matrix

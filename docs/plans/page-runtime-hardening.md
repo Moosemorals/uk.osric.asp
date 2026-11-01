@@ -335,7 +335,7 @@ This is the last in-process step, and it is the one that makes a future process 
   rule, `PolicyVersion` → `RuntimeId`), and a "Load isolation" section (what the ALC blocks, what it
   does not). Add rows to the "Where does code go?" table: "API policy and page values → `Core`",
   "Roslyn walk over the policy → `Runtime`".
-- `docs/issues`: close ARCH-02, ARCH-04 and ARCH-05 with rows in the Closed table; add `SEC-03` —
+- `docs/jobs`: close ARCH-02, ARCH-04 and ARCH-05 with rows in the Closed table; add `SEC-03` —
   *page code has no execution budget and no process boundary* — recording the deferred work
   (timeout and kill, `--network=none` sidecar, memory limits) and the residual risks this plan does
   not buy: unbounded allocation, `Environment.Exit`, `Environment.FailFast`, shared-static mutation,

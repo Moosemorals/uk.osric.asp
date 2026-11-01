@@ -38,7 +38,7 @@ After this work:
 - **A restart does not log the owner out.** Data-protection keys (auth, antiforgery and session
   cookies) are persisted on a volume.
 
-Still out of scope: [SEC-03](../issues/SEC-03.md) and ARCH-03. An
+Still out of scope: [SEC-03](../jobs/SEC-03.md) and ARCH-03. An
 authenticated page is still arbitrary C# in the site's process with no execution budget.
 Authentication removes the "anyone" threat; it does not shrink what the owner's own code can do.
 
@@ -490,7 +490,7 @@ Add a `SignInAsync(client)` helper: `GET /login`, parse
   the session and the protected routes.
 - `docs/testing.md`: the integration suite now signs in through `/login`; the flash cookie is gone.
 - `README.md`: the editor requires sign-in; `make user-add ACCOUNT=...` creates the first account.
-- `docs/issues/README.md`: move SEC-01 and SEC-02 to the Closed table, delete their issue files, and
+- `docs/jobs/README.md`: move SEC-01 and SEC-02 to the Closed table, delete their job files, and
   remove the "401/403 cases wait for SEC-01" clause from the ARCH-08 entry.
 - Mark this plan **Implemented** with test counts when it lands.
 

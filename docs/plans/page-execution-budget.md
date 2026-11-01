@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Page execution budget
 
-Implementation plan for ARCH-03. [SEC-03](../issues/SEC-03.md) — the process
+Implementation plan for ARCH-03. [SEC-03](../jobs/SEC-03.md) — the process
 boundary — is **not** part of this: pages keep running in the site's process, and the safety net for
 the cases a budget cannot handle is the supervisor restarting an unhealthy container.
 
@@ -243,7 +243,7 @@ health endpoint that guesses is worse than one that reports a fact.
 - `docs/testing.md`: the render tests and where the timing assertion lives, plus a note that the
   integration suite must not assert on restart behaviour (that is podman's job and not reachable from
   `WebApplicationFactory`).
-- `docs/issues/README.md`: ARCH-03 moves to Closed with a sentence; SEC-03 stays open with an added
+- `docs/jobs/README.md`: ARCH-03 moves to Closed with a sentence; SEC-03 stays open with an added
   note that the residual is now bounded by the health-and-restart safety net rather than unbounded,
   and that the spike record is where the out-of-process alternatives were priced.
 - `deploy/README.md`: the health check, the restart-on-unhealthy behaviour, the ~35 s window, the

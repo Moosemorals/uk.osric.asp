@@ -336,7 +336,7 @@ configuration key, no file dumps, and nothing page-authored is shown to a visito
 went to Roslyn, directives included, so a generator bug can be reproduced exactly.
 
 Showing that source to the author in the editor is a separate feature, recorded as
-[ARCH-11](../issues/ARCH-11.md).
+[ARCH-11](../jobs/ARCH-11.md).
 
 ## Phases
 
@@ -505,10 +505,10 @@ Tests:
 - `docs/architecture.md`: replace "`CompileResult` of booleans and strings" with the
   `PageDiagnostic` contract, record the `#line` mapping rule, and say that the diagnostics column is
   a JSON array of positioned, severity-tagged values.
-- `docs/issues/README.md`: remove BUG-05, BUG-13 and STYLE-03 from the open table and add them to
+- `docs/jobs/README.md`: remove BUG-05, BUG-13 and STYLE-03 from the open table and add them to
   Closed with the summary from this work.
-- Delete `docs/issues/BUG-05.md`, `BUG-13.md` and `STYLE-03.md`, following the existing convention
-  that closed issue files disappear and their history lives in git.
+- Delete `docs/jobs/BUG-05.md`, `BUG-13.md` and `STYLE-03.md`, following the existing convention
+  that closed job files disappear and their history lives in git.
 
 ## Test matrix
 
@@ -572,7 +572,7 @@ Tests:
 - No compiler-fault page or flash message: the existing unexpected-exception handler is the `500`
   response, and the fault's details go to the server log rather than to the visitor.
 - No generated-source viewer in the editor: the source is logged at `Debug` for now; the viewer is
-  recorded as [ARCH-11](../issues/ARCH-11.md).
+  recorded as [ARCH-11](../jobs/ARCH-11.md).
 - No new package. `#line`, `GetMappedLineSpan`, `System.Text.Json` and ASP.NET Core logging are all
   already available.
 

@@ -3,45 +3,83 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# Issues
+# Jobs
 
-One file per distinct open problem. Each file has a short ID (`SEC-01`, `BUG-05`, ...) to use in
-commits, branches and discussion. Severity is the reviewer's assessment of risk, not an
-implementation order; the suggested order is at the bottom.
+One file per distinct job — something the site gets wrong (`SEC-`, `BUG-`, `OPS-`, `ARCH-`) and
+something it could usefully become (`IDEA-`). Each file has a short ID (`SEC-03`, `IDEA-004`, ...)
+to use in commits, branches and discussion.
 
-Raised by the architecture review and the code-health scan of 2026-10-30; BUG-13 came out of the
-BUG-06 fix, ARCH-11 came out of the BUG-05/BUG-13 planning, and BUG-14 came out of the metrics
-dashboard planning.
+Two measures, and neither is a plan. **Severity** is the reviewer's assessment of risk, and is blank
+for an idea because an idea is not something that has gone wrong. **Size** is how much work it looks
+like: `S` a sitting, `M` a day or so, `L` big enough to want a plan of its own. The size is the
+useful column, because a good few of these are an hour's work and the order at the bottom spends its
+first effort there.
 
-| ID | Severity | Problem |
-| --- | --- | --- |
-| [SEC-03](SEC-03.md) | Medium | Page code has no process boundary |
-| [ARCH-06](ARCH-06.md) | Medium | There is no way to list pages |
-| [ARCH-07](ARCH-07.md) | Medium | Page content has no history, so an edit cannot be undone |
-| [ARCH-10](ARCH-10.md) | Medium | A page cannot be deleted |
-| [ARCH-11](ARCH-11.md) | Low | The editor cannot show the generated C# for a page |
-| [ARCH-12](ARCH-12.md) | Medium | A template has no shorthand for writing a value |
-| [ARCH-13](ARCH-13.md) | Low | A page cannot stream its response |
-| [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
-| [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
-| [BUG-14](BUG-14.md) | Low | A canonical redirect drops the query string |
-| [OPS-02](OPS-02.md) | Low | The health endpoint exists; it has no monitor or alerting behind it |
-| [OPS-03](OPS-03.md) | Medium | There is no CI pipeline |
-| [OPS-04](OPS-04.md) | Low | EF Core logs every SQL command at Information in production |
-| [OPS-05](OPS-05.md) | Medium | No outbound notifications when the site breaks |
+The defect and operation jobs were raised by the architecture review and the code-health scan of
+2026-10-30; BUG-13 came out of the BUG-06 fix, ARCH-11 came out of the BUG-05/BUG-13 planning, and
+BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added on 2026-11-01.
 
-## Suggested order
+| ID | Severity | Size | Job |
+| --- | --- | --- | --- |
+| [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
+| [ARCH-06](ARCH-06.md) | Medium | S | There is no way to list pages |
+| [ARCH-07](ARCH-07.md) | Medium | L | Page content has no history, so an edit cannot be undone |
+| [ARCH-10](ARCH-10.md) | Medium | S | A page cannot be deleted |
+| [ARCH-11](ARCH-11.md) | Low | S | The editor cannot show the generated C# for a page |
+| [ARCH-12](ARCH-12.md) | Medium | M | A template has no shorthand for writing a value |
+| [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
+| [BUG-07](BUG-07.md) | Low | S | Concurrent saves race and can fail with a primary-key violation |
+| [BUG-08](BUG-08.md) | Low | S | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
+| [BUG-14](BUG-14.md) | Low | S | A canonical redirect drops the query string |
+| [OPS-02](OPS-02.md) | Low | M | The health endpoint exists; it has no monitor or alerting behind it |
+| [OPS-03](OPS-03.md) | Medium | M | There is no CI pipeline |
+| [OPS-04](OPS-04.md) | Low | S | EF Core logs every SQL command at Information in production |
+| [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
+| [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea |
+| [IDEA-002](IDEA-002.md) | — | M | A page cannot call an outbound HTTP API |
+| [IDEA-003](IDEA-003.md) | — | M | A page has nowhere to keep state |
+| [IDEA-004](IDEA-004.md) | — | L | `Core` is both the page SDK and the host's compiler support |
+| [IDEA-005](IDEA-005.md) | — | L | A page cannot declare a type, so shared code has to be copied |
+| [IDEA-006](IDEA-006.md) | — | S | `site.css` is a static file rather than a page |
+| [IDEA-007](IDEA-007.md) | — | S | The site has no favicon |
+| [IDEA-008](IDEA-008.md) | — | L | Writing pages by hand is the only way to write pages |
 
-1. SEC-03, only if page authors ever stop being the owner.
-2. ARCH-06, ARCH-10, ARCH-07 — a page index, a way to delete a page, then revision history.
-3. OPS-03 — hygiene, so the next review starts from an accurate baseline.
-4. ARCH-11, ARCH-12 — show the generated source in the editor, and give the template language its
-   write shorthand.
-5. ARCH-13 — streaming, when a page actually needs to answer before it has finished.
+An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
+`## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
+
+## A rough order
+
+Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and
+self-contained comes first, because these are the ones that never get scheduled otherwise.
+
+1. **The small defects, a sitting each.** BUG-14 (a query string lost on redirect), BUG-07 (a
+   primary-key race on save), BUG-08 (an empty reference set that fails like a compile error) and
+   OPS-04 (SQL at Information in the journal). No design needed, all four fit in an afternoon, and
+   three of them bite the moment the site has a second visitor.
+2. **IDEA-007, then IDEA-006** — the icon and then the stylesheet as pages. Both small, and together
+   they answer the question the product work depends on: can a page serve CSS and an image as
+   happily as HTML? Do them back to back; the second tells you what caching needs fixing.
+3. **The editor trio: ARCH-10, ARCH-11, ARCH-06.** Delete a page, show the generated C#, list what
+   exists. Each is small, and together they turn `/edit` from "type the URL you already know" into
+   something usable — and ARCH-06 makes the site's contents discoverable for the first time.
+4. **OPS-03, CI** — before the tree grows, so `make format-check`, `make test` and the licence check
+   run without being asked.
+5. **ARCH-12** — the write shorthand. A small language change, a large effect on how a page reads.
+6. **IDEA-002, fetch** — the biggest single improvement to what a page can do. Allow-listed, bounded
+   and testable; take it before persistence, which has more open questions and less immediate payoff.
+7. **IDEA-003, persistence**, then **IDEA-004, the split.** Persistence is useful sooner; the split
+   is the unlock for the three large ideas, so it follows immediately.
+8. **ARCH-07, history** — undo for edits, once there is enough content to be worth versioning.
+9. **IDEA-005, page types** — with IDEA-004 in place, the shared-code question has a real answer.
+10. **IDEA-001, a proper editor** — by now there are pages to justify it, and IDEA-008 needs it.
+11. **IDEA-008, drafting** — last of the ideas, because every one of the others makes it better.
+12. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
+13. **OPS-02 and OPS-05** — monitoring and alerting, once there is something worth being woken for.
+14. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 
 ## Closed
 
-Resolved since the review; the files were deleted and their history is in git.
+Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
