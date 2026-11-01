@@ -52,6 +52,16 @@ public class PagePathTests {
     }
 
     [Test]
+    public void AQueryStringIsPartOfThePathAndIsNotStripped() {
+
+        // Routing hands over Request.Path, which never carries a query, so normalisation treats '?'
+        // as an ordinary path character rather than guessing at URL structure.
+        PagePath actual = PagePath.Normalize("/hello?from=rss");
+
+        Assert.That(actual.Path, Is.EqualTo("/hello?from=rss"));
+    }
+
+    [Test]
     public void KeysDifferingOnlyByCaseAreEqual() {
 
         Assert.That(PagePath.Normalize("/A"), Is.EqualTo(PagePath.Normalize("/a")));

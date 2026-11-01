@@ -59,6 +59,19 @@ public sealed class MainEndpointTests {
     }
 
     [Test]
+    public async Task AQueryStringDoesNotChangeThePageKeyAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "GET", "/hello.cs");
+        context.Request.QueryString = new QueryString("?from=rss");
+        FakeStorage storage = new();
+        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello.");
+
+        await MainEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(storage.LastReadPath?.Path, Is.EqualTo("/hello.cs"));
+    }
+
+    [Test]
     public async Task StoredHandlerIsCompiledAndExecutedAsync() {
         DefaultHttpContext context = CreateContext("pages/hello.cs");
         FakeStorage storage = new();
