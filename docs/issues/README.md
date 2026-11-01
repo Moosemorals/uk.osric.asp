@@ -22,6 +22,7 @@ dashboard planning.
 | [ARCH-10](ARCH-10.md) | Medium | A page cannot be deleted |
 | [ARCH-11](ARCH-11.md) | Low | The editor cannot show the generated C# for a page |
 | [ARCH-12](ARCH-12.md) | Medium | A template has no shorthand for writing a value |
+| [ARCH-13](ARCH-13.md) | Low | A page cannot stream its response |
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
 | [BUG-14](BUG-14.md) | Low | A canonical redirect drops the query string |
@@ -32,11 +33,12 @@ dashboard planning.
 
 ## Suggested order
 
-1. ARCH-03, SEC-03 — give page code a budget, then a boundary if it ever needs one.
+1. ARCH-03, then SEC-03 only if page authors ever stop being the owner.
 2. ARCH-06, ARCH-10, ARCH-07 — a page index, a way to delete a page, then revision history.
 3. OPS-03 — hygiene, so the next review starts from an accurate baseline.
 4. ARCH-11, ARCH-12 — show the generated source in the editor, and give the template language its
    write shorthand.
+5. ARCH-13 — streaming, when a page actually needs to answer before it has finished.
 
 ## Closed
 
