@@ -44,10 +44,8 @@ LOCAL_IMAGE := localhost/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null)
 IMAGE_SHA_REF := $(REGISTRY)/$(IMAGE_REPOSITORY):$(GIT_SHA)
 
-# Where `make ci` records the commit it proved. Keyed by the full commit and kept in .git, so it is
-# per-clone, survives `make clean`, and cannot be confused with a tree that has moved on.
+# The full commit, which the image records as its revision.
 GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null)
-GATE_RECORD := $(shell git rev-parse --absolute-git-dir 2>/dev/null)/gate/$(GIT_COMMIT)
 
 # Registry credentials. Podman writes logins to ${XDG_RUNTIME_DIR}/containers/auth.json by default,
 # which is lost on reboot, so the pull must use the persistent file. The remote path is absolute: an
@@ -103,7 +101,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci gate-record drift-check audit hooks test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard deploy-gate deploy-image format format-check license-check clean
+.PHONY: help build restore check ci drift-check audit hooks test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -113,7 +111,7 @@ help:
 		'build              Build the solution when anything changed (default target).' \
 		'restore            Force a NuGet restore (build restores only when inputs change).' \
 		'check              The gate: formatting, licences, package audit, every suite, Release publish.' \
-		'ci                 The same gate from a clean tree; fails if the build dirties it.' \
+		'ci                 Clean tree, the gate, and two image builds that must agree.' \
 		'audit              Fail if any NuGet package is vulnerable or deprecated.' \
 		'test               Run every suite: core, runtime, web and integration (no browser required).' \
 		'test-core          Run the NUnit core tests only.' \
@@ -133,7 +131,7 @@ help:
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image with podman; the Containerfile is in deploy/.' \
 		'image-check        Build it twice and fail if the two builds are not the same image.' \
-		'deploy             Build and push when changed, restart on HOST=deploy@server.' \
+		'deploy             Gate, build, push to $(REGISTRY) and restart on HOST=deploy@server.' \
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
 		'license-check      Fail if the tree is not REUSE compliant (needs the reuse tool).' \
@@ -169,14 +167,7 @@ TEST_ARGS := --blame-hang --blame-hang-timeout $(TEST_HANG_TIMEOUT)
 # Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no
 # second definition of "green" to drift from this one. `publish` is here because Release is what
 # actually ships — a Release-only break should not wait for a deploy to be discovered.
-#
-# A run is worth recording when the tree is clean, not because of which target started it: the hook
-# that guards a push runs `check`, and repeating that work minutes later on deploy is the duplication
-# not worth paying. `gate-record` refuses a dirty tree, so a check during an edit records nothing.
 check: format-check license-check audit test publish
-	@if [ -z "$(GIT_COMMIT)" ]; then echo "not recording the gate: not a git checkout"; \
-	elif [ -z "$$(git status --porcelain)" ]; then $(MAKE) --no-print-directory gate-record; \
-	else echo "not recording the gate: the tree has uncommitted changes"; fi
 
 # A clean tree in, a clean tree out. The stamps in artifacts/ make repeat runs cheap, which is also
 # how an input that was never committed can hide; this is the one target that starts from nothing.
@@ -188,23 +179,12 @@ drift-check:
 	@test -z "$$(git status --porcelain)" || { echo "the build wrote to the working tree; commit it or ignore it"; git status --short; exit 1; }
 
 # What a machine with nothing but this repository, the SDK, reuse and podman runs. No workflow file,
-# no service, no secret: whatever eventually runs this is calling one target. `check` records the
-# commit it proved (see there); this adds the clean tree at both ends and the reproducibility proof,
-# which are the two things `check` alone cannot say.
+# no service, no secret: whatever eventually runs this is calling one target. It adds the clean tree
+# at both ends and the reproducibility proof, which are the two things `check` alone cannot say.
 ci: clean
 	@$(MAKE) --no-print-directory drift-check
 	@$(MAKE) --no-print-directory check
 	@$(MAKE) --no-print-directory image-check
-
-# The only writer of the record. Deliberately callable on its own so nothing else invents the format,
-# and deliberately refusing a dirty tree: a gate run from a tree nobody committed proves nothing
-# about the commit it would be filed under.
-gate-record:
-	@test -n "$(GIT_COMMIT)" || { echo "not a git checkout: there is no commit to record"; exit 1; }
-	@test -z "$$(git status --porcelain)" || { echo "the tree has uncommitted changes; not recording it"; git status --short; exit 1; }
-	@mkdir -p "$(dir $(GATE_RECORD))"
-	@date -u '+%Y-%m-%dT%H:%M:%SZ' > "$(GATE_RECORD)"
-	@echo "recorded: $(GIT_SHA) passed the gate"
 
 test-core: build
 	$(DOTNET) test $(CORE_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
@@ -289,9 +269,8 @@ publish:
 # the plain one, so `make publish` and the image do not overwrite each other.
 IMAGE_PUBLISH_DIR := $(ARTIFACTS)/publish/uk.osric.asp.Web/release_$(CONTAINER_RID)
 
-# One line on purpose: `deploy-image` splices this into a shell block, and a multi-line variable would
-# end the block and turn the rest into separate recipes. Splicing also keeps `make -n` honest, because
-# a recipe line containing `$(MAKE)` runs even when asked to print.
+# One line, so `image` and `image-check` can call it without repeating the flags — and so no recipe
+# line contains `$(MAKE)`, which make would run even under `-n`.
 #
 # --timestamp is what makes the build reproducible: without it the config's created time and every
 # file mtime in the layer are "now", so two builds of one commit are two different images. The value
@@ -336,7 +315,12 @@ image-check:
 # The whole gate runs before the image is built, and therefore long before anything is pushed: a tag
 # that has been pulled by the server cannot be withdrawn, and a broken suite is cheaper to meet here
 # than on the running site. Do not run this target with -j; the order is the point.
-deploy: deploy-guard deploy-gate deploy-image
+deploy: deploy-guard check image
+	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
+	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
+	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
+	podman push --authfile $(AUTHFILE) $(IMAGE_SHA_REF)
+	ssh $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_SHA_REF)
 	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | ssh $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
 	ssh $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
 	ssh $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
@@ -356,32 +340,6 @@ deploy: deploy-guard deploy-gate deploy-image
 	done'
 	@echo "deployed $(GIT_SHA)"
 
-# Builds, pushes and pulls this commit's image, unless HOST is already running it. The quadlet's
-# Image= is the commit tag, and that tag — not an image id — is what identifies a deployment: the
-# container build is not reproducible, so two builds of one commit have different ids and only the
-# tag we push under says which build the host is meant to run.
-#
-# Three reads, because each answers a different question: `live` is what the unit is configured for,
-# `running` is the image the container was created from, and `stored` is what the host has under that
-# tag. A live container is this build only when the unit names this commit and the container is that
-# tag's image; a tag that is present but not running, or a container still on last deploy's image,
-# both fall through to a real deploy. The image is not even built on the skip path.
-deploy-image:
-	@live=$$(ssh $(HOST) sed -n 's/^Image=//p' .config/containers/systemd/uk.osric.asp.container 2>/dev/null || true); \
-	running=$$(ssh $(HOST) podman container inspect --format '{{.Image}}' $(CONTAINER_NAME) 2>/dev/null || true); \
-	stored=$$(ssh $(HOST) podman image inspect --format '{{.Id}}' $(IMAGE_SHA_REF) 2>/dev/null | sed 's/^sha256://' || true); \
-	if [ "$$live" = "$(IMAGE_SHA_REF)" ] && [ -n "$$running" ] && [ "$$running" = "$$stored" ]; then \
-		echo "image: $(HOST) already runs $(GIT_SHA); not building, pushing or pulling"; \
-	else \
-		echo "image: $(HOST) runs $${live:-nothing}, deploying $(GIT_SHA)"; \
-		$(call image_command,$(LOCAL_IMAGE)) || exit 1; \
-		podman tag $(LOCAL_IMAGE) $(IMAGE_REF) || exit 1; \
-		podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF) || exit 1; \
-		podman push --authfile $(AUTHFILE) $(IMAGE_REF) || exit 1; \
-		podman push --authfile $(AUTHFILE) $(IMAGE_SHA_REF) || exit 1; \
-		ssh $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_SHA_REF) || exit 1; \
-	fi
-
 # Everything the deploy destination insists on, checked before the gate rather than after it. An
 # image pushed from an uncommitted tree cannot be rebuilt from the commit its tag names, which is
 # also the only thing a rollback can rely on; ALLOW_DIRTY=1 is the deliberate exception.
@@ -394,19 +352,6 @@ deploy-guard:
 	@if grep -qE '^[[:space:]]*(example\.com|admin@example\.com)' deploy/Caddyfile; then \
 		echo "deploy/Caddyfile still contains the example.com placeholder"; exit 1; fi
 	@ssh -o ConnectTimeout=10 $(HOST) true || { echo "cannot reach $(HOST)"; exit 1; }
-
-# The gate, unless this commit is already recorded as having passed it. The record is only honoured
-# because deploy-guard has already established that the tree is this commit and nothing else: `make
-# ci` wrote it from a clean tree, so "it passed earlier" is evidence here rather than a claim. No
-# record means run it — a clone where `make hooks` was never installed, or a commit pushed with
-# --no-verify, gets no discount.
-deploy-gate:
-	@if [ -s "$(GATE_RECORD)" ]; then \
-		echo "gate: $(GIT_SHA) already passed on $$(cat "$(GATE_RECORD)")"; \
-	else \
-		echo "gate: no recorded run for $(GIT_SHA), running it now"; \
-		$(MAKE) --no-print-directory check || exit 1; \
-	fi
 
 # Needs the network: the advisory data comes from the package feed, not from the lock file.
 # `dotnet list package` exits 0 whether or not it finds anything, so the wording is what is checked.

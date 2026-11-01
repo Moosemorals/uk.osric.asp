@@ -45,7 +45,7 @@ one command.
 
 | Target | What it proves |
 | --- | --- |
-| `make check` | `format-check`, `license-check`, `audit`, all four suites, and a Release `publish`; records the commit when the tree is clean |
+| `make check` | `format-check`, `license-check`, `audit`, all four suites, and a Release `publish` |
 | `make ci` | the same, from `make clean`, that the build wrote no tracked file (`drift-check`), and that two image builds agree (`image-check`) |
 | `make audit` | no NuGet package is vulnerable or deprecated (needs the network) |
 | `make hooks` | `core.hooksPath=.githooks`, so `git push` runs `make check` |
@@ -60,23 +60,16 @@ Supporting changes:
   not wait for `make deploy` to find it.
 - **Hangs fail.** Every suite runs with `--blame-hang --blame-hang-timeout 5m` (`TEST_HANG_TIMEOUT`
   to change it): the budget tests burn a wall clock on purpose, so a wedged run needs a ceiling.
-- **Deploy is gated and traceable.** `make deploy` runs `deploy-guard` (the destination exists, the
-  tree is this commit and nothing else, the Caddyfile is not still the placeholder), then
-  `deploy-gate`, then `deploy-image`: it refuses an uncommitted tree (an image that cannot be rebuilt
-  from the commit its tag names is a rollback waiting to fail; `ALLOW_DIRTY=1` is the deliberate
-  exception), deploys by commit tag rather than `latest`, skips the build, push and pull when the
-  host already runs that commit (the restart still happens, because that is what applies a quadlet or
-  Caddyfile edit), and curls `/heath` after the restart instead of reporting success blindly.
-- **An earlier run counts, once.** A gate run that ends on a clean tree writes the commit it proved
-  to `.git/gate/<sha>` — keyed by the full commit and kept out of `artifacts/`, so `make clean` can
-  neither forge nor erase it, and a new commit has no record. A check during an edit records
-  nothing, because it proves something about a tree nobody committed. `make deploy` re-runs the gate
-  unless the record for `HEAD` exists, so the push hook's work is not repeated minutes later and a
-  clone that never installed the hook still gets checked.
+- **Deploy is gated and traceable.** `make deploy` runs `deploy-guard` (the host answers, the tree is
+  this commit and nothing else, the Caddyfile is not still the placeholder), then `check`, then
+  `image`: it refuses an uncommitted tree (an image that cannot be rebuilt from the commit its tag
+  names is a rollback waiting to fail; `ALLOW_DIRTY=1` is the deliberate exception), deploys by
+  commit tag rather than `latest` so the host can say what it is running, and curls `/heath` after
+  the restart instead of reporting success blindly.
 
-Still open: the record and the hook both live in a clone, so a push made with `--no-verify`, or from
-a clone where `make hooks` was never run, is still unverified — and a deploy from that clone simply
-pays for the gate it never ran. The remedy is a self-hosted runner or a pre-receive hook on the
+Still open: the hook lives in a clone, so a push made with `--no-verify`, or from a clone where `make
+hooks` was never run, is still unverified — a deploy from such a clone still pays for the gate, which
+is the point of running it there. The remedy is a self-hosted runner or a pre-receive hook on the
 remote; both would run `make ci` and need no change here. The rest of this file is kept as the
 original proposal.
 

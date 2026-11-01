@@ -77,11 +77,6 @@ with `make hooks`) runs it on every push. `make deploy` runs it before the image
 adds a clean tree at both ends — nothing left over from an earlier run may hide a missing input, and a
 build that rewrites a tracked file fails rather than being noticed weeks later (BUG-11).
 
-A run that ends on a clean tree records the commit it proved in `.git/gate/<sha>`, so a deploy of that
-same commit does not repeat the run: the record is keyed by the full commit, written only from a clean
-tree, and kept out of `artifacts/` so `make clean` cannot erase it. A commit the gate has never seen
-gets the whole thing.
-
 `make ci` also runs `image-check`: two fresh publishes and two uncached builds of one commit must
 produce one image id, because a reproducible image is the only reason a commit tag can stand for the
 build the host is running. It needs podman and the pinned base image, which is why it lives in `ci`

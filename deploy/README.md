@@ -87,20 +87,13 @@ and applies them.
 
    The target refuses to run from a tree with uncommitted changes, because the image is tagged with
    its commit and that tag is only meaningful if the commit is the tree (`ALLOW_DIRTY=1` overrides,
-   for a deliberate one-off). It runs the gate unless a clean-tree run has already recorded this
-   commit (see `docs/testing.md`), pushes the commit tag alongside `IMAGE_TAG`, and it does not report
-   success until `http://127.0.0.1:8080/heath` answers: a restart that leaves the unit failed is a
-   failed deploy, not a quiet one.
+   for a deliberate one-off). It runs the gate (`make check`) before the image is built, pushes the
+   commit tag alongside `IMAGE_TAG`, and it does not report success until
+   `http://127.0.0.1:8080/heath` answers: a restart that leaves the unit failed is a failed deploy,
+   not a quiet one.
 
-   The quadlet's `Image=` names the commit, not `latest`, so the host can be asked what it is running
-   without guessing: if the unit already names this commit and the container was created from that
-   image, the build, push and pull are skipped, and only the config install and restart remain. That
-   is what makes a redeploy that changes nothing — or a deploy that only touches the `Caddyfile` or a
-   quadlet — cheap. It is not a dry run: the services are restarted exactly as they always were.
-
-   The image id is deliberately not the identity: the container build is not reproducible, so two
-   builds of one commit have different ids. The commit tag is the only thing that says which build the
-   host is meant to run.
+   The quadlet's `Image=` names the commit, so the host answers "what is running?" without anyone
+   guessing, and rolling back is a tag rather than a rebuild.
 
 ## Day-to-day
 
