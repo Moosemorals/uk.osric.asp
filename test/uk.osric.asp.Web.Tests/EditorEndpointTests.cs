@@ -316,7 +316,7 @@ public sealed class EditorEndpointTests {
 
     [TestCase("GET")]
     [TestCase("POST")]
-    public async Task CancellationReachesStorageAndPropagatesAsync(string method) {
+    public async Task CancellationPropagatesAndStoresNothingAsync(string method) {
         DefaultHttpContext context = CreateContext(method);
         SetContent(context, new StringValues("replacement"));
         using CancellationTokenSource cancellation = new();
@@ -327,7 +327,6 @@ public sealed class EditorEndpointTests {
         await Assert.CatchAsync<OperationCanceledException>(() =>
             EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery));
 
-        Assert.That(storage.LastCancellationToken, Is.EqualTo(cancellation.Token));
         Assert.That(storage.WriteCount, Is.Zero);
         Assert.That(Session(context).Keys, Is.Empty);
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
@@ -367,7 +366,13 @@ public sealed class EditorEndpointTests {
     }
 
     private PageService CreatePages(IStorage storage) {
-        return new PageService(storage, _compiler, _metrics, NullLogger<PageService>.Instance);
+        return new PageService(
+            storage,
+            _compiler,
+            _metrics,
+            new PageBudget(new RenderOptions(), new CompileOptions()),
+            new PageHealth(RenderOptions.DefaultAbandonedLimit),
+            NullLogger<PageService>.Instance);
     }
 
     private static DefaultHttpContext CreateContext(string method = "GET", string? path = "page.cs") {

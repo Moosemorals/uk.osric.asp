@@ -32,15 +32,16 @@ public sealed class TemplateCompiler : ITemplateCompiler {
 
     /// <summary>Compiles generated C# source into an assembly image.</summary>
     /// <param name="source">The generated C# source, not the page template.</param>
+    /// <param name="cancellationToken">Bounds the compile between Roslyn operations.</param>
     /// <returns>The image, and the author-facing diagnostics when the page does not compile.</returns>
     /// <exception cref="InvalidOperationException">
     /// The generated source itself is broken. A diagnostic without a template position means the
     /// fault is in code the generator wrote, not in the page, so it must not be shown to the author.
     /// </exception>
-    public CompileResult Compile(string source) {
+    public CompileResult Compile(string source, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(source);
 
-        SyntaxTree tree = CSharpSyntaxTree.ParseText(source);
+        SyntaxTree tree = CSharpSyntaxTree.ParseText(source, cancellationToken: cancellationToken);
         CSharpCompilation compilation = CSharpCompilation.Create(
             assemblyName: $"Dynamic_{Guid.NewGuid():N}",
             syntaxTrees: [tree],
@@ -56,7 +57,7 @@ public sealed class TemplateCompiler : ITemplateCompiler {
         }
 
         using MemoryStream image = new();
-        EmitResult result = compilation.Emit(image);
+        EmitResult result = compilation.Emit(image, cancellationToken: cancellationToken);
         List<PageDiagnostic> diagnostics = MapDiagnostics(result.Diagnostics);
 
         if (!result.Success && !diagnostics.Exists(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error)) {

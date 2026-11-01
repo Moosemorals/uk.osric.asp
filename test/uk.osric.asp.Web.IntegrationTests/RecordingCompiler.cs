@@ -14,9 +14,9 @@ internal sealed class RecordingCompiler(ITemplateCompiler inner) : ITemplateComp
 
     public string RuntimeId => inner.RuntimeId;
 
-    public CompileResult Compile(string source) {
+    public CompileResult Compile(string source, CancellationToken cancellationToken = default) {
         Interlocked.Increment(ref _compileCount);
-        return inner.Compile(source);
+        return inner.Compile(source, cancellationToken);
     }
 
     public CompiledTemplate Load(byte[] image) {

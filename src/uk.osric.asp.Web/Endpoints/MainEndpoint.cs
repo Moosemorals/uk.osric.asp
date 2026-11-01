@@ -12,7 +12,12 @@ public sealed class MainEndpoint() {
     // this is rejected rather than held in memory.
     private const long MaxFormBytes = 1024 * 1024;
 
-    public static async Task Handle(HttpContext context, PageService pages, ILoggerFactory loggerFactory, ReservedPaths reserved) {
+    public static async Task Handle(
+        HttpContext context,
+        PageService pages,
+        ILoggerFactory loggerFactory,
+        ReservedPaths reserved,
+        RenderOptions options) {
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
         if (!string.Equals(context.Request.Path.Value, path.Path, StringComparison.Ordinal)) {
@@ -33,7 +38,13 @@ public sealed class MainEndpoint() {
         }
 
         StringWriter output = new();
-        SimpleContext page = new(loggerFactory, PageRequestSnapshot.Create(context.Request), context.RequestAborted, output);
+        SimpleContext page = new(
+            loggerFactory,
+            PageRequestSnapshot.Create(context.Request),
+            context.RequestAborted,
+            output,
+            options.MaxBodyChars);
+
         RenderResult result = await pages.RenderAsync(path, page, context.RequestAborted);
 
         switch (result.Status) {
@@ -43,8 +54,11 @@ public sealed class MainEndpoint() {
             case RenderStatus.CompileFailed:
                 await WriteCompileErrorAsync(context, result.Diagnostics);
                 break;
+            case RenderStatus.Timeout:
+                await WriteTimeoutAsync(context, path);
+                break;
             default:
-                await WritePageAsync(context, page.ToResponse(), output.ToString());
+                await WritePageAsync(context, page.ToResponse(), page.GetBody());
                 break;
         }
     }
@@ -87,6 +101,12 @@ public sealed class MainEndpoint() {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         context.Response.ContentType = "text/plain; charset=utf-8";
         await context.Response.WriteAsync($"{path} not found.");
+    }
+
+    private static async Task WriteTimeoutAsync(HttpContext context, PagePath path) {
+        context.Response.StatusCode = StatusCodes.Status504GatewayTimeout;
+        context.Response.ContentType = "text/plain; charset=utf-8";
+        await context.Response.WriteAsync($"{path} is taking too long.");
     }
 
     private static async Task WriteTooLargeAsync(HttpContext context, PagePath path) {

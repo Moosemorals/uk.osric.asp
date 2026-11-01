@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web;
 
 using System.Net;
 using uk.osric.asp.Core;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>The only <see cref="IContext"/> a page ever runs against.</summary>
 /// <remarks>
@@ -34,27 +35,39 @@ public sealed class SimpleContext : IContext {
 
     private const string PageCategoryPrefix = "uk.osric.asp.Pages.";
 
+    private readonly Lock _body = new();
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger _logger;
+    private readonly int _maxBodyChars;
     private readonly PageRequest _request;
     private readonly TextWriter _writer;
 
+    private bool _abandoned;
     private string _contentType = PageResponse.Default.ContentType;
     private string? _location;
     private int _status = PageResponse.Default.Status;
+    private int _written;
 
     /// <summary>Creates the context a page runs against.</summary>
     /// <param name="loggerFactory">Creates the logger named for the page.</param>
     /// <param name="request">The request snapshot.</param>
     /// <param name="aborted">The token from the request being served.</param>
     /// <param name="writer">The buffer the body is written to.</param>
-    public SimpleContext(ILoggerFactory loggerFactory, PageRequest request, CancellationToken aborted, TextWriter writer) {
+    /// <param name="maxBodyChars">How much body the page may write before it is refused.</param>
+    public SimpleContext(
+        ILoggerFactory loggerFactory,
+        PageRequest request,
+        CancellationToken aborted,
+        TextWriter writer,
+        int maxBodyChars = RenderOptions.DefaultMaxBodyChars) {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxBodyChars, 1);
 
         // The path is canonical here: MainEndpoint redirects anything else before building a context.
         _logger = loggerFactory.CreateLogger(PageCategoryPrefix + request.Path);
+        _maxBodyChars = maxBodyChars;
         _request = request;
         Aborted = aborted;
         _writer = writer;
@@ -71,6 +84,24 @@ public sealed class SimpleContext : IContext {
 
     /// <summary>What the page asked the response to be.</summary>
     public PageResponse ToResponse() => new(_status, _contentType, _headers, _location);
+
+    /// <summary>The body written so far.</summary>
+    public string GetBody() {
+        lock (_body) {
+            return _writer.ToString() ?? string.Empty;
+        }
+    }
+
+    /// <summary>Stops the page writing, once its render has been given up on.</summary>
+    /// <remarks>
+    /// The page's thread cannot be stopped, so this is what keeps it from filling the buffer — or
+    /// racing the response — after the site has answered without it.
+    /// </remarks>
+    public void Abandon() {
+        lock (_body) {
+            _abandoned = true;
+        }
+    }
 
     /// <inheritdoc/>
     public void Log(string message) {
@@ -94,10 +125,28 @@ public sealed class SimpleContext : IContext {
     }
 
     /// <inheritdoc/>
-    public void Write(string message) => _writer.Write(WebUtility.HtmlEncode(message));
+    public void Write(string message) => WriteBody(WebUtility.HtmlEncode(message));
 
     /// <inheritdoc/>
-    public void WriteRaw(string message) => _writer.Write(message);
+    public void WriteRaw(string message) => WriteBody(message);
+
+    // The buffer is shared with a page thread that may still be running after the render was
+    // abandoned, so every write and the read that shapes the response happen under one lock.
+    private void WriteBody(string text) {
+        lock (_body) {
+            if (_abandoned) {
+                return;
+            }
+
+            if (_written + text.Length > _maxBodyChars) {
+                throw new InvalidOperationException(
+                    $"{Path} wrote more than {_maxBodyChars} characters; the render was stopped.");
+            }
+
+            _written += text.Length;
+            _writer.Write(text);
+        }
+    }
 
     /// <inheritdoc/>
     public void SetStatus(int status) {

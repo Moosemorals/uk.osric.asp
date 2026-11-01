@@ -14,4 +14,7 @@ public enum RenderStatus {
 
     /// <summary>No page is stored under the requested key.</summary>
     NotFound,
+
+    /// <summary>The page outran its execution budget, so the answer was given up on.</summary>
+    Timeout,
 }

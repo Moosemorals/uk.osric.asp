@@ -8,11 +8,12 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Globalization;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Authentication;
 
 /// <summary>Runs the real web host against a throwaway SQLite database.</summary>
-internal sealed class AspApplication(int loginPermitLimit = 100) : WebApplicationFactory<Program> {
+internal sealed class AspApplication(int loginPermitLimit = 100, int renderTimeoutSeconds = 5) : WebApplicationFactory<Program> {
 
     /// <summary>The database this host migrates and serves; it is deleted with the factory.</summary>
     public string DatabasePath { get; } =
@@ -26,6 +27,7 @@ internal sealed class AspApplication(int loginPermitLimit = 100) : WebApplicatio
         // developer exception page.
         builder.UseEnvironment(Environments.Production);
         builder.UseSetting("ConnectionStrings:Storage", $"Data Source={DatabasePath}");
+        builder.UseSetting("Pages:Render:TimeoutSeconds", renderTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
         builder.ConfigureTestServices(services => {
             services.AddSingleton<ITemplateCompiler>(Compiler);
             // The shared fixture signs in many times; the dedicated throttle test lowers this.

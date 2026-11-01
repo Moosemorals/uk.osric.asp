@@ -29,6 +29,9 @@ public sealed class PageMetrics : IDisposable {
     /// <summary>No page is stored under the requested key.</summary>
     public const string RenderNotFound = "not-found";
 
+    /// <summary>The page outran its execution budget and was abandoned.</summary>
+    public const string RenderTimeout = "timeout";
+
     /// <summary>The stored image was used.</summary>
     public const string CacheHit = "hit";
 
@@ -51,10 +54,12 @@ public sealed class PageMetrics : IDisposable {
 
     private readonly Meter _meter;
     private readonly Histogram<double> _renderDuration;
+    private readonly Histogram<double> _renderWait;
     private readonly Histogram<double> _compileDuration;
     private readonly Histogram<double> _loadDuration;
     private readonly Histogram<double> _invokeDuration;
     private readonly Histogram<double> _saveDuration;
+    private readonly Counter<long> _renderAbandoned;
     private readonly Counter<long> _cacheLookups;
     private readonly Counter<long> _staleness;
     private readonly Histogram<long> _imageSize;
@@ -64,6 +69,8 @@ public sealed class PageMetrics : IDisposable {
 
         _renderDuration = _meter.CreateHistogram<double>(
             "page.render.duration", "s", "Time to serve one page request, including a lazy compile.");
+        _renderWait = _meter.CreateHistogram<double>(
+            "page.render.wait", "s", "Time a render spends waiting for a slot before it starts.");
         _compileDuration = _meter.CreateHistogram<double>(
             "page.compile.duration", "s", "Time Roslyn spends compiling one page.");
         _loadDuration = _meter.CreateHistogram<double>(
@@ -72,6 +79,8 @@ public sealed class PageMetrics : IDisposable {
             "page.handler.invoke.duration", "s", "Time the page's own code spends running.");
         _saveDuration = _meter.CreateHistogram<double>(
             "page.save.duration", "s", "Time to compile and persist an edited page.");
+        _renderAbandoned = _meter.CreateCounter<long>(
+            "page.render.abandoned", null, "Renders given up on because they outran their budget.");
         _cacheLookups = _meter.CreateCounter<long>(
             "page.cache.lookups", null, "Compiled images the render path could use, could not use, or did not find.");
         _staleness = _meter.CreateCounter<long>(
@@ -88,6 +97,20 @@ public sealed class PageMetrics : IDisposable {
         };
 
         _renderDuration.Record(duration.TotalSeconds, tags);
+    }
+
+    public void RecordWait(PagePath path, TimeSpan duration) {
+        TagList tags = new() { { "page.path", path.Path } };
+
+        _renderWait.Record(duration.TotalSeconds, tags);
+    }
+
+    /// <summary>Records a render that was given up on; the thread it was using is lost.</summary>
+    /// <param name="path">The page that outran its budget.</param>
+    public void RecordAbandoned(PagePath path) {
+        TagList tags = new() { { "page.path", path.Path } };
+
+        _renderAbandoned.Add(1, tags);
     }
 
     public void RecordCompile(PagePath path, bool success, string reason, TimeSpan duration) {

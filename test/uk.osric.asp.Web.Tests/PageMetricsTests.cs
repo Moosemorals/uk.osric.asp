@@ -129,14 +129,46 @@ public sealed class PageMetricsTests {
         Assert.That(sizes[0].Value, Is.GreaterThan(0));
     }
 
+    [Test]
+    public async Task AnAbandonedRenderIsRecordedAsATimeoutAsync() {
+        const string SlowPage =
+            "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(1500); while (System.DateTime.UtcNow < until) { } %>";
+
+        // The capture has to start before the meter so no instrument is missed.
+        using MetricCapture capture = MetricCapture.Start();
+        using PageMetrics metrics = new();
+        FakeStorage storage = new();
+        storage["/slow"] = new StoredPage(Key("/slow"), SlowPage);
+
+        RenderOptions options = new() { TimeoutSeconds = 1 };
+        PageService pages = new(
+            storage,
+            _compiler,
+            metrics,
+            new PageBudget(options, new CompileOptions()),
+            new PageHealth(options.AbandonedLimit),
+            NullLogger<PageService>.Instance);
+
+        await RenderAsync(pages, "/slow");
+
+        Assert.That(capture.Count("page.render.duration", "outcome", "timeout"), Is.EqualTo(1));
+        Assert.That(capture.For("page.render.abandoned", "/slow"), Has.Count.EqualTo(1));
+        Assert.That(capture.For("page.render.wait", "/slow"), Has.Count.EqualTo(1));
+    }
+
     private PageService CreateService(FakeStorage storage) {
-        return new PageService(storage, _compiler, _metrics, NullLogger<PageService>.Instance);
+        return new PageService(
+            storage,
+            _compiler,
+            _metrics,
+            new PageBudget(new RenderOptions(), new CompileOptions()),
+            new PageHealth(RenderOptions.DefaultAbandonedLimit),
+            NullLogger<PageService>.Instance);
     }
 
     private static async Task RenderAsync(PageService pages, string path) {
         PagePath key = Key(path);
-        StringWriter output = new();
-        IContext context = new SimpleContext(NullLoggerFactory.Instance, TestHttp.Request(key.Path), CancellationToken.None, output);
+        SimpleContext context = new(NullLoggerFactory.Instance, TestHttp.Request(key.Path), CancellationToken.None, new StringWriter());
 
         await pages.RenderAsync(key, context, CancellationToken.None);
     }

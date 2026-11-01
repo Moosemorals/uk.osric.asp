@@ -39,7 +39,9 @@ public class Program {
         }
 
         builder.Services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
-        builder.Services.AddHealthChecks().AddCheck<StorageHealthCheck>("storage");
+        builder.Services.AddHealthChecks()
+            .AddCheck<StorageHealthCheck>("storage")
+            .AddCheck<AbandonedRenderHealthCheck>("pages");
         builder.Services.AddScoped<IStorage, SqliteStorage>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
         builder.Services.AddSingleton<IPasswordService, PasswordService>();
@@ -47,6 +49,11 @@ public class Program {
         builder.Services.AddScoped<PageService>();
         builder.Services.AddSingleton<ITemplateCompiler, TemplateCompiler>();
         builder.Services.AddSingleton<PageMetrics>();
+        builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(CompileOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton<PageBudget>();
+        builder.Services.AddSingleton(services => new PageHealth(
+            services.GetRequiredService<RenderOptions>().AbandonedLimit));
         builder.Services.AddSingleton(new ReservedPaths(
             builder.Configuration.GetSection("Pages:ReservedPaths").Get<string[]>()));
         builder.Services.AddEditorAuthentication(builder.Environment);

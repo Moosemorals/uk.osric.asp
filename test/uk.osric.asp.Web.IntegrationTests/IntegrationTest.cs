@@ -28,8 +28,14 @@ public abstract class IntegrationTest {
 
     [OneTimeSetUp]
     public async Task StartApplicationAsync() {
-        _application = new AspApplication();
+        _application = CreateApplication();
         await SeedUserAsync();
+    }
+
+    /// <summary>Creates the host under test; a fixture overrides this to change its settings.</summary>
+    /// <remarks>Internal because the host type is: a public fixture may still override it.</remarks>
+    internal virtual AspApplication CreateApplication() {
+        return new AspApplication();
     }
 
     [OneTimeTearDown]

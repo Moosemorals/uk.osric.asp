@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using System.Diagnostics;
 using System.Reflection;
 using uk.osric.asp.Core;
 using uk.osric.asp.Runtime;
@@ -101,7 +102,7 @@ public sealed class PageServiceTests {
     public async Task RenderPropagatesACompilerFaultAsync() {
         FakeStorage storage = new();
         storage["/fault"] = new StoredPage(Key("/fault"), "Hello.");
-        PageService pages = new(storage, new FaultingCompiler(), _metrics, NullLogger<PageService>.Instance);
+        PageService pages = CreateService(storage, new FaultingCompiler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => RenderAsync(pages, "/fault"));
     }
@@ -109,7 +110,7 @@ public sealed class PageServiceTests {
     [Test]
     public async Task SavePreservesTheSourceWhenTheCompilerFaultsAsync() {
         FakeStorage storage = new();
-        PageService pages = new(storage, new FaultingCompiler(), _metrics, NullLogger<PageService>.Instance);
+        PageService pages = CreateService(storage, new FaultingCompiler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => pages.SaveAsync(Key("/fault"), "Hello."));
 
@@ -229,18 +230,133 @@ public sealed class PageServiceTests {
         Assert.That(thrown?.Message, Is.EqualTo("Boom."));
     }
 
-    private PageService CreateService(FakeStorage storage) {
-        return new PageService(storage, _compiler, _metrics, NullLogger<PageService>.Instance);
+    // A page that cannot call Thread.Sleep or Task.Delay (the API policy refuses both) burns CPU until
+    // a wall-clock deadline, so it is a real slow page that still ends on its own.
+    private const string SlowPage =
+        "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(1500); while (System.DateTime.UtcNow < until) { } %>";
+
+    [Test]
+    public async Task APageThatOutrunsTheBudgetIsAbandonedAsync() {
+        FakeStorage storage = new();
+        storage["/slow"] = new StoredPage(Key("/slow"), SlowPage);
+        RenderOptions options = new() { TimeoutSeconds = 1 };
+        PageHealth health = new(options.AbandonedLimit);
+        PageService pages = CreateService(storage, _compiler, options, new PageBudget(options, new CompileOptions()), health);
+
+        long start = Stopwatch.GetTimestamp();
+        (RenderResult result, string _) = await RenderAsync(pages, "/slow");
+
+        Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
+        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1.4)),
+            "the answer must not wait for the page to finish");
+        Assert.That(health.Abandoned, Is.EqualTo(1), "an abandoned render is what the health check counts");
     }
 
-    private static async Task<(RenderResult Result, string Output)> RenderAsync(PageService pages, string path) {
+    [Test]
+    public async Task AnAbandonedPageStopsWritingToTheResponseAsync() {
+        FakeStorage storage = new();
+        storage["/chatty"] = new StoredPage(Key("/chatty"),
+            "before<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(1200); while (System.DateTime.UtcNow < until) { } %>after");
+        RenderOptions options = new() { TimeoutSeconds = 1 };
+        PageService pages = CreateService(storage, _compiler, options);
+
+        (RenderResult result, string output) = await RenderAsync(pages, "/chatty");
+
+        Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
+        Assert.That(output, Is.EqualTo("before"));
+
+        // The page is still running when the site answers; give it time to finish and check that its
+        // late writes went nowhere.
+        await Task.Delay(600);
+        Assert.That(output, Is.EqualTo("before"));
+    }
+
+    [Test]
+    public async Task AnAbandonedPageIsReleasedFromTheHealthCountWhenItFinishesAsync() {
+        FakeStorage storage = new();
+        storage["/slow"] = new StoredPage(Key("/slow"), SlowPage);
+        RenderOptions options = new() { TimeoutSeconds = 1 };
+        PageHealth health = new(options.AbandonedLimit);
+        PageService pages = CreateService(storage, _compiler, options, new PageBudget(options, new CompileOptions()), health);
+
+        await RenderAsync(pages, "/slow");
+        Assert.That(health.Abandoned, Is.EqualTo(1));
+
+        Stopwatch wait = Stopwatch.StartNew();
+        while (health.Abandoned > 0 && wait.Elapsed < TimeSpan.FromSeconds(3)) {
+            await Task.Delay(50);
+        }
+
+        Assert.That(health.Abandoned, Is.Zero);
+    }
+
+    [Test]
+    public async Task ARenderThatWaitsPastTheBudgetForASlotIsDroppedAsync() {
+        FakeStorage storage = new();
+        storage["/hello"] = new StoredPage(Key("/hello"), "Hello.");
+        RenderOptions options = new() { TimeoutSeconds = 1, Slots = 1 };
+        PageBudget budget = new(options, new CompileOptions());
+        PageService pages = CreateService(storage, _compiler, options, budget, new PageHealth(options.AbandonedLimit));
+
+        await budget.RenderSlots.WaitAsync();
+        try {
+            (RenderResult result, string _) = await RenderAsync(pages, "/hello");
+
+            Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
+            Assert.That(_compiler.CompileCount, Is.Zero);
+        } finally {
+            budget.RenderSlots.Release();
+        }
+    }
+
+    [Test]
+    public async Task APageThatWritesPastTheBodyCapFailsAsync() {
+        FakeStorage storage = new();
+        storage["/chatty"] = new StoredPage(Key("/chatty"), "0123456789");
+        PageService pages = CreateService(storage, _compiler, new RenderOptions { MaxBodyChars = 5 });
+
+        InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => RenderAsync(pages, "/chatty", maxBodyChars: 5));
+
+        Assert.That(thrown?.Message, Does.Contain("wrote more than 5 characters"));
+    }
+
+    private PageService CreateService(FakeStorage storage) {
+        return CreateService(storage, _compiler);
+    }
+
+    private PageService CreateService(
+        FakeStorage storage,
+        ITemplateCompiler compiler,
+        RenderOptions? options = null,
+        PageBudget? budget = null,
+        PageHealth? health = null) {
+        RenderOptions render = options ?? new RenderOptions();
+
+        return new PageService(
+            storage,
+            compiler,
+            _metrics,
+            budget ?? new PageBudget(render, new CompileOptions()),
+            health ?? new PageHealth(render.AbandonedLimit),
+            NullLogger<PageService>.Instance);
+    }
+
+    private static async Task<(RenderResult Result, string Output)> RenderAsync(
+        PageService pages,
+        string path,
+        int maxBodyChars = RenderOptions.DefaultMaxBodyChars) {
         PagePath key = Key(path);
-        StringWriter output = new();
-        IContext context = new SimpleContext(NullLoggerFactory.Instance, TestHttp.Request(key.Path), CancellationToken.None, output);
+        SimpleContext context = new(
+            NullLoggerFactory.Instance,
+            TestHttp.Request(key.Path),
+            CancellationToken.None,
+            new StringWriter(),
+            maxBodyChars);
 
         RenderResult result = await pages.RenderAsync(key, context, CancellationToken.None);
 
-        return (result, output.ToString());
+        return (result, context.GetBody());
     }
 
     private static StoredPage Stored(FakeStorage storage, string path) {
@@ -259,7 +375,7 @@ public sealed class PageServiceTests {
 
         public string RuntimeId => "faulting";
 
-        public CompileResult Compile(string source) {
+        public CompileResult Compile(string source, CancellationToken cancellationToken = default) {
             throw new InvalidOperationException("The generated page source did not compile.");
         }
 
