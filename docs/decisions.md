@@ -111,8 +111,8 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | DEC-69 | The quadlets and Caddyfile in `deploy/` are the source of truth. The host is a deployment target, never edited by hand. | [Caddyfile](../deploy/Caddyfile), [instructions](../.github/copilot-instructions.md) |
 | DEC-70 | Backups use SQLite's online backup or a copy of the stopped volume. Copying live database files is refused because the WAL can hold committed data; a database backup is a credential store, because it holds password hashes and stamps. | [deploy](../deploy/README.md#backups) |
 | DEC-71 | `make deploy` refuses a dirty tree and skips the image work when the host already runs the commit. `ALLOW_DIRTY=1` is the deliberate exception, not a default. | [Makefile](../Makefile) |
-| DEC-72 | There is one gate: `make check`, run by the pre-push hook and by `make ci`. No workflow files, no service, no secret — a machine with the repository, the SDK, `reuse` and podman can reproduce it. `git push --no-verify` skips the gate deliberately. | [pre-push](../.githooks/pre-push), [OPS-03](jobs/OPS-03.md) |
-| DEC-73 | Pushing is slow (a minute or more), so commit locally and push only when asked. | conversation, 2026-11-01 |
+| DEC-72 | There is one gate: `make check`, run on demand and by `make deploy` and `make ci`. Nothing installs a pre-push hook: a minute-plus on every push cost more than it ever caught. No workflow files, no service, no secret — a machine with the repository, the SDK, `reuse` and podman can reproduce it. | [Makefile](../Makefile), [OPS-03](jobs/OPS-03.md) |
+| DEC-73 | Commits are local; push only when asked. A finished task is a commit, not a push. | conversation, 2026-11-01 |
 
 ## Build, test and house style
 
@@ -136,6 +136,7 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | 2026-10-31 | `MethodImplOptions.NoInlining` kept defensively | Removed, with a test pinning the stack frame (DEC-27) | It was not load-bearing; the compiler should do its job |
 | 2026-10-31 | Suspicion that the security stamp allowed only one session | Multi-device by design (DEC-54) | Only a password change or account removal should revoke |
 | 2026-11-01 | Hetzner `cx22` | Hetzner `cpx02` (DEC-58) | Hetzner no longer sells `cx22` |
+| 2026-11-01 | A pre-push hook running `make check` on every push | The gate runs on demand (DEC-72) | The wait before every push was worse than the failures it caught; `make deploy` already gates a release |
 
 ## Open policy questions
 

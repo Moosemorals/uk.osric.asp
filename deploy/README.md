@@ -99,10 +99,10 @@ and applies them.
 
 - **New code:** commit it, then back up storage, then `make deploy HOST=deploy@<server-ip>`
   (guards, checks, builds, pushes, pulls, restarts, waits for `/heath`).
-- **The gate before a push:** `make hooks` once per clone points git at `.githooks`, and every
-  `git push` then runs `make check`. `make ci` is the slower version that starts from `make clean`
-  and fails if the build dirties the tree; run it before a release, or from any machine that is
-  asked to prove the tree. Neither needs a CI service, an account or a secret.
+- **The gate:** `make check`, run by hand when you want it — `make deploy` runs it anyway. `make ci`
+  is the slower version that starts from `make clean` and fails if the build dirties the tree; run it
+  before a release, or from any machine that is asked to prove the tree. Neither needs a CI service,
+  an account or a secret, and nothing runs them behind a `git push`.
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default

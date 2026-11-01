@@ -72,15 +72,15 @@ make test-integration  # the composed pipeline only, against a throwaway databas
 
 ## The gate
 
-There is no CI service in this repository: `make check` is the gate, and `.githooks/pre-push` (installed
-with `make hooks`) runs it on every push. `make deploy` runs it before the image is built, and `make ci`
-adds a clean tree at both ends — nothing left over from an earlier run may hide a missing input, and a
-build that rewrites a tracked file fails rather than being noticed weeks later (BUG-11).
+There is no CI service in this repository: `make check` is the gate, run on demand. `make deploy` runs
+it before the image is built, and `make ci` adds a clean tree at both ends — nothing left over from an
+earlier run may hide a missing input, and a build that rewrites a tracked file fails rather than being
+noticed weeks later (BUG-11).
 
 `make ci` also runs `image-check`: two fresh publishes and two uncached builds of one commit must
 produce one image id, because a reproducible image is the only reason a commit tag can stand for the
 build the host is running. It needs podman and the pinned base image, which is why it lives in `ci`
-rather than in the hook.
+rather than in `check`.
 
 Warnings are errors (`Directory.Build.props`), so a project that builds locally will pass the gate;
 `make audit` fails on a vulnerable or deprecated NuGet package, and every suite runs under

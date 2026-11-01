@@ -37,18 +37,16 @@ workflows at all. As a result:
 
 ## What the gate is now
 
-There are no pull requests here (see `CONTRIBUTING.md`), so a hosted runner would gate nothing:
-the only moment a commit can be stopped is before it leaves the machine that made it. The pipeline
-is therefore a set of Makefile targets, and nothing else — no workflow file, no account, no secret,
-no runner image to keep in step. Whatever eventually runs it, locally or on a rented machine, runs
-one command.
+There are no pull requests here (see `CONTRIBUTING.md`), so a hosted runner would gate nothing. A
+pre-push hook was tried and removed (DEC-72): it only ever delayed a push. The pipeline is therefore
+a set of Makefile targets, and nothing else — no workflow file, no account, no secret, no runner
+image to keep in step. Whatever eventually runs it, locally or on a rented machine, runs one command.
 
 | Target | What it proves |
 | --- | --- |
 | `make check` | `format-check`, `license-check`, `audit`, all four suites, and a Release `publish` |
 | `make ci` | the same, from `make clean`, that the build wrote no tracked file (`drift-check`), and that two image builds agree (`image-check`) |
 | `make audit` | no NuGet package is vulnerable or deprecated (needs the network) |
-| `make hooks` | `core.hooksPath=.githooks`, so `git push` runs `make check` |
 
 Supporting changes:
 
@@ -67,9 +65,8 @@ Supporting changes:
   commit tag rather than `latest` so the host can say what it is running, and curls `/heath` after
   the restart instead of reporting success blindly.
 
-Still open: the hook lives in a clone, so a push made with `--no-verify`, or from a clone where `make
-hooks` was never run, is still unverified — a deploy from such a clone still pays for the gate, which
-is the point of running it there. The remedy is a self-hosted runner or a pre-receive hook on the
-remote; both would run `make ci` and need no change here. The rest of this file is kept as the
-original proposal.
+Still open: the gate runs when someone runs it, so a commit pushed without `make check` is
+unverified until a deploy or `make ci` takes it. A self-hosted runner or a pre-receive hook on the
+remote would close that, and would run `make ci`; both need infrastructure this repository does not
+want yet. The rest of this file is kept as the original proposal.
 

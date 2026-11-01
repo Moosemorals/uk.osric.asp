@@ -101,7 +101,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit hooks test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check clean
+.PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -135,7 +135,6 @@ help:
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
 		'license-check      Fail if the tree is not REUSE compliant (needs the reuse tool).' \
-		'hooks              Point git at .githooks, so a push runs the gate.' \
 		'clean              Delete the artifacts folder.' \
 		'help               Show this list.'
 
@@ -363,11 +362,6 @@ audit:
 	if printf '%s\n' "$$out" | grep -q 'has the following'; then \
 		printf '%s\n' "$$out"; echo "deprecated packages: update or remove them"; exit 1; fi
 	@echo "no vulnerable or deprecated packages"
-
-# A hook is only worth having if it is installed; this is the install step, not the hook.
-hooks:
-	git config core.hooksPath .githooks
-	@echo "a push now runs make check; git push --no-verify skips it"
 
 format:
 	$(DOTNET) format $(SOLUTION)
