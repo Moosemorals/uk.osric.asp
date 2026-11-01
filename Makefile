@@ -102,8 +102,8 @@ help:
 	@printf '%s\n' \
 		'build              Build the solution when anything changed (default target).' \
 		'restore            Force a NuGet restore (build restores only when inputs change).' \
-		'check              Everything a push or a deploy must pass: formatting, licences, all suites.' \
-		'ci                 The same gate from a clean tree, and records the commit as verified.' \
+		'check              The gate: formatting, licences, package audit, every suite, Release publish.' \
+		'ci                 The same gate from a clean tree; fails if the build dirties it.' \
 		'audit              Fail if any NuGet package is vulnerable or deprecated.' \
 		'test               Run every suite: core, runtime, web and integration (no browser required).' \
 		'test-core          Run the NUnit core tests only.' \
