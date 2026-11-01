@@ -38,14 +38,15 @@ public sealed class ShellTests : IntegrationTest {
         Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("/missing.cs not found."));
     }
 
-    [Test]
-    public async Task NonCanonicalPathRedirectsToTheCanonicalPage() {
+    [TestCase("/Hello", "/hello")]
+    [TestCase("/Hello?q=metrics", "/hello?q=metrics")]
+    public async Task NonCanonicalPathRedirectsToTheCanonicalPage(string requestPath, string expectedLocation) {
         using HttpClient client = CreateClient();
 
-        HttpResponseMessage response = await client.GetAsync("/Hello");
+        HttpResponseMessage response = await client.GetAsync(requestPath);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.PermanentRedirect));
-        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/hello"));
+        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo(expectedLocation));
     }
 
     [Test]

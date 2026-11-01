@@ -32,7 +32,7 @@ internal sealed class EditorEndpoint {
         // A POST is saved under the canonical key and only then redirected, so a non-canonical URL can
         // never cost the edit; only a GET needs the permanent redirect to the canonical editor URL.
         if (!string.Equals(context.Request.Path.Value, editorUrl, StringComparison.Ordinal)) {
-            Redirects.Permanent(context, editorUrl);
+            Redirects.Permanent(context, editorUrl, context.Request.QueryString);
             return;
         }
 

@@ -44,13 +44,17 @@ public sealed class MainEndpointTests {
         Assert.That(storage.LastReadPath?.Path, Is.EqualTo(expectedKey));
     }
 
-    [TestCase("/Hello", "/hello")]
-    [TestCase("/hello/", "/hello")]
-    [TestCase("/a/../b", "/b")]
-    [TestCase("/Hello world", "/hello%20world")]
-    [TestCase("/Caf\u00e9", "/caf%C3%A9")]
-    public async Task NonCanonicalPathRedirectsPermanentlyAsync(string requestPath, string expectedLocation) {
+    [TestCase("/Hello", "", "/hello")]
+    [TestCase("/hello/", "", "/hello")]
+    [TestCase("/a/../b", "", "/b")]
+    [TestCase("/Hello world", "", "/hello%20world")]
+    [TestCase("/Caf\u00e9", "", "/caf%C3%A9")]
+    [TestCase("/Hello", "?q=1", "/hello?q=1")]
+    [TestCase("/search/", "?q=metrics", "/search?q=metrics")]
+    [TestCase("/Hello", "?q=a%20b", "/hello?q=a%20b")]
+    public async Task NonCanonicalPathRedirectsPermanentlyAsync(string requestPath, string query, string expectedLocation) {
         DefaultHttpContext context = TestHttp.CreateContext(requestPath.TrimStart('/'), "GET", requestPath);
+        context.Request.QueryString = new QueryString(query);
         FakeStorage storage = new();
 
         await MainEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);

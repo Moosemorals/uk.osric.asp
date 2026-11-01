@@ -238,10 +238,12 @@ public sealed class EditorEndpointTests {
         AssertRedirect(context, "Saved successfully.");
     }
 
-    [TestCase("/edit/Hello", "/edit/hello")]
-    [TestCase("/edit/hello/", "/edit/hello")]
-    public async Task NonCanonicalEditorUrlRedirectsPermanentlyAsync(string requestPath, string expectedLocation) {
+    [TestCase("/edit/Hello", "", "/edit/hello")]
+    [TestCase("/edit/hello/", "", "/edit/hello")]
+    [TestCase("/edit/Hello", "?tab=source", "/edit/hello?tab=source")]
+    public async Task NonCanonicalEditorUrlRedirectsPermanentlyAsync(string requestPath, string query, string expectedLocation) {
         DefaultHttpContext context = TestHttp.CreateContext(requestPath["/edit/".Length..], "GET", requestPath);
+        context.Request.QueryString = new QueryString(query);
         FakeStorage storage = new();
 
         await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);

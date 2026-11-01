@@ -21,7 +21,9 @@ internal sealed class MainEndpoint() {
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
         if (!string.Equals(context.Request.Path.Value, path.Path, StringComparison.Ordinal)) {
-            Redirects.Permanent(context, path.Path);
+            // The query is carried across, because the page is handed it and dropping it would change
+            // what the page sees for a URL that is merely written with the wrong case.
+            Redirects.Permanent(context, path.Path, context.Request.QueryString);
             return;
         }
 

@@ -30,7 +30,6 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
 | [BUG-07](BUG-07.md) | Low | S | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | S | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
-| [BUG-14](BUG-14.md) | Low | S | A canonical redirect drops the query string |
 | [OPS-02](OPS-02.md) | Low | M | The health endpoint exists; it has no monitor or alerting behind it |
 | [OPS-03](OPS-03.md) | Medium | M | There is no CI pipeline |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
@@ -51,10 +50,9 @@ An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` 
 Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and
 self-contained comes first, because these are the ones that never get scheduled otherwise.
 
-1. **The small defects, a sitting each.** BUG-14 (a query string lost on redirect), BUG-07 (a
-   primary-key race on save) and BUG-08 (an empty reference set that fails like a compile error).
-   No design needed, all three fit in an afternoon, and two of them bite the moment the site has a
-   second visitor.
+1. **The small defects, a sitting each.** BUG-07 (a primary-key race on save) and BUG-08 (an empty
+   reference set that fails like a compile error). No design needed, both fit in an afternoon, and
+   both bite the moment the site has a second visitor.
 2. **IDEA-007, then IDEA-006** — the icon and then the stylesheet as pages. Both small, and together
    they answer the question the product work depends on: can a page serve CSS and an image as
    happily as HTML? Do them back to back; the second tells you what caching needs fixing.
@@ -109,3 +107,4 @@ Resolved jobs; the files were deleted and their history is in git.
 | STYLE-03 | `Token` and `TokenType` moved to their own files; `Token` is now a `readonly record struct` carrying a `TemplatePosition` |
 | BUG-12 | `Web` no longer references the Roslyn Workspaces packages, and the publish output loses `Microsoft.CodeAnalysis.Workspaces*` plus the MSBuild `BuildHost-*` folders. EF Core Design still pulls them in transitively, where their exact `Microsoft.CodeAnalysis.Common` dependency pins that package to 5.0.0 and conflicts with the 5.9.0 `Runtime` compiles against, so `Directory.Packages.props` enables central transitive pinning and pins both Workspaces packages to 5.9.0 |
 | OPS-04 | `appsettings.json` raises `Microsoft.EntityFrameworkCore` to `Warning` while `Default` stays `Information`, so EF no longer logs every statement to the journal; `Microsoft.AspNetCore` stays at `Warning` and an explicit `uk.osric.asp` at `Information` keeps the app's own lines and the startup lines. `appsettings.Development.json` puts `Microsoft.EntityFrameworkCore.Database.Command` back at `Information`, so `make run` still shows SQL locally |
+| BUG-14 | A canonical redirect keeps the query string. `Redirects.Permanent` takes the path and the `QueryString` separately — appending one to the other would make `PathString` escape the `?` — and both the page and the editor hand it the request's query, so `/Hello?q=a%20b` answers `308 /hello?q=a%20b` instead of losing the parameters. Covered in `MainEndpointTests`, `EditorEndpointTests` and `ShellTests` |
