@@ -10,7 +10,8 @@ commits, branches and discussion. Severity is the reviewer's assessment of risk,
 implementation order; the suggested order is at the bottom.
 
 Raised by the architecture review and the code-health scan of 2026-10-30; BUG-13 came out of the
-BUG-06 fix, and ARCH-11 came out of the BUG-05/BUG-13 planning.
+BUG-06 fix, ARCH-11 came out of the BUG-05/BUG-13 planning, and BUG-14 came out of the metrics
+dashboard planning.
 
 | ID | Severity | Problem |
 | --- | --- | --- |
@@ -24,6 +25,7 @@ BUG-06 fix, and ARCH-11 came out of the BUG-05/BUG-13 planning.
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
 | [BUG-12](BUG-12.md) | Low | Unused Roslyn Workspaces packages ship in the web app |
+| [BUG-14](BUG-14.md) | Low | A canonical redirect drops the query string |
 | [OPS-02](OPS-02.md) | Low | The health endpoint exists; it has no monitor or alerting behind it |
 | [OPS-03](OPS-03.md) | Medium | There is no CI pipeline |
 | [OPS-04](OPS-04.md) | Low | EF Core logs every SQL command at Information in production |
