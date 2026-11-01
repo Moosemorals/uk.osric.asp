@@ -159,6 +159,17 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
     }
 
     [Test]
+    public async Task ARequestedPageWithAQuerySurvivesTheLoginRedirect() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync(
+            "/login?returnUrl=" + Uri.EscapeDataString("/edit/hello?tab=source"));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/edit/hello?tab=source"));
+    }
+
+    [Test]
     public async Task LogoutClearsTheCookie() {
         using HttpClient client = await CreateSignedInClientAsync();
         string token = await GetAntiforgeryTokenAsync(client, "/edit/hello");

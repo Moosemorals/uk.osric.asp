@@ -71,15 +71,16 @@ public sealed class ShellTests : IntegrationTest {
         Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("Osric"));
     }
 
-    [Test]
-    public async Task PageRedirectIsSentAsFound() {
-        await SavePageAsync("/moved", "<% ctx.Redirect(\"/hello\"); %>");
+    [TestCase("/hello", "/hello")]
+    [TestCase("/hello?q=metrics", "/hello?q=metrics")]
+    public async Task PageRedirectIsSentAsFound(string location, string expectedLocation) {
+        await SavePageAsync("/moved", $"<% ctx.Redirect(\"{location}\"); %>");
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.GetAsync("/moved");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Found));
-        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/hello"));
+        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo(expectedLocation));
         Assert.That(await response.Content.ReadAsStringAsync(), Is.Empty);
     }
 

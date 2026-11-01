@@ -217,16 +217,22 @@ public sealed class MainEndpointTests {
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("done"));
     }
 
-    [Test]
-    public async Task PageRedirectIsSentWithNoBodyAsync() {
+    [TestCase("/elsewhere", "/elsewhere")]
+    [TestCase("/search?q=metrics", "/search?q=metrics")]
+    [TestCase("/search?q=a%20b", "/search?q=a%20b")]
+    [TestCase("/search?q=metrics#results", "/search?q=metrics#results")]
+    [TestCase("/moved#top", "/moved#top")]
+    [TestCase("/caf\u00e9", "/caf%C3%A9")]
+    [TestCase("https://example.com/x?y=1", "https://example.com/x?y=1")]
+    public async Task PageRedirectIsSentWithNoBodyAsync(string location, string expectedLocation) {
         DefaultHttpContext context = CreateContext("moved.cs");
         FakeStorage storage = new();
-        storage["/moved.cs"] = new StoredPage(PagePath.Normalize("/moved.cs"), "<% ctx.Redirect(\"/elsewhere\"); %>");
+        storage["/moved.cs"] = new StoredPage(PagePath.Normalize("/moved.cs"), $"<% ctx.Redirect(\"{location}\"); %>");
 
         await MainEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(302));
-        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/elsewhere"));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(expectedLocation));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
     }
 

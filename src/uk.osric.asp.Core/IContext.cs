@@ -68,7 +68,10 @@ public interface IContext {
     public void SetHeader(string name, string value);
 
     /// <summary>Redirects instead of writing a body.</summary>
-    /// <param name="location">The target, relative or absolute.</param>
+    /// <param name="location">
+    /// The target, relative or absolute. A relative target keeps its query and fragment, and its path
+    /// is escaped for the header, so <c>/search?q=metrics</c> arrives as written.
+    /// </param>
     /// <param name="status">The redirect status; 302 by default.</param>
     public void Redirect(string location, int status = 302);
 }

@@ -142,6 +142,17 @@ public sealed class LoginEndpointTests {
     }
 
     [Test]
+    public async Task PostWithAReturnUrlQueryKeepsTheQueryAsync() {
+        _users.Users["owner"] = User("owner", Password);
+        DefaultHttpContext context = FormContext("owner", Password, returnUrl: "/edit/page?tab=source");
+
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/page?tab=source"));
+    }
+
+    [Test]
     public async Task PostRehashesWhenTheHasherSaysSoAsync() {
         _users.Users["owner"] = User("owner", Password);
         _passwords.Result = Microsoft.AspNetCore.Identity.PasswordVerificationResult.SuccessRehashNeeded;

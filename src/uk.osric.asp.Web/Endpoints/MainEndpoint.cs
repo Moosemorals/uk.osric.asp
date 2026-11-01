@@ -68,17 +68,12 @@ internal sealed class MainEndpoint() {
     // The page's body is buffered until here, so the response is written in one go: status and
     // headers first, and nothing at all when the page redirected or the request was a HEAD.
     private static async Task WritePageAsync(HttpContext context, PageResponse response, string body) {
-        context.Response.StatusCode = response.Status;
-
         if (response.Location is not null) {
-            // A relative target is escaped so a non-ASCII path survives the header; an absolute URL
-            // is already a valid header value and must not be treated as a path.
-            context.Response.Headers.Location = response.Location.StartsWith('/')
-                ? new PathString(response.Location).ToUriComponent()
-                : response.Location;
+            Redirects.To(context, response.Status, response.Location);
             return;
         }
 
+        context.Response.StatusCode = response.Status;
         context.Response.ContentType = response.ContentType;
         foreach ((string name, string value) in response.Headers) {
             context.Response.Headers[name] = value;
