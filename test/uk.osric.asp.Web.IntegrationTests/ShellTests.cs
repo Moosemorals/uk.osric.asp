@@ -49,6 +49,18 @@ public sealed class ShellTests : IntegrationTest {
         Assert.That(response.Headers.Location?.ToString(), Is.EqualTo(expectedLocation));
     }
 
+    [TestCase("/hello%3Fworld", "/hello?world")]
+    [TestCase("/hello%23world", "/hello#world")]
+    public async Task AnEncodedDelimiterNamesNoPage(string requestPath, string key) {
+        await SavePageAsync("/hello", "Hello.");
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync(requestPath);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo($"{key} not found."));
+    }
+
     [Test]
     public async Task StaticFileIsServedWithoutReachingThePageRoute() {
         using HttpClient client = CreateClient();

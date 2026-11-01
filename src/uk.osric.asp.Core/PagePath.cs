@@ -20,6 +20,13 @@ namespace uk.osric.asp.Core;
 ///   <item><description>A single <c>/</c> is prefixed, so every key is absolute.</description></item>
 /// </list>
 /// <para>
+/// A key is a path, and a path ends at <c>?</c> or <c>#</c>: those delimiters can never appear in one,
+/// so <see cref="IsAddressable"/> is <see langword="false"/> for a key that contains them and the
+/// shell answers <c>404</c> rather than serving a name no URL can produce. Percent-encoding them
+/// instead would be worse, because the canonical comparison is against the decoded request path and
+/// an encoded key would never match it.
+/// </para>
+/// <para>
 /// Names the routing layer reserves, such as <c>/edit</c> or <c>/error</c>, are not rejected here: the
 /// shell owns the routes, so deciding what a page may not be called belongs there.
 /// </para>
@@ -35,6 +42,14 @@ public sealed record PagePath {
     /// <summary>The canonical key: absolute, lowercase, and never ending with <c>/</c> unless it is
     /// the root.</summary>
     public string Path => _path;
+
+    /// <summary>Whether the key can name a page a request may be served from.</summary>
+    /// <remarks>
+    /// The only way to get a false is a request that encoded a delimiter, such as <c>/hello%3Fworld</c>:
+    /// the route value is decoded to <c>hello?world</c>, so normalisation faithfully keeps the <c>?</c>
+    /// and the key stops being a path.
+    /// </remarks>
+    public bool IsAddressable => !_path.Contains('?') && !_path.Contains('#');
 
     /// <summary>Normalises text into the canonical key for the page it names.</summary>
     /// <param name="path">The text to normalise, typically a <c>path</c> route value.</param>

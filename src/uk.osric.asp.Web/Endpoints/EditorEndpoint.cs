@@ -23,6 +23,13 @@ internal sealed class EditorEndpoint {
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
         string editorUrl = "/edit" + path.Path;
 
+        // Saving under a key that is not a path would store a page no URL can reach, so the editor
+        // refuses the same way the page route does.
+        if (!path.IsAddressable) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+
         if (context.Request.Method == "POST") {
             context.Session.SetString(MessageKey, await SaveAsync(context, pages, reserved, path));
             Redirects.SeeOther(context, editorUrl);
@@ -32,7 +39,7 @@ internal sealed class EditorEndpoint {
         // A POST is saved under the canonical key and only then redirected, so a non-canonical URL can
         // never cost the edit; only a GET needs the permanent redirect to the canonical editor URL.
         if (!string.Equals(context.Request.Path.Value, editorUrl, StringComparison.Ordinal)) {
-            Redirects.Permanent(context, editorUrl, context.Request.QueryString);
+            Redirects.Permanent(context, editorUrl + context.Request.QueryString.ToUriComponent());
             return;
         }
 

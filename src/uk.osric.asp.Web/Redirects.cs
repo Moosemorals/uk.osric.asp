@@ -5,29 +5,24 @@ namespace uk.osric.asp.Web;
 
 internal static class Redirects {
 
-    // 308 rather than 301: both are permanent, but 308 keeps the method, so canonicalising a URL can
-    // never turn a POST into a GET and silently drop a save. PathString escaping keeps non-ASCII keys,
-    // which normalisation allows, out of a header that Kestrel would reject.
-    public static void Permanent(HttpContext context, string path, QueryString query = default) {
-        context.Response.StatusCode = StatusCodes.Status308PermanentRedirect;
-        context.Response.Headers.Location = Join(path, query, default);
-    }
-
-    /// <summary>Sends a POST result to a GET of <paramref name="target"/>.</summary>
+    /// <summary>Sends <paramref name="target"/> as the location of a redirect.</summary>
     /// <param name="context">The request being answered.</param>
-    /// <param name="target">The relative target, which may carry a query and a fragment.</param>
-    public static void SeeOther(HttpContext context, string target) {
-        context.Response.StatusCode = StatusCodes.Status303SeeOther;
-        context.Response.Headers.Location = Encode(target);
-    }
-
-    /// <summary>Sends <paramref name="target"/> as the location of a redirect the caller chose.</summary>
-    /// <param name="context">The request being answered.</param>
-    /// <param name="status">The status code, normally the page's own.</param>
+    /// <param name="status">The redirect status to send.</param>
     /// <param name="target">A relative target, which may carry a query and a fragment, or an absolute URL.</param>
     public static void To(HttpContext context, int status, string target) {
         context.Response.StatusCode = status;
         context.Response.Headers.Location = Encode(target);
+    }
+
+    // 308 rather than 301: both are permanent, but 308 keeps the method, so canonicalising a URL can
+    // never turn a POST into a GET and silently drop a save.
+    public static void Permanent(HttpContext context, string target) {
+        To(context, StatusCodes.Status308PermanentRedirect, target);
+    }
+
+    /// <summary>Sends a POST result to a GET of <paramref name="target"/>.</summary>
+    public static void SeeOther(HttpContext context, string target) {
+        To(context, StatusCodes.Status303SeeOther, target);
     }
 
     // A page, or the login form's return URL, hands over one string rather than a path and a query, so

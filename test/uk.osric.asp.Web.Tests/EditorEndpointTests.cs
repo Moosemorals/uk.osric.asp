@@ -253,6 +253,21 @@ public sealed class EditorEndpointTests {
         Assert.That(storage.ReadCount, Is.Zero);
     }
 
+    [TestCase("GET")]
+    [TestCase("POST")]
+    public async Task AKeyWithADelimiterIsNotFoundAsync(string method) {
+        DefaultHttpContext context = TestHttp.CreateContext("hello?world", method, "/edit/hello?world");
+        SetContent(context, new StringValues("source"));
+        FakeStorage storage = new();
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(404));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("/hello?world not found."));
+        Assert.That(storage.ReadCount, Is.Zero);
+        Assert.That(storage.WriteCount, Is.Zero);
+    }
+
     [Test]
     public async Task PostFromNonCanonicalUrlSavesTheCanonicalKeyAsync() {
         DefaultHttpContext context = TestHttp.CreateContext("Hello/", "POST", "/edit/Hello/");

@@ -64,6 +64,25 @@ public sealed class MainEndpointTests {
         Assert.That(storage.ReadCount, Is.Zero);
     }
 
+    // A URL that encodes a delimiter names no page: the route value is decoded to a '?', so the key
+    // stops being a path. Answered before the canonical redirect, which could only target a key that
+    // cannot exist, and before storage, which would serve a name no request can produce.
+    [TestCase("hello?world", "/hello?world")]
+    [TestCase("hello#world", "/hello#world")]
+    [TestCase("Hello?world", "/Hello?world")]
+    public async Task AKeyWithADelimiterIsNotFoundAsync(string path, string requestPath) {
+        DefaultHttpContext context = TestHttp.CreateContext(path, "GET", requestPath);
+        FakeStorage storage = new();
+        storage[PagePath.Normalize(path).Path] = new StoredPage(PagePath.Normalize(path), "should not be served");
+
+        await MainEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(404));
+        Assert.That(context.Response.Headers.Location, Is.Empty);
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo($"{PagePath.Normalize(path)} not found."));
+        Assert.That(storage.ReadCount, Is.Zero);
+    }
+
     [Test]
     public async Task AQueryStringDoesNotChangeThePageKeyAsync() {
         DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "GET", "/hello.cs");
@@ -217,14 +236,11 @@ public sealed class MainEndpointTests {
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("done"));
     }
 
-    [TestCase("/elsewhere", "/elsewhere")]
-    [TestCase("/search?q=metrics", "/search?q=metrics")]
-    [TestCase("/search?q=a%20b", "/search?q=a%20b")]
-    [TestCase("/search?q=metrics#results", "/search?q=metrics#results")]
-    [TestCase("/moved#top", "/moved#top")]
-    [TestCase("/caf\u00e9", "/caf%C3%A9")]
-    [TestCase("https://example.com/x?y=1", "https://example.com/x?y=1")]
-    public async Task PageRedirectIsSentWithNoBodyAsync(string location, string expectedLocation) {
+    // The encoding matrix belongs to Redirects.To and is covered there; this is the wiring: the page's
+    // target reaches the header and no body is written with it.
+    [TestCase("/elsewhere")]
+    [TestCase("/search?q=metrics")]
+    public async Task PageRedirectIsSentWithNoBodyAsync(string location) {
         DefaultHttpContext context = CreateContext("moved.cs");
         FakeStorage storage = new();
         storage["/moved.cs"] = new StoredPage(PagePath.Normalize("/moved.cs"), $"<% ctx.Redirect(\"{location}\"); %>");
@@ -232,7 +248,7 @@ public sealed class MainEndpointTests {
         await MainEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(302));
-        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(expectedLocation));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(location));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
     }
 

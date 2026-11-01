@@ -20,17 +20,25 @@ internal sealed class MainEndpoint() {
         RenderOptions options) {
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
+
+        // A key is a path, so a decoded delimiter means the URL names no page. Checked before the
+        // redirect, because redirecting to a key that cannot exist would send the browser in circles.
+        if (!path.IsAddressable) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+
         if (!string.Equals(context.Request.Path.Value, path.Path, StringComparison.Ordinal)) {
             // The query is carried across, because the page is handed it and dropping it would change
             // what the page sees for a URL that is merely written with the wrong case.
-            Redirects.Permanent(context, path.Path, context.Request.QueryString);
+            Redirects.Permanent(context, path.Path + context.Request.QueryString.ToUriComponent());
             return;
         }
 
         // A page that appeared by another route - a direct database write, an import - must not be
         // half-served for a key the site's own routing already answers for.
         if (reserved.IsReserved(path)) {
-            await WriteNotFoundAsync(context, path);
+            await NotFound.WriteAsync(context, path);
             return;
         }
 
@@ -51,7 +59,7 @@ internal sealed class MainEndpoint() {
 
         switch (result.Status) {
             case RenderStatus.NotFound:
-                await WriteNotFoundAsync(context, path);
+                await NotFound.WriteAsync(context, path);
                 break;
             case RenderStatus.CompileFailed:
                 await WriteCompileErrorAsync(context, result.Diagnostics);
@@ -92,12 +100,6 @@ internal sealed class MainEndpoint() {
         await context.Response.WriteAsync("<p>Handler failed to compile.</p>");
         await context.Response.WriteAsync(Framework.GetDiagnostics(diagnostics));
         await context.Response.WriteAsync(Framework.GetFooter());
-    }
-
-    private static async Task WriteNotFoundAsync(HttpContext context, PagePath path) {
-        context.Response.StatusCode = StatusCodes.Status404NotFound;
-        context.Response.ContentType = "text/plain; charset=utf-8";
-        await context.Response.WriteAsync($"{path} not found.");
     }
 
     private static async Task WriteTimeoutAsync(HttpContext context, PagePath path) {

@@ -54,11 +54,31 @@ public class PagePathTests {
     [Test]
     public void AQueryStringIsPartOfThePathAndIsNotStripped() {
 
-        // Routing hands over Request.Path, which never carries a query, so normalisation treats '?'
-        // as an ordinary path character rather than guessing at URL structure.
+        // Normalisation does not guess at URL structure: routing hands over Request.Path, which never
+        // carries a query, so a '?' here came from an encoded %3F. The key keeps it and is simply not
+        // addressable, which is the shell's cue to answer 404 rather than serve a mangled name.
         PagePath actual = PagePath.Normalize("/hello?from=rss");
 
         Assert.That(actual.Path, Is.EqualTo("/hello?from=rss"));
+        Assert.That(actual.IsAddressable, Is.False);
+    }
+
+    [TestCase("/hello?from=rss")]
+    [TestCase("/hello#top")]
+    [TestCase("/hello?q=1#top")]
+    public void ADelimiterMakesAKeyUnaddressable(string path) {
+
+        Assert.That(PagePath.Normalize(path).IsAddressable, Is.False);
+    }
+
+    [TestCase("/")]
+    [TestCase("/hello")]
+    [TestCase("/hello world")]
+    [TestCase("/hello%20world")]
+    [TestCase("/caf\u00e9")]
+    public void APathIsAddressable(string path) {
+
+        Assert.That(PagePath.Normalize(path).IsAddressable, Is.True);
     }
 
     [Test]
