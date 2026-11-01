@@ -43,8 +43,11 @@ core stays pure and the shell stays thin.
   failures are answered by the error page rather than the developer exception page, and the client
   speaks HTTPS so the auth, antiforgery and session cookies round-trip. Every fixture seeds one
   account through `IUserStore` and signs in through the real `/login` form; there is no test
-  authentication scheme. A recording compiler is registered in place of the real one so a test can
-  count compilations.
+  authentication scheme, and the only substitution on the sign-in path is the hasher:
+  `AspApplication` registers `FastPasswordService` so a sign-in costs one SHA instead of 600,000
+  PBKDF2 rounds. `EditorAuthenticationTests` opts back into the real hasher, because proving it is
+  wired into the host is what that fixture is for. A recording compiler is registered in place of the
+  real one so a test can count compilations.
 
 Each project references only the layers it exercises, so the reference graph stops a test from
 reaching past its subject: `Core.Tests` has no ASP.NET or Roslyn to call, `Runtime.Tests` has no
@@ -64,6 +67,36 @@ make test-runtime      # runtime tests only
 make test-web          # web tests only
 make test-integration  # the composed pipeline only, against a throwaway database
 ```
+
+## Parallelism
+
+NUnit runs a suite one test at a time until it is told otherwise. Each project says what it allows in
+its `TestAssembly.cs`:
+
+- `Core.Tests` and `Runtime.Tests` run every test in parallel (`ParallelScope.All`). Core is pure
+  functions over immutable values, and a Runtime test compiles into its own assembly and its own load
+  context through a stateless compiler.
+- `Web.Tests` and `Web.IntegrationTests` run every *fixture* in parallel (`ParallelScope.Fixtures`) and
+  the tests inside a fixture one at a time. A fixture owns its services and storage — and in the
+  integration suite its host and its database — so fixtures are independent, but the tests inside one
+  are not: the budget tests measure a wall clock against a page that burns CPU, the storage fixtures
+  migrate a database in `[SetUp]`, and a fixture signs in once per test.
+- `PageMetricsTests` is `[NonParallelizable]`, because a `MeterListener` hears every instrument in the
+  process, including the page meter another fixture is recording into.
+- `PageServiceTests` and the one budget test in `MainEndpointTests` are `[NonParallelizable]`, for the
+  same reason fixtures are the unit of parallelism: a page that outruns its budget cannot be stopped,
+  so it keeps a core busy while the deadline continuation queues for a thread. Run beside another
+  fixture's compiles, the answer lands late and a timing assertion fails on load rather than
+  behaviour.
+
+Parallelism is worth less here than it looks. Roslyn already uses every core inside a single compile,
+so fixtures that compile at the same time contend rather than scale; and `Pages:Render:TimeoutSeconds`
+is a whole number, so every test of the budget costs at least a second of wall clock. That second is
+what makes `Web.Tests` the slow suite — the budget tests are about half of it — and it is why
+per-test parallelism is not used there. A sub-second budget is the change that would buy more.
+
+The four projects are independent processes, so `make -j4 test` runs them at once as well: about 27 s
+against 38 s on a four-core machine, even though each suite then reports a slightly longer duration.
 
 ## Conventions
 

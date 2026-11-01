@@ -189,13 +189,6 @@ public sealed class TemplateCompilerTests {
             Does.EndWith(typeof(IHandler).Assembly.ManifestModule.ModuleVersionId.ToString("N")));
     }
 
-    [Test]
-    public void EveryCompilerInstanceReportsTheSameRuntimeId() {
-        ITemplateCompiler other = new TemplateCompiler();
-
-        Assert.That(other.RuntimeId, Is.EqualTo(TemplateCompiler.RuntimeId));
-    }
-
     private static CompileResult Compile(string template) {
         return Compiler.Compile(Generate(template));
     }

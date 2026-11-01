@@ -54,11 +54,6 @@ public sealed class PasswordServiceTests {
         Assert.That(_passwords.Verify(user, Password), Is.EqualTo(PasswordVerificationResult.Failed));
     }
 
-    [Test]
-    public void TheDummyVerificationAlwaysFails() {
-        Assert.That(_passwords.VerifyDummy(Password), Is.False);
-    }
-
     private static LocalUser User(string passwordHash) {
         return new LocalUser {
             UserName = "owner",

@@ -11,6 +11,8 @@ using uk.osric.asp.Web;
 using uk.osric.asp.Web.Storage;
 
 [TestFixture]
+// Each test migrates its own database, so the per-test paths need a per-test instance to hold them.
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public sealed class SqliteStorageTests {
     private string _databasePath = string.Empty;
     private DbContextOptions<StorageDbContext> _options = new DbContextOptionsBuilder<StorageDbContext>().Options;

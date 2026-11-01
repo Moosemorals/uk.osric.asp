@@ -269,6 +269,9 @@ public sealed class MainEndpointTests {
     }
 
     [Test]
+    // The page burns CPU against a wall clock, so this one keeps the process to itself: another
+    // fixture's compiles would starve the deadline continuation and answer late.
+    [NonParallelizable]
     public async Task APageThatOutrunsTheBudgetAnswersGatewayTimeoutAsync() {
         DefaultHttpContext context = CreateContext("slow.cs");
         FakeStorage storage = new();

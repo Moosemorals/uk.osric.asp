@@ -213,9 +213,15 @@ internal sealed class PageService(
             using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(budget.CompileOptions.Timeout);
 
+            // The wait for a slot ends at whichever deadline comes first. Only the wait is linked to
+            // the render's deadline: the compile keeps its own, so a compile that arrives late is
+            // still stored rather than thrown away.
+            using CancellationTokenSource queueDeadline =
+                CancellationTokenSource.CreateLinkedTokenSource(deadline.Token, renderDeadline);
+
             bool queued;
             try {
-                queued = budget.CompileSlots.Wait(Timeout.InfiniteTimeSpan, deadline.Token);
+                queued = budget.CompileSlots.Wait(Timeout.InfiniteTimeSpan, queueDeadline.Token);
             } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !renderDeadline.IsCancellationRequested) {
                 // This compile's own timeout, not the caller giving up: fall through and report it.
                 queued = false;

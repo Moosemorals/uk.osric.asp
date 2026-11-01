@@ -14,6 +14,10 @@ using uk.osric.asp.Web.Pages;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+// The budget tests here assert how late an answer may be, and a page that outruns its budget burns
+// CPU until it stops. Running beside another fixture's compiles starves the thread pool and delays
+// the deadline continuation, so this fixture has the process to itself.
+[NonParallelizable]
 public sealed class PageServiceTests {
 
     // A fresh fixture instance per test keeps the compile count and the meter belonging to one test.
@@ -382,10 +386,13 @@ public sealed class PageServiceTests {
 
         await budget.CompileSlots.WaitAsync();
         try {
+            long start = Stopwatch.GetTimestamp();
             (RenderResult result, string output) = await RenderAsync(pages, "/hello");
 
             Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
             Assert.That(output, Is.Empty, "a page that never started wrote nothing");
+            Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1.4)),
+                "the wait is bounded by the render's budget, not the longer compile budget");
         } finally {
             budget.CompileSlots.Release();
         }

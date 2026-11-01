@@ -13,6 +13,9 @@ using uk.osric.asp.Web.Pages;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+// A MeterListener hears every meter with the page meter's name, including one another test is
+// writing to, so this fixture must own the process while it runs.
+[NonParallelizable]
 public sealed class PageMetricsTests {
 
     private readonly RecordingCompiler _compiler = new(new TemplateCompiler());

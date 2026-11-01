@@ -20,27 +20,21 @@ public sealed class RenderBudgetTests : IntegrationTest {
         return new AspApplication(renderTimeoutSeconds: 1);
     }
 
+    // One slow page per run: it keeps burning CPU after it is abandoned, so a second test in the same
+    // fixture would race the first one's thread rather than prove anything new.
     [Test]
     public async Task APageThatOutrunsTheBudgetIsAnsweredWithGatewayTimeoutAsync() {
-        using HttpClient client = await CreateSignedInClientAsync();
-        await PostEditorAsync(client, "slow", SlowPage);
-
-        using HttpResponseMessage response = await client.GetAsync("/slow");
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.GatewayTimeout));
-        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("/slow is taking too long."));
-    }
-
-    [Test]
-    public async Task TheSiteStillServesAfterAPageIsAbandonedAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
         await PostEditorAsync(client, "hello", "<p>Hello.</p>");
         await PostEditorAsync(client, "slow", SlowPage);
 
         using HttpResponseMessage slow = await client.GetAsync("/slow");
-        using HttpResponseMessage hello = await client.GetAsync("/hello");
 
         Assert.That(slow.StatusCode, Is.EqualTo(HttpStatusCode.GatewayTimeout));
-        Assert.That(hello.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await slow.Content.ReadAsStringAsync(), Is.EqualTo("/slow is taking too long."));
+
+        using HttpResponseMessage hello = await client.GetAsync("/hello");
+        Assert.That(hello.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+            "the abandoned page must not take the site down with it");
     }
 }

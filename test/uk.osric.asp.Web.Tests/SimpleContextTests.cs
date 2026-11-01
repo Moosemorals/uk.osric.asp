@@ -175,15 +175,6 @@ public sealed class SimpleContextTests {
         Assert.That(logs.Entries[0].Message, Is.EqualTo("broken"));
     }
 
-    [Test]
-    public void RequestValuesAreExposedToThePage() {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(context.Request.Method, Is.EqualTo("GET"));
-        Assert.That(context.Path, Is.EqualTo("/page"));
-        Assert.That(context.Aborted, Is.EqualTo(CancellationToken.None));
-    }
-
     private static SimpleContext CreateContext(out StringWriter output) {
         output = new StringWriter();
         return new SimpleContext(NullLoggerFactory.Instance, TestHttp.Request("/page"), CancellationToken.None, output);

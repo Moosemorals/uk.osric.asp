@@ -9,6 +9,12 @@ using System.Net;
 [TestFixture]
 public sealed class EditorAuthenticationTests : IntegrationTest {
 
+    // Signing in is what this fixture proves, so it pays for the production hasher rather than the
+    // fast double the other fixtures use.
+    internal override AspApplication CreateApplication() {
+        return new AspApplication(realPasswordHasher: true);
+    }
+
     [Test]
     public async Task AnonymousGetEditorRedirectsToLogin() {
         using HttpClient client = CreateClient();

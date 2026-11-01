@@ -11,9 +11,16 @@ using Microsoft.Extensions.Hosting;
 using System.Globalization;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Authentication;
+using uk.osric.asp.Web.Users;
 
 /// <summary>Runs the real web host against a throwaway SQLite database.</summary>
-internal sealed class AspApplication(int loginPermitLimit = 100, int renderTimeoutSeconds = 5) : WebApplicationFactory<Program> {
+/// <param name="loginPermitLimit">Sign-in attempts allowed per window.</param>
+/// <param name="renderTimeoutSeconds">The budget for one render.</param>
+/// <param name="realPasswordHasher">
+/// Keeps the production password hasher instead of <see cref="FastPasswordService"/>. A fixture that
+/// is about signing in sets this; the rest sign in only to reach the page they prove.
+/// </param>
+internal sealed class AspApplication(int loginPermitLimit = 100, int renderTimeoutSeconds = 5, bool realPasswordHasher = false) : WebApplicationFactory<Program> {
 
     /// <summary>The database this host migrates and serves; it is deleted with the factory.</summary>
     public string DatabasePath { get; } =
@@ -32,6 +39,11 @@ internal sealed class AspApplication(int loginPermitLimit = 100, int renderTimeo
             services.AddSingleton<ITemplateCompiler>(Compiler);
             // The shared fixture signs in many times; the dedicated throttle test lowers this.
             services.Configure<LoginRateLimitOptions>(options => options.PermitLimit = loginPermitLimit);
+
+            if (!realPasswordHasher) {
+                // Registered last, so it wins over the singleton the host registered.
+                services.AddSingleton<IPasswordService, FastPasswordService>();
+            }
         });
     }
 
