@@ -62,10 +62,11 @@ Supporting changes:
   to change it): the budget tests burn a wall clock on purpose, so a wedged run needs a ceiling.
 - **Deploy is gated and traceable.** `make deploy` runs `deploy-guard` (the destination exists, the
   tree is this commit and nothing else, the Caddyfile is not still the placeholder), then
-  `deploy-gate`, then the image: it refuses an uncommitted tree (an image that cannot be rebuilt
+  `deploy-gate`, then `deploy-image`: it refuses an uncommitted tree (an image that cannot be rebuilt
   from the commit its tag names is a rollback waiting to fail; `ALLOW_DIRTY=1` is the deliberate
-  exception), tags the image with `GIT_SHA` as well as `IMAGE_TAG`, and curls `/heath` after the
-  restart instead of reporting success blindly.
+  exception), deploys by commit tag rather than `latest`, skips the build, push and pull when the
+  host already runs that commit (the restart still happens, because that is what applies a quadlet or
+  Caddyfile edit), and curls `/heath` after the restart instead of reporting success blindly.
 - **An earlier run counts, once.** A gate run that ends on a clean tree writes the commit it proved
   to `.git/gate/<sha>` — keyed by the full commit and kept out of `artifacts/`, so `make clean` can
   neither forge nor erase it, and a new commit has no record. A check during an edit records

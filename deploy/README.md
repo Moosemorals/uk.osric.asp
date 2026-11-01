@@ -78,10 +78,20 @@ and applies them.
 
    The target refuses to run from a tree with uncommitted changes, because the image is tagged with
    its commit and that tag is only meaningful if the commit is the tree (`ALLOW_DIRTY=1` overrides,
-   for a deliberate one-off). It runs the gate unless a clean-tree run has already recorded this commit
-   (see `docs/testing.md`), pushes the commit tag alongside `IMAGE_TAG`, and it does not report
+   for a deliberate one-off). It runs the gate unless a clean-tree run has already recorded this
+   commit (see `docs/testing.md`), pushes the commit tag alongside `IMAGE_TAG`, and it does not report
    success until `http://127.0.0.1:8080/heath` answers: a restart that leaves the unit failed is a
    failed deploy, not a quiet one.
+
+   The quadlet's `Image=` names the commit, not `latest`, so the host can be asked what it is running
+   without guessing: if the unit already names this commit and the container was created from that
+   image, the build, push and pull are skipped, and only the config install and restart remain. That
+   is what makes a redeploy that changes nothing — or a deploy that only touches the `Caddyfile` or a
+   quadlet — cheap. It is not a dry run: the services are restarted exactly as they always were.
+
+   The image id is deliberately not the identity: the container build is not reproducible, so two
+   builds of one commit have different ids. The commit tag is the only thing that says which build the
+   host is meant to run.
 
 ## Day-to-day
 
@@ -105,11 +115,13 @@ and applies them.
 - **Logs:** `ssh deploy@<server-ip> journalctl --user -u uk.osric.asp.service -f`
 - **Status:** `ssh deploy@<server-ip> systemctl --user status uk.osric.asp.service`
 - **Edge:** `ssh deploy@<server-ip> sudo systemctl status caddy`
-- **Rollback:** every deploy also pushes the image under its commit (`registry.osric.uk/uk.osric.asp:<sha>`),
-  so a previous build has a name even after `latest` has moved: `podman pull` that tag on the host,
-  or point the quadlet's `Image=` at it and rerun the systemctl steps by hand. Rebuilding the commit
-  and deploying it again works too. A previous image may not support the migrated schema; restore
-  its matching backup with the app stopped when necessary.
+- **Rollback:** the quadlet's `Image=` already names the commit the host is running, so going back is
+  editing that line to the commit you want and restarting: `podman pull` the
+  `registry.osric.uk/uk.osric.asp:<sha>` tag on the host, rewrite `~/.config/containers/systemd/uk.osric.asp.container`,
+  `systemctl --user daemon-reload`, `systemctl --user restart uk.osric.asp.service`. Checking out
+  the earlier commit and running `make deploy` does the same thing through the gate. A previous image
+  may not support the migrated schema; restore its matching backup with the app stopped when
+  necessary.
 
 ## Resource limits and restarts
 

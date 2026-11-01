@@ -93,7 +93,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci gate-record drift-check audit hooks test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image deploy deploy-guard deploy-gate format format-check license-check clean
+.PHONY: help build restore check ci gate-record drift-check audit hooks test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image deploy deploy-guard deploy-gate deploy-image format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -122,7 +122,7 @@ help:
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image into podman.' \
-		'deploy             Build, test, push to $(REGISTRY) and restart on HOST=deploy@server.' \
+		'deploy             Build and push when changed, restart on HOST=deploy@server.' \
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
 		'license-check      Fail if the tree is not REUSE compliant (needs the reuse tool).' \
@@ -272,32 +272,29 @@ run:
 publish:
 	$(DOTNET) publish $(WEB_PROJECT) -c Release
 
+# One line on purpose: `deploy-image` splices this into a shell block, and a multi-line variable
+# would end the block and turn the rest into separate recipes. It is also why `deploy` never calls
+# `$(MAKE)`: a recursive call makes `make -n` execute, and a deploy target that runs when asked to
+# print is a trap.
+IMAGE_COMMAND = $(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) -p:ContainerBaseImage=$(CONTAINER_BASE_IMAGE) -t:PublishContainer -p:ContainerImageTags=$(IMAGE_TAG)
+
 # The SDK builds the OCI image itself and hands it to podman; there is no Dockerfile.
 image:
-	$(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) \
-		-p:ContainerBaseImage=$(CONTAINER_BASE_IMAGE) \
-		-t:PublishContainer -p:ContainerImageTags=$(IMAGE_TAG)
+	$(IMAGE_COMMAND)
 
 # Pushes the image, installs the quadlets (the source of truth), and restarts. The app runs rootless
 # as HOST's user; Caddy is the only rootful unit and is installed with sudo. The quadlet's Image= line
-# is rewritten on the way so REGISTRY and IMAGE_TAG overrides reach the host. Both services are
-# restarted rather than started, so a tag-only image change or a Caddyfile edit takes effect on a
-# redeploy. There is no enable step: quadlet units are transient, so systemctl refuses to enable
-# them, and the generator already applies each quadlet's [Install] section on daemon-reload.
+# is rewritten on the way, so REGISTRY and the commit tag reach the host. Both services are restarted
+# rather than started, so a Caddyfile edit takes effect on a redeploy, and a restart is a reason to
+# run this target on its own. There is no enable step: quadlet units are transient, so systemctl
+# refuses to enable them, and the generator already applies each quadlet's [Install] section on
+# daemon-reload.
 #
 # The whole gate runs before the image is built, and therefore long before anything is pushed: a tag
 # that has been pulled by the server cannot be withdrawn, and a broken suite is cheaper to meet here
 # than on the running site. Do not run this target with -j; the order is the point.
-#
-# The image is tagged with its commit as well as IMAGE_TAG, so a rollback has a name to name and a
-# pushed image can be traced to the tree that made it.
-deploy: deploy-guard deploy-gate image
-	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
-	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
-	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
-	podman push --authfile $(AUTHFILE) $(IMAGE_SHA_REF)
-	ssh $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_REF)
-	sed 's|^Image=.*|Image=$(IMAGE_REF)|' deploy/uk.osric.asp.container | ssh $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
+deploy: deploy-guard deploy-gate deploy-image
+	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | ssh $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
 	ssh $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
 	ssh $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
 	ssh $(HOST) systemctl --user daemon-reload
@@ -314,7 +311,33 @@ deploy: deploy-guard deploy-gate image
 		fi; \
 		sleep 2; \
 	done'
-	@echo "deployed $(IMAGE_TAG) as $(GIT_SHA)"
+	@echo "deployed $(GIT_SHA)"
+
+# Builds, pushes and pulls this commit's image, unless HOST is already running it. The quadlet's
+# Image= is the commit tag, and that tag — not an image id — is what identifies a deployment: the
+# container build is not reproducible, so two builds of one commit have different ids and only the
+# tag we push under says which build the host is meant to run.
+#
+# Three reads, because each answers a different question: `live` is what the unit is configured for,
+# `running` is the image the container was created from, and `stored` is what the host has under that
+# tag. A live container is this build only when the unit names this commit and the container is that
+# tag's image; a tag that is present but not running, or a container still on last deploy's image,
+# both fall through to a real deploy. The image is not even built on the skip path.
+deploy-image:
+	@live=$$(ssh $(HOST) sed -n 's/^Image=//p' .config/containers/systemd/uk.osric.asp.container 2>/dev/null || true); \
+	running=$$(ssh $(HOST) podman container inspect --format '{{.Image}}' $(CONTAINER_NAME) 2>/dev/null || true); \
+	stored=$$(ssh $(HOST) podman image inspect --format '{{.Id}}' $(IMAGE_SHA_REF) 2>/dev/null | sed 's/^sha256://' || true); \
+	if [ "$$live" = "$(IMAGE_SHA_REF)" ] && [ -n "$$running" ] && [ "$$running" = "$$stored" ]; then \
+		echo "image: $(HOST) already runs $(GIT_SHA); not building, pushing or pulling"; \
+	else \
+		echo "image: $(HOST) runs $${live:-nothing}, deploying $(GIT_SHA)"; \
+		$(IMAGE_COMMAND) || exit 1; \
+		podman tag $(LOCAL_IMAGE) $(IMAGE_REF) || exit 1; \
+		podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF) || exit 1; \
+		podman push --authfile $(AUTHFILE) $(IMAGE_REF) || exit 1; \
+		podman push --authfile $(AUTHFILE) $(IMAGE_SHA_REF) || exit 1; \
+		ssh $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_SHA_REF) || exit 1; \
+	fi
 
 # Everything the deploy destination insists on, checked before the gate rather than after it. An
 # image pushed from an uncommitted tree cannot be rebuilt from the commit its tag names, which is
@@ -327,6 +350,7 @@ deploy-guard:
 		git status --short; exit 1; fi
 	@if grep -qE '^[[:space:]]*(example\.com|admin@example\.com)' deploy/Caddyfile; then \
 		echo "deploy/Caddyfile still contains the example.com placeholder"; exit 1; fi
+	@ssh -o ConnectTimeout=10 $(HOST) true || { echo "cannot reach $(HOST)"; exit 1; }
 
 # The gate, unless this commit is already recorded as having passed it. The record is only honoured
 # because deploy-guard has already established that the tree is this commit and nothing else: `make
