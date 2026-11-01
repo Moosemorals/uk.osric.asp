@@ -44,8 +44,10 @@ public sealed class TemplateCompilerTests {
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Is.Not.Empty);
         Assert.That(result.Image, Is.Null);
+        // NUnit types the Matches predicate's item as nullable, so check it before reading it.
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains("CS1525", StringComparison.Ordinal)
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS1525", StringComparison.Ordinal)
                 && diagnostic.Position == new TemplatePosition(1, 16)));
     }
 
@@ -67,7 +69,8 @@ public sealed class TemplateCompilerTests {
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
         Assert.That(result.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Warning
+            diagnostic => diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Warning
                 && diagnostic.Message.Contains("CS0219", StringComparison.Ordinal)));
     }
 
@@ -77,9 +80,11 @@ public sealed class TemplateCompilerTests {
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error));
+            diagnostic => diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Error));
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Warning
+            diagnostic => diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Warning
                 && diagnostic.Message.Contains("CS0219", StringComparison.Ordinal)));
     }
 
@@ -89,7 +94,8 @@ public sealed class TemplateCompilerTests {
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains("CS1513", StringComparison.Ordinal)
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS1513", StringComparison.Ordinal)
                 && diagnostic.Position == new TemplatePosition(2, 3)));
     }
 
@@ -136,7 +142,8 @@ public sealed class TemplateCompilerTests {
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains("CS1525", StringComparison.Ordinal)
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS1525", StringComparison.Ordinal)
                 && diagnostic.Position?.Line == 1));
     }
 

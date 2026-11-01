@@ -25,10 +25,13 @@ public sealed class PageScopeTests {
 
         Assert.That(result.Success, Is.False);
         // CS0234 rather than CS0246: the assembly is absent, so its namespace is unknown too.
+        // NUnit types the Matches predicate's item as nullable, so check it before reading it.
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains("CS02", StringComparison.Ordinal)));
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS02", StringComparison.Ordinal)));
         Assert.That(result.Diagnostics, Has.None.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains("PAGE001", StringComparison.Ordinal)));
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("PAGE001", StringComparison.Ordinal)));
     }
 
     [Test]
@@ -38,9 +41,11 @@ public sealed class PageScopeTests {
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains("CS02", StringComparison.Ordinal)));
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS02", StringComparison.Ordinal)));
         Assert.That(result.Diagnostics, Has.None.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains("PAGE001", StringComparison.Ordinal)));
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("PAGE001", StringComparison.Ordinal)));
     }
 
     [Test]

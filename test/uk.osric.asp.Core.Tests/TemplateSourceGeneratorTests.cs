@@ -63,8 +63,10 @@ public sealed class TemplateSourceGeneratorTests {
     public void AnUnterminatedCodeBlockIsReportedOnItsOwnTemplateLine() {
         TemplateParseResult result = TemplateSourceGenerator.GenerateTemplateSource("line one\nline two <% if (true) {");
 
+        // NUnit types the Matches predicate's item as nullable, so check it before reading it.
         Assert.That(result.Errors, Has.Exactly(1).Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Position == new TemplatePosition(2, 10)));
+            diagnostic => diagnostic is not null
+                && diagnostic.Position == new TemplatePosition(2, 10)));
     }
 
     [Test]

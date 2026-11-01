@@ -50,8 +50,10 @@ public sealed class PageServiceTests {
         IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/broken"), "<% int value = ; %>");
 
         Assert.That(diagnostics, Is.Not.Empty);
+        // NUnit types the Matches predicate's item as nullable, so check it before reading it.
         Assert.That(diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains("CS", StringComparison.Ordinal)
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS", StringComparison.Ordinal)
                 && diagnostic.Severity == PageDiagnosticSeverity.Error));
 
         StoredPage saved = Stored(storage, "/broken");
@@ -87,7 +89,8 @@ public sealed class PageServiceTests {
         IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/warned"), "<% int unused = 1; %>");
 
         Assert.That(diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Warning
+            diagnostic => diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Warning
                 && diagnostic.Message.Contains("CS0219", StringComparison.Ordinal)));
 
         StoredPage saved = Stored(storage, "/warned");

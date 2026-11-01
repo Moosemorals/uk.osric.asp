@@ -24,8 +24,10 @@ public sealed class PageApiPolicyTests {
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Image, Is.Null);
+        // NUnit types the Matches predicate's item as nullable, so check it before reading it.
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains(api, StringComparison.Ordinal)));
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains(api, StringComparison.Ordinal)));
     }
 
     [TestCase("<% } public static void Other() { } %>")]
@@ -36,7 +38,8 @@ public sealed class PageApiPolicyTests {
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.StartsWith("PAGE002:", StringComparison.Ordinal)));
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.StartsWith("PAGE002:", StringComparison.Ordinal)));
     }
 
     [Test]
@@ -44,7 +47,8 @@ public sealed class PageApiPolicyTests {
         CompileResult result = Compile("first line\n<% System.IO.File.ReadAllText(\"page.txt\"); %>");
 
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Position is { Line: 2, Column: > 0 }
+            diagnostic => diagnostic is not null
+                && diagnostic.Position is { Line: 2, Column: > 0 }
                 && diagnostic.Severity == PageDiagnosticSeverity.Error));
     }
 
@@ -76,7 +80,8 @@ public sealed class PageApiPolicyTests {
         CompileResult result = Compile("<% System.Object value = 1; ctx.Write(value.ToString()); %>");
 
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains("System.Object", StringComparison.Ordinal)));
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("System.Object", StringComparison.Ordinal)));
     }
 
     [Test]
@@ -84,7 +89,8 @@ public sealed class PageApiPolicyTests {
         CompileResult result = Compile("<% dynamic value = 1; ctx.Write(value.ToString()); %>");
 
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-            diagnostic => diagnostic.Message.Contains("dynamic", StringComparison.Ordinal)));
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("dynamic", StringComparison.Ordinal)));
     }
 
     private static CompileResult Compile(string template) {
