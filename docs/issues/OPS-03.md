@@ -45,7 +45,7 @@ one command.
 
 | Target | What it proves |
 | --- | --- |
-| `make check` | `format-check`, `license-check`, `audit`, all four suites, and a Release `publish` |
+| `make check` | `format-check`, `license-check`, `audit`, all four suites, and a Release `publish`; records the commit when the tree is clean |
 | `make ci` | the same, from `make clean`, and that the build wrote no tracked file (`drift-check`) |
 | `make audit` | no NuGet package is vulnerable or deprecated (needs the network) |
 | `make hooks` | `core.hooksPath=.githooks`, so `git push` runs `make check` |
@@ -60,14 +60,22 @@ Supporting changes:
   not wait for `make deploy` to find it.
 - **Hangs fail.** Every suite runs with `--blame-hang --blame-hang-timeout 5m` (`TEST_HANG_TIMEOUT`
   to change it): the budget tests burn a wall clock on purpose, so a wedged run needs a ceiling.
-- **Deploy is gated and traceable.** `make deploy` runs `deploy-guard`, then `check`, then the
-  image: it refuses an uncommitted tree (an image that cannot be rebuilt from the commit its tag
-  names is a rollback waiting to fail; `ALLOW_DIRTY=1` is the deliberate exception), tags the
-  image with `GIT_SHA` as well as `IMAGE_TAG`, and curls `/heath` after the restart instead of
-  reporting success blindly.
+- **Deploy is gated and traceable.** `make deploy` runs `deploy-guard` (the destination exists, the
+  tree is this commit and nothing else, the Caddyfile is not still the placeholder), then
+  `deploy-gate`, then the image: it refuses an uncommitted tree (an image that cannot be rebuilt
+  from the commit its tag names is a rollback waiting to fail; `ALLOW_DIRTY=1` is the deliberate
+  exception), tags the image with `GIT_SHA` as well as `IMAGE_TAG`, and curls `/heath` after the
+  restart instead of reporting success blindly.
+- **An earlier run counts, once.** A gate run that ends on a clean tree writes the commit it proved
+  to `.git/gate/<sha>` — keyed by the full commit and kept out of `artifacts/`, so `make clean` can
+  neither forge nor erase it, and a new commit has no record. A check during an edit records
+  nothing, because it proves something about a tree nobody committed. `make deploy` re-runs the gate
+  unless the record for `HEAD` exists, so the push hook's work is not repeated minutes later and a
+  clone that never installed the hook still gets checked.
 
-Still open: nothing runs on a machine that did not just build the tree, so a push made with
-`--no-verify`, or from a clone where `make hooks` was never run, is still unverified. The remedy is
-a self-hosted runner or a pre-receive hook on the remote; both would run `make ci` and need no
-change here. The rest of this file is kept as the original proposal.
+Still open: the record and the hook both live in a clone, so a push made with `--no-verify`, or from
+a clone where `make hooks` was never run, is still unverified — and a deploy from that clone simply
+pays for the gate it never ran. The remedy is a self-hosted runner or a pre-receive hook on the
+remote; both would run `make ci` and need no change here. The rest of this file is kept as the
+original proposal.
 

@@ -44,6 +44,11 @@ LOCAL_IMAGE := localhost/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null)
 IMAGE_SHA_REF := $(REGISTRY)/$(IMAGE_REPOSITORY):$(GIT_SHA)
 
+# Where `make ci` records the commit it proved. Keyed by the full commit and kept in .git, so it is
+# per-clone, survives `make clean`, and cannot be confused with a tree that has moved on.
+GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null)
+GATE_RECORD := $(shell git rev-parse --absolute-git-dir 2>/dev/null)/gate/$(GIT_COMMIT)
+
 # Registry credentials. Podman writes logins to ${XDG_RUNTIME_DIR}/containers/auth.json by default,
 # which is lost on reboot, so the pull must use the persistent file. The remote path is absolute: an
 # unquoted ~ or $HOME here would be expanded by the local shell before ssh sees it.
@@ -88,7 +93,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit hooks test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image deploy deploy-guard format format-check license-check clean
+.PHONY: help build restore check ci gate-record drift-check audit hooks test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image deploy deploy-guard deploy-gate format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -98,7 +103,7 @@ help:
 		'build              Build the solution when anything changed (default target).' \
 		'restore            Force a NuGet restore (build restores only when inputs change).' \
 		'check              Everything a push or a deploy must pass: formatting, licences, all suites.' \
-		'ci                 The same gate from a clean tree, and fail if the build dirties it.' \
+		'ci                 The same gate from a clean tree, and records the commit as verified.' \
 		'audit              Fail if any NuGet package is vulnerable or deprecated.' \
 		'test               Run every suite: core, runtime, web and integration (no browser required).' \
 		'test-core          Run the NUnit core tests only.' \
@@ -153,7 +158,14 @@ TEST_ARGS := --blame-hang --blame-hang-timeout $(TEST_HANG_TIMEOUT)
 # Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no
 # second definition of "green" to drift from this one. `publish` is here because Release is what
 # actually ships — a Release-only break should not wait for a deploy to be discovered.
+#
+# A run is worth recording when the tree is clean, not because of which target started it: the hook
+# that guards a push runs `check`, and repeating that work minutes later on deploy is the duplication
+# not worth paying. `gate-record` refuses a dirty tree, so a check during an edit records nothing.
 check: format-check license-check audit test publish
+	@if [ -z "$(GIT_COMMIT)" ]; then echo "not recording the gate: not a git checkout"; \
+	elif [ -z "$$(git status --porcelain)" ]; then $(MAKE) --no-print-directory gate-record; \
+	else echo "not recording the gate: the tree has uncommitted changes"; fi
 
 # A clean tree in, a clean tree out. The stamps in artifacts/ make repeat runs cheap, which is also
 # how an input that was never committed can hide; this is the one target that starts from nothing.
@@ -165,10 +177,21 @@ drift-check:
 	@test -z "$$(git status --porcelain)" || { echo "the build wrote to the working tree; commit it or ignore it"; git status --short; exit 1; }
 
 # What a machine with nothing but this repository and the SDK runs. No workflow file, no service, no
-# secret: whatever eventually runs this is calling one target.
+# secret: whatever eventually runs this is calling one target. `check` records the commit it proved
+# (see there); this adds the clean tree at both ends, which is what `check` alone cannot prove.
 ci: clean
 	@$(MAKE) --no-print-directory drift-check
 	@$(MAKE) --no-print-directory check
+
+# The only writer of the record. Deliberately callable on its own so nothing else invents the format,
+# and deliberately refusing a dirty tree: a gate run from a tree nobody committed proves nothing
+# about the commit it would be filed under.
+gate-record:
+	@test -n "$(GIT_COMMIT)" || { echo "not a git checkout: there is no commit to record"; exit 1; }
+	@test -z "$$(git status --porcelain)" || { echo "the tree has uncommitted changes; not recording it"; git status --short; exit 1; }
+	@mkdir -p "$(dir $(GATE_RECORD))"
+	@date -u '+%Y-%m-%dT%H:%M:%SZ' > "$(GATE_RECORD)"
+	@echo "recorded: $(GIT_SHA) passed the gate"
 
 test-core: build
 	$(DOTNET) test $(CORE_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
@@ -268,7 +291,7 @@ image:
 #
 # The image is tagged with its commit as well as IMAGE_TAG, so a rollback has a name to name and a
 # pushed image can be traced to the tree that made it.
-deploy: deploy-guard check image
+deploy: deploy-guard deploy-gate image
 	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
 	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
@@ -304,6 +327,19 @@ deploy-guard:
 		git status --short; exit 1; fi
 	@if grep -qE '^[[:space:]]*(example\.com|admin@example\.com)' deploy/Caddyfile; then \
 		echo "deploy/Caddyfile still contains the example.com placeholder"; exit 1; fi
+
+# The gate, unless this commit is already recorded as having passed it. The record is only honoured
+# because deploy-guard has already established that the tree is this commit and nothing else: `make
+# ci` wrote it from a clean tree, so "it passed earlier" is evidence here rather than a claim. No
+# record means run it — a clone where `make hooks` was never installed, or a commit pushed with
+# --no-verify, gets no discount.
+deploy-gate:
+	@if [ -s "$(GATE_RECORD)" ]; then \
+		echo "gate: $(GIT_SHA) already passed on $$(cat "$(GATE_RECORD)")"; \
+	else \
+		echo "gate: no recorded run for $(GIT_SHA), running it now"; \
+		$(MAKE) --no-print-directory check || exit 1; \
+	fi
 
 # Needs the network: the advisory data comes from the package feed, not from the lock file.
 # `dotnet list package` exits 0 whether or not it finds anything, so the wording is what is checked.

@@ -78,7 +78,8 @@ and applies them.
 
    The target refuses to run from a tree with uncommitted changes, because the image is tagged with
    its commit and that tag is only meaningful if the commit is the tree (`ALLOW_DIRTY=1` overrides,
-   for a deliberate one-off). It pushes the commit tag alongside `IMAGE_TAG`, and it does not report
+   for a deliberate one-off). It runs the gate unless a clean-tree run has already recorded this commit
+   (see `docs/testing.md`), pushes the commit tag alongside `IMAGE_TAG`, and it does not report
    success until `http://127.0.0.1:8080/heath` answers: a restart that leaves the unit failed is a
    failed deploy, not a quiet one.
 
