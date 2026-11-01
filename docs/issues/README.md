@@ -24,7 +24,6 @@ dashboard planning.
 | [ARCH-12](ARCH-12.md) | Medium | A template has no shorthand for writing a value |
 | [BUG-07](BUG-07.md) | Low | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
-| [BUG-12](BUG-12.md) | Low | Unused Roslyn Workspaces packages ship in the web app |
 | [BUG-14](BUG-14.md) | Low | A canonical redirect drops the query string |
 | [OPS-02](OPS-02.md) | Low | The health endpoint exists; it has no monitor or alerting behind it |
 | [OPS-03](OPS-03.md) | Medium | There is no CI pipeline |
@@ -35,7 +34,7 @@ dashboard planning.
 
 1. ARCH-03, SEC-03 — give page code a budget, then a boundary if it ever needs one.
 2. ARCH-06, ARCH-10, ARCH-07 — a page index, a way to delete a page, then revision history.
-3. OPS-03, BUG-12 — hygiene, so the next review starts from an accurate baseline.
+3. OPS-03 — hygiene, so the next review starts from an accurate baseline.
 4. ARCH-11, ARCH-12 — show the generated source in the editor, and give the template language its
    write shorthand.
 
@@ -69,3 +68,4 @@ Resolved since the review; the files were deleted and their history is in git.
 | BUG-05 | Compile diagnostics carry a `TemplatePosition` mapped from `#line` directives, so the editor shows the line and column the author typed. Generated-code errors with no mapped author error are compiler faults: they throw instead of becoming page diagnostics, and the host answers `500`. See [the plan](../plans/compiler-diagnostics.md) |
 | BUG-13 | `PageDiagnostic` carries severity, `CompileResult.Success` is derived from errors, and warning-only pages store an image, render, and report "Saved with warnings." Warnings are stored, carried through `PageCompilation` and styled separately in the editor |
 | STYLE-03 | `Token` and `TokenType` moved to their own files; `Token` is now a `readonly record struct` carrying a `TemplatePosition` |
+| BUG-12 | `Web` no longer references the Roslyn Workspaces packages, and the publish output loses `Microsoft.CodeAnalysis.Workspaces*` plus the MSBuild `BuildHost-*` folders. EF Core Design still pulls them in transitively, where their exact `Microsoft.CodeAnalysis.Common` dependency pins that package to 5.0.0 and conflicts with the 5.9.0 `Runtime` compiles against, so `Directory.Packages.props` enables central transitive pinning and pins both Workspaces packages to 5.9.0 |
