@@ -238,7 +238,7 @@ public sealed class PageServiceTests {
     [Test]
     public async Task APageThatOutrunsTheBudgetIsAbandonedAsync() {
         FakeStorage storage = new();
-        storage["/slow"] = new StoredPage(Key("/slow"), SlowPage);
+        await StoreCompiledAsync(storage, "/slow", SlowPage);
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageHealth health = new(options.AbandonedLimit);
         PageService pages = CreateService(storage, _compiler, options, new PageBudget(options, new CompileOptions()), health);
@@ -255,7 +255,7 @@ public sealed class PageServiceTests {
     [Test]
     public async Task AnAbandonedPageStopsWritingToTheResponseAsync() {
         FakeStorage storage = new();
-        storage["/chatty"] = new StoredPage(Key("/chatty"),
+        await StoreCompiledAsync(storage, "/chatty",
             "before<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(1200); while (System.DateTime.UtcNow < until) { } %>after");
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageService pages = CreateService(storage, _compiler, options);
@@ -274,7 +274,7 @@ public sealed class PageServiceTests {
     [Test]
     public async Task AnAbandonedPageIsReleasedFromTheHealthCountWhenItFinishesAsync() {
         FakeStorage storage = new();
-        storage["/slow"] = new StoredPage(Key("/slow"), SlowPage);
+        await StoreCompiledAsync(storage, "/slow", SlowPage);
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageHealth health = new(options.AbandonedLimit);
         PageService pages = CreateService(storage, _compiler, options, new PageBudget(options, new CompileOptions()), health);
@@ -288,6 +288,29 @@ public sealed class PageServiceTests {
         }
 
         Assert.That(health.Abandoned, Is.Zero);
+    }
+
+    [Test]
+    public async Task APageWhoseCompileOutlivesTheBudgetIsServedByTheNextRequestAsync() {
+        FakeStorage storage = new();
+        storage["/cold"] = new StoredPage(Key("/cold"), "Hello.");
+        RenderOptions options = new() { TimeoutSeconds = 1 };
+        PageHealth health = new(options.AbandonedLimit);
+        PageService pages = CreateService(storage, new SlowCompiler(_compiler), options,
+            new PageBudget(options, new CompileOptions()), health);
+
+        (RenderResult first, string firstOutput) = await RenderAsync(pages, "/cold");
+
+        Assert.That(first.Status, Is.EqualTo(RenderStatus.Timeout));
+        Assert.That(firstOutput, Is.Empty, "a page that has no budget left does not start");
+        Assert.That(health.Abandoned, Is.Zero, "nothing ran, so no thread was lost");
+        Assert.That(Stored(storage, "/cold").Compilation?.Image, Is.Not.Null,
+            "the compile outlived the answer, so its image has to be kept or the page can never be served");
+
+        (RenderResult second, string secondOutput) = await RenderAsync(pages, "/cold");
+
+        Assert.That(second.Status, Is.EqualTo(RenderStatus.Rendered));
+        Assert.That(secondOutput, Is.EqualTo("Hello."));
     }
 
     [Test]
@@ -310,6 +333,86 @@ public sealed class PageServiceTests {
     }
 
     [Test]
+    public async Task SaveReportsACompileThatOutranItsBudgetAsync() {
+        FakeStorage storage = new();
+        PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 1 });
+        PageService pages = CreateService(storage, new StallingCompiler(), new RenderOptions(), budget);
+
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/stalled"), "Hello.");
+
+        Assert.That(diagnostics, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, null, "PAGE004: the page took longer than 1 s to compile."),
+        }));
+        Assert.That(Stored(storage, "/stalled").Compilation?.Image, Is.Null);
+    }
+
+    [Test]
+    public async Task SaveReportsACompileThatWaitedPastItsBudgetForASlotAsync() {
+        FakeStorage storage = new();
+        PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 1 });
+        PageService pages = CreateService(storage, _compiler, new RenderOptions(), budget);
+
+        await budget.CompileSlots.WaitAsync();
+        try {
+            long start = Stopwatch.GetTimestamp();
+            IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/queued"), "Hello.");
+
+            Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(3)),
+                "the wait for a slot is bounded by the compile budget");
+            Assert.That(diagnostics, Is.EqualTo(new PageDiagnostic[] {
+                new(PageDiagnosticSeverity.Error, null,
+                    "PAGE003: the page waited longer than 1 s for a compile slot."),
+            }));
+        } finally {
+            budget.CompileSlots.Release();
+        }
+
+        Assert.That(_compiler.CompileCount, Is.Zero);
+        Assert.That(Stored(storage, "/queued").Compilation?.Image, Is.Null, "nothing compiled, so nothing ran");
+    }
+
+    [Test]
+    public async Task ARenderThatSpendsItsBudgetWaitingForACompileSlotTimesOutAsync() {
+        FakeStorage storage = new();
+        storage["/hello"] = new StoredPage(Key("/hello"), "Hello.");
+        RenderOptions options = new() { TimeoutSeconds = 1 };
+        PageBudget budget = new(options, new CompileOptions());
+        PageHealth health = new(options.AbandonedLimit);
+        PageService pages = CreateService(storage, _compiler, options, budget, health);
+
+        await budget.CompileSlots.WaitAsync();
+        try {
+            (RenderResult result, string output) = await RenderAsync(pages, "/hello");
+
+            Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
+            Assert.That(output, Is.Empty, "a page that never started wrote nothing");
+        } finally {
+            budget.CompileSlots.Release();
+        }
+
+        Assert.That(health.Abandoned, Is.Zero, "no thread was lost, so the site is not counted as unhealthy");
+    }
+
+    [Test]
+    public async Task ARenderThatSpendsItsBudgetOnTheReadTimesOutWithoutRunningThePageAsync() {
+        FakeStorage storage = new() { ReadDelay = TimeSpan.FromMilliseconds(1200) };
+        storage["/hello"] = new StoredPage(Key("/hello"), "Hello.");
+        RenderOptions options = new() { TimeoutSeconds = 1 };
+        PageHealth health = new(options.AbandonedLimit);
+        PageService pages = CreateService(storage, _compiler, options, new PageBudget(options, new CompileOptions()), health);
+
+        long start = Stopwatch.GetTimestamp();
+        (RenderResult result, string output) = await RenderAsync(pages, "/hello");
+
+        Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
+        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromMilliseconds(1200)),
+            "the answer comes when the budget is spent, not when the slow read finishes");
+        Assert.That(output, Is.Empty);
+        Assert.That(health.Abandoned, Is.Zero, "the page never ran, so no thread was lost");
+        Assert.That(_compiler.CompileCount, Is.Zero, "a read that ran out of budget is not followed by a compile");
+    }
+
+    [Test]
     public async Task APageThatWritesPastTheBodyCapFailsAsync() {
         FakeStorage storage = new();
         storage["/chatty"] = new StoredPage(Key("/chatty"), "0123456789");
@@ -323,6 +426,12 @@ public sealed class PageServiceTests {
 
     private PageService CreateService(FakeStorage storage) {
         return CreateService(storage, _compiler);
+    }
+
+    // The timeout tests measure the page, not the compiler: a page compiled on its first request
+    // spends part of a one-second budget on a cold Roslyn and would be dropped before it starts.
+    private async Task StoreCompiledAsync(FakeStorage storage, string path, string content) {
+        await CreateService(storage).SaveAsync(Key(path), content);
     }
 
     private PageService CreateService(
@@ -381,6 +490,39 @@ public sealed class PageServiceTests {
 
         public CompiledTemplate Load(byte[] image) {
             throw new NotSupportedException("A faulting compiler never produces an image.");
+        }
+    }
+
+    // A compile that outlasts a one-second render budget, which is what a cold Roslyn does on a small
+    // container: it finishes, so its image must be kept even though the answer was given up on.
+    private sealed class SlowCompiler(ITemplateCompiler inner) : ITemplateCompiler {
+
+        public string RuntimeId => inner.RuntimeId;
+
+        public CompileResult Compile(string source, CancellationToken cancellationToken = default) {
+            Thread.Sleep(TimeSpan.FromMilliseconds(1300));
+
+            return inner.Compile(source, cancellationToken);
+        }
+
+        public CompiledTemplate Load(byte[] image) {
+            return inner.Load(image);
+        }
+    }
+
+    // Roslyn honours the token between operations rather than inside one, so a compile that outruns
+    // its budget reports by cancelling. This one waits for the deadline the way Roslyn would.
+    private sealed class StallingCompiler : ITemplateCompiler {
+
+        public string RuntimeId => "stalling";
+
+        public CompileResult Compile(string source, CancellationToken cancellationToken = default) {
+            cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
+            throw new OperationCanceledException(cancellationToken);
+        }
+
+        public CompiledTemplate Load(byte[] image) {
+            throw new NotSupportedException("A stalling compiler never produces an image.");
         }
     }
 }

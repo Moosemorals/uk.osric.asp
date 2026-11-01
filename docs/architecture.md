@@ -43,6 +43,17 @@ error with no mapped position, and no mapped error explaining it, is a fault in 
 rethrows, and the host answers `500`. Warnings are author-facing only when they are mapped; a
 warning never stops a page compiling.
 
+Author-facing codes are handed out once and never reused for a different meaning, because the editor
+and the logs quote them:
+
+| Code | Raised by | Means |
+| --- | --- | --- |
+| `TEMPLATE001` | `TemplateTokenizer` | a `<%` has no matching `%>` |
+| `PAGE001` | `PageApiPolicy` | the page used an API it may not use |
+| `PAGE002` | `PageApiChecker` | page code escaped its method or declared types or members |
+| `PAGE003` | `PageService` | the page waited too long for a compile slot |
+| `PAGE004` | `PageService` | the page took too long to compile |
+
 ## Where does code go?
 
 | Kind of code | Home |
@@ -171,11 +182,19 @@ waits for it against one deadline that covers both queueing and running:
 - `Pages:Render:TimeoutSeconds` is the whole budget. When it expires the site answers `504`, calls
   `SimpleContext.Abandon` so the still-running page cannot write any more, and gives up on the thread.
   The abandoned thread is a known loss: it is counted, logged with the page's path and the elapsed
-  time, and recorded on `page.render.abandoned`.
+  time, and recorded on `page.render.abandoned`. A request that spends the budget before the page
+  starts — waiting on storage, or waiting for a compile slot — answers `504` the same way, but
+  nothing is abandoned because nothing ran.
 - Compiling has its own slot and deadline (`Pages:Compile:Slots`, `Pages:Compile:TimeoutSeconds`).
-  Roslyn observes a cancellation token between operations rather than inside one, so the deadline is a
-  coarse bound; a compile that trips it is stored as a `PAGE002` error so the editor shows it and the
-  page is not recompiled on every request.
+  Waiting for a slot is bounded by that deadline, because an unbounded wait would park a request
+  thread — and the render slot it already holds — behind the compiler. In a render the wait also ends
+  at the render's deadline, since nothing has been compiled yet and the next request can try again; on
+  a save it ends with a `PAGE003` error instead. Roslyn observes a cancellation token between
+  operations rather than inside one, so the deadline is a coarse bound, and a compile that trips it is
+  stored as a `PAGE004` error so the editor shows it and the page is not recompiled on every request.
+- A compile is *not* cancelled by the render's deadline. Throwing the work away would leave the page
+  unservable — every request would pay the same compile — so it finishes, stores its image, and the
+  request answers `504` without starting the page. The next request is served from the store.
 - `Pages:Render:MaxBodyChars` caps the buffered body, so a page that writes in a loop fails quickly
   instead of growing the process.
 

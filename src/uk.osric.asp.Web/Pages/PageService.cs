@@ -69,7 +69,7 @@ public sealed class PageService(
     /// it cannot be stopped, so the answer is given up on instead: the context is abandoned, the
     /// thread is counted against the site's health, and the response is a <see cref="RenderStatus.Timeout"/>.
     /// </remarks>
-    public async Task<RenderResult> RenderAsync(PagePath path, SimpleContext context, CancellationToken cancellationToken = default) {
+    internal async Task<RenderResult> RenderAsync(PagePath path, SimpleContext context, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(context);
 
         long start = Stopwatch.GetTimestamp();
@@ -97,7 +97,19 @@ public sealed class PageService(
             metrics.RecordWait(path, Stopwatch.GetElapsedTime(queueStart));
 
             try {
-                LoadedPage? loaded = await LoadAsync(path, cancellationToken);
+                LoadedPage? loaded;
+                try {
+                    loaded = await LoadAsync(path, deadline.Token, cancellationToken);
+                } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+                    // The read outlived the budget, so the page never ran and there is no thread to
+                    // give up on: the answer is the same 504 all the same.
+                    outcome = PageMetrics.RenderTimeout;
+                    logger.LogWarning("Page {Path} spent its {TimeoutSeconds} s budget before it ran and was dropped",
+                        path.Path, budget.RenderOptions.TimeoutSeconds);
+
+                    return RenderResult.TimedOut;
+                }
+
                 if (loaded is null) {
                     outcome = PageMetrics.RenderNotFound;
                     return RenderResult.NotFound;
@@ -124,11 +136,16 @@ public sealed class PageService(
         }
     }
 
-    private async Task<LoadedPage?> LoadAsync(PagePath path, CancellationToken cancellationToken) {
+    // The read is answered against the render's deadline, because the visitor is waiting for it. The
+    // compile and its store are not: cancelling one throws the work away and leaves the page
+    // unservable, so they are bounded by Pages:Compile:TimeoutSeconds and get to finish and be stored
+    // even when the answer has already been given up on. A page whose image arrives that late is not
+    // started at all - see RunAsync - so the next request is served from the store.
+    private async Task<LoadedPage?> LoadAsync(PagePath path, CancellationToken deadline, CancellationToken cancellationToken) {
         LoadedPage? fallback = null;
 
         for (int attempt = 1; attempt <= MaxCompileAttempts; attempt++) {
-            StoredPage? page = await storage.GetPageAsync(path, cancellationToken);
+            StoredPage? page = await storage.GetPageAsync(path, deadline);
             if (page is null) {
                 metrics.RecordCacheLookup(PageMetrics.LookupAbsent);
                 return null;
@@ -143,7 +160,7 @@ public sealed class PageService(
             metrics.RecordStaleness(path, StalenessReason(page.Compilation));
             metrics.RecordCacheLookup(PageMetrics.LookupStale);
 
-            PageCompilation compilation = Compile(path, page.Content, PageMetrics.ReasonLazy, cancellationToken);
+            PageCompilation compilation = Compile(path, page.Content, PageMetrics.ReasonLazy, cancellationToken, deadline);
             fallback = new LoadedPage(compilation, PageMetrics.CacheMiss);
 
             if (await storage.TrySetCompilationAsync(path, page.Content, compilation, cancellationToken)) {
@@ -172,10 +189,19 @@ public sealed class PageService(
             : PageMetrics.StaleRuntimeChanged;
     }
 
-    // The wait is blocking on purpose: compilation is synchronous, CPU-bound and short, and it is
-    // bounded by the deadline the holder is running against. Compiling on a pool thread while the
-    // request waits would hold the same thread for longer, with more moving parts.
-    private PageCompilation Compile(PagePath path, string content, string reason, CancellationToken cancellationToken) {
+    // One deadline covers queueing for a slot and compiling, the same way a render's budget covers
+    // queueing and running. An unbounded Wait would park a request thread - and the render slot it
+    // already holds - for as long as the compiler stays busy, with nothing to shed the request.
+    //
+    // A wait for a slot is abandoned at the render's deadline too when there is one: nothing has been
+    // compiled, so nothing is lost and the next request tries again. The compile itself is not: it is
+    // left to finish and store its image, because throwing the work away leaves the page unservable.
+    private PageCompilation Compile(
+        PagePath path,
+        string content,
+        string reason,
+        CancellationToken cancellationToken,
+        CancellationToken renderDeadline = default) {
         long start = Stopwatch.GetTimestamp();
         TemplateParseResult parse = TemplateSourceGenerator.GenerateTemplateSource(content);
 
@@ -184,34 +210,47 @@ public sealed class PageService(
         // recompiled on every request.
         CompileResult result;
         if (parse.Source is { } source) {
-            budget.CompileSlots.Wait();
+            using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deadline.CancelAfter(budget.CompileOptions.Timeout);
 
+            bool queued;
             try {
-                using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                deadline.CancelAfter(budget.CompileOptions.Timeout);
-
-                try {
-                    result = compiler.Compile(source, deadline.Token);
-                } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
-                    // Roslyn honours the token between operations, so this is a coarse bound: it is
-                    // stored like any other page error so the editor shows it and the page is not
-                    // recompiled on every request.
-                    result = new CompileResult(null, [
-                        new PageDiagnostic(PageDiagnosticSeverity.Error, null,
-                            $"PAGE002: the page took longer than {budget.CompileOptions.TimeoutSeconds} s to compile."),
-                    ]);
-                } catch (InvalidOperationException ex) {
-                    logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Path, Environment.NewLine, source);
-                    logger.LogError(ex, "The generated source for {Path} did not compile; this is a compiler fault", path.Path);
-                    metrics.RecordCompile(path, false, reason, Stopwatch.GetElapsedTime(start));
-                    throw;
-                }
-            } finally {
-                budget.CompileSlots.Release();
+                queued = budget.CompileSlots.Wait(Timeout.InfiniteTimeSpan, deadline.Token);
+            } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !renderDeadline.IsCancellationRequested) {
+                // This compile's own timeout, not the caller giving up: fall through and report it.
+                queued = false;
             }
 
-            if (!result.Success) {
-                logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Path, Environment.NewLine, source);
+            if (!queued) {
+                result = new CompileResult(null, [
+                    new PageDiagnostic(PageDiagnosticSeverity.Error, null,
+                        $"PAGE003: the page waited longer than {budget.CompileOptions.TimeoutSeconds} s for a compile slot."),
+                ]);
+            } else {
+                try {
+                    try {
+                        result = compiler.Compile(source, deadline.Token);
+                    } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+                        // Roslyn honours the token between operations, so this is a coarse bound: it is
+                        // stored like any other page error so the editor shows it and the page is not
+                        // recompiled on every request.
+                        result = new CompileResult(null, [
+                            new PageDiagnostic(PageDiagnosticSeverity.Error, null,
+                                $"PAGE004: the page took longer than {budget.CompileOptions.TimeoutSeconds} s to compile."),
+                        ]);
+                    } catch (InvalidOperationException ex) {
+                        logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Path, Environment.NewLine, source);
+                        logger.LogError(ex, "The generated source for {Path} did not compile; this is a compiler fault", path.Path);
+                        metrics.RecordCompile(path, false, reason, Stopwatch.GetElapsedTime(start));
+                        throw;
+                    }
+                } finally {
+                    budget.CompileSlots.Release();
+                }
+
+                if (!result.Success) {
+                    logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Path, Environment.NewLine, source);
+                }
             }
         } else {
             result = new CompileResult(null, parse.Errors);
@@ -243,6 +282,14 @@ public sealed class PageService(
         SimpleContext context,
         CancellationTokenSource deadline,
         CancellationToken cancellationToken) {
+
+        // A page that arrived compiled in time can still have spent the budget on the way here - a
+        // lazy compile is bounded by the compile options, not by the render's budget - and starting it
+        // now would race it against an already-cancelled delay and answer either way. The image is
+        // stored by then, so the next request renders it.
+        if (deadline.IsCancellationRequested) {
+            return RenderResult.TimedOut;
+        }
 
         long loadStart = Stopwatch.GetTimestamp();
         CompiledTemplate template = compiler.Load(image);

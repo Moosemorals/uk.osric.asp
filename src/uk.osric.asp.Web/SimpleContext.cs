@@ -19,7 +19,7 @@ using uk.osric.asp.Web.Pages;
 /// category format is operator-facing: changing it breaks configured filters and log queries.
 /// </para>
 /// </remarks>
-public sealed class SimpleContext : IContext {
+internal sealed class SimpleContext : IContext {
 
     // A page must not be able to clobber the shell's own cookies or framing. Everything that changes
     // the meaning of the body is reachable through a dedicated member instead.

@@ -138,7 +138,7 @@ public sealed class PageMetricsTests {
         using MetricCapture capture = MetricCapture.Start();
         using PageMetrics metrics = new();
         FakeStorage storage = new();
-        storage["/slow"] = new StoredPage(Key("/slow"), SlowPage);
+        await CreateService(storage).SaveAsync(Key("/slow"), SlowPage);
 
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageService pages = new(

@@ -24,6 +24,9 @@ internal sealed class FakeStorage : IStorage {
 
     public int CompilationWriteCount { get; private set; }
 
+    /// <summary>Spends time in every read, so a test can exhaust a render's budget before it runs.</summary>
+    public TimeSpan ReadDelay { get; init; }
+
     public PagePath? LastReadPath { get; private set; }
 
     public PagePath? LastWritePath { get; private set; }
@@ -35,13 +38,17 @@ internal sealed class FakeStorage : IStorage {
         set => _pages[PagePath.Normalize(path).Path] = value ?? throw new ArgumentNullException(nameof(value));
     }
 
-    public Task<StoredPage?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
+    public async Task<StoredPage?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
         Check(cancellationToken);
 
         ReadCount++;
         LastReadPath = path;
 
-        return Task.FromResult(_pages.GetValueOrDefault(path.Path));
+        if (ReadDelay > TimeSpan.Zero) {
+            await Task.Delay(ReadDelay, cancellationToken);
+        }
+
+        return _pages.GetValueOrDefault(path.Path);
     }
 
     public Task SavePageAsync(StoredPage page, CancellationToken cancellationToken = default) {

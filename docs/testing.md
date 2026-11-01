@@ -28,12 +28,12 @@ core stays pure and the shell stays thin.
   around the real one, so "a second request does not compile" is asserted rather than inferred.
   `PageScopeTests` lives here because it names the shell's own types to prove the trimmed reference
   set cannot resolve them.
-- **The execution budget** is tested in `Web.Tests` (`PageServiceTests` for the deadline, the queue,
-  the abandoned context and the body cap; `AbandonedRenderHealthCheckTests` for the health signal) and
-  once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the host on a one-second
-  budget and asserts `504`. A slow page there burns CPU against a wall clock rather than sleeping,
-  because the page API policy refuses `Thread.Sleep` and `Task.Delay`. Nothing asserts on the podman
-  restart: that belongs to the supervisor, not to `WebApplicationFactory`.
+- **The execution budget** is tested in `Web.Tests` (`PageServiceTests` for the deadline, the render
+  and compile queues, the abandoned context and the body cap; `AbandonedRenderHealthCheckTests` for
+  the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the
+  host on a one-second budget and asserts `504`. A slow page there burns CPU against a wall clock
+  rather than sleeping, because the page API policy refuses `Thread.Sleep` and `Task.Delay`. Nothing
+  asserts on the podman restart: that belongs to the supervisor, not to `WebApplicationFactory`.
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and
   content types set by middleware, static files falling through to the page route, startup
