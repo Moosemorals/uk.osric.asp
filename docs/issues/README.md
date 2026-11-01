@@ -15,8 +15,7 @@ dashboard planning.
 
 | ID | Severity | Problem |
 | --- | --- | --- |
-| [SEC-03](SEC-03.md) | Medium | Page code has no execution budget and no process boundary |
-| [ARCH-03](ARCH-03.md) | High | No execution timeout, cancellation or concurrency limit for page code |
+| [SEC-03](SEC-03.md) | Medium | Page code has no process boundary |
 | [ARCH-06](ARCH-06.md) | Medium | There is no way to list pages |
 | [ARCH-07](ARCH-07.md) | Medium | Page content has no history, so an edit cannot be undone |
 | [ARCH-10](ARCH-10.md) | Medium | A page cannot be deleted |
@@ -33,7 +32,7 @@ dashboard planning.
 
 ## Suggested order
 
-1. ARCH-03, then SEC-03 only if page authors ever stop being the owner.
+1. SEC-03, only if page authors ever stop being the owner.
 2. ARCH-06, ARCH-10, ARCH-07 — a page index, a way to delete a page, then revision history.
 3. OPS-03 — hygiene, so the next review starts from an accurate baseline.
 4. ARCH-11, ARCH-12 — show the generated source in the editor, and give the template language its
@@ -46,6 +45,7 @@ Resolved since the review; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| ARCH-03 | Renders have a deadline, a slot count and a body cap, compiles have their own slot and deadline, an abandoned render is logged and counted, and `/heath` reports it so podman restarts a wedged container. See [the plan](../plans/page-execution-budget.md). SEC-03 (the process boundary) is deliberately still open |
 | ARCH-02 | Pages are a restricted runtime: `IContext` carries a plain `PageRequest` snapshot and asks for `SetStatus`/`SetContentType`/`SetHeader`/`Redirect`, all applied after the buffered handler returns. `SimpleContext` is the only implementation, headers are allow-listed so a page cannot clobber the site's cookies, pages run only for `GET`/`POST`/`HEAD`, and a body over 1 MiB is refused. Documented in `docs/architecture.md` |
 | ARCH-04 | `CompiledTemplate.Invoke` unwraps the reflection wrapper with `ExceptionDispatchInfo`, so the shell sees the page's own exception and no longer knows about `TargetInvocationException`. The `NoInlining` attributes were removed with a note on what they would have been protecting |
 | ARCH-05 | `PagePath` normalises every key in `Core` (lowercase, NFC, no dot segments, no trailing slash), the shell redirects to the canonical URL with 308 and stores only canonical keys, and `Pages:ReservedPaths` keeps page keys off the site's own routes. Storage tests use canonical keys |

@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 # Page runtime hardening
 
 Implementation plan for ARCH-02, ARCH-04, ARCH-05 (all three closed by this work) and the
-page-code restrictions from the 2026-10-31 hardening discussion. [ARCH-03](../issues/ARCH-03.md)
+page-code restrictions from the 2026-10-31 hardening discussion. ARCH-03
 (no execution budget) stayed open afterwards; SEC-01 (the editor was unauthenticated) was closed by
 [editor authentication](editor-authentication.md).
 
@@ -40,7 +40,7 @@ a separate process with OS restrictions, which is out of scope here and recorded
   asserts the page frame is present in the stack trace so a future JIT change is visible.
 - **The execution budget (timeout, cancellation, kill) is out of scope.** `IContext.Aborted` is
   threaded through so cooperatively-cancelling pages work, but the timeout that would enforce it
-  lands with [ARCH-03](../issues/ARCH-03.md).
+  lands with ARCH-03.
 
 ## Status
 

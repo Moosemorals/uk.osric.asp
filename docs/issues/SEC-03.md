@@ -41,3 +41,17 @@ obvious ones. This issue exists so the residual risk is written down rather than
    `SIGKILL` on timeout. That is the only boundary that holds; everything in-process is a fence.
 4. Do not attempt a .NET sandbox. `AppDomain` isolation and CAS were removed, and a collectible
    `AssemblyLoadContext` is a lifetime mechanism, not a permission one.
+
+## Status
+
+Steps 1 and 2 are done by the [execution budget](../plans/page-execution-budget.md): a render has a
+deadline, a slot count, a body cap and a compile budget, and the container carries `--memory`,
+`--pids-limit` and `--cpus`. What a budget cannot do is reclaim a thread, so the safety net is the
+supervisor: `/heath` reports abandoned renders, podman probes it, and `HealthOnFailure=restart` turns a
+wedged process into a ~35 s restart instead of a permanent outage. That also bounds the
+`Environment.Exit` footgun, which used to need a human.
+
+Step 3 is deliberately not built, because page authors are still only the owner. The out-of-process
+alternatives were priced before being rejected — a supervised worker pool, and per-page NativeAOT
+binaries with `bwrap` — and their numbers are in
+[the spike record](../plans/aot-page-binary-spike.md). Re-read that before starting here.

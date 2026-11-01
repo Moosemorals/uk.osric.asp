@@ -85,7 +85,8 @@ Two rules keep the response safe:
   session cookie. Redirects go through `Redirect`; content type through `SetContentType`.
 
 Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
-over 1 MiB is refused with 413 before it is read. Keys the site's own routes answer for are listed
+over 1 MiB is refused with 413 before it is read. A page that outruns its execution budget is answered
+`504` with no body — see "Page execution budget" below. Keys the site's own routes answer for are listed
 in `Pages:ReservedPaths`, refused by the editor and never served.
 
 ## Authentication and the editor
@@ -155,8 +156,50 @@ through the default context. It throws rather than returning `null`, because `nu
 default context" — the exact escape the type exists to close.
 
 This is isolation from the site's internals, not a sandbox: a page still runs in-process with the
-site's identity and the whole base class library. Execution budget and a process boundary are
-[SEC-03](issues/SEC-03.md).
+site's identity and the whole base class library. The process boundary is [SEC-03](issues/SEC-03.md),
+and it is deliberately not built — see "Page execution budget" below for what stands in its place.
+
+## Page execution budget
+
+A page is arbitrary C#, and .NET cannot interrupt arbitrary C#: `Thread.Abort` does not exist. So the
+budget bounds the *response*, not the page. `PageService.RenderAsync` runs the handler on a worker and
+waits for it against one deadline that covers both queueing and running:
+
+- `Pages:Render:Slots` renders may run at once; further requests wait asynchronously, holding no
+  thread. A request that waits past the deadline is shed: it answers `504` immediately without ever
+  running the page.
+- `Pages:Render:TimeoutSeconds` is the whole budget. When it expires the site answers `504`, calls
+  `SimpleContext.Abandon` so the still-running page cannot write any more, and gives up on the thread.
+  The abandoned thread is a known loss: it is counted, logged with the page's path and the elapsed
+  time, and recorded on `page.render.abandoned`.
+- Compiling has its own slot and deadline (`Pages:Compile:Slots`, `Pages:Compile:TimeoutSeconds`).
+  Roslyn observes a cancellation token between operations rather than inside one, so the deadline is a
+  coarse bound; a compile that trips it is stored as a `PAGE002` error so the editor shows it and the
+  page is not recompiled on every request.
+- `Pages:Render:MaxBodyChars` caps the buffered body, so a page that writes in a loop fails quickly
+  instead of growing the process.
+
+The handler still runs in the site's process, and the `IContext` it writes to is unchanged, so a page
+can still mutate process-wide state; that is the residual SEC-03 records.
+
+## Health and restarts
+
+The budget cannot reclaim a lost thread, so the supervisor is the kill switch.
+
+`/heath` reports two checks: `storage`, and `pages`, which is unhealthy once
+`Pages:Render:AbandonedLimit` renders have been abandoned and are still running. A page that returns
+late decrements the count, so a one-off stall does not ask for a restart.
+
+The quadlet runs the same probe as podman's health check
+(`wget -q -O /dev/null -T 3 http://127.0.0.1:8080/heath`, every 10 s, three failures) with
+`HealthOnFailure=restart`, so a wedged process is restarted within about 35 s. That turns the two
+worst outcomes into a short outage instead of a permanent one: a page that loops forever against a
+thread pool, and a page that calls `Environment.Exit`. The container is also capped
+(`--memory=768m`, `--pids-limit=256`, `--cpus=1`), so a page that allocates without bound takes the
+container and not the host.
+
+`StartLimitBurst=3` in 60 s still applies: a page that wedges on every request restarts the container
+three times and then leaves the unit failed until it is reset and the page is fixed.
 
 ## Source storage
 
@@ -207,7 +250,9 @@ a loaded handler (`ITemplateCompiler`, `CompiledTemplate`); it never sees a page
 
 | Instrument | Type | Unit | Tags |
 | --- | --- | --- | --- |
-| `page.render.duration` | histogram | s | `page.path`, `outcome` (`ok`, `compile-error`, `error`, `not-found`), `cache` (`hit`, `miss`, `none`) |
+| `page.render.duration` | histogram | s | `page.path`, `outcome` (`ok`, `compile-error`, `error`, `not-found`, `timeout`), `cache` (`hit`, `miss`, `none`) |
+| `page.render.wait` | histogram | s | `page.path` — time spent waiting for a render slot |
+| `page.render.abandoned` | counter | — | `page.path` — renders given up on at the deadline |
 | `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`) |
 | `page.handler.load.duration` | histogram | s | `page.path` |
 | `page.handler.invoke.duration` | histogram | s | `page.path`, `outcome` |

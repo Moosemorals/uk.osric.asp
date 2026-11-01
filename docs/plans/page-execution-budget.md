@@ -5,9 +5,12 @@ SPDX-License-Identifier: MIT
 
 # Page execution budget
 
-Implementation plan for [ARCH-03](../issues/ARCH-03.md). [SEC-03](../issues/SEC-03.md) — the process
+Implementation plan for ARCH-03. [SEC-03](../issues/SEC-03.md) — the process
 boundary — is **not** part of this: pages keep running in the site's process, and the safety net for
 the cases a budget cannot handle is the supervisor restarting an unhealthy container.
+
+**Status:** implemented on 2026-11-01 — Phases 0 to 4; Phase 5 (the process boundary) is not built, by
+decision, and SEC-03 records what that leaves.
 
 An earlier draft proposed a supervised pool of render worker processes. It was dropped as more
 machinery than the problem deserves, and the per-page-binary alternative was measured and rejected

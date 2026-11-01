@@ -38,7 +38,7 @@ After this work:
 - **A restart does not log the owner out.** Data-protection keys (auth, antiforgery and session
   cookies) are persisted on a volume.
 
-Still out of scope: [SEC-03](../issues/SEC-03.md) and [ARCH-03](../issues/ARCH-03.md). An
+Still out of scope: [SEC-03](../issues/SEC-03.md) and ARCH-03. An
 authenticated page is still arbitrary C# in the site's process with no execution budget.
 Authentication removes the "anyone" threat; it does not shrink what the owner's own code can do.
 
