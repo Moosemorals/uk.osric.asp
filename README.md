@@ -107,5 +107,6 @@ the C# extension, which has a launch configuration in `.vscode/launch.json`.
 ## More detail
 
 - [Architecture](docs/architecture.md) — the core/shell split and where new code belongs.
+- [Decisions](docs/decisions.md) — the policy choices behind the site, and what each one replaced.
 - [Testing](docs/testing.md) — the four suites and what each one is allowed to prove.
 - [Deployment](deploy/README.md) — quadlets, Caddy, the storage volume and migrations.

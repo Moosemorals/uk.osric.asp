@@ -33,7 +33,7 @@ and applies them.
 
 ## First deployment
 
-1. Create the VM (Hetzner CX22, Debian 13) with the official CLI image — nothing is installed locally
+1. Create the VM (Hetzner CPX02, Debian 13) with the official CLI image — nothing is installed locally
    except podman. `--ssh-key` takes the *name* of a key registered in the Hetzner project, not a path
    to a local file, so register it first. `cloud-init.yaml` already lists the two keys `deploy` will
    accept (the ones on `lucy` and `Carrot`); edit that list if you deploy from another machine. The
@@ -50,7 +50,7 @@ and applies them.
    podman run --rm -e HCLOUD_TOKEN \
      -v "$PWD/deploy:/deploy:ro" \
      docker.io/hetznercloud/cli:latest \
-     server create --name uk.osric.asp --type cx22 --image debian-13 \
+     server create --name uk.osric.asp --type cpx02 --image debian-13 \
        --location fsn1 --ssh-key lucy \
        --user-data-from-file /deploy/cloud-init.yaml
    ```

@@ -13,7 +13,7 @@ assume Linux tooling, paths and scripts, with `/` separators.
 - `src/uk.osric.asp.Runtime` — template compiler and assembly loading; Roslyn, nothing web-facing.
 - `src/uk.osric.asp.Web` — imperative shell: endpoints, hosting, storage, configuration.
 - `test/` — one NUnit project per `src/` project, plus `Web.IntegrationTests` against the real host.
-- `docs/` — architecture and testing notes. `deploy/` — cloud-init, quadlets, Caddyfile.
+- `docs/` — architecture, decisions and testing notes. `deploy/` — cloud-init, quadlets, Caddyfile.
 
 Dependency direction is `Web` → `Runtime` → `Core`, plus `Web` → `Core`; keep `Core` reference-free.
 Build output goes to `artifacts/` (`UseArtifactsOutput`) — never reference or commit it. Shared
