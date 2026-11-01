@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.Users;
 using System.Security.Cryptography;
 
 /// <summary>Creates the value that revokes authentication cookies when an account changes.</summary>
-public static class SecurityStamp {
+internal static class SecurityStamp {
 
     /// <summary>Creates a new random stamp.</summary>
     public static string Create() {

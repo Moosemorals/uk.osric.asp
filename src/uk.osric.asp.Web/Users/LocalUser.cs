@@ -9,7 +9,7 @@ namespace uk.osric.asp.Web.Users;
 /// only as a hash produced by <see cref="IPasswordService"/>. The security stamp is rotated when the
 /// password changes, so existing long-term cookies stop validating.
 /// </remarks>
-public sealed class LocalUser {
+internal sealed class LocalUser {
 
     /// <summary>The normalised user name, which is the primary key.</summary>
     public required string UserName { get; init; }

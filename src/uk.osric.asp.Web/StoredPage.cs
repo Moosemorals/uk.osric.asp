@@ -12,4 +12,4 @@ using uk.osric.asp.Core;
 /// The stored compile result, or <see langword="null"/> when the page has never been compiled by
 /// this build. A page without one is compiled on its next request.
 /// </param>
-public sealed record StoredPage(PagePath Path, string Content, PageCompilation? Compilation = null);
+internal sealed record StoredPage(PagePath Path, string Content, PageCompilation? Compilation = null);

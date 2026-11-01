@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Storage.Migrations;
 
 using Microsoft.EntityFrameworkCore.Migrations;
 
-public partial class InitialStorage : Migration {
+internal partial class InitialStorage : Migration {
     protected override void Up(MigrationBuilder migrationBuilder) {
         migrationBuilder.CreateTable(
             name: "Files",

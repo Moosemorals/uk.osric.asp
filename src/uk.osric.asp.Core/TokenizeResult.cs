@@ -14,7 +14,7 @@ namespace uk.osric.asp.Core;
 /// a page that does not parse fail the same way as a page that does not compile: stored with its
 /// diagnostics, and shown to the author in the editor.
 /// </remarks>
-public sealed record TokenizeResult(IReadOnlyList<Token> Tokens, IReadOnlyList<PageDiagnostic> Errors) {
+internal sealed record TokenizeResult(IReadOnlyList<Token> Tokens, IReadOnlyList<PageDiagnostic> Errors) {
 
     /// <summary>Whether the whole template was tokenized.</summary>
     public bool Success => Errors.Count == 0;

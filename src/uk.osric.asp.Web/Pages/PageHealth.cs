@@ -10,7 +10,7 @@ namespace uk.osric.asp.Web.Pages;
 /// has, so the count is what makes it happen. A page may still finish after it was given up on, which
 /// is why the count can go down again.
 /// </remarks>
-public sealed class PageHealth(int abandonedLimit) {
+internal sealed class PageHealth(int abandonedLimit) {
 
     private int _abandoned;
 

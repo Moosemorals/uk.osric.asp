@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web;
 using uk.osric.asp.Core;
 
 /// <summary>Stores page sources and the compile result belonging to each one.</summary>
-public interface IStorage {
+internal interface IStorage {
 
     /// <summary>Reads a page and, when it has one, its stored compile result.</summary>
     /// <param name="path">The canonical key to read.</param>

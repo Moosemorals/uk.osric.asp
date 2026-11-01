@@ -17,8 +17,9 @@ using uk.osric.asp.Web.Storage;
 using uk.osric.asp.Web.Users;
 
 // Not static: WebApplicationFactory<Program> needs a type to name when it looks for the entry point.
+// Internal, like the rest of the shell; the integration tests reach it through InternalsVisibleTo.
 /// <summary>Imperative shell: wires the web host to the functional core.</summary>
-public class Program {
+internal class Program {
     public static async Task Main(string[] args) {
         bool isUserCommand = UserCommands.IsCommand(args);
         WebApplicationBuilder builder = WebApplication.CreateBuilder(

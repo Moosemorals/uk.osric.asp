@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Web;
 
-public static class Redirects {
+internal static class Redirects {
 
     // 308 rather than 301: both are permanent, but 308 keeps the method, so canonicalising a URL can
     // never turn a POST into a GET and silently drop a save. PathString escaping keeps non-ASCII keys,

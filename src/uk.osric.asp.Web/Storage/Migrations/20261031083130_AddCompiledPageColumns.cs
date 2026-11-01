@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Storage.Migrations;
 
 using Microsoft.EntityFrameworkCore.Migrations;
 
-public partial class AddCompiledPageColumns : Migration {
+internal partial class AddCompiledPageColumns : Migration {
     protected override void Up(MigrationBuilder migrationBuilder) {
         migrationBuilder.AddColumn<string>(
             name: "ContentHash",

@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web;
 using System.Net;
 using uk.osric.asp.Core;
 
-public static class Framework {
+internal static class Framework {
 
     public static string GetHeader(string title) =>
         $"""

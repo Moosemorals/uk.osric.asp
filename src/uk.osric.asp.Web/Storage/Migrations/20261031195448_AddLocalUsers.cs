@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using System;
 
 /// <inheritdoc />
-public partial class AddLocalUsers : Migration {
+internal partial class AddLocalUsers : Migration {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder) {
         migrationBuilder.CreateTable(

@@ -9,7 +9,7 @@ using System.Net;
 using uk.osric.asp.Core;
 using uk.osric.asp.Web.Pages;
 
-public sealed class EditorEndpoint {
+internal sealed class EditorEndpoint {
 
     internal const string MessageKey = "editor.message";
 

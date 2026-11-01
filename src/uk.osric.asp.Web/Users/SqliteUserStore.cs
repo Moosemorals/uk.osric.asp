@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>The SQLite-backed account store.</summary>
-public sealed class SqliteUserStore(StorageDbContext database) : IUserStore {
+internal sealed class SqliteUserStore(StorageDbContext database) : IUserStore {
 
     /// <inheritdoc/>
     public async Task<LocalUser?> FindAsync(string userName, CancellationToken cancellationToken = default) {

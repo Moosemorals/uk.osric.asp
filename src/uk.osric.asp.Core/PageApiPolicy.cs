@@ -79,10 +79,10 @@ public static class PageApiPolicy {
     }.ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>The namespaces in which every type is allowed.</summary>
-    public static IReadOnlySet<string> AllowedNamespaces => s_allowedNamespaces;
+    internal static IReadOnlySet<string> AllowedNamespaces => s_allowedNamespaces;
 
     /// <summary>The individual types that are allowed.</summary>
-    public static IReadOnlySet<string> AllowedTypes => s_allowedTypes;
+    internal static IReadOnlySet<string> AllowedTypes => s_allowedTypes;
 
     /// <summary>Reports every reference the policy does not allow.</summary>
     /// <param name="used">The APIs the page referenced, in the order they appear.</param>

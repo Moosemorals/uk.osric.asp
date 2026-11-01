@@ -7,4 +7,4 @@ namespace uk.osric.asp.Core;
 /// <param name="Type">Whether the token is text or code.</param>
 /// <param name="Value">The token's content, without its delimiters.</param>
 /// <param name="Position">Where the token starts, in template space.</param>
-public readonly record struct Token(TokenType Type, string Value, TemplatePosition Position);
+internal readonly record struct Token(TokenType Type, string Value, TemplatePosition Position);

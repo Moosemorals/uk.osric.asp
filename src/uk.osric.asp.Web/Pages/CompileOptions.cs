@@ -10,7 +10,7 @@ using Microsoft.Extensions.Configuration;
 /// Roslyn honours a cancellation token between operations rather than inside one, so the timeout is a
 /// coarse bound on a pathological template, not a hard one. The slot count is the part that holds.
 /// </remarks>
-public sealed record CompileOptions {
+internal sealed record CompileOptions {
 
     /// <summary>Compiles allowed to run at once when none is configured.</summary>
     public const int DefaultSlots = 1;

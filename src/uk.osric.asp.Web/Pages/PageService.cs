@@ -13,7 +13,7 @@ using uk.osric.asp.Runtime;
 /// content, or was built by another build is compiled on its next request and stored, so a page is
 /// never unrunnable just because it did not arrive through the editor.
 /// </remarks>
-public sealed class PageService(
+internal sealed class PageService(
     IStorage storage,
     ITemplateCompiler compiler,
     PageMetrics metrics,

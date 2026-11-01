@@ -74,6 +74,22 @@ do not hand that rule `IStorage`, a database context, a logger, or `HttpContext`
 `IContext` to a compiled handler; that is the deliberate seam between compiled page code and the
 host, and `SimpleContext` is its only implementation.
 
+## Visibility
+
+Nothing is `public` unless another product assembly needs it. `Core` exposes the page contract, the
+diagnostics and the pure helpers `Runtime` and `Web` call; `Runtime` exposes the compiler seam `Web`
+uses; everything else in both is `internal`. Every type in `Web` is `internal`, because it is the
+application assembly and its consumers are its own endpoints and the host.
+
+Test projects are the one deliberate exception: they reach internals through `InternalsVisibleTo`
+in the project file rather than by widening a type. A member that only a test uses stays `internal`
+too. `Program` is `internal` for the same reason; `WebApplicationFactory<Program>` only needs the
+type's assembly, and the integration tests see it through `InternalsVisibleTo`.
+
+EF Core generated migrations come back `public`: change the new `partial class ... : Migration` to
+`internal` to keep the rule. The designer and snapshot halves are already `internal` by default, and
+the EF tools discover internal migrations and an internal `StorageDbContext` without trouble.
+
 ## Page contract
 
 A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it

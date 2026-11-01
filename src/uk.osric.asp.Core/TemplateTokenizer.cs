@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Core;
 
 /// <summary>The template language: text, plus <c>&lt;% %&gt;</c> blocks of C#.</summary>
-public static class TemplateTokenizer {
+internal static class TemplateTokenizer {
 
     /// <summary>Splits a page template into its text and code tokens.</summary>
     /// <param name="input">The template as its author wrote it.</param>

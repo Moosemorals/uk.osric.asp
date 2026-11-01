@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
 
 /// <summary>The PBKDF2 password hasher shared by the login endpoint and the CLI.</summary>
-public sealed class PasswordService : IPasswordService {
+internal sealed class PasswordService : IPasswordService {
 
     private static readonly string DummyPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 

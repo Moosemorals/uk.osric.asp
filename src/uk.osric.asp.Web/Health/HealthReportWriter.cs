@@ -8,7 +8,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Text.Json;
 
 /// <summary>Renders a health report as the JSON body of the <c>/heath</c> response.</summary>
-public static class HealthReportWriter {
+internal static class HealthReportWriter {
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) {
         WriteIndented = true,

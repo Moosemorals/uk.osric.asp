@@ -12,7 +12,7 @@ using uk.osric.asp.Core;
 /// Recording is nearly free until something listens, so the instruments are always on. Instrument
 /// names and tag values are a contract for dashboards: change them deliberately.
 /// </remarks>
-public sealed class PageMetrics : IDisposable {
+internal sealed class PageMetrics : IDisposable {
 
     /// <summary>The meter every instrument belongs to.</summary>
     public const string MeterName = "uk.osric.asp";

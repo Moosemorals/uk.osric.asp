@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.Endpoints;
 using uk.osric.asp.Core;
 using uk.osric.asp.Web.Pages;
 
-public sealed class MainEndpoint() {
+internal sealed class MainEndpoint() {
 
     // The body is buffered, so a form post is read in full before the page runs; anything larger than
     // this is rejected rather than held in memory.

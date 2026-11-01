@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.Users;
 using Microsoft.AspNetCore.Identity;
 
 /// <summary>Hashes passwords and checks a candidate against a stored hash.</summary>
-public interface IPasswordService {
+internal interface IPasswordService {
 
     /// <summary>Hashes a password for an account.</summary>
     /// <param name="user">The account the hash belongs to.</param>

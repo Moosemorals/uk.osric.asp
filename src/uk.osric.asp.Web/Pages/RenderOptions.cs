@@ -11,7 +11,7 @@ using Microsoft.Extensions.Configuration;
 /// visitor is waiting either way. The defaults are sized against a page render of a few milliseconds,
 /// so the timeout can only fire on something pathological.
 /// </remarks>
-public sealed record RenderOptions {
+internal sealed record RenderOptions {
 
     /// <summary>The budget for one render, in seconds, when none is configured.</summary>
     public const int DefaultTimeoutSeconds = 5;

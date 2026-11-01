@@ -106,7 +106,7 @@ public abstract class IntegrationTest {
     }
 
     /// <summary>Reads a page straight from storage, bypassing routing and the editor.</summary>
-    protected async Task<StoredPage?> ReadPageAsync(string path) {
+    internal async Task<StoredPage?> ReadPageAsync(string path) {
         await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
         IStorage storage = scope.ServiceProvider.GetRequiredService<IStorage>();
         return await storage.GetPageAsync(PagePath.Normalize(path));

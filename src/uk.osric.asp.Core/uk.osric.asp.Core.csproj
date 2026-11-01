@@ -3,4 +3,12 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-<Project Sdk="Microsoft.NET.Sdk" />
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="uk.osric.asp.Core.Tests" />
+    <InternalsVisibleTo Include="uk.osric.asp.Runtime.Tests" />
+    <InternalsVisibleTo Include="uk.osric.asp.Web.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -8,7 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using uk.osric.asp.Core;
 
-public sealed class SqliteStorage(StorageDbContext database) : IStorage {
+internal sealed class SqliteStorage(StorageDbContext database) : IStorage {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new() {
         Converters = { new JsonStringEnumConverter() },

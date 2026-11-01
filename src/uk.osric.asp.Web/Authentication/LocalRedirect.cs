@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Authentication;
 
 /// <summary>Keeps a login redirect on this site.</summary>
-public static class LocalRedirect {
+internal static class LocalRedirect {
 
     /// <summary>Returns the requested local path, or the editor when it is not safe.</summary>
     /// <param name="returnUrl">The value the browser supplied.</param>

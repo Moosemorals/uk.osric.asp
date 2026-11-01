@@ -11,7 +11,7 @@ using uk.osric.asp.Core;
 /// The compiler's author-facing diagnostics when <paramref name="Status"/> is
 /// <see cref="RenderStatus.CompileFailed"/>; empty otherwise.
 /// </param>
-public sealed record RenderResult(RenderStatus Status, IReadOnlyList<PageDiagnostic> Diagnostics) {
+internal sealed record RenderResult(RenderStatus Status, IReadOnlyList<PageDiagnostic> Diagnostics) {
 
     /// <summary>No page is stored under the requested key.</summary>
     public static RenderResult NotFound { get; } = new(RenderStatus.NotFound, []);

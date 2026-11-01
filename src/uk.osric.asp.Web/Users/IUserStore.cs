@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Users;
 
 /// <summary>Stores the local accounts the CLI manages.</summary>
 /// <remarks>Every user name passed to this store is already normalised by <see cref="UserName.Normalize"/>.</remarks>
-public interface IUserStore {
+internal interface IUserStore {
 
     /// <summary>Finds an account by its normalised name.</summary>
     /// <param name="userName">The normalised name.</param>

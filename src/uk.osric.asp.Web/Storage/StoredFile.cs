@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Web.Storage;
 
-public sealed class StoredFile {
+internal sealed class StoredFile {
     public required string Path { get; init; }
 
     public required string Content { get; set; }

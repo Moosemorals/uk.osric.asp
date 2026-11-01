@@ -13,7 +13,7 @@ using uk.osric.asp.Web.Pages;
 /// restart the container. It deliberately does not guess at CPU or memory — those belong to the
 /// container's own limits.
 /// </remarks>
-public sealed class AbandonedRenderHealthCheck(PageHealth pages) : IHealthCheck {
+internal sealed class AbandonedRenderHealthCheck(PageHealth pages) : IHealthCheck {
 
     /// <inheritdoc/>
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default) {

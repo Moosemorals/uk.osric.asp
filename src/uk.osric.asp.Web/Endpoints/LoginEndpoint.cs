@@ -12,7 +12,7 @@ using System.Security.Claims;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Users;
 
-public static class LoginEndpoint {
+internal static class LoginEndpoint {
 
     private const string RememberMeField = "rememberMe";
 

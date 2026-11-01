@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Users;
 
 /// <summary>The rule applied when a password is set.</summary>
-public static class PasswordPolicy {
+internal static class PasswordPolicy {
 
     /// <summary>The shortest accepted password.</summary>
     public const int MinimumLength = 12;

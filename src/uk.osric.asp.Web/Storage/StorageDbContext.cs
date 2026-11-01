@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.Storage;
 using Microsoft.EntityFrameworkCore;
 using uk.osric.asp.Web.Users;
 
-public sealed class StorageDbContext(DbContextOptions<StorageDbContext> options) : DbContext(options) {
+internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> options) : DbContext(options) {
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
         modelBuilder.Entity<StoredFile>().ToTable("Files");
         modelBuilder.Entity<StoredFile>().HasKey(file => file.Path);

@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Core;
 
 /// <summary>What a <see cref="Token"/> contains.</summary>
-public enum TokenType {
+internal enum TokenType {
     Text,
     Code,
 }

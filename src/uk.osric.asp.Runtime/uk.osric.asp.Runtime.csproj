@@ -15,6 +15,7 @@ SPDX-License-Identifier: MIT
 
   <ItemGroup>
     <InternalsVisibleTo Include="uk.osric.asp.Runtime.Tests" />
+    <InternalsVisibleTo Include="uk.osric.asp.Web.Tests" />
   </ItemGroup>
 
 </Project>

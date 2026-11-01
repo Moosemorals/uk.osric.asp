@@ -8,7 +8,7 @@ namespace uk.osric.asp.Web.Pages;
 /// It is a singleton on purpose: a per-request semaphore would limit nothing. Waiting for a render
 /// slot is asynchronous, so a queued request holds no thread while it waits.
 /// </remarks>
-public sealed class PageBudget : IDisposable {
+internal sealed class PageBudget : IDisposable {
 
     /// <summary>Creates the limits from the configured options.</summary>
     /// <param name="render">The render limits.</param>

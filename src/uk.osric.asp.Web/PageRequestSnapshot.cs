@@ -7,7 +7,7 @@ using Microsoft.Extensions.Primitives;
 using uk.osric.asp.Core;
 
 /// <summary>Reads the live ASP.NET request once, into the plain values a page sees.</summary>
-public static class PageRequestSnapshot {
+internal static class PageRequestSnapshot {
 
     private static readonly IReadOnlyDictionary<string, string> Empty = new Dictionary<string, string>();
 

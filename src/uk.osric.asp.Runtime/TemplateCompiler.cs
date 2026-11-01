@@ -25,7 +25,7 @@ public sealed class TemplateCompiler : ITemplateCompiler {
     private static readonly MetadataReference[] s_metadataReferences = CreateMetadataReferences();
 
     /// <summary>Identifies the build and the page policy that produced a compiled image.</summary>
-    public static string RuntimeId { get; } =
+    internal static string RuntimeId { get; } =
         $"{FormatVersion}:{PolicyVersion}:{typeof(IHandler).Assembly.ManifestModule.ModuleVersionId:N}";
 
     string ITemplateCompiler.RuntimeId => RuntimeId;

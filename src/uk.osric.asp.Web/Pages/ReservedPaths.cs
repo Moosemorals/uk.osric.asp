@@ -17,7 +17,7 @@ using uk.osric.asp.Core;
 /// mistake cannot silently switch the check off.
 /// </para>
 /// </remarks>
-public sealed class ReservedPaths {
+internal sealed class ReservedPaths {
 
     /// <summary>The keys reserved when none are configured.</summary>
     public static IReadOnlyList<string> Default { get; } = ["/edit", "/site.css", "/favicon.ico", "/heath", "/login", "/logout"];

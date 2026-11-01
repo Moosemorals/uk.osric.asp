@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.Users;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>The account command that runs before the web host starts.</summary>
-public static class UserCommands {
+internal static class UserCommands {
 
     /// <summary>The command word that selects the account tool.</summary>
     public const string Name = "users";

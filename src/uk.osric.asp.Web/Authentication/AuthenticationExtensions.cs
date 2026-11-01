@@ -13,7 +13,7 @@ using System.Threading.RateLimiting;
 using uk.osric.asp.Web.Users;
 
 /// <summary>Registers the editor's local-account authentication and its protections.</summary>
-public static class AuthenticationExtensions {
+internal static class AuthenticationExtensions {
 
     // Routine use renews the ticket; a month without a visit means signing in again.
     private static readonly TimeSpan LongTermWindow = TimeSpan.FromDays(30);

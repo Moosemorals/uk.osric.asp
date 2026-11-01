@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Pages;
 
 /// <summary>What rendering a page did.</summary>
-public enum RenderStatus {
+internal enum RenderStatus {
 
     /// <summary>The page's handler ran; its output is in the request's context.</summary>
     Rendered,

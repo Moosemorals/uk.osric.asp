@@ -7,7 +7,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>Reports whether SQLite is reachable: a host that cannot read storage is not up.</summary>
-public sealed class StorageHealthCheck(IServiceScopeFactory scopeFactory) : IHealthCheck {
+internal sealed class StorageHealthCheck(IServiceScopeFactory scopeFactory) : IHealthCheck {
 
     /// <inheritdoc />
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default) {

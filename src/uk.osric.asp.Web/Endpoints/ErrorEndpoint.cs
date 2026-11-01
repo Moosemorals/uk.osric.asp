@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using System.Net;
 using uk.osric.asp.Core;
 
-public static class ErrorEndpoint {
+internal static class ErrorEndpoint {
 
     /// <summary>Writes the error page. Runs inside the exception handler's branch, not from routing.</summary>
     /// <param name="context">The failing request.</param>

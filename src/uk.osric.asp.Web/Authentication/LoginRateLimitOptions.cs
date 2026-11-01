@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Authentication;
 
 /// <summary>The fixed window applied to sign-in attempts.</summary>
-public sealed class LoginRateLimitOptions {
+internal sealed class LoginRateLimitOptions {
 
     /// <summary>Attempts allowed in one window.</summary>
     public int PermitLimit { get; set; } = 10;

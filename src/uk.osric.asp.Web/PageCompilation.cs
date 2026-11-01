@@ -13,7 +13,7 @@ using uk.osric.asp.Core;
 /// The compiler's author-facing diagnostics, errors and warnings, in template space; empty when the
 /// page compiled cleanly.
 /// </param>
-public sealed record PageCompilation(
+internal sealed record PageCompilation(
     string ContentHash,
     string RuntimeId,
     byte[]? Image,

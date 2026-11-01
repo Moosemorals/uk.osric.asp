@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Users;
 
 /// <summary>The pure rule for the key an account is stored under.</summary>
-public static class UserName {
+internal static class UserName {
 
     /// <summary>The longest accepted user name, after normalisation.</summary>
     public const int MaximumLength = 64;
