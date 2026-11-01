@@ -40,6 +40,10 @@ IMAGE_TAG ?= latest
 IMAGE_REF := $(REGISTRY)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 LOCAL_IMAGE := localhost/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
+# The commit the image is, so a pushed image names the tree that made it and a rollback has a target.
+GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null)
+IMAGE_SHA_REF := $(REGISTRY)/$(IMAGE_REPOSITORY):$(GIT_SHA)
+
 # Registry credentials. Podman writes logins to ${XDG_RUNTIME_DIR}/containers/auth.json by default,
 # which is lost on reboot, so the pull must use the persistent file. The remote path is absolute: an
 # unquoted ~ or $HOME here would be expanded by the local shell before ssh sees it.
@@ -84,7 +88,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image deploy format format-check license-check clean
+.PHONY: help build restore check ci drift-check audit hooks test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image deploy deploy-guard format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -93,6 +97,9 @@ help:
 	@printf '%s\n' \
 		'build              Build the solution when anything changed (default target).' \
 		'restore            Force a NuGet restore (build restores only when inputs change).' \
+		'check              Everything a push or a deploy must pass: formatting, licences, all suites.' \
+		'ci                 The same gate from a clean tree, and fail if the build dirties it.' \
+		'audit              Fail if any NuGet package is vulnerable or deprecated.' \
 		'test               Run every suite: core, runtime, web and integration (no browser required).' \
 		'test-core          Run the NUnit core tests only.' \
 		'test-runtime       Run the NUnit runtime tests only.' \
@@ -110,10 +117,11 @@ help:
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image into podman.' \
-		'deploy             Build, push to $(REGISTRY) and restart on HOST=deploy@server.' \
+		'deploy             Build, test, push to $(REGISTRY) and restart on HOST=deploy@server.' \
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
 		'license-check      Fail if the tree is not REUSE compliant (needs the reuse tool).' \
+		'hooks              Point git at .githooks, so a push runs the gate.' \
 		'clean              Delete the artifacts folder.' \
 		'help               Show this list.'
 
@@ -136,19 +144,45 @@ $(BUILD_STAMP): $(BUILD_INPUTS) $(RESTORE_STAMP)
 
 test: test-core test-runtime test-web test-integration
 
+# A suite that wedges should fail the gate rather than sit in it. NUnit's own timeout would not help
+# here: the budget tests burn a wall clock on purpose, so only a generous whole-run ceiling is safe.
+TEST_HANG_TIMEOUT ?= 5m
+TEST_ARGS := --blame-hang --blame-hang-timeout $(TEST_HANG_TIMEOUT)
+
+# The gate. Cheap checks first, so a formatting mistake fails in seconds rather than after the suites.
+# Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no
+# second definition of "green" to drift from this one. `publish` is here because Release is what
+# actually ships — a Release-only break should not wait for a deploy to be discovered.
+check: format-check license-check audit test publish
+
+# A clean tree in, a clean tree out. The stamps in artifacts/ make repeat runs cheap, which is also
+# how an input that was never committed can hide; this is the one target that starts from nothing.
+# It refuses a dirty tree because a build that rewrites a tracked file is indistinguishable from one
+# the author has not committed yet — commit or stash first, then run `make ci`.
+drift-check:
+	@test -z "$$(git status --porcelain)" || { echo "drift-check needs a clean tree: commit or stash first"; git status --short; exit 1; }
+	@$(MAKE) --no-print-directory build
+	@test -z "$$(git status --porcelain)" || { echo "the build wrote to the working tree; commit it or ignore it"; git status --short; exit 1; }
+
+# What a machine with nothing but this repository and the SDK runs. No workflow file, no service, no
+# secret: whatever eventually runs this is calling one target.
+ci: clean
+	@$(MAKE) --no-print-directory drift-check
+	@$(MAKE) --no-print-directory check
+
 test-core: build
-	$(DOTNET) test $(CORE_TESTS) -c $(CONFIGURATION) --no-build
+	$(DOTNET) test $(CORE_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
 
 test-runtime: build
-	$(DOTNET) test $(RUNTIME_TESTS) -c $(CONFIGURATION) --no-build
+	$(DOTNET) test $(RUNTIME_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
 
 test-web: build
-	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build
+	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
 
 # The host is real: routing, middleware order, exception handling and startup migrations. Slower
 # than the other suites, which is why it has its own target rather than living in the unit tests.
 test-integration: build
-	$(DOTNET) test $(INTEGRATION_TESTS) -c $(CONFIGURATION) --no-build
+	$(DOTNET) test $(INTEGRATION_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
 
 migration:
 	@test -n "$(strip $(NAME))" || { echo "usage: make migration NAME=MigrationName"; exit 1; }
@@ -227,12 +261,18 @@ image:
 # restarted rather than started, so a tag-only image change or a Caddyfile edit takes effect on a
 # redeploy. There is no enable step: quadlet units are transient, so systemctl refuses to enable
 # them, and the generator already applies each quadlet's [Install] section on daemon-reload.
-deploy: image
-	@test -n "$(HOST)" || { echo "usage: make deploy HOST=deploy@your.server"; exit 1; }
-	@if grep -qE '^[[:space:]]*(example\.com|admin@example\.com)' deploy/Caddyfile; then \
-		echo "deploy/Caddyfile still contains the example.com placeholder"; exit 1; fi
+#
+# The whole gate runs before the image is built, and therefore long before anything is pushed: a tag
+# that has been pulled by the server cannot be withdrawn, and a broken suite is cheaper to meet here
+# than on the running site. Do not run this target with -j; the order is the point.
+#
+# The image is tagged with its commit as well as IMAGE_TAG, so a rollback has a name to name and a
+# pushed image can be traced to the tree that made it.
+deploy: deploy-guard check image
 	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
+	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
+	podman push --authfile $(AUTHFILE) $(IMAGE_SHA_REF)
 	ssh $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_REF)
 	sed 's|^Image=.*|Image=$(IMAGE_REF)|' deploy/uk.osric.asp.container | ssh $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
 	ssh $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
@@ -242,6 +282,44 @@ deploy: image
 	ssh $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
 	ssh $(HOST) sudo systemctl daemon-reload
 	ssh $(HOST) sudo systemctl restart caddy.service
+	@echo "waiting for /heath"
+	@ssh $(HOST) 'i=0; until curl -fsS -o /dev/null http://127.0.0.1:8080/heath; do \
+		i=$$((i+1)); \
+		if [ $$i -ge 30 ]; then \
+			echo "the site is not healthy 60s after the restart: journalctl --user -u uk.osric.asp.service"; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done'
+	@echo "deployed $(IMAGE_TAG) as $(GIT_SHA)"
+
+# Everything the deploy destination insists on, checked before the gate rather than after it. An
+# image pushed from an uncommitted tree cannot be rebuilt from the commit its tag names, which is
+# also the only thing a rollback can rely on; ALLOW_DIRTY=1 is the deliberate exception.
+deploy-guard:
+	@test -n "$(strip $(HOST))" || { echo "usage: make deploy HOST=deploy@your.server"; exit 1; }
+	@test -n "$(strip $(GIT_SHA))" || { echo "not a git checkout: there is no commit to tag the image with"; exit 1; }
+	@if [ -z "$(strip $(ALLOW_DIRTY))" ] && [ -n "$$(git status --porcelain)" ]; then \
+		echo "uncommitted changes: commit them first, or pass ALLOW_DIRTY=1"; \
+		git status --short; exit 1; fi
+	@if grep -qE '^[[:space:]]*(example\.com|admin@example\.com)' deploy/Caddyfile; then \
+		echo "deploy/Caddyfile still contains the example.com placeholder"; exit 1; fi
+
+# Needs the network: the advisory data comes from the package feed, not from the lock file.
+# `dotnet list package` exits 0 whether or not it finds anything, so the wording is what is checked.
+audit:
+	@out=$$($(DOTNET) list $(SOLUTION) package --vulnerable --include-transitive); \
+	if printf '%s\n' "$$out" | grep -q 'has the following'; then \
+		printf '%s\n' "$$out"; echo "vulnerable packages: update or remove them"; exit 1; fi
+	@out=$$($(DOTNET) list $(SOLUTION) package --deprecated); \
+	if printf '%s\n' "$$out" | grep -q 'has the following'; then \
+		printf '%s\n' "$$out"; echo "deprecated packages: update or remove them"; exit 1; fi
+	@echo "no vulnerable or deprecated packages"
+
+# A hook is only worth having if it is installed; this is the install step, not the hook.
+hooks:
+	git config core.hooksPath .githooks
+	@echo "a push now runs make check; git push --no-verify skips it"
 
 format:
 	$(DOTNET) format $(SOLUTION)

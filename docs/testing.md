@@ -61,12 +61,26 @@ Every test is an NUnit test. Assert the behaviour, not the method, and keep one 
 ## Running them
 
 ```bash
+make check             # the gate: formatting, licences, package audit, all four suites, Release publish
+make ci                # the same from `make clean`, plus "the build wrote no tracked file"
 make test              # all four suites; no browser needed
 make test-core         # core tests only
 make test-runtime      # runtime tests only
 make test-web          # web tests only
 make test-integration  # the composed pipeline only, against a throwaway database
 ```
+
+## The gate
+
+There is no CI service in this repository: `make check` is the gate, and `.githooks/pre-push` (installed
+with `make hooks`) runs it on every push. `make deploy` runs it before the image is built, and `make ci`
+adds a clean tree at both ends — nothing left over from an earlier run may hide a missing input, and a
+build that rewrites a tracked file fails rather than being noticed weeks later (BUG-11).
+
+Warnings are errors (`Directory.Build.props`), so a project that builds locally will pass the gate;
+`make audit` fails on a vulnerable or deprecated NuGet package, and every suite runs under
+`--blame-hang-timeout 5m` so a wedged run fails instead of sitting there. The timeout is generous
+because the budget tests burn a wall clock deliberately.
 
 ## Parallelism
 

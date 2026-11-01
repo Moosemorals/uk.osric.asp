@@ -70,15 +70,26 @@ and applies them.
    make deploy HOST=deploy@<server-ip>
    ```
 
-   That builds and pushes the image, pulls it as `deploy`, installs the user quadlet, writes the
-   Caddyfile to `/etc/caddy/` with sudo, reloads the user manager, then installs the Caddy unit,
-   reloads systemd and restarts both services. Caddy obtains a certificate on first request, so the
-   site is reachable a few seconds later.
+   That runs the same gate as a commit (`make check`: formatting, licences, package audit, all four
+   suites and a Release publish), builds and pushes the image, pulls it as `deploy`, installs the
+   user quadlet, writes the Caddyfile to `/etc/caddy/` with sudo, reloads the user manager, then
+   installs the Caddy unit, reloads systemd and restarts both services. Caddy obtains a certificate
+   on first request, so the site is reachable a few seconds later.
+
+   The target refuses to run from a tree with uncommitted changes, because the image is tagged with
+   its commit and that tag is only meaningful if the commit is the tree (`ALLOW_DIRTY=1` overrides,
+   for a deliberate one-off). It pushes the commit tag alongside `IMAGE_TAG`, and it does not report
+   success until `http://127.0.0.1:8080/heath` answers: a restart that leaves the unit failed is a
+   failed deploy, not a quiet one.
 
 ## Day-to-day
 
-- **New code:** back up storage first, then `make deploy HOST=deploy@<server-ip>` (builds, pushes,
-  pulls, restarts).
+- **New code:** commit it, then back up storage, then `make deploy HOST=deploy@<server-ip>`
+  (guards, checks, builds, pushes, pulls, restarts, waits for `/heath`).
+- **The gate before a push:** `make hooks` once per clone points git at `.githooks`, and every
+  `git push` then runs `make check`. `make ci` is the slower version that starts from `make clean`
+  and fails if the build dirties the tree; run it before a release, or from any machine that is
+  asked to prove the tree. Neither needs a CI service, an account or a secret.
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
@@ -93,9 +104,11 @@ and applies them.
 - **Logs:** `ssh deploy@<server-ip> journalctl --user -u uk.osric.asp.service -f`
 - **Status:** `ssh deploy@<server-ip> systemctl --user status uk.osric.asp.service`
 - **Edge:** `ssh deploy@<server-ip> sudo systemctl status caddy`
-- **Rollback:** build the previous commit and deploy it again; images are replaced, not accumulated.
-  A previous image may not support the migrated schema; restore its matching backup with the app
-  stopped when necessary.
+- **Rollback:** every deploy also pushes the image under its commit (`registry.osric.uk/uk.osric.asp:<sha>`),
+  so a previous build has a name even after `latest` has moved: `podman pull` that tag on the host,
+  or point the quadlet's `Image=` at it and rerun the systemctl steps by hand. Rebuilding the commit
+  and deploying it again works too. A previous image may not support the migrated schema; restore
+  its matching backup with the app stopped when necessary.
 
 ## Resource limits and restarts
 

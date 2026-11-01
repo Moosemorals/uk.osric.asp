@@ -18,6 +18,17 @@ SPDX-License-Identifier: MIT
     <UseArtifactsOutput>true</UseArtifactsOutput>
     <IsPackable>false</IsPackable>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!--
+      A warning nobody reads is a failure nobody noticed. Treating warnings as errors here rather
+      than only in the gate keeps one build: what `make build` proves is what `make check` proves,
+      and the stamps in artifacts/ can never mean a stricter build than the one they recorded.
+    -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!--
+      Normalise source paths in the PDB so the same commit compiles to the same output wherever the
+      checkout happens to live: the machine that builds an image is not part of the image.
+    -->
+    <ContinuousIntegrationBuild Condition="'$(ContinuousIntegrationBuild)' == ''">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
 </Project>

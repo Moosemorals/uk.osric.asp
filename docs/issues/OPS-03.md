@@ -22,7 +22,7 @@ workflows at all. As a result:
 - A commit can break the build, the tests or the licence headers without any signal.
 - The Makefile is the only task runner, which is good, so CI can simply call it.
 
-## Fix outline
+## Original proposal (superseded)
 
 1. Add `.github/workflows/ci.yml` triggered on `push` and `pull_request` to `trunk`.
 2. Steps:
@@ -34,3 +34,40 @@ workflows at all. As a result:
    - optionally `make image` to prove the container build, once it is fast enough.
 3. Keep every step a Makefile target so local and CI runs are identical.
 4. Add branch protection requiring the workflow once it is green.
+
+## What the gate is now
+
+There are no pull requests here (see `CONTRIBUTING.md`), so a hosted runner would gate nothing:
+the only moment a commit can be stopped is before it leaves the machine that made it. The pipeline
+is therefore a set of Makefile targets, and nothing else — no workflow file, no account, no secret,
+no runner image to keep in step. Whatever eventually runs it, locally or on a rented machine, runs
+one command.
+
+| Target | What it proves |
+| --- | --- |
+| `make check` | `format-check`, `license-check`, `audit`, all four suites, and a Release `publish` |
+| `make ci` | the same, from `make clean`, and that the build wrote no tracked file (`drift-check`) |
+| `make audit` | no NuGet package is vulnerable or deprecated (needs the network) |
+| `make hooks` | `core.hooksPath=.githooks`, so `git push` runs `make check` |
+
+Supporting changes:
+
+- **Warnings are errors.** `Directory.Build.props` sets `TreatWarningsAsErrors` (plus
+  `ContinuousIntegrationBuild`), so the tree that builds cleanly locally is the tree that passes.
+  Putting it in the project file rather than the gate keeps one build: the stamps in `artifacts/`
+  can never record a laxer build than the check assumes.
+- **Release is proven, not assumed.** `publish` is part of `check`, so a Release-only break does
+  not wait for `make deploy` to find it.
+- **Hangs fail.** Every suite runs with `--blame-hang --blame-hang-timeout 5m` (`TEST_HANG_TIMEOUT`
+  to change it): the budget tests burn a wall clock on purpose, so a wedged run needs a ceiling.
+- **Deploy is gated and traceable.** `make deploy` runs `deploy-guard`, then `check`, then the
+  image: it refuses an uncommitted tree (an image that cannot be rebuilt from the commit its tag
+  names is a rollback waiting to fail; `ALLOW_DIRTY=1` is the deliberate exception), tags the
+  image with `GIT_SHA` as well as `IMAGE_TAG`, and curls `/heath` after the restart instead of
+  reporting success blindly.
+
+Still open: nothing runs on a machine that did not just build the tree, so a push made with
+`--no-verify`, or from a clone where `make hooks` was never run, is still unverified. The remedy is
+a self-hosted runner or a pre-receive hook on the remote; both would run `make ci` and need no
+change here. The rest of this file is kept as the original proposal.
+

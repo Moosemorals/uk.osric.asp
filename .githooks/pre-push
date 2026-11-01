@@ -1,0 +1,11 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+# Install with `make hooks`, which points core.hooksPath at this directory.
+#
+# There are no pull requests here, so nothing reviews a push after the fact: this is the only gate a
+# commit passes before it becomes the truth. It runs the same target CI would, so there is nothing
+# here to keep in step. `git push --no-verify` skips it, deliberately.
+
+exec make --no-print-directory check
