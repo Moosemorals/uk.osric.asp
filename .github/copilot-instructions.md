@@ -53,9 +53,11 @@ structures, caching or premature abstraction. Optimise only what a measurement s
 ## Deployment
 
 Detail is in `deploy/README.md`. The quadlets in `deploy/` are the source of truth for the server —
-edit them there, not on the host. The image is built by the SDK (no Dockerfile), runs rootless as the
-`deploy` user, and Caddy is the only rootful unit. Do not enable trimming: a trimmed ASP.NET Core
-host dies at startup.
+edit them there, not on the host. The image is built by podman from `deploy/Containerfile` around the
+publish output (the SDK never enters the image), runs rootless as the `deploy` user, and Caddy is the
+only rootful unit. Keep the build reproducible: pinned base digest, `--timestamp` from the commit,
+nothing in the image that records the time of the build. Do not enable trimming: a trimmed ASP.NET
+Core host dies at startup.
 
 ## C# style
 

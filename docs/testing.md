@@ -82,6 +82,11 @@ same commit does not repeat the run: the record is keyed by the full commit, wri
 tree, and kept out of `artifacts/` so `make clean` cannot erase it. A commit the gate has never seen
 gets the whole thing.
 
+`make ci` also runs `image-check`: two fresh publishes and two uncached builds of one commit must
+produce one image id, because a reproducible image is the only reason a commit tag can stand for the
+build the host is running. It needs podman and the pinned base image, which is why it lives in `ci`
+rather than in the hook.
+
 Warnings are errors (`Directory.Build.props`), so a project that builds locally will pass the gate;
 `make audit` fails on a vulnerable or deprecated NuGet package, and every suite runs under
 `--blame-hang-timeout 5m` so a wedged run fails instead of sitting there. The timeout is generous

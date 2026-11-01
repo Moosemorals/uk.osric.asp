@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+# The image is the publish output and nothing else: the SDK is not in it, and no build tool is. Build
+# it with `make image`, which publishes to artifacts/ first and passes that directory as the context
+# — so `COPY .` is exactly the files the app runs from.
+#
+# The base is pinned by digest. A tag would let the base move between two builds of one commit, which
+# is the one part of the image this repository does not control. `podman image inspect --format
+# '{{json .RepoDigests}}' mcr.microsoft.com/dotnet/aspnet:10.0-alpine` lists both digests for the
+# tag; the manifest list is the one below, because it is the digest that resolves for amd64 and
+# arm64 alike. Bump it deliberately, in its own commit.
+ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:254fe017495996d3abcc487ffacdcce2b73affb380d3af87af12c8dff41fe0b0
+FROM ${BASE_IMAGE}
+
+# The commit, for provenance. Everything here is fixed per commit; nothing in this file records the
+# time of the build, because that is what stops one commit producing one image.
+ARG GIT_COMMIT=unknown
+
+LABEL org.opencontainers.image.title="uk.osric.asp" \
+      org.opencontainers.image.source="https://github.com/Moosemorals/uk.osric.asp" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.licenses="MIT"
+
+# The base image already sets ASPNETCORE_HTTP_PORTS=8080, ASPNETCORE_ENVIRONMENT is the quadlet's
+# business, and the working directory and entry point are the ones the app is built to expect.
+WORKDIR /app
+COPY . /app
+
+# The base image ships this user as APP_UID; the quadlet runs as 1654:1654 for the same reason.
+USER 1654
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "/app/uk.osric.asp.Web.dll"]

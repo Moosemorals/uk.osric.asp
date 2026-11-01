@@ -94,7 +94,7 @@ are the things NuGet cannot give you, and a fresh machine has none of them.
 | make | Everything | The task runner; also uses `find`, `sed` and `printf` |
 | git | Getting the source | |
 | reuse | `make license-check` | `apt install reuse`, or `pipx install reuse` |
-| podman | `make image`, `make deploy` | The SDK hands the OCI image to it; there is no Dockerfile |
+| podman | `make image`, `make deploy` | Builds the OCI image from `deploy/Containerfile` |
 | ssh, scp | `make deploy` | Copies the image and the quadlets to the server |
 | systemd | `make deploy` | The app and Caddy run as quadlets, which are systemd units |
 

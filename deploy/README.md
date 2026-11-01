@@ -5,14 +5,23 @@ SPDX-License-Identifier: MIT
 
 # Deployment
 
-The app ships as an OCI image built by the SDK itself (`dotnet publish -t:PublishContainer`) and runs
-under **podman quadlets** on a single Debian 13 (trixie) VM. There is no Dockerfile and no Docker.
+The app ships as an OCI image built by podman from `deploy/Containerfile` and runs under **podman
+quadlets** on a single Debian 13 (trixie) VM. The image contains the publish output and nothing else:
+the SDK runs on the build machine, never in the image, and the build context is the published
+directory, so `COPY . /app` is exactly the files the app runs from.
+
+The build is reproducible. `podman build --timestamp` normalises the created time and every file
+mtime, the epoch is the commit's own timestamp, and the base image is pinned by digest, so two builds
+of one commit produce one image id — on the same buildah version, which is recorded in the image's
+`io.buildah.version` label. `make image-check` proves it by building twice and comparing, and it runs
+as part of `make ci`.
 
 The app runs **rootless** as the `deploy` user. **Caddy** is the only rootful unit: it owns 80/443,
 uses host networking, and proxies to the app's loopback port.
 
 ```
 deploy/
+  Containerfile             the image: the publish output on the pinned aspnet base
   cloud-init.yaml           one-shot host bootstrap (rootless podman, user, firewall, SSH)
   uk.osric.asp.container    user quadlet: the app, rootless, publishing 127.0.0.1:8080
   caddy.container           system quadlet: Caddy, host network, terminating TLS

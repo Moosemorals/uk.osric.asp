@@ -55,9 +55,19 @@ GATE_RECORD := $(shell git rev-parse --absolute-git-dir 2>/dev/null)/gate/$(GIT_
 AUTHFILE ?= $(HOME)/.config/containers/auth.json
 REMOTE_AUTHFILE ?= /home/deploy/.config/containers/auth.json
 
-CONTAINER_BASE_IMAGE := mcr.microsoft.com/dotnet/aspnet:10.0-alpine
+# The base is pinned by digest, here and in deploy/Containerfile: a tag would let the base move
+# between two builds of the same commit. `podman image inspect --format '{{json .RepoDigests}}'` lists
+# both digests for the tag, and the manifest list is the one that resolves for amd64 and arm64.
+CONTAINER_BASE_IMAGE ?= mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:254fe017495996d3abcc487ffacdcce2b73affb380d3af87af12c8dff41fe0b0
 # RID of the server. On an ARM (CAX) server: linux-musl-arm64.
 CONTAINER_RID ?= linux-musl-x64
+# The platform podman builds for, which has to agree with CONTAINER_RID: musl-arm64 is linux/arm64.
+CONTAINER_PLATFORM ?= linux/amd64
+# The two builds inside `image-check` must not share a layer cache.
+IMAGE_CHECK_FLAGS ?= --no-cache
+# The commit's own timestamp: fixed for a commit, meaningful in the image, and the reason two builds
+# of one commit produce one image. Override to reproduce a build whose commit history has moved.
+SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct 2>/dev/null)
 
 # Where `make deploy` sends the image and quadlets, and where the remote-* targets run.
 HOST ?=
@@ -93,7 +103,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci gate-record drift-check audit hooks test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image deploy deploy-guard deploy-gate deploy-image format format-check license-check clean
+.PHONY: help build restore check ci gate-record drift-check audit hooks test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard deploy-gate deploy-image format format-check license-check clean
 .DELETE_ON_ERROR:
 
 # ---- Targets -------------------------------------------------------------------------------------
@@ -121,7 +131,8 @@ help:
 		'remote-user-remove Same as user-remove, in the container on HOST=...' \
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
-		'image              Build the container image into podman.' \
+		'image              Build the container image with podman; the Containerfile is in deploy/.' \
+		'image-check        Build it twice and fail if the two builds are not the same image.' \
 		'deploy             Build and push when changed, restart on HOST=deploy@server.' \
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
@@ -176,12 +187,14 @@ drift-check:
 	@$(MAKE) --no-print-directory build
 	@test -z "$$(git status --porcelain)" || { echo "the build wrote to the working tree; commit it or ignore it"; git status --short; exit 1; }
 
-# What a machine with nothing but this repository and the SDK runs. No workflow file, no service, no
-# secret: whatever eventually runs this is calling one target. `check` records the commit it proved
-# (see there); this adds the clean tree at both ends, which is what `check` alone cannot prove.
+# What a machine with nothing but this repository, the SDK, reuse and podman runs. No workflow file,
+# no service, no secret: whatever eventually runs this is calling one target. `check` records the
+# commit it proved (see there); this adds the clean tree at both ends and the reproducibility proof,
+# which are the two things `check` alone cannot say.
 ci: clean
 	@$(MAKE) --no-print-directory drift-check
 	@$(MAKE) --no-print-directory check
+	@$(MAKE) --no-print-directory image-check
 
 # The only writer of the record. Deliberately callable on its own so nothing else invents the format,
 # and deliberately refusing a dirty tree: a gate run from a tree nobody committed proves nothing
@@ -272,15 +285,45 @@ run:
 publish:
 	$(DOTNET) publish $(WEB_PROJECT) -c Release
 
-# One line on purpose: `deploy-image` splices this into a shell block, and a multi-line variable
-# would end the block and turn the rest into separate recipes. It is also why `deploy` never calls
-# `$(MAKE)`: a recursive call makes `make -n` execute, and a deploy target that runs when asked to
-# print is a trap.
-IMAGE_COMMAND = $(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) -p:ContainerBaseImage=$(CONTAINER_BASE_IMAGE) -t:PublishContainer -p:ContainerImageTags=$(IMAGE_TAG)
+# The publish output the Containerfile packs: UseArtifactsOutput puts a RID-specific publish beside
+# the plain one, so `make publish` and the image do not overwrite each other.
+IMAGE_PUBLISH_DIR := $(ARTIFACTS)/publish/uk.osric.asp.Web/release_$(CONTAINER_RID)
 
-# The SDK builds the OCI image itself and hands it to podman; there is no Dockerfile.
+# One line on purpose: `deploy-image` splices this into a shell block, and a multi-line variable would
+# end the block and turn the rest into separate recipes. Splicing also keeps `make -n` honest, because
+# a recipe line containing `$(MAKE)` runs even when asked to print.
+#
+# --timestamp is what makes the build reproducible: without it the config's created time and every
+# file mtime in the layer are "now", so two builds of one commit are two different images. The value
+# is the commit's own timestamp, so the image says when its source was written and says it the same
+# way every time. $(1) is the tag; $(2) carries extra flags, which is how `image-check` forces a real
+# build instead of comparing a cache with itself.
+image_command = $(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) && podman build $(2) --timestamp $(SOURCE_DATE_EPOCH) --platform $(CONTAINER_PLATFORM) --build-arg BASE_IMAGE=$(CONTAINER_BASE_IMAGE) --build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(1) -f deploy/Containerfile $(IMAGE_PUBLISH_DIR)
+
+# podman packs the publish output; the SDK is not in the image at all.
 image:
-	$(IMAGE_COMMAND)
+	$(call image_command,$(LOCAL_IMAGE))
+
+# Reproducibility is a property that regresses silently, so it is a target: two fresh publishes and
+# two uncached builds of one commit have to produce one image id. The publish directory is deleted
+# between the builds, because an incremental publish leaves the files it already has and their
+# mtimes alone — which would let the check compare one set of timestamps with itself.
+image-check:
+	@rm -rf $(IMAGE_PUBLISH_DIR)
+	@$(call image_command,localhost/$(IMAGE_REPOSITORY):reproducible-1,$(IMAGE_CHECK_FLAGS))
+	@rm -rf $(IMAGE_PUBLISH_DIR)
+	@$(call image_command,localhost/$(IMAGE_REPOSITORY):reproducible-2,$(IMAGE_CHECK_FLAGS))
+	@a=$$(podman image inspect --format '{{.Id}}' localhost/$(IMAGE_REPOSITORY):reproducible-1); \
+	b=$$(podman image inspect --format '{{.Id}}' localhost/$(IMAGE_REPOSITORY):reproducible-2); \
+	podman rmi localhost/$(IMAGE_REPOSITORY):reproducible-1 localhost/$(IMAGE_REPOSITORY):reproducible-2 >/dev/null; \
+	if [ "$$a" != "$$b" ]; then \
+		echo "the image is not reproducible:"; \
+		echo "  build 1: $$a"; \
+		echo "  build 2: $$b"; \
+		echo "look for a file mtime or a base tag that moves between builds"; \
+		exit 1; \
+	fi; \
+	echo "reproducible: $$a"
 
 # Pushes the image, installs the quadlets (the source of truth), and restarts. The app runs rootless
 # as HOST's user; Caddy is the only rootful unit and is installed with sudo. The quadlet's Image= line
@@ -331,7 +374,7 @@ deploy-image:
 		echo "image: $(HOST) already runs $(GIT_SHA); not building, pushing or pulling"; \
 	else \
 		echo "image: $(HOST) runs $${live:-nothing}, deploying $(GIT_SHA)"; \
-		$(IMAGE_COMMAND) || exit 1; \
+		$(call image_command,$(LOCAL_IMAGE)) || exit 1; \
 		podman tag $(LOCAL_IMAGE) $(IMAGE_REF) || exit 1; \
 		podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF) || exit 1; \
 		podman push --authfile $(AUTHFILE) $(IMAGE_REF) || exit 1; \

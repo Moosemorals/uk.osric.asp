@@ -46,7 +46,7 @@ one command.
 | Target | What it proves |
 | --- | --- |
 | `make check` | `format-check`, `license-check`, `audit`, all four suites, and a Release `publish`; records the commit when the tree is clean |
-| `make ci` | the same, from `make clean`, and that the build wrote no tracked file (`drift-check`) |
+| `make ci` | the same, from `make clean`, that the build wrote no tracked file (`drift-check`), and that two image builds agree (`image-check`) |
 | `make audit` | no NuGet package is vulnerable or deprecated (needs the network) |
 | `make hooks` | `core.hooksPath=.githooks`, so `git push` runs `make check` |
 
