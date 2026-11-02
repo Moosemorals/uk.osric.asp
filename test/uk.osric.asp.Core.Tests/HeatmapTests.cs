@@ -63,7 +63,7 @@ public sealed class HeatmapTests {
     public void OneCellIsDrawnPerNonEmptySample() {
         string svg = Heatmap.Render([Row("0.1", 1, 0, (double?)null), Row("0.5", 2, 3, 4)], TimeAxis, Size, "Duration", "seconds");
 
-        Assert.That(Count(svg, "<rect"), Is.EqualTo(4));
+        Assert.That(Cells(svg), Is.EqualTo(4), "one title per cell, and none for the legend");
         Assert.That(svg, Does.Contain("<title>Duration</title>"));
     }
 
@@ -72,7 +72,7 @@ public sealed class HeatmapTests {
         string svg = Heatmap.Render([Row("0.1", 1, 100)], TimeAxis, Size, "Duration", "seconds");
 
         Assert.That(svg, Does.Contain("heat heat-5"));
-        Assert.That(Count(svg, "heat heat-5"), Is.EqualTo(1));
+        Assert.That(Count(svg, "heat heat-5\""), Is.EqualTo(1), "the darkest cell; the legend swatch comes later");
     }
 
     [Test]
@@ -83,6 +83,22 @@ public sealed class HeatmapTests {
         double largest = LabelTop(svg, "+Inf");
 
         Assert.That(smallest, Is.GreaterThan(largest), "y grows downwards, so the smallest bucket has the larger y");
+    }
+
+    [Test]
+    public void EveryCellNamesItsValueOnHover() {
+        string svg = Heatmap.Render([Row("0.5", 3)], TimeAxis, Size, "Duration", "seconds");
+
+        Assert.That(svg, Does.Contain("<title>0.5 seconds: 3</title>"));
+    }
+
+    [Test]
+    public void TheLegendSpansZeroToTheBusiestCell() {
+        string svg = Heatmap.Render([Row("0.5", 3, 12)], TimeAxis, Size, "Duration", "seconds");
+
+        Assert.That(svg, Does.Contain(">0</text>"));
+        Assert.That(svg, Does.Contain(">12</text>"));
+        Assert.That(Count(svg, "legend"), Is.GreaterThanOrEqualTo(5));
     }
 
     [Test]
@@ -97,7 +113,7 @@ public sealed class HeatmapTests {
     public void AnEmptyHeatmapDrawsNoCells() {
         string svg = Heatmap.Render([], TimeAxis, Size, "Duration", "seconds");
 
-        Assert.That(Count(svg, "<rect"), Is.EqualTo(0));
+        Assert.That(Cells(svg), Is.EqualTo(0));
         Assert.That(svg, Does.Contain("<svg class=\"heatmap\""));
     }
 
@@ -113,6 +129,9 @@ public sealed class HeatmapTests {
 
     private static string Values(HeatmapRow row) =>
         string.Join(' ', row.Points.Select(point => point.Value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "null"));
+
+    // Every cell and the chart itself carry a title; the chart's is the first.
+    private static int Cells(string svg) => Count(svg, "</title>") - 1;
 
     private static int Count(string text, string value) =>
         text.Split(value, StringSplitOptions.None).Length - 1;

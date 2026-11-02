@@ -11,7 +11,7 @@ are our own SVG drawn from pure functions in `Core`. Metrics only — no traces,
 
 ## Status
 
-Implemented on 2026-11-02. Test counts at the time: 149 core, 38 runtime, 301 web and 53 integration
+Implemented on 2026-11-02. Test counts at the time: 151 core, 38 runtime, 301 web and 53 integration
 tests (baseline before the work: 110 / 38 / 275 / 48). Built as written, with two deviations: the
 abandoned-render rate sits on the render-rate panel rather than the slot-wait one, so each chart has
 one unit; and Prometheus' retention flags are `Exec=` arguments rather than `PodmanArgs=`, because they
@@ -325,9 +325,10 @@ Parsing rules, each with a test over a recorded body:
 - Label names are Prometheus' own: the exporter writes the tag `page.path` as `page_path`, and both
   the queries and the legend use that spelling. A dotted name is a parse error, not an empty panel.
 
-`/status` queries five panels, plus the heatmap Phase 5 adds, in this order: requests by page (top n
-over `page_path`), render rate by outcome (including `timeout`) with abandoned renders as a rate on
-the same axis, render duration p50/p95, slot wait p50/p95, and cache lookups by `result`. Abandoned
+`/status` queries six panels, plus the heatmap Phase 5 adds, in this order: requests by page (top n
+over `page_path`), pages slower than half a second (total render rate minus the rate that finished
+inside the bucket, per page), render rate by outcome (including `timeout`) with abandoned renders as a
+rate on the same axis, render duration p50/p95, slot wait p50/p95, and cache lookups by `result`. Abandoned
 renders are a rate per second rather than a count per minute so each chart keeps one unit. A
 percentile query returns one anonymous series, so the panel names each line `p50`/`p95` itself, and
 every chart draws its unit up the vertical axis rather than leaving it in the description. A duration
@@ -381,7 +382,8 @@ question the last section records.
 cell rate, drawn as SVG `<rect>`s. `Core` gains `Heatmap.FromCumulative` (the per-bucket difference,
 clamped at zero so a counter reset is not a negative count) and `Heatmap.Render`, with the same rules:
 pure, deterministic, escaping, no JavaScript. Rows are drawn smallest at the bottom with `+Inf` along
-the top, which is how a latency heatmap is read. The heatmap is the sixth panel on `/status`, and this
+the top, which is how a latency heatmap is read; a legend runs from zero to the busiest cell and each
+cell carries its value in a `<title>`, so hovering answers what a shade means. The heatmap is the sixth panel on `/status`, and this
 is where the Phase 1 boundaries earn their keep.
 
 ### Phase 6 — documentation and bookkeeping

@@ -43,6 +43,7 @@ public sealed class MetricsDashboardTests {
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
         Assert.That(page.Panels[0].Title, Is.EqualTo("Requests by page"));
+        Assert.That(page.Panels[1].Title, Is.EqualTo("Pages slower than 0.5 s"));
     }
 
     [Test]
@@ -91,7 +92,7 @@ public sealed class MetricsDashboardTests {
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
         Assert.That(page.Banner, Is.Null);
-        Assert.That(page.Panels, Has.Count.EqualTo(6));
+        Assert.That(page.Panels, Has.Count.EqualTo(7));
         Assert.That(page.Panels.Select(panel => panel.Svg), Is.All.Not.Null);
         Assert.That(page.Panels[0].Svg, Does.Contain("<svg class=\"chart\""));
         Assert.That(page.Panels[^1].Title, Is.EqualTo("Render duration buckets"));
@@ -125,7 +126,7 @@ public sealed class MetricsDashboardTests {
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
         Assert.That(page.Banner, Is.EqualTo("cache query failed"));
-        Assert.That(page.Panels, Has.Count.EqualTo(5));
+        Assert.That(page.Panels, Has.Count.EqualTo(6));
         Assert.That(page.Panels.Any(panel => panel.Title == "Cache lookups by result"), Is.False);
     }
 
@@ -139,7 +140,7 @@ public sealed class MetricsDashboardTests {
 
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
-        Assert.That(page.Panels, Has.Count.EqualTo(6));
+        Assert.That(page.Panels, Has.Count.EqualTo(7));
         Assert.That(page.Panels.Select(panel => panel.Svg), Is.All.Null);
     }
 

@@ -20,6 +20,10 @@ public static class Heatmap {
     private const double BottomMargin = 20;
     private const int Levels = 5;
     private const double CellGap = 0.5;
+    private const double LegendHeight = 24;
+    private const double SwatchWidth = 14;
+    private const double SwatchHeight = 10;
+    private const double SwatchGap = 2;
 
     /// <summary>Converts cumulative series into per-bucket values.</summary>
     /// <param name="cumulative">The <c>le</c> series, in any order.</param>
@@ -71,7 +75,7 @@ public static class Heatmap {
         ArgumentNullException.ThrowIfNull(yTitle);
 
         double plotWidth = size.Width - LeftMargin - RightMargin;
-        double plotHeight = size.Height - TopMargin - BottomMargin;
+        double plotHeight = size.Height - TopMargin - BottomMargin - LegendHeight;
         if (plotWidth <= 0 || plotHeight <= 0) {
             throw new ArgumentOutOfRangeException(nameof(size), size, "The heatmap is too small for its labels.");
         }
@@ -114,20 +118,51 @@ public static class Heatmap {
                     .Append("\" y=\"").Append(Number(top + CellGap))
                     .Append("\" width=\"").Append(Number(cellWidth - (CellGap * 2)))
                     .Append("\" height=\"").Append(Number(cellHeight - (CellGap * 2)))
-                    .Append("\"/>\n");
+                    .Append("\"><title>").Append(SvgText.Escape($"{line.Label} {yTitle}: {Format(value)}"))
+                    .Append("</title></rect>\n");
             }
         }
 
         foreach (ChartTick tick in x.Ticks.OrderBy(tick => tick.Position)) {
             double at = LeftMargin + ((tick.Position / span) * plotWidth);
             svg.Append("<text class=\"chart-label\" x=\"").Append(Number(at))
-                .Append("\" y=\"").Append(Number(size.Height - 6))
+                .Append("\" y=\"").Append(Number(TopMargin + plotHeight + 14))
                 .Append("\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label)).Append("</text>\n");
         }
 
+        WriteLegend(svg, size, max);
         svg.Append("</svg>\n");
         return svg.ToString();
     }
+
+    // The shades are a log scale, so the legend gives the two ends of the range and each cell names
+    // its own value on hover; five printed ranges would be more precise than the colours are.
+    private static void WriteLegend(StringBuilder svg, ChartSize size, double max) {
+        double top = size.Height - LegendHeight + 4;
+        double left = LeftMargin;
+
+        svg.Append("<text class=\"chart-label\" x=\"").Append(Number(left))
+            .Append("\" y=\"").Append(Number(top + SwatchHeight))
+            .Append("\" text-anchor=\"start\">0</text>\n");
+
+        left += 12;
+        for (int level = 1; level <= Levels; level++) {
+            svg.Append("<rect class=\"heat heat-").Append(level).Append(" legend\" x=\"").Append(Number(left))
+                .Append("\" y=\"").Append(Number(top))
+                .Append("\" width=\"").Append(Number(SwatchWidth))
+                .Append("\" height=\"").Append(Number(SwatchHeight)).Append("\"/>\n");
+            left += SwatchWidth + SwatchGap;
+        }
+
+        svg.Append("<text class=\"chart-label\" x=\"").Append(Number(left + 2))
+            .Append("\" y=\"").Append(Number(top + SwatchHeight))
+            .Append("\" text-anchor=\"start\">").Append(Format(max)).Append("</text>\n");
+    }
+
+    private static string Format(double value) =>
+        value < 1
+            ? value.ToString("0.####", CultureInfo.InvariantCulture)
+            : value.ToString("0.##", CultureInfo.InvariantCulture);
 
     private static DateTimeOffset Earliest(IReadOnlyList<HeatmapRow> rows) {
         DateTimeOffset earliest = default;

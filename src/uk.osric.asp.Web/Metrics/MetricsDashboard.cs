@@ -32,6 +32,11 @@ internal sealed class MetricsDashboard {
         new("Requests by page", "per second", IsDuration: false, [
             new("topk(5, sum by (page_path) (rate(page_render_duration_seconds_count[5m])))", "requests"),
         ]),
+        // Attribution for the heatmap's rare slow rows: total render rate minus the rate that
+        // finished within half a second, per page.
+        new("Pages slower than 0.5 s", "per second", IsDuration: false, [
+            new("topk(5, sum by (page_path) (rate(page_render_duration_seconds_count[5m])) - sum by (page_path) (rate(page_render_duration_seconds_bucket{le=\"0.5\"}[5m])))", "slow pages"),
+        ]),
         new("Render rate by outcome", "per second", IsDuration: false, [
             new("sum by (outcome) (rate(page_render_duration_seconds_count[5m]))", "renders"),
             new("sum(rate(page_render_abandoned_total[5m]))", "abandoned"),

@@ -326,6 +326,9 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   seconds, and a Prometheus failure is a banner rather than a `500`, because the page is what gets
   opened when something is broken. Stored data stays in seconds, but a duration axis whose whole
   range is below a second is drawn in milliseconds — `0.00025` is a worse label than `0.25`.
+  The heatmap carries a legend from zero to the busiest cell and gives every cell its own value in a
+  `<title>`, so a shade can be read without guessing; and "Pages slower than 0.5 s" attributes the
+  slow rows to a page, which is the question the heatmap provokes.
 - **The image carries tzdata.** Only the axis labels are local; the positions, queries and samples are
   UTC. The base is `aspnet:10.0-alpine-extra` (DEC-82) because plain alpine has no
   `/usr/share/zoneinfo` and resolving `Europe/London` inside it throws.
