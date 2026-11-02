@@ -88,8 +88,11 @@ public static class NiceTicks {
         double step = NiceStep((max - min) / 5);
         double first = Math.Floor(min / step) * step;
         double last = Math.Ceiling(max / step) * step;
-        int decimals = Math.Clamp(-(int)Math.Floor(Math.Log10(step) + 1e-12), 0, 6);
-        string format = decimals == 0 ? "0" : "0." + new string('#', decimals);
+        // Every tick on one axis carries the same number of decimal places: trimming trailing zeros
+        // puts "0.00025" beside "0.0003" and makes the reader work out whether that is precision or
+        // a rounding artefact.
+        int decimals = Math.Clamp(-(int)Math.Floor(Math.Log10(step) + 1e-12), 0, 9);
+        string format = decimals == 0 ? "0" : "0." + new string('0', decimals);
 
         List<ChartTick> ticks = [];
         for (double value = first; value <= last + (step * 1e-9); value += step) {

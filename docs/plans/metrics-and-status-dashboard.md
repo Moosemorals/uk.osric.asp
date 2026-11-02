@@ -11,7 +11,7 @@ are our own SVG drawn from pure functions in `Core`. Metrics only — no traces,
 
 ## Status
 
-Implemented on 2026-11-02. Test counts at the time: 145 core, 38 runtime, 300 web and 53 integration
+Implemented on 2026-11-02. Test counts at the time: 146 core, 38 runtime, 300 web and 53 integration
 tests (baseline before the work: 110 / 38 / 275 / 48). Built as written, with two deviations: the
 abandoned-render rate sits on the render-rate panel rather than the slot-wait one, so each chart has
 one unit; and Prometheus' retention flags are `Exec=` arguments rather than `PodmanArgs=`, because they

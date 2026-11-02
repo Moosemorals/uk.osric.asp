@@ -25,7 +25,16 @@ public sealed class NiceTicksTests {
     public void ValueTicksKeepFractionsForSmallRanges() {
         IReadOnlyList<ChartTick> ticks = NiceTicks.Value(0, 0.5);
 
-        Assert.That(Labels(ticks), Is.EqualTo("0 0.1 0.2 0.3 0.4 0.5"));
+        Assert.That(Labels(ticks), Is.EqualTo("0.0 0.1 0.2 0.3 0.4 0.5"));
+    }
+
+    [Test]
+    public void EveryTickOnAnAxisCarriesTheSamePrecision() {
+        IReadOnlyList<ChartTick> ticks = NiceTicks.Value(0.00025, 0.000475);
+
+        Assert.That(
+            Labels(ticks),
+            Is.EqualTo("0.00025 0.00030 0.00035 0.00040 0.00045 0.00050"));
     }
 
     [Test]
