@@ -37,6 +37,18 @@ public sealed class StatusPageTests : IntegrationTest {
         Assert.That(body, Does.Contain("<svg class=\"chart\""));
     }
 
+    [Test]
+    public async Task TheDurationParameterWidensTheCharts() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync("/status?duration=7d");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">7d</span>"));
+        Assert.That(body, Does.Contain("viewBox=\"0 0 1040 200\""));
+    }
+
     /// <summary>Answers every query with the same two-sample series; there is no Prometheus to ask.</summary>
     private sealed class FixedMetricsSource : IMetricsSource {
         public Task<MetricsQueryResult> QueryAsync(

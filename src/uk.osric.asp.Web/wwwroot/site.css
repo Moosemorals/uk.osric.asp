@@ -42,6 +42,17 @@ body {
     margin-block: 2rem;
 }
 
+.status-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.875rem;
+}
+
+.status-nav .current {
+    font-weight: 600;
+}
+
 .chart {
     display: block;
     width: 100%;

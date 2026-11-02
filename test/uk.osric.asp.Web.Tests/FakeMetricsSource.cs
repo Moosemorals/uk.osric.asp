@@ -11,6 +11,15 @@ internal sealed class FakeMetricsSource(Func<string, MetricsQueryResult> respond
     /// <summary>How many queries were run, so a test can prove the page was cached.</summary>
     public int Calls { get; private set; }
 
+    /// <summary>The start of the range the last query asked for.</summary>
+    public DateTimeOffset From { get; private set; }
+
+    /// <summary>The end of the range the last query asked for.</summary>
+    public DateTimeOffset To { get; private set; }
+
+    /// <summary>The spacing the last query asked for.</summary>
+    public TimeSpan Step { get; private set; }
+
     public Task<MetricsQueryResult> QueryAsync(
         string query,
         DateTimeOffset from,
@@ -19,6 +28,9 @@ internal sealed class FakeMetricsSource(Func<string, MetricsQueryResult> respond
         CancellationToken cancellationToken) {
 
         Calls++;
+        From = from;
+        To = to;
+        Step = step;
         return Task.FromResult(respond(query));
     }
 }

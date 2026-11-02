@@ -13,7 +13,6 @@ using uk.osric.asp.Core;
 /// </remarks>
 internal sealed class MetricsDashboard {
 
-    private const int PanelWidth = 640;
     private const int PanelHeight = 200;
     // Fifteen `le` rows need more height than a line chart, or 11px labels overlap.
     private const int HeatmapHeight = 320;
@@ -22,8 +21,6 @@ internal sealed class MetricsDashboard {
     // Each cell is a per-second rate of the bucket's counter, not a raw count.
     private const string HeatmapValueUnit = "renders/s";
 
-    private static readonly TimeSpan Window = TimeSpan.FromHours(1);
-    private static readonly TimeSpan Step = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan CacheFor = TimeSpan.FromSeconds(15);
 
     // Cumulative counters, one series per le boundary; the difference between neighbours is the
@@ -92,8 +89,8 @@ internal sealed class MetricsDashboard {
     private readonly ILogger<MetricsDashboard> _logger;
     private readonly Lock _gate = new();
 
-    private StatusPage? _cached;
-    private DateTimeOffset _cachedAt;
+    // One page per window: switching ranges must not throw away the page for the range behind it.
+    private readonly Dictionary<string, CachedPage> _cached = [];
 
     public MetricsDashboard(
         IMetricsSource source,
@@ -112,29 +109,30 @@ internal sealed class MetricsDashboard {
         _logger = logger;
     }
 
-    /// <summary>Builds the page, reusing the last one while it is still fresh.</summary>
+    /// <summary>Builds the page for one window, reusing the last one while it is still fresh.</summary>
+    /// <param name="duration">The window the nav selected.</param>
     /// <param name="cancellationToken">Aborted when the request is abandoned.</param>
-    public async Task<StatusPage> GetAsync(CancellationToken cancellationToken) {
+    public async Task<StatusPage> GetAsync(StatusDuration duration, CancellationToken cancellationToken) {
         DateTimeOffset now = _time.GetUtcNow();
 
         lock (_gate) {
-            if (_cached is not null && now - _cachedAt < CacheFor) {
-                return _cached;
+            if (_cached.TryGetValue(duration.Token, out CachedPage? cached) && now - cached.At < CacheFor) {
+                return cached.Page;
             }
         }
 
-        StatusPage page = await BuildAsync(now, cancellationToken);
+        StatusPage page = await BuildAsync(duration, now, cancellationToken);
 
         lock (_gate) {
-            _cached = page;
-            _cachedAt = now;
+            _cached[duration.Token] = new CachedPage(page, now);
         }
 
         return page;
     }
 
-    private async Task<StatusPage> BuildAsync(DateTimeOffset now, CancellationToken cancellationToken) {
-        DateTimeOffset from = now - Window;
+    private async Task<StatusPage> BuildAsync(StatusDuration duration, DateTimeOffset now, CancellationToken cancellationToken) {
+        DateTimeOffset from = now - duration.Window;
+        TimeSpan step = duration.Step;
         List<StatusPanel> panels = [];
         string? banner = null;
 
@@ -143,7 +141,7 @@ internal sealed class MetricsDashboard {
             bool failed = false;
 
             foreach (PanelQuery query in definition.Queries) {
-                MetricsQueryResult result = await _source.QueryAsync(query.PromQL, from, now, Step, cancellationToken);
+                MetricsQueryResult result = await _source.QueryAsync(query.PromQL, from, now, step, cancellationToken);
                 switch (result) {
                     case MetricsUnavailable unavailable:
                         failed = true;
@@ -159,17 +157,17 @@ internal sealed class MetricsDashboard {
             }
 
             if (!failed) {
-                panels.Add(Render(definition, series));
+                panels.Add(Render(definition, series, duration.ChartWidth));
             }
         }
 
-        MetricsQueryResult buckets = await _source.QueryAsync(HeatmapQuery, from, now, Step, cancellationToken);
+        MetricsQueryResult buckets = await _source.QueryAsync(HeatmapQuery, from, now, step, cancellationToken);
         switch (buckets) {
             case MetricsUnavailable unavailable:
                 banner ??= unavailable.Reason;
                 break;
             case MetricsMatrix matrix:
-                panels.Add(RenderHeatmap(matrix.Series));
+                panels.Add(RenderHeatmap(matrix.Series, duration.ChartWidth));
                 break;
         }
 
@@ -181,7 +179,7 @@ internal sealed class MetricsDashboard {
         return new StatusPage(panels, banner);
     }
 
-    private StatusPanel RenderHeatmap(IReadOnlyList<ChartSeries> series) {
+    private StatusPanel RenderHeatmap(IReadOnlyList<ChartSeries> series, int width) {
         List<ChartPoint> samples = [.. series
             .SelectMany(line => line.Points)
             .Where(point => point.Value is not null)];
@@ -199,12 +197,12 @@ internal sealed class MetricsDashboard {
         DateTimeOffset latest = samples.Max(point => point.At);
         ChartAxis x = new("time", NiceTicks.Time(earliest, latest, _zone));
         string svg = Heatmap.Render(
-            rows, x, new ChartSize(PanelWidth, HeatmapHeight), heatmapTitle, "seconds", HeatmapValueUnit);
+            rows, x, new ChartSize(width, HeatmapHeight), heatmapTitle, "seconds", HeatmapValueUnit);
 
         return new StatusPanel(heatmapTitle, svg, []);
     }
 
-    private StatusPanel Render(PanelDefinition definition, IReadOnlyList<ChartSeries> series) {
+    private StatusPanel Render(PanelDefinition definition, IReadOnlyList<ChartSeries> series, int width) {
         List<ChartPoint> samples = [.. series
             .SelectMany(line => line.Points)
             .Where(point => point.Value is not null)];
@@ -230,10 +228,12 @@ internal sealed class MetricsDashboard {
 
         ChartAxis x = new("time", NiceTicks.Time(earliest, latest, _zone));
         ChartAxis y = new(unit, NiceTicks.Value(min, max));
-        string svg = LineChart.Render(series, x, y, new ChartSize(PanelWidth, PanelHeight));
+        string svg = LineChart.Render(series, x, y, new ChartSize(width, PanelHeight));
 
         return new StatusPanel($"{definition.Title} ({unit})", svg, [.. series.Select(line => line.Label)]);
     }
+
+    private sealed record CachedPage(StatusPage Page, DateTimeOffset At);
 
     private sealed record PanelDefinition(
         string Title,

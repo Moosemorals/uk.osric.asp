@@ -330,7 +330,14 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
 - **`/status` is a shell endpoint.** It queries Prometheus over that same network and draws SVG from
   pure `Core` functions (`LineChart`, `Heatmap`, `NiceTicks`); it is owner-only, cached for fifteen
   seconds, and a Prometheus failure is a banner rather than a `500`, because the page is what gets
-  opened when something is broken. Stored data stays in seconds, but a duration axis whose whole
+  opened when something is broken. The window is chosen by a `duration` token — `1h`, `3h`, `8h`,
+  `1d`, `7d` or `30d`; the token is matched against that list, never parsed as a length of time, and
+  anything unrecognised is the default hour. The nav shows every token, with the current one as text
+  rather than a link to itself. A token sets three things: how far back the queries reach, the chart
+  width (wider for a longer window) and the sample step, which widens in whole minutes so a thirty-day
+  view asks for a few hundred points rather than the 43,200 a minute step would, because Prometheus
+  refuses a range query over 11,000 points. Each window is cached separately, so switching back does
+  not re-query. Stored data stays in seconds, but a duration axis whose whole
   range is below a second is drawn in milliseconds — `0.00025` is a worse label than `0.25`.
   The heatmap carries a legend from zero to the busiest cell and gives every cell its own value in a
   `<title>`, so a shade can be read without guessing; and "Pages slower than 0.5 s" attributes the

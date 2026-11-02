@@ -40,7 +40,7 @@ public sealed class MetricsDashboardTests {
             new TestClock { Now = Now },
             NullLogger<MetricsDashboard>.Instance);
 
-        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+        StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
         Assert.That(page.Panels[0].Title, Is.EqualTo("Requests by page (per second)"));
         Assert.That(page.Panels[1].Title, Is.EqualTo("Pages slower than 0.5 s (per second)"));
@@ -56,7 +56,7 @@ public sealed class MetricsDashboardTests {
             new TestClock { Now = Now },
             NullLogger<MetricsDashboard>.Instance);
 
-        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+        StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
         StatusPanel duration = page.Panels.Single(panel => panel.Title.StartsWith("Render duration p50/p95", StringComparison.Ordinal));
         Assert.That(duration.Labels, Is.EqualTo((string[])["p50", "p95"]));
@@ -75,7 +75,7 @@ public sealed class MetricsDashboardTests {
             new TestClock { Now = Now },
             NullLogger<MetricsDashboard>.Instance);
 
-        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+        StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
         StatusPanel duration = page.Panels.Single(panel => panel.Title.StartsWith("Render duration p50/p95", StringComparison.Ordinal));
         Assert.That(duration.Title, Is.EqualTo("Render duration p50/p95 (milliseconds)"));
@@ -100,7 +100,7 @@ public sealed class MetricsDashboardTests {
             new TestClock { Now = Now },
             NullLogger<MetricsDashboard>.Instance);
 
-        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+        StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
         StatusPanel memory = page.Panels.Single(panel => panel.Title.StartsWith("Process memory", StringComparison.Ordinal));
         Assert.That(memory.Title, Is.EqualTo("Process memory (megabytes)"));
@@ -111,7 +111,7 @@ public sealed class MetricsDashboardTests {
     public async Task EveryPanelIsDrawnWhenTheSourceAnswers() {
         MetricsDashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
 
-        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+        StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
         Assert.That(page.Banner, Is.Null);
         Assert.That(page.Panels, Has.Count.EqualTo(15));
@@ -129,7 +129,7 @@ public sealed class MetricsDashboardTests {
             new TestClock { Now = Now },
             NullLogger<MetricsDashboard>.Instance);
 
-        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+        StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
         Assert.That(page.Banner, Is.EqualTo("Prometheus is unreachable."));
         Assert.That(page.Panels, Is.Empty);
@@ -145,7 +145,7 @@ public sealed class MetricsDashboardTests {
             new TestClock { Now = Now },
             NullLogger<MetricsDashboard>.Instance);
 
-        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+        StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
         Assert.That(page.Banner, Is.EqualTo("cache query failed"));
         Assert.That(page.Panels, Has.Count.EqualTo(14));
@@ -160,7 +160,7 @@ public sealed class MetricsDashboardTests {
             new TestClock { Now = Now },
             NullLogger<MetricsDashboard>.Instance);
 
-        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+        StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
         Assert.That(page.Panels, Has.Count.EqualTo(15));
         Assert.That(page.Panels.Select(panel => panel.Svg), Is.All.Null);
@@ -172,17 +172,58 @@ public sealed class MetricsDashboardTests {
         TestClock clock = new() { Now = Now };
         MetricsDashboard dashboard = new(source, Options, clock, NullLogger<MetricsDashboard>.Instance);
 
-        await dashboard.GetAsync(CancellationToken.None);
+        await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
         int afterFirst = source.Calls;
-        await dashboard.GetAsync(CancellationToken.None);
+        await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
         clock.Now = Now.AddSeconds(14);
-        await dashboard.GetAsync(CancellationToken.None);
+        await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
         Assert.That(source.Calls, Is.EqualTo(afterFirst), "a refresh inside the window must not requery");
 
         clock.Now = Now.AddSeconds(16);
-        await dashboard.GetAsync(CancellationToken.None);
+        await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
         Assert.That(source.Calls, Is.EqualTo(afterFirst * 2));
+    }
+
+    [Test]
+    public async Task TheSelectedDurationSetsTheQueryWindow() {
+        FakeMetricsSource source = new(_ => Answer());
+        MetricsDashboard dashboard = new(source, Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
+
+        await dashboard.GetAsync(StatusDuration.FromToken("7d"), CancellationToken.None);
+
+        Assert.That(source.From, Is.EqualTo(Now.AddDays(-7)));
+        Assert.That(source.To, Is.EqualTo(Now));
+        Assert.That(source.Step, Is.EqualTo(StatusDuration.FromToken("7d").Step));
+    }
+
+    [Test]
+    public async Task ALongerWindowIsDrawnWider() {
+        MetricsDashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
+
+        StatusPage page = await dashboard.GetAsync(StatusDuration.FromToken("30d"), CancellationToken.None);
+
+        Assert.That(page.Panels[0].Svg, Does.Contain("viewBox=\"0 0 1200 200\""));
+        Assert.That(page.Panels[^1].Svg, Does.Contain("viewBox=\"0 0 1200 320\""));
+    }
+
+    [Test]
+    public async Task EachWindowIsCachedSeparately() {
+        FakeMetricsSource source = new(_ => Answer());
+        TestClock clock = new() { Now = Now };
+        MetricsDashboard dashboard = new(source, Options, clock, NullLogger<MetricsDashboard>.Instance);
+        StatusDuration sevenDays = StatusDuration.FromToken("7d");
+
+        await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
+        int afterFirst = source.Calls;
+        await dashboard.GetAsync(sevenDays, CancellationToken.None);
+        Assert.That(source.Calls, Is.GreaterThan(afterFirst), "a different window must be built");
+
+        int afterSecond = source.Calls;
+        await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
+        await dashboard.GetAsync(sevenDays, CancellationToken.None);
+
+        Assert.That(source.Calls, Is.EqualTo(afterSecond), "each window keeps its own cached page");
     }
 }

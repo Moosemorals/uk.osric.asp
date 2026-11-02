@@ -58,13 +58,63 @@ public sealed class StatusEndpointTests {
         Assert.That(body, Does.Not.Contain("<script>"));
     }
 
-    private static async Task<string> RenderAsync(MetricsQueryResult answer) {
+    [Test]
+    public async Task TheNavLinksEveryWindowButTheCurrentOne() {
+        string body = await RenderAsync(new MetricsMatrix([
+            new ChartSeries("ok", [
+                new ChartPoint(Now.AddMinutes(-30), 1),
+                new ChartPoint(Now, 2),
+            ]),
+        ]));
+
+        Assert.That(body, Does.Contain("<nav class=\"status-nav\">"));
+
+        foreach (string token in (string[])["3h", "8h", "1d", "7d", "30d"]) {
+            Assert.That(body, Does.Contain($"<a href=\"/status?duration={token}\">{token}</a>"));
+        }
+
+        Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">1h</span>"));
+        Assert.That(body, Does.Not.Contain("href=\"/status?duration=1h\""));
+    }
+
+    [Test]
+    public async Task TheRequestedWindowIsTheOneNotLinked() {
+        string body = await RenderAsync(
+            new MetricsMatrix([
+                new ChartSeries("ok", [
+                    new ChartPoint(Now.AddDays(-3), 1),
+                    new ChartPoint(Now, 2),
+                ]),
+            ]),
+            "?duration=7d");
+
+        Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">7d</span>"));
+        Assert.That(body, Does.Contain("href=\"/status?duration=1h\""));
+        Assert.That(body, Does.Not.Contain("href=\"/status?duration=7d\""));
+    }
+
+    [Test]
+    public async Task AnUnknownWindowFallsBackToTheDefault() {
+        string body = await RenderAsync(
+            new MetricsMatrix([
+                new ChartSeries("ok", [
+                    new ChartPoint(Now.AddMinutes(-30), 1),
+                    new ChartPoint(Now, 2),
+                ]),
+            ]),
+            "?duration=2w");
+
+        Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">1h</span>"));
+    }
+
+    private static async Task<string> RenderAsync(MetricsQueryResult answer, string? queryString = null) {
         MetricsDashboard dashboard = new(
             new FakeMetricsSource(_ => answer),
             Options,
             new TestClock { Now = Now },
             NullLogger<MetricsDashboard>.Instance);
         HttpContext context = TestHttp.CreateContext(null);
+        context.Request.QueryString = new QueryString(queryString);
 
         await StatusEndpoint.HandleAsync(context, dashboard, CancellationToken.None);
 

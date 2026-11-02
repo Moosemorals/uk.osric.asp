@@ -16,13 +16,15 @@ internal static class StatusEndpoint {
         MetricsDashboard dashboard,
         CancellationToken cancellationToken) {
 
-        StatusPage page = await dashboard.GetAsync(cancellationToken);
+        StatusDuration duration = StatusDuration.FromToken(context.Request.Query["duration"]);
+        StatusPage page = await dashboard.GetAsync(duration, cancellationToken);
 
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.Headers.CacheControl = "no-store";
 
         await context.Response.WriteAsync(Framework.GetHeader("Status"), cancellationToken: cancellationToken);
         await context.Response.WriteAsync("<h1>Status</h1>", cancellationToken: cancellationToken);
+        await WriteNavAsync(context, duration, cancellationToken);
 
         if (page.Banner is { } banner) {
             await context.Response.WriteAsync($"<p class=\"banner\">{WebUtility.HtmlEncode(banner)}</p>", cancellationToken: cancellationToken);
@@ -33,7 +35,7 @@ internal static class StatusEndpoint {
             await context.Response.WriteAsync($"<h2>{WebUtility.HtmlEncode(panel.Title)}</h2>", cancellationToken: cancellationToken);
 
             if (panel.Svg is null) {
-                await context.Response.WriteAsync("<p class=\"empty\">No data in the last hour.</p>", cancellationToken: cancellationToken);
+                await context.Response.WriteAsync($"<p class=\"empty\">No data in the last {duration.Token}.</p>", cancellationToken: cancellationToken);
             } else {
                 await context.Response.WriteAsync(panel.Svg, cancellationToken: cancellationToken);
                 await WriteLegendAsync(context, panel.Labels);
@@ -43,6 +45,25 @@ internal static class StatusEndpoint {
         }
 
         await context.Response.WriteAsync(Framework.GetFooter(), cancellationToken: cancellationToken);
+    }
+
+    private static async Task WriteNavAsync(HttpContext context, StatusDuration current, CancellationToken cancellationToken) {
+        await context.Response.WriteAsync("<nav class=\"status-nav\">", cancellationToken: cancellationToken);
+
+        foreach (StatusDuration duration in StatusDuration.All) {
+            if (duration.Token == current.Token) {
+                // The current window is where you already are, so it is text, not a link to itself.
+                await context.Response.WriteAsync(
+                    $"<span class=\"current\" aria-current=\"true\">{duration.Token}</span>",
+                    cancellationToken: cancellationToken);
+            } else {
+                await context.Response.WriteAsync(
+                    $"<a href=\"/status?duration={duration.Token}\">{duration.Token}</a>",
+                    cancellationToken: cancellationToken);
+            }
+        }
+
+        await context.Response.WriteAsync("</nav>", cancellationToken: cancellationToken);
     }
 
     private static async Task WriteLegendAsync(HttpContext context, IReadOnlyList<string> labels) {
