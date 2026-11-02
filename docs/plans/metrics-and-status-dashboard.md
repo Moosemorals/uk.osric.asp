@@ -11,7 +11,7 @@ are our own SVG drawn from pure functions in `Core`. Metrics only — no traces,
 
 ## Status
 
-Implemented on 2026-11-02. Test counts at the time: 151 core, 38 runtime, 301 web and 53 integration
+Implemented on 2026-11-02. Test counts at the time: 154 core, 38 runtime, 303 web and 53 integration
 tests (baseline before the work: 110 / 38 / 275 / 48). Built as written, with two deviations: the
 abandoned-render rate sits on the render-rate panel rather than the slot-wait one, so each chart has
 one unit; and Prometheus' retention flags are `Exec=` arguments rather than `PodmanArgs=`, because they
@@ -325,10 +325,12 @@ Parsing rules, each with a test over a recorded body:
 - Label names are Prometheus' own: the exporter writes the tag `page.path` as `page_path`, and both
   the queries and the legend use that spelling. A dotted name is a parse error, not an empty panel.
 
-`/status` queries six panels, plus the heatmap Phase 5 adds, in this order: requests by page (top n
-over `page_path`), pages slower than half a second (total render rate minus the rate that finished
+`/status` queries fourteen panels, plus the heatmap Phase 5 adds, in this order: requests by page (top
+n over `page_path`), pages slower than half a second (total render rate minus the rate that finished
 inside the bucket, per page), render rate by outcome (including `timeout`) with abandoned renders as a
-rate on the same axis, render duration p50/p95, slot wait p50/p95, and cache lookups by `result`. Abandoned
+rate on the same axis, render duration p50/p95, slot wait p50/p95, compiles by `reason`, compile
+duration p95, stale images by `reason`, cache lookups by `result`, process memory, process CPU,
+connections and active requests, HTTP status mix and average assembly size. Abandoned
 renders are a rate per second rather than a count per minute so each chart keeps one unit. A
 percentile query returns one anonymous series, so the panel names each line `p50`/`p95` itself, and
 every chart draws its unit up the vertical axis and repeats it in the panel title rather than leaving
@@ -427,9 +429,10 @@ beside `PageMetricsTests` and the budget tests, never in parallel with them.
 
 ## Edge cases and risks
 
-- **Cardinality.** `page.path` is user-controlled and unbounded in principle; a very large site makes
-  every histogram series multiply by page count. Only the owner can create pages, so this is a
-  self-inflicted risk, but it is the first thing to trim with a `View` if the series count grows.
+- **Cardinality.** `page.path` multiplies every series by the number of stored pages — a
+  self-inflicted risk, since only the owner can create pages. A miss is the opposite case: anyone can
+  ask for any URL, so misses share one `(not-found)` key and the wait histogram has no path tag at
+  all.
 - **Naming skew.** The dashboard hard-codes instrument names converted by the exporter. Renaming an
   instrument or changing its unit silently empties a panel; the architecture note is the mitigation.
 - **Prerelease exporter.** Pinned; upgrades are deliberate commits, and `/metrics` is covered by an
@@ -448,7 +451,10 @@ beside `PageMetricsTests` and the budget tests, never in parallel with them.
 - **Page paths in labels.** A page key is a URL and already appears in access logs. No query string
   becomes a tag because the key comes from the route's `path` value, which is taken from the request
   path — `PagePath.Normalize` does not strip one, since `?` is just a character in a path. The
-  protection is the router, and `AQueryStringDoesNotChangeThePageKeyAsync` pins it.
+  protection is the router, and `AQueryStringDoesNotChangeThePageKeyAsync` pins it. A **miss** is
+  tagged `page.path="(not-found)"` and the wait histogram carries no path tag: a request to a URL
+  that names no page is unauthenticated and unbounded, so tagging it verbatim would let a scan mint a
+  series per URL.
 - **`/metrics` exposes page names.** The same information as the public site's own URLs, but it is
   unauthenticated; the Caddy rule and the loopback publish are the only controls, so any future change
   to either must keep both.

@@ -285,8 +285,8 @@ a loaded handler (`ITemplateCompiler`, `CompiledTemplate`); it never sees a page
 
 | Instrument | Type | Unit | Tags |
 | --- | --- | --- | --- |
-| `page.render.duration` | histogram | s | `page.path`, `outcome` (`ok`, `compile-error`, `error`, `not-found`, `timeout`), `cache` (`hit`, `miss`, `none`) |
-| `page.render.wait` | histogram | s | `page.path` — time spent waiting for a render slot |
+| `page.render.duration` | histogram | s | `page.path` (`(not-found)` for a miss), `outcome` (`ok`, `compile-error`, `error`, `not-found`, `timeout`), `cache` (`hit`, `miss`, `none`) |
+| `page.render.wait` | histogram | s | — time spent waiting for a render slot; site-wide, not per page |
 | `page.render.abandoned` | counter | — | `page.path` — renders given up on at the deadline |
 | `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`) |
 | `page.handler.load.duration` | histogram | s | `page.path` |
@@ -295,6 +295,11 @@ a loaded handler (`ITemplateCompiler`, `CompiledTemplate`); it never sees a page
 | `page.image.size` | histogram | By | `page.path` |
 | `page.cache.lookups` | counter | — | `result` (`hit`, `stale`, `absent`) |
 | `page.cache.staleness` | counter | — | `page.path`, `reason` (`never-compiled`, `content-changed`, `runtime-changed`) |
+
+A miss is tagged `page.path="(not-found)"`. The requested path is unauthenticated and unbounded, so
+tagging it verbatim would let a scan mint one time series per URL; the real path is in the access log.
+The wait histogram carries no path tag for the same reason, and because queueing is a property of the
+site rather than of a page.
 
 Durations are seconds to match OpenTelemetry and ASP.NET Core's own hosting instruments, so do not
 add a request-duration metric of our own. On a cache miss `page.compile.duration` is a subset of

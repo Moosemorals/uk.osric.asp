@@ -11,6 +11,22 @@ namespace uk.osric.asp.Core;
 /// </remarks>
 public static class ValueUnit {
 
+    /// <summary>Rescales a byte range into bytes, kilobytes or megabytes.</summary>
+    /// <param name="min">The lowest value in bytes.</param>
+    /// <param name="max">The highest value in bytes.</param>
+    /// <returns>The range in the largest unit that keeps the labels short.</returns>
+    public static ChartScale ForBytes(double min, double max) {
+        if (double.IsFinite(max) && max >= 1_000_000) {
+            return new ChartScale(min / 1_000_000, max / 1_000_000, "megabytes");
+        }
+
+        if (double.IsFinite(max) && max >= 1_000) {
+            return new ChartScale(min / 1_000, max / 1_000, "kilobytes");
+        }
+
+        return new ChartScale(min, max, "bytes");
+    }
+
     /// <summary>Rescales a duration range into seconds or milliseconds.</summary>
     /// <param name="min">The lowest value in seconds.</param>
     /// <param name="max">The highest value in seconds.</param>

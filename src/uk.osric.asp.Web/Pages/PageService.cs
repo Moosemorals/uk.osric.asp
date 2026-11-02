@@ -87,14 +87,14 @@ internal sealed class PageService(
             } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                 // Queued for longer than the whole budget: shed the load rather than answer late.
                 outcome = PageMetrics.RenderTimeout;
-                metrics.RecordWait(path, Stopwatch.GetElapsedTime(queueStart));
+                metrics.RecordWait(Stopwatch.GetElapsedTime(queueStart));
                 logger.LogWarning("Page {Path} waited {ElapsedMs:0} ms for a render slot and was dropped",
                     path.Path, Stopwatch.GetElapsedTime(queueStart).TotalMilliseconds);
 
                 return RenderResult.TimedOut;
             }
 
-            metrics.RecordWait(path, Stopwatch.GetElapsedTime(queueStart));
+            metrics.RecordWait(Stopwatch.GetElapsedTime(queueStart));
 
             try {
                 LoadedPage? loaded;

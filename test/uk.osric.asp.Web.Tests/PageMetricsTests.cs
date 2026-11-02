@@ -156,7 +156,19 @@ public sealed class PageMetricsTests {
 
         Assert.That(capture.Count("page.render.duration", "outcome", "timeout"), Is.EqualTo(1));
         Assert.That(capture.For("page.render.abandoned", "/slow"), Has.Count.EqualTo(1));
-        Assert.That(capture.For("page.render.wait", "/slow"), Has.Count.EqualTo(1));
+        Assert.That(capture.Count("page.render.wait"), Is.EqualTo(1), "the wait is site-wide, not per page");
+    }
+
+    [Test]
+    public async Task AMissIsRecordedUnderAFixedPathAsync() {
+        using MetricCapture capture = MetricCapture.Start();
+        PageService pages = CreateService(new FakeStorage());
+
+        await RenderAsync(pages, "/a-scan-probably-made-this-up");
+
+        Assert.That(capture.Count("page.render.duration", "outcome", PageMetrics.RenderNotFound), Is.EqualTo(1));
+        Assert.That(capture.Count("page.render.duration", "page.path", PageMetrics.NotFoundPath), Is.EqualTo(1));
+        Assert.That(capture.For("page.render.duration", "/a-scan-probably-made-this-up"), Is.Empty);
     }
 
     private PageService CreateService(FakeStorage storage) {

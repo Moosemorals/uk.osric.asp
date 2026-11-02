@@ -31,28 +31,54 @@ internal sealed class MetricsDashboard {
     private const string HeatmapQuery = "sum by (le) (rate(page_render_duration_seconds_bucket[5m]))";
 
     private static readonly PanelDefinition[] Definitions = [
-        new("Requests by page", "per second", IsDuration: false, [
+        new("Requests by page", "per second", UnitScale.Plain, [
             new("topk(5, sum by (page_path) (rate(page_render_duration_seconds_count[5m])))", "requests"),
         ]),
         // Attribution for the heatmap's rare slow rows: total render rate minus the rate that
         // finished within half a second, per page.
-        new("Pages slower than 0.5 s", "per second", IsDuration: false, [
+        new("Pages slower than 0.5 s", "per second", UnitScale.Plain, [
             new("topk(5, sum by (page_path) (rate(page_render_duration_seconds_count[5m])) - sum by (page_path) (rate(page_render_duration_seconds_bucket{le=\"0.5\"}[5m])))", "slow pages"),
         ]),
-        new("Render rate by outcome", "per second", IsDuration: false, [
+        new("Render rate by outcome", "per second", UnitScale.Plain, [
             new("sum by (outcome) (rate(page_render_duration_seconds_count[5m]))", "renders"),
             new("sum(rate(page_render_abandoned_total[5m]))", "abandoned"),
         ]),
-        new("Render duration p50/p95", "seconds", IsDuration: true, [
+        new("Render duration p50/p95", "seconds", UnitScale.Duration, [
             new("histogram_quantile(0.5, sum by (le) (rate(page_render_duration_seconds_bucket[5m])))", "p50"),
             new("histogram_quantile(0.95, sum by (le) (rate(page_render_duration_seconds_bucket[5m])))", "p95"),
         ]),
-        new("Render slot wait p50/p95", "seconds", IsDuration: true, [
+        new("Render slot wait p50/p95", "seconds", UnitScale.Duration, [
             new("histogram_quantile(0.5, sum by (le) (rate(page_render_wait_seconds_bucket[5m])))", "p50"),
             new("histogram_quantile(0.95, sum by (le) (rate(page_render_wait_seconds_bucket[5m])))", "p95"),
         ]),
-        new("Cache lookups by result", "per second", IsDuration: false, [
+        new("Compiles by reason", "per second", UnitScale.Plain, [
+            new("sum by (reason) (rate(page_compile_duration_seconds_count[5m]))", "compiles"),
+        ]),
+        new("Compile duration p95", "seconds", UnitScale.Duration, [
+            new("histogram_quantile(0.95, sum by (le) (rate(page_compile_duration_seconds_bucket[5m])))", "p95"),
+        ]),
+        new("Stale images by reason", "per second", UnitScale.Plain, [
+            new("sum by (reason) (rate(page_cache_staleness_total[5m]))", "stale"),
+        ]),
+        new("Cache lookups by result", "per second", UnitScale.Plain, [
             new("sum by (result) (rate(page_cache_lookups_total[5m]))", "lookups"),
+        ]),
+        new("Process memory", "bytes", UnitScale.Bytes, [
+            new("dotnet_process_memory_working_set_bytes", "working set"),
+        ]),
+        new("Process CPU", "cores", UnitScale.Plain, [
+            new("sum(rate(dotnet_process_cpu_time_seconds_total[5m]))", "cpu"),
+        ]),
+        new("Connections and active requests", "count", UnitScale.Plain, [
+            new("sum(http_server_active_requests)", "active requests"),
+            new("sum(kestrel_active_connections)", "open connections"),
+            new("sum(kestrel_queued_connections)", "queued connections"),
+        ]),
+        new("HTTP status mix", "per second", UnitScale.Plain, [
+            new("sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count[5m]))", "requests"),
+        ]),
+        new("Average assembly size", "bytes", UnitScale.Bytes, [
+            new("sum(rate(page_image_size_bytes_sum[5m])) / sum(rate(page_image_size_bytes_count[5m]))", "average"),
         ]),
     ];
 
@@ -195,8 +221,10 @@ internal sealed class MetricsDashboard {
         double max = samples.Max(point => point.Value!.Value);
 
         string unit = definition.Unit;
-        if (definition.IsDuration) {
-            ChartScale scale = ValueUnit.ForSeconds(min, max);
+        if (definition.Scale != UnitScale.Plain) {
+            ChartScale scale = definition.Scale == UnitScale.Duration
+                ? ValueUnit.ForSeconds(min, max)
+                : ValueUnit.ForBytes(min, max);
             (min, max, unit) = (scale.Min, scale.Max, scale.Unit);
         }
 
@@ -210,8 +238,10 @@ internal sealed class MetricsDashboard {
     private sealed record PanelDefinition(
         string Title,
         string Unit,
-        bool IsDuration,
+        UnitScale Scale,
         IReadOnlyList<PanelQuery> Queries);
+
+    private enum UnitScale { Plain, Duration, Bytes }
 
     private sealed record PanelQuery(string PromQL, string Label);
 }

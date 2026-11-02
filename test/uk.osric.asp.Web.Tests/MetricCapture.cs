@@ -31,6 +31,11 @@ internal sealed class MetricCapture : IDisposable {
             && measurement.HasTag(tagName, tagValue));
     }
 
+    /// <summary>Counts the measurements of one instrument, whatever its tags.</summary>
+    public int Count(string instrument) {
+        return _measurements.Count(measurement => measurement.Instrument == instrument);
+    }
+
     /// <summary>Returns the measurements of one instrument for one page.</summary>
     public IReadOnlyList<Measurement> For(string instrument, string path) {
         return [.. _measurements.Where(measurement => measurement.Instrument == instrument

@@ -88,13 +88,33 @@ public sealed class MetricsDashboardTests {
     }
 
     [Test]
+    public async Task ABytesAxisIsDrawnInMegabytes() {
+        MetricsDashboard dashboard = new(
+            new FakeMetricsSource(_ => new MetricsMatrix([
+                new ChartSeries("", [
+                    new ChartPoint(Now.AddMinutes(-30), 166_000_000),
+                    new ChartPoint(Now, 180_000_000),
+                ]),
+            ])),
+            Options,
+            new TestClock { Now = Now },
+            NullLogger<MetricsDashboard>.Instance);
+
+        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+
+        StatusPanel memory = page.Panels.Single(panel => panel.Title.StartsWith("Process memory", StringComparison.Ordinal));
+        Assert.That(memory.Title, Is.EqualTo("Process memory (megabytes)"));
+        Assert.That(memory.Svg, Does.Contain(">megabytes<"));
+    }
+
+    [Test]
     public async Task EveryPanelIsDrawnWhenTheSourceAnswers() {
         MetricsDashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
         Assert.That(page.Banner, Is.Null);
-        Assert.That(page.Panels, Has.Count.EqualTo(7));
+        Assert.That(page.Panels, Has.Count.EqualTo(15));
         Assert.That(page.Panels.Select(panel => panel.Svg), Is.All.Not.Null);
         Assert.That(page.Panels[0].Svg, Does.Contain("<svg class=\"chart\""));
         Assert.That(page.Panels[^1].Title, Is.EqualTo("Render duration buckets (renders/s)"));
@@ -118,7 +138,7 @@ public sealed class MetricsDashboardTests {
     [Test]
     public async Task OneFailedPanelLeavesTheOthers() {
         MetricsDashboard dashboard = new(
-            new FakeMetricsSource(query => query.Contains("cache", StringComparison.Ordinal)
+            new FakeMetricsSource(query => query.Contains("page_cache_lookups_total", StringComparison.Ordinal)
                 ? new MetricsUnavailable("cache query failed")
                 : Answer()),
             Options,
@@ -128,7 +148,7 @@ public sealed class MetricsDashboardTests {
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
         Assert.That(page.Banner, Is.EqualTo("cache query failed"));
-        Assert.That(page.Panels, Has.Count.EqualTo(6));
+        Assert.That(page.Panels, Has.Count.EqualTo(14));
         Assert.That(page.Panels.Any(panel => panel.Title.StartsWith("Cache lookups by result", StringComparison.Ordinal)), Is.False);
     }
 
@@ -142,7 +162,7 @@ public sealed class MetricsDashboardTests {
 
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
-        Assert.That(page.Panels, Has.Count.EqualTo(7));
+        Assert.That(page.Panels, Has.Count.EqualTo(15));
         Assert.That(page.Panels.Select(panel => panel.Svg), Is.All.Null);
     }
 

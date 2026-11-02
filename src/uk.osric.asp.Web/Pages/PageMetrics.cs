@@ -43,6 +43,13 @@ internal sealed class PageMetrics : IDisposable {
     /// <summary>No page is stored under the requested key.</summary>
     public const string RenderNotFound = "not-found";
 
+    /// <summary>The key a request that named no stored page is recorded under.</summary>
+    /// <remarks>
+    /// A miss is unauthenticated and its path is whatever the caller typed, so tagging it verbatim
+    /// lets a scan mint one time series per URL. The real path is in the access log.
+    /// </remarks>
+    public const string NotFoundPath = "(not-found)";
+
     /// <summary>The page outran its execution budget and was abandoned.</summary>
     public const string RenderTimeout = "timeout";
 
@@ -105,7 +112,7 @@ internal sealed class PageMetrics : IDisposable {
 
     public void RecordRender(PagePath path, string outcome, string cache, TimeSpan duration) {
         TagList tags = new() {
-            { "page.path", path.Path },
+            { "page.path", string.Equals(outcome, RenderNotFound, StringComparison.Ordinal) ? NotFoundPath : path.Path },
             { "outcome", outcome },
             { "cache", cache },
         };
@@ -113,10 +120,15 @@ internal sealed class PageMetrics : IDisposable {
         _renderDuration.Record(duration.TotalSeconds, tags);
     }
 
-    public void RecordWait(PagePath path, TimeSpan duration) {
-        TagList tags = new() { { "page.path", path.Path } };
-
-        _renderWait.Record(duration.TotalSeconds, tags);
+    /// <summary>Records time spent queueing for a render slot.</summary>
+    /// <param name="duration">How long the request waited.</param>
+    /// <remarks>
+    /// Queueing is a property of the site rather than of one page, and the wait is measured before the
+    /// page is looked up — so this instrument carries no path tag, which is also what keeps a scan
+    /// from creating a series per URL.
+    /// </remarks>
+    public void RecordWait(TimeSpan duration) {
+        _renderWait.Record(duration.TotalSeconds);
     }
 
     /// <summary>Records a render that was given up on; the thread it was using is lost.</summary>
