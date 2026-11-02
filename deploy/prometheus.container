@@ -21,6 +21,8 @@ Volume=%h/.config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
 Exec=--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=30d --storage.tsdb.retention.size=2GB
 # 256 MB is enough for a site this size; a runaway series count fails a scrape rather than the host.
 PodmanArgs=--memory=256m
+# No --memory-swap, unlike the app: Prometheus is idle between scrapes, so its pages are the first
+# thing that should leave memory when something else needs the room.
 PodmanArgs=--pids-limit=128
 NoNewPrivileges=true
 DropCapability=all

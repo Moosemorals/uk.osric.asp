@@ -230,8 +230,9 @@ The quadlet runs the same probe as podman's health check
 `HealthOnFailure=restart`, so a wedged process is restarted within about 35 s. That turns the two
 worst outcomes into a short outage instead of a permanent one: a page that loops forever against a
 thread pool, and a page that calls `Environment.Exit`. The container is also capped
-(`--memory=768m`, `--pids-limit=256`, `--cpus=1`), so a page that allocates without bound takes the
-container and not the host.
+(`--memory=768m` with `--memory-swap=768m`, `--pids-limit=256`, `--cpus=0.9`), so a page that
+allocates without bound meets the OOM killer inside the container rather than paging or taking the
+host.
 
 `StartLimitBurst=3` in 60 s still applies: a page that wedges on every request restarts the container
 three times and then leaves the unit failed until it is reset and the page is fixed.

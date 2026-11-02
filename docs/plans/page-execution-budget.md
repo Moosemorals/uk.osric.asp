@@ -85,6 +85,11 @@ before any of the code lands.
 
 ### 0a — container limits
 
+*Superseded in part, 2026-11-02: the quadlet now passes `--memory-swap=768m` as well, and `--cpus=0.9`
+rather than `--cpus=1`, because the host gained a 2 GiB swap file that the app must not use
+([DEC-83](../decisions.md), [memory and swap](../../deploy/README.md#memory-and-swap)). The reasoning
+below is what applied before that.*
+
 `deploy/uk.osric.asp.container` gains, in `[Container]`:
 
 ```ini

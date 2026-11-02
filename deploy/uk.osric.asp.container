@@ -28,11 +28,17 @@ Tmpfs=/tmp
 NoNewPrivileges=true
 DropCapability=all
 # A page cannot be interrupted once it runs, so the container is the only thing that can stop one:
-# the memory limit makes the OOM killer take this container rather than the host (the box has no
-# swap), and the health check restarts it when too many page renders have been abandoned.
+# the memory limit makes the OOM killer take this container rather than the host, and the health
+# check restarts it when too many page renders have been abandoned.
 PodmanArgs=--memory=768m
+# Equal to --memory, so the container's memory.swap.max is zero and it cannot page. On this host the
+# swap file is headroom for Caddy, Prometheus and podman; a runaway page must still meet the OOM
+# killer rather than thrash for minutes and take the health check's deadline with it.
+PodmanArgs=--memory-swap=768m
 PodmanArgs=--pids-limit=256
-PodmanArgs=--cpus=1
+# One vCPU is the whole box, so this is not decorative: it leaves a tenth of the core for Caddy and
+# for the health check, which runs inside this cgroup and would otherwise starve with the page.
+PodmanArgs=--cpus=0.9
 # Longer than the host's 30 s graceful-shutdown budget, so a normal stop finishes cleanly and only a
 # genuinely stuck page is SIGKILLed.
 StopTimeout=35

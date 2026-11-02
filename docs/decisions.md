@@ -97,13 +97,13 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 
 | ID | Decision | Recorded in |
 | --- | --- | --- |
-| DEC-58 | One Hetzner Cloud VM (`cpx02`, Debian 13) with rootless podman quadlets for the app and rootful Caddy as the only privileged unit. Caddy owns 80/443 and proxies to the app's loopback port. The host used to be a `cx22`; Hetzner no longer sells it. | [deploy](../deploy/README.md), [cloud-init](../deploy/cloud-init.yaml) |
+| DEC-58 | One Hetzner Cloud VM (`cpx02`: 1 vCPU, 1 GB of RAM, 20 GB of disk, Debian 13) with rootless podman quadlets for the app and rootful Caddy as the only privileged unit. Caddy owns 80/443 and proxies to the app's loopback port. The host used to be a `cx22`; Hetzner no longer sells it. | [deploy](../deploy/README.md), [cloud-init](../deploy/cloud-init.yaml) |
 | DEC-59 | Builds are reproducible: pinned base digest, `--timestamp` from the commit, the SDK never enters the image, and nothing in the image records when it was built. `make image-check` proves two builds of one commit match. | [deploy](../deploy/README.md) |
 | DEC-60 | The app ships framework-dependent. A self-contained single file is smaller on disk but moves ~52 MB per release; trimming would reach ~29 MB and dies at startup, so trimming is deliberately off. | [deploy](../deploy/README.md#image-layout-and-size) |
 | DEC-61 | The app publishes on the loopback only, and that is the control that makes trusting every proxy's forwarded headers safe. Do not widen `PublishPort` or add another proxy without revisiting it. | [deploy](../deploy/README.md#proxy-trust-and-forwarded-headers) |
 | DEC-62 | No `UseHttpsRedirection` in the app: Caddy redirects HTTP to HTTPS, and doing it twice behind a proxy is a redirect loop waiting to happen. | [deploy](../deploy/README.md#proxy-trust-and-forwarded-headers) |
 | DEC-63 | Releases travel through `registry.osric.uk` with an explicit `--authfile` on the server, because podman's default auth file lives under `/run/user` and is gone after a reboot. | [deploy](../deploy/README.md#the-registry) |
-| DEC-64 | The container is capped (`--memory=768m`, `--pids-limit=256`, `--cpus=1`) and probed every 10 s with three failures allowed, so a runaway page takes the container and not the host, and a wedged process becomes a ~35 s outage. | [deploy](../deploy/README.md#resource-limits-and-restarts) |
+| DEC-64 | The container is capped (`--memory=768m` with `--memory-swap=768m`, `--pids-limit=256`, `--cpus=0.9`) and probed every 10 s with three failures allowed, so a runaway page takes the container and not the host, and a wedged process becomes a ~35 s outage. | [deploy](../deploy/README.md#resource-limits-and-restarts) |
 | DEC-65 | **No cloud firewall and no automatic backups** — accepted policy choices for now, recorded rather than assumed. The host firewall is `ufw` default-deny; backups are a deliberate manual operation. Revisit deliberately rather than by accident. | conversation, 2026-10-31 |
 | DEC-66 | No outbound alerting yet. Email (with SPF and friends) is OPS-05, so today a failure is discovered by visiting the site or reading the journal. | [OPS-05](jobs/OPS-05.md) |
 | DEC-67 | `ufw` denies inbound by default and allows 22/80/443; unattended upgrades are enabled on the host. | [cloud-init](../deploy/cloud-init.yaml) |
@@ -113,6 +113,7 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | DEC-71 | `make deploy` refuses a dirty tree and skips the image work when the host already runs the commit. `ALLOW_DIRTY=1` is the deliberate exception, not a default. | [Makefile](../Makefile) |
 | DEC-72 | There is one gate: `make check`, run on demand and by `make deploy` and `make ci`. Nothing installs a pre-push hook: a minute-plus on every push cost more than it ever caught. No workflow files, no service, no secret — a machine with the repository, the SDK, `reuse` and podman can reproduce it. | [Makefile](../Makefile), [OPS-03](jobs/OPS-03.md) |
 | DEC-73 | Commits are local; push only when asked. A finished task is a commit, not a push. | conversation, 2026-11-01 |
+| DEC-83 | The host carries a 2 GiB swap file that the app's cgroup cannot touch: on 1 GB of RAM the swap is the headroom Caddy, Prometheus, podman and the kernel use, and keeping it away from the app is what keeps a runaway page a ~35 s outage rather than a thrash that outlasts the probe. `vm.swappiness` stays at the default. | [deploy](../deploy/README.md#memory-and-swap), [cloud-init](../deploy/cloud-init.yaml) |
 
 ## Build, test and house style
 
@@ -145,6 +146,7 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | 2026-10-31 | Suspicion that the security stamp allowed only one session | Multi-device by design (DEC-54) | Only a password change or account removal should revoke |
 | 2026-11-01 | Hetzner `cx22` | Hetzner `cpx02` (DEC-58) | Hetzner no longer sells `cx22` |
 | 2026-11-01 | A pre-push hook running `make check` on every push | The gate runs on demand (DEC-72) | The wait before every push was worse than the failures it caught; `make deploy` already gates a release |
+| 2026-11-02 | The host runs without swap | A 2 GiB swap file, with the app's cgroup excluded (DEC-83) | 1 GB of RAM with no headroom turned every burst into an OOM kill of whichever process scored highest |
 
 ## Open policy questions
 
