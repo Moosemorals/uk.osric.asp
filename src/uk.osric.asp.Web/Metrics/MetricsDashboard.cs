@@ -27,29 +27,29 @@ internal sealed class MetricsDashboard {
     private const string HeatmapQuery = "sum by (le) (rate(page_render_duration_seconds_bucket[5m]))";
 
     private static readonly PanelDefinition[] Definitions = [
+        new("Requests by page", "per second", [
+            new("topk(5, sum by (page_path) (rate(page_render_duration_seconds_count[5m])))", "requests"),
+        ]),
         new("Render rate by outcome", "per second", [
-            "sum by (outcome) (rate(page_render_duration_seconds_count[5m]))",
-            "sum(rate(page_render_abandoned_total[5m]))",
+            new("sum by (outcome) (rate(page_render_duration_seconds_count[5m]))", "renders"),
+            new("sum(rate(page_render_abandoned_total[5m]))", "abandoned"),
         ]),
         new("Render duration p50/p95", "seconds", [
-            "histogram_quantile(0.5, sum by (le) (rate(page_render_duration_seconds_bucket[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(page_render_duration_seconds_bucket[5m])))",
+            new("histogram_quantile(0.5, sum by (le) (rate(page_render_duration_seconds_bucket[5m])))", "p50"),
+            new("histogram_quantile(0.95, sum by (le) (rate(page_render_duration_seconds_bucket[5m])))", "p95"),
         ]),
         new("Render slot wait p50/p95", "seconds", [
-            "histogram_quantile(0.5, sum by (le) (rate(page_render_wait_seconds_bucket[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(page_render_wait_seconds_bucket[5m])))",
+            new("histogram_quantile(0.5, sum by (le) (rate(page_render_wait_seconds_bucket[5m])))", "p50"),
+            new("histogram_quantile(0.95, sum by (le) (rate(page_render_wait_seconds_bucket[5m])))", "p95"),
         ]),
         new("Cache lookups by result", "per second", [
-            "sum by (result) (rate(page_cache_lookups_total[5m]))",
-        ]),
-        new("Requests by page", "per second", [
-            "topk(5, sum by (page_path) (rate(page_render_duration_seconds_count[5m])))",
+            new("sum by (result) (rate(page_cache_lookups_total[5m]))", "lookups"),
         ]),
     ];
 
     /// <summary>Every PromQL expression the dashboard runs, so a test can pin their shape.</summary>
     internal static IReadOnlyList<string> Queries { get; } =
-        [.. Definitions.SelectMany(definition => definition.Queries)];
+        [.. Definitions.SelectMany(definition => definition.Queries).Select(query => query.PromQL)];
 
     private readonly IMetricsSource _source;
     private readonly TimeZoneInfo _zone;
@@ -107,15 +107,18 @@ internal sealed class MetricsDashboard {
             List<ChartSeries> series = [];
             bool failed = false;
 
-            foreach (string query in definition.Queries) {
-                MetricsQueryResult result = await _source.QueryAsync(query, from, now, Step, cancellationToken);
+            foreach (PanelQuery query in definition.Queries) {
+                MetricsQueryResult result = await _source.QueryAsync(query.PromQL, from, now, Step, cancellationToken);
                 switch (result) {
                     case MetricsUnavailable unavailable:
                         failed = true;
                         banner ??= unavailable.Reason;
                         break;
                     case MetricsMatrix matrix:
-                        series.AddRange(matrix.Series);
+                        // Prometheus names a series only when the expression leaves a label on it;
+                        // a percentile is one anonymous line, so the query's own name labels it.
+                        series.AddRange(matrix.Series.Select(line =>
+                            line.Label.Length == 0 ? line with { Label = query.Label } : line));
                         break;
                 }
             }
@@ -158,7 +161,7 @@ internal sealed class MetricsDashboard {
         DateTimeOffset earliest = samples.Min(point => point.At);
         DateTimeOffset latest = samples.Max(point => point.At);
         ChartAxis x = new("time", NiceTicks.Time(earliest, latest, _zone));
-        string svg = Heatmap.Render(rows, x, new ChartSize(PanelWidth, PanelHeight), HeatmapTitle);
+        string svg = Heatmap.Render(rows, x, new ChartSize(PanelWidth, PanelHeight), HeatmapTitle, "seconds");
 
         return new StatusPanel(HeatmapTitle, svg, []);
     }
@@ -184,5 +187,7 @@ internal sealed class MetricsDashboard {
         return new StatusPanel(definition.Title, svg, [.. series.Select(line => line.Label)]);
     }
 
-    private sealed record PanelDefinition(string Title, string Unit, IReadOnlyList<string> Queries);
+    private sealed record PanelDefinition(string Title, string Unit, IReadOnlyList<PanelQuery> Queries);
+
+    private sealed record PanelQuery(string PromQL, string Label);
 }

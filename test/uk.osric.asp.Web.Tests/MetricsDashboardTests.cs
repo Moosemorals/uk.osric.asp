@@ -33,6 +33,35 @@ public sealed class MetricsDashboardTests {
     }
 
     [Test]
+    public async Task RequestsByPageIsTheFirstPanel() {
+        MetricsDashboard dashboard = new(
+            new FakeMetricsSource(_ => Answer()),
+            Options,
+            new TestClock { Now = Now },
+            NullLogger<MetricsDashboard>.Instance);
+
+        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+
+        Assert.That(page.Panels[0].Title, Is.EqualTo("Requests by page"));
+    }
+
+    [Test]
+    public async Task AnAnonymousSeriesIsNamedAfterItsQuery() {
+        MetricsDashboard dashboard = new(
+            new FakeMetricsSource(_ => new MetricsMatrix([
+                new ChartSeries("", [new ChartPoint(Now.AddMinutes(-1), 1)]),
+            ])),
+            Options,
+            new TestClock { Now = Now },
+            NullLogger<MetricsDashboard>.Instance);
+
+        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+
+        StatusPanel duration = page.Panels.Single(panel => panel.Title == "Render duration p50/p95");
+        Assert.That(duration.Labels, Is.EqualTo((string[])["p50", "p95"]));
+    }
+
+    [Test]
     public async Task EveryPanelIsDrawnWhenTheSourceAnswers() {
         MetricsDashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
 

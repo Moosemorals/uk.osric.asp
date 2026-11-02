@@ -32,6 +32,7 @@ public sealed class LineChartTests {
             "<svg class=\"chart\" viewBox=\"0 0 60 50\" role=\"img\">",
             "<title>Requests</title>",
             "<desc>count over time</desc>",
+            "<text class=\"chart-axis-title\" transform=\"rotate(-90 10 20)\" x=\"10\" y=\"20\" text-anchor=\"middle\">count</text>",
             "<line class=\"chart-grid\" x1=\"40\" y1=\"30\" x2=\"50\" y2=\"30\"/>",
             "<text class=\"chart-label\" x=\"36\" y=\"34\" text-anchor=\"end\">0</text>",
             "<line class=\"chart-grid\" x1=\"40\" y1=\"10\" x2=\"50\" y2=\"10\"/>",

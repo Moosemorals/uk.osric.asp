@@ -60,13 +60,15 @@ public static class Heatmap {
     /// <param name="x">The time axis; tick positions are seconds after the first sample.</param>
     /// <param name="size">The full drawing area, labels included.</param>
     /// <param name="title">The chart title, escaped where it is drawn.</param>
+    /// <param name="yTitle">The unit of the bucket boundaries, drawn up the left edge.</param>
     /// <returns>One <c>&lt;svg&gt;</c> element.</returns>
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The size leaves no room to draw in.</exception>
-    public static string Render(IReadOnlyList<HeatmapRow> rows, ChartAxis x, ChartSize size, string title) {
+    public static string Render(IReadOnlyList<HeatmapRow> rows, ChartAxis x, ChartSize size, string title, string yTitle) {
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentNullException.ThrowIfNull(x);
         ArgumentNullException.ThrowIfNull(title);
+        ArgumentNullException.ThrowIfNull(yTitle);
 
         double plotWidth = size.Width - LeftMargin - RightMargin;
         double plotHeight = size.Height - TopMargin - BottomMargin;
@@ -86,6 +88,10 @@ public static class Heatmap {
         svg.Append("<svg class=\"heatmap\" viewBox=\"0 0 ").Append(Number(size.Width)).Append(' ')
             .Append(Number(size.Height)).Append("\" role=\"img\">\n");
         svg.Append("<title>").Append(SvgText.Escape(title)).Append("</title>\n");
+        svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 12 ")
+            .Append(Number(TopMargin + (plotHeight / 2)))
+            .Append(")\" x=\"12\" y=\"").Append(Number(TopMargin + (plotHeight / 2)))
+            .Append("\" text-anchor=\"middle\">").Append(SvgText.Escape(yTitle)).Append("</text>\n");
 
         for (int row = 0; row < rows.Count; row++) {
             HeatmapRow line = rows[row];

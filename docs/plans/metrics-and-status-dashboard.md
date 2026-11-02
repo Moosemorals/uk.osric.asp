@@ -11,7 +11,7 @@ are our own SVG drawn from pure functions in `Core`. Metrics only — no traces,
 
 ## Status
 
-Implemented on 2026-11-02. Test counts at the time: 145 core, 38 runtime, 297 web and 53 integration
+Implemented on 2026-11-02. Test counts at the time: 145 core, 38 runtime, 300 web and 53 integration
 tests (baseline before the work: 110 / 38 / 275 / 48). Built as written, with two deviations: the
 abandoned-render rate sits on the render-rate panel rather than the slot-wait one, so each chart has
 one unit; and Prometheus' retention flags are `Exec=` arguments rather than `PodmanArgs=`, because they
@@ -325,11 +325,12 @@ Parsing rules, each with a test over a recorded body:
 - Label names are Prometheus' own: the exporter writes the tag `page.path` as `page_path`, and both
   the queries and the legend use that spelling. A dotted name is a parse error, not an empty panel.
 
-`/status` queries five panels, plus the heatmap Phase 5 adds: render rate by outcome (including
-`timeout`) with abandoned renders as a rate on the same axis, render duration p50/p95, slot wait
-p50/p95, cache lookups by `result`, and requests by `page.path` (top n). Abandoned renders are a rate
-per second rather than a count per minute so the first chart keeps one unit. Those series are the ones
-the execution budget added, and they are the first thing to look at when the site is slow.
+`/status` queries five panels, plus the heatmap Phase 5 adds, in this order: requests by page (top n
+over `page_path`), render rate by outcome (including `timeout`) with abandoned renders as a rate on
+the same axis, render duration p50/p95, slot wait p50/p95, and cache lookups by `result`. Abandoned
+renders are a rate per second rather than a count per minute so each chart keeps one unit. A
+percentile query returns one anonymous series, so the panel names each line `p50`/`p95` itself, and
+every chart draws its unit up the vertical axis rather than leaving it in the description.
 Configuration is `Metrics:PrometheusUrl`, defaulting to `http://prometheus:9090`, and
 `Metrics:TimeZone`, defaulting to `Europe/London` (Decision 9); a Development override points at
 `http://localhost:9090`, and an unreachable URL is a banner, not a startup failure.

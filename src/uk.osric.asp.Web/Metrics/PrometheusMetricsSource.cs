@@ -111,11 +111,11 @@ internal sealed class PrometheusMetricsSource : IMetricsSource {
         return new MetricsMatrix(series);
     }
 
-    // The label a legend line should read: the ranked keys if present, otherwise whatever Prometheus
-    // called the series, so an unexpected query still produces something recognisable.
+    // The label a legend line should read: the ranked keys if present, otherwise empty, and the
+    // dashboard names an anonymous series after the query that produced it.
     private static string LabelFor(Dictionary<string, string>? metric) {
         if (metric is null) {
-            return "value";
+            return string.Empty;
         }
 
         List<string> parts = [];
@@ -125,7 +125,7 @@ internal sealed class PrometheusMetricsSource : IMetricsSource {
             }
         }
 
-        return parts.Count > 0 ? string.Join(' ', parts) : "value";
+        return string.Join(' ', parts);
     }
 
     private static IReadOnlyList<ChartPoint> Samples(JsonElement values) {

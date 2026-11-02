@@ -46,6 +46,17 @@ public sealed class PrometheusMetricsSourceTests {
     }
 
     [Test]
+    public async Task AnUnlabelledSeriesHasNoLabel() {
+        MetricsQueryResult result = await QueryAsync("""
+            {"status":"success","data":{"resultType":"matrix","result":[
+              {"metric":{},"values":[[1700000000,"1"]]}
+            ]}}
+            """);
+
+        Assert.That(((MetricsMatrix)result).Series[0].Label, Is.Empty);
+    }
+
+    [Test]
     public async Task APagePathLabelArrivesUnderItsPrometheusName() {
         MetricsQueryResult result = await QueryAsync("""
             {"status":"success","data":{"resultType":"matrix","result":[

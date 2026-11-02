@@ -49,6 +49,12 @@ public static class LineChart {
         svg.Append("<title>").Append(SvgText.Escape(Title(series))).Append("</title>\n");
         svg.Append("<desc>").Append(SvgText.Escape(y.Title)).Append(" over ")
             .Append(SvgText.Escape(x.Title)).Append("</desc>\n");
+        // The unit belongs on the axis, not only in the description: a chart of unknown units is a
+        // chart nobody can act on.
+        svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 10 ")
+            .Append(Number(TopMargin + (plotHeight / 2)))
+            .Append(")\" x=\"10\" y=\"").Append(Number(TopMargin + (plotHeight / 2)))
+            .Append("\" text-anchor=\"middle\">").Append(SvgText.Escape(y.Title)).Append("</text>\n");
 
         foreach (ChartTick tick in Order(y.Ticks)) {
             double at = ValuePosition(tick.Position, min, max, plotHeight);

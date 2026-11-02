@@ -61,7 +61,7 @@ public sealed class HeatmapTests {
 
     [Test]
     public void OneCellIsDrawnPerNonEmptySample() {
-        string svg = Heatmap.Render([Row("0.1", 1, 0, null), Row("0.5", 2, 3, 4)], TimeAxis, Size, "Duration");
+        string svg = Heatmap.Render([Row("0.1", 1, 0, (double?)null), Row("0.5", 2, 3, 4)], TimeAxis, Size, "Duration", "seconds");
 
         Assert.That(Count(svg, "<rect"), Is.EqualTo(4));
         Assert.That(svg, Does.Contain("<title>Duration</title>"));
@@ -69,7 +69,7 @@ public sealed class HeatmapTests {
 
     [Test]
     public void TheBusiestCellGetsTheDarkestClass() {
-        string svg = Heatmap.Render([Row("0.1", 1, 100)], TimeAxis, Size, "Duration");
+        string svg = Heatmap.Render([Row("0.1", 1, 100)], TimeAxis, Size, "Duration", "seconds");
 
         Assert.That(svg, Does.Contain("heat heat-5"));
         Assert.That(Count(svg, "heat heat-5"), Is.EqualTo(1));
@@ -77,7 +77,7 @@ public sealed class HeatmapTests {
 
     [Test]
     public void TheSmallestBucketIsDrawnAtTheBottom() {
-        string svg = Heatmap.Render([Row("0.1", 1), Row("0.5", 1), Row("+Inf", 1)], TimeAxis, Size, "Duration");
+        string svg = Heatmap.Render([Row("0.1", 1), Row("0.5", 1), Row("+Inf", 1)], TimeAxis, Size, "Duration", "seconds");
 
         double smallest = LabelTop(svg, "0.1");
         double largest = LabelTop(svg, "+Inf");
@@ -87,7 +87,7 @@ public sealed class HeatmapTests {
 
     [Test]
     public void RowLabelsAreEscaped() {
-        string svg = Heatmap.Render([Row("<b>", 1)], TimeAxis, Size, "Duration");
+        string svg = Heatmap.Render([Row("<b>", 1)], TimeAxis, Size, "Duration", "seconds");
 
         Assert.That(svg, Does.Contain("&lt;b&gt;"));
         Assert.That(svg, Does.Not.Contain("<b>"));
@@ -95,7 +95,7 @@ public sealed class HeatmapTests {
 
     [Test]
     public void AnEmptyHeatmapDrawsNoCells() {
-        string svg = Heatmap.Render([], TimeAxis, Size, "Duration");
+        string svg = Heatmap.Render([], TimeAxis, Size, "Duration", "seconds");
 
         Assert.That(Count(svg, "<rect"), Is.EqualTo(0));
         Assert.That(svg, Does.Contain("<svg class=\"heatmap\""));

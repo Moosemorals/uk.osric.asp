@@ -54,9 +54,14 @@ body {
     vector-effect: non-scaling-stroke;
 }
 
-.chart .chart-label {
+.chart .chart-label,
+.chart-axis-title {
     fill: #444;
     font-size: 11px;
+}
+
+.chart-axis-title {
+    fill: #666;
 }
 
 .series-1 { --series: var(--series-1); }
