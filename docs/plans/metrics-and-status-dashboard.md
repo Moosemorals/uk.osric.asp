@@ -331,8 +331,10 @@ inside the bucket, per page), render rate by outcome (including `timeout`) with 
 rate on the same axis, render duration p50/p95, slot wait p50/p95, and cache lookups by `result`. Abandoned
 renders are a rate per second rather than a count per minute so each chart keeps one unit. A
 percentile query returns one anonymous series, so the panel names each line `p50`/`p95` itself, and
-every chart draws its unit up the vertical axis rather than leaving it in the description. A duration
-axis rescales to milliseconds when the whole range is under a second; the stored samples stay seconds.
+every chart draws its unit up the vertical axis and repeats it in the panel title rather than leaving
+it in the description. A duration axis rescales to milliseconds when the whole range is under a
+second; the stored samples stay seconds. The heatmap's legend and hover text name its cell unit —
+`renders/s`, because the cells are rates of the bucket counter, not counts.
 Configuration is `Metrics:PrometheusUrl`, defaulting to `http://prometheus:9090`, and
 `Metrics:TimeZone`, defaulting to `Europe/London` (Decision 9); a Development override points at
 `http://localhost:9090`, and an unreachable URL is a banner, not a startup failure.

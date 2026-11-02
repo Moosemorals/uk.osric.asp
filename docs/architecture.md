@@ -328,7 +328,9 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   range is below a second is drawn in milliseconds — `0.00025` is a worse label than `0.25`.
   The heatmap carries a legend from zero to the busiest cell and gives every cell its own value in a
   `<title>`, so a shade can be read without guessing; and "Pages slower than 0.5 s" attributes the
-  slow rows to a page, which is the question the heatmap provokes.
+  slow rows to a page, which is the question the heatmap provokes. Units appear twice on purpose: in
+  the title of every panel and on the vertical axis, and the heatmap's legend names the cell unit
+  (`renders/s`) because its cells are rates, not counts.
 - **The image carries tzdata.** Only the axis labels are local; the positions, queries and samples are
   UTC. The base is `aspnet:10.0-alpine-extra` (DEC-82) because plain alpine has no
   `/usr/share/zoneinfo` and resolving `Europe/London` inside it throws.

@@ -19,6 +19,8 @@ internal sealed class MetricsDashboard {
     private const int HeatmapHeight = 320;
 
     private const string HeatmapTitle = "Render duration buckets";
+    // Each cell is a per-second rate of the bucket's counter, not a raw count.
+    private const string HeatmapValueUnit = "renders/s";
 
     private static readonly TimeSpan Window = TimeSpan.FromHours(1);
     private static readonly TimeSpan Step = TimeSpan.FromSeconds(60);
@@ -158,8 +160,10 @@ internal sealed class MetricsDashboard {
             .SelectMany(line => line.Points)
             .Where(point => point.Value is not null)];
 
+        string heatmapTitle = $"{HeatmapTitle} ({HeatmapValueUnit})";
+
         if (samples.Count == 0) {
-            return new StatusPanel(HeatmapTitle, null, []);
+            return new StatusPanel(heatmapTitle, null, []);
         }
 
         IReadOnlyList<HeatmapRow> rows = Heatmap.FromCumulative(
@@ -168,9 +172,10 @@ internal sealed class MetricsDashboard {
         DateTimeOffset earliest = samples.Min(point => point.At);
         DateTimeOffset latest = samples.Max(point => point.At);
         ChartAxis x = new("time", NiceTicks.Time(earliest, latest, _zone));
-        string svg = Heatmap.Render(rows, x, new ChartSize(PanelWidth, HeatmapHeight), HeatmapTitle, "seconds");
+        string svg = Heatmap.Render(
+            rows, x, new ChartSize(PanelWidth, HeatmapHeight), heatmapTitle, "seconds", HeatmapValueUnit);
 
-        return new StatusPanel(HeatmapTitle, svg, []);
+        return new StatusPanel(heatmapTitle, svg, []);
     }
 
     private StatusPanel Render(PanelDefinition definition, IReadOnlyList<ChartSeries> series) {
@@ -178,8 +183,10 @@ internal sealed class MetricsDashboard {
             .SelectMany(line => line.Points)
             .Where(point => point.Value is not null)];
 
+        string title = $"{definition.Title} ({definition.Unit})";
+
         if (samples.Count == 0) {
-            return new StatusPanel(definition.Title, null, []);
+            return new StatusPanel(title, null, []);
         }
 
         DateTimeOffset earliest = samples.Min(point => point.At);
@@ -197,7 +204,7 @@ internal sealed class MetricsDashboard {
         ChartAxis y = new(unit, NiceTicks.Value(min, max));
         string svg = LineChart.Render(series, x, y, new ChartSize(PanelWidth, PanelHeight));
 
-        return new StatusPanel(definition.Title, svg, [.. series.Select(line => line.Label)]);
+        return new StatusPanel($"{definition.Title} ({unit})", svg, [.. series.Select(line => line.Label)]);
     }
 
     private sealed record PanelDefinition(

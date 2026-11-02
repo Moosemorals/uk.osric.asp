@@ -42,8 +42,8 @@ public sealed class MetricsDashboardTests {
 
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
-        Assert.That(page.Panels[0].Title, Is.EqualTo("Requests by page"));
-        Assert.That(page.Panels[1].Title, Is.EqualTo("Pages slower than 0.5 s"));
+        Assert.That(page.Panels[0].Title, Is.EqualTo("Requests by page (per second)"));
+        Assert.That(page.Panels[1].Title, Is.EqualTo("Pages slower than 0.5 s (per second)"));
     }
 
     [Test]
@@ -58,7 +58,7 @@ public sealed class MetricsDashboardTests {
 
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
-        StatusPanel duration = page.Panels.Single(panel => panel.Title == "Render duration p50/p95");
+        StatusPanel duration = page.Panels.Single(panel => panel.Title.StartsWith("Render duration p50/p95", StringComparison.Ordinal));
         Assert.That(duration.Labels, Is.EqualTo((string[])["p50", "p95"]));
     }
 
@@ -77,11 +77,13 @@ public sealed class MetricsDashboardTests {
 
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
-        StatusPanel duration = page.Panels.Single(panel => panel.Title == "Render duration p50/p95");
+        StatusPanel duration = page.Panels.Single(panel => panel.Title.StartsWith("Render duration p50/p95", StringComparison.Ordinal));
+        Assert.That(duration.Title, Is.EqualTo("Render duration p50/p95 (milliseconds)"));
         Assert.That(duration.Svg, Does.Contain(">milliseconds<"));
         Assert.That(duration.Svg, Does.Not.Contain(">seconds<"));
 
-        StatusPanel rate = page.Panels.Single(panel => panel.Title == "Cache lookups by result");
+        StatusPanel rate = page.Panels.Single(panel => panel.Title.StartsWith("Cache lookups by result", StringComparison.Ordinal));
+        Assert.That(rate.Title, Is.EqualTo("Cache lookups by result (per second)"));
         Assert.That(rate.Svg, Does.Contain(">per second<"));
     }
 
@@ -95,7 +97,7 @@ public sealed class MetricsDashboardTests {
         Assert.That(page.Panels, Has.Count.EqualTo(7));
         Assert.That(page.Panels.Select(panel => panel.Svg), Is.All.Not.Null);
         Assert.That(page.Panels[0].Svg, Does.Contain("<svg class=\"chart\""));
-        Assert.That(page.Panels[^1].Title, Is.EqualTo("Render duration buckets"));
+        Assert.That(page.Panels[^1].Title, Is.EqualTo("Render duration buckets (renders/s)"));
         Assert.That(page.Panels[^1].Svg, Does.Contain("<svg class=\"heatmap\""));
     }
 
@@ -127,7 +129,7 @@ public sealed class MetricsDashboardTests {
 
         Assert.That(page.Banner, Is.EqualTo("cache query failed"));
         Assert.That(page.Panels, Has.Count.EqualTo(6));
-        Assert.That(page.Panels.Any(panel => panel.Title == "Cache lookups by result"), Is.False);
+        Assert.That(page.Panels.Any(panel => panel.Title.StartsWith("Cache lookups by result", StringComparison.Ordinal)), Is.False);
     }
 
     [Test]

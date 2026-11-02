@@ -65,14 +65,23 @@ public static class Heatmap {
     /// <param name="size">The full drawing area, labels included.</param>
     /// <param name="title">The chart title, escaped where it is drawn.</param>
     /// <param name="yTitle">The unit of the bucket boundaries, drawn up the left edge.</param>
+    /// <param name="valueUnit">The unit of the cell values, for the legend and the hover text.</param>
     /// <returns>One <c>&lt;svg&gt;</c> element.</returns>
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The size leaves no room to draw in.</exception>
-    public static string Render(IReadOnlyList<HeatmapRow> rows, ChartAxis x, ChartSize size, string title, string yTitle) {
+    public static string Render(
+        IReadOnlyList<HeatmapRow> rows,
+        ChartAxis x,
+        ChartSize size,
+        string title,
+        string yTitle,
+        string valueUnit) {
+
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentNullException.ThrowIfNull(x);
         ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(yTitle);
+        ArgumentNullException.ThrowIfNull(valueUnit);
 
         double plotWidth = size.Width - LeftMargin - RightMargin;
         double plotHeight = size.Height - TopMargin - BottomMargin - LegendHeight;
@@ -118,7 +127,7 @@ public static class Heatmap {
                     .Append("\" y=\"").Append(Number(top + CellGap))
                     .Append("\" width=\"").Append(Number(cellWidth - (CellGap * 2)))
                     .Append("\" height=\"").Append(Number(cellHeight - (CellGap * 2)))
-                    .Append("\"><title>").Append(SvgText.Escape($"{line.Label} {yTitle}: {Format(value)}"))
+                    .Append("\"><title>").Append(SvgText.Escape($"{line.Label} {yTitle}: {Format(value)} {valueUnit}"))
                     .Append("</title></rect>\n");
             }
         }
@@ -130,14 +139,14 @@ public static class Heatmap {
                 .Append("\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label)).Append("</text>\n");
         }
 
-        WriteLegend(svg, size, max);
+        WriteLegend(svg, size, max, valueUnit);
         svg.Append("</svg>\n");
         return svg.ToString();
     }
 
     // The shades are a log scale, so the legend gives the two ends of the range and each cell names
     // its own value on hover; five printed ranges would be more precise than the colours are.
-    private static void WriteLegend(StringBuilder svg, ChartSize size, double max) {
+    private static void WriteLegend(StringBuilder svg, ChartSize size, double max, string valueUnit) {
         double top = size.Height - LegendHeight + 4;
         double left = LeftMargin;
 
@@ -156,7 +165,8 @@ public static class Heatmap {
 
         svg.Append("<text class=\"chart-label\" x=\"").Append(Number(left + 2))
             .Append("\" y=\"").Append(Number(top + SwatchHeight))
-            .Append("\" text-anchor=\"start\">").Append(Format(max)).Append("</text>\n");
+            .Append("\" text-anchor=\"start\">").Append(Format(max)).Append(' ').Append(SvgText.Escape(valueUnit))
+            .Append("</text>\n");
     }
 
     private static string Format(double value) =>
