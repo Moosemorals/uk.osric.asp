@@ -72,6 +72,15 @@ SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct 2>/dev/null)
 # Where `make deploy` sends the image and quadlets, and where the remote-* targets run.
 HOST ?=
 
+# A deploy is a dozen ssh commands to one host. A control socket makes them one connection: the host
+# key check and authentication happen once, and every later command is a channel on the connection
+# that is already open. ControlPersist closes the master 60s after the last of them — long enough to
+# cover the next recipe line, short enough that nothing lingers once the target is done. The socket
+# is named by %C, a hash of user, host and port: a unix socket path must fit in 108 bytes, and the
+# hostnames this target is given need not.
+SSH_CONTROL_DIR ?= $(HOME)/.ssh/control
+SSH ?= ssh -o ControlMaster=auto -o ControlPath=$(SSH_CONTROL_DIR)/%C -o ControlPersist=60s
+
 # The running container on HOST: the quadlet's ContainerName= and the entry assembly the SDK puts in
 # /app. Reaching it with `podman exec` reuses the deployment's own storage volume and connection
 # string, so the remote-* targets never have to guess an image tag.
@@ -105,6 +114,10 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 
 .PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check clean
 .DELETE_ON_ERROR:
+
+# ssh will not create the directory its control socket lives in.
+$(SSH_CONTROL_DIR):
+	@install -d -m 700 $@
 
 # ---- Targets -------------------------------------------------------------------------------------
 
@@ -241,24 +254,24 @@ user-remove: build
 # deploy/README.md. add and passwd keep a terminal at both ends, because the password prompt is read
 # a key at a time and must not echo; list and remove need no terminal.
 
-remote-user-add:
+remote-user-add: | $(SSH_CONTROL_DIR)
 	@test -n "$(strip $(HOST))" || { echo "usage: make remote-user-add HOST=deploy@server ACCOUNT=name"; exit 1; }
 	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make remote-user-add HOST=deploy@server ACCOUNT=name"; exit 1; }
-	ssh -t $(HOST) podman exec -it -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users add '$(ACCOUNT)'
+	$(SSH) -t $(HOST) podman exec -it -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users add '$(ACCOUNT)'
 
-remote-user-passwd:
+remote-user-passwd: | $(SSH_CONTROL_DIR)
 	@test -n "$(strip $(HOST))" || { echo "usage: make remote-user-passwd HOST=deploy@server ACCOUNT=name"; exit 1; }
 	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make remote-user-passwd HOST=deploy@server ACCOUNT=name"; exit 1; }
-	ssh -t $(HOST) podman exec -it -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users passwd '$(ACCOUNT)'
+	$(SSH) -t $(HOST) podman exec -it -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users passwd '$(ACCOUNT)'
 
-remote-user-list:
+remote-user-list: | $(SSH_CONTROL_DIR)
 	@test -n "$(strip $(HOST))" || { echo "usage: make remote-user-list HOST=deploy@server"; exit 1; }
-	ssh $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users list
+	$(SSH) $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users list
 
-remote-user-remove:
+remote-user-remove: | $(SSH_CONTROL_DIR)
 	@test -n "$(strip $(HOST))" || { echo "usage: make remote-user-remove HOST=deploy@server ACCOUNT=name"; exit 1; }
 	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make remote-user-remove HOST=deploy@server ACCOUNT=name"; exit 1; }
-	ssh $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users remove '$(ACCOUNT)'
+	$(SSH) $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users remove '$(ACCOUNT)'
 
 run:
 	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) $(DOTNET) run --project $(WEB_PROJECT)
@@ -307,18 +320,19 @@ image-check:
 
 # Pushes the image, installs the quadlets (the source of truth), and restarts. The app and Prometheus
 # run rootless as HOST's user on a shared network; Caddy is the only rootful unit and is installed
-# with sudo. The quadlet's Image= line
-# is rewritten on the way, so REGISTRY and the commit tag reach the host. Both services are restarted
-# rather than started, so a Caddyfile edit takes effect on a redeploy, and a restart is a reason to
-# run this target on its own. There is no enable step: quadlet units are transient, so systemctl
-# refuses to enable them, and the generator already applies each quadlet's [Install] section on
-# daemon-reload.
+# with sudo. The quadlet's Image= line is rewritten on the way, so REGISTRY and the commit tag reach
+# the host. Every quadlet is written before the single daemon-reload that reads them, and both
+# services are restarted in one command afterwards: a reload or a restart each costs a round trip,
+# and neither has anything to do until the last file is in place. Restarting rather than starting is
+# what makes a Caddyfile edit take effect on a redeploy, and a restart is a reason to run this target
+# on its own. There is no enable step: quadlet units are transient, so systemctl refuses to enable
+# them, and the generator already applies each quadlet's [Install] section on daemon-reload.
 #
 # The whole gate runs before the image is built, and therefore long before anything is pushed: a tag
 # that has been pulled by the server cannot be withdrawn, and a broken suite is cheaper to meet here
 # than on the running site. Do not run this target with -j; the order is the point.
-deploy: deploy-guard check image
-	@ssh $(HOST) 'dpkg -s aardvark-dns >/dev/null 2>&1 || { \
+deploy: deploy-guard check image | $(SSH_CONTROL_DIR)
+	@$(SSH) $(HOST) 'dpkg -s aardvark-dns >/dev/null 2>&1 || { \
 		echo "the host is missing aardvark-dns: container names will not resolve"; \
 		echo "run: sudo apt-get install -y aardvark-dns"; \
 		exit 1; }'
@@ -326,17 +340,15 @@ deploy: deploy-guard check image
 	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_SHA_REF)
-	ssh $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_SHA_REF)
-	ssh $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.network' < deploy/uk.osric.asp.network
-	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | ssh $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
-	ssh $(HOST) systemctl --user daemon-reload
-	ssh $(HOST) systemctl --user restart uk.osric.asp.service
-	ssh $(HOST) install -d .config/prometheus
-	ssh $(HOST) 'cat > .config/prometheus/prometheus.yml' < deploy/prometheus.yml
-	ssh $(HOST) 'cat > .config/containers/systemd/prometheus.container' < deploy/prometheus.container
-	ssh $(HOST) systemctl --user daemon-reload
-	ssh $(HOST) systemctl --user restart prometheus.service
-	@ssh $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://app:8080/heath >/dev/null 2>&1; do \
+	$(SSH) $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_SHA_REF)
+	$(SSH) $(HOST) install -d .config/prometheus
+	$(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.network' < deploy/uk.osric.asp.network
+	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | $(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
+	$(SSH) $(HOST) 'cat > .config/prometheus/prometheus.yml' < deploy/prometheus.yml
+	$(SSH) $(HOST) 'cat > .config/containers/systemd/prometheus.container' < deploy/prometheus.container
+	$(SSH) $(HOST) systemctl --user daemon-reload
+	$(SSH) $(HOST) systemctl --user restart uk.osric.asp.service prometheus.service
+	@$(SSH) $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://app:8080/heath >/dev/null 2>&1; do \
 		i=$$((i+1)); \
 		if [ $$i -ge 10 ]; then \
 			echo "Prometheus cannot reach the app at app:8080: check podman network inspect uk.osric.asp"; \
@@ -344,13 +356,13 @@ deploy: deploy-guard check image
 		fi; \
 		sleep 2; \
 	done'
-	ssh $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
-	ssh $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
-	ssh $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
-	ssh $(HOST) sudo systemctl daemon-reload
-	ssh $(HOST) sudo systemctl restart caddy.service
+	$(SSH) $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
+	$(SSH) $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
+	$(SSH) $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
+	$(SSH) $(HOST) sudo systemctl daemon-reload
+	$(SSH) $(HOST) sudo systemctl restart caddy.service
 	@echo "waiting for /heath"
-	@ssh $(HOST) 'i=0; until curl -fsS -o /dev/null http://127.0.0.1:8080/heath; do \
+	@$(SSH) $(HOST) 'i=0; until curl -fsS -o /dev/null http://127.0.0.1:8080/heath; do \
 		i=$$((i+1)); \
 		if [ $$i -ge 30 ]; then \
 			echo "the site is not healthy 60s after the restart: journalctl --user -u uk.osric.asp.service"; \
@@ -363,7 +375,7 @@ deploy: deploy-guard check image
 # Everything the deploy destination insists on, checked before the gate rather than after it. An
 # image pushed from an uncommitted tree cannot be rebuilt from the commit its tag names, which is
 # also the only thing a rollback can rely on; ALLOW_DIRTY=1 is the deliberate exception.
-deploy-guard:
+deploy-guard: | $(SSH_CONTROL_DIR)
 	@test -n "$(strip $(HOST))" || { echo "usage: make deploy HOST=deploy@your.server"; exit 1; }
 	@test -n "$(strip $(GIT_SHA))" || { echo "not a git checkout: there is no commit to tag the image with"; exit 1; }
 	@if [ -z "$(strip $(ALLOW_DIRTY))" ] && [ -n "$$(git status --porcelain)" ]; then \
@@ -371,7 +383,7 @@ deploy-guard:
 		git status --short; exit 1; fi
 	@if grep -qE '^[[:space:]]*(example\.com|admin@example\.com)' deploy/Caddyfile; then \
 		echo "deploy/Caddyfile still contains the example.com placeholder"; exit 1; fi
-	@ssh -o ConnectTimeout=10 $(HOST) true || { echo "cannot reach $(HOST)"; exit 1; }
+	@$(SSH) -o ConnectTimeout=10 $(HOST) true || { echo "cannot reach $(HOST)"; exit 1; }
 
 # Needs the network: the advisory data comes from the package feed, not from the lock file.
 # `dotnet list package` exits 0 whether or not it finds anything, so the wording is what is checked.
