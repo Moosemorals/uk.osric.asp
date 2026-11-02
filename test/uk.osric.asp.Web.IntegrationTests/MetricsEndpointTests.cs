@@ -38,8 +38,12 @@ public sealed class MetricsEndpointTests : IntegrationTest {
 
     [Test]
     public async Task MetricsRouteShadowsAPageStoredAtTheSameKey() {
+        await SavePageAsync("/measured", "Hello.");
         await SavePageAsync("/metrics", "<p>not the scrape endpoint</p>");
         using HttpClient client = CreateClient();
+        // The histogram only appears once something has been observed, so render a page first
+        // rather than relying on another test in the fixture having done so.
+        await client.GetAsync("/measured");
 
         HttpResponseMessage response = await client.GetAsync("/metrics");
         string body = await response.Content.ReadAsStringAsync();
