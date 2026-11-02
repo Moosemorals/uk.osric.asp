@@ -15,6 +15,8 @@ internal sealed class MetricsDashboard {
 
     private const int PanelWidth = 640;
     private const int PanelHeight = 200;
+    // Fifteen `le` rows need more height than a line chart, or 11px labels overlap.
+    private const int HeatmapHeight = 320;
 
     private const string HeatmapTitle = "Render duration buckets";
 
@@ -161,7 +163,7 @@ internal sealed class MetricsDashboard {
         DateTimeOffset earliest = samples.Min(point => point.At);
         DateTimeOffset latest = samples.Max(point => point.At);
         ChartAxis x = new("time", NiceTicks.Time(earliest, latest, _zone));
-        string svg = Heatmap.Render(rows, x, new ChartSize(PanelWidth, PanelHeight), HeatmapTitle, "seconds");
+        string svg = Heatmap.Render(rows, x, new ChartSize(PanelWidth, HeatmapHeight), HeatmapTitle, "seconds");
 
         return new StatusPanel(HeatmapTitle, svg, []);
     }
