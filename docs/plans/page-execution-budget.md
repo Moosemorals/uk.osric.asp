@@ -87,8 +87,9 @@ before any of the code lands.
 
 *Superseded in part, 2026-11-02: the quadlet now passes `--memory-swap=768m` as well, and `--cpus=0.9`
 rather than `--cpus=1`, because the host gained a 2 GiB swap file that the app must not use
-([DEC-83](../decisions.md), [memory and swap](../../deploy/README.md#memory-and-swap)). The reasoning
-below is what applied before that.*
+([DEC-83](../decisions.md), [memory and swap](../../deploy/README.md#memory-and-swap)). The values
+changed again when the host became a 4 vCPU / 8 GB CAX21 — the current caps are in
+[DEC-86](../decisions.md) and the quadlet. The reasoning below is what applied before either change.*
 
 `deploy/uk.osric.asp.container` gains, in `[Container]`:
 

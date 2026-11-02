@@ -114,6 +114,10 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | DEC-72 | There is one gate: `make check`, run on demand and by `make deploy` and `make ci`. Nothing installs a pre-push hook: a minute-plus on every push cost more than it ever caught. No workflow files, no service, no secret — a machine with the repository, the SDK, `reuse` and podman can reproduce it. | [Makefile](../Makefile), [OPS-03](jobs/OPS-03.md) |
 | DEC-73 | Commits are local; push only when asked. A finished task is a commit, not a push. | conversation, 2026-11-01 |
 | DEC-83 | The host carries a 2 GiB swap file that the app's cgroup cannot touch: on 1 GB of RAM the swap is the headroom Caddy, Prometheus, podman and the kernel use, and keeping it away from the app is what keeps a runaway page a ~35 s outage rather than a thrash that outlasts the probe. `vm.swappiness` stays at the default. | [deploy](../deploy/README.md#memory-and-swap), [cloud-init](../deploy/cloud-init.yaml) |
+| DEC-84 | The host is a Hetzner Cloud `cax21`: four Ampere arm64 vCPUs, 8 GB of RAM, an 80 GB SSD, Debian 13. The topology is unchanged — rootless quadlets for the app and Prometheus, rootful Caddy as the only privileged unit — and the move replaced `cpx02`. | [deploy](../deploy/README.md), [cloud-init](../deploy/cloud-init.yaml) |
+| DEC-85 | The image is built for `linux-musl-arm64` on `linux/arm64` by default, matching the CAX21. An x86 host overrides both `CONTAINER_RID` and `CONTAINER_PLATFORM`; the base's manifest-list digest is shared, so the same pin resolves on either architecture. | [Makefile](../Makefile), [deploy](../deploy/README.md#notes) |
+| DEC-86 | Resource caps scale with the CAX21: the app keeps `--memory=2g` with `--memory-swap=2g`, `--pids-limit=512` and `--cpus=3`, leaving a whole vCPU for Caddy and the probe. Prometheus gets `--memory=512m` and 4 GB of retention. The OOM-killer and restart behaviour is unchanged. | [deploy](../deploy/README.md#resource-limits-and-restarts), [app quadlet](../deploy/uk.osric.asp.container) |
+| DEC-87 | The CAX21 carries a 4 GiB swap file. On 8 GB it is a cushion for a burst — an image pull, an app restart and an unattended upgrade at once — rather than the memory budget it was on the old 1 GB host. The app's cgroup still cannot touch it, and `vm.swappiness` stays at the default. | [deploy](../deploy/README.md#memory-and-swap), [cloud-init](../deploy/cloud-init.yaml) |
 
 ## Build, test and house style
 
@@ -147,6 +151,10 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | 2026-11-01 | Hetzner `cx22` | Hetzner `cpx02` (DEC-58) | Hetzner no longer sells `cx22` |
 | 2026-11-01 | A pre-push hook running `make check` on every push | The gate runs on demand (DEC-72) | The wait before every push was worse than the failures it caught; `make deploy` already gates a release |
 | 2026-11-02 | The host runs without swap | A 2 GiB swap file, with the app's cgroup excluded (DEC-83) | 1 GB of RAM with no headroom turned every burst into an OOM kill of whichever process scored highest |
+| 2026-11-02 | Hetzner `cpx02` (1 vCPU, 1 GB, 20 GB) | Hetzner `cax21` (4 vCPU, 8 GB, 80 GB, arm64) (DEC-84) | The site needed headroom for concurrent page compiles and metrics retention |
+| 2026-11-02 | Images built for `linux-musl-x64` | `linux-musl-arm64` by default, with an x86 override (DEC-85) | The host is now arm64 |
+| 2026-11-02 | App capped at 768 MB, 256 pids, 0.9 vCPU; Prometheus 256 MB, 2 GB retention | App 2 GB / 512 pids / 3 vCPU; Prometheus 512 MB, 4 GB retention (DEC-86) | The caps were sized for 1 vCPU and 1 GB |
+| 2026-11-02 | A 2 GiB swap file sized as the memory budget | A 4 GiB swap file as burst headroom on 8 GB (DEC-87) | 8 GB is not tight, so swap is insurance rather than capacity |
 
 ## Open policy questions
 

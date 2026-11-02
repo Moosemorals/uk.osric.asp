@@ -59,10 +59,12 @@ REMOTE_AUTHFILE ?= /home/deploy/.config/containers/auth.json
 # `-extra` rather than plain alpine: the status page labels its time axis in Europe/London, and only
 # the extra flavour carries tzdata. It costs about 38 MB in shared base layers, once.
 CONTAINER_BASE_IMAGE ?= mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra@sha256:78bec9181ad577eff1f78e738d19603ece6f3170819c7f268eae6a7566c9f600
-# RID of the server. On an ARM (CAX) server: linux-musl-arm64.
-CONTAINER_RID ?= linux-musl-x64
+# RID of the server. The host is a Hetzner CAX21 (Ampere, arm64), so arm64 is the default; an x86
+# host builds with CONTAINER_RID=linux-musl-x64.
+CONTAINER_RID ?= linux-musl-arm64
 # The platform podman builds for, which has to agree with CONTAINER_RID: musl-arm64 is linux/arm64.
-CONTAINER_PLATFORM ?= linux/amd64
+# The base image is a manifest list, so cross-building on an amd64 machine pulls the arm64 variant.
+CONTAINER_PLATFORM ?= linux/arm64
 # The two builds inside `image-check` must not share a layer cache.
 IMAGE_CHECK_FLAGS ?= --no-cache
 # The commit's own timestamp: fixed for a commit, meaningful in the image, and the reason two builds

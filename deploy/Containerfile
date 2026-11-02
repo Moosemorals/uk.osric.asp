@@ -9,7 +9,8 @@
 # is the one part of the image this repository does not control. `podman image inspect --format
 # '{{json .RepoDigests}}' mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra` lists both digests for
 # the tag; the manifest list is the one below, because it is the digest that resolves for amd64 and
-# arm64 alike. Bump it deliberately, in its own commit.
+# arm64 alike. `make image` builds for linux/arm64, matching the CAX21 host; the platform argument
+# selects the arm64 variant from this same pin. Bump it deliberately, in its own commit.
 #
 # `-extra` supplies /usr/share/zoneinfo, which the status page's Europe/London clock labels need; the
 # plain alpine image has no tzdata at all and TimeZoneInfo throws for the zone inside it.

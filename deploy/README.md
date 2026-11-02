@@ -6,9 +6,9 @@ SPDX-License-Identifier: MIT
 # Deployment
 
 The app ships as an OCI image built by podman from `deploy/Containerfile` and runs under **podman
-quadlets** on a single Debian 13 (trixie) VM. The image contains the publish output and nothing else:
-the SDK runs on the build machine, never in the image, and the build context is the published
-directory, so `COPY . /app` is exactly the files the app runs from.
+quadlets** on a single Debian 13 (trixie) arm64 VM (Hetzner CAX21). The image contains the publish
+output and nothing else: the SDK runs on the build machine, never in the image, and the build
+context is the published directory, so `COPY . /app` is exactly the files the app runs from.
 
 The build is reproducible. `podman build --timestamp` normalises the created time and every file
 mtime, the epoch is the commit's own timestamp, and the base image is pinned by digest, so two builds
@@ -37,8 +37,8 @@ and applies them.
 
 ## First deployment
 
-1. Create the VM (Hetzner `cpx02`: 1 vCPU, 1 GB of RAM, 20 GB of disk; Debian 13) with the official
-   CLI image — nothing is installed locally except podman. `--ssh-key` takes the *name* of a key registered in the Hetzner project, not a path
+1. Create the VM (Hetzner `cax21`: 4 Arm64 vCPUs, 8 GB of RAM, 80 GB of SSD; Debian 13) with the
+   official CLI image — nothing is installed locally except podman. `--ssh-key` takes the *name* of a key registered in the Hetzner project, not a path
    to a local file, so register it first. `cloud-init.yaml` already lists the two keys `deploy` will
    accept (the ones on `lucy` and `Carrot`); edit that list if you deploy from another machine. The
    Hetzner key is a fallback for root if user creation ever fails.
@@ -54,7 +54,7 @@ and applies them.
    podman run --rm -e HCLOUD_TOKEN \
      -v "$PWD/deploy:/deploy:ro" \
      docker.io/hetznercloud/cli:latest \
-     server create --name uk.osric.asp --type cpx02 --image debian-13 \
+     server create --name uk.osric.asp --type cax21 --image debian-13 \
        --location fsn1 --ssh-key lucy \
        --user-data-from-file /deploy/cloud-init.yaml
    ```
@@ -65,8 +65,8 @@ and applies them.
    `cloud-init.yaml` installs podman with the rootless pieces (`uidmap`, `passt`, `fuse-overlayfs`),
    creates the `deploy` user with subuid/subgid ranges and its own SSH keys, enables lingering so its
    user manager outlives the login, hardens SSH, and opens 22, 80 and 443 (TCP and UDP) in ufw. It
-   also creates a 2 GiB swap file and adds it to `/etc/fstab` — see [memory and
-   swap](#memory-and-swap) for why the box needs one. It reboots once if the package upgrade
+   also creates a 4 GiB swap file and adds it to `/etc/fstab` — see [memory and
+   swap](#memory-and-swap) for what it is for. It reboots once if the package upgrade
    installed a new kernel, and ends with a rootless `podman info` that must print `true` — check it
    with `cloud-init status --long` and `swapon --show` before relying on the host.
 
@@ -134,25 +134,25 @@ and applies them.
 
 ## Memory and swap
 
-The VM has 1 GB of RAM, which is not enough for the app, Caddy, Prometheus, podman and the kernel to
-share without a margin, so `cloud-init.yaml` creates a 2 GiB swap file at `/swapfile`. It is a
-deliberately lopsided arrangement (DEC-83):
+The VM has 8 GB of RAM, which is enough for the app, Caddy, Prometheus, podman and the kernel to
+share, so the 4 GiB swap file at `/swapfile` is a cushion rather than part of the memory budget
+(DEC-87). The arrangement is still deliberately lopsided:
 
-- **The app cannot use it.** The quadlet passes `--memory-swap=768m` beside `--memory=768m`, which
-  sets that container's `memory.swap.max` to zero. A page that allocates without bound still meets the
-  OOM killer, and the health check still restarts the container in about 35 s; the failure stays fast
-  and deterministic instead of becoming minutes of thrash that outlast the probe.
+- **The app cannot use it.** The quadlet passes `--memory-swap=2g` beside `--memory=2g`, which sets
+  that container's `memory.swap.max` to zero. A page that allocates without bound still meets the OOM
+  killer, and the health check still restarts the container in about 35 s; the failure stays fast and
+  deterministic instead of becoming minutes of thrash that outlast the probe.
 - **Everything else can.** Caddy, Prometheus, podman and the kernel sit outside that cgroup, and the
   swap is what stops a burst — an image pull beside an app restart, an `unattended-upgrades` run —
   from ending in a kill of whichever process scored highest. Paging out an idle proxy costs nothing
   measurable; killing it costs a restart, and for the app, every request in flight.
 - **Swappiness is left alone.** With the app excluded, the pages that move are the idle ones, which
-  is exactly right. Lowering `vm.swappiness` on a 1 GB box would make the kernel drop page cache
-  instead and reach the OOM killer sooner, not later.
-- **Swap is not capacity.** If `podman stats` shows the app's working set at its 768 MB limit, the
+  is exactly right. Lowering `vm.swappiness` would make the kernel drop page cache instead and reach
+  the OOM killer sooner, not later.
+- **Swap is not capacity.** If `podman stats` shows the app's working set at its 2 GB limit, the
   answer is a bigger VM — or a higher limit with the memory behind it — never more swap.
-- **The swap file is 10% of the disk.** The 20 GB is shared with the image store, the previous image
-  tag kept for rollback, `storage.db` and Prometheus's 2 GB retention. Check `df -h /` before raising
+- **The swap file is 5% of the disk.** The 80 GB is shared with the image store, the previous image
+  tag kept for rollback, `storage.db` and Prometheus's 4 GB retention. Check `df -h /` before raising
   any of them.
 
 ## Resource limits and restarts
@@ -161,10 +161,10 @@ The app container is the only thing that can stop a page. .NET cannot interrupt 
 a page loops forever the request answers `504` and the thread is lost; the app stops reporting healthy
 rather than pretending otherwise. Podman then does the killing.
 
-- **Limits.** `--memory=768m` means a page that allocates without bound gets the OOM killer, and
-  `--memory-swap=768m` keeps the container from paging instead of dying ([memory and
-  swap](#memory-and-swap)). `--pids-limit=256` stops a thread or process storm taking the host with
-  it, and `--cpus=0.9` leaves a tenth of the single core for the host-side Caddy and for the probe.
+- **Limits.** `--memory=2g` means a page that allocates without bound gets the OOM killer, and
+  `--memory-swap=2g` keeps the container from paging instead of dying ([memory and
+  swap](#memory-and-swap)). `--pids-limit=512` stops a thread or process storm taking the host with
+  it, and `--cpus=3` leaves a whole one of the four vCPUs for the host-side Caddy and for the probe.
   `StopTimeout=35` is longer than the host's 30 s graceful-shutdown budget, so a normal stop finishes
   cleanly and only a stuck page is `SIGKILL`ed.
 - **Probe.** `HealthCmd` runs
@@ -179,8 +179,9 @@ rather than pretending otherwise. Podman then does the killing.
   behaviour, but it needs a fix and `systemctl --user reset-failed uk.osric.asp.service` rather than
   waiting. `journalctl --user -u uk.osric.asp.service` names the page path in the warning line.
 - **Tuning.** `podman stats` shows the real working set; the memory limit is the knob to raise first if
-  the site is OOM-killed under load rather than because of a page — but on a 1 GB host raising it
-  without adding RAM only moves the kill from the container to the kernel's choice of victim.
+  the site is OOM-killed under load rather than because of a page. There is room on an 8 GB host, but
+  raising it without leaving memory for the page cache only moves the kill from the container to the
+  kernel's choice of victim.
 
 ## Storage and migrations
 
@@ -308,8 +309,8 @@ rootless, so they *can* share `uk.osric.asp.network`; container names on that ne
 
 ## Metrics and the status page
 
-Prometheus scrapes `app:8080/metrics` every 15 s over the shared network and keeps 30 days or 2 GB,
-whichever comes first; the container is capped at 256 MB of RAM so runaway cardinality fails a scrape
+Prometheus scrapes `app:8080/metrics` every 15 s over the shared network and keeps 30 days or 4 GB,
+whichever comes first; the container is capped at 512 MB of RAM so runaway cardinality fails a scrape
 instead of the host. `/status` is owner-only and queries Prometheus by name, so neither service is
 reachable from the internet.
 
@@ -319,7 +320,7 @@ reachable from the internet.
   `ssh -L 9090:127.0.0.1:9090 deploy@<server-ip>` and open `http://localhost:9090`.
 - **No data is a banner, not a failure.** A stopped Prometheus, a slow query, or an unreadable reply
   makes `/status` say so and still render; only a bug in the page itself is a `500`.
-- **Retention is a guess.** 30 days and 2 GB are easy to change in `prometheus.container`; check
+- **Retention is a guess.** 30 days and 4 GB are easy to change in `prometheus.container`; check
   `df -h /` before raising them, because images, page assemblies, the database and the swap file
   share the disk.
 - **Existing hosts need one package.** `aardvark-dns` became part of `cloud-init.yaml` with this
@@ -361,7 +362,9 @@ Every image goes through `registry.osric.uk`, so the layout is chosen for layers
 | --- | --- | --- |
 | `mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra` | 177 kB (framework-dependent) | 160 MB |
 
-The ~160 MB .NET runtime lives in the base image's layers, which are pulled once and cached by both
+The base is a manifest list, and `--platform linux/arm64` selects the arm64 variant that the CAX21
+needs; the same digest also carries amd64, so a build on an x86 machine uses the same pin. The
+~160 MB .NET runtime lives in the base image's layers, which are pulled once and cached by both
 the registry and the host. Each release therefore pushes and pulls only the app layer. The `-extra`
 flavour costs about 38 MB over plain alpine and is chosen for its `/usr/share/zoneinfo`: the status
 page labels its time axis in Europe/London, and `TimeZoneInfo` throws for a zone the image does not
@@ -401,8 +404,8 @@ For unattended updates, add `AutoUpdate=registry` to the app quadlet and run
 
 ## Notes
 
-- The image is built for `linux-musl-x64`. On a CAX (ARM) server, use
-  `make deploy CONTAINER_RID=linux-musl-arm64`.
+- The image is built for `linux-musl-arm64`, matching the CAX21 host. On an x86 machine use
+  `make deploy CONTAINER_RID=linux-musl-x64 CONTAINER_PLATFORM=linux/amd64`; the two must agree.
 - The app container runs as uid 1654 with all capabilities dropped and `no-new-privileges`; only
   Caddy publishes ports that the outside world can reach.
 - Data-protection keys are persistent in `uk.osric.asp-keys`. Deleting that volume signs every

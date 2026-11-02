@@ -8,9 +8,9 @@
 # It prepares the host only: the app runs rootless as the deploy user, Caddy runs rootful as the
 # public edge, and `make deploy` installs the quadlets and the image.
 #
-# The VM is 1 vCPU, 1 GB of RAM and 20 GB of disk. The swap file below is part of the memory budget
-# rather than an optional extra: the app is capped at 768 MB and is not allowed to page, so the swap
-# is where everything that is not the app lives when the box is tight.
+# The VM is a Hetzner CAX21: four Ampere vCPUs, 8 GB of RAM, an 80 GB SSD, and arm64. The swap file
+# below is 4 GiB, which is insurance rather than a working set: the app is capped at 2 GB and is not
+# allowed to page, so the swap is where everything that is not the app goes during a burst.
 
 package_update: true
 package_upgrade: true
@@ -57,13 +57,13 @@ write_files:
       PermitRootLogin prohibit-password
 
 runcmd:
-  # 2 GiB of swap on the volume the containers and the database already share. The app's cgroup cannot
-  # use it (`--memory-swap=768m`), so what it buys is headroom for Caddy, Prometheus, podman and the
-  # kernel: on 1 GB of RAM a burst — an image pull beside an app restart, an unattended upgrade —
-  # otherwise has no room at all, and the OOM killer picks whichever process scored highest.
+  # 4 GiB of swap on the volume the containers and the database already share. The app's cgroup
+  # cannot use it (`--memory-swap=2g`), so what it buys is headroom for Caddy, Prometheus, podman and
+  # the kernel when an image pull, an app restart and an unattended upgrade land together. 8 GB is
+  # not tight, so this is a cushion rather than the memory budget it was on the old 1 GB host.
   # `fallocate` needs ext4 or xfs, which the Debian image's root is; on btrfs the file has to be
   # written with `dd` after `chattr +C /swapfile`.
-  - fallocate -l 2G /swapfile
+  - fallocate -l 4G /swapfile
   - chmod 600 /swapfile
   - mkswap /swapfile
   - echo '/swapfile none swap sw,nofail 0 0' >> /etc/fstab

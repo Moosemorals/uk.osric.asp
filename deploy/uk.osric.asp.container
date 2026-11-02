@@ -29,16 +29,18 @@ NoNewPrivileges=true
 DropCapability=all
 # A page cannot be interrupted once it runs, so the container is the only thing that can stop one:
 # the memory limit makes the OOM killer take this container rather than the host, and the health
-# check restarts it when too many page renders have been abandoned.
-PodmanArgs=--memory=768m
+# check restarts it when too many page renders have been abandoned. 2 GB is a quarter of the CAX21's
+# RAM: enough for concurrent Roslyn compilations, and still leaves the page cache and the other
+# units most of the box.
+PodmanArgs=--memory=2g
 # Equal to --memory, so the container's memory.swap.max is zero and it cannot page. On this host the
 # swap file is headroom for Caddy, Prometheus and podman; a runaway page must still meet the OOM
 # killer rather than thrash for minutes and take the health check's deadline with it.
-PodmanArgs=--memory-swap=768m
-PodmanArgs=--pids-limit=256
-# One vCPU is the whole box, so this is not decorative: it leaves a tenth of the core for Caddy and
-# for the health check, which runs inside this cgroup and would otherwise starve with the page.
-PodmanArgs=--cpus=0.9
+PodmanArgs=--memory-swap=2g
+PodmanArgs=--pids-limit=512
+# The CAX21 has four vCPUs, so this leaves a whole core for Caddy and for the health check, which
+# runs inside this cgroup and would otherwise starve with the page.
+PodmanArgs=--cpus=3
 # Longer than the host's 30 s graceful-shutdown budget, so a normal stop finishes cleanly and only a
 # genuinely stuck page is SIGKILLed.
 StopTimeout=35

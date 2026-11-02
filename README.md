@@ -100,7 +100,7 @@ are the things NuGet cannot give you, and a fresh machine has none of them.
 
 The server side needs rootless podman with `uidmap`, `passt`, `fuse-overlayfs` and `aardvark-dns`
 (container-name resolution for the shared network); `deploy/cloud-init.yaml` installs those on a fresh
-Debian 13 VM.
+Debian 13 arm64 VM (Hetzner CAX21).
 
 Optional, but they make life easier: the `hcloud` CLI if you are creating the VM, and VS Code with
 the C# extension, which has a launch configuration in `.vscode/launch.json`.

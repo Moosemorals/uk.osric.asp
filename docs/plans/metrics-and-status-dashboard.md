@@ -362,8 +362,9 @@ a stub, so they never see another fixture's recordings.
   `PodmanArgs=--memory=256m`, and the retention flags on `Exec=` (they are arguments to the Prometheus
   binary, not to podman): `--storage.tsdb.retention.time=30d --storage.tsdb.retention.size=2GB`. The
   cap trades against a disk whose size nothing in the
-  repository records (the VM is a `cpx02`, DEC-58) and which also holds images, page assemblies and
-  the SQLite database: check `df -h /` on the host before calling 2 GB any particular fraction of it.
+  repository records (the VM was a `cpx02` at the time, and is now a `cax21`, DEC-84) and which also
+  holds images, page assemblies and the SQLite database: check `df -h /` on the host before calling
+  2 GB any particular fraction of it. The cap and retention are now 512 MB and 4 GB (DEC-86).
 - `deploy/prometheus.yml`: one static target, `app:8080`, `metrics_path: /metrics`, 15 s interval.
 - `make deploy` installs the network unit first, then the app unit (so it restarts onto the network),
   then the config and Prometheus unit; `deploy/README.md` describes the new unit and the
@@ -442,8 +443,8 @@ beside `PageMetricsTests` and the budget tests, never in parallel with them.
 - **Prometheus at boot.** After a host reboot the two containers start concurrently and Prometheus may
   record a failed scrape before the app is listening; the target recovers on the next interval with
   no intervention.
-- **Retention.** 30 days and 2 GB; the container is separately capped at 256 MB of RAM, so runaway
-  cardinality fails a scrape rather than the host. Nothing in the repository records the VM's disk
+- **Retention.** 30 days and 2 GB (now 4 GB, with a 512 MB container cap, DEC-86); the container is
+  separately capped, so runaway cardinality fails a scrape rather than the host. Nothing in the repository records the VM's disk
   size, and images, page assemblies and the SQLite database share it — measure before assuming the cap
   is small. Metrics are the cheapest data in the system and the easiest to let grow silently.
 - **Clock.** Everything is UTC except tick text: Prometheus timestamps, stored samples and every
