@@ -68,6 +68,28 @@ public sealed class PrometheusMetricsSourceTests {
     }
 
     [Test]
+    public async Task AStatusCodeLabelArrivesUnderItsPrometheusName() {
+        MetricsQueryResult result = await QueryAsync("""
+            {"status":"success","data":{"resultType":"matrix","result":[
+              {"metric":{"http_response_status_code":"404"},"values":[[1700000000,"1"]]}
+            ]}}
+            """);
+
+        Assert.That(((MetricsMatrix)result).Series[0].Label, Is.EqualTo("404"));
+    }
+
+    [Test]
+    public async Task AReasonLabelArrivesUnderItsPrometheusName() {
+        MetricsQueryResult result = await QueryAsync("""
+            {"status":"success","data":{"resultType":"matrix","result":[
+              {"metric":{"reason":"first-use"},"values":[[1700000000,"1"]]}
+            ]}}
+            """);
+
+        Assert.That(((MetricsMatrix)result).Series[0].Label, Is.EqualTo("first-use"));
+    }
+
+    [Test]
     public async Task AnEmptyResultIsAnEmptyMatrix() {
         MetricsQueryResult result = await QueryAsync("""
             {"status":"success","data":{"resultType":"matrix","result":[]}}

@@ -20,7 +20,7 @@ internal sealed class PrometheusMetricsSource : IMetricsSource {
 
     private static readonly TimeSpan DefaultQueryTimeout = TimeSpan.FromSeconds(2);
     // The exporter sanitises tag names: the tag `page.path` is the label `page_path`.
-    private static readonly string[] LabelKeys = ["page_path", "outcome", "result", "le"];
+    private static readonly string[] LabelKeys = ["page_path", "outcome", "result", "reason", "http_response_status_code", "le"];
 
     private readonly HttpClient _http;
     private readonly TimeSpan _queryTimeout;
