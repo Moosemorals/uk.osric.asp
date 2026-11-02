@@ -11,7 +11,7 @@ are our own SVG drawn from pure functions in `Core`. Metrics only — no traces,
 
 ## Status
 
-Implemented on 2026-11-02. Test counts at the time: 146 core, 38 runtime, 300 web and 53 integration
+Implemented on 2026-11-02. Test counts at the time: 149 core, 38 runtime, 301 web and 53 integration
 tests (baseline before the work: 110 / 38 / 275 / 48). Built as written, with two deviations: the
 abandoned-render rate sits on the render-rate panel rather than the slot-wait one, so each chart has
 one unit; and Prometheus' retention flags are `Exec=` arguments rather than `PodmanArgs=`, because they
@@ -330,7 +330,8 @@ over `page_path`), render rate by outcome (including `timeout`) with abandoned r
 the same axis, render duration p50/p95, slot wait p50/p95, and cache lookups by `result`. Abandoned
 renders are a rate per second rather than a count per minute so each chart keeps one unit. A
 percentile query returns one anonymous series, so the panel names each line `p50`/`p95` itself, and
-every chart draws its unit up the vertical axis rather than leaving it in the description.
+every chart draws its unit up the vertical axis rather than leaving it in the description. A duration
+axis rescales to milliseconds when the whole range is under a second; the stored samples stay seconds.
 Configuration is `Metrics:PrometheusUrl`, defaulting to `http://prometheus:9090`, and
 `Metrics:TimeZone`, defaulting to `Europe/London` (Decision 9); a Development override points at
 `http://localhost:9090`, and an unreachable URL is a banner, not a startup failure.

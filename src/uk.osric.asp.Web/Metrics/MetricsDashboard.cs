@@ -29,22 +29,22 @@ internal sealed class MetricsDashboard {
     private const string HeatmapQuery = "sum by (le) (rate(page_render_duration_seconds_bucket[5m]))";
 
     private static readonly PanelDefinition[] Definitions = [
-        new("Requests by page", "per second", [
+        new("Requests by page", "per second", IsDuration: false, [
             new("topk(5, sum by (page_path) (rate(page_render_duration_seconds_count[5m])))", "requests"),
         ]),
-        new("Render rate by outcome", "per second", [
+        new("Render rate by outcome", "per second", IsDuration: false, [
             new("sum by (outcome) (rate(page_render_duration_seconds_count[5m]))", "renders"),
             new("sum(rate(page_render_abandoned_total[5m]))", "abandoned"),
         ]),
-        new("Render duration p50/p95", "seconds", [
+        new("Render duration p50/p95", "seconds", IsDuration: true, [
             new("histogram_quantile(0.5, sum by (le) (rate(page_render_duration_seconds_bucket[5m])))", "p50"),
             new("histogram_quantile(0.95, sum by (le) (rate(page_render_duration_seconds_bucket[5m])))", "p95"),
         ]),
-        new("Render slot wait p50/p95", "seconds", [
+        new("Render slot wait p50/p95", "seconds", IsDuration: true, [
             new("histogram_quantile(0.5, sum by (le) (rate(page_render_wait_seconds_bucket[5m])))", "p50"),
             new("histogram_quantile(0.95, sum by (le) (rate(page_render_wait_seconds_bucket[5m])))", "p95"),
         ]),
-        new("Cache lookups by result", "per second", [
+        new("Cache lookups by result", "per second", IsDuration: false, [
             new("sum by (result) (rate(page_cache_lookups_total[5m]))", "lookups"),
         ]),
     ];
@@ -182,14 +182,24 @@ internal sealed class MetricsDashboard {
         double min = samples.Min(point => point.Value!.Value);
         double max = samples.Max(point => point.Value!.Value);
 
+        string unit = definition.Unit;
+        if (definition.IsDuration) {
+            ChartScale scale = ValueUnit.ForSeconds(min, max);
+            (min, max, unit) = (scale.Min, scale.Max, scale.Unit);
+        }
+
         ChartAxis x = new("time", NiceTicks.Time(earliest, latest, _zone));
-        ChartAxis y = new(definition.Unit, NiceTicks.Value(min, max));
+        ChartAxis y = new(unit, NiceTicks.Value(min, max));
         string svg = LineChart.Render(series, x, y, new ChartSize(PanelWidth, PanelHeight));
 
         return new StatusPanel(definition.Title, svg, [.. series.Select(line => line.Label)]);
     }
 
-    private sealed record PanelDefinition(string Title, string Unit, IReadOnlyList<PanelQuery> Queries);
+    private sealed record PanelDefinition(
+        string Title,
+        string Unit,
+        bool IsDuration,
+        IReadOnlyList<PanelQuery> Queries);
 
     private sealed record PanelQuery(string PromQL, string Label);
 }

@@ -62,6 +62,29 @@ public sealed class MetricsDashboardTests {
     }
 
     [Test]
+    public async Task ASubSecondDurationAxisIsDrawnInMilliseconds() {
+        MetricsDashboard dashboard = new(
+            new FakeMetricsSource(_ => new MetricsMatrix([
+                new ChartSeries("", [
+                    new ChartPoint(Now.AddMinutes(-30), 0.0002),
+                    new ChartPoint(Now, 0.0004),
+                ]),
+            ])),
+            Options,
+            new TestClock { Now = Now },
+            NullLogger<MetricsDashboard>.Instance);
+
+        StatusPage page = await dashboard.GetAsync(CancellationToken.None);
+
+        StatusPanel duration = page.Panels.Single(panel => panel.Title == "Render duration p50/p95");
+        Assert.That(duration.Svg, Does.Contain(">milliseconds<"));
+        Assert.That(duration.Svg, Does.Not.Contain(">seconds<"));
+
+        StatusPanel rate = page.Panels.Single(panel => panel.Title == "Cache lookups by result");
+        Assert.That(rate.Svg, Does.Contain(">per second<"));
+    }
+
+    [Test]
     public async Task EveryPanelIsDrawnWhenTheSourceAnswers() {
         MetricsDashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
 

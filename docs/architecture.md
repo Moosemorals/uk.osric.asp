@@ -324,7 +324,8 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
 - **`/status` is a shell endpoint.** It queries Prometheus over that same network and draws SVG from
   pure `Core` functions (`LineChart`, `Heatmap`, `NiceTicks`); it is owner-only, cached for fifteen
   seconds, and a Prometheus failure is a banner rather than a `500`, because the page is what gets
-  opened when something is broken.
+  opened when something is broken. Stored data stays in seconds, but a duration axis whose whole
+  range is below a second is drawn in milliseconds — `0.00025` is a worse label than `0.25`.
 - **The image carries tzdata.** Only the axis labels are local; the positions, queries and samples are
   UTC. The base is `aspnet:10.0-alpine-extra` (DEC-82) because plain alpine has no
   `/usr/share/zoneinfo` and resolving `Europe/London` inside it throws.
