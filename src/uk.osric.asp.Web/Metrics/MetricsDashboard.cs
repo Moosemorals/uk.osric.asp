@@ -43,9 +43,13 @@ internal sealed class MetricsDashboard {
             "sum by (result) (rate(page_cache_lookups_total[5m]))",
         ]),
         new("Requests by page", "per second", [
-            "topk(5, sum by (page.path) (rate(page_render_duration_seconds_count[5m])))",
+            "topk(5, sum by (page_path) (rate(page_render_duration_seconds_count[5m])))",
         ]),
     ];
+
+    /// <summary>Every PromQL expression the dashboard runs, so a test can pin their shape.</summary>
+    internal static IReadOnlyList<string> Queries { get; } =
+        [.. Definitions.SelectMany(definition => definition.Queries)];
 
     private readonly IMetricsSource _source;
     private readonly TimeZoneInfo _zone;

@@ -19,7 +19,8 @@ using uk.osric.asp.Core;
 internal sealed class PrometheusMetricsSource : IMetricsSource {
 
     private static readonly TimeSpan DefaultQueryTimeout = TimeSpan.FromSeconds(2);
-    private static readonly string[] LabelKeys = ["page.path", "outcome", "result", "le"];
+    // The exporter sanitises tag names: the tag `page.path` is the label `page_path`.
+    private static readonly string[] LabelKeys = ["page_path", "outcome", "result", "le"];
 
     private readonly HttpClient _http;
     private readonly TimeSpan _queryTimeout;

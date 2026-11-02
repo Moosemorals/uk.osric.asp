@@ -26,6 +26,13 @@ public sealed class MetricsDashboardTests {
     ]);
 
     [Test]
+    public void NoQueryUsesAnOpenTelemetryTagNameAsALabel() {
+        // PromQL label names cannot contain dots: the exporter writes the tag page.path as page_path.
+        Assert.That(MetricsDashboard.Queries, Is.All.Not.Contain("page.path"));
+        Assert.That(MetricsDashboard.Queries, Has.Some.Contain("page_path"));
+    }
+
+    [Test]
     public async Task EveryPanelIsDrawnWhenTheSourceAnswers() {
         MetricsDashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
 

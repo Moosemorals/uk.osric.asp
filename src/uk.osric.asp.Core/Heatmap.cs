@@ -89,7 +89,9 @@ public static class Heatmap {
 
         for (int row = 0; row < rows.Count; row++) {
             HeatmapRow line = rows[row];
-            double top = TopMargin + (row * cellHeight);
+            // Rows arrive ordered by boundary; drawing from the bottom up puts the smallest bucket at
+            // the bottom and +Inf at the top, which is how a latency heatmap is read.
+            double top = TopMargin + ((rows.Count - 1 - row) * cellHeight);
 
             svg.Append("<text class=\"chart-label\" x=\"").Append(Number(LeftMargin - 4))
                 .Append("\" y=\"").Append(Number(top + (cellHeight / 2) + 4))

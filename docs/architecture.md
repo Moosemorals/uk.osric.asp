@@ -311,7 +311,9 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
 `System.Runtime`).
 
 - **Naming is the contract.** `page.render.duration` becomes `page_render_duration_seconds_bucket`, and
-  the dashboard hard-codes that. Renaming an instrument or changing its unit empties a panel.
+  the dashboard hard-codes that. Renaming an instrument or changing its unit empties a panel. Tag
+  names are sanitised the same way — the tag `page.path` is the label `page_path` — and PromQL will
+  not parse the dotted form, so queries and legends use the underscore.
 - **The buckets are ours.** Every duration shares one explicit scale whose top boundary is past the
   render budget, so a render recorded at its deadline lands in a real bucket rather than `+Inf`;
   `page.image.size` has its own byte scale. The SDK's default starts at 0–5 s for a seconds

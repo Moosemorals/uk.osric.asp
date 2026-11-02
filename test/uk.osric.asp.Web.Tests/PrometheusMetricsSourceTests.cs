@@ -46,6 +46,17 @@ public sealed class PrometheusMetricsSourceTests {
     }
 
     [Test]
+    public async Task APagePathLabelArrivesUnderItsPrometheusName() {
+        MetricsQueryResult result = await QueryAsync("""
+            {"status":"success","data":{"resultType":"matrix","result":[
+              {"metric":{"page_path":"/hue/ws"},"values":[[1700000000,"1"]]}
+            ]}}
+            """);
+
+        Assert.That(((MetricsMatrix)result).Series[0].Label, Is.EqualTo("/hue/ws"));
+    }
+
+    [Test]
     public async Task AnEmptyResultIsAnEmptyMatrix() {
         MetricsQueryResult result = await QueryAsync("""
             {"status":"success","data":{"resultType":"matrix","result":[]}}

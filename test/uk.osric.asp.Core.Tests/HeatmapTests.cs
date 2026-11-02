@@ -76,6 +76,16 @@ public sealed class HeatmapTests {
     }
 
     [Test]
+    public void TheSmallestBucketIsDrawnAtTheBottom() {
+        string svg = Heatmap.Render([Row("0.1", 1), Row("0.5", 1), Row("+Inf", 1)], TimeAxis, Size, "Duration");
+
+        double smallest = LabelTop(svg, "0.1");
+        double largest = LabelTop(svg, "+Inf");
+
+        Assert.That(smallest, Is.GreaterThan(largest), "y grows downwards, so the smallest bucket has the larger y");
+    }
+
+    [Test]
     public void RowLabelsAreEscaped() {
         string svg = Heatmap.Render([Row("<b>", 1)], TimeAxis, Size, "Duration");
 
@@ -89,6 +99,16 @@ public sealed class HeatmapTests {
 
         Assert.That(Count(svg, "<rect"), Is.EqualTo(0));
         Assert.That(svg, Does.Contain("<svg class=\"heatmap\""));
+    }
+
+    private static double LabelTop(string svg, string label) {
+        string marker = "text-anchor=\"end\">" + System.Net.WebUtility.HtmlEncode(label) + "</text>";
+        int end = svg.IndexOf(marker, StringComparison.Ordinal);
+        Assert.That(end, Is.GreaterThanOrEqualTo(0), $"{label} is not in the markup");
+
+        int y = svg.LastIndexOf(" y=\"", end, StringComparison.Ordinal) + 4;
+        int close = svg.IndexOf('"', y);
+        return double.Parse(svg[y..close], CultureInfo.InvariantCulture);
     }
 
     private static string Values(HeatmapRow row) =>

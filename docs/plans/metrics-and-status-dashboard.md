@@ -11,7 +11,7 @@ are our own SVG drawn from pure functions in `Core`. Metrics only — no traces,
 
 ## Status
 
-Implemented on 2026-11-02. Test counts at the time: 144 core, 38 runtime, 295 web and 53 integration
+Implemented on 2026-11-02. Test counts at the time: 145 core, 38 runtime, 297 web and 53 integration
 tests (baseline before the work: 110 / 38 / 275 / 48). Built as written, with two deviations: the
 abandoned-render rate sits on the render-rate panel rather than the slot-wait one, so each chart has
 one unit; and Prometheus' retention flags are `Exec=` arguments rather than `PodmanArgs=`, because they
@@ -322,6 +322,8 @@ Parsing rules, each with a test over a recorded body:
 - `NaN`, `+Inf` and `-Inf` are gaps, not values.
 - An empty `result` is an empty series, not an error.
 - `status: "error"` carries `errorType` and `error`; surface the message in the banner.
+- Label names are Prometheus' own: the exporter writes the tag `page.path` as `page_path`, and both
+  the queries and the legend use that spelling. A dotted name is a parse error, not an empty panel.
 
 `/status` queries five panels, plus the heatmap Phase 5 adds: render rate by outcome (including
 `timeout`) with abandoned renders as a rate on the same axis, render duration p50/p95, slot wait
@@ -376,8 +378,9 @@ question the last section records.
 `le` is a string label; sort by its numeric value with `+Inf` last. Colour is a log-ish scale over the
 cell rate, drawn as SVG `<rect>`s. `Core` gains `Heatmap.FromCumulative` (the per-bucket difference,
 clamped at zero so a counter reset is not a negative count) and `Heatmap.Render`, with the same rules:
-pure, deterministic, escaping, no JavaScript. The heatmap is the sixth panel on `/status`, and this is
-where the Phase 1 boundaries earn their keep.
+pure, deterministic, escaping, no JavaScript. Rows are drawn smallest at the bottom with `+Inf` along
+the top, which is how a latency heatmap is read. The heatmap is the sixth panel on `/status`, and this
+is where the Phase 1 boundaries earn their keep.
 
 ### Phase 6 — documentation and bookkeeping
 
