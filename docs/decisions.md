@@ -125,6 +125,14 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | DEC-78 | A suite that wedges fails the gate rather than sitting in it: a generous whole-run ceiling (`--blame-hang`, 5 minutes), because the budget tests burn wall clock on purpose. | [Makefile](../Makefile) |
 | DEC-79 | Every file carries SPDX tags (`make license-check`); files that cannot take a comment are listed in `REUSE.toml`. This repository is MIT, which is a deliberate departure from the ISC default in the shared C# instructions. | [REUSE.toml](../REUSE.toml), [LICENSE](../LICENSE) |
 
+## Metrics and the status page
+
+| ID | Decision | Recorded in |
+| --- | --- | --- |
+| DEC-80 | Metrics are exported by OpenTelemetry's Prometheus exporter, metrics only: no traces, no logs, no OTLP, no instrumentation packages. Instrument names, tags and the bucket scales are a dashboard contract, so they live in `PageMetrics` rather than in the SDK's defaults. | [architecture](architecture.md#export-and-the-status-page), [plan](plans/metrics-and-status-dashboard.md) |
+| DEC-81 | Prometheus runs rootless beside the app on a shared `uk.osric.asp` network and scrapes `app:8080`; it is never proxied. `/metrics` keeps two gates — the loopback-only publish (DEC-61) and a Caddy 404 on the public origin. `/status` is owner-only, server-rendered and JavaScript-free. | [deploy](../deploy/README.md#metrics-and-the-status-page), [plan](plans/metrics-and-status-dashboard.md) |
+| DEC-82 | The base image is `dotnet/aspnet:10.0-alpine-extra`, pinned by manifest-list digest, for its `/usr/share/zoneinfo`: the status page labels its time axis in `Europe/London` and plain alpine carries no tzdata. The 38 MB it adds sits in shared base layers and is paid once. | [deploy](../deploy/README.md#image-layout-and-size), [plan](plans/metrics-and-status-dashboard.md) |
+
 ## Superseded
 
 | Date | Was | Now | Why |

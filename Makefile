@@ -56,7 +56,9 @@ REMOTE_AUTHFILE ?= /home/deploy/.config/containers/auth.json
 # The base is pinned by digest, here and in deploy/Containerfile: a tag would let the base move
 # between two builds of the same commit. `podman image inspect --format '{{json .RepoDigests}}'` lists
 # both digests for the tag, and the manifest list is the one that resolves for amd64 and arm64.
-CONTAINER_BASE_IMAGE ?= mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:254fe017495996d3abcc487ffacdcce2b73affb380d3af87af12c8dff41fe0b0
+# `-extra` rather than plain alpine: the status page labels its time axis in Europe/London, and only
+# the extra flavour carries tzdata. It costs about 38 MB in shared base layers, once.
+CONTAINER_BASE_IMAGE ?= mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra@sha256:78bec9181ad577eff1f78e738d19603ece6f3170819c7f268eae6a7566c9f600
 # RID of the server. On an ARM (CAX) server: linux-musl-arm64.
 CONTAINER_RID ?= linux-musl-x64
 # The platform podman builds for, which has to agree with CONTAINER_RID: musl-arm64 is linux/arm64.
@@ -303,8 +305,9 @@ image-check:
 	fi; \
 	echo "reproducible: $$a"
 
-# Pushes the image, installs the quadlets (the source of truth), and restarts. The app runs rootless
-# as HOST's user; Caddy is the only rootful unit and is installed with sudo. The quadlet's Image= line
+# Pushes the image, installs the quadlets (the source of truth), and restarts. The app and Prometheus
+# run rootless as HOST's user on a shared network; Caddy is the only rootful unit and is installed
+# with sudo. The quadlet's Image= line
 # is rewritten on the way, so REGISTRY and the commit tag reach the host. Both services are restarted
 # rather than started, so a Caddyfile edit takes effect on a redeploy, and a restart is a reason to
 # run this target on its own. There is no enable step: quadlet units are transient, so systemctl
@@ -320,11 +323,17 @@ deploy: deploy-guard check image
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_SHA_REF)
 	ssh $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_SHA_REF)
+	ssh $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.network' < deploy/uk.osric.asp.network
 	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | ssh $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
-	ssh $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
-	ssh $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
 	ssh $(HOST) systemctl --user daemon-reload
 	ssh $(HOST) systemctl --user restart uk.osric.asp.service
+	ssh $(HOST) install -d .config/prometheus
+	ssh $(HOST) 'cat > .config/prometheus/prometheus.yml' < deploy/prometheus.yml
+	ssh $(HOST) 'cat > .config/containers/systemd/prometheus.container' < deploy/prometheus.container
+	ssh $(HOST) systemctl --user daemon-reload
+	ssh $(HOST) systemctl --user restart prometheus.service
+	ssh $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
+	ssh $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
 	ssh $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
 	ssh $(HOST) sudo systemctl daemon-reload
 	ssh $(HOST) sudo systemctl restart caddy.service

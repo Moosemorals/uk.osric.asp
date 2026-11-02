@@ -143,3 +143,6 @@ dotnet_naming_style._camelcase.capitalization = camel_case
 dotnet_naming_style.camelcase.capitalization = camel_case
 dotnet_naming_style.s_camelcase.required_prefix = s_
 dotnet_naming_style.s_camelcase.capitalization = camel_case
+
+# CA1859: Use concrete types when possible for improved performance
+dotnet_diagnostic.CA1859.severity = none

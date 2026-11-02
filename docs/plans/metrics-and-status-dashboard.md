@@ -11,17 +11,24 @@ are our own SVG drawn from pure functions in `Core`. Metrics only — no traces,
 
 ## Status
 
-Proposed, not started. Baseline on 2026-11-01: 102 core, 39 runtime, 235 web, 42 integration tests.
+Implemented on 2026-11-02. Test counts at the time: 144 core, 38 runtime, 292 web and 53 integration
+tests (baseline before the work: 110 / 38 / 275 / 48). Built as written, with two deviations: the
+abandoned-render rate sits on the render-rate panel rather than the slot-wait one, so each chart has
+one unit; and Prometheus' retention flags are `Exec=` arguments rather than `PodmanArgs=`, because they
+belong to the binary and not to podman.
 
 ## What already exists
 
-The hard half is done. `PageMetrics` records everything on a `System.Diagnostics.Metrics` meter named
-`uk.osric.asp`; recording is nearly free until something listens, so the instruments are always on and
-this work never touches the render path.
+Most of the measuring half is done. `PageMetrics` records everything on a
+`System.Diagnostics.Metrics` meter named `uk.osric.asp`, including the slot wait and abandoned-render
+signals the execution budget added; recording is nearly free until something listens, so the
+instruments are always on and this work never touches the render path.
 
 | Instrument | Type | Unit | Becomes, in Prometheus |
 | --- | --- | --- | --- |
 | `page.render.duration` | histogram | `s` | `page_render_duration_seconds_bucket` / `_sum` / `_count` |
+| `page.render.wait` | histogram | `s` | `page_render_wait_seconds_*` |
+| `page.render.abandoned` | counter | — | `page_render_abandoned_total` |
 | `page.compile.duration` | histogram | `s` | `page_compile_duration_seconds_*` |
 | `page.handler.load.duration` | histogram | `s` | `page_handler_load_duration_seconds_*` |
 | `page.handler.invoke.duration` | histogram | `s` | `page_handler_invoke_duration_seconds_*` |
@@ -30,11 +37,15 @@ this work never touches the render path.
 | `page.cache.lookups` | counter | — | `page_cache_lookups_total` |
 | `page.cache.staleness` | counter | — | `page_cache_staleness_total` |
 
-Tags are a contract already documented as such in `PageMetrics`: `page.path`, `outcome`, `cache`,
-`result`, `reason`. The dashboard queries depend on these names, so they join the contract.
+Tags are a contract already documented as such in `PageMetrics`: `page.path`, `outcome` (`ok`,
+`compile-error`, `error`, `not-found`, `timeout`), `cache`, `result`, `reason`. The dashboard queries
+depend on these names, so they join the contract.
 
-`/heath` exists but nothing watches it: that is OPS-02. This plan supplies the monitor; alerting
-stays with [OPS-05](../jobs/OPS-05.md).
+`/heath` is watched, but only by the container: the quadlet probes it every 10 s and podman restarts
+after three failures, and the report's `pages` check turns unhealthy once too many renders have been
+abandoned. That is detection and restart, not observation — nothing keeps history, so a problem that
+recovers leaves no trace, and "was it slow this morning?" has no answer. This plan supplies that
+history; alerting stays with [OPS-05](../jobs/OPS-05.md).
 
 ## Decisions
 
@@ -65,7 +76,12 @@ builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics
     .AddMeter("Microsoft.AspNetCore.Hosting")        // http.server.request.duration
     .AddMeter("Microsoft.AspNetCore.Server.Kestrel") // connection and TLS metrics
     .AddMeter("System.Runtime")                      // GC, threadpool, working set
-    .AddView("page.render.duration", new ExplicitBucketHistogramConfiguration { Boundaries = RenderBuckets })
+    .AddView("page.render.duration", new ExplicitBucketHistogramConfiguration { Boundaries = SecondsBuckets })
+    .AddView("page.render.wait", new ExplicitBucketHistogramConfiguration { Boundaries = SecondsBuckets })
+    .AddView("page.compile.duration", new ExplicitBucketHistogramConfiguration { Boundaries = SecondsBuckets })
+    .AddView("page.handler.load.duration", new ExplicitBucketHistogramConfiguration { Boundaries = SecondsBuckets })
+    .AddView("page.handler.invoke.duration", new ExplicitBucketHistogramConfiguration { Boundaries = SecondsBuckets })
+    .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = SecondsBuckets })
     .AddView("page.image.size", new ExplicitBucketHistogramConfiguration { Boundaries = ImageBuckets })
     .AddPrometheusExporter());
 ```
@@ -80,28 +96,40 @@ worthless upstream of Prometheus too.
 
 The SDK special-cases only its own instruments (`DefaultHistogramBoundShortSeconds`, used for
 `http.server.request.duration` and friends); our meter gets the generic bounds unless a view says
-otherwise. `page.render.duration` needs boundaries where renders actually live:
+otherwise. Every instrument except `page.image.size` is a duration in seconds, so there are two
+scales, both named constants in `PageMetrics` next to the instruments they describe:
 
 ```csharp
-private static readonly double[] RenderBuckets =
-    [0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5];
+private static readonly double[] SecondsBuckets =
+    [0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
+private static readonly double[] ImageBuckets =
+    [1024, 4096, 16384, 32768, 65536, 131072, 262144, 524288, 1048576];
 ```
 
-`page.image.size` is bytes and gets its own scale, since bundling assemblies are tens of kilobytes:
-`[1024, 4096, 16384, 32768, 65536, 131072, 262144, 524288, 1048576]`.
+One seconds scale covers all six duration instruments — `page.render.duration`, `page.render.wait`,
+`page.compile.duration`, `page.handler.load.duration`, `page.handler.invoke.duration` and
+`page.save.duration` — because they are all page-scale work, and a second scale would be a
+distinction nobody can act on. Its top boundary is deliberately past 5 s: the render budget
+(`Pages:Render:TimeoutSeconds`, 5 s by default) is where a slow render *ends*, so a `504` recorded at
+the deadline has to land in a real bucket rather than `+Inf`, and the compile budget is 10 s. Raise
+the top boundary if either budget is raised, or the tail the status page exists to show collapses
+into a single column.
+
+`page.image.size` is bytes and gets its own scale, since bundling assemblies are tens of kilobytes.
 
 This is the sort of detail that looks like tuning and is really a correctness requirement: change the
-boundaries and every stored dashboard query changes meaning, so they belong in `PageMetrics` as
-named constants next to the instruments they describe.
+boundaries and every stored dashboard query changes meaning.
 
 ### 3. The scrape endpoint is a route on the existing listener
 
 `app.MapPrometheusScrapingEndpoint("/metrics")`, mapped next to `/heath` and before the page
-catch-all, with `/metrics` added to `Pages:ReservedPaths`.
+catch-all, and reserved in both lists that name the site's own routes: `Pages:ReservedPaths` in
+`appsettings.json`, and `ReservedPaths.Default`, which is the fallback when that section is missing.
 
-The consequence to own: the app's port is the public origin behind Caddy, so this route is reachable
-from the internet unless the edge refuses it. Caddy gets an explicit rule, and it is the load-bearing
-control:
+The consequence to own: the app publishes on the host's loopback only and Caddy is the only thing
+that can reach it, so `/metrics` is not directly public — but one `reverse_proxy` is all that stands
+between it and the public origin, and that is the very route Prometheus scrapes. The loopback publish
+stays the load-bearing control (DEC-61); Caddy gets an explicit rule as a second, independent gate:
 
 ```caddyfile
 	# Prometheus scrapes inside the podman network. The public origin must not serve metrics.
@@ -109,8 +137,9 @@ control:
 	respond @metrics 404
 ```
 
-Caddy orders `respond` before `reverse_proxy`, so this needs no `handle` block; if that ordering ever
-becomes unclear, `handle /metrics { respond 404 }` plus a `handle` for the proxy makes it explicit.
+Caddy orders `respond` before `reverse_proxy` (checked against 2.11.7, the version pinned in
+`deploy/caddy.container`), so this needs no `handle` block; if that ordering ever becomes unclear,
+`handle /metrics { respond 404 }` plus a `handle` for the proxy makes it explicit.
 
 The alternative that removes the question — a second listener that the quadlet never publishes, via
 `OpenTelemetry.Exporter.Prometheus.HttpListener` — was considered and deferred: it cannot be driven
@@ -141,11 +170,16 @@ and needs no change beyond the metrics 404.
 Prometheus is never routed through Caddy: it has no authentication and nothing public needs it.
 `ssh -L 9090:127.0.0.1:9090 deploy@host` is the access story, as with any other internal service.
 
+Name resolution inside that network is podman's own DNS (`aardvark-dns`), which Debian packages
+separately from `podman`. `deploy/cloud-init.yaml` has to install it, and a validation step has to
+prove `app:8080` resolves from inside the Prometheus container — otherwise `prometheus.yml` is
+correct and every scrape fails.
+
 ### 5. The dashboard is a shell endpoint, not a stored page
 
 A stored page cannot make this request: `PageApiPolicy` is default-deny with no `System.Net` and no
-`System.Threading.Tasks`, and the compiler's reference set excludes the shell. Pages are a runtime of
-plain values, deliberately without I/O.
+`System.Threading` beyond the cancellation token, and the compiler's reference set excludes the
+shell. Pages are a runtime of plain values, deliberately without I/O.
 
 So `/status` is a minimal endpoint beside `/edit` and `/heath`:
 
@@ -197,7 +231,7 @@ The status page is what gets opened when things are broken, so it must survive P
   banner; only a bug in our own code is a 500.
 - Both charts and banners render at any data quantity, including none.
 - Responses are cached for about 15 seconds (`TimeProvider` for the test clock), so a refresh loop
-  cannot turn one page view into four panels of `query_range` calls. The exporter's own 500 ms
+  cannot turn one page view into five panels of `query_range` calls. The exporter's own 500 ms
   snapshot cache does not help with that: it is keyed on scrapes, not on our queries.
 - Queries run with a 2 s timeout and `Accept: application/json`.
 
@@ -225,10 +259,12 @@ That costs a deployment change, verified on 2026-11-01 against the images themse
   `+00:00`) and is about 38 MB larger, 122 MB → 160 MB. Base layers are shared and cached, so a
   release still pushes only the ~180 kB app layer.
 
-So `CONTAINER_BASE_IMAGE` in the Makefile moves to `:10.0-alpine-extra`, and `-extra` joins "do not
-trim" as a deliberate base-image choice. The alternative — generating UK local time from the DST rule
-in `Core` so no tzdata is needed — was rejected: it is a second, silent copy of a rule that
-legislation can change, and it would only be right for the years it was written for.
+So the base moves to `:10.0-alpine-extra`, pinned by that tag's manifest-list digest in both places
+it is pinned today — `CONTAINER_BASE_IMAGE` in the `Makefile` and the `ARG BASE_IMAGE` default in
+`deploy/Containerfile` — in its own commit (DEC-59), and `-extra` joins "do not trim" as a
+deliberate base-image choice. The alternative — generating UK local time from the DST rule in `Core`
+so no tzdata is needed — was rejected: it is a second, silent copy of a rule that legislation can
+change, and it would only be right for the years it was written for.
 
 `Core` never resolves a zone ID: `TimeZoneInfo` is a parameter, so the tick labeller stays pure and
 the tests pin a zone explicitly. The shell resolves `Metrics:TimeZone` (`Europe/London`) once at
@@ -246,9 +282,10 @@ so the tests assert text, not culture data.
 ### Phase 1 — exporter
 
 `Directory.Packages.props` and `uk.osric.asp.Web.csproj` gain the two packages; `Program.cs` registers
-the meters, the two views and the exporter; `/metrics` is mapped before the catch-all and added to
-`Pages:ReservedPaths`; the Caddyfile gains the 404. Verify with `make run` and
-`curl -s localhost:8080/metrics | head`.
+the meters, the explicit bucket views and the exporter; `/metrics` is mapped before the catch-all and
+reserved in both `Pages:ReservedPaths` and `ReservedPaths.Default`, with `ReservedPathsTests` covering
+the new key and the list quoted in `deploy/README.md` updated; the Caddyfile gains the 404. Verify
+with `make run` and `curl -s localhost:8080/metrics | head`.
 
 The bucket boundaries land in `PageMetrics` as constants here, not in Phase 5, because stored data
 gathered with the generic bounds cannot be reinterpreted later.
@@ -280,22 +317,38 @@ Parsing rules, each with a test over a recorded body:
 - An empty `result` is an empty series, not an error.
 - `status: "error"` carries `errorType` and `error`; surface the message in the banner.
 
-`/status` queries four panels: render rate by outcome, render duration p50/p95, cache lookups, and
-requests by `page.path` (top n). Configuration is `Metrics:PrometheusUrl`, defaulting to
-`http://prometheus:9090`, and `Metrics:TimeZone`, defaulting to `Europe/London` (Decision 9); a
-Development override points at `http://localhost:9090`, and an unreachable URL is a banner, not a
-startup failure.
+`/status` queries five panels, plus the heatmap Phase 5 adds: render rate by outcome (including
+`timeout`) with abandoned renders as a rate on the same axis, render duration p50/p95, slot wait
+p50/p95, cache lookups by `result`, and requests by `page.path` (top n). Abandoned renders are a rate
+per second rather than a count per minute so the first chart keeps one unit. Those series are the ones
+the execution budget added, and they are the first thing to look at when the site is slow.
+Configuration is `Metrics:PrometheusUrl`, defaulting to `http://prometheus:9090`, and
+`Metrics:TimeZone`, defaulting to `Europe/London` (Decision 9); a Development override points at
+`http://localhost:9090`, and an unreachable URL is a banner, not a startup failure.
+
+Only the `/metrics` integration test touches the process-wide meter, and it asserts that a series is
+present rather than what it counts, so it stays parallel. The client, dashboard and endpoint tests use
+a stub, so they never see another fixture's recordings.
 
 ### Phase 4 — deployment
 
-- `CONTAINER_BASE_IMAGE` becomes `mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra`, for the tzdata
-  that `Europe/London` labels need (Decision 9).
+- The base moves to `mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra`, pinned by that tag's
+  manifest-list digest in both places it is pinned today (`CONTAINER_BASE_IMAGE` in the `Makefile`
+  and `ARG BASE_IMAGE` in `deploy/Containerfile`), in its own commit, for the tzdata that
+  `Europe/London` labels need (Decision 9). `deploy/README.md`'s image-size table records the change
+  from 122 MB to about 160 MB, which is the price of the zone data.
+- `deploy/cloud-init.yaml` installs `aardvark-dns`, which container-name resolution in a rootless
+  network needs (Decision 4); the existing cloud-init is otherwise unchanged.
 - `deploy/uk.osric.asp.network`, plus `Network=`/`NetworkAlias=` in `deploy/uk.osric.asp.container`.
 - `deploy/prometheus.container`: rootless, `Image=docker.io/prom/prometheus:v3.15.1` (pinned to an
-  exact patch, like Caddy), `Network=uk.osric.asp.network`, `PublishPort=127.0.0.1:9090:9090`,
+  exact patch, like Caddy, and the current release at the time of writing),
+  `Network=uk.osric.asp.network`, `PublishPort=127.0.0.1:9090:9090`,
   `Volume=prometheus-data:/prometheus:U`, `Volume=…/prometheus.yml:/etc/prometheus/prometheus.yml:ro`,
-  `PodmanArgs=--memory=256m`, `--storage.tsdb.retention.time=30d`,
-  `--storage.tsdb.retention.size=2GB` — 10% of the VM's 20 GB disk.
+  `PodmanArgs=--memory=256m`, and the retention flags on `Exec=` (they are arguments to the Prometheus
+  binary, not to podman): `--storage.tsdb.retention.time=30d --storage.tsdb.retention.size=2GB`. The
+  cap trades against a disk whose size nothing in the
+  repository records (the VM is a `cpx02`, DEC-58) and which also holds images, page assemblies and
+  the SQLite database: check `df -h /` on the host before calling 2 GB any particular fraction of it.
 - `deploy/prometheus.yml`: one static target, `app:8080`, `metrics_path: /metrics`, 15 s interval.
 - `make deploy` installs the network unit first, then the app unit (so it restarts onto the network),
   then the config and Prometheus unit; `deploy/README.md` describes the new unit and the
@@ -304,26 +357,38 @@ startup failure.
 
 ### Phase 5 — heatmap
 
-Histogram buckets are cumulative counters, so a heatmap is per-bucket rates:
+Histogram buckets are cumulative counters, so a heatmap is per-bucket rates. The built panel sums
+across pages, which is the site-wide picture:
 
 ```promql
-sum by (le) (rate(page_render_duration_seconds_bucket{page_path="/"}[5m]))
+sum by (le) (rate(page_render_duration_seconds_bucket[5m]))
 ```
 
+Narrowing to one page is the `page_path` selector away; whether that is worth the extra series is the
+question the last section records.
+
 `le` is a string label; sort by its numeric value with `+Inf` last. Colour is a log-ish scale over the
-cell rate, drawn as SVG `<rect>`s. `Core` gains `Heatmap.Render` with the same value types, and the
-same rules: pure, deterministic, escaping, no JavaScript. This is also where the Phase 1 boundaries
-earn their keep.
+cell rate, drawn as SVG `<rect>`s. `Core` gains `Heatmap.FromCumulative` (the per-bucket difference,
+clamped at zero so a counter reset is not a negative count) and `Heatmap.Render`, with the same rules:
+pure, deterministic, escaping, no JavaScript. The heatmap is the sixth panel on `/status`, and this is
+where the Phase 1 boundaries earn their keep.
 
 ### Phase 6 — documentation and bookkeeping
 
-- `docs/architecture.md`: a short "Metrics" section — the meter, the instrument-to-Prometheus naming
-  contract, the two histogram views, the network topology, the Caddy 404 as a load-bearing rule, and
-  why the base image is `-extra` (tzdata for the London axis labels).
+- `docs/architecture.md`: extend the existing **Instrumentation** section rather than adding a second
+  one — the instrument-to-Prometheus naming contract, the two bucket scales, the network topology, the
+  Caddy 404 as a second gate behind the loopback-only publish, and why the base image is `-extra`
+  (tzdata for the London axis labels).
+- `docs/decisions.md`: new `DEC-` rows for what this plan decides — the exporter and metrics-only
+  scope, the rootless network and scrape topology, the two gates on `/metrics`, the `-extra` base
+  image, and owner-only `/status`.
 - `docs/testing.md`: chart math and parsing are unit-level; `/status` and `/metrics` are integration
-  level; no browser tests.
-- `deploy/README.md`: the Prometheus unit, the network, retention and the loopback story.
-- `docs/jobs/README.md`: OPS-02's monitoring half is answered here; alerting stays with OPS-05.
+  level; no browser tests; meter observation is `[NonParallelizable]`.
+- `deploy/README.md`: the Prometheus unit, the network, retention, the loopback story, the new
+  reserved path and the image size change.
+- `docs/jobs/README.md`: OPS-02's monitoring half is answered here; alerting stays with OPS-05. Fix
+  `docs/jobs/OPS-02.md` at the same time: its "Remaining" section still says the container health check
+  was deferred because the image has no `curl`/`wget`, which the quadlet has since contradicted.
 - Mark this plan Implemented with test counts when it lands.
 
 ## Test matrix
@@ -333,12 +398,17 @@ earn their keep.
 | Core | `LineChart` golden markup | geometry, ticks, gaps, escaping |
 | Core | `NiceTicks` tables | labels stay readable at every span |
 | Core | tick labels in a fixed zone | local clock text, date on long spans, the October DST repeat |
+| Core | `Heatmap` differencing | per-bucket counts, the `+Inf` row last, a counter reset clamped |
 | Web | request with a query string | the page key and metric tag are the path, never the query |
 | Web | `query_range` parsing fixtures | strings, `NaN`/`±Inf`, empty results, error payloads |
 | Web | `/status` with a stubbed source | 200 with charts; 200 with a banner when unavailable |
+| Web | `ReservedPaths` with `/metrics` | the key is reserved in `Default` as well as in configuration |
 | Integration | render a page, then `GET /metrics` | the exposition contains `page_render_duration_seconds_bucket` |
 | Integration | `GET /status` anonymous | redirects to `/login` |
 | Integration | `/metrics` reserved | a page stored at `/metrics` is never served |
+
+The `/metrics` and `/status` tests observe a process-wide meter, so they run `[NonParallelizable]`
+beside `PageMetricsTests` and the budget tests, never in parallel with them.
 
 ## Edge cases and risks
 
@@ -351,12 +421,13 @@ earn their keep.
   integration test so a breaking change surfaces there.
 - **Self-observation.** Scrapes are HTTP requests, so `http.server.request.duration` includes
   `/metrics` every 15 s. Harmless, worth knowing when reading QPS.
-- **Prometheus at boot.** After a host reboot the two units start concurrently and Prometheus may
+- **Prometheus at boot.** After a host reboot the two containers start concurrently and Prometheus may
   record a failed scrape before the app is listening; the target recovers on the next interval with
   no intervention.
-- **Retention.** 30 days and 2 GB against a 20 GB disk; the container is separately capped at 256 MB of
-  RAM, so runaway cardinality fails a scrape rather than the host. Metrics are the cheapest data in
-  the system and the easiest to let grow silently.
+- **Retention.** 30 days and 2 GB; the container is separately capped at 256 MB of RAM, so runaway
+  cardinality fails a scrape rather than the host. Nothing in the repository records the VM's disk
+  size, and images, page assemblies and the SQLite database share it — measure before assuming the cap
+  is small. Metrics are the cheapest data in the system and the easiest to let grow silently.
 - **Clock.** Everything is UTC except tick text: Prometheus timestamps, stored samples and every
   `DateTimeOffset`; only axis labels are Europe/London (Decision 9), and only in the shell.
 - **Page paths in labels.** A page key is a URL and already appears in access logs. No query string
@@ -379,16 +450,22 @@ earn their keep.
 
 ## Validation
 
-1. `make test` — all four suites green, with the new Core and Web tests.
+1. `make test` — all four suites green, with the new Core and Web tests; record the counts in the
+   status line above.
 2. `make run`, then `curl -s localhost:8080/metrics | grep page_render_duration_seconds_bucket` after
-   loading a page; `RenderBuckets` boundaries must appear as `le` values.
+   loading a page; the `SecondsBuckets` boundaries must appear as `le` values, including one past the
+   render budget.
 3. `make deploy`, then on the host: `systemctl --user status prometheus`, and the Prometheus targets
    page shows `app:8080` as `UP`.
-4. On the deployed host, `curl -si https://moosemorals.com/metrics` must answer 404 from Caddy while
+4. From inside the Prometheus container the alias must resolve:
+   `podman exec prometheus wget -qO- http://app:8080/heath` answers 200. A name that does not resolve
+   is `aardvark-dns` missing, not a bad `prometheus.yml`.
+5. On the deployed host, `curl -si https://moosemorals.com/metrics` must answer 404 from Caddy while
    the scrape target on the podman network still answers 200.
-5. On the deployed host, the image must resolve the zone:
+6. On the deployed host, the image must resolve the zone:
    `podman run --rm --entrypoint=/bin/sh <image> -c 'test -e /usr/share/zoneinfo/Europe/London'`.
-6. Sign in, open `/status`, confirm four panels render with data and the time axis reads local clock
+7. Sign in, open `/status`, confirm six panels (five lines and the heatmap) render with data and
+   the time axis reads local clock
    time, then `systemctl --user stop prometheus` and confirm the page still renders with a banner
    instead of an error.
 

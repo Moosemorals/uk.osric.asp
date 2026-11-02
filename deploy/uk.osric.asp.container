@@ -11,7 +11,10 @@ StartLimitBurst=3
 ContainerName=uk.osric.asp
 Image=registry.osric.uk/uk.osric.asp:latest
 # Rootful Caddy cannot join a rootless podman network, so the app publishes on the host loopback
-# only. Nothing outside the machine can reach it directly.
+# only. Nothing outside the machine can reach it directly. Prometheus is the other rootless
+# container: it reaches the app by name on the shared network, not through this published port.
+Network=uk.osric.asp.network
+NetworkAlias=app
 PublishPort=127.0.0.1:8080:8080
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment="ConnectionStrings__Storage=Data Source=/data/storage.db"

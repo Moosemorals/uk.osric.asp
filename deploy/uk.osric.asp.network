@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+# One user-defined network for the two rootless containers, so Prometheus can scrape the app by name
+# and the dashboard can query Prometheus. Neither direction works over loopback: each rootless
+# container has its own 127.0.0.1. Caddy stays on the host network and keeps using the published
+# loopback port; a rootful unit cannot join a rootless network.
+[Network]
+NetworkName=uk.osric.asp

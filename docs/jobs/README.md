@@ -30,7 +30,7 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
 | [BUG-07](BUG-07.md) | Low | S | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | S | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
-| [OPS-02](OPS-02.md) | Low | M | The health endpoint exists; it has no monitor or alerting behind it |
+| [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
 | [OPS-03](OPS-03.md) | Medium | M | There is no CI pipeline |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea |
@@ -71,7 +71,8 @@ self-contained comes first, because these are the ones that never get scheduled 
 10. **IDEA-001, a proper editor** — by now there are pages to justify it, and IDEA-008 needs it.
 11. **IDEA-008, drafting** — last of the ideas, because every one of the others makes it better.
 12. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
-13. **OPS-02 and OPS-05** — monitoring and alerting, once there is something worth being woken for.
+13. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
+    and a rule, once there is something worth being woken for.
 14. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 
 ## Closed

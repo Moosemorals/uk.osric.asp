@@ -17,6 +17,20 @@ internal sealed class PageMetrics : IDisposable {
     /// <summary>The meter every instrument belongs to.</summary>
     public const string MeterName = "uk.osric.asp";
 
+    /// <summary>Buckets for the duration instruments, in seconds.</summary>
+    /// <remarks>
+    /// One scale for every duration: they are all page-scale work. The top boundary is past the
+    /// render budget on purpose, so a render recorded at its deadline lands in a real bucket instead
+    /// of `+Inf` — a `504` is exactly the sample the status page is looking for.
+    /// </remarks>
+    public static readonly double[] SecondsBuckets =
+        [0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
+
+    /// <summary>Buckets for <c>page.image.size</c>, in bytes.</summary>
+    /// <remarks>Emitting an assembly costs tens of kilobytes, so the scale starts above a kilobyte.</remarks>
+    public static readonly double[] ImageBuckets =
+        [1024, 4096, 16384, 32768, 65536, 131072, 262144, 524288, 1048576];
+
     /// <summary>The page was rendered.</summary>
     public const string RenderOk = "ok";
 

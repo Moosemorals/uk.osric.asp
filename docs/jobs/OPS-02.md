@@ -28,7 +28,8 @@ hand-rolled route, so the checks and the report plumbing stay in the framework.
 - **Path:** `/heath` (deliberately not `/healthz`), mapped in `Program.cs` before the page catch-all.
 - **Database check:** `StorageHealthCheck` resolves a fresh scope and calls
   `database.Database.CanConnectAsync()`; a database that cannot be reached is `Unhealthy`. This is
-  the only check today; more checks (disk, page compiler) can be added later without touching the
+  one of two checks; `AbandonedRenderHealthCheck` is the other, so a page that has wedged threads
+  reports unhealthy too. More checks (disk, the compiler) can be added without touching the
   endpoint.
 - **Report:** `HealthReportWriter` emits detailed JSON — overall `status`, `totalDurationMs`, and one
   entry per check with `name`, `status`, `description`, `durationMs`, `error` and `data`. The response
@@ -44,8 +45,11 @@ route) and `StorageHealthCheckTests` (unit: healthy/unhealthy from `CanConnectAs
 
 ### Remaining
 
-- **Container-level `HealthCmd=`/`HealthInterval=`:** deferred. The app image
-  (`mcr.microsoft.com/dotnet/aspnet:10.0-alpine`) ships no `curl`/`wget`, so a podman healthcheck has
-  nothing to run inside the container; and a host-side probe is really the alerting story, which is
+- **Container-level `HealthCmd=`/`HealthInterval=`:** done. The base image ships busybox `wget`, so
+  the quadlet probes `http://127.0.0.1:8080/heath` every 10 s and podman restarts the container after
+  three failures (`HealthOnFailure=restart`); see
+  [deploy/README.md](../../deploy/README.md#resource-limits-and-restarts).
+- **Monitoring:** done by the [metrics and status dashboard](../plans/metrics-and-status-dashboard.md):
+  Prometheus scrapes `/metrics` and the owner-only `/status` draws the history.
+- **Alerting on the signal:** still open — a timer that curls `/heath` and notifies on 503 — see
   OPS-05.
-- **Alerting on the signal:** a timer that curls `/heath` and notifies on 503 — see OPS-05.

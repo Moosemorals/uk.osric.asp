@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Prometheus for uk.osric.asp (rootless)
+
+[Container]
+ContainerName=prometheus
+# Pinned to an exact patch, like Caddy: a version bump should be a deliberate commit.
+Image=docker.io/prom/prometheus:v3.15.1
+# The app and Prometheus share a rootless network so the scrape target is a name, not a port on the
+# host. Nothing public routes here: Prometheus has no authentication.
+Network=uk.osric.asp.network
+# Published on the loopback for `ssh -L 9090:127.0.0.1:9090` and for nothing else.
+PublishPort=127.0.0.1:9090:9090
+Volume=prometheus-data:/prometheus:U
+# The configuration is owned by the deploy user, unlike Caddy's root-owned file, because this unit is
+# rootless. `make deploy` writes it to ~/.config/prometheus/prometheus.yml.
+Volume=%h/.config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+# The image's entrypoint is /bin/prometheus, so Exec replaces its arguments.
+Exec=--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=30d --storage.tsdb.retention.size=2GB
+# 256 MB is enough for a site this size; a runaway series count fails a scrape rather than the host.
+PodmanArgs=--memory=256m
+PodmanArgs=--pids-limit=128
+NoNewPrivileges=true
+DropCapability=all
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

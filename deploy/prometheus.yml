@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+# One target, scraped over the shared rootless network. The name comes from the app quadlet's
+# NetworkAlias=, not from the host, and Caddy answers 404 for /metrics on the public origin.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: uk.osric.asp
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["app:8080"]

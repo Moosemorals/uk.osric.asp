@@ -30,6 +30,9 @@ users:
 packages:
   # Rootless podman: id mapping, user-mode networking, and an overlay driver for user namespaces.
   - podman
+  # Container-name resolution on a user-defined network is a package of its own on Debian: Prometheus
+  # scrapes `app:8080`, and without aardvark-dns that name resolves nowhere.
+  - aardvark-dns
   - uidmap
   - passt
   - slirp4netns

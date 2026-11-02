@@ -34,6 +34,12 @@ core stays pure and the shell stays thin.
   host on a one-second budget and asserts `504`. A slow page there burns CPU against a wall clock
   rather than sleeping, because the page API policy refuses `Thread.Sleep` and `Task.Delay`. Nothing
   asserts on the podman restart: that belongs to the supervisor, not to `WebApplicationFactory`.
+- **The metrics export and the dashboard** split the same way. `Web.Tests` proves the Prometheus
+  client against recorded `query_range` bodies (values as strings, `NaN`/`±Inf`, empty results, error
+  payloads) and the dashboard against a stubbed `IMetricsSource`, including the fifteen-second cache on
+  a test clock. `Core.Tests` pins the chart markup and the tick tables. `Web.IntegrationTests` renders
+  a page and reads `/metrics`, and asserts that `/status` sends an anonymous visitor to `/login`; no
+  test needs a running Prometheus.
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and
   content types set by middleware, static files falling through to the page route, startup
@@ -101,7 +107,9 @@ its `TestAssembly.cs`:
   are not: the budget tests measure a wall clock against a page that burns CPU, the storage fixtures
   migrate a database in `[SetUp]`, and a fixture signs in once per test.
 - `PageMetricsTests` is `[NonParallelizable]`, because a `MeterListener` hears every instrument in the
-  process, including the page meter another fixture is recording into.
+  process, including the page meter another fixture is recording into. `MetricsEndpointTests` reads
+  the same process-wide meter through the exporter, but asserts that a series is present rather than
+  what it counts, so it is safe beside other fixtures.
 - `PageServiceTests` and the one budget test in `MainEndpointTests` are `[NonParallelizable]`, for the
   same reason fixtures are the unit of parallelism: a page that outruns its budget cannot be stopped,
   so it keeps a core busy while the deadline continuation queues for a thread. Run beside another

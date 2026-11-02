@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using System.Globalization;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Authentication;
+using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Users;
 
 /// <summary>Runs the real web host against a throwaway SQLite database.</summary>
@@ -20,7 +21,12 @@ using uk.osric.asp.Web.Users;
 /// Keeps the production password hasher instead of <see cref="FastPasswordService"/>. A fixture that
 /// is about signing in sets this; the rest sign in only to reach the page they prove.
 /// </param>
-internal sealed class AspApplication(int loginPermitLimit = 100, int renderTimeoutSeconds = 5, bool realPasswordHasher = false) : WebApplicationFactory<Program> {
+/// <param name="metricsSource">Stands in for Prometheus, which no fixture can reach.</param>
+internal sealed class AspApplication(
+    int loginPermitLimit = 100,
+    int renderTimeoutSeconds = 5,
+    bool realPasswordHasher = false,
+    IMetricsSource? metricsSource = null) : WebApplicationFactory<Program> {
 
     /// <summary>The database this host migrates and serves; it is deleted with the factory.</summary>
     public string DatabasePath { get; } =
@@ -43,6 +49,11 @@ internal sealed class AspApplication(int loginPermitLimit = 100, int renderTimeo
             if (!realPasswordHasher) {
                 // Registered last, so it wins over the singleton the host registered.
                 services.AddSingleton<IPasswordService, FastPasswordService>();
+            }
+
+            if (metricsSource is not null) {
+                // The last registration of a single service wins, so the real source is replaced.
+                services.AddSingleton(metricsSource);
             }
         });
     }

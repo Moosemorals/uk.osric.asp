@@ -96,10 +96,11 @@ are the things NuGet cannot give you, and a fresh machine has none of them.
 | reuse | `make license-check` | `apt install reuse`, or `pipx install reuse` |
 | podman | `make image`, `make deploy` | Builds the OCI image from `deploy/Containerfile` |
 | ssh, scp | `make deploy` | Copies the image and the quadlets to the server |
-| systemd | `make deploy` | The app and Caddy run as quadlets, which are systemd units |
+| systemd | `make deploy` | The app, Prometheus and Caddy run as quadlets, which are systemd units |
 
-The server side needs rootless podman with `uidmap`, `passt` and `fuse-overlayfs`;
-`deploy/cloud-init.yaml` installs those on a fresh Debian 13 VM.
+The server side needs rootless podman with `uidmap`, `passt`, `fuse-overlayfs` and `aardvark-dns`
+(container-name resolution for the shared network); `deploy/cloud-init.yaml` installs those on a fresh
+Debian 13 VM.
 
 Optional, but they make life easier: the `hcloud` CLI if you are creating the VM, and VS Code with
 the C# extension, which has a launch configuration in `.vscode/launch.json`.

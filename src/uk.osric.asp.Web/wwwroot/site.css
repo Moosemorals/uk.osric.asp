@@ -23,3 +23,86 @@ body {
 .diagnostics .diagnostic-warning {
     color: #8a5a00;
 }
+
+:root {
+    --series-1: #1f77b4;
+    --series-2: #ff7f0e;
+    --series-3: #2ca02c;
+    --series-4: #d62728;
+    --series-5: #9467bd;
+}
+
+.banner {
+    padding: 0.75rem 1rem;
+    background-color: #fdf0f0;
+    border-left: 0.25rem solid #c00;
+}
+
+.panel {
+    margin-block: 2rem;
+}
+
+.chart {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.chart .chart-grid {
+    stroke: #ddd;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.chart .chart-label {
+    fill: #444;
+    font-size: 11px;
+}
+
+.series-1 { --series: var(--series-1); }
+.series-2 { --series: var(--series-2); }
+.series-3 { --series: var(--series-3); }
+.series-4 { --series: var(--series-4); }
+.series-5 { --series: var(--series-5); }
+
+.chart .series {
+    fill: none;
+    stroke: var(--series, currentColor);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+}
+
+.chart circle.series {
+    fill: var(--series, currentColor);
+    stroke: none;
+}
+
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.875rem;
+}
+
+.chart-legend .swatch {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    margin-right: 0.35rem;
+    background-color: var(--series, currentColor);
+}
+
+.heatmap {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.heat-1 { fill: #dbeafe; }
+.heat-2 { fill: #93c5fd; }
+.heat-3 { fill: #3b82f6; }
+.heat-4 { fill: #1d4ed8; }
+.heat-5 { fill: #1e3a8a; }

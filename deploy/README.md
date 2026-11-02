@@ -16,14 +16,18 @@ of one commit produce one image id — on the same buildah version, which is rec
 `io.buildah.version` label. `make image-check` proves it by building twice and comparing, and it runs
 as part of `make ci`.
 
-The app runs **rootless** as the `deploy` user. **Caddy** is the only rootful unit: it owns 80/443,
-uses host networking, and proxies to the app's loopback port.
+The app runs **rootless** as the `deploy` user, beside a second rootless container for **Prometheus**.
+**Caddy** is the only rootful unit: it owns 80/443, uses host networking, and proxies to the app's
+loopback port.
 
 ```
 deploy/
   Containerfile             the image: the publish output on the pinned aspnet base
   cloud-init.yaml           one-shot host bootstrap (rootless podman, user, firewall, SSH)
   uk.osric.asp.container    user quadlet: the app, rootless, publishing 127.0.0.1:8080
+  uk.osric.asp.network      user network: the app and Prometheus talking by name
+  prometheus.container      user quadlet: Prometheus, rootless, publishing 127.0.0.1:9090
+  prometheus.yml            scrape config, installed to ~/.config/prometheus/prometheus.yml
   caddy.container           system quadlet: Caddy, host network, terminating TLS
   Caddyfile                 site config, installed to /etc/caddy/Caddyfile
 ```
@@ -81,9 +85,10 @@ and applies them.
 
    That runs the same gate as a commit (`make check`: formatting, licences, package audit, all four
    suites and a Release publish), builds and pushes the image, pulls it as `deploy`, installs the
-   user quadlet, writes the Caddyfile to `/etc/caddy/` with sudo, reloads the user manager, then
-   installs the Caddy unit, reloads systemd and restarts both services. Caddy obtains a certificate
-   on first request, so the site is reachable a few seconds later.
+   network and the app's user quadlet, restarts the app, writes the Prometheus config and quadlet and
+   restarts that, then writes the Caddyfile to `/etc/caddy/` with sudo, installs the Caddy unit,
+   reloads systemd and restarts Caddy. Caddy obtains a certificate on first request, so the site is
+   reachable a few seconds later.
 
    The target refuses to run from a tree with uncommitted changes, because the image is tagged with
    its commit and that tag is only meaningful if the commit is the tree (`ALLOW_DIRTY=1` overrides,
@@ -106,8 +111,8 @@ and applies them.
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
-  covers `/edit`, `/site.css`, `/favicon.ico`, `/heath`, `/login` and `/logout`; change it only when
-  the route table changes.
+  covers `/edit`, `/site.css`, `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics` and
+  `/status`; change it only when the route table changes.
 - **Health:** `ssh deploy@<server-ip> curl -s http://127.0.0.1:8080/heath` returns detailed JSON —
   200 when the app can reach its database and no page renders have been abandoned, 503 otherwise. The
   same probe runs inside the container as podman's health check, so a failing check restarts it; see
@@ -270,7 +275,25 @@ of it needs root. Caddy is the exception because it binds 80/443; it runs rootfu
 and reaches the app at `127.0.0.1:8080`.
 
 A rootless container cannot join a rootful podman network, which is why the app publishes to the
-loopback and Caddy uses `Network=host` instead of a shared bridge.
+loopback and Caddy uses `Network=host` instead of a shared bridge. The app and Prometheus are both
+rootless, so they *can* share `uk.osric.asp.network`; container names on that network resolve through
+`aardvark-dns`, which `cloud-init.yaml` installs.
+
+## Metrics and the status page
+
+Prometheus scrapes `app:8080/metrics` every 15 s over the shared network and keeps 30 days or 2 GB,
+whichever comes first; the container is capped at 256 MB of RAM so runaway cardinality fails a scrape
+instead of the host. `/status` is owner-only and queries Prometheus by name, so neither service is
+reachable from the internet.
+
+- **Two gates on `/metrics`.** The app publishes on the loopback only (the control DEC-61 describes),
+  and Caddy answers `404` for the path on the public origin. Keep both.
+- **Prometheus is never proxied.** It has no authentication; reach it with
+  `ssh -L 9090:127.0.0.1:9090 deploy@<server-ip>` and open `http://localhost:9090`.
+- **No data is a banner, not a failure.** A stopped Prometheus, a slow query, or an unreadable reply
+  makes `/status` say so and still render; only a bug in the page itself is a `500`.
+- **Retention is a guess.** 30 days and 2 GB are easy to change in `prometheus.container`; check
+  `df -h /` before raising them, because images, page assemblies and the database share the disk.
 
 ## Proxy trust and forwarded headers
 
@@ -302,12 +325,14 @@ Every image goes through `registry.osric.uk`, so the layout is chosen for layers
 
 | base | app layer per deploy | image |
 | --- | --- | --- |
-| `mcr.microsoft.com/dotnet/aspnet:10.0-alpine` | 177 kB (framework-dependent) | 122 MB |
+| `mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra` | 177 kB (framework-dependent) | 160 MB |
 
-The ~120 MB .NET runtime lives in the base image's layers, which are pulled once and cached by both
-the registry and the host. Each release therefore pushes and pulls only the app layer. Building it as a
-self-contained single file instead would make the image smaller (64 MB) but would move ~52 MB on every
-release, which is the wrong trade when a registry is available.
+The ~160 MB .NET runtime lives in the base image's layers, which are pulled once and cached by both
+the registry and the host. Each release therefore pushes and pulls only the app layer. The `-extra`
+flavour costs about 38 MB over plain alpine and is chosen for its `/usr/share/zoneinfo`: the status
+page labels its time axis in Europe/London, and `TimeZoneInfo` throws for a zone the image does not
+know. Building it as a self-contained single file instead would make the image smaller (64 MB) but
+would move ~52 MB on every release, which is the wrong trade when a registry is available.
 
 Trimming would reach ~29 MB, but ASP.NET Core does not support trimming a hosted web app here: the
 trimmed image dies at startup with `TypeLoadException`. It is deliberately off.
@@ -334,7 +359,7 @@ credentials somewhere else. If the registry serves a certificate the host does n
 CA at `/etc/containers/certs.d/registry.osric.uk/ca.crt` (or the same path under
 `~/.config/containers/certs.d/`).
 
-The first push uploads the base layers (~120 MB); later pushes send only the app layer. Rootless
+The first push uploads the base layers (~160 MB); later pushes send only the app layer. Rootless
 images live in `~deploy/.local/share/containers`, so `podman images` as root will not show them.
 
 For unattended updates, add `AutoUpdate=registry` to the app quadlet and run

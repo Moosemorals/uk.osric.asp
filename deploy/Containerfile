@@ -7,10 +7,13 @@
 #
 # The base is pinned by digest. A tag would let the base move between two builds of one commit, which
 # is the one part of the image this repository does not control. `podman image inspect --format
-# '{{json .RepoDigests}}' mcr.microsoft.com/dotnet/aspnet:10.0-alpine` lists both digests for the
-# tag; the manifest list is the one below, because it is the digest that resolves for amd64 and
+# '{{json .RepoDigests}}' mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra` lists both digests for
+# the tag; the manifest list is the one below, because it is the digest that resolves for amd64 and
 # arm64 alike. Bump it deliberately, in its own commit.
-ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:254fe017495996d3abcc487ffacdcce2b73affb380d3af87af12c8dff41fe0b0
+#
+# `-extra` supplies /usr/share/zoneinfo, which the status page's Europe/London clock labels need; the
+# plain alpine image has no tzdata at all and TimeZoneInfo throws for the zone inside it.
+ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra@sha256:78bec9181ad577eff1f78e738d19603ece6f3170819c7f268eae6a7566c9f600
 FROM ${BASE_IMAGE}
 
 # The commit, for provenance. Everything here is fixed per commit; nothing in this file records the

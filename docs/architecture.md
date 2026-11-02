@@ -135,9 +135,9 @@ stay public.
   account has the same effect on the next request. Signing in again does **not** rotate the stamp,
   so several browsers or devices can hold a valid session at the same time; only a password change
   or account removal revokes them all.
-- `/edit/**` requires the `Editor` policy, which is just an authenticated account. `/login`,
-  `/logout` and `/heath` are the only other routes outside the page catch-all, and each one is a
-  reserved page key.
+- `/edit/**` and `/status` require the `Editor` policy, which is just an authenticated account.
+  `/login`, `/logout`, `/heath` and `/metrics` are the other routes outside the page catch-all, and
+  every one of them is a reserved page key.
 - Sign-in is throttled by a fixed window of ten attempts a minute (`LoginRateLimitOptions`), and a
   request over the limit is answered `429` before any password is hashed. The window is one global
   partition on purpose: behind Caddy every request arrives from the loopback, so a per-address
@@ -302,6 +302,30 @@ add a request-duration metric of our own. On a cache miss `page.compile.duration
 pages, which is small — if that ever stops being true, drop the tag and keep the path in logs.
 Recording costs nothing until an exporter listens, so the instruments are always on. For a quick
 look while the site runs: `dotnet-counters monitor --counters uk.osric.asp <pid>`.
+
+### Export and the status page
+
+One exporter listens: OpenTelemetry's Prometheus exporter, registered for metrics only — no tracer
+provider, no logger provider, and no instrumentation packages, because the framework's own meters are
+already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kestrel`,
+`System.Runtime`).
+
+- **Naming is the contract.** `page.render.duration` becomes `page_render_duration_seconds_bucket`, and
+  the dashboard hard-codes that. Renaming an instrument or changing its unit empties a panel.
+- **The buckets are ours.** Every duration shares one explicit scale whose top boundary is past the
+  render budget, so a render recorded at its deadline lands in a real bucket rather than `+Inf`;
+  `page.image.size` has its own byte scale. The SDK's default starts at 0–5 s for a seconds
+  instrument, which would make every render one column and every percentile meaningless.
+- **Two gates on `/metrics`.** The app publishes on the loopback only (DEC-61), and Caddy answers
+  `404` for the path on the public origin. Prometheus scrapes `app:8080` over the shared rootless
+  network; see [deployment](../deploy/README.md#metrics-and-the-status-page).
+- **`/status` is a shell endpoint.** It queries Prometheus over that same network and draws SVG from
+  pure `Core` functions (`LineChart`, `Heatmap`, `NiceTicks`); it is owner-only, cached for fifteen
+  seconds, and a Prometheus failure is a banner rather than a `500`, because the page is what gets
+  opened when something is broken.
+- **The image carries tzdata.** Only the axis labels are local; the positions, queries and samples are
+  UTC. The base is `aspnet:10.0-alpine-extra` (DEC-82) because plain alpine has no
+  `/usr/share/zoneinfo` and resolving `Europe/London` inside it throws.
 
 `make test-web` runs the Web storage tests, and `make test-integration` runs the same storage through
 the real host; both are included in `make test`. Schema changes are scaffolded with
