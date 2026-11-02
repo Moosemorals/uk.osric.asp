@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using NUnit.Framework;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using uk.osric.asp.Core;
 using uk.osric.asp.Web.Metrics;
@@ -93,6 +94,39 @@ public sealed class PrometheusMetricsSourceTests {
         Assert.That(uri, Does.Contain("start=1700000000"));
         Assert.That(uri, Does.Contain("end=1700000300"));
         Assert.That(uri, Does.Contain("step=60"));
+    }
+
+    [Test]
+    public async Task ATimeoutNamesTheTarget() {
+        StubHttpMessageHandler handler = new(_ => throw new TaskCanceledException());
+        using HttpClient http = Client(handler);
+        PrometheusMetricsSource source = new(http, TimeSpan.FromMilliseconds(20));
+
+        MetricsQueryResult result = await source.QueryAsync("up", From, To, Step, CancellationToken.None);
+
+        Assert.That(((MetricsUnavailable)result).Reason, Does.Contain("prometheus:9090"));
+        Assert.That(((MetricsUnavailable)result).Reason, Does.Contain("did not answer"));
+    }
+
+    [Test]
+    public async Task AMissingNameIsReportedAsNotResolving() {
+        MetricsQueryResult result = await FailingAsync(new SocketException((int)SocketError.HostNotFound));
+
+        Assert.That(((MetricsUnavailable)result).Reason, Is.EqualTo("Prometheus at prometheus:9090 does not resolve."));
+    }
+
+    [Test]
+    public async Task ARefusedConnectionIsReportedAsUnreachable() {
+        MetricsQueryResult result = await FailingAsync(new SocketException((int)SocketError.ConnectionRefused));
+
+        Assert.That(((MetricsUnavailable)result).Reason, Is.EqualTo("Prometheus at prometheus:9090 is unreachable."));
+    }
+
+    private static async Task<MetricsQueryResult> FailingAsync(Exception inner) {
+        using HttpClient http = Client(new StubHttpMessageHandler(_ => throw new HttpRequestException("boom", inner)));
+
+        return await new PrometheusMetricsSource(http)
+            .QueryAsync("up", From, To, Step, CancellationToken.None);
     }
 
     private static async Task<MetricsQueryResult> QueryAsync(string body, HttpStatusCode status = HttpStatusCode.OK) {

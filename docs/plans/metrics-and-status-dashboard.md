@@ -11,11 +11,17 @@ are our own SVG drawn from pure functions in `Core`. Metrics only — no traces,
 
 ## Status
 
-Implemented on 2026-11-02. Test counts at the time: 144 core, 38 runtime, 292 web and 53 integration
+Implemented on 2026-11-02. Test counts at the time: 144 core, 38 runtime, 295 web and 53 integration
 tests (baseline before the work: 110 / 38 / 275 / 48). Built as written, with two deviations: the
 abandoned-render rate sits on the render-rate panel rather than the slot-wait one, so each chart has
 one unit; and Prometheus' retention flags are `Exec=` arguments rather than `PodmanArgs=`, because they
 belong to the binary and not to podman.
+
+A follow-up the same day: the live host had been created before `aardvark-dns` joined
+`cloud-init.yaml`, so neither container name resolved and `/status` could only report that Prometheus
+did not answer. The package was installed on the host, `make deploy` now refuses a host without it and
+waits until Prometheus can reach `app:8080`, and every failure names the target and says whether it
+resolves.
 
 ## What already exists
 

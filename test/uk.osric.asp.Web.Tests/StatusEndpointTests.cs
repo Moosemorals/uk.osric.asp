@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Core;
 using uk.osric.asp.Web.Endpoints;
@@ -61,7 +62,8 @@ public sealed class StatusEndpointTests {
         MetricsDashboard dashboard = new(
             new FakeMetricsSource(_ => answer),
             Options,
-            new TestClock { Now = Now });
+            new TestClock { Now = Now },
+            NullLogger<MetricsDashboard>.Instance);
         HttpContext context = TestHttp.CreateContext(null);
 
         await StatusEndpoint.HandleAsync(context, dashboard, CancellationToken.None);

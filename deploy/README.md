@@ -294,6 +294,12 @@ reachable from the internet.
   makes `/status` say so and still render; only a bug in the page itself is a `500`.
 - **Retention is a guess.** 30 days and 2 GB are easy to change in `prometheus.container`; check
   `df -h /` before raising them, because images, page assemblies and the database share the disk.
+- **Existing hosts need one package.** `aardvark-dns` became part of `cloud-init.yaml` with this
+  work, so a VM created earlier has no container DNS: `/status` says Prometheus "did not answer" and
+  the scrape target is down. Install it once, then restart the units:
+  `sudo apt-get install -y aardvark-dns`, `systemctl --user restart uk.osric.asp.service
+  prometheus.service`. `make deploy` refuses to run on a host without it and waits until Prometheus
+  can reach `app:8080` before reporting success.
 
 ## Proxy trust and forwarded headers
 

@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Metrics;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using uk.osric.asp.Core;
@@ -17,17 +18,24 @@ using uk.osric.asp.Core;
 /// </remarks>
 internal sealed class PrometheusMetricsSource : IMetricsSource {
 
-    private static readonly TimeSpan QueryTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan DefaultQueryTimeout = TimeSpan.FromSeconds(2);
     private static readonly string[] LabelKeys = ["page.path", "outcome", "result", "le"];
 
     private readonly HttpClient _http;
+    private readonly TimeSpan _queryTimeout;
 
     /// <summary>Creates a source over a client whose base address is the Prometheus origin.</summary>
     /// <param name="http">The client to send queries with.</param>
-    public PrometheusMetricsSource(HttpClient http) {
+    /// <param name="queryTimeout">The per-query deadline; two seconds unless a test says otherwise.</param>
+    public PrometheusMetricsSource(HttpClient http, TimeSpan? queryTimeout = null) {
         ArgumentNullException.ThrowIfNull(http);
         _http = http;
+        _queryTimeout = queryTimeout ?? DefaultQueryTimeout;
     }
+
+    // Named in every failure, because "did not answer" without an address is a puzzle rather than a
+    // diagnosis: the first thing to check is that the container name resolves.
+    private string Target => _http.BaseAddress?.Authority ?? "the configured address";
 
     /// <inheritdoc/>
     public async Task<MetricsQueryResult> QueryAsync(
@@ -42,7 +50,7 @@ internal sealed class PrometheusMetricsSource : IMetricsSource {
             $"api/v1/query_range?query={Uri.EscapeDataString(query)}&start={from.ToUnixTimeSeconds()}&end={to.ToUnixTimeSeconds()}&step={(long)step.TotalSeconds}");
 
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(QueryTimeout);
+        timeout.CancelAfter(_queryTimeout);
 
         try {
             using HttpRequestMessage request = new(HttpMethod.Get, url);
@@ -56,12 +64,22 @@ internal sealed class PrometheusMetricsSource : IMetricsSource {
             PrometheusResponse? payload = await response.Content.ReadFromJsonAsync<PrometheusResponse>(timeout.Token);
             return ToResult(payload);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
-            return new MetricsUnavailable("Prometheus did not answer within 2 seconds.");
-        } catch (HttpRequestException) {
-            return new MetricsUnavailable("Prometheus is unreachable.");
+            return new MetricsUnavailable(string.Create(
+                CultureInfo.InvariantCulture,
+                $"Prometheus at {Target} did not answer within {_queryTimeout.TotalSeconds:0.#} seconds."));
+        } catch (HttpRequestException exception) {
+            return new MetricsUnavailable(Unreachable(exception));
         } catch (JsonException) {
             return new MetricsUnavailable("Prometheus returned a response this page cannot read.");
         }
+    }
+
+    // A host that does not resolve is a different fault from one that refuses a connection, and the
+    // first is the one a missing DNS server on the host produces.
+    private string Unreachable(HttpRequestException exception) {
+        return exception.InnerException is SocketException { SocketErrorCode: SocketError.HostNotFound or SocketError.NoData or SocketError.TryAgain }
+            ? $"Prometheus at {Target} does not resolve."
+            : $"Prometheus at {Target} is unreachable.";
     }
 
     // A bad query comes back as 400 carrying {status: error, error: "..."}: the message is worth

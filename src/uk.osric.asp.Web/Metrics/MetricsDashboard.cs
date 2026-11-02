@@ -50,19 +50,27 @@ internal sealed class MetricsDashboard {
     private readonly IMetricsSource _source;
     private readonly TimeZoneInfo _zone;
     private readonly TimeProvider _time;
+    private readonly ILogger<MetricsDashboard> _logger;
     private readonly Lock _gate = new();
 
     private StatusPage? _cached;
     private DateTimeOffset _cachedAt;
 
-    public MetricsDashboard(IMetricsSource source, MetricsOptions options, TimeProvider time) {
+    public MetricsDashboard(
+        IMetricsSource source,
+        MetricsOptions options,
+        TimeProvider time,
+        ILogger<MetricsDashboard> logger) {
+
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(time);
+        ArgumentNullException.ThrowIfNull(logger);
 
         _source = source;
         _zone = options.TimeZone;
         _time = time;
+        _logger = logger;
     }
 
     /// <summary>Builds the page, reusing the last one while it is still fresh.</summary>
@@ -121,6 +129,11 @@ internal sealed class MetricsDashboard {
             case MetricsMatrix matrix:
                 panels.Add(RenderHeatmap(matrix.Series));
                 break;
+        }
+
+        if (banner is not null) {
+            // The page shows the banner; the journal keeps the reason for the person with a shell.
+            _logger.LogWarning("The metrics dashboard is incomplete: {Reason}", banner);
         }
 
         return new StatusPage(panels, banner);

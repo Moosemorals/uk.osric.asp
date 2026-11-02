@@ -318,6 +318,10 @@ image-check:
 # that has been pulled by the server cannot be withdrawn, and a broken suite is cheaper to meet here
 # than on the running site. Do not run this target with -j; the order is the point.
 deploy: deploy-guard check image
+	@ssh $(HOST) 'dpkg -s aardvark-dns >/dev/null 2>&1 || { \
+		echo "the host is missing aardvark-dns: container names will not resolve"; \
+		echo "run: sudo apt-get install -y aardvark-dns"; \
+		exit 1; }'
 	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
 	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
@@ -332,6 +336,14 @@ deploy: deploy-guard check image
 	ssh $(HOST) 'cat > .config/containers/systemd/prometheus.container' < deploy/prometheus.container
 	ssh $(HOST) systemctl --user daemon-reload
 	ssh $(HOST) systemctl --user restart prometheus.service
+	@ssh $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://app:8080/heath >/dev/null 2>&1; do \
+		i=$$((i+1)); \
+		if [ $$i -ge 10 ]; then \
+			echo "Prometheus cannot reach the app at app:8080: check podman network inspect uk.osric.asp"; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done'
 	ssh $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
 	ssh $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
 	ssh $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null

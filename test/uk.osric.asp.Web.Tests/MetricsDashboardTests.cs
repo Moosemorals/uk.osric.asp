@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Core;
 using uk.osric.asp.Web.Metrics;
@@ -26,7 +27,7 @@ public sealed class MetricsDashboardTests {
 
     [Test]
     public async Task EveryPanelIsDrawnWhenTheSourceAnswers() {
-        MetricsDashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now });
+        MetricsDashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
@@ -43,7 +44,8 @@ public sealed class MetricsDashboardTests {
         MetricsDashboard dashboard = new(
             new FakeMetricsSource(_ => new MetricsUnavailable("Prometheus is unreachable.")),
             Options,
-            new TestClock { Now = Now });
+            new TestClock { Now = Now },
+            NullLogger<MetricsDashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
@@ -58,7 +60,8 @@ public sealed class MetricsDashboardTests {
                 ? new MetricsUnavailable("cache query failed")
                 : Answer()),
             Options,
-            new TestClock { Now = Now });
+            new TestClock { Now = Now },
+            NullLogger<MetricsDashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
@@ -72,7 +75,8 @@ public sealed class MetricsDashboardTests {
         MetricsDashboard dashboard = new(
             new FakeMetricsSource(_ => new MetricsMatrix([])),
             Options,
-            new TestClock { Now = Now });
+            new TestClock { Now = Now },
+            NullLogger<MetricsDashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(CancellationToken.None);
 
@@ -84,7 +88,7 @@ public sealed class MetricsDashboardTests {
     public async Task ThePageIsReusedForFifteenSeconds() {
         FakeMetricsSource source = new(_ => Answer());
         TestClock clock = new() { Now = Now };
-        MetricsDashboard dashboard = new(source, Options, clock);
+        MetricsDashboard dashboard = new(source, Options, clock, NullLogger<MetricsDashboard>.Instance);
 
         await dashboard.GetAsync(CancellationToken.None);
         int afterFirst = source.Calls;
