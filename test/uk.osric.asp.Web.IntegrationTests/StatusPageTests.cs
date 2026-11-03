@@ -15,6 +15,28 @@ public sealed class StatusPageTests : IntegrationTest {
     internal override AspApplication CreateApplication() => new(metricsSource: new FixedMetricsSource());
 
     [Test]
+    public async Task DashboardStylesAreServedSeparatelyFromSharedStyles() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        string status = await client.GetStringAsync("/status");
+        using HttpResponseMessage stylesheet = await client.GetAsync("/status.css");
+        string statusStyles = await stylesheet.Content.ReadAsStringAsync();
+        string sharedStyles = await client.GetStringAsync("/site.css");
+        using HttpClient anonymous = CreateClient();
+        string login = await anonymous.GetStringAsync("/login");
+
+        Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/status.css\">"));
+        Assert.That(stylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(stylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
+        Assert.That(stylesheet.Headers.CacheControl?.NoCache, Is.True);
+        Assert.That(stylesheet.Headers.ETag, Is.Not.Null);
+        Assert.That(statusStyles, Does.Contain(".status-nav").And.Contain(".chart").And.Contain(".heatmap"));
+        Assert.That(sharedStyles, Does.Contain("body {").And.Contain(".diagnostics"));
+        Assert.That(sharedStyles, Does.Not.Contain(".status-nav").And.Not.Contain(".chart").And.Not.Contain(".heatmap"));
+        Assert.That(login, Does.Not.Contain("/status.css"));
+    }
+
+    [Test]
     public async Task StatusRedirectsAnAnonymousVisitorToSignIn() {
         using HttpClient client = CreateClient();
 

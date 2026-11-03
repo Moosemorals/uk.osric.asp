@@ -8,7 +8,7 @@ using uk.osric.asp.Core.Compilation;
 
 internal static class PageLayout {
 
-    public static string Header(string title) =>
+    public static string Header(string title, string? stylesheet = null) =>
         $"""
         <!DOCTYPE html>
         <html lang="en">
@@ -17,6 +17,7 @@ internal static class PageLayout {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>{WebUtility.HtmlEncode(title)}</title>
             <link rel="stylesheet" href="/site.css">
+            {(stylesheet is null ? "" : $"<link rel=\"stylesheet\" href=\"{WebUtility.HtmlEncode(stylesheet)}\">")}
             <link rel="icon" href="/rocket.svg" type="image/svg+xml">
         </head>
         <body>

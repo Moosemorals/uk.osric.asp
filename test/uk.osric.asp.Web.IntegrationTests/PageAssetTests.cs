@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.IntegrationTests;
 using NUnit.Framework;
 using System.Net;
 using System.Text;
-using uk.osric.asp.Web.Pages;
 
 [TestFixture]
 public sealed class PageAssetTests : IntegrationTest {
@@ -21,14 +20,20 @@ public sealed class PageAssetTests : IntegrationTest {
         Assert.That(stylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
         Assert.That(stylesheet.Headers.CacheControl?.NoCache, Is.True);
         Assert.That(stylesheet.Content.Headers.ContentLength, Is.EqualTo(Encoding.UTF8.GetByteCount(stylesheetBody)));
-        Assert.That(stylesheetBody, Is.EqualTo(PageAssetSeeder.StylesheetBody));
+        Assert.That(stylesheetBody, Is.EqualTo(RenderedSeed("site.css")));
         Assert.That(stylesheet.Headers.ETag, Is.Not.Null);
 
         using HttpResponseMessage icon = await client.GetAsync("/rocket.svg");
         Assert.That(icon.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(icon.Content.Headers.ContentType?.ToString(), Is.EqualTo("image/svg+xml"));
         Assert.That(icon.Headers.CacheControl?.NoCache, Is.True);
-        Assert.That(await icon.Content.ReadAsStringAsync(), Is.EqualTo(PageAssetSeeder.IconBody));
+        Assert.That(await icon.Content.ReadAsStringAsync(), Is.EqualTo(RenderedSeed("rocket.svg")));
+
+        using HttpResponseMessage statusStylesheet = await client.GetAsync("/status.css");
+        Assert.That(statusStylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(statusStylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
+        Assert.That(statusStylesheet.Headers.CacheControl?.NoCache, Is.True);
+        Assert.That(await statusStylesheet.Content.ReadAsStringAsync(), Is.EqualTo(RenderedSeed("status.css")));
 
         using HttpResponseMessage login = await client.GetAsync("/login");
         string loginBody = await login.Content.ReadAsStringAsync();
@@ -62,5 +67,11 @@ public sealed class PageAssetTests : IntegrationTest {
         Assert.That(await changed.Content.ReadAsStringAsync(), Is.EqualTo(updatedBody));
         Assert.That(changed.Content.Headers.ContentLength, Is.EqualTo(Encoding.UTF8.GetByteCount(updatedBody)));
         Assert.That(changed.Headers.ETag, Is.Not.EqualTo(stylesheet.Headers.ETag));
+    }
+
+    private static string RenderedSeed(string name) {
+        string template = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds", name));
+        string[] parts = template.Split("<%", StringSplitOptions.None);
+        return parts[0] + parts[1][(parts[1].IndexOf("%>", StringComparison.Ordinal) + 2)..];
     }
 }

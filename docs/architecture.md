@@ -296,6 +296,12 @@ erase browser/CDN copies, exported archives, backups or filesystem snapshots. Ro
 and clean external copies separately. Runtime-change cleanup of obsolete images and symbols is
 future work; source and revision identity are retained unless explicitly scrubbed.
 
+Built-in page templates live in `src/uk.osric.asp.Web/Pages/Seeds`, included as content in build and
+publish output. Each file is a complete page template, including its response content type and cache
+headers; its filename becomes the page path. `/site.css` holds shared layout and diagnostic styles,
+while `/status.css` holds dashboard styles and is linked only by `/status`. Editing a seed file
+changes the initial content for a never-created page, not an existing database page.
+
 ## Compiled pages
 
 Compiling is the expensive part of serving a page, so it happens when a page is saved rather than

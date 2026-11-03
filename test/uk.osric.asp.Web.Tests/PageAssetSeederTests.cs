@@ -10,45 +10,53 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
+    private static readonly string[] SeedPaths = ["/rocket.svg", "/site.css", "/status.css"];
+
     [Test]
     public async Task MissingAssetsAreSeededWithoutCompiledImagesAsync() {
         FakePageStore storage = new();
 
         await PageAssetSeeder.SeedAsync(storage);
 
-        Assert.That(storage["/site.css"]?.Content, Is.EqualTo(PageAssetSeeder.StylesheetTemplate));
-        Assert.That(storage["/site.css"]?.Compilation, Is.Null);
-        Assert.That(storage["/rocket.svg"]?.Content, Is.EqualTo(PageAssetSeeder.IconTemplate));
-        Assert.That(storage["/rocket.svg"]?.Compilation, Is.Null);
-        Assert.That(storage.WriteCount, Is.EqualTo(2));
+        foreach (string path in SeedPaths) {
+            Assert.That(storage[path]?.Content, Is.EqualTo(ShippedSeed(path)), path);
+            Assert.That(storage[path]?.Compilation, Is.Null, path);
+        }
+        Assert.That(storage.WriteCount, Is.EqualTo(3));
     }
 
-    [Test]
-    public async Task ExistingAssetsArePreservedAndSeedingIsIdempotentAsync() {
-        const string editedStylesheet = "body { color: rebeccapurple; }";
+    [TestCaseSource(nameof(SeedPaths))]
+    public async Task ExistingAssetsArePreservedAndSeedingIsIdempotentAsync(string editedPath) {
+        const string editedContent = "body { color: rebeccapurple; }";
         FakePageStore storage = new();
-        storage["/site.css"] = new StoredPage(PagePath.Normalize("/site.css"), editedStylesheet);
+        storage[editedPath] = new StoredPage(PagePath.Normalize(editedPath), editedContent);
 
         await PageAssetSeeder.SeedAsync(storage);
         int writes = storage.WriteCount;
         await PageAssetSeeder.SeedAsync(storage);
 
-        Assert.That(storage["/site.css"]?.Content, Is.EqualTo(editedStylesheet));
-        Assert.That(storage["/rocket.svg"]?.Content, Is.EqualTo(PageAssetSeeder.IconTemplate));
+        Assert.That(storage[editedPath]?.Content, Is.EqualTo(editedContent));
+        foreach (string path in SeedPaths.Where(path => path != editedPath)) {
+            Assert.That(storage[path]?.Content, Is.EqualTo(ShippedSeed(path)), path);
+        }
         Assert.That(storage.WriteCount, Is.EqualTo(writes));
     }
 
-    [Test]
-    public async Task DeletedSeededAssetsAreNotReseededAsync() {
+    [TestCaseSource(nameof(SeedPaths))]
+    public async Task DeletedSeededAssetsAreNotReseededAsync(string deletedPath) {
         FakePageStore storage = new();
-        storage["/site.css"] = new StoredPage(PagePath.Normalize("/site.css"), "edited stylesheet");
-        await storage.DeletePageAsync(PagePath.Normalize("/site.css"));
+        storage[deletedPath] = new StoredPage(PagePath.Normalize(deletedPath), "edited asset");
+        await storage.DeletePageAsync(PagePath.Normalize(deletedPath));
 
         int writes = storage.WriteCount;
         await PageAssetSeeder.SeedAsync(storage);
 
-        Assert.That(await storage.GetPageAsync(PagePath.Normalize("/site.css")), Is.Null);
-        Assert.That((await storage.GetHeadAsync(PagePath.Normalize("/site.css")))?.IsDeleted, Is.True);
-        Assert.That(storage.WriteCount, Is.EqualTo(writes + 1), "only the never-created icon is seeded");
+        Assert.That(await storage.GetPageAsync(PagePath.Normalize(deletedPath)), Is.Null);
+        Assert.That((await storage.GetHeadAsync(PagePath.Normalize(deletedPath)))?.IsDeleted, Is.True);
+        Assert.That(storage.WriteCount, Is.EqualTo(writes + 2), "only the never-created assets are seeded");
+    }
+
+    private static string ShippedSeed(string path) {
+        return File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds", path.TrimStart('/')));
     }
 }
