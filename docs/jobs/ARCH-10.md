@@ -35,7 +35,7 @@ and history is about undoing a save rather than retiring a key.
 4. Decide how deletion interacts with ARCH-07. Once revisions exist, deletion either drops the key
    and its history or keeps the history and hides the current row. Both are defensible, so pick one
    and write it down; "delete means gone" is the safer default.
-5. Nothing else needs to change: `PageService.LoadAsync` reads through to storage on every request,
+5. Nothing else needs to change: `PageRenderer.LoadAsync` reads through to storage on every request,
    and neither the service nor the runtime caches by path, so a deleted row is a 404 on the next
    request.
 6. Tests: deleting an existing page makes its URL return 404 and removes the row; deleting a missing

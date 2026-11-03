@@ -16,7 +16,7 @@ internal sealed class EditorEndpoint {
 
     internal const string MessageKey = "editor.message";
 
-    public static async Task Handler(HttpContext context, PageService pages, ReservedPaths reserved, IAntiforgery antiforgery) {
+    public static async Task Handler(HttpContext context, PageEditor pages, ReservedPaths reserved, IAntiforgery antiforgery) {
 
         if (context.Request.Method == "POST" && context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -91,7 +91,7 @@ internal sealed class EditorEndpoint {
     // Every outcome redirects back to the editor with a flash message, so validation returns text
     // rather than short-circuiting the response. A page that does not compile is still saved: losing
     // the edit to report the error would be the worse failure.
-    private static async Task<string> SaveAsync(HttpContext context, PageService pages, ReservedPaths reserved, PagePath path) {
+    private static async Task<string> SaveAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, PagePath path) {
         if (reserved.IsReserved(path)) {
             return $"{path.Key} is reserved by the site.";
         }

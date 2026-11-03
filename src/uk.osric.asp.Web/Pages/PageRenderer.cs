@@ -7,70 +7,35 @@ using System.Diagnostics;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
-using uk.osric.asp.Web.Http;
 
-/// <summary>Compiles, stores and renders pages.</summary>
+/// <summary>Runs a stored page, compiling and storing it first when its image cannot be used.</summary>
 /// <remarks>
-/// A page is compiled when it is saved. A page whose stored image is missing, was built from other
-/// content, or was built by another build is compiled on its next request and stored, so a page is
-/// never unrunnable just because it did not arrive through the editor.
+/// <para>
+/// The render budget covers queueing and running, because a visitor waits for both. A page that
+/// outruns it cannot be stopped, so the answer is given up on instead: the context is abandoned, the
+/// thread is counted against the site's health, and the response is a
+/// <see cref="RenderStatus.Timeout"/>.
+/// </para>
+/// <para>
+/// Records <c>page.render.*</c>, <c>page.handler.*</c> and <c>page.cache.*</c>.
+/// </para>
 /// </remarks>
-internal sealed class PageService(
+internal sealed class PageRenderer(
     IPageStore storage,
     IPageCompiler compiler,
+    TemplateCompiler templates,
     PageMetrics metrics,
     PageBudget budget,
     PageHealth health,
-    ILogger<PageService> logger) {
+    ILogger<PageRenderer> logger) {
 
     // A page can be saved while its previous version is compiling; each attempt re-reads the newer row.
     private const int MaxCompileAttempts = 3;
-
-    /// <summary>Reads a page for the editor without compiling it.</summary>
-    /// <param name="path">The canonical key to read.</param>
-    /// <param name="cancellationToken">Cancels the read.</param>
-    public Task<StoredPage?> GetAsync(PagePath path, CancellationToken cancellationToken = default) {
-        return storage.GetPageAsync(path, cancellationToken);
-    }
-
-    /// <summary>Compiles a page and stores its source and result together.</summary>
-    /// <param name="path">The canonical key to save.</param>
-    /// <param name="content">The template source.</param>
-    /// <param name="cancellationToken">Cancels the write.</param>
-    /// <returns>The compiler's author-facing diagnostics, errors and warnings; empty when the page compiled cleanly.</returns>
-    public async Task<IReadOnlyList<PageDiagnostic>> SaveAsync(PagePath path, string content, CancellationToken cancellationToken = default) {
-        long start = Stopwatch.GetTimestamp();
-
-        PageCompilation compilation;
-        try {
-            compilation = Compile(path, content, PageMetrics.ReasonSave, cancellationToken);
-        } catch (InvalidOperationException) {
-            // A compiler fault is our bug, but the author's edit must survive it. Store the source
-            // without a compilation; the next request retries, and the failure still answers 500.
-            await storage.SavePageAsync(new StoredPage(path, content), cancellationToken);
-            metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
-            throw;
-        }
-
-        await storage.SavePageAsync(new StoredPage(path, content, compilation), cancellationToken);
-
-        TimeSpan duration = Stopwatch.GetElapsedTime(start);
-        metrics.RecordSave(path, compilation.Image is not null, duration);
-        logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
-            Outcome(compilation));
-
-        return compilation.Diagnostics;
-    }
 
     /// <summary>Runs a page, compiling and storing it first when its stored image cannot be used.</summary>
     /// <param name="path">The canonical key to render.</param>
     /// <param name="context">The context the page writes to.</param>
     /// <param name="cancellationToken">Cancels the read, any store, and the render itself.</param>
-    /// <remarks>
-    /// The budget covers queueing and running, because a visitor waits for both. A page that outruns
-    /// it cannot be stopped, so the answer is given up on instead: the context is abandoned, the
-    /// thread is counted against the site's health, and the response is a <see cref="RenderStatus.Timeout"/>.
-    /// </remarks>
     internal async Task<RenderResult> RenderAsync(PagePath path, SimpleContext context, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -154,7 +119,7 @@ internal sealed class PageService(
             }
 
             string contentHash = ContentFingerprint.Of(page.Content);
-            if (page.Compilation is { } stored && IsCurrent(stored, contentHash)) {
+            if (page.Compilation is { } stored && stored.IsCurrent(contentHash, compiler.RuntimeId)) {
                 metrics.RecordCacheLookup(PageMetrics.LookupHit);
                 return new LoadedPage(stored, PageMetrics.CacheHit);
             }
@@ -162,7 +127,7 @@ internal sealed class PageService(
             metrics.RecordStaleness(path, StalenessReason(page.Compilation));
             metrics.RecordCacheLookup(PageMetrics.LookupStale);
 
-            PageCompilation compilation = Compile(path, page.Content, PageMetrics.ReasonLazy, cancellationToken, deadline);
+            PageCompilation compilation = templates.Compile(path, page.Content, PageMetrics.ReasonLazy, cancellationToken, deadline);
             fallback = new LoadedPage(compilation, PageMetrics.CacheMiss);
 
             if (await storage.TrySetCompilationAsync(path, page.Content, compilation, cancellationToken)) {
@@ -176,11 +141,6 @@ internal sealed class PageService(
         return fallback;
     }
 
-    private bool IsCurrent(PageCompilation compilation, string contentHash) {
-        return string.Equals(compilation.ContentHash, contentHash, StringComparison.Ordinal)
-            && string.Equals(compilation.RuntimeId, compiler.RuntimeId, StringComparison.Ordinal);
-    }
-
     private string StalenessReason(PageCompilation? compilation) {
         if (compilation is null) {
             return PageMetrics.StaleNeverCompiled;
@@ -189,99 +149,6 @@ internal sealed class PageService(
         return string.Equals(compilation.RuntimeId, compiler.RuntimeId, StringComparison.Ordinal)
             ? PageMetrics.StaleContentChanged
             : PageMetrics.StaleRuntimeChanged;
-    }
-
-    // One deadline covers queueing for a slot and compiling, the same way a render's budget covers
-    // queueing and running. An unbounded Wait would park a request thread - and the render slot it
-    // already holds - for as long as the compiler stays busy, with nothing to shed the request.
-    //
-    // A wait for a slot is abandoned at the render's deadline too when there is one: nothing has been
-    // compiled, so nothing is lost and the next request tries again. The compile itself is not: it is
-    // left to finish and store its image, because throwing the work away leaves the page unservable.
-    private PageCompilation Compile(
-        PagePath path,
-        string content,
-        string reason,
-        CancellationToken cancellationToken,
-        CancellationToken renderDeadline = default) {
-        long start = Stopwatch.GetTimestamp();
-        TemplateParseResult parse = TemplateSourceGenerator.Generate(content);
-
-        // A template that does not parse never reaches the compiler, but it fails exactly like a
-        // syntax error: stored with its diagnostics, so the editor shows the fix and the page is not
-        // recompiled on every request.
-        PageCompileResult result;
-        if (parse.Source is { } source) {
-            using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            deadline.CancelAfter(budget.CompileOptions.Timeout);
-
-            // The wait for a slot ends at whichever deadline comes first. Only the wait is linked to
-            // the render's deadline: the compile keeps its own, so a compile that arrives late is
-            // still stored rather than thrown away.
-            using CancellationTokenSource queueDeadline =
-                CancellationTokenSource.CreateLinkedTokenSource(deadline.Token, renderDeadline);
-
-            bool queued;
-            try {
-                queued = budget.CompileSlots.Wait(Timeout.InfiniteTimeSpan, queueDeadline.Token);
-            } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !renderDeadline.IsCancellationRequested) {
-                // This compile's own timeout, not the caller giving up: fall through and report it.
-                queued = false;
-            }
-
-            if (!queued) {
-                result = new PageCompileResult(null, [
-                    new PageDiagnostic(PageDiagnosticSeverity.Error, null,
-                        $"PAGE003: the page waited longer than {budget.CompileOptions.TimeoutSeconds} s for a compile slot."),
-                ]);
-            } else {
-                try {
-                    try {
-                        result = compiler.Compile(source, deadline.Token);
-                    } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
-                        // Roslyn honours the token between operations, so this is a coarse bound: it is
-                        // stored like any other page error so the editor shows it and the page is not
-                        // recompiled on every request.
-                        result = new PageCompileResult(null, [
-                            new PageDiagnostic(PageDiagnosticSeverity.Error, null,
-                                $"PAGE004: the page took longer than {budget.CompileOptions.TimeoutSeconds} s to compile."),
-                        ]);
-                    } catch (InvalidOperationException ex) {
-                        logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, source);
-                        logger.LogError(ex, "The generated source for {Path} did not compile; this is a compiler fault", path.Key);
-                        metrics.RecordCompile(path, false, reason, Stopwatch.GetElapsedTime(start));
-                        throw;
-                    }
-                } finally {
-                    budget.CompileSlots.Release();
-                }
-
-                if (!result.Success) {
-                    logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, source);
-                }
-            }
-        } else {
-            result = new PageCompileResult(null, parse.Errors);
-        }
-
-        TimeSpan duration = Stopwatch.GetElapsedTime(start);
-        metrics.RecordCompile(path, result.Success, reason, duration);
-        if (result.Image is { } image) {
-            metrics.RecordImageSize(path, image.Length);
-        }
-
-        logger.LogDebug("Compiled {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
-            result.Success ? "ok" : "error");
-
-        return new PageCompilation(ContentFingerprint.Of(content), compiler.RuntimeId, result.Image, result.Diagnostics);
-    }
-
-    private static string Outcome(PageCompilation compilation) {
-        if (compilation.Image is null) {
-            return "with errors";
-        }
-
-        return compilation.Diagnostics.Count > 0 ? "compiled with warnings" : "compiled";
     }
 
     private async Task<RenderResult> RunAsync(

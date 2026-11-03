@@ -17,7 +17,7 @@ internal sealed class PageEndpoint() {
 
     public static async Task Handle(
         HttpContext context,
-        PageService pages,
+        PageRenderer pages,
         ILoggerFactory loggerFactory,
         ReservedPaths reserved,
         RenderOptions options) {

@@ -34,9 +34,8 @@ the shell never sees the compiler's types.
 
 Nothing the author types is an exception either. A template that does not parse comes back from
 `TemplateSourceGenerator` as a `TemplateParseResult` with no source and a `TEMPLATE`-coded
-`PageDiagnostic`, so `PageService` stores it beside the source exactly like a compile error: the
-editor shows it, the page answers "Handler failed to compile.", and it is not recompiled on every
-request.
+`PageDiagnostic`, so it is stored beside the source exactly like a compile error: the editor shows
+it, the page answers "Handler failed to compile.", and it is not recompiled on every request.
 
 Diagnostics live in template space: `PageDiagnostic.Position` is a 1-based `TemplatePosition` in the
 page the author typed, or `null` when there is no position. The generator wraps each code block in
@@ -44,7 +43,7 @@ page the author typed, or `null` when there is no position. The generator wraps 
 Roslyn reports the author's position rather than a generated one. The closing braces are mapped to
 one line past the template, which turns an unclosed block into a positioned author error. A Roslyn
 error with no mapped position, and no mapped error explaining it, is a fault in generated code:
-`PageCompiler` throws instead of returning a diagnostic, `PageService` preserves the source and
+`PageCompiler` throws instead of returning a diagnostic, `PageEditor` preserves the source and
 rethrows, and the host answers `500`. Warnings are author-facing only when they are mapped; a
 warning never stops a page compiling.
 
@@ -56,8 +55,8 @@ and the logs quote them:
 | `TEMPLATE001` | `TemplateTokenizer` | a `<%` has no matching `%>` |
 | `PAGE001` | `PageApiPolicy` | the page used an API it may not use |
 | `PAGE002` | `PageApiChecker` | page code escaped its method or declared types or members |
-| `PAGE003` | `PageService` | the page waited too long for a compile slot |
-| `PAGE004` | `PageService` | the page took too long to compile |
+| `PAGE003` | `TemplateCompiler` | the page waited too long for a compile slot |
+| `PAGE004` | `TemplateCompiler` | the page took too long to compile |
 
 ## Where does code go?
 
@@ -65,15 +64,18 @@ and the logs quote them:
 | --- | --- |
 | Business rules, calculations, parsing, formatting, validation | `Core`, as pure functions |
 | Values passed between layers | `Core`, as `record`/`readonly record struct` |
-| Compiling templates, loading assemblies, invoking handlers | `Runtime` |
+| Emitting a page assembly, loading it and invoking the handler | `Runtime` |
+| Deciding when to compile, store and run a page | `Web`, in `TemplateCompiler`, `PageRenderer` and `PageEditor` |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
 | Source storage, `IPageStore`, EF Core context and migrations | `Web`, under `Storage` for implementation |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
 | The page contract: `IContext`, `PageRequest`, `PageResponse`, `IHandler`, `UserFacingException` | `Sdk`, as plain values a compiled page binds against |
-| The page policy: `PageApiPolicy`, `ApiReference` | `Core`, as a pure rule over strings |
+| The page policy: `PageApiPolicy`, `ApiReference` | `Core.Compilation`, as a pure rule over strings |
 | The Roslyn walk that applies the page policy | `Runtime` |
+| The template language and its diagnostics | `Core.Compilation` |
+| The `/status` charts | `Core.Charting` |
 
 When something in the shell needs a decision from a pure rule, pass the data in and return a value;
 do not hand that rule `IPageStore`, a database context, a logger, or `HttpContext`. The runtime passes
@@ -205,7 +207,7 @@ and it is deliberately not built — see "Page execution budget" below for what 
 ## Page execution budget
 
 A page is arbitrary C#, and .NET cannot interrupt arbitrary C#: `Thread.Abort` does not exist. So the
-budget bounds the *response*, not the page. `PageService.RenderAsync` runs the handler on a worker and
+budget bounds the *response*, not the page. `PageRenderer.RenderAsync` runs the handler on a worker and
 waits for it against one deadline that covers both queueing and running:
 
 - `Pages:Render:Slots` renders may run at once; further requests wait asynchronously, holding no
@@ -272,9 +274,9 @@ so an image never sits beside content it was not built from.
 ## Compiled pages
 
 Compiling is the expensive part of serving a page, so it happens when a page is saved rather than
-when it is viewed. `EditorEndpoint` hands the source to `PageService`, which compiles it and stores
-the emitted assembly beside the source in the same row; `MainEndpoint` then reads the image and runs
-it. Four derived columns carry the result: `ContentHash`, `RuntimeId`, `Image` and `Diagnostics`.
+when it is viewed. `EditorEndpoint` hands the source to `PageEditor`, which compiles it through
+`TemplateCompiler` and stores the emitted assembly beside the source in the same row; `PageEndpoint`
+then reads the image and runs it through `PageRenderer`. Four derived columns carry the result: `ContentHash`, `RuntimeId`, `Image` and `Diagnostics`.
 
 A stored image is trusted only when both keys match:
 

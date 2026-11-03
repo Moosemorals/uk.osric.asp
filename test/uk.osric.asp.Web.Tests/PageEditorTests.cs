@@ -1,0 +1,122 @@
+// SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+// SPDX-License-Identifier: MIT
+
+namespace uk.osric.asp.Web.Tests;
+
+using NUnit.Framework;
+using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Pages;
+
+/// <summary>Proves what a save stores, and what it keeps when the compile fails.</summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+public sealed class PageEditorTests {
+
+    [Test]
+    public async Task SaveCompilesOnceAndStoresTheSourceWithTheImageAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.Editor.SaveAsync(PageHarness.Key("/hello"), "Hello.");
+
+        Assert.That(diagnostics, Is.Empty);
+        Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1));
+
+        StoredPage saved = PageHarness.Stored(storage, "/hello");
+        Assert.That(saved.Content, Is.EqualTo("Hello."));
+        Assert.That(saved.Compilation?.Image, Is.Not.Null.And.Not.Empty);
+        Assert.That(saved.Compilation?.ContentHash, Is.EqualTo(ContentFingerprint.Of("Hello.")));
+        Assert.That(saved.Compilation?.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
+        Assert.That(saved.Compilation?.Diagnostics, Is.Empty);
+    }
+
+    [Test]
+    public async Task SaveKeepsTheSourceAndStoresDiagnosticsWhenThePageDoesNotCompileAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.Editor.SaveAsync(PageHarness.Key("/broken"), "<% int value = ; %>");
+
+        Assert.That(diagnostics, Is.Not.Empty);
+        // NUnit types the Matches predicate's item as nullable, so check it before reading it.
+        Assert.That(diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS", StringComparison.Ordinal)
+                && diagnostic.Severity == PageDiagnosticSeverity.Error));
+
+        StoredPage saved = PageHarness.Stored(storage, "/broken");
+        Assert.That(saved.Content, Is.EqualTo("<% int value = ; %>"));
+        Assert.That(saved.Compilation?.Image, Is.Null);
+        Assert.That(saved.Compilation?.Diagnostics, Is.EqualTo(diagnostics).AsCollection);
+    }
+
+    [Test]
+    public async Task SaveStoresAParseErrorWithoutCallingTheCompilerAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.Editor.SaveAsync(PageHarness.Key("/unterminated"), "before<% if (true) {");
+
+        Assert.That(diagnostics, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(1, 7),
+                "TEMPLATE001: unterminated code block; the '<%' has no matching '%>'."),
+        }));
+        Assert.That(pages.Compiler.CompileCount, Is.Zero, "a template that does not parse never reaches the compiler");
+
+        StoredPage saved = PageHarness.Stored(storage, "/unterminated");
+        Assert.That(saved.Content, Is.EqualTo("before<% if (true) {"));
+        Assert.That(saved.Compilation?.Image, Is.Null);
+        Assert.That(saved.Compilation?.Diagnostics, Is.EqualTo(diagnostics).AsCollection);
+    }
+
+    [Test]
+    public async Task SaveReportsAWarningWithoutFailingThePageAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.Editor.SaveAsync(PageHarness.Key("/warned"), "<% int unused = 1; %>");
+
+        Assert.That(diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Warning
+                && diagnostic.Message.Contains("CS0219", StringComparison.Ordinal)));
+
+        StoredPage saved = PageHarness.Stored(storage, "/warned");
+        Assert.That(saved.Compilation?.Image, Is.Not.Null.And.Not.Empty);
+    }
+
+    [Test]
+    public async Task SavePreservesTheSourceWhenTheCompilerFaultsAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage, new FaultingCompiler());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => pages.Editor.SaveAsync(PageHarness.Key("/fault"), "Hello."));
+
+        StoredPage saved = PageHarness.Stored(storage, "/fault");
+        Assert.That(saved.Content, Is.EqualTo("Hello."));
+        Assert.That(saved.Compilation, Is.Null);
+    }
+
+    [Test]
+    public async Task GetReturnsTheStoredPageWithoutCompilingAsync() {
+        FakePageStore storage = new();
+        storage["/hello"] = new StoredPage(PageHarness.Key("/hello"), "Hello.");
+        using PageHarness pages = new(storage);
+
+        StoredPage? page = await pages.Editor.GetAsync(PageHarness.Key("/hello"));
+
+        Assert.That(page?.Content, Is.EqualTo("Hello."));
+        Assert.That(pages.Compiler.CompileCount, Is.Zero);
+    }
+
+    [Test]
+    public async Task GetReturnsNullForAMissingPageAsync() {
+        using PageHarness pages = new(new FakePageStore());
+
+        StoredPage? page = await pages.Editor.GetAsync(PageHarness.Key("/missing"));
+
+        Assert.That(page, Is.Null);
+    }
+}

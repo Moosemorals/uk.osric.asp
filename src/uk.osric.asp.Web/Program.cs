@@ -50,7 +50,9 @@ internal class Program {
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
         builder.Services.AddSingleton<IPasswordService, PasswordService>();
         builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
-        builder.Services.AddScoped<PageService>();
+        builder.Services.AddScoped<TemplateCompiler>();
+        builder.Services.AddScoped<PageRenderer>();
+        builder.Services.AddScoped<PageEditor>();
         builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton(services => MetricsOptions.FromConfiguration(

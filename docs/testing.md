@@ -32,9 +32,9 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   around the real one, so "a second request does not compile" is asserted rather than inferred.
   `PageScopeTests` lives here because it names the shell's own types — and `Core`'s — to prove the
   trimmed reference set cannot resolve them.
-- **The execution budget** is tested in `Web.Tests` (`PageServiceTests` for the deadline, the render
-  and compile queues, the abandoned context and the body cap; `AbandonedRenderHealthCheckTests` for
-  the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the
+- **The execution budget** is tested in `Web.Tests` (`PageRendererTests` for the render deadline, the
+  render queue, the abandoned context and the body cap; `TemplateCompilerTests` for the compile queue
+  and the compile deadline; `AbandonedRenderHealthCheckTests` for the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the
   host on a one-second budget and asserts `504`. A slow page there burns CPU against a wall clock
   rather than sleeping, because the page API policy refuses `Thread.Sleep` and `Task.Delay`. Nothing
   asserts on the podman restart: that belongs to the supervisor, not to `WebApplicationFactory`.
@@ -114,11 +114,11 @@ its `TestAssembly.cs`:
   process, including the page meter another fixture is recording into. `MetricsEndpointTests` reads
   the same process-wide meter through the exporter, but asserts that a series is present rather than
   what it counts, so it is safe beside other fixtures.
-- `PageServiceTests` and the one budget test in `MainEndpointTests` are `[NonParallelizable]`, for the
-  same reason fixtures are the unit of parallelism: a page that outruns its budget cannot be stopped,
-  so it keeps a core busy while the deadline continuation queues for a thread. Run beside another
-  fixture's compiles, the answer lands late and a timing assertion fails on load rather than
-  behaviour.
+- `PageRendererTests`, `TemplateCompilerTests` and the one budget test in `PageEndpointTests` are
+  `[NonParallelizable]`, for the same reason fixtures are the unit of parallelism: a page that
+  outruns its budget cannot be stopped, so it keeps a core busy while the deadline continuation
+  queues for a thread. Run beside another fixture's compiles, the answer lands late and a timing
+  assertion fails on load rather than behaviour.
 
 Parallelism is worth less here than it looks. Roslyn already uses every core inside a single compile,
 so fixtures that compile at the same time contend rather than scale; and `Pages:Render:TimeoutSeconds`

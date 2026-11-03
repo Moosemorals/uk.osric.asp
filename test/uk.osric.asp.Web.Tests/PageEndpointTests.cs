@@ -333,16 +333,19 @@ public sealed class PageEndpointTests {
         return parsed.Source!;
     }
 
-    private PageService CreatePages(IPageStore storage, RenderOptions? options = null) {
+    private PageRenderer CreatePages(IPageStore storage, RenderOptions? options = null) {
         RenderOptions render = options ?? Options;
+        PageBudget budget = new(render, new CompileOptions());
+        TemplateCompiler templates = new(_compiler, budget, _metrics, NullLogger<TemplateCompiler>.Instance);
 
-        return new PageService(
+        return new PageRenderer(
             storage,
             _compiler,
+            templates,
             _metrics,
-            new PageBudget(render, new CompileOptions()),
+            budget,
             new PageHealth(render.AbandonedLimit),
-            NullLogger<PageService>.Instance);
+            NullLogger<PageRenderer>.Instance);
     }
 
     private static DefaultHttpContext CreateContext(string? path) {

@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Size | Large |
 | Area | Web, product, security |
-| Location | `src/uk.osric.asp.Web/Endpoints/EditorEndpoint.cs`, `src/uk.osric.asp.Web/Pages/PageService.cs` |
+| Location | `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs`, `src/uk.osric.asp.Web/Pages/TemplateCompiler.cs` |
 
 ## Idea
 

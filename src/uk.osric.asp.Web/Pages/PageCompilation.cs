@@ -17,4 +17,16 @@ internal sealed record PageCompilation(
     string ContentHash,
     string RuntimeId,
     byte[]? Image,
-    IReadOnlyList<PageDiagnostic> Diagnostics);
+    IReadOnlyList<PageDiagnostic> Diagnostics) {
+
+    /// <summary>Whether the stored result still matches the content and the build it came from.</summary>
+    /// <param name="contentHash">The fingerprint of the source as it is now.</param>
+    /// <param name="runtimeId">The build that is running now.</param>
+    public bool IsCurrent(string contentHash, string runtimeId) {
+        ArgumentNullException.ThrowIfNull(contentHash);
+        ArgumentNullException.ThrowIfNull(runtimeId);
+
+        return string.Equals(ContentHash, contentHash, StringComparison.Ordinal)
+            && string.Equals(RuntimeId, runtimeId, StringComparison.Ordinal);
+    }
+}

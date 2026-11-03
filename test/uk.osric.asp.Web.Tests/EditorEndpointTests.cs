@@ -382,14 +382,11 @@ public sealed class EditorEndpointTests {
         AssertRedirect(context, "/site.css is reserved by the site.");
     }
 
-    private PageService CreatePages(IPageStore storage) {
-        return new PageService(
-            storage,
-            _compiler,
-            _metrics,
-            new PageBudget(new RenderOptions(), new CompileOptions()),
-            new PageHealth(RenderOptions.DefaultAbandonedLimit),
-            NullLogger<PageService>.Instance);
+    private PageEditor CreatePages(IPageStore storage) {
+        PageBudget budget = new(new RenderOptions(), new CompileOptions());
+        TemplateCompiler templates = new(_compiler, budget, _metrics, NullLogger<TemplateCompiler>.Instance);
+
+        return new PageEditor(storage, templates, _metrics, NullLogger<PageEditor>.Instance);
     }
 
     private static DefaultHttpContext CreateContext(string method = "GET", string? path = "page.cs") {
