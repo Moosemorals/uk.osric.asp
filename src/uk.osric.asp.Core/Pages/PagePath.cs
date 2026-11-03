@@ -3,15 +3,17 @@
 
 namespace uk.osric.asp.Core.Pages;
 
+using uk.osric.asp.Core.Text;
+
 /// <summary>A canonical key for a stored page: an absolute, lowercase, slash-separated path.</summary>
 /// <remarks>
 /// <para><see cref="Normalize"/> applies these steps in order:</para>
 /// <list type="number">
 ///   <item><description>A null, empty or whitespace-only path is the root, <c>/</c>.</description></item>
-///   <item><description>The text is normalised to Unicode NFC, so a precomposed accent and a
-///     combining accent give the same key.</description></item>
 ///   <item><description>The text is lowercased with the invariant culture, so <c>/Hello</c> and
 ///     <c>/hello</c> are the same key.</description></item>
+///   <item><description>The text is composed to Unicode NFC, so a precomposed accent and a combining
+///     accent give the same key.</description></item>
 ///   <item><description>The text is split on <c>/</c> and empty segments are dropped, so leading,
 ///     trailing and repeated slashes collapse: <c>//hello//</c> becomes <c>/hello</c>.</description></item>
 ///   <item><description><c>.</c> segments are dropped.</description></item>
@@ -19,6 +21,11 @@ namespace uk.osric.asp.Core.Pages;
 ///     left to remove: <c>/a/../b</c> becomes <c>/b</c>, and <c>/..</c> becomes <c>/</c>.</description></item>
 ///   <item><description>A single <c>/</c> is prefixed, so every key is absolute.</description></item>
 /// </list>
+/// <para>
+/// The case fold and the composition are <see cref="LowercaseText.Normalize"/>: folding first and
+/// composing last is what leaves the key in NFC, and NFC is what makes two spellings of an accented
+/// letter one page.
+/// </para>
 /// <para>
 /// A key is a path, and a path ends at <c>?</c> or <c>#</c>: those delimiters can never appear in one,
 /// so <see cref="IsAddressable"/> is <see langword="false"/> for a key that contains them and the
@@ -61,7 +68,7 @@ public sealed record PagePath {
             return new PagePath("/");
         }
 
-        string[] segments = path.Normalize().ToLowerInvariant().Split('/');
+        string[] segments = LowercaseText.Normalize(path).Split('/');
 
         List<string> normalized = [];
 

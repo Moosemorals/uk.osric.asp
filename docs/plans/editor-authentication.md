@@ -181,10 +181,10 @@ generator; `users add` and `users passwd` call it, and nothing displays it.
 
 - The primary key is the normalized user name, and the collation is `BINARY` because normalization
   already case-folds it. There is no separate display name.
-- `UserName.Normalize` is a pure rule: trim, `ToLowerInvariant`, then Unicode NFC, and reject
-  empty/whitespace, over 64 characters or control characters. The CLI and the login endpoint both
-  call it, so `Osric`, `osric`, ` osric ` and the composed and decomposed spellings of the same
-  accented name are one account.
+- `UserName.Normalize` is a pure rule: trim, then `LowercaseText.Normalize` (invariant lowercase, then
+  Unicode NFC), and reject empty/whitespace, over 64 characters or control characters. The CLI and the
+  login endpoint both call it, so `Osric`, `osric`, ` osric ` and the composed and decomposed spellings
+  of the same accented name are one account.
 - The migration is generated with `make migration NAME=AddLocalUsers` and applied by both the web
   host and the CLI.
 

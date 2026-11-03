@@ -88,6 +88,14 @@ public class PagePathTests {
     }
 
     [Test]
+    public void KeysAreInNfc() {
+
+        string key = PagePath.Normalize("/cafe\u0301").Key;
+
+        Assert.That(key.Normalize(), Is.EqualTo(key));
+    }
+
+    [Test]
     public void ToStringReturnsTheKey() {
 
         Assert.That(PagePath.Normalize("/A/").ToString(), Is.EqualTo("/a"));

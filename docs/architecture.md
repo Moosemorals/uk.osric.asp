@@ -76,6 +76,7 @@ and the logs quote them:
 | The Roslyn walk that applies the page policy | `Runtime` |
 | The template language and its diagnostics | `Core.Compilation` |
 | The `/status` charts | `Core.Charting` |
+| Text whose case a key ignores — the page key and an account name | `Core.Text`, as `LowercaseText` |
 
 When something in the shell needs a decision from a pure rule, pass the data in and return a value;
 do not hand that rule `IPageStore`, a database context, a logger, or `HttpContext`. The runtime passes
