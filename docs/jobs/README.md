@@ -24,7 +24,7 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [ARCH-06](ARCH-06.md) | Medium | S | There is no way to list pages |
 | [ARCH-07](ARCH-07.md) | Medium | L | Page content has no history, so an edit cannot be undone |
-| [ARCH-10](ARCH-10.md) | Medium | S | A page cannot be deleted |
+| [ARCH-10](ARCH-10.md) | Medium | M | A page cannot be deleted |
 | [ARCH-11](ARCH-11.md) | Low | S | The editor cannot show the generated C# for a page |
 | [ARCH-12](ARCH-12.md) | Medium | M | A template has no shorthand for writing a value |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
@@ -39,6 +39,7 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [IDEA-007](IDEA-007.md) | — | S | The site has no favicon |
 | [IDEA-008](IDEA-008.md) | — | L | Writing pages by hand is the only way to write pages |
 | [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive |
+| [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -52,16 +53,19 @@ self-contained comes first, because these are the ones that never get scheduled 
    they answer the question the product work depends on: can a page serve CSS and an image as
    happily as HTML? Do them back to back; the second tells you what caching needs fixing. See the
    [combined plan](../plans/non-html-pages.md).
-2. **The editor trio: ARCH-10, ARCH-11, ARCH-06.** Delete a page, show the generated C#, list what
-   exists. Each is small, and together they turn `/edit` from "type the URL you already know" into
-   something usable — and ARCH-06 makes the site's contents discoverable for the first time.
+2. **The editor trio: ARCH-10, ARCH-11, ARCH-06, with retained revisions.** List pages, inspect
+   generated C#, tombstone deletions and explicitly scrub history. The
+   [combined plan](../plans/editor-tools-and-immutable-assets.md) now includes append-on-save
+   storage, unique revision hashes and storage-size monitoring, so the combined work is larger
+   than the original small editor changes. Asset serving and PageLayout adoption are
+   [IDEA-010](IDEA-010.md), a separate follow-up.
 3. **OPS-03, CI** — before the tree grows, so `make format-check`, `make test` and the licence check
    run without being asked.
 4. **ARCH-12** — the write shorthand. A small language change, a large effect on how a page reads.
 5. **IDEA-002, fetch** — the biggest single improvement to what a page can do. Allow-listed, bounded
    and testable; take it before persistence, which has more open questions and less immediate payoff.
 6. **IDEA-003, persistence.** Useful sooner than most, and the answer to what a page may keep.
-7. **ARCH-07, history** — undo for edits, once there is enough content to be worth versioning.
+7. **ARCH-07, history UI** — browsing and restore on top of the retained storage from step 2.
 8. **IDEA-005, page types** — with the page SDK split done, the shared-code question has a real
    answer.
 9. **IDEA-001, a proper editor** — by now there are pages to justify it, and IDEA-008 needs it.

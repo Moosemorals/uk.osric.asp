@@ -23,11 +23,17 @@ orphaned or unreachable keys.
 
 ## Fix outline
 
-1. Decide where the listing belongs: an index at `/` when no page matches, and/or `/edit` with a list
-   of stored keys and links.
-2. Add the query to `IPageStore` and implement it over `StoredFile`; present it in `EditorEndpoint` (a
-   shell concern — it is UI over a list of keys), not in `Core`.
-3. Sort keys ordinals; show a "new page" form that posts to `/edit/<typed path>`.
-4. Keep the page itself unauthenticated if it only lists what is already public; if it lists drafts,
-   put it behind the editor's authentication boundary.
-5. Add tests for the listing and for the empty state.
+The [combined implementation plan](../plans/editor-tools-and-immutable-assets.md) settles the
+listing as authenticated `GET /edit`, preserving `/edit/` for the root-page editor. It also covers
+ARCH-10, ARCH-11 and retained revisions for future asset URLs; asset serving and PageLayout are
+separate. Commands use `cmd`, and the listing includes tombstones.
+
+1. Query canonical paths and deleted status from heads only, without source or compilation BLOBs.
+   Forward through `PageEditor`; render the UI in the Web shell, not Core.
+2. Sort ordinally. Show live-page links and a separate deleted section with recreation and scrub
+   actions. The public root remains an ordinary page or 404, never a fallback catalogue.
+3. Use an antiforgery-protected `POST /edit?cmd=new` to validate and normalize a typed key, then
+   redirect to its editor without saving anything. A later save at a tombstoned path shares history.
+4. Require the Editor policy and `Cache-Control: no-store`; preserve `/edit/` for root editing.
+5. Test empty/live/deleted states, ordinal order, lightweight queries, root-route distinction,
+   validation and authorization/antiforgery behavior through the real host where appropriate.

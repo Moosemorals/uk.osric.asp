@@ -22,23 +22,28 @@ are manual, so there is no safety net inside the app either.
 
 ## Fix outline
 
-1. Add a `Revisions` table (`Path`, `RevisionId`, `Content`, `ContentHash`, `SavedAt`) and append
-   on every save; compute `ContentHash` from the source at save time, independently of compilation.
-   Keep `Files` as the current view, or drop it and select the latest revision.
-2. Write the revision and the current row in one transaction.
-3. Add `GET /edit/<path>/history` and `POST /edit/<path>/revert/<revision>` to the editor (behind the
-   authentication boundary).
-4. Use the saved source fingerprint as the version of mutable built-in assets when generating their
-   links in shared page headers. A versioned asset request must resolve to that exact revision (or
-   fail); it must never serve newer content under an old URL before sending `immutable` cache
-   headers. Keep the revision identifier distinct from the current compile-cache metadata: that
-   `ContentHash` is nullable until compilation and only describes the current `Files` row.
-5. Bound retention: keep the last *n* revisions per path, or add a purge job; do not grow without
-   limit. Retention for asset revisions must also cover the lifetime promised by immutable caching,
-   or the cache lifetime must be no longer than the retained revision lifetime.
-6. Migrate the existing `Files` rows into revision 1 and compute their source fingerprints.
-7. Test: save twice, history has two revisions, revert restores the first; changing an asset changes
-   its versioned URL, while requesting the old URL still returns the old bytes.
+The [editor tools and retained revisions plan](../plans/editor-tools-and-immutable-assets.md)
+delivers the storage foundation alongside ARCH-06, ARCH-10 and ARCH-11:
 
-If revisions are out of scope, at minimum copy the previous content to a `.bak` row on overwrite so
-recovery is possible without a database backup.
+1. Every save appends a row with source, optional compilation/debug data and a unique revision hash
+   derived from source, creation runtime id, timestamp and a unique save identity. A transactional
+   head pointer selects the current revision; compilation metadata is not the revision identity.
+2. Keep all revisions indefinitely. Measure table/index size and database-volume capacity; review
+   policy only when page storage exceeds half the disk, not through automatic pruning now.
+3. Delete tags the head as a tombstone. Recreating the canonical path shares its old history.
+   Only explicit scrub wipes that path and every retained revision, with the secret-cleanup
+   limitations and SQLite cleanup requirements documented in the combined plan.
+4. Migrate existing source, images, debug symbols and diagnostics without loss.
+
+This job stays open for the user-facing history workflow, to plan after the storage exists:
+
+1. Add authenticated history browsing with `cmd=history`, including deleted paths. List revision
+   hashes, save times and compilation status without loading all images or exposing source publicly.
+2. Add a confirmed, antiforgery-protected `cmd=restore` POST selecting a revision belonging to that
+   path. Restore saves its source as a new revision under the current runtime, preserving history;
+   it does not rewind or mutate an old row. Restoring a deleted path clears its tombstone.
+3. Test that browsing does not execute code, a revision from another path cannot be restored, and
+   restore appends a distinct revision even when the restored source is identical.
+
+Historical asset execution and PageLayout links are [IDEA-010](IDEA-010.md), not part of this
+history UI. A revision address identifies saved code, not necessarily deterministic output.

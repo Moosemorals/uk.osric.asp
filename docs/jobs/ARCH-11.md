@@ -26,17 +26,17 @@ read the generator.
 
 ## Fix outline
 
-1. Add a read-only generated-source view for a stored page, reachable from the editor (a link next
-   to the diagnostics, or `/edit/{**path}/generated`). It must use the same Editor authentication
-   policy as `/edit/**` and answer `Cache-Control: no-store`.
-2. Generate on demand from the stored content with
-   `TemplateSourceGenerator.Generate`; when the template does not parse, show the
-   `TEMPLATE001` diagnostic instead of a partial source.
-3. Render it as HTML-encoded `<pre>` (or `text/plain`). Do not execute or compile anything for this
-   view.
-4. The `#line` directives from BUG-05 make the view self-explanatory; highlighting the ranges
-   that map to the template is an optional follow-up, but plain source is enough to start.
-5. Tests: an authenticated editor sees a source containing `class GeneratedPage`,
-   `ctx.WriteRaw(` and `#line`; an anonymous request is rejected by the editor policy; a template
-   that does not parse shows the parse error rather than generated source.
-6. Deliberately out of scope for BUG-05 and BUG-13, which only log the source at `Debug`.
+The [combined implementation plan](../plans/editor-tools-and-immutable-assets.md) specifies a
+read-only `?cmd=generated` view, avoiding collisions with page keys ending in `/generated`, and
+uses the current `TemplateSourceGenerator.Generate` API.
+
+1. Link to `GET /edit/<path>?cmd=generated` from the saved page's editor. Require the Editor policy
+   and `Cache-Control: no-store`; missing or tombstoned pages return 404.
+2. Read current saved source and call `TemplateSourceGenerator.Generate`. On a parse failure show
+   `TEMPLATE001`, never partial source. Unsaved textarea changes are not included.
+3. Render HTML-encoded source in a read-only `<pre>` with horizontal scrolling. Preserve `#line`
+   directives. Do not execute, compile, save or refresh the optional compiled image.
+4. Label this as generation by the current runtime, not the exact historical source compiled by
+   an older runtime. Highlighting template ranges is a separate optional enhancement.
+5. Test generated class, raw writes, line directives, encoded markup, parse failures, missing/deleted
+   pages and authentication; prove inspection calls neither the compiler nor renderer.

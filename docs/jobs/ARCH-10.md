@@ -19,25 +19,25 @@ A page can be created and overwritten but never removed. `IPageStore` offers onl
 mistake — or one that should never have been public, since a page is served at its URL the moment it
 is saved — stays reachable forever.
 
-This is not part of ARCH-06 or ARCH-07. A listing makes an unwanted key visible but cannot remove it,
-and history is about undoing a save rather than retiring a key.
+Listing, retirement and history are distinct behaviors, but share the retained-revision storage
+planned alongside ARCH-06 and the storage portion of ARCH-07.
 
 ## Fix outline
 
-1. Add `DeletePageAsync(PagePath, CancellationToken)` to `IPageStore` and implement it in
-   `SqliteStorage` by deleting the row; the source, image and diagnostics go with it. Return whether
-   a row was removed so the editor can tell "deleted" from "was not there".
-2. Add `POST /edit/<path>/delete` behind the `Editor` policy, with the antiforgery token the other
-   editor POSTs already carry, answering `303` to the listing (ARCH-06) or the editor with a flash
-   message.
-3. Confirm first: offer the action on a `GET` page with a form, not as a link, so a prefetch or a
-   crawler cannot delete a page.
-4. Decide how deletion interacts with ARCH-07. Once revisions exist, deletion either drops the key
-   and its history or keeps the history and hides the current row. Both are defensible, so pick one
-   and write it down; "delete means gone" is the safer default.
-5. Nothing else needs to change: `PageRenderer.LoadAsync` reads through to storage on every request,
-   and neither the service nor the runtime caches by path, so a deleted row is a 404 on the next
-   request.
-6. Tests: deleting an existing page makes its URL return 404 and removes the row; deleting a missing
-   key reports it as missing rather than failing; the endpoint answers 401/403 without the editor
-   policy and 400 without the antiforgery token; the listing stops showing the key.
+The [combined implementation plan](../plans/editor-tools-and-immutable-assets.md) specifies the
+retained revisions, tombstone deletion, recreation sharing history, and permanent scrub. It uses
+`?cmd=delete` and `?cmd=scrub` rather than path suffixes, so existing page keys stay editable.
+The decisions in that plan supersede the alternatives below.
+
+1. Tag the current head as deleted without removing its revision pointer, source or compile/debug
+   data. Public reads return 404; the editor listing shows the tombstone separately.
+2. Use GET confirmation and `POST /edit/<path>?cmd=delete`, behind Editor authorization and
+   antiforgery. Redirect 303 to the listing with deleted or already-missing feedback.
+3. Saving at the same canonical path appends to the existing history and clears the tombstone.
+   Startup seeding must respect tombstones rather than restoring deliberately deleted assets.
+4. Add GET confirmation and `POST /edit/<path>?cmd=scrub` to remove the live head and every revision
+   permanently. Require a typed canonical path, authorization and antiforgery. Include SQLite
+   secure deletion/WAL cleanup, safe retry on cleanup failure, and warnings about backups, external
+   copies and secret rotation; a logical row deletion alone is not secret erasure.
+5. Test retained hashes after delete, shared history after recreation, no resurrection from racing
+   compilation, complete removal after scrub, startup behavior, and auth/antiforgery rejection.
