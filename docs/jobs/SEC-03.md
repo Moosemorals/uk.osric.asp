@@ -54,4 +54,4 @@ wedged process into a ~35 s restart instead of a permanent outage. That also bou
 Step 3 is deliberately not built, because page authors are still only the owner. The out-of-process
 alternatives were priced before being rejected — a supervised worker pool, and per-page NativeAOT
 binaries with `bwrap` — and their numbers are in
-[the spike record](../plans/aot-page-binary-spike.md). Re-read that before starting here.
+[the spike record](../spikes/aot-page-binary-spike.md). Re-read that before starting here.

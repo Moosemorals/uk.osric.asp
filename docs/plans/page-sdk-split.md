@@ -50,7 +50,7 @@ anything in `Core`, because `Core` is no longer what a page compiles against.
 | `UserFacingException` | the only exception whose message a page may show |
 
 `PageResponse` is not *reachable* from page code — a page never names it — but it is part of the page
-contract and costs a tiny record with no dependencies. The [AOT spike](aot-page-binary-spike.md)
+contract and costs a tiny record with no dependencies. The [AOT spike](../spikes/aot-page-binary-spike.md)
 independently found this exact five-type closure when it measured a "Mini" driver, which is good
 evidence that the line is in the right place.
 

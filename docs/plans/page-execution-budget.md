@@ -14,7 +14,7 @@ decision, and SEC-03 records what that leaves.
 
 An earlier draft proposed a supervised pool of render worker processes. It was dropped as more
 machinery than the problem deserves, and the per-page-binary alternative was measured and rejected
-for cost ([the spike](aot-page-binary-spike.md)). What is left is the smallest thing that bounds the
+for cost ([the spike](../spikes/aot-page-binary-spike.md)). What is left is the smallest thing that bounds the
 damage: a deadline, a concurrency limit, a log line, a metric, and a health check that tells podman
 to restart the container when a page has stolen a thread for good.
 
@@ -258,7 +258,7 @@ health endpoint that guesses is worse than one that reports a fact.
 ## Phase 5 — not built
 
 The rest of SEC-03 stays unwritten: a renderer in its own container, or a process with `--network=none`
-and its own user. When the author model changes, start at [the spike record](aot-page-binary-spike.md)
+and its own user. When the author model changes, start at [the spike record](../spikes/aot-page-binary-spike.md)
 rather than at estimates.
 
 ## Sequencing

@@ -9,7 +9,7 @@ Measured on 2026-11-01 on the dev box (4 cores) and on the live host (`moosemora
 EPYC-Genoa, 939 MB RAM, no swap, Debian 13, podman 5.4.2 rootless).
 
 The idea: instead of rendering in the site's process — the design recorded in
-[page execution budget](page-execution-budget.md) — compile each page at save time into its own
+[page execution budget](../plans/page-execution-budget.md) — compile each page at save time into its own
 NativeAOT executable on disk, named by a hash of the content and the runtime id, that reads one JSON
 request on stdin and writes one JSON reply on stdout. The page is linked into the program, so nothing
 is loaded at runtime, the shell's assemblies are not in the binary at all, and every render is a
