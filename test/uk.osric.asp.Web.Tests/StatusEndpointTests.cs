@@ -6,8 +6,7 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using uk.osric.asp.Core;
-using uk.osric.asp.Web.Endpoints;
+using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Web.Metrics;
 
 [TestFixture]

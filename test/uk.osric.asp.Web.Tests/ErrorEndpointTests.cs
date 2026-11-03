@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
 using uk.osric.asp.Sdk;
-using uk.osric.asp.Web.Endpoints;
+using uk.osric.asp.Web.Errors;
 
 [TestFixture]
 public sealed class ErrorEndpointTests {

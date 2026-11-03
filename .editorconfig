@@ -146,3 +146,9 @@ dotnet_naming_style.s_camelcase.capitalization = camel_case
 
 # CA1859: Use concrete types when possible for improved performance
 dotnet_diagnostic.CA1859.severity = none
+
+#### Namespaces and folders ####
+# src is organised as vertical slices, so a file's namespace is its folder. Test projects keep one
+# namespace each, which is why the rule is scoped to src.
+[src/**/*.cs]
+dotnet_style_namespace_match_folder = true:warning

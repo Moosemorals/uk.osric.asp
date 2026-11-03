@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Pages;
 
 /// <summary>The page keys the site's own routes already own.</summary>
 /// <remarks>

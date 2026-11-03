@@ -11,7 +11,8 @@ using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Authentication;
-using uk.osric.asp.Web.Endpoints;
+using uk.osric.asp.Web.Editor;
+using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Health;
 using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
@@ -45,7 +46,7 @@ internal class Program {
         builder.Services.AddHealthChecks()
             .AddCheck<StorageHealthCheck>("storage")
             .AddCheck<AbandonedRenderHealthCheck>("pages");
-        builder.Services.AddScoped<IStorage, SqliteStorage>();
+        builder.Services.AddScoped<IPageStore, SqlitePageStore>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
         builder.Services.AddSingleton<IPasswordService, PasswordService>();
         builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
@@ -162,7 +163,7 @@ internal class Program {
         app.MapPrometheusScrapingEndpoint("/metrics");
         // Pages run for the safe verbs only; anything else is answered 405 by routing rather than
         // by page code that never expected it.
-        app.MapMethods("{**path}", ["GET", "POST", "HEAD"], MainEndpoint.Handle);
+        app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.Handle);
 
         await app.RunAsync();
     }

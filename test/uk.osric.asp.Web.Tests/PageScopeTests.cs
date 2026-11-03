@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using NUnit.Framework;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Runtime;
 
 /// <summary>Proves the compiler's reference set keeps the shell out of reach.</summary>

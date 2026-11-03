@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Pages;
 
 /// <summary>The meter and instruments that describe compiling and rendering pages.</summary>
 /// <remarks>

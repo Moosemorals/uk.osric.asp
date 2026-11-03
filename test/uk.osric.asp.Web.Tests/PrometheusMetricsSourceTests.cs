@@ -7,7 +7,6 @@ using NUnit.Framework;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using uk.osric.asp.Core;
 using uk.osric.asp.Web.Metrics;
 
 [TestFixture]

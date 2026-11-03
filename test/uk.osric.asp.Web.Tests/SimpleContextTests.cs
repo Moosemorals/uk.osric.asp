@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Sdk;
-using uk.osric.asp.Web;
+using uk.osric.asp.Web.Pages;
 
 [TestFixture]
 public sealed class SimpleContextTests {

@@ -6,7 +6,7 @@ namespace uk.osric.asp.Runtime;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Compilation;
 
 /// <summary>Checks generated page source against <see cref="PageApiPolicy"/> before it is emitted.</summary>
 /// <remarks>

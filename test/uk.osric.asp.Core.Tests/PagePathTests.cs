@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Core.Tests;
 
 using NUnit.Framework;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Pages;
 
 [TestFixture]
 public class PagePathTests {

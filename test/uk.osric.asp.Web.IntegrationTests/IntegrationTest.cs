@@ -8,8 +8,8 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using System.Net;
 using System.Text.RegularExpressions;
-using uk.osric.asp.Core;
-using uk.osric.asp.Web;
+using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Users;
 
 /// <summary>Starts the composed application once per fixture, against a throwaway database.</summary>
@@ -101,14 +101,14 @@ public abstract class IntegrationTest {
     /// <summary>Stores a page without a compile result, as a direct write to the database would.</summary>
     protected async Task SavePageAsync(string path, string content) {
         await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
-        IStorage storage = scope.ServiceProvider.GetRequiredService<IStorage>();
+        IPageStore storage = scope.ServiceProvider.GetRequiredService<IPageStore>();
         await storage.SavePageAsync(new StoredPage(PagePath.Normalize(path), content));
     }
 
     /// <summary>Reads a page straight from storage, bypassing routing and the editor.</summary>
     internal async Task<StoredPage?> ReadPageAsync(string path) {
         await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
-        IStorage storage = scope.ServiceProvider.GetRequiredService<IStorage>();
+        IPageStore storage = scope.ServiceProvider.GetRequiredService<IPageStore>();
         return await storage.GetPageAsync(PagePath.Normalize(path));
     }
 

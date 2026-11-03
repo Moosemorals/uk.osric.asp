@@ -3,7 +3,8 @@
 
 namespace uk.osric.asp.Web.Metrics;
 
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Charting;
+using uk.osric.asp.Core.Compilation;
 
 /// <summary>Runs the dashboard's queries and turns the answers into charts.</summary>
 /// <remarks>

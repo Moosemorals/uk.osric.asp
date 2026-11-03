@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Core.Tests;
 
 using NUnit.Framework;
+using uk.osric.asp.Core.Charting;
 
 [TestFixture]
 public sealed class ValueUnitTests {

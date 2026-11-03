@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Web.Metrics;
 
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Charting;
 
 /// <summary>What one query returned: data, or the reason there is none.</summary>
 /// <remarks>

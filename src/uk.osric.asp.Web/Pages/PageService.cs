@@ -4,8 +4,10 @@
 namespace uk.osric.asp.Web.Pages;
 
 using System.Diagnostics;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Http;
 
 /// <summary>Compiles, stores and renders pages.</summary>
 /// <remarks>
@@ -14,7 +16,7 @@ using uk.osric.asp.Runtime;
 /// never unrunnable just because it did not arrive through the editor.
 /// </remarks>
 internal sealed class PageService(
-    IStorage storage,
+    IPageStore storage,
     IPageCompiler compiler,
     PageMetrics metrics,
     PageBudget budget,

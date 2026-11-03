@@ -6,7 +6,7 @@ namespace uk.osric.asp.Runtime;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Sdk;
 
 /// <summary>Compiles generated page source into page images and loads them for execution.</summary>

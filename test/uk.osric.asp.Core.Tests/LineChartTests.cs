@@ -5,6 +5,7 @@ namespace uk.osric.asp.Core.Tests;
 
 using NUnit.Framework;
 using System.Globalization;
+using uk.osric.asp.Core.Charting;
 
 [TestFixture]
 public sealed class LineChartTests {

@@ -6,9 +6,9 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using System.Reflection;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
-using uk.osric.asp.Web;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
@@ -29,7 +29,7 @@ public sealed class PageMetricsTests {
     [Test]
     public async Task AServedPageIsMeasuredAsAHitAndAFirstCompileAsASaveAsync() {
         using MetricCapture capture = MetricCapture.Start();
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageService pages = CreateService(storage);
 
         await pages.SaveAsync(Key("/hit"), "Hello.");
@@ -50,7 +50,7 @@ public sealed class PageMetricsTests {
     [Test]
     public async Task AColdPageIsMeasuredAsANeverCompiledMissAsync() {
         using MetricCapture capture = MetricCapture.Start();
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/cold"] = new StoredPage(Key("/cold"), "Hello.");
         PageService pages = CreateService(storage);
 
@@ -67,7 +67,7 @@ public sealed class PageMetricsTests {
     [Test]
     public async Task AChangedPageIsAttributedToItsContentAsync() {
         using MetricCapture capture = MetricCapture.Start();
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageCompilation stale = new(ContentFingerprint.Of("Old."), _compiler.RuntimeId, [1, 2, 3], []);
         storage["/edited"] = new StoredPage(Key("/edited"), "New.", stale);
         PageService pages = CreateService(storage);
@@ -80,7 +80,7 @@ public sealed class PageMetricsTests {
     [Test]
     public async Task AChangedBuildIsAttributedToTheRuntimeAsync() {
         using MetricCapture capture = MetricCapture.Start();
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageCompilation previousBuild = new(ContentFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], []);
         storage["/hello"] = new StoredPage(Key("/hello"), "Hello.", previousBuild);
         PageService pages = CreateService(storage);
@@ -93,7 +93,7 @@ public sealed class PageMetricsTests {
     [Test]
     public async Task ACompileFailureIsItsOwnRenderOutcomeAsync() {
         using MetricCapture capture = MetricCapture.Start();
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/broken"] = new StoredPage(Key("/broken"), "<% int value = ; %>");
         PageService pages = CreateService(storage);
 
@@ -108,7 +108,7 @@ public sealed class PageMetricsTests {
     [Test]
     public async Task AnExceptionIsMeasuredAsAnErrorAndStillPropagatesAsync() {
         using MetricCapture capture = MetricCapture.Start();
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/throw"] = new StoredPage(Key("/throw"), "<% throw new System.InvalidOperationException(); %>");
         PageService pages = CreateService(storage);
 
@@ -123,7 +123,7 @@ public sealed class PageMetricsTests {
     [Test]
     public async Task TheEmittedImageIsMeasuredAsync() {
         using MetricCapture capture = MetricCapture.Start();
-        PageService pages = CreateService(new FakeStorage());
+        PageService pages = CreateService(new FakePageStore());
 
         await pages.SaveAsync(Key("/hello"), "Hello.");
 
@@ -140,7 +140,7 @@ public sealed class PageMetricsTests {
         // The capture has to start before the meter so no instrument is missed.
         using MetricCapture capture = MetricCapture.Start();
         using PageMetrics metrics = new();
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         await CreateService(storage).SaveAsync(Key("/slow"), SlowPage);
 
         RenderOptions options = new() { TimeoutSeconds = 1 };
@@ -162,7 +162,7 @@ public sealed class PageMetricsTests {
     [Test]
     public async Task AMissIsRecordedUnderAFixedPathAsync() {
         using MetricCapture capture = MetricCapture.Start();
-        PageService pages = CreateService(new FakeStorage());
+        PageService pages = CreateService(new FakePageStore());
 
         await RenderAsync(pages, "/a-scan-probably-made-this-up");
 
@@ -171,7 +171,7 @@ public sealed class PageMetricsTests {
         Assert.That(capture.For("page.render.duration", "/a-scan-probably-made-this-up"), Is.Empty);
     }
 
-    private PageService CreateService(FakeStorage storage) {
+    private PageService CreateService(FakePageStore storage) {
         return new PageService(
             storage,
             _compiler,

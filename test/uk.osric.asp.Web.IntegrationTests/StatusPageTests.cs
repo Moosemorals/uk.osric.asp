@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.IntegrationTests;
 
 using NUnit.Framework;
 using System.Net;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Web.Metrics;
 
 /// <summary>Proves /status is wired into the host and behind the editor's sign-in.</summary>

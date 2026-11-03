@@ -9,7 +9,8 @@ using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Charting;
+using uk.osric.asp.Core.Compilation;
 
 /// <summary>Talks to Prometheus' <c>query_range</c> API.</summary>
 /// <remarks>

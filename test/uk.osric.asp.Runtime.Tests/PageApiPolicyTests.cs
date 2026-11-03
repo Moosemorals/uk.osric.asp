@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Runtime.Tests;
 
 using NUnit.Framework;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Runtime;
 
 [TestFixture]

@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using uk.osric.asp.Web.Http;
+
 /// <summary>What rendering a page did.</summary>
 internal enum RenderStatus {
 

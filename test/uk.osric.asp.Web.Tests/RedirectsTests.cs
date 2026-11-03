@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
+using uk.osric.asp.Web.Http;
 
 /// <summary>Covers how a redirect target becomes the <c>Location</c> header.</summary>
 [TestFixture]

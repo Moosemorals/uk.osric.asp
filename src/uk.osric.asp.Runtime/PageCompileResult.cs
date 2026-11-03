@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Runtime;
 
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Compilation;
 
 /// <summary>The outcome of compiling generated page source.</summary>
 /// <param name="Image">The emitted assembly, or <see langword="null"/> when compilation failed.</param>

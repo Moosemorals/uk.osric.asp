@@ -10,7 +10,6 @@ using Microsoft.Extensions.Primitives;
 using NUnit.Framework;
 using System.Security.Claims;
 using uk.osric.asp.Web.Authentication;
-using uk.osric.asp.Web.Endpoints;
 using uk.osric.asp.Web.Users;
 
 [TestFixture]

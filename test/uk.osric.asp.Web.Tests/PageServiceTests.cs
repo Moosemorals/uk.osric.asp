@@ -7,9 +7,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using System.Diagnostics;
 using System.Reflection;
-using uk.osric.asp.Core;
+using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
-using uk.osric.asp.Web;
+using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
@@ -31,7 +32,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task SaveCompilesOnceAndStoresTheSourceWithTheImageAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageService pages = CreateService(storage);
 
         IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/hello"), "Hello.");
@@ -49,7 +50,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task SaveKeepsTheSourceAndStoresDiagnosticsWhenThePageDoesNotCompileAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageService pages = CreateService(storage);
 
         IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/broken"), "<% int value = ; %>");
@@ -69,7 +70,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task SaveStoresAParseErrorWithoutCallingTheCompilerAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageService pages = CreateService(storage);
 
         IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/unterminated"), "before<% if (true) {");
@@ -88,7 +89,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task SaveReportsAWarningWithoutFailingThePageAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageService pages = CreateService(storage);
 
         IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(Key("/warned"), "<% int unused = 1; %>");
@@ -104,7 +105,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task RenderPropagatesACompilerFaultAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/fault"] = new StoredPage(Key("/fault"), "Hello.");
         PageService pages = CreateService(storage, new FaultingCompiler());
 
@@ -113,7 +114,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task SavePreservesTheSourceWhenTheCompilerFaultsAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageService pages = CreateService(storage, new FaultingCompiler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => pages.SaveAsync(Key("/fault"), "Hello."));
@@ -125,7 +126,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task RenderOfACompiledPageDoesNotCompileAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageService pages = CreateService(storage);
         await pages.SaveAsync(Key("/hello"), "Hello.");
         int compiles = _compiler.CompileCount;
@@ -140,7 +141,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task RenderCompilesAPageThatWasStoredWithoutOneAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/seeded"] = new StoredPage(Key("/seeded"), "Seeded.");
         PageService pages = CreateService(storage);
 
@@ -155,7 +156,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task RenderRecompilesWhenTheContentChangedBehindTheCacheAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageCompilation stale = new(ContentFingerprint.Of("Old."), _compiler.RuntimeId, [1, 2, 3], []);
         storage["/edited"] = new StoredPage(Key("/edited"), "New.", stale);
         PageService pages = CreateService(storage);
@@ -170,7 +171,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task RenderRecompilesWhenTheBuildChangedAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageCompilation previousBuild = new(ContentFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], []);
         storage["/hello"] = new StoredPage(Key("/hello"), "Hello.", previousBuild);
         PageService pages = CreateService(storage);
@@ -185,7 +186,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task AStoredCompileErrorIsServedWithoutCompilingAgainAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageCompilation failed = new(ContentFingerprint.Of("<% int value = ; %>"), _compiler.RuntimeId, null, [
             new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(1, 16), "CS1525: broken"),
         ]);
@@ -201,7 +202,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task MissingPageIsNotFoundAsync() {
-        PageService pages = CreateService(new FakeStorage());
+        PageService pages = CreateService(new FakePageStore());
 
         (RenderResult result, string _) = await RenderAsync(pages, "/missing");
 
@@ -210,7 +211,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task RenderKeepsTheNewerPageWhenItChangesWhileCompilingAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/race"] = new StoredPage(Key("/race"), "first");
         storage.ReplaceOnCompilationWrite = (path, _) => new StoredPage(path, "second");
         PageService pages = CreateService(storage);
@@ -225,7 +226,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task TemplateExceptionsPropagateAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/throw"] = new StoredPage(Key("/throw"), "<% throw new System.InvalidOperationException(\"Boom.\"); %>");
         PageService pages = CreateService(storage);
 
@@ -241,7 +242,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task APageThatOutrunsTheBudgetIsAbandonedAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         await StoreCompiledAsync(storage, "/slow", SlowPage);
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageHealth health = new(options.AbandonedLimit);
@@ -258,7 +259,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task AnAbandonedPageStopsWritingToTheResponseAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         await StoreCompiledAsync(storage, "/chatty",
             "before<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(1200); while (System.DateTime.UtcNow < until) { } %>after");
         RenderOptions options = new() { TimeoutSeconds = 1 };
@@ -277,7 +278,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task AnAbandonedPageIsReleasedFromTheHealthCountWhenItFinishesAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         await StoreCompiledAsync(storage, "/slow", SlowPage);
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageHealth health = new(options.AbandonedLimit);
@@ -296,7 +297,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task APageWhoseCompileOutlivesTheBudgetIsServedByTheNextRequestAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/cold"] = new StoredPage(Key("/cold"), "Hello.");
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageHealth health = new(options.AbandonedLimit);
@@ -319,7 +320,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task ARenderThatWaitsPastTheBudgetForASlotIsDroppedAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/hello"] = new StoredPage(Key("/hello"), "Hello.");
         RenderOptions options = new() { TimeoutSeconds = 1, Slots = 1 };
         PageBudget budget = new(options, new CompileOptions());
@@ -338,7 +339,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task SaveReportsACompileThatOutranItsBudgetAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 1 });
         PageService pages = CreateService(storage, new StallingCompiler(), new RenderOptions(), budget);
 
@@ -352,7 +353,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task SaveReportsACompileThatWaitedPastItsBudgetForASlotAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 1 });
         PageService pages = CreateService(storage, _compiler, new RenderOptions(), budget);
 
@@ -377,7 +378,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task ARenderThatSpendsItsBudgetWaitingForACompileSlotTimesOutAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/hello"] = new StoredPage(Key("/hello"), "Hello.");
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageBudget budget = new(options, new CompileOptions());
@@ -402,7 +403,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task ARenderThatSpendsItsBudgetOnTheReadTimesOutWithoutRunningThePageAsync() {
-        FakeStorage storage = new() { ReadDelay = TimeSpan.FromMilliseconds(1200) };
+        FakePageStore storage = new() { ReadDelay = TimeSpan.FromMilliseconds(1200) };
         storage["/hello"] = new StoredPage(Key("/hello"), "Hello.");
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageHealth health = new(options.AbandonedLimit);
@@ -421,7 +422,7 @@ public sealed class PageServiceTests {
 
     [Test]
     public async Task APageThatWritesPastTheBodyCapFailsAsync() {
-        FakeStorage storage = new();
+        FakePageStore storage = new();
         storage["/chatty"] = new StoredPage(Key("/chatty"), "0123456789");
         PageService pages = CreateService(storage, _compiler, new RenderOptions { MaxBodyChars = 5 });
 
@@ -431,18 +432,18 @@ public sealed class PageServiceTests {
         Assert.That(thrown?.Message, Does.Contain("wrote more than 5 characters"));
     }
 
-    private PageService CreateService(FakeStorage storage) {
+    private PageService CreateService(FakePageStore storage) {
         return CreateService(storage, _compiler);
     }
 
     // The timeout tests measure the page, not the compiler: a page compiled on its first request
     // spends part of a one-second budget on a cold Roslyn and would be dropped before it starts.
-    private async Task StoreCompiledAsync(FakeStorage storage, string path, string content) {
+    private async Task StoreCompiledAsync(FakePageStore storage, string path, string content) {
         await CreateService(storage).SaveAsync(Key(path), content);
     }
 
     private PageService CreateService(
-        FakeStorage storage,
+        FakePageStore storage,
         IPageCompiler compiler,
         RenderOptions? options = null,
         PageBudget? budget = null,
@@ -475,7 +476,7 @@ public sealed class PageServiceTests {
         return (result, context.GetBody());
     }
 
-    private static StoredPage Stored(FakeStorage storage, string path) {
+    private static StoredPage Stored(FakePageStore storage, string path) {
         StoredPage? page = storage[path];
         Assert.That(page, Is.Not.Null, $"{path} was not stored");
 
