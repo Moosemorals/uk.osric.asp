@@ -26,7 +26,9 @@ public sealed class LoginRateLimitTests {
             Assert.That(response.StatusCode, Is.Not.EqualTo(HttpStatusCode.TooManyRequests), $"attempt {attempt + 1} was throttled too early");
         }
 
-        Assert.That((await PostAsync(client, token)).StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
+        HttpResponseMessage rejected = await PostAsync(client, token);
+        Assert.That(rejected.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
+        Assert.That(rejected.Headers.CacheControl?.NoStore, Is.True);
     }
 
     private static async Task<string> GetTokenAsync(HttpClient client) {

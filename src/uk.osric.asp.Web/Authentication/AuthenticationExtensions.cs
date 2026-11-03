@@ -38,8 +38,15 @@ internal static class AuthenticationExtensions {
                 options.ExpireTimeSpan = LongTermWindow;
                 options.SlidingExpiration = true;
 
+                options.Events.OnRedirectToLogin = context => {
+                    context.Response.Headers.CacheControl = "no-store";
+                    context.Response.Redirect(context.RedirectUri);
+                    return Task.CompletedTask;
+                };
+
                 // An authorised account that is no longer valid is a 403, not a redirect loop.
                 options.Events.OnRedirectToAccessDenied = context => {
+                    context.Response.Headers.CacheControl = "no-store";
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     return Task.CompletedTask;
                 };
@@ -88,6 +95,10 @@ internal static class AuthenticationExtensions {
 
         services.AddRateLimiter(options => {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = (context, _) => {
+                context.HttpContext.Response.Headers.CacheControl = "no-store";
+                return ValueTask.CompletedTask;
+            };
 
             options.AddPolicy(LoginRateLimitPolicy.Name, context => {
                 LoginRateLimitOptions limit = context.RequestServices

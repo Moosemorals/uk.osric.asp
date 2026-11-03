@@ -32,6 +32,34 @@ internal sealed class PageEditor(
         return storage.GetPageAsync(path, cancellationToken);
     }
 
+    public Task<IReadOnlyList<PageHeadSummary>> ListAsync(CancellationToken cancellationToken = default) {
+        return storage.ListPagesAsync(cancellationToken);
+    }
+
+    public Task<PageHeadSummary?> GetHeadAsync(PagePath path, CancellationToken cancellationToken = default) {
+        return storage.GetHeadAsync(path, cancellationToken);
+    }
+
+    public Task<StoredPage?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
+        return storage.GetRevisionByHashAsync(hash, cancellationToken);
+    }
+
+    public Task<IReadOnlyList<PageRevisionSummary>> ListRevisionsAsync(PagePath path, CancellationToken cancellationToken = default) {
+        return storage.ListRevisionsAsync(path, cancellationToken);
+    }
+
+    public Task<PageRevisionSource?> GetRevisionSourceByHashAsync(string hash, CancellationToken cancellationToken = default) {
+        return storage.GetRevisionSourceByHashAsync(hash, cancellationToken);
+    }
+
+    public Task<bool> DeleteAsync(PagePath path, CancellationToken cancellationToken = default) {
+        return storage.DeletePageAsync(path, cancellationToken);
+    }
+
+    public Task<bool> ScrubAsync(PagePath path, CancellationToken cancellationToken = default) {
+        return storage.ScrubPageAsync(path, cancellationToken);
+    }
+
     /// <summary>Compiles a page and stores its source and result together.</summary>
     /// <param name="path">The canonical key to save.</param>
     /// <param name="content">The template source.</param>
@@ -46,12 +74,12 @@ internal sealed class PageEditor(
         } catch (InvalidOperationException) {
             // A compiler fault is our bug, but the author's edit must survive it. Store the source
             // without a compilation; the next request retries, and the failure still answers 500.
-            await storage.SavePageAsync(new StoredPage(path, content), cancellationToken);
+            await storage.SavePageAsync(NewRevision(path, content, null), cancellationToken);
             metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
             throw;
         }
 
-        await storage.SavePageAsync(new StoredPage(path, content, compilation), cancellationToken);
+        await storage.SavePageAsync(NewRevision(path, content, compilation), cancellationToken);
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
         metrics.RecordSave(path, compilation.Image is not null, duration);
@@ -67,5 +95,16 @@ internal sealed class PageEditor(
         }
 
         return compilation.Diagnostics.Count > 0 ? "compiled with warnings" : "compiled";
+    }
+
+    private StoredPage NewRevision(PagePath path, string content, PageCompilation? compilation) {
+        string revisionId = Guid.NewGuid().ToString("N");
+        DateTimeOffset savedAt = DateTimeOffset.UtcNow;
+        return new StoredPage(path, content, compilation) {
+            RevisionId = revisionId,
+            CreationRuntimeId = templates.RuntimeId,
+            SavedAt = savedAt,
+            Hash = PageRevisionHash.Compute(content, templates.RuntimeId, savedAt, revisionId),
+        };
     }
 }

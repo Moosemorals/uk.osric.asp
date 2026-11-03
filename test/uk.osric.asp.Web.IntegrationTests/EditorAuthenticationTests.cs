@@ -23,6 +23,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(response.Headers.Location?.PathAndQuery, Does.StartWith("/login?returnUrl="));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
         Assert.That(await response.Content.ReadAsStringAsync(), Is.Empty);
     }
 
@@ -34,6 +35,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(await ReadPageAsync("/anonymous"), Is.Null);
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }
 
     [Test]
@@ -63,6 +65,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
         Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/edit"));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
         Assert.That((await client.GetAsync("/edit/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
@@ -90,6 +93,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
             ("password", Password)));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }
 
     [Test]
@@ -167,6 +171,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
         Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/edit/hello?tab=source"));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }
 
     [Test]
@@ -178,6 +183,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
 
         Assert.That(logout.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
         Assert.That(logout.Headers.Location?.ToString(), Is.EqualTo("/"));
+        Assert.That(logout.Headers.CacheControl?.NoStore, Is.True);
         Assert.That((await client.GetAsync("/edit/hello")).StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
     }
 

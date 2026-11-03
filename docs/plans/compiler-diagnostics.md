@@ -335,8 +335,8 @@ Setting `Logging:LogLevel:uk.osric.asp.Web.Pages.PageService=Debug` is the debug
 configuration key, no file dumps, and nothing page-authored is shown to a visitor. The source is what
 went to Roslyn, directives included, so a generator bug can be reproduced exactly.
 
-Showing that source to the author in the editor is a separate feature, recorded as
-[ARCH-11](../jobs/ARCH-11.md).
+Showing that source to the author in the editor was tracked as ARCH-11 and is now implemented in the
+[editor tools and retained revisions plan](editor-tools-and-immutable-assets.md).
 
 ## Phases
 
@@ -571,8 +571,8 @@ Tests:
   migration for it would be cost without a query that needs it.
 - No compiler-fault page or flash message: the existing unexpected-exception handler is the `500`
   response, and the fault's details go to the server log rather than to the visitor.
-- No generated-source viewer in the editor: the source is logged at `Debug` for now; the viewer is
-  recorded as [ARCH-11](../jobs/ARCH-11.md).
+- The generated-source viewer is outside this diagnostics work; it is implemented in the
+  [editor tools and retained revisions plan](editor-tools-and-immutable-assets.md).
 - No new package. `#line`, `GetMappedLineSpan`, `System.Text.Json` and ASP.NET Core logging are all
   already available.
 

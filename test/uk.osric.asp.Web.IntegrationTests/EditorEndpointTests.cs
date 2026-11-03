@@ -5,9 +5,238 @@ namespace uk.osric.asp.Web.IntegrationTests;
 
 using NUnit.Framework;
 using System.Net;
+using uk.osric.asp.Web.Pages;
 
 [TestFixture]
 public sealed class EditorEndpointTests : IntegrationTest {
+
+    [Test]
+    public async Task BareEditorPathListsPagesWhileTrailingSlashEditsTheRoot() {
+        await SavePageAsync("/", "Root source.");
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage listing = await client.GetAsync("/edit");
+        HttpResponseMessage rootEditor = await client.GetAsync("/edit/");
+
+        string listingBody = await listing.Content.ReadAsStringAsync();
+        string editorBody = await rootEditor.Content.ReadAsStringAsync();
+        Assert.That(listing.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(listing.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(listingBody, Does.Not.Contain("name=\"content\""));
+        Assert.That(rootEditor.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(editorBody, Does.Contain(">Root source.</textarea>"));
+    }
+
+    [TestCase("generated")]
+    [TestCase("delete")]
+    [TestCase("scrub")]
+    public async Task CommandNamedPageKeysRemainOrdinaryEditors(string key) {
+        await SavePageAsync("/" + key, key + " source.");
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync("/edit/" + key);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain(">" + key + " source.</textarea>"));
+    }
+
+    [Test]
+    public async Task NewPageCommandRedirectsToCanonicalEditorWithoutSaving() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        string token = await GetAntiforgeryTokenAsync(client, "/edit");
+
+        HttpResponseMessage response = await client.PostAsync("/edit?cmd=new", Form(
+            ("__RequestVerificationToken", token),
+            ("path", "New//Page")));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/edit/new/page"));
+        Assert.That((await client.GetAsync("/new/page")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task NewPageCommandRequiresAntiforgeryAndDoesNotCacheRejection() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.PostAsync("/edit?cmd=new", Form(("path", "unprotected")));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That((await client.GetAsync("/unprotected")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task GeneratedCommandOnRootUsesTrailingSlash() {
+        await SavePageAsync("/", "Root template.");
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync("/edit/?cmd=generated");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("Root template."));
+    }
+
+    [Test]
+    public async Task UnknownAndRepeatedCommandsReturnNoStoreBadRequest() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage unknown = await client.GetAsync("/edit/missing?cmd=unknown");
+        HttpResponseMessage repeated = await client.GetAsync("/edit/missing?cmd=delete&cmd=scrub");
+
+        Assert.That(unknown.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(unknown.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(repeated.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(repeated.Headers.CacheControl?.NoStore, Is.True);
+    }
+
+    [Test]
+    public async Task GeneratedViewDoesNotCompileOrChangeTheStoredRevision() {
+        const string source = "<% ctx.Write(\"ok\"); %>";
+        await SavePageAsync("/inspect", source);
+        StoredPage before = (await ReadPageAsync("/inspect"))!;
+        using HttpClient client = await CreateSignedInClientAsync();
+        int compiles = CompileCount;
+
+        HttpResponseMessage response = await client.GetAsync("/edit/inspect?cmd=generated");
+
+        string body = await response.Content.ReadAsStringAsync();
+        StoredPage after = (await ReadPageAsync("/inspect"))!;
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(body, Does.Contain("ctx.Write(&quot;ok&quot;)"));
+        Assert.That(body, Does.Contain("#line 1 &quot;page&quot;"));
+        Assert.That(CompileCount, Is.EqualTo(compiles));
+        Assert.That(after.Hash, Is.EqualTo(before.Hash));
+    }
+
+    [Test]
+    public async Task HistoryListsAndShowsAnOlderRevisionWithoutCompilingItAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        await PostEditorAsync(client, "history-page", "first <version>");
+        StoredPage first = (await ReadPageAsync("/history-page"))!;
+        await PostEditorAsync(client, "history-page", "second version");
+        int compiles = CompileCount;
+
+        HttpResponseMessage history = await client.GetAsync("/edit/history-page?cmd=history");
+        string historyBody = await history.Content.ReadAsStringAsync();
+        HttpResponseMessage revision = await client.GetAsync($"/edit/history-page?cmd=revision&hash={first.Hash}");
+        string revisionBody = await revision.Content.ReadAsStringAsync();
+
+        Assert.That(history.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(history.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(historyBody, Does.Contain(first.Hash));
+        Assert.That(historyBody, Does.Contain("<strong>Current</strong>"));
+        Assert.That(historyBody, Does.Contain("Compiled"));
+        Assert.That(revision.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(revisionBody, Does.Contain("first &lt;version&gt;"));
+        Assert.That(revisionBody, Does.Not.Contain("second version"));
+        Assert.That(revision.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(CompileCount, Is.EqualTo(compiles));
+    }
+
+    [Test]
+    public async Task RevisionViewerRejectsMalformedAndOtherPageHashesAsync() {
+        await SavePageAsync("/first-page", "first");
+        await SavePageAsync("/second-page", "second");
+        StoredPage first = (await ReadPageAsync("/first-page"))!;
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage malformed = await client.GetAsync("/edit/first-page?cmd=revision&hash=bad");
+        HttpResponseMessage otherPath = await client.GetAsync($"/edit/second-page?cmd=revision&hash={first.Hash}");
+
+        Assert.That(malformed.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(otherPath.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That(otherPath.Headers.CacheControl?.NoStore, Is.True);
+    }
+
+    [Test]
+    public async Task DeleteConfirmationIsReadOnlyAndDeleteRedirectsToListing() {
+        await SavePageAsync("/archive", "retained source");
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage confirmation = await client.GetAsync("/edit/archive?cmd=delete");
+        string confirmationBody = await confirmation.Content.ReadAsStringAsync();
+        string token = await GetAntiforgeryTokenAsync(client, "/edit/archive?cmd=delete");
+        HttpResponseMessage deleted = await client.PostAsync("/edit/archive?cmd=delete", Form(("__RequestVerificationToken", token)));
+
+        Assert.That(confirmation.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(confirmationBody, Does.Contain("retains its source and revision history"));
+        Assert.That(deleted.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(deleted.Headers.Location?.ToString(), Is.EqualTo("/edit"));
+        Assert.That((await client.GetAsync("/archive")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That(await (await client.GetAsync("/edit")).Content.ReadAsStringAsync(), Does.Contain("/archive (history retained)"));
+        HttpResponseMessage history = await client.GetAsync("/edit/archive?cmd=history");
+        Assert.That(history.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await history.Content.ReadAsStringAsync(), Does.Contain("This page is deleted. Its revisions remain available here."));
+    }
+
+    [Test]
+    public async Task ScrubRequiresExactTypedPathAndRemovesThePage() {
+        await SavePageAsync("/private", "private source");
+        using HttpClient client = await CreateSignedInClientAsync();
+        string token = await GetAntiforgeryTokenAsync(client, "/edit/private?cmd=scrub");
+        HttpResponseMessage wrongConfirmation = await client.PostAsync("/edit/private?cmd=scrub", Form(
+            ("__RequestVerificationToken", token),
+            ("confirmation", "/PRIVATE")));
+
+        Assert.That(wrongConfirmation.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(await ReadPageAsync("/private"), Is.Not.Null);
+
+        token = await GetAntiforgeryTokenAsync(client, "/edit/private?cmd=scrub");
+        HttpResponseMessage scrubbed = await client.PostAsync("/edit/private?cmd=scrub", Form(
+            ("__RequestVerificationToken", token),
+            ("confirmation", "/private")));
+
+        Assert.That(scrubbed.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(scrubbed.Headers.Location?.ToString(), Is.EqualTo("/edit"));
+        Assert.That(await ReadPageAsync("/private"), Is.Null);
+        Assert.That((await client.GetAsync("/private")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task CanonicalRedirectPreservesEditorCommand() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync("/edit/Hello?cmd=generated");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.PermanentRedirect));
+        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/edit/hello?cmd=generated"));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
+    }
+
+    [TestCase("/space name", "/space%20name")]
+    [TestCase("/literal%2fvalue", "/literal%252fvalue")]
+    [TestCase("/a&b", "/a%26b")]
+    public async Task EncodedEditorLinksRoundTripToTheSamePage(string key, string url) {
+        await SavePageAsync(key, "literal path source");
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage editor = await client.GetAsync("/edit" + url);
+        HttpResponseMessage listing = await client.GetAsync("/edit");
+        HttpResponseMessage generated = await client.GetAsync("/edit" + url + "?cmd=generated");
+
+        Assert.That(editor.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await editor.Content.ReadAsStringAsync(), Does.Contain(">literal path source</textarea>"));
+        Assert.That(await listing.Content.ReadAsStringAsync(), Does.Contain($"href=\"/edit{url}?cmd=scrub\""));
+        Assert.That(generated.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
+    public async Task ScrubCanBeConfirmedAgainAfterTheHeadIsGone() {
+        await SavePageAsync("/retry-scrub", "secret");
+        using HttpClient client = await CreateSignedInClientAsync();
+        string token = await GetAntiforgeryTokenAsync(client, "/edit/retry-scrub?cmd=scrub");
+        await client.PostAsync("/edit/retry-scrub?cmd=scrub", Form(
+            ("__RequestVerificationToken", token), ("confirmation", "/retry-scrub")));
+
+        token = await GetAntiforgeryTokenAsync(client, "/edit/retry-scrub?cmd=scrub");
+        HttpResponseMessage retry = await client.PostAsync("/edit/retry-scrub?cmd=scrub", Form(
+            ("__RequestVerificationToken", token), ("confirmation", "/retry-scrub")));
+
+        Assert.That(retry.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(retry.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(await ReadPageAsync("/retry-scrub"), Is.Null);
+    }
 
     [Test]
     public async Task EditorRendersTheStoredSource() {
@@ -21,6 +250,9 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
         Assert.That(body, Does.Contain("name=\"content\""));
         Assert.That(body, Does.Contain(">Hello, world!</textarea>"));
+        Assert.That(body, Does.Contain("?cmd=history"));
+        Assert.That(body, Does.Contain("<nav aria-label=\"Page navigation\">"));
+        Assert.That(body, Does.Contain("<nav aria-label=\"Page actions\">"));
         Assert.That(body, Does.Contain("name=\"__RequestVerificationToken\""));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }

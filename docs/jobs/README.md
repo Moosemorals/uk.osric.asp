@@ -22,10 +22,8 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
-| [ARCH-06](ARCH-06.md) | Medium | S | There is no way to list pages |
-| [ARCH-07](ARCH-07.md) | Medium | L | Page content has no history, so an edit cannot be undone |
-| [ARCH-10](ARCH-10.md) | Medium | M | A page cannot be deleted |
-| [ARCH-11](ARCH-11.md) | Low | S | The editor cannot show the generated C# for a page |
+| [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore UI |
+| [BUG-16](BUG-16.md) | Low | M | Some site markup is not semantic HTML |
 | [ARCH-12](ARCH-12.md) | Medium | M | A template has no shorthand for writing a value |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
 | [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
@@ -53,19 +51,17 @@ self-contained comes first, because these are the ones that never get scheduled 
    they answer the question the product work depends on: can a page serve CSS and an image as
    happily as HTML? Do them back to back; the second tells you what caching needs fixing. See the
    [combined plan](../plans/non-html-pages.md).
-2. **The editor trio: ARCH-10, ARCH-11, ARCH-06, with retained revisions.** List pages, inspect
-   generated C#, tombstone deletions and explicitly scrub history. The
-   [combined plan](../plans/editor-tools-and-immutable-assets.md) now includes append-on-save
-   storage, unique revision hashes and storage-size monitoring, so the combined work is larger
-   than the original small editor changes. Asset serving and PageLayout adoption are
-   [IDEA-010](IDEA-010.md), a separate follow-up.
+2. **ARCH-07, history restore.** Retained revisions, page listing, generated-source inspection,
+   history browsing, tombstone deletion and explicit scrub are implemented. The remaining work is
+   restoring a selected revision as a new save; asset serving and PageLayout adoption remain
+   [IDEA-010](IDEA-010.md).
 3. **OPS-03, CI** — before the tree grows, so `make format-check`, `make test` and the licence check
    run without being asked.
 4. **ARCH-12** — the write shorthand. A small language change, a large effect on how a page reads.
 5. **IDEA-002, fetch** — the biggest single improvement to what a page can do. Allow-listed, bounded
    and testable; take it before persistence, which has more open questions and less immediate payoff.
 6. **IDEA-003, persistence.** Useful sooner than most, and the answer to what a page may keep.
-7. **ARCH-07, history UI** — browsing and restore on top of the retained storage from step 2.
+7. **ARCH-07, history restore** — restore a selected revision as a new save.
 8. **IDEA-005, page types** — with the page SDK split done, the shared-code question has a real
    answer.
 9. **IDEA-001, a proper editor** — by now there are pages to justify it, and IDEA-008 needs it.
@@ -74,6 +70,8 @@ self-contained comes first, because these are the ones that never get scheduled 
 12. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
     and a rule, once there is something worth being woken for.
 13. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
+14. **BUG-16, semantic HTML audit** — audit the rendered page structure after the current editor
+   navigation landmarks have been corrected.
 
 ## Closed
 
@@ -81,6 +79,9 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| ARCH-06 | The authenticated `/edit` listing shows live pages and tombstones, offers new-page navigation, and avoids loading revision bodies for the listing. See [the implementation plan](../plans/editor-tools-and-immutable-assets.md) |
+| ARCH-10 | Delete tombstones a page while retaining its revisions; saving recreates it in the same history. Explicit scrub removes the path's revisions with bounded SQLite secure-delete/WAL cleanup and clearly documented limitations. Startup seeding respects tombstones. See [the implementation plan](../plans/editor-tools-and-immutable-assets.md) and [deployment guidance](../../deploy/README.md#storage-and-migrations) |
+| ARCH-11 | The authenticated editor generates C# from the saved template without compiling, rendering or saving it; output is encoded and parse errors show diagnostics. See [the implementation plan](../plans/editor-tools-and-immutable-assets.md) |
 | IDEA-004 | The page contract moved to its own reference-free assembly, `uk.osric.asp.Sdk`. `Core` is host support again, the policy allows the SDK namespace and nothing else, the load context refuses `Core`, and `RuntimeId` carries both module version ids. See [the plan](../plans/page-sdk-split.md) |
 | ARCH-03 | Renders have a deadline, a slot count and a body cap, compiles have their own slot and deadline, an abandoned render is logged and counted, and `/heath` reports it so podman restarts a wedged container. See [the plan](../plans/page-execution-budget.md). SEC-03 (the process boundary) is deliberately still open |
 | ARCH-02 | Pages are a restricted runtime: `IContext` carries a plain `PageRequest` snapshot and asks for `SetStatus`/`SetContentType`/`SetHeader`/`Redirect`, all applied after the buffered handler returns. `SimpleContext` is the only implementation, headers are allow-listed so a page cannot clobber the site's cookies, pages run only for `GET`/`POST`/`HEAD`, and a body over 1 MiB is refused. Documented in `docs/architecture.md` |

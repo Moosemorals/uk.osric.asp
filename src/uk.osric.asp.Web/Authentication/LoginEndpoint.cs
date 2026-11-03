@@ -19,6 +19,7 @@ internal static class LoginEndpoint {
 
     /// <summary>Renders the sign-in form, or sends an authenticated visitor back to the editor.</summary>
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
+        context.Response.Headers.CacheControl = "no-store";
         if (context.User.Identity?.IsAuthenticated == true) {
             Redirects.SeeOther(context, LocalRedirect.Safe(context.Request.Query["returnUrl"].ToString()));
             return;
@@ -41,6 +42,7 @@ internal static class LoginEndpoint {
         IAntiforgery antiforgery,
         IAuthenticationService authentication) {
 
+        context.Response.Headers.CacheControl = "no-store";
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false } || !context.Request.HasFormContentType) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
@@ -80,6 +82,7 @@ internal static class LoginEndpoint {
 
     /// <summary>Deletes the authentication cookie.</summary>
     public static async Task LogoutAsync(HttpContext context, IAuthenticationService authentication) {
+        context.Response.Headers.CacheControl = "no-store";
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;

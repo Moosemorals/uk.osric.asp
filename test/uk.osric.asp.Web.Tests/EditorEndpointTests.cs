@@ -130,6 +130,200 @@ public sealed class EditorEndpointTests {
         Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
     }
 
+    [TestCase("?cmd=")]
+    [TestCase("?cmd=unknown")]
+    [TestCase("?cmd=delete&cmd=scrub")]
+    public async Task InvalidCommandReturnsBadRequestWithoutReadingOrWritingAsync(string query) {
+        DefaultHttpContext context = CreateContext();
+        context.Request.QueryString = new QueryString(query);
+        FakePageStore storage = new();
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        Assert.That(storage.ReadCount, Is.Zero);
+        Assert.That(storage.WriteCount, Is.Zero);
+    }
+
+    [Test]
+    public async Task CanonicalRedirectDoesNotCacheTheEditorUrlAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("Hello", "GET", "/edit/Hello");
+        FakePageStore storage = new();
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(308));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+    }
+
+    [Test]
+    public async Task ListingUsesOrdinalHeadSummariesAndSeparatesDeletedPagesAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+        FakePageStore storage = new();
+        storage["/zeta"] = new StoredPage(PagePath.Normalize("/zeta"), "not loaded");
+        storage["/a&b"] = new StoredPage(PagePath.Normalize("/a&b"), "not loaded");
+        storage["/gone"] = new StoredPage(PagePath.Normalize("/gone"), "retained");
+        await storage.DeletePageAsync(PagePath.Normalize("/gone"));
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(body.IndexOf("/a&amp;b", StringComparison.Ordinal), Is.LessThan(body.IndexOf("/zeta", StringComparison.Ordinal)));
+        Assert.That(body, Does.Contain("Deleted pages"));
+        Assert.That(body, Does.Contain("/gone (history retained)"));
+        Assert.That(body, Does.Not.Contain("href=\"/gone\""));
+        Assert.That(storage.ReadCount, Is.Zero);
+        Assert.That(storage.WriteCount, Is.Zero);
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+    }
+
+    [Test]
+    public async Task NewPageNormalizesAndRedirectsWithoutSavingAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "POST", "/edit");
+        context.Request.QueryString = new QueryString("?cmd=new");
+        SetField(context, "path", new StringValues("Hello//World"));
+        FakePageStore storage = new();
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/hello/world"));
+        Assert.That(storage.ReadCount, Is.Zero);
+        Assert.That(storage.WriteCount, Is.Zero);
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+    }
+
+    [Test]
+    public async Task GeneratedViewEncodesSourceAndDoesNotCompileOrWriteAsync() {
+        const string source = "<% ctx.Write(\"ok\"); %>";
+        DefaultHttpContext context = CreateContext();
+        context.Request.QueryString = new QueryString("?cmd=generated");
+        FakePageStore storage = new();
+        storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), source, new PageCompilation(
+            ContentFingerprint.Of(source), "old-runtime", null, null,
+            [new PageDiagnostic(PageDiagnosticSeverity.Error, null, "stored compile failure")]));
+        int compiles = _compiler.CompileCount;
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(body, Does.Contain("Generated from the saved template by the current runtime"));
+        Assert.That(body, Does.Contain("ctx.Write(&quot;ok&quot;);"));
+        Assert.That(body, Does.Contain("#line 1 &quot;page&quot;"));
+        Assert.That(body, Does.Not.Contain("stored compile failure"));
+        Assert.That(_compiler.CompileCount, Is.EqualTo(compiles));
+        Assert.That(storage.WriteCount, Is.Zero);
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+    }
+
+    [Test]
+    public async Task GeneratedViewShowsTemplateDiagnosticWithoutPartialSourceAsync() {
+        DefaultHttpContext context = CreateContext();
+        context.Request.QueryString = new QueryString("?cmd=generated");
+        FakePageStore storage = new();
+        storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "before<% if (true) {");
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("TEMPLATE001"));
+        Assert.That(body, Does.Not.Contain("class GeneratedPage"));
+        Assert.That(body, Does.Not.Contain("style=\"max-width:100%;overflow-x:auto\""));
+        Assert.That(storage.WriteCount, Is.Zero);
+    }
+
+    [Test]
+    public async Task HistoryListsRevisionsAndShowsSelectedSavedSourceWithoutCompilingAsync() {
+        PagePath path = PagePath.Normalize("/page.cs");
+        FakePageStore storage = new();
+        StoredPage first = new(path, "first <source>");
+        StoredPage second = new(path, "second source");
+        await storage.SavePageAsync(first);
+        await storage.SavePageAsync(second);
+
+        DefaultHttpContext history = CreateContext();
+        history.Request.QueryString = new QueryString("?cmd=history");
+        await EditorEndpoint.Handler(history, CreatePages(storage), Reserved, _antiforgery);
+
+        string historyBody = await TestHttp.ReadBodyAsync(history);
+        Assert.That(history.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(historyBody, Does.Contain(first.Hash));
+        Assert.That(historyBody, Does.Contain(second.Hash));
+        Assert.That(historyBody, Does.Contain("<strong>Current</strong>"));
+        Assert.That(historyBody.IndexOf(second.Hash, StringComparison.Ordinal), Is.LessThan(historyBody.IndexOf(first.Hash, StringComparison.Ordinal)));
+        Assert.That(historyBody, Does.Not.Contain("first &lt;source&gt;"));
+        Assert.That(history.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+
+        DefaultHttpContext revision = CreateContext();
+        revision.Request.QueryString = new QueryString($"?cmd=revision&hash={first.Hash}");
+        int compiles = _compiler.CompileCount;
+        await EditorEndpoint.Handler(revision, CreatePages(storage), Reserved, _antiforgery);
+
+        string revisionBody = await TestHttp.ReadBodyAsync(revision);
+        Assert.That(revision.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(revisionBody, Does.Contain("first &lt;source&gt;"));
+        Assert.That(revisionBody, Does.Not.Contain("second source"));
+        Assert.That(_compiler.CompileCount, Is.EqualTo(compiles));
+        Assert.That(storage.WriteCount, Is.EqualTo(2));
+        Assert.That(revision.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+    }
+
+    [Test]
+    public async Task DeleteAndScrubConfirmationsDoNotMutateOnGetAsync() {
+        FakePageStore storage = new();
+        storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "saved");
+        DefaultHttpContext delete = CreateContext();
+        delete.Request.QueryString = new QueryString("?cmd=delete");
+
+        await EditorEndpoint.Handler(delete, CreatePages(storage), Reserved, _antiforgery);
+
+        string deleteBody = await TestHttp.ReadBodyAsync(delete);
+        Assert.That(deleteBody, Does.Contain("retains its source and revision history"));
+        PageHeadSummary? liveHead = await storage.GetHeadAsync(PagePath.Normalize("/page.cs"));
+        Assert.That(liveHead?.IsDeleted, Is.False);
+
+        DefaultHttpContext scrub = CreateContext();
+        scrub.Request.QueryString = new QueryString("?cmd=scrub");
+        await EditorEndpoint.Handler(scrub, CreatePages(storage), Reserved, _antiforgery);
+
+        string scrubBody = await TestHttp.ReadBodyAsync(scrub);
+        Assert.That(scrubBody, Does.Contain("cannot be undone"));
+        Assert.That(scrubBody, Does.Contain("Rotate exposed secrets"));
+        Assert.That(scrubBody, Does.Contain("name=\"confirmation\""));
+        StoredPage? revision = await storage.GetRevisionByHashAsync(storage["/page.cs"]!.Hash);
+        Assert.That(revision, Is.Not.Null);
+        Assert.That(storage.WriteCount, Is.Zero);
+    }
+
+    [Test]
+    public async Task ScrubRequiresExactCanonicalPathAndDoesNotLeakCleanupErrorsAsync() {
+        DefaultHttpContext context = CreateContext("POST");
+        context.Request.QueryString = new QueryString("?cmd=scrub");
+        SetField(context, "confirmation", new StringValues("/PAGE.CS"));
+        FakePageStore storage = new();
+        storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "sensitive-source");
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+        Assert.That(await storage.GetHeadAsync(PagePath.Normalize("/page.cs")), Is.Not.Null);
+
+        DefaultHttpContext failed = CreateContext("POST");
+        failed.Request.QueryString = new QueryString("?cmd=scrub");
+        SetField(failed, "confirmation", new StringValues("/page.cs"));
+        FakePageStore unavailable = new() { Failure = new InvalidOperationException("secret source leaked") };
+
+        await EditorEndpoint.Handler(failed, CreatePages(unavailable), Reserved, _antiforgery);
+
+        string failureBody = await TestHttp.ReadBodyAsync(failed);
+        Assert.That(failed.Response.StatusCode, Is.EqualTo(503));
+        Assert.That(failureBody, Does.Not.Contain("secret source leaked"));
+        Assert.That(failed.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+    }
+
     [Test]
     public async Task PostWithInvalidAntiforgeryWritesNothingAsync() {
         DefaultHttpContext context = CreateContext("POST");
@@ -383,6 +577,55 @@ public sealed class EditorEndpointTests {
         AssertRedirect(context, "/favicon.ico is reserved by the site.");
     }
 
+    [TestCase("/space name", "/space%20name")]
+    [TestCase("/literal%2fvalue", "/literal%252fvalue")]
+    [TestCase("/a&b", "/a%26b")]
+    public async Task ListingEncodesUrlPathsSeparatelyFromLabelsAsync(string key, string url) {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+        FakePageStore storage = new();
+        storage[key] = new StoredPage(PagePath.Normalize(key), "source");
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain($"href=\"{url}\""));
+        Assert.That(body, Does.Contain($"href=\"/edit{url}?cmd=scrub\""));
+    }
+
+    [TestCase("space name", "/edit/space%20name")]
+    [TestCase("literal%2fvalue", "/edit/literal%252fvalue")]
+    public async Task NewPageRedirectEncodesLiteralPathCharactersAsync(string key, string url) {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "POST", "/edit");
+        context.Request.QueryString = new QueryString("?cmd=new");
+        SetField(context, "path", new StringValues(key));
+
+        await EditorEndpoint.Handler(context, CreatePages(new FakePageStore()), Reserved, _antiforgery);
+
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(url));
+    }
+
+    [TestCase("space name")]
+    [TestCase("literal%2fvalue")]
+    public async Task CanonicalDecodedRequestPathDoesNotRedirectAsync(string key) {
+        DefaultHttpContext context = CreateContext(path: key);
+
+        await EditorEndpoint.Handler(context, CreatePages(new FakePageStore()), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain($"href=\"{WebUtility.HtmlEncode("/" + Uri.EscapeDataString(key))}\""));
+    }
+
+    [Test]
+    public async Task MissingHeadStillOffersScrubCleanupRetryAsync() {
+        DefaultHttpContext context = CreateContext();
+        context.Request.QueryString = new QueryString("?cmd=scrub");
+
+        await EditorEndpoint.Handler(context, CreatePages(new FakePageStore()), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("name=\"confirmation\""));
+    }
+
     private PageEditor CreatePages(IPageStore storage) {
         PageBudget budget = new(new RenderOptions(), new CompileOptions());
         TemplateCompiler templates = new(_compiler, budget, _metrics, NullLogger<TemplateCompiler>.Instance);
@@ -395,7 +638,12 @@ public sealed class EditorEndpointTests {
     }
 
     private static void SetContent(DefaultHttpContext context, StringValues content) {
-        context.Request.Form = new FormCollection(new Dictionary<string, StringValues> { ["content"] = content });
+        SetField(context, "content", content);
+    }
+
+    private static void SetField(DefaultHttpContext context, string name, StringValues value) {
+        context.Request.ContentType = "application/x-www-form-urlencoded";
+        context.Request.Form = new FormCollection(new Dictionary<string, StringValues> { [name] = value });
     }
 
     private static TestSession Session(DefaultHttpContext context) {
