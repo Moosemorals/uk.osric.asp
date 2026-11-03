@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Errors;
 using Microsoft.AspNetCore.Diagnostics;
 using System.Diagnostics;
 using System.Net;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 
@@ -20,11 +21,15 @@ internal static class ErrorEndpoint {
             ?? context.Features.Get<IExceptionHandlerFeature>()?.Error;
 
         UserFacingException? userFacingException = exception as UserFacingException;
+        bool isAuthenticated = context.User.Identity?.IsAuthenticated == true;
         bool showDetails = exception is not null
             && userFacingException is null
-            && context.User.Identity?.IsAuthenticated == true;
+            && isAuthenticated;
 
         string message = userFacingException?.Message ?? "An unexpected error occurred. Please try again.";
+        string editLink = isAuthenticated
+            ? $"<p><a href=\"{WebUtility.HtmlEncode("/edit" + PagePath.Normalize(pathFeature?.Path ?? context.Request.Path.Value).Key)}\">Edit this page</a></p>"
+            : string.Empty;
         string details = showDetails
             ? EditorDetails(exception!, pathFeature?.Path ?? context.Request.Path.Value ?? "/")
             : string.Empty;
@@ -34,6 +39,7 @@ internal static class ErrorEndpoint {
                     <p>{WebUtility.HtmlEncode(message)}</p>
                     {details}
                     <p>Reference: {WebUtility.HtmlEncode(context.TraceIdentifier)}</p>
+                    {editLink}
                     <p><a href="/">Return to the home page</a></p>
                 </main>
         """ + PageLayout.Footer();

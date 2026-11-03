@@ -22,6 +22,7 @@ public sealed class ErrorHandlingTests : IntegrationTest {
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
         Assert.That(body, Does.Contain("Something went wrong").And.Contain("An unexpected error occurred."));
+        Assert.That(body, Does.Not.Contain("href=\"/edit/throw\""));
         Assert.That(body, Does.Not.Contain("Boom."), "the exception message must not leak to the client");
     }
 
@@ -37,6 +38,7 @@ public sealed class ErrorHandlingTests : IntegrationTest {
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
         Assert.That(body, Does.Contain("InvalidOperationException").And.Contain("Boom."));
         Assert.That(body, Does.Contain("at Handle(IContext ctx) in /throw:line 3"));
+        Assert.That(body, Does.Contain("href=\"/edit/throw\""));
         Assert.That(body, Does.Not.Contain("/throw:3:4"));
         Assert.That(body, Does.Not.Contain("GeneratedPage.Handle"));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
