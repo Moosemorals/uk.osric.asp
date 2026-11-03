@@ -38,6 +38,7 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [IDEA-006](IDEA-006.md) | — | S | `site.css` is a static file rather than a page |
 | [IDEA-007](IDEA-007.md) | — | S | The site has no favicon |
 | [IDEA-008](IDEA-008.md) | — | L | Writing pages by hand is the only way to write pages |
+| [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -49,7 +50,8 @@ self-contained comes first, because these are the ones that never get scheduled 
 
 1. **IDEA-007, then IDEA-006** — the icon and then the stylesheet as pages. Both small, and together
    they answer the question the product work depends on: can a page serve CSS and an image as
-   happily as HTML? Do them back to back; the second tells you what caching needs fixing.
+   happily as HTML? Do them back to back; the second tells you what caching needs fixing. See the
+   [combined plan](../plans/non-html-pages.md).
 2. **The editor trio: ARCH-10, ARCH-11, ARCH-06.** Delete a page, show the generated C#, list what
    exists. Each is small, and together they turn `/edit` from "type the URL you already know" into
    something usable — and ARCH-06 makes the site's contents discoverable for the first time.
