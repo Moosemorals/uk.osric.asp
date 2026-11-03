@@ -15,7 +15,6 @@ public sealed class ReservedPathsTests {
     [TestCase("/edit")]
     [TestCase("/edit/page")]
     [TestCase("/edit/a/b")]
-    [TestCase("/site.css")]
     [TestCase("/favicon.ico")]
     [TestCase("/heath")]
     [TestCase("/login")]
@@ -29,6 +28,8 @@ public sealed class ReservedPathsTests {
     [TestCase("/")]
     [TestCase("/edits")]
     [TestCase("/editing")]
+    [TestCase("/site.css")]
+    [TestCase("/rocket.svg")]
     [TestCase("/site.css.bak")]
     [TestCase("/hello")]
     public void SimilarKeysAreNotReserved(string path) {
@@ -51,7 +52,7 @@ public sealed class ReservedPathsTests {
     public void MissingConfigurationFallsBackToTheDefaults() {
         ReservedPaths reserved = new(null);
 
-        Assert.That(reserved.IsReserved(PagePath.Normalize("/site.css")), Is.True);
+        Assert.That(reserved.IsReserved(PagePath.Normalize("/favicon.ico")), Is.True);
     }
 
     [Test]

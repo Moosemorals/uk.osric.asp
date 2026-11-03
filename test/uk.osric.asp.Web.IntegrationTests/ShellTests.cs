@@ -28,6 +28,20 @@ public sealed class ShellTests : IntegrationTest {
     }
 
     [Test]
+    public async Task StoredNonHtmlPageKeepsItsContentTypeAndLiteralBody() {
+        const string body = "<svg title=\"A & B > C\"></svg>";
+        await SavePageAsync("/asset.svg",
+            "<% ctx.SetContentType(\"image/svg+xml\"); %>" + body);
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/asset.svg");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content.Headers.ContentType?.ToString(), Is.EqualTo("image/svg+xml"));
+        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo(body));
+    }
+
+    [Test]
     public async Task UnknownPageReturnsNotFound() {
         using HttpClient client = CreateClient();
 
@@ -59,16 +73,6 @@ public sealed class ShellTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo($"{key} not found."));
-    }
-
-    [Test]
-    public async Task StaticFileIsServedWithoutReachingThePageRoute() {
-        using HttpClient client = CreateClient();
-
-        HttpResponseMessage response = await client.GetAsync("/site.css");
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/css"));
     }
 
     [Test]

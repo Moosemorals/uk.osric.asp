@@ -46,7 +46,7 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   test needs a running Prometheus.
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and
-  content types set by middleware, static files falling through to the page route, startup
+  content types set by middleware, startup-seeded page assets and their conditional responses,
   migrations, DI wiring and the fact that a page is compiled once. They reference `Web` and
   `Runtime`, start the real application through `WebApplicationFactory<Program>`, and use a
   throwaway SQLite file per fixture that is deleted with it. The host runs as `Production`, so

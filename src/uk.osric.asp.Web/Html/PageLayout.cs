@@ -17,6 +17,7 @@ internal static class PageLayout {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>{WebUtility.HtmlEncode(title)}</title>
             <link rel="stylesheet" href="/site.css">
+            <link rel="icon" href="/rocket.svg" type="image/svg+xml">
         </head>
         <body>
         """;

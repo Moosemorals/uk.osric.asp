@@ -121,6 +121,13 @@ Two rules keep the response safe:
   framing headers are refused, so a page cannot clobber the editor's authentication, antiforgery or
   session cookie. Redirects go through `Redirect`; content type through `SetContentType`.
 
+Successful page responses receive a strong `ETag` computed from the UTF-8 bytes of the rendered
+body. The host also sets `Content-Length` from those encoded bytes for responses that may carry a
+body; `HEAD` retains the representation length, while `304` has no body or length. `GET` and `HEAD`
+honor `If-None-Match` with a bodyless `304`; the page still runs to produce the representation, so
+this is HTTP revalidation rather than an execution cache. The host writes the validator after page
+headers, so a page cannot preserve a stale one after an edit.
+
 Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
 over 1 MiB is refused with 413 before it is read. A page that outruns its execution budget is answered
 `504` with no body — see "Page execution budget" below. Keys the site's own routes answer for are listed

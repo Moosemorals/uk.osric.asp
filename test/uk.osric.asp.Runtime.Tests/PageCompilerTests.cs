@@ -31,6 +31,15 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
+    public void LiteralTextWithHtmlMetacharactersIsPreserved() {
+        const string template = "<svg title=\"A & B > C\"></svg>";
+
+        TestContext context = CompileAndRun(template);
+
+        Assert.That(context.Output, Is.EqualTo(template));
+    }
+
+    [Test]
     public void CodeBlocksExecuteBetweenText() {
         TestContext context = CompileAndRun("before<% ctx.Write(\"middle\"); %>after");
 

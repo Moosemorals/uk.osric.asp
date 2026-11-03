@@ -209,14 +209,14 @@ public sealed class PageEndpointTests {
 
     [Test]
     public async Task StoredPageAtAReservedKeyIsNotFoundAsync() {
-        DefaultHttpContext context = TestHttp.CreateContext("site.css", "GET", "/site.css");
+        DefaultHttpContext context = TestHttp.CreateContext("favicon.ico", "GET", "/favicon.ico");
         FakePageStore storage = new();
-        storage["/site.css"] = new StoredPage(PagePath.Normalize("/site.css"), "hijacked");
+        storage["/favicon.ico"] = new StoredPage(PagePath.Normalize("/favicon.ico"), "hijacked");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
-        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("/site.css not found."));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("/favicon.ico not found."));
         Assert.That(storage.ReadCount, Is.Zero);
     }
 
@@ -277,6 +277,66 @@ public sealed class PageEndpointTests {
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(context.Response.ContentLength, Is.EqualTo(Encoding.UTF8.GetByteCount("Hello, world!")));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
+    }
+
+    [TestCase("GET")]
+    [TestCase("HEAD")]
+    public async Task PageResponseSetsContentLengthFromUtf8BytesAsync(string method) {
+        const string body = "caf\u00e9 \U0001F680";
+        DefaultHttpContext context = TestHttp.CreateContext("hello.cs", method, "/hello.cs");
+        FakePageStore storage = new();
+        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), body);
+
+        await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
+
+        Assert.That(context.Response.ContentLength, Is.EqualTo(Encoding.UTF8.GetByteCount(body)));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo(method == "HEAD" ? string.Empty : body));
+    }
+
+    [TestCase("GET")]
+    [TestCase("HEAD")]
+    public async Task MatchingIfNoneMatchReturnsBodylessNotModifiedAsync(string method) {
+        FakePageStore storage = new();
+        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello, world!");
+        DefaultHttpContext initial = TestHttp.CreateContext("hello.cs", method, "/hello.cs");
+
+        await PageEndpoint.Handle(initial, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
+
+        DefaultHttpContext conditional = TestHttp.CreateContext("hello.cs", method, "/hello.cs");
+        conditional.Request.Headers.IfNoneMatch = initial.Response.Headers.ETag;
+
+        await PageEndpoint.Handle(conditional, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
+
+        Assert.That(conditional.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
+        Assert.That(conditional.Response.Headers.ETag, Is.EqualTo(initial.Response.Headers.ETag));
+        Assert.That(await TestHttp.ReadBodyAsync(conditional), Is.Empty);
+    }
+
+    [Test]
+    public async Task PostIgnoresIfNoneMatchAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "POST", "/hello.cs");
+        context.Request.Headers.IfNoneMatch = "*";
+        FakePageStore storage = new();
+        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello, world!");
+
+        await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("Hello, world!"));
+    }
+
+    [Test]
+    public async Task IfNoneMatchWildcardMatchesAnExistingPageAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "GET", "/hello.cs");
+        context.Request.Headers.IfNoneMatch = "*";
+        FakePageStore storage = new();
+        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello, world!");
+
+        await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
     }
 

@@ -3,6 +3,9 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using Microsoft.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
@@ -93,8 +96,33 @@ internal sealed class PageEndpoint() {
             context.Response.Headers[name] = value;
         }
 
+        byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
+        EntityTagHeaderValue? entityTag = null;
+        if (response.Status is >= StatusCodes.Status200OK and < StatusCodes.Status300MultipleChoices) {
+            byte[] digest = SHA256.HashData(bodyBytes);
+            entityTag = new EntityTagHeaderValue($"\"{Convert.ToHexString(digest)}\"");
+            context.Response.Headers["ETag"] = entityTag.ToString();
+        }
+
+        if (entityTag is not null
+            && (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
+            && context.Request.GetTypedHeaders().IfNoneMatch?.Any(candidate =>
+                candidate.Tag.Equals(EntityTagHeaderValue.Any.Tag, StringComparison.Ordinal)
+                    || candidate.Tag.Equals(entityTag.Tag, StringComparison.Ordinal)) == true) {
+            context.Response.StatusCode = StatusCodes.Status304NotModified;
+            context.Response.ContentType = null;
+            context.Response.ContentLength = null;
+            return;
+        }
+
+        if (response.Status is >= StatusCodes.Status200OK
+            and not StatusCodes.Status204NoContent
+            and not StatusCodes.Status304NotModified) {
+            context.Response.ContentLength = bodyBytes.LongLength;
+        }
+
         if (!HttpMethods.IsHead(context.Request.Method)) {
-            await context.Response.WriteAsync(body, context.RequestAborted);
+            await context.Response.Body.WriteAsync(bodyBytes.AsMemory(), context.RequestAborted);
         }
     }
 

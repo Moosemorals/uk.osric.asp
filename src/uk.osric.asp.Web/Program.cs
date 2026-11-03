@@ -105,6 +105,8 @@ internal class Program {
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
+            IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
+            await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
         }
 
         if (isUserCommand) {
@@ -133,7 +135,6 @@ internal class Program {
         }
 
         app.UseSession();
-        app.UseStaticFiles();
 
         app.UseRouting();
         app.UseRateLimiter();

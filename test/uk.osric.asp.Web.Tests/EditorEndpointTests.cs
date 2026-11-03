@@ -371,15 +371,15 @@ public sealed class EditorEndpointTests {
 
     [Test]
     public async Task PostToAReservedKeyIsRefusedAndNothingIsStoredAsync() {
-        DefaultHttpContext context = TestHttp.CreateContext("site.css", "POST", "/edit/site.css");
+        DefaultHttpContext context = TestHttp.CreateContext("favicon.ico", "POST", "/edit/favicon.ico");
         SetContent(context, new StringValues("hijack"));
         FakePageStore storage = new();
 
         await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(storage.WriteCount, Is.Zero);
-        Assert.That(storage["/site.css"], Is.Null);
-        AssertRedirect(context, "/site.css is reserved by the site.");
+        Assert.That(storage["/favicon.ico"], Is.Null);
+        AssertRedirect(context, "/favicon.ico is reserved by the site.");
     }
 
     private PageEditor CreatePages(IPageStore storage) {

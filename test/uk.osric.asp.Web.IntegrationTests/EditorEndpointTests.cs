@@ -113,13 +113,13 @@ public sealed class EditorEndpointTests : IntegrationTest {
     public async Task SavingAReservedKeyIsRefused() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage save = await PostEditorAsync(client, "site.css", "hijacked");
+        HttpResponseMessage save = await PostEditorAsync(client, "favicon.ico", "hijacked");
         Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
 
-        HttpResponseMessage editor = await client.GetAsync("/edit/site.css");
-        Assert.That(await editor.Content.ReadAsStringAsync(), Does.Contain("/site.css is reserved by the site."));
+        HttpResponseMessage editor = await client.GetAsync("/edit/favicon.ico");
+        Assert.That(await editor.Content.ReadAsStringAsync(), Does.Contain("/favicon.ico is reserved by the site."));
 
-        HttpResponseMessage page = await client.GetAsync("/site.css");
-        Assert.That(page.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/css"));
+        HttpResponseMessage page = await client.GetAsync("/favicon.ico");
+        Assert.That(page.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 }
