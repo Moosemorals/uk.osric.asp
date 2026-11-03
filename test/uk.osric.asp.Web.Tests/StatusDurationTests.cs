@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Tests;
 
 using NUnit.Framework;
-using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Web.Metrics;
 
 [TestFixture]

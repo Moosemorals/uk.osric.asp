@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 namespace uk.osric.asp.Web.Metrics;
-
-using uk.osric.asp.Core.Compilation;
-
 /// <summary>One window the status page can show, and the chart it draws.</summary>
 /// <remarks>
 /// The token is matched, never parsed: <c>1h</c> and <c>3h</c> are two windows to choose between, not

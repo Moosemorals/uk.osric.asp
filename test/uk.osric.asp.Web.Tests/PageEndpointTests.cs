@@ -11,7 +11,6 @@ using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
-using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]

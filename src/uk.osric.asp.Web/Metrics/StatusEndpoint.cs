@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Metrics;
 
 using System.Net;
-using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Web.Html;
 
 /// <summary>The owner-only dashboard: queries Prometheus and draws the result as SVG.</summary>

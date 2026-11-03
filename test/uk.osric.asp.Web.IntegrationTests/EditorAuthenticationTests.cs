@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.IntegrationTests;
 
 using NUnit.Framework;
 using System.Net;
-using uk.osric.asp.Web.Users;
 
 [TestFixture]
 public sealed class EditorAuthenticationTests : IntegrationTest {
