@@ -9,6 +9,9 @@ using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 
+/// <summary>
+/// The endpoint that serves pages, and the only one that does so.
+/// </summary>
 internal sealed class PageEndpoint() {
 
     // The body is buffered, so a form post is read in full before the page runs; anything larger than
