@@ -133,6 +133,35 @@ public sealed class PageRendererTests {
     }
 
     [Test]
+    public async Task RenderDoesNotAttachACompileToANewRevisionWithTheSameSourceAsync() {
+        FakePageStore storage = new();
+        storage["/same"] = new StoredPage(PageHarness.Key("/same"), "same source");
+        storage.ReplaceOnCompilationWrite = (path, _) => new StoredPage(path, "same source");
+        using PageHarness pages = new(storage);
+
+        (RenderResult result, string output) = await pages.RenderAsync("/same");
+
+        Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
+        Assert.That(output, Is.EqualTo("same source"));
+        Assert.That(pages.Compiler.CompileCount, Is.EqualTo(2));
+        Assert.That(PageHarness.Stored(storage, "/same").Compilation, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task RenderDoesNotExecuteARevisionDeletedWhileItWasCompilingAsync() {
+        FakePageStore storage = new();
+        storage["/deleted-during-compile"] = new StoredPage(PageHarness.Key("/deleted-during-compile"), "deleted source");
+        storage.DeleteOnCompilationWrite = true;
+        using PageHarness pages = new(storage);
+
+        (RenderResult result, string output) = await pages.RenderAsync("/deleted-during-compile");
+
+        Assert.That(result.Status, Is.EqualTo(RenderStatus.NotFound));
+        Assert.That(output, Is.Empty);
+        Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1));
+    }
+
+    [Test]
     public async Task TemplateExceptionsPropagateAsync() {
         FakePageStore storage = new();
         storage["/throw"] = new StoredPage(PageHarness.Key("/throw"), "<% throw new System.InvalidOperationException(\"Boom.\"); %>");

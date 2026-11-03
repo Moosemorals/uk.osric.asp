@@ -55,6 +55,8 @@ internal class Program {
         builder.Services.AddScoped<PageEditor>();
         builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
         builder.Services.AddSingleton<PageMetrics>();
+        builder.Services.AddSingleton<PageStorageRefresh>();
+        builder.Services.AddHostedService<PageStorageSampler>();
         builder.Services.AddSingleton(services => MetricsOptions.FromConfiguration(
             builder.Configuration,
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Metrics")));

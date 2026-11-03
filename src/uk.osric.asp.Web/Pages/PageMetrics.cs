@@ -84,6 +84,7 @@ internal sealed class PageMetrics : IDisposable {
     private readonly Counter<long> _cacheLookups;
     private readonly Counter<long> _staleness;
     private readonly Histogram<long> _imageSize;
+    private StorageSizes? _storage;
 
     public PageMetrics() {
         _meter = new Meter(MeterName, typeof(PageMetrics).Assembly.GetName().Version?.ToString() ?? "0.0.0");
@@ -108,6 +109,26 @@ internal sealed class PageMetrics : IDisposable {
             "page.cache.staleness", null, "Why a stored compiled image was not reused.");
         _imageSize = _meter.CreateHistogram<long>(
             "page.image.size", "By", "Size of an emitted page assembly.");
+        _meter.CreateObservableGauge<long>("page.storage.payload.size",
+            () => ObserveStorage(value => value.Payload), "By",
+            "Logical PageRevisions TEXT bytes and image/symbol blob bytes; excludes indexes and SQLite overhead.");
+        _meter.CreateObservableGauge<long>("page.storage.database.size",
+            () => ObserveStorage(value => value.Database), "By",
+            "Whole SQLite database page_count times page_size, including indexes and freelist; excludes separate WAL.");
+        _meter.CreateObservableGauge<long>("page.storage.volume.capacity",
+            () => ObserveStorage(value => value.Capacity), "By",
+            "Total capacity of the filesystem volume containing the SQLite database.");
+    }
+
+    public void RecordStorage(long payload, long database, long? capacity) {
+        Volatile.Write(ref _storage, new StorageSizes(payload, database, capacity));
+    }
+
+    private IEnumerable<Measurement<long>> ObserveStorage(Func<StorageSizes, long?> select) {
+        StorageSizes? snapshot = Volatile.Read(ref _storage);
+        if (snapshot is not null && select(snapshot) is long value) {
+            yield return new Measurement<long>(value);
+        }
     }
 
     public void RecordRender(PagePath path, string outcome, string cache, TimeSpan duration) {
@@ -197,4 +218,6 @@ internal sealed class PageMetrics : IDisposable {
     public void Dispose() {
         _meter.Dispose();
     }
+
+    private sealed record StorageSizes(long Payload, long Database, long? Capacity);
 }

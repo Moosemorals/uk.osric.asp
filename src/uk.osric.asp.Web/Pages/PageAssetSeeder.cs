@@ -160,7 +160,7 @@ internal static class PageAssetSeeder {
 
         foreach ((string path, string content) in assets) {
             PagePath key = PagePath.Normalize(path);
-            if (await pages.GetPageAsync(key, cancellationToken) is not null) {
+            if (await pages.GetHeadAsync(key, cancellationToken) is not null) {
                 continue;
             }
 

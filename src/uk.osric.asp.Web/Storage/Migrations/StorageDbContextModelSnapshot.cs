@@ -17,9 +17,30 @@ namespace uk.osric.asp.Web.Storage.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.StoredFile", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Storage.PageHead", b =>
                 {
                     b.Property<string>("Path")
+                        .HasColumnType("TEXT")
+                        .UseCollation("BINARY");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RevisionId")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .UseCollation("BINARY");
+
+                    b.HasKey("Path");
+
+                    b.HasIndex("RevisionId", "Path");
+
+                    b.ToTable("PageHeads", (string)null);
+                });
+
+            modelBuilder.Entity("uk.osric.asp.Web.Storage.StoredRevision", b =>
+                {
+                    b.Property<string>("RevisionId")
                         .HasColumnType("TEXT")
                         .UseCollation("BINARY");
 
@@ -30,21 +51,43 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.Property<string>("ContentHash")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CreationRuntimeId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Diagnostics")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .UseCollation("BINARY");
 
                     b.Property<byte[]>("Image")
                         .HasColumnType("BLOB");
 
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .UseCollation("BINARY");
+
                     b.Property<string>("RuntimeId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("SavedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<byte[]>("Symbols")
                         .HasColumnType("BLOB");
 
-                    b.HasKey("Path");
+                    b.HasKey("RevisionId");
 
-                    b.ToTable("Files", (string)null);
+                    b.HasIndex("Hash")
+                        .IsUnique();
+
+                    b.HasIndex("Path");
+
+                    b.ToTable("PageRevisions", (string)null);
                 });
 
             modelBuilder.Entity("uk.osric.asp.Web.Users.LocalUser", b =>
@@ -70,6 +113,16 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.HasKey("UserName");
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("uk.osric.asp.Web.Storage.PageHead", b =>
+                {
+                    b.HasOne("uk.osric.asp.Web.Storage.StoredRevision", null)
+                        .WithMany()
+                        .HasForeignKey("RevisionId", "Path")
+                        .HasPrincipalKey("RevisionId", "Path")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

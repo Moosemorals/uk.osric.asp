@@ -25,6 +25,8 @@ internal sealed class TemplateCompiler(
     PageMetrics metrics,
     ILogger<TemplateCompiler> logger) {
 
+    public string RuntimeId => compiler.RuntimeId;
+
     // One deadline covers queueing for a slot and compiling, the same way a render's budget covers
     // queueing and running. An unbounded Wait would park a request thread - and the render slot it
     // already holds - for as long as the compiler stays busy, with nothing to shed the request.

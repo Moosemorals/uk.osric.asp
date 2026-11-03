@@ -37,4 +37,18 @@ public sealed class PageAssetSeederTests {
         Assert.That(storage["/rocket.svg"]?.Content, Is.EqualTo(PageAssetSeeder.IconTemplate));
         Assert.That(storage.WriteCount, Is.EqualTo(writes));
     }
+
+    [Test]
+    public async Task DeletedSeededAssetsAreNotReseededAsync() {
+        FakePageStore storage = new();
+        storage["/site.css"] = new StoredPage(PagePath.Normalize("/site.css"), "edited stylesheet");
+        await storage.DeletePageAsync(PagePath.Normalize("/site.css"));
+
+        int writes = storage.WriteCount;
+        await PageAssetSeeder.SeedAsync(storage);
+
+        Assert.That(await storage.GetPageAsync(PagePath.Normalize("/site.css")), Is.Null);
+        Assert.That((await storage.GetHeadAsync(PagePath.Normalize("/site.css")))?.IsDeleted, Is.True);
+        Assert.That(storage.WriteCount, Is.EqualTo(writes + 1), "only the never-created icon is seeded");
+    }
 }

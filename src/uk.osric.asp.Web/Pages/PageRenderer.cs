@@ -29,7 +29,7 @@ internal sealed class PageRenderer(
     PageHealth health,
     ILogger<PageRenderer> logger) {
 
-    // A page can be saved while its previous version is compiling; each attempt re-reads the newer row.
+    // A page can be saved while its previous version is compiling; each attempt re-reads the newer head.
     private const int MaxCompileAttempts = 3;
 
     /// <summary>Runs a page, compiling and storing it first when its stored image cannot be used.</summary>
@@ -110,8 +110,6 @@ internal sealed class PageRenderer(
     // even when the answer has already been given up on. A page whose image arrives that late is not
     // started at all - see RunAsync - so the next request is served from the store.
     private async Task<LoadedPage?> LoadAsync(PagePath path, CancellationToken deadline, CancellationToken cancellationToken) {
-        LoadedPage? fallback = null;
-
         for (int attempt = 1; attempt <= MaxCompileAttempts; attempt++) {
             StoredPage? page = await storage.GetPageAsync(path, deadline);
             if (page is null) {
@@ -129,17 +127,22 @@ internal sealed class PageRenderer(
             metrics.RecordCacheLookup(PageMetrics.LookupStale);
 
             PageCompilation compilation = templates.Compile(path, page.Content, PageMetrics.ReasonLazy, cancellationToken, deadline);
-            fallback = new LoadedPage(compilation, PageMetrics.CacheMiss);
 
-            if (await storage.TrySetCompilationAsync(path, page.Content, compilation, cancellationToken)) {
-                return fallback;
+            if (await storage.TrySetCompilationAsync(page.RevisionId, page.Content, compilation, cancellationToken)) {
+                StoredPage? current = await storage.GetPageAsync(path, deadline);
+                if (current is null) {
+                    return null;
+                }
+
+                if (current.RevisionId == page.RevisionId) {
+                    return new LoadedPage(compilation, PageMetrics.CacheMiss);
+                }
             }
 
-            logger.LogDebug("Discarded a compile of {Path} because the page changed while it compiled", path.Key);
+            logger.LogDebug("Discarded a compile of {Path} because its live revision changed while it compiled", path.Key);
         }
 
-        // The page kept changing; serving the last compile is better than failing the request.
-        return fallback;
+        return null;
     }
 
     private string StalenessReason(PageCompilation? compilation) {

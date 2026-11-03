@@ -11,6 +11,27 @@ using System.Net;
 public sealed class MetricsEndpointTests : IntegrationTest {
 
     [Test]
+    public async Task StorageGaugesExportBytesWithPreciseAccountingDescriptionsAsync() {
+        using HttpClient client = CreateClient();
+        using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(10));
+        string body;
+        do {
+            body = await client.GetStringAsync("/metrics", deadline.Token);
+            if (body.Contains("page_storage_volume_capacity_bytes", StringComparison.Ordinal)) {
+                break;
+            }
+            await Task.Delay(TimeSpan.FromMilliseconds(25), deadline.Token);
+        } while (!deadline.IsCancellationRequested);
+
+        Assert.That(body, Does.Contain("# TYPE page_storage_payload_size_bytes gauge"));
+        Assert.That(body, Does.Contain("# TYPE page_storage_database_size_bytes gauge"));
+        Assert.That(body, Does.Contain("# TYPE page_storage_volume_capacity_bytes gauge"));
+        Assert.That(body, Does.Contain("excludes indexes and SQLite overhead"));
+        Assert.That(body, Does.Contain("including indexes and freelist; excludes separate WAL"));
+        Assert.That(body, Does.Not.Contain("page_storage_payload_size_bytes{page_path="));
+    }
+
+    [Test]
     public async Task RenderingAPageExposesTheRenderHistogram() {
         await SavePageAsync("/measured", "Hello.");
         using HttpClient client = CreateClient();

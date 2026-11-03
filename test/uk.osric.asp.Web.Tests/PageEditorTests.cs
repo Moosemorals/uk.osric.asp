@@ -27,6 +27,9 @@ public sealed class PageEditorTests {
         Assert.That(saved.Compilation?.Image, Is.Not.Null.And.Not.Empty);
         Assert.That(saved.Compilation?.ContentHash, Is.EqualTo(ContentFingerprint.Of("Hello.")));
         Assert.That(saved.Compilation?.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
+        Assert.That(saved.CreationRuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
+        Assert.That(saved.RevisionId, Is.Not.Empty);
+        Assert.That(saved.Hash, Does.Match("^[0-9a-f]{64}$"));
         Assert.That(saved.Compilation?.Diagnostics, Is.Empty);
     }
 
@@ -96,6 +99,7 @@ public sealed class PageEditorTests {
         StoredPage saved = PageHarness.Stored(storage, "/fault");
         Assert.That(saved.Content, Is.EqualTo("Hello."));
         Assert.That(saved.Compilation, Is.Null);
+        Assert.That(saved.CreationRuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
     }
 
     [Test]

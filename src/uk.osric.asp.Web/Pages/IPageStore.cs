@@ -14,6 +14,16 @@ internal interface IPageStore {
     /// <returns>The stored page, or <see langword="null"/> when no page has that key.</returns>
     Task<StoredPage?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<PageHeadSummary>> ListPagesAsync(CancellationToken cancellationToken = default);
+
+    Task<PageHeadSummary?> GetHeadAsync(PagePath path, CancellationToken cancellationToken = default);
+
+    Task<StoredPage?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PageRevisionSummary>> ListRevisionsAsync(PagePath path, CancellationToken cancellationToken = default);
+
+    Task<PageRevisionSource?> GetRevisionSourceByHashAsync(string hash, CancellationToken cancellationToken = default);
+
     /// <summary>Creates or replaces a page and its compile result in a single write.</summary>
     /// <param name="page">The page to store.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
@@ -28,5 +38,9 @@ internal interface IPageStore {
     /// <see langword="true"/> when the result was stored; <see langword="false"/> when the page
     /// changed or disappeared while it compiled, so the caller must read it again.
     /// </returns>
-    Task<bool> TrySetCompilationAsync(PagePath path, string expectedContent, PageCompilation compilation, CancellationToken cancellationToken = default);
+    Task<bool> TrySetCompilationAsync(string revisionId, string expectedContent, PageCompilation compilation, CancellationToken cancellationToken = default);
+
+    Task<bool> DeletePageAsync(PagePath path, CancellationToken cancellationToken = default);
+
+    Task<bool> ScrubPageAsync(PagePath path, CancellationToken cancellationToken = default);
 }
