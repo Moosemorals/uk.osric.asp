@@ -5,17 +5,19 @@ SPDX-License-Identifier: MIT
 
 # Editor tools and retained page revisions
 
-Implementation plan for [ARCH-06](../jobs/ARCH-06.md), [ARCH-10](../jobs/ARCH-10.md) and
-[ARCH-11](../jobs/ARCH-11.md), including the storage foundation for future immutable asset URLs.
-The history storage also delivers part of [ARCH-07](../jobs/ARCH-07.md); its history UI and restore
-workflow remain later work. Asset serving and PageLayout adoption belong to
+Implementation plan for ARCH-06, ARCH-10 and ARCH-11, covering the completed editor listing,
+deletion and generated-source work plus the retained-revision storage foundation for future
+immutable asset URLs.
+The history storage and browsing view also deliver part of [ARCH-07](../jobs/ARCH-07.md); revision
+restore remains later work. Asset serving and PageLayout adoption belong to
 [IDEA-010](../jobs/IDEA-010.md).
 
 ## Status
 
-Ready for implementation. All steps below are unchecked; no application changes have been made.
-Implement in order, writing each step's failing tests before its product changes. Keep each step
-green before proceeding. The decision sections explain the contracts; the checklist is the work order.
+Steps 1-8 are implemented and verified. Documentation in step 9 is complete; the repository gate is
+still pending. ARCH-06, ARCH-10 and ARCH-11 are closed. ARCH-07 remains open for revision restore;
+IDEA-010 remains open for immutable asset serving and runtime-change binary cleanup.
+The decision sections explain the contracts; the checklist records the work and remaining gate.
 
 ## The short version
 
@@ -123,7 +125,7 @@ ordinally in memory; no pagination or search is needed for the current small col
 
 Render the empty state, new-page form, live pages and a distinct deleted section. Live pages link
 to the public URL and editor, including pages that do not compile. Tombstones have no public-page
-link; offer recreation and scrub so retained history remains discoverable without a history UI.
+link; offer recreation, history inspection and scrub without loading revision bodies into the listing.
 Label unexpected reserved or unaddressable legacy keys unavailable rather than emitting actionable
 links. A missing public root stays 404; this is not a public catalogue.
 
@@ -193,18 +195,27 @@ decision. Do not add automatic history expiry, pruning, retention settings or a 
 in this work. Disk space is not currently a constraint; reconsider
 retention only when page storage is consuming more than half of the database volume's capacity.
 
-Add a `page.storage.size` gauge, unit `By`, to the existing `uk.osric.asp` meter. Measure allocated
-SQLite pages for the revisions table and its indexes, including BLOB overflow pages, rather than
-calling source length or emitted-image size the table size. Verify `dbstat` availability in the
-bundled SQLite build with a focused test; if unavailable, choose and document a supported equivalent
-before implementation, not a silently mislabeled estimate. Include a separate database-volume
-capacity measurement so the half-disk threshold has a denominator. No per-path or revision labels.
+The bundled SQLite build does not provide `dbstat`, and the supported APIs cannot attribute
+allocated pages, indexes or BLOB overflow pages to one table without adding a dependency. Do not
+label an estimate as table allocation. Expose these explicit byte gauges on the existing
+`uk.osric.asp` meter, with no path or revision labels:
 
-Refresh through a bounded background sample using a short-lived DB scope, and let observable
-callbacks return the last sample without doing I/O on scrape. Record the first sample after
-migration and refresh after scrub; keep sampling failures visible without reporting zero usage.
-Document the instruments and the manual review threshold. Alert delivery and a retention response
-are later work, not a reason to delete old revisions now.
+- `page.storage.payload.size`: logical payload bytes, calculated as UTF-8 bytes for every
+  `PageRevisions` TEXT column plus the `Image` and `Symbols` BLOB bytes. It excludes indexes and
+  SQLite page/record overhead; it is not allocated table size.
+- `page.storage.database.size`: `page_count * page_size` for the whole database, including indexes
+  and freelist pages, but excluding the WAL file.
+- `page.storage.volume.capacity`: total capacity of the filesystem volume containing the database,
+  selected by the longest matching `DriveInfo` root.
+
+Refresh with `PageStorageSampler`: take an initial sample, then sample about every 60 seconds and
+coalesce explicit scrub refresh signals. Sampling uses a short-lived database scope and bounded
+SQLite operations; observable callbacks return only the cached snapshot and do no I/O during scrape.
+On sample failure, log the failure and retain the last values rather than reporting zero. The
+payload-to-volume comparison is an operational estimate, not allocated database use; use the
+whole-database gauge when assessing actual database growth. Review retention manually when payload
+storage exceeds half the volume capacity. Alert delivery and automatic retention remain out of
+scope; old revisions are not deleted automatically.
 
 ### 7. Asset execution and layout changes come later
 
@@ -224,11 +235,11 @@ lands. New files need the repository's SPDX headers.
 
 ### Step 1 - Define revision identity and storage values
 
-- [ ] Add a pure revision-hash helper in `Core.Pages`. Pin the format version, length framing,
+- [x] Add a pure revision-hash helper in `Core.Pages`. Pin the format version, length framing,
   UTF-8 encoding, UTC timestamp encoding, revision-id encoding and output casing in tests.
-- [ ] Add shell values for a retained revision and a lightweight head summary. Keep immutable
+- [x] Add shell values for a retained revision and a lightweight head summary. Keep immutable
   source identity separate from optional `PageCompilation`; a head summary needs no source/BLOBs.
-- [ ] Supply timestamp and unique save id in the shell, not inside Core. Capture creation runtime
+- [x] Supply timestamp and unique save id in the shell, not inside Core. Capture creation runtime
   id even when compilation fails. Preserve the existing source-only `ContentFingerprint` meaning.
 
 **Done when:** `make test-core` proves deterministic hashing for fixed inputs, input framing,
@@ -236,18 +247,18 @@ different runtime/source/save identities, and distinct hashes for identical simu
 
 ### Step 2 - Migrate storage and make saves append-only
 
-- [ ] Add revision/head EF entities and mappings in `Web/Storage`: revision primary key, unique
+- [x] Add revision/head EF entities and mappings in `Web/Storage`: revision primary key, unique
   hash index, path index, and a head reference constrained to a revision of the same path.
-- [ ] Generate the migration with `make migration NAME=RetainedPageRevisions`. Backfill every
+- [x] Generate the migration with `make migration NAME=RetainedPageRevisions`. Backfill every
   `Files` row, including uncompiled and failed pages, before removing the old table. If hash
   backfill needs a SQLite function registered by the shell, wire it into every migration entry
   point, including tests and CLI startup; do not replace the identity algorithm with SQL concatenation.
-- [ ] Change `IPageStore` and `SqlitePageStore` to append one revision and upsert its head in one
+- [x] Change `IPageStore` and `SqlitePageStore` to append one revision and upsert its head in one
   transaction. Return/read persisted revision identity; add single-row indexed hash lookup.
-- [ ] Update `StoredPage`, `PageEditor` and every test store/fake affected by the new contract.
+- [x] Update `StoredPage`, `PageEditor` and every test store/fake affected by the new contract.
   Keep compile-before-save behavior: store exactly one revision with a result, or one source-only
   revision on a compiler fault before rethrowing. Do not append again to attach compilation.
-- [ ] Add migration and storage tests in `SqlitePageStoreTests`; test two identical saves and
+- [x] Add migration and storage tests in `SqlitePageStoreTests`; test two identical saves and
   concurrent writers, and enforce the head/revision path invariant at the database boundary.
 
 **Done when:** `make test-web` proves migration preserves all fields, both concurrent revisions
@@ -256,73 +267,73 @@ Run `make test-integration` to prove migration and startup work against the real
 
 ### Step 3 - Bind lazy compilation to the revision read
 
-- [ ] Replace `TrySetCompilationAsync(path, expectedContent, ...)` with a revision-addressed
+- [x] Replace `TrySetCompilationAsync(path, expectedContent, ...)` with a revision-addressed
   conditional update. It may change compile-cache fields only, never the head or revision hash.
-- [ ] Update `PageRenderer.LoadAsync`: reuse matching-runtime images and cached compile failures;
+- [x] Update `PageRenderer.LoadAsync`: reuse matching-runtime images and cached compile failures;
   retain current lazy-recompile behavior for ordinary pages with missing/stale compilation.
   Historical asset runtime policy remains deferred, not a change to ordinary serving today.
-- [ ] After a lazy compile is stored, recheck the live head before choosing what to execute if it
+- [x] After a lazy compile is stored, recheck the live head before choosing what to execute if it
   changed during compilation. Preserve bounded retries; never execute the old fallback after
   observing deletion or scrub. An invocation already started may finish.
-- [ ] Extend `PageRendererTests` and `PageEditorTests` for same-source saves with distinct revision
+- [x] Extend `PageRendererTests` and `PageEditorTests` for same-source saves with distinct revision
   ids and a head changing mid-compile. Prove matching-runtime reuse with a counting compiler.
 
 **Done when:** `make test-web` and `make test-integration` pass existing compile-cache coverage,
 and a late compile updates only its own retained row without replacing newer content.
 
-### Step 4 - Add the editor command dispatcher and listing (ARCH-06)
+### Step 4 - Add the editor command dispatcher and listing
 
-- [ ] Dispatch the exact bare `/edit` listing before canonical root-editor handling. Parse `cmd`
+- [x] Dispatch the exact bare `/edit` listing before canonical root-editor handling. Parse `cmd`
   once; reject empty, repeated, unknown and unsupported method/command combinations with 400.
-- [ ] Apply `no-store` before editor dispatch. Keep Editor authorization on all routes and
+- [x] Apply `no-store` before editor dispatch. Keep Editor authorization on all routes and
   antiforgery validation before every POST reads a form or calls the store.
-- [ ] Add the head-summary query and `PageEditor` forwarding, ordinal listing, empty/deleted
+- [x] Add the head-summary query and `PageEditor` forwarding, ordinal listing, empty/deleted
   sections, listing navigation, and the `cmd=new` form/303 action. No row is saved by navigation.
-- [ ] Extend endpoint unit tests for encoded keys, invalid input and command parsing. Extend
+- [x] Extend endpoint unit tests for encoded keys, invalid input and command parsing. Extend
   integration `EditorEndpointTests` for `/edit` versus `/edit/`, canonical query preservation,
   root commands and actual page keys ending in `generated`, `delete` or `scrub`.
 
 **Done when:** `make test-web` and `make test-integration` prove listing/new-page behavior,
 real authorization/antiforgery rejection, and no regression to root-page editing or ordinary saves.
 
-### Step 5 - Tombstone deletion and preserve path history (ARCH-10)
+### Step 5 - Tombstone deletion and preserve path history
 
-- [ ] Add store/editor operations for tombstoning and distinguishing absent, live and deleted
+- [x] Add store/editor operations for tombstoning and distinguishing absent, live and deleted
   heads. Ordinary reads hide tombstones; hash lookup still returns retained revisions.
-- [ ] Add `cmd=delete` confirmation and POST/303 feedback. Mark the recreation editor as deleted
+- [x] Add `cmd=delete` confirmation and POST/303 feedback. Mark the recreation editor as deleted
   without loading old source into its textarea. Saving appends a revision and clears the tombstone.
-- [ ] Change `PageAssetSeeder` to check head existence rather than ordinary page reads, so deleted
+- [x] Change `PageAssetSeeder` to check head existence rather than ordinary page reads, so deleted
   assets stay deleted. Test never-created seeding, preserved edits and deletion across restart.
-- [ ] Add storage, endpoint and real-host tests for delete/recreate and late compilation after
+- [x] Add storage, endpoint and real-host tests for delete/recreate and late compilation after
   deletion. Assert old hashes survive and no conditional compile can clear a tombstone.
 
 **Done when:** `make test-web` and `make test-integration` prove public 404 after deletion,
 retained history, shared history on recreation, and no seeded-asset resurrection on restart.
 
-### Step 6 - Add explicit scrub and verify SQLite cleanup (ARCH-10)
+### Step 6 - Add explicit scrub and verify SQLite cleanup
 
-- [ ] Implement transactional removal of the head and all path revisions. Enable secure deletion
+- [x] Implement transactional removal of the head and all path revisions. Enable secure deletion
   on relevant connections and implement bounded WAL checkpoint/truncate with checked results.
   Run required post-commit cleanup on retries even when the path is already logically absent.
-- [ ] Add tests against the bundled SQLite in supported journal modes, using a distinct secret
+- [x] Add tests against the bundled SQLite in supported journal modes, using a distinct secret
   marker in source and binary fields. After successful cleanup and closing connections, assert
   the marker is absent from DB/journal/WAL files; test a pinned reader causes failure, not success.
-- [ ] Add `cmd=scrub` confirmation and POST with exact-path confirmation, Editor authorization,
+- [x] Add `cmd=scrub` confirmation and POST with exact-path confirmation, Editor authorization,
   antiforgery, no-store and clear success/failure messages. Never log the removed content.
-- [ ] Test live/deleted/missing scrub targets, rollback, cleanup retry, hash lookup after scrub,
+- [x] Test live/deleted/missing scrub targets, rollback, cleanup retry, hash lookup after scrub,
   late compilation and seed behavior. Document secret rotation and external-copy limitations.
 
 **Done when:** `make test-web` and `make test-integration` prove full logical removal,
 successful supported SQLite cleanup and honest reporting of incomplete cleanup. Scrub must not
 claim backup, cache or forensic media erasure.
 
-### Step 7 - Add the generated C# viewer (ARCH-11)
+### Step 7 - Add the generated C# viewer
 
-- [ ] Link the saved page editor to `cmd=generated`. Read current saved source and call
+- [x] Link the saved page editor to `cmd=generated`. Read current saved source and call
   `TemplateSourceGenerator.Generate`; HTML-encode the result in a horizontally scrollable `<pre>`.
-- [ ] Show parse diagnostics without partial output; return 404 for absent/deleted pages.
+- [x] Show parse diagnostics without partial output; return 404 for absent/deleted pages.
   Label the view as current-runtime generation, excluding unsaved edits.
-- [ ] Prove compiler, renderer and storage writes are not called. Cover encoded markup, line
+- [x] Prove compiler, renderer and storage writes are not called. Cover encoded markup, line
   directives, parse failures, no-store and real authorization in the existing endpoint suites.
 
 **Done when:** `make test-web` and `make test-integration` pass. This view generates text only;
@@ -330,27 +341,31 @@ it does not change assembly reuse during execution.
 
 ### Step 8 - Measure storage growth
 
-- [ ] Prove `dbstat` support in the bundled SQLite with a focused storage test. Define the query
-  over the revisions table and its indexes, including overflow pages; document a supported
-  alternative explicitly if `dbstat` is unavailable before proceeding.
-- [ ] Add bounded background sampling with a short-lived DB scope, startup sample and refresh
-  after scrub. Expose cached `page.storage.size` and `page.storage.volume.capacity` gauges in
-  bytes on the existing meter, with no revision/path tags or I/O in observable callbacks.
-- [ ] Test BLOB/index accounting, scrape without DB access, failed samples and cancellation.
-  Add exporter coverage in `MetricsEndpointTests`; document the greater-than-half-disk review
-  threshold, with no automated pruning or alert-delivery work.
+- [x] Verify that the bundled SQLite does not provide `dbstat`; document supported logical payload,
+  whole-database and filesystem-capacity metrics without presenting estimates as table allocation.
+- [x] Add bounded background sampling with a short-lived DB scope, startup sample and coalesced
+  refresh after scrub. Expose cached `page.storage.payload.size`, `page.storage.database.size` and
+  `page.storage.volume.capacity` gauges in bytes, with no revision/path tags or I/O in callbacks.
+- [x] Test payload accounting, scrape without DB access, failed samples and cancellation. Add
+  exporter coverage in `MetricsEndpointTests`; document the greater-than-half-volume review
+  threshold, with no automatic pruning or alert-delivery work.
 
 **Done when:** `make test-web` and `make test-integration` validate samples and exported gauges.
 
 ### Step 9 - Finish documentation and run the gate
 
-- [ ] Update architecture and testing notes for revision identity, transactions, commands and
+- [x] Update architecture and testing notes for revision identity, transactions, commands and
   compile-cache behavior. Update deployment notes for storage metrics, migration backup, scrub
-  limitations and tombstone-aware seeding. Back up the database before deploying the migration.
-- [ ] Mark ARCH-06, ARCH-10 and ARCH-11 complete only after their acceptance checks pass, following
-  the jobs index's closed-job convention. Leave ARCH-07 open for history browsing/restore and
-  IDEA-010 open for `/asset/{hash}`, runtime-change binary cleanup and PageLayout adoption.
+  limitations and tombstone-aware seeding. A database backup is an operator action before migration;
+  no production backup is performed as part of this work.
+- [x] Close ARCH-06, ARCH-10 and ARCH-11 following the jobs index's closed-job convention. Leave
+  ARCH-07 open for revision restore and IDEA-010 open for `/asset/{hash}`, runtime-change binary
+  cleanup and PageLayout adoption.
 - [ ] Run `make check`; fix only failures attributable to this work and report unrelated blockers.
+
+Validation on 2026-11-03: formatting, package audit, all 670 tests (169 Core, 48 Runtime,
+380 Web, 73 integration) and Release publish passed. `make check` stops at `make license-check`
+because the `reuse` executable is not installed; the remaining gate targets were run separately.
 
 **Done when:** the gate passes and the implementation has no asset endpoint, new immutable-header
 policy, history UI, automatic retention or runtime-change cleanup hidden inside this scope.
@@ -365,7 +380,7 @@ policy, history UI, automatic retention or runtime-change cleanup hidden inside 
 | Web endpoints | Encoded keys/source; lightweight ordinal listing with tombstones; new-key validation; `cmd` validation; read-only confirmations; scrub requires typed path; parse diagnostics without partial source or execution |
 | Real host | `/edit` versus `/edit/`; page keys ending in command names remain editable; query-preserving canonical redirects; Editor policy and antiforgery cover every command; delete gives 404; recreation serves new content |
 | Seed lifecycle | Never-created assets seed once; tombstoned assets stay deleted across restart; edited assets survive startup; scrub allows fresh seeding |
-| Storage telemetry | Allocated bytes include images, symbols and indexes; volume capacity is available; scrape callback does no I/O; no high-cardinality labels; sample failures do not look like empty storage |
+| Storage telemetry | Logical payload bytes include all revision text and image/symbol blobs; database bytes include indexes/freelist but exclude WAL; volume capacity is available; scrape callback does no I/O; no high-cardinality labels; sample failures retain the previous values |
 | Regression | Existing compile caching, ETags, GET/HEAD/304 and ordinary query behavior remain unchanged; no asset endpoint or immutable-header changes |
 
 Run `make test-core`, `make test-web` and `make test-integration` as their slices land; finish with

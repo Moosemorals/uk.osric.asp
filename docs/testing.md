@@ -28,8 +28,11 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   and `Sdk`, never `Web`.
 - **Web tests** cover the shell: endpoints driven through a hand-built `HttpContext` with an
   in-memory `IPageStore`, a `TestSession`, a `TestAntiforgery` and the real compiler, and storage
-  against a real SQLite database file. The page-cache tests swap in a counting compiler wrapped
-  around the real one, so "a second request does not compile" is asserted rather than inferred.
+  against a real SQLite database file. Storage tests cover legacy migration, append-only revision
+  identity, concurrent saves, tombstones, scrub and SQLite cleanup. `PageStorageMetricsTests` checks
+  logical payload accounting, cached observable gauges, failed-sample retention and bounded sampling.
+  The page-cache tests swap in a counting compiler wrapped around the real one, so "a second request
+  does not compile" is asserted rather than inferred.
   `PageScopeTests` lives here because it names the shell's own types — and `Core`'s — to prove the
   trimmed reference set cannot resolve them.
 - **The execution budget** is tested in `Web.Tests` (`PageRendererTests` for the render deadline, the
@@ -47,7 +50,10 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and
   content types set by middleware, startup-seeded page assets and their conditional responses,
-  migrations, DI wiring and the fact that a page is compiled once. They reference `Web` and
+  migrations, DI wiring and the fact that a page is compiled once. Editor integration coverage
+  distinguishes `/edit` from the `/edit/` root editor, checks command authorization and antiforgery,
+  verifies generated-source inspection does not execute a page, and confirms deleted seeded assets
+  remain tombstoned across restarts. The suites reference `Web` and
   `Runtime`, start the real application through `WebApplicationFactory<Program>`, and use a
   throwaway SQLite file per fixture that is deleted with it. The host runs as `Production`, so
   failures are answered by the error page rather than the developer exception page, and the client

@@ -208,6 +208,18 @@ PBKDF2 password hash and a revocation stamp. Treat a backup of `storage.db` as a
 There is no registration page and no user management in the site; accounts are created and changed
 only by the `users` command.
 
+Every accepted page save creates a retained revision; source and revision identity are kept
+indefinitely unless an editor explicitly scrubs a path. Deleting a page only tombstones its current
+head, and startup seeding will not restore a tombstoned `/site.css` or `/rocket.svg`. Saving at that
+path recreates it in the same history. Runtime-change cleanup of obsolete compiled images and
+symbols is deferred; source history remains. History browsing and restore are still future work.
+
+Scrub removes the live head, if present, and every revision at the path, then requests SQLite
+secure-delete and WAL checkpoint cleanup. It is best effort, not a guarantee of forensic erasure.
+It does not revoke already-running page code or erase browser/CDN copies, exported archives,
+database backups or filesystem snapshots. Rotate exposed secrets and clean those copies separately;
+keep backups outside the storage volume and treat them as credential-bearing data.
+
 The second rootless volume, `uk.osric.asp-keys`, is mounted at
 `/home/app/.aspnet/DataProtection-Keys`. It holds the data-protection key ring used by the auth,
 antiforgery and session cookies. Without it, every restart would invalidate the long-term login and
@@ -264,6 +276,8 @@ shared host directory without accepting those ownership changes. See Podman's
 The app applies pending migrations asynchronously at startup, before serving requests. **Take a
 verified backup before starting a new release with migrations**, including unattended updates.
 Review generated migrations before deployment; startup migration does not make a backup for you.
+In particular, take and verify an off-volume backup before deploying the retained-revisions
+migration.
 
 To add a migration locally from the repository root:
 
@@ -323,6 +337,14 @@ reachable from the internet.
 - **Retention is a guess.** 30 days and 4 GB are easy to change in `prometheus.container`; check
   `df -h /` before raising them, because images, page assemblies, the database and the swap file
   share the disk.
+- **Page storage gauges have distinct meanings.** `page.storage.payload.size` counts logical UTF-8
+  bytes in revision text and image/symbol blobs, excluding indexes and SQLite overhead. The bundled
+  SQLite has no `dbstat`, so this is not per-table allocated size. `page.storage.database.size` is
+  `page_count * page_size` for the whole database, including indexes and freelist pages but excluding
+  the WAL. `page.storage.volume.capacity` is the containing filesystem's total capacity. Samples run
+  at startup, about every 60 seconds and after a scrub; scrape callbacks use cached values, and
+  failed samples retain the last successful values. Review retention manually when logical payload
+  exceeds half the volume capacity; revisions are not pruned automatically.
 - **Existing hosts need one package.** `aardvark-dns` became part of `cloud-init.yaml` with this
   work, so a VM created earlier has no container DNS: `/status` says Prometheus "did not answer" and
   the scrape target is down. Install it once, then restart the units:

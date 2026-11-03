@@ -274,10 +274,27 @@ This is source storage: `EditorEndpoint` writes a page's source, `PageEndpoint` 
 path and runs its compiled image. Pure rules still receive the values loaded by the shell rather
 than being given `IPageStore`.
 
-A save is a single `INSERT … ON CONFLICT("Path") DO UPDATE`, so a save that lands while another is
-in flight updates the row rather than failing the primary key: a read followed by an insert left a
-window where both saw no row. The winner writes the source and its compile result in one statement,
-so an image never sits beside content it was not built from.
+`PageRevisions` holds every save as a separate row, including its source, revision hash, creation
+runtime id and optional compilation result. A save inserts the revision and advances its
+`PageHeads` row in one transaction. The head is the authoritative current-page pointer; reads do not
+guess the current row from timestamps. The source identity and hash stay fixed while conditional
+compilation updates may fill or refresh only the compilation fields of that revision. Reusing an
+image requires both a matching source fingerprint and the current runtime id, so matching images
+are reused and stale ones are recompiled lazily.
+
+Revision hashes address retained code but are not authorization tokens or rendered-body ETags. An
+indexed hash lookup exists for future immutable asset serving; it is an internal storage operation,
+not a public endpoint, and the asset endpoint is not implemented. Ordinary page reads follow the
+head and ignore deleted pages.
+
+Deletion marks a head as a tombstone without removing its revision pointer or history. Saving again
+at the same path appends a revision and clears the tombstone. Startup seeding checks whether a head
+exists, so a deleted seeded asset stays deleted across restarts. Explicit scrub removes the head and
+all revisions for one path, then performs SQLite secure-delete and WAL checkpoint cleanup where
+applicable. This is best-effort cleanup, not forensic erasure: it cannot revoke running code or
+erase browser/CDN copies, exported archives, backups or filesystem snapshots. Rotate exposed secrets
+and clean external copies separately. Runtime-change cleanup of obsolete images and symbols is
+future work; source and revision identity are retained unless explicitly scrubbed.
 
 ## Compiled pages
 
@@ -326,6 +343,9 @@ a loaded handler (`IPageCompiler`, `CompiledPage`); it never sees a page.
 | `page.handler.invoke.duration` | histogram | s | `page.path`, `outcome` |
 | `page.save.duration` | histogram | s | `page.path`, `outcome` |
 | `page.image.size` | histogram | By | `page.path` |
+| `page.storage.payload.size` | observable gauge | By | — logical UTF-8 bytes for every revision text column plus image/symbol blobs; excludes indexes and SQLite overhead |
+| `page.storage.database.size` | observable gauge | By | — whole database `page_count * page_size`, including indexes and freelist pages; excludes the separate WAL |
+| `page.storage.volume.capacity` | observable gauge | By | — total capacity of the filesystem volume containing the database |
 | `page.cache.lookups` | counter | — | `result` (`hit`, `stale`, `absent`) |
 | `page.cache.staleness` | counter | — | `page.path`, `reason` (`never-compiled`, `content-changed`, `runtime-changed`) |
 
@@ -340,6 +360,16 @@ add a request-duration metric of our own. On a cache miss `page.compile.duration
 pages, which is small — if that ever stops being true, drop the tag and keep the path in logs.
 Recording costs nothing until an exporter listens, so the instruments are always on. For a quick
 look while the site runs: `dotnet-counters monitor --counters uk.osric.asp <pid>`.
+
+The bundled SQLite build does not provide `dbstat`, so exact allocated bytes for an individual table
+and its indexes/overflow pages are not available without adding a dependency. The payload gauge is
+explicitly logical size, not allocated table size. `PageStorageSampler` samples at startup and about
+every 60 seconds, and a scrub requests a coalesced refresh. It uses a short-lived database scope,
+bounded SQLite commands and cancellation; observable gauge callbacks return the last cached sample
+without database or filesystem I/O. Failed samples are logged and retain the prior values. Compare
+logical payload with volume capacity only as an operational estimate; use the whole-database gauge
+for database growth. Review retention manually when payload exceeds half the volume capacity; no
+automatic pruning is performed.
 
 ### Export and the status page
 
