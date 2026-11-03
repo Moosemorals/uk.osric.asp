@@ -248,6 +248,11 @@ This is source storage: `EditorEndpoint` writes a page's source, `MainEndpoint` 
 path and runs its compiled image. Pure rules still receive the values loaded by the shell rather
 than being given `IStorage`.
 
+A save is a single `INSERT … ON CONFLICT("Path") DO UPDATE`, so a save that lands while another is
+in flight updates the row rather than failing the primary key: a read followed by an insert left a
+window where both saw no row. The winner writes the source and its compile result in one statement,
+so an image never sits beside content it was not built from.
+
 ## Compiled pages
 
 Compiling is the expensive part of serving a page, so it happens when a page is saved rather than

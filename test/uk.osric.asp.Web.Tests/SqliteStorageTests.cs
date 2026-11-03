@@ -86,6 +86,58 @@ public sealed class SqliteStorageTests {
     }
 
     [Test]
+    public async Task ConcurrentSavesForTheSameNewPathLeaveOneRowAsync() {
+        const int Writers = 8;
+        PagePath path = Key("/raced");
+        TaskCompletionSource gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Task[] saves = [.. Enumerable.Range(0, Writers).Select(index => Task.Run(async () => {
+            string content = $"content-{index}";
+            PageCompilation compilation = new(ContentFingerprint.Of(content), "1:build", [(byte)index], []);
+            await using StorageDbContext database = new(_options);
+            IStorage storage = new SqliteStorage(database);
+
+            await gate.Task;
+            await storage.SavePageAsync(new StoredPage(path, content, compilation));
+        }))];
+
+        gate.SetResult();
+        await Assert.DoesNotThrowAsync(() => Task.WhenAll(saves));
+
+        await using StorageDbContext reader = new(_options);
+        StoredFile[] rows = [.. await reader.Set<StoredFile>().ToArrayAsync()];
+
+        Assert.That(rows, Has.Length.EqualTo(1));
+        // The row is written whole, so the image belongs to the content stored beside it.
+        Assert.That(rows[0].ContentHash, Is.EqualTo(ContentFingerprint.Of(rows[0].Content)));
+    }
+
+    [Test]
+    public async Task ConcurrentSavesForDifferentPathsKeepBothPagesAsync() {
+        TaskCompletionSource gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Task[] saves = [
+            SaveAsync("/first", "first"),
+            SaveAsync("/second", "second"),
+        ];
+
+        gate.SetResult();
+        await Task.WhenAll(saves);
+
+        await using StorageDbContext reader = new(_options);
+        IStorage storage = new SqliteStorage(reader);
+
+        Assert.That((await storage.GetPageAsync(Key("/first")))?.Content, Is.EqualTo("first"));
+        Assert.That((await storage.GetPageAsync(Key("/second")))?.Content, Is.EqualTo("second"));
+
+        async Task SaveAsync(string key, string content) {
+            await using StorageDbContext database = new(_options);
+            await gate.Task;
+            await new SqliteStorage(database).SavePageAsync(new StoredPage(Key(key), content));
+        }
+    }
+
+    [Test]
     public async Task ReapplyingMigrationsPreservesDataAsync() {
         await using (StorageDbContext writer = new(_options)) {
             IStorage storage = new SqliteStorage(writer);

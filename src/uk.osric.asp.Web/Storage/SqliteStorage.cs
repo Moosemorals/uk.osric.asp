@@ -24,19 +24,23 @@ internal sealed class SqliteStorage(StorageDbContext database) : IStorage {
     public async Task SavePageAsync(StoredPage page, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(page);
 
-        StoredFile? file = await database.Set<StoredFile>()
-            .SingleOrDefaultAsync(file => file.Path == page.Path.Path, cancellationToken);
+        PageCompilation? compilation = page.Compilation;
+        string? diagnostics = compilation is null ? null : SerializeDiagnostics(compilation.Diagnostics);
 
-        if (file is null) {
-            file = new StoredFile { Path = page.Path.Path, Content = page.Content };
-            database.Add(file);
-        } else {
-            file.Content = page.Content;
-        }
-
-        Apply(file, page.Compilation);
-
-        await database.SaveChangesAsync(cancellationToken);
+        // One statement, so a save that lands while another is in flight updates the row instead of
+        // colliding with it: a read followed by an insert had a window where both saw no row, and
+        // the second insert failed the primary key. The row is written whole, so the image always
+        // belongs to the content beside it.
+        await database.Database.ExecuteSqlAsync($"""
+            INSERT INTO "Files" ("Path", "Content", "ContentHash", "RuntimeId", "Image", "Diagnostics")
+            VALUES ({page.Path.Path}, {page.Content}, {compilation?.ContentHash}, {compilation?.RuntimeId}, {compilation?.Image}, {diagnostics})
+            ON CONFLICT ("Path") DO UPDATE SET
+                "Content" = excluded."Content",
+                "ContentHash" = excluded."ContentHash",
+                "RuntimeId" = excluded."RuntimeId",
+                "Image" = excluded."Image",
+                "Diagnostics" = excluded."Diagnostics"
+            """, cancellationToken);
     }
 
     public async Task<bool> TrySetCompilationAsync(PagePath path, string expectedContent, PageCompilation compilation, CancellationToken cancellationToken = default) {
@@ -50,7 +54,7 @@ internal sealed class SqliteStorage(StorageDbContext database) : IStorage {
                 .SetProperty(file => file.ContentHash, compilation.ContentHash)
                 .SetProperty(file => file.RuntimeId, compilation.RuntimeId)
                 .SetProperty(file => file.Image, compilation.Image)
-                .SetProperty(file => file.Diagnostics, Serialize(compilation)), cancellationToken);
+                .SetProperty(file => file.Diagnostics, SerializeDiagnostics(compilation.Diagnostics)), cancellationToken);
 
         return updated > 0;
     }
@@ -93,14 +97,7 @@ internal sealed class SqliteStorage(StorageDbContext database) : IStorage {
         }
     }
 
-    private static void Apply(StoredFile file, PageCompilation? compilation) {
-        file.ContentHash = compilation?.ContentHash;
-        file.RuntimeId = compilation?.RuntimeId;
-        file.Image = compilation?.Image;
-        file.Diagnostics = compilation is null ? null : Serialize(compilation);
-    }
-
-    private static string Serialize(PageCompilation compilation) {
-        return JsonSerializer.Serialize(compilation.Diagnostics, s_jsonOptions);
+    private static string SerializeDiagnostics(IReadOnlyList<PageDiagnostic> diagnostics) {
+        return JsonSerializer.Serialize(diagnostics, s_jsonOptions);
     }
 }

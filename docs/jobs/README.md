@@ -28,7 +28,6 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [ARCH-11](ARCH-11.md) | Low | S | The editor cannot show the generated C# for a page |
 | [ARCH-12](ARCH-12.md) | Medium | M | A template has no shorthand for writing a value |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
-| [BUG-07](BUG-07.md) | Low | S | Concurrent saves race and can fail with a primary-key violation |
 | [BUG-08](BUG-08.md) | Low | S | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
 | [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
 | [OPS-03](OPS-03.md) | Medium | M | There is no CI pipeline |
@@ -50,9 +49,8 @@ An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` 
 Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and
 self-contained comes first, because these are the ones that never get scheduled otherwise.
 
-1. **The small defects, a sitting each.** BUG-07 (a primary-key race on save) and BUG-08 (an empty
-   reference set that fails like a compile error). No design needed, both fit in an afternoon, and
-   both bite the moment the site has a second visitor.
+1. **BUG-08, the last small defect.** An empty reference set that fails like a compile error. No
+   design needed, and it fits in an afternoon.
 2. **IDEA-007, then IDEA-006** — the icon and then the stylesheet as pages. Both small, and together
    they answer the question the product work depends on: can a page serve CSS and an image as
    happily as HTML? Do them back to back; the second tells you what caching needs fixing.
@@ -110,3 +108,4 @@ Resolved jobs; the files were deleted and their history is in git.
 | OPS-04 | `appsettings.json` raises `Microsoft.EntityFrameworkCore` to `Warning` while `Default` stays `Information`, so EF no longer logs every statement to the journal; `Microsoft.AspNetCore` stays at `Warning` and an explicit `uk.osric.asp` at `Information` keeps the app's own lines and the startup lines. `appsettings.Development.json` puts `Microsoft.EntityFrameworkCore.Database.Command` back at `Information`, so `make run` still shows SQL locally |
 | BUG-14 | A redirect keeps the query string. `Redirects.To` encodes each part of a target with the type that understands it — appending a query to a path before `PathString` sees it turns the `?` into `%3F`, which is a 404 rather than a redirect with parameters — so a canonical redirect carries the request's query (`/Hello?q=a%20b` → `308 /hello?q=a%20b`) and a page's `Redirect` target keeps its query and fragment. The same helper serves the login form's `returnUrl`, which is why `/login?returnUrl=%2Fedit%2Fhello%3Ftab%3Dsource` returns to `/edit/hello?tab=source`. `Permanent` and `SeeOther` are the status, and nothing else. Covered in `RedirectsTests`, `MainEndpointTests`, `EditorEndpointTests`, `LoginEndpointTests` and `ShellTests` |
 | BUG-15 | A page key can contain a URL delimiter. Routing decodes `%3F` and `%23` into `Request.Path`, so `/hello%3Fworld` normalised to the key `/hello?world` and a page stored there was served. `PagePath.IsAddressable` is false for a key containing `?` or `#`, and both the page and the editor answer `404` before the canonical redirect and before storage, so an impossible key is neither served nor saved. Deliberately not normalised to a placeholder character: that would alias `/hello?world`, `/hello#world` and `/hello_world` onto one page and hide the broken link. Covered in `PagePathTests`, `MainEndpointTests`, `EditorEndpointTests` and `ShellTests` |
+| BUG-07 | `SavePageAsync` is a single `INSERT … ON CONFLICT("Path") DO UPDATE`, so two saves for the same new key update one row instead of the second failing the primary key; the winner writes content and compile result together. `ConcurrentSavesForTheSameNewPathLeaveOneRowAsync` races eight writers to prove it |
