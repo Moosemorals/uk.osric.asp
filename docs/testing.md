@@ -20,8 +20,9 @@ core stays pure and the shell stays thin.
 - **Core tests** cover one rule at a time and exercise `Core` directly.
 - **Runtime tests** cover what the core cannot: Roslyn emitting a handler, loading the assembly and
   invoking it. They also cover the page API policy — one test per banned construct, plus a page of
-  ordinary code that must still compile — and the load context, which is reachable from the tests
-  through `InternalsVisibleTo`. They reference `Runtime`, never `Web`.
+  ordinary code that must still compile — the reference set the compiler is built on, and the load
+  context, which is reachable from the tests through `InternalsVisibleTo`. They reference `Runtime`,
+  never `Web`.
 - **Web tests** cover the shell: endpoints driven through a hand-built `HttpContext` with an
   in-memory `IStorage`, a `TestSession`, a `TestAntiforgery` and the real compiler, and storage
   against a real SQLite database file. The page-cache tests swap in a counting compiler wrapped

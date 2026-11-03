@@ -28,7 +28,6 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [ARCH-11](ARCH-11.md) | Low | S | The editor cannot show the generated C# for a page |
 | [ARCH-12](ARCH-12.md) | Medium | M | A template has no shorthand for writing a value |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
-| [BUG-08](BUG-08.md) | Low | S | Missing `TRUSTED_PLATFORM_ASSEMBLIES` silently yields an empty reference set |
 | [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
 | [OPS-03](OPS-03.md) | Medium | M | There is no CI pipeline |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
@@ -49,29 +48,27 @@ An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` 
 Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and
 self-contained comes first, because these are the ones that never get scheduled otherwise.
 
-1. **BUG-08, the last small defect.** An empty reference set that fails like a compile error. No
-   design needed, and it fits in an afternoon.
-2. **IDEA-007, then IDEA-006** — the icon and then the stylesheet as pages. Both small, and together
+1. **IDEA-007, then IDEA-006** — the icon and then the stylesheet as pages. Both small, and together
    they answer the question the product work depends on: can a page serve CSS and an image as
    happily as HTML? Do them back to back; the second tells you what caching needs fixing.
-3. **The editor trio: ARCH-10, ARCH-11, ARCH-06.** Delete a page, show the generated C#, list what
+2. **The editor trio: ARCH-10, ARCH-11, ARCH-06.** Delete a page, show the generated C#, list what
    exists. Each is small, and together they turn `/edit` from "type the URL you already know" into
    something usable — and ARCH-06 makes the site's contents discoverable for the first time.
-4. **OPS-03, CI** — before the tree grows, so `make format-check`, `make test` and the licence check
+3. **OPS-03, CI** — before the tree grows, so `make format-check`, `make test` and the licence check
    run without being asked.
-5. **ARCH-12** — the write shorthand. A small language change, a large effect on how a page reads.
-6. **IDEA-002, fetch** — the biggest single improvement to what a page can do. Allow-listed, bounded
+4. **ARCH-12** — the write shorthand. A small language change, a large effect on how a page reads.
+5. **IDEA-002, fetch** — the biggest single improvement to what a page can do. Allow-listed, bounded
    and testable; take it before persistence, which has more open questions and less immediate payoff.
-7. **IDEA-003, persistence**, then **IDEA-004, the split.** Persistence is useful sooner; the split
+6. **IDEA-003, persistence**, then **IDEA-004, the split.** Persistence is useful sooner; the split
    is the unlock for the three large ideas, so it follows immediately.
-8. **ARCH-07, history** — undo for edits, once there is enough content to be worth versioning.
-9. **IDEA-005, page types** — with IDEA-004 in place, the shared-code question has a real answer.
-10. **IDEA-001, a proper editor** — by now there are pages to justify it, and IDEA-008 needs it.
-11. **IDEA-008, drafting** — last of the ideas, because every one of the others makes it better.
-12. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
-13. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
+7. **ARCH-07, history** — undo for edits, once there is enough content to be worth versioning.
+8. **IDEA-005, page types** — with IDEA-004 in place, the shared-code question has a real answer.
+9. **IDEA-001, a proper editor** — by now there are pages to justify it, and IDEA-008 needs it.
+10. **IDEA-008, drafting** — last of the ideas, because every one of the others makes it better.
+11. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
+12. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
     and a rule, once there is something worth being woken for.
-14. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
+13. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 
 ## Closed
 
@@ -109,3 +106,4 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-14 | A redirect keeps the query string. `Redirects.To` encodes each part of a target with the type that understands it — appending a query to a path before `PathString` sees it turns the `?` into `%3F`, which is a 404 rather than a redirect with parameters — so a canonical redirect carries the request's query (`/Hello?q=a%20b` → `308 /hello?q=a%20b`) and a page's `Redirect` target keeps its query and fragment. The same helper serves the login form's `returnUrl`, which is why `/login?returnUrl=%2Fedit%2Fhello%3Ftab%3Dsource` returns to `/edit/hello?tab=source`. `Permanent` and `SeeOther` are the status, and nothing else. Covered in `RedirectsTests`, `MainEndpointTests`, `EditorEndpointTests`, `LoginEndpointTests` and `ShellTests` |
 | BUG-15 | A page key can contain a URL delimiter. Routing decodes `%3F` and `%23` into `Request.Path`, so `/hello%3Fworld` normalised to the key `/hello?world` and a page stored there was served. `PagePath.IsAddressable` is false for a key containing `?` or `#`, and both the page and the editor answer `404` before the canonical redirect and before storage, so an impossible key is neither served nor saved. Deliberately not normalised to a placeholder character: that would alias `/hello?world`, `/hello#world` and `/hello_world` onto one page and hide the broken link. Covered in `PagePathTests`, `MainEndpointTests`, `EditorEndpointTests` and `ShellTests` |
 | BUG-07 | `SavePageAsync` is a single `INSERT … ON CONFLICT("Path") DO UPDATE`, so two saves for the same new key update one row instead of the second failing the primary key; the winner writes content and compile result together. `ConcurrentSavesForTheSameNewPathLeaveOneRowAsync` races eight writers to prove it |
+| BUG-08 | The page reference set is built from `TRUSTED_PLATFORM_ASSEMBLIES` when `TemplateCompiler` is constructed, and `Program` constructs it before the host listens, so a missing or empty value stops startup with a message naming the AppContext key instead of compiling every page against nothing |

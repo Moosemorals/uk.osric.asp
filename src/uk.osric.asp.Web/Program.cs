@@ -112,6 +112,10 @@ internal class Program {
             }
         }
 
+        // The compiler's reference set comes from the runtime, so resolve it before the host listens:
+        // a runtime that cannot supply one must fail the deploy, not the first page that gets saved.
+        _ = app.Services.GetRequiredService<ITemplateCompiler>();
+
         // Before anything that reads the scheme. Without it every request arrives as plain HTTP from
         // the proxy, so HSTS emits nothing and IsHttps is always false.
         app.UseForwardedHeaders();

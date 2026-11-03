@@ -20,9 +20,15 @@ public sealed class TemplateCompiler : ITemplateCompiler {
     // image built under looser rules would otherwise keep being served without ever being rechecked.
     private const int PolicyVersion = 1;
 
-    // Built once per process: re-reading and re-creating the references was a large part of the cost
-    // of compiling a small page. The set itself is trimmed in CreateMetadataReferences.
-    private static readonly MetadataReference[] s_metadataReferences = CreateMetadataReferences();
+    private readonly MetadataReference[] _references;
+
+    /// <summary>Creates a compiler for this process's runtime.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// The runtime does not describe its platform assemblies, so no page could be compiled.
+    /// </exception>
+    public TemplateCompiler() {
+        _references = PageReferenceSet.ForRuntime();
+    }
 
     /// <summary>Identifies the build and the page policy that produced a compiled image.</summary>
     internal static string RuntimeId { get; } =
@@ -45,7 +51,7 @@ public sealed class TemplateCompiler : ITemplateCompiler {
         CSharpCompilation compilation = CSharpCompilation.Create(
             assemblyName: $"Dynamic_{Guid.NewGuid():N}",
             syntaxTrees: [tree],
-            references: s_metadataReferences,
+            references: _references,
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
         );
 
@@ -114,35 +120,5 @@ public sealed class TemplateCompiler : ITemplateCompiler {
         }
 
         return mapped;
-    }
-
-    private static MetadataReference[] CreateMetadataReferences() {
-        if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is not string trustedPlatformAssemblies) {
-            return [];
-        }
-
-        List<string> metadataPaths = [typeof(IHandler).Assembly.Location];
-
-        foreach (string path in trustedPlatformAssemblies.Split(Path.PathSeparator)) {
-            if (!IsReachableFromPages(Path.GetFileNameWithoutExtension(path))) {
-                continue;
-            }
-
-            metadataPaths.Add(path);
-        }
-
-        return [.. metadataPaths.Select(path => MetadataReference.CreateFromFile(path))];
-    }
-
-    // The reference set is the cheap half of the page policy: it turns "a page could call this" into
-    // CS0246 before any analysis runs, so the shell, the web stack and Roslyn cannot even be named.
-    // It cannot remove System.IO or System.Environment, which live in or forward from
-    // System.Private.CoreLib, and it cannot stop reflection by name - PageApiPolicy and the load
-    // context do that. A post-emit scan of the image's type references was considered and dropped: it
-    // could only catch what the semantic walk already reports, at the cost of false rejections for
-    // compiler-emitted helpers such as DefaultInterpolatedStringHandler.
-    private static bool IsReachableFromPages(string assemblyName) {
-        return !assemblyName.StartsWith("uk.osric.asp.", StringComparison.OrdinalIgnoreCase)
-            && !assemblyName.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase);
     }
 }

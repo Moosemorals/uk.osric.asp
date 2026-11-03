@@ -170,6 +170,11 @@ policy's job. A post-emit scan of the image's type references was considered and
 could only find what the semantic walk already reports, at the price of false rejections for
 compiler-emitted helpers.
 
+The set is built from the runtime's `TRUSTED_PLATFORM_ASSEMBLIES` when the compiler is constructed,
+and `Program` constructs it before the host listens. A runtime that does not describe its platform
+assemblies — a single-file or trimmed deployment — therefore fails the start with a message naming
+the value, instead of compiling every page against nothing.
+
 The policy is versioned, because it is applied when a page compiles. `RuntimeId` is
 `{FormatVersion}:{PolicyVersion}:{CoreMvid}`, so tightening the list invalidates every stored image
 and each page is rechecked on its next request.
