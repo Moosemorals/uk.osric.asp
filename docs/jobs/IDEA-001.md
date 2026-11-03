@@ -10,6 +10,7 @@ SPDX-License-Identifier: MIT
 | Size | Large |
 | Area | Web, developer experience |
 | Location | `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` |
+| Spike | [Ace evaluated as the editor](../spikes/ace-editor.md) |
 
 ## Idea
 
@@ -30,11 +31,14 @@ decision for a project that has otherwise avoided them, so it needs the justific
 2. Ours: keep the textarea, add a server-rendered line gutter and anchor each diagnostic to a line
    with a link; the whole thing stays HTML and the save path does not change. Cheap, and enough if
    the pages stay small.
-3. Third party: CodeMirror 6 is the smallest of the real options; Monaco is heavier than the editor
-   is worth. Either way the asset is vendored under `wwwroot` and served like `site.css`, with no
-   build step — which means a pinned version and a note on how to update it.
+3. Third party: [Ace](../spikes/ace-editor.md) is the option that needs no build step — it ships a
+   prebuilt bundle vendored under `wwwroot` and served like `site.css` — and it is the only one
+   that brings vim keybindings, at the cost of a small custom mode for `<% %>`. CodeMirror 6 is
+   smaller but needs a bundler, so it is out while the project has no npm; Monaco is heavier than
+   the editor is worth. Either way the asset is pinned and the spike records how to update it.
 4. There is no `Content-Security-Policy` today, so adding script at all is the moment to add one
-   (self plus the site's own nonce) rather than afterwards.
+   (self, and a nonce only for any inline script we add — the spike found Ace needs none) rather
+   than afterwards.
 5. Keep the save path exactly as it is: an antiforgery-checked `POST`, then `303` back to the
    editor with a flash message. The editor is a view; it must not grow a second way to save.
 6. Test the parts a browser test would otherwise have to: diagnostics mapped to lines, and a save
