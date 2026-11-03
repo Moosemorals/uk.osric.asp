@@ -41,7 +41,7 @@ public sealed class PageEndpointTests {
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/plain; charset=utf-8"));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo($"{expectedKey} not found."));
-        Assert.That(storage.LastReadPath?.Path, Is.EqualTo(expectedKey));
+        Assert.That(storage.LastReadPath?.Key, Is.EqualTo(expectedKey));
     }
 
     [TestCase("/Hello", "", "/hello")]
@@ -73,7 +73,7 @@ public sealed class PageEndpointTests {
     public async Task AKeyWithADelimiterIsNotFoundAsync(string path, string requestPath) {
         DefaultHttpContext context = TestHttp.CreateContext(path, "GET", requestPath);
         FakePageStore storage = new();
-        storage[PagePath.Normalize(path).Path] = new StoredPage(PagePath.Normalize(path), "should not be served");
+        storage[PagePath.Normalize(path).Key] = new StoredPage(PagePath.Normalize(path), "should not be served");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -93,7 +93,7 @@ public sealed class PageEndpointTests {
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
-        Assert.That(storage.LastReadPath?.Path, Is.EqualTo("/hello.cs"));
+        Assert.That(storage.LastReadPath?.Key, Is.EqualTo("/hello.cs"));
     }
 
     [Test]
@@ -108,7 +108,7 @@ public sealed class PageEndpointTests {
             PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options));
 
         Assert.That(failure?.Message, Is.EqualTo("Template executed."));
-        Assert.That(storage.LastReadPath?.Path, Is.EqualTo("/pages/hello.cs"));
+        Assert.That(storage.LastReadPath?.Key, Is.EqualTo("/pages/hello.cs"));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
     }
 
@@ -346,6 +346,6 @@ public sealed class PageEndpointTests {
     }
 
     private static DefaultHttpContext CreateContext(string? path) {
-        return TestHttp.CreateContext(path, "GET", PagePath.Normalize(path).Path);
+        return TestHttp.CreateContext(path, "GET", PagePath.Normalize(path).Key);
     }
 }

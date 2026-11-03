@@ -46,7 +46,7 @@ public sealed class EditorEndpointTests {
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
         Assert.That(body, Does.Contain($"<textarea name=\"content\" rows=\"10\" cols=\"50\">{WebUtility.HtmlEncode(source)}</textarea>"));
-        Assert.That(storage.LastReadPath?.Path, Is.EqualTo("/page.cs"));
+        Assert.That(storage.LastReadPath?.Key, Is.EqualTo("/page.cs"));
         Assert.That(storage.WriteCount, Is.Zero);
     }
 
@@ -83,7 +83,7 @@ public sealed class EditorEndpointTests {
         await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
-        Assert.That(storage.LastReadPath?.Path, Is.EqualTo("/"));
+        Assert.That(storage.LastReadPath?.Key, Is.EqualTo("/"));
     }
 
     [Test]
@@ -154,7 +154,7 @@ public sealed class EditorEndpointTests {
         await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(storage.WriteCount, Is.EqualTo(1));
-        Assert.That(storage.LastWritePath?.Path, Is.EqualTo("/page.cs"));
+        Assert.That(storage.LastWritePath?.Key, Is.EqualTo("/page.cs"));
         Assert.That(storage["/page.cs"]?.Content, Is.EqualTo(source));
         Assert.That(storage["/page.cs"]?.Compilation, Is.Not.Null);
         Assert.That(storage.ReadCount, Is.Zero);
@@ -233,7 +233,7 @@ public sealed class EditorEndpointTests {
 
         await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
-        Assert.That(storage.LastWritePath?.Path, Is.EqualTo("/"));
+        Assert.That(storage.LastWritePath?.Key, Is.EqualTo("/"));
         Assert.That(storage["/"]?.Content, Is.EqualTo("replacement"));
         AssertRedirect(context, "Saved successfully.");
     }
@@ -276,7 +276,7 @@ public sealed class EditorEndpointTests {
 
         await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
-        Assert.That(storage.LastWritePath?.Path, Is.EqualTo("/hello"));
+        Assert.That(storage.LastWritePath?.Key, Is.EqualTo("/hello"));
         Assert.That(storage["/hello"]?.Content, Is.EqualTo("source"));
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/hello"));
@@ -393,7 +393,7 @@ public sealed class EditorEndpointTests {
     }
 
     private static DefaultHttpContext CreateContext(string method = "GET", string? path = "page.cs") {
-        return TestHttp.CreateContext(path, method, "/edit" + PagePath.Normalize(path).Path);
+        return TestHttp.CreateContext(path, method, "/edit" + PagePath.Normalize(path).Key);
     }
 
     private static void SetContent(DefaultHttpContext context, StringValues content) {

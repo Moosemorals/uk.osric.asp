@@ -88,7 +88,7 @@ Small, independent, and the only phase that changes behaviour users can already 
 - New `src/uk.osric.asp.Web/Pages/ReservedPaths.cs`: a small class over `IReadOnlyList<string>`
   with `static Default` (the same three), constructed from configuration and used when the section
   is absent or empty. `PagePath` stays pure —
-  [its own remarks](../../src/uk.osric.asp.Core/PagePath.cs) already say the routing layer owns this
+  [its own remarks](../../src/uk.osric.asp.Core/Pages/PagePath.cs) already say the routing layer owns this
   rule, and the shell owns the routes.
 - Matching is **prefix**, not exact: `/edit/{**path}` shadows everything under `/edit`, so a page
   called `/edit/anything` is equally unreachable. Document that in the type.

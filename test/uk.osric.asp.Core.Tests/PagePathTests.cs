@@ -35,7 +35,7 @@ public class PagePathTests {
 
         PagePath actual = PagePath.Normalize(input);
 
-        Assert.That(actual.Path, Is.EqualTo(expected));
+        Assert.That(actual.Key, Is.EqualTo(expected));
     }
 
     [TestCase("/Hello/")]
@@ -45,8 +45,8 @@ public class PagePathTests {
     [TestCase("/cafe\u0301")]
     public void NormalizingACanonicalKeyChangesNothing(string input) {
 
-        string once = PagePath.Normalize(input).Path;
-        string twice = PagePath.Normalize(once).Path;
+        string once = PagePath.Normalize(input).Key;
+        string twice = PagePath.Normalize(once).Key;
 
         Assert.That(twice, Is.EqualTo(once));
     }
@@ -59,7 +59,7 @@ public class PagePathTests {
         // addressable, which is the shell's cue to answer 404 rather than serve a mangled name.
         PagePath actual = PagePath.Normalize("/hello?from=rss");
 
-        Assert.That(actual.Path, Is.EqualTo("/hello?from=rss"));
+        Assert.That(actual.Key, Is.EqualTo("/hello?from=rss"));
         Assert.That(actual.IsAddressable, Is.False);
     }
 
@@ -97,6 +97,6 @@ public class PagePathTests {
     [SetCulture("tr-TR")]
     public void LowercasingIsCultureIndependent() {
 
-        Assert.That(PagePath.Normalize("/I").Path, Is.EqualTo("/i"));
+        Assert.That(PagePath.Normalize("/I").Key, Is.EqualTo("/i"));
     }
 }

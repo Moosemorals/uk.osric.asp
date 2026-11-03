@@ -34,8 +34,8 @@ internal sealed class FakePageStore : IPageStore {
     public CancellationToken LastCancellationToken { get; private set; }
 
     public StoredPage? this[string path] {
-        get => _pages.GetValueOrDefault(PagePath.Normalize(path).Path);
-        set => _pages[PagePath.Normalize(path).Path] = value ?? throw new ArgumentNullException(nameof(value));
+        get => _pages.GetValueOrDefault(PagePath.Normalize(path).Key);
+        set => _pages[PagePath.Normalize(path).Key] = value ?? throw new ArgumentNullException(nameof(value));
     }
 
     public async Task<StoredPage?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
@@ -48,7 +48,7 @@ internal sealed class FakePageStore : IPageStore {
             await Task.Delay(ReadDelay, cancellationToken);
         }
 
-        return _pages.GetValueOrDefault(path.Path);
+        return _pages.GetValueOrDefault(path.Key);
     }
 
     public Task SavePageAsync(StoredPage page, CancellationToken cancellationToken = default) {
@@ -57,7 +57,7 @@ internal sealed class FakePageStore : IPageStore {
 
         WriteCount++;
         LastWritePath = page.Path;
-        _pages[page.Path.Path] = page;
+        _pages[page.Path.Key] = page;
 
         return Task.CompletedTask;
     }
@@ -71,16 +71,16 @@ internal sealed class FakePageStore : IPageStore {
 
         if (ReplaceOnCompilationWrite?.Invoke(path, expectedContent) is { } replacement) {
             ReplaceOnCompilationWrite = null;
-            _pages[path.Path] = replacement;
+            _pages[path.Key] = replacement;
             return Task.FromResult(false);
         }
 
-        if (_pages.GetValueOrDefault(path.Path) is not { } existing
+        if (_pages.GetValueOrDefault(path.Key) is not { } existing
             || !string.Equals(existing.Content, expectedContent, StringComparison.Ordinal)) {
             return Task.FromResult(false);
         }
 
-        _pages[path.Path] = existing with { Compilation = compilation };
+        _pages[path.Key] = existing with { Compilation = compilation };
         return Task.FromResult(true);
     }
 

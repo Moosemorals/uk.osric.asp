@@ -112,7 +112,7 @@ internal sealed class PageMetrics : IDisposable {
 
     public void RecordRender(PagePath path, string outcome, string cache, TimeSpan duration) {
         TagList tags = new() {
-            { "page.path", string.Equals(outcome, RenderNotFound, StringComparison.Ordinal) ? NotFoundPath : path.Path },
+            { "page.path", string.Equals(outcome, RenderNotFound, StringComparison.Ordinal) ? NotFoundPath : path.Key },
             { "outcome", outcome },
             { "cache", cache },
         };
@@ -134,14 +134,14 @@ internal sealed class PageMetrics : IDisposable {
     /// <summary>Records a render that was given up on; the thread it was using is lost.</summary>
     /// <param name="path">The page that outran its budget.</param>
     public void RecordAbandoned(PagePath path) {
-        TagList tags = new() { { "page.path", path.Path } };
+        TagList tags = new() { { "page.path", path.Key } };
 
         _renderAbandoned.Add(1, tags);
     }
 
     public void RecordCompile(PagePath path, bool success, string reason, TimeSpan duration) {
         TagList tags = new() {
-            { "page.path", path.Path },
+            { "page.path", path.Key },
             { "outcome", success ? RenderOk : RenderCompileError },
             { "reason", reason },
         };
@@ -150,14 +150,14 @@ internal sealed class PageMetrics : IDisposable {
     }
 
     public void RecordLoad(PagePath path, TimeSpan duration) {
-        TagList tags = new() { { "page.path", path.Path } };
+        TagList tags = new() { { "page.path", path.Key } };
 
         _loadDuration.Record(duration.TotalSeconds, tags);
     }
 
     public void RecordInvoke(PagePath path, bool success, TimeSpan duration) {
         TagList tags = new() {
-            { "page.path", path.Path },
+            { "page.path", path.Key },
             { "outcome", success ? RenderOk : RenderError },
         };
 
@@ -166,7 +166,7 @@ internal sealed class PageMetrics : IDisposable {
 
     public void RecordSave(PagePath path, bool success, TimeSpan duration) {
         TagList tags = new() {
-            { "page.path", path.Path },
+            { "page.path", path.Key },
             { "outcome", success ? RenderOk : RenderCompileError },
         };
 
@@ -181,7 +181,7 @@ internal sealed class PageMetrics : IDisposable {
 
     public void RecordStaleness(PagePath path, string reason) {
         TagList tags = new() {
-            { "page.path", path.Path },
+            { "page.path", path.Key },
             { "reason", reason },
         };
 
@@ -189,7 +189,7 @@ internal sealed class PageMetrics : IDisposable {
     }
 
     public void RecordImageSize(PagePath path, int bytes) {
-        TagList tags = new() { { "page.path", path.Path } };
+        TagList tags = new() { { "page.path", path.Key } };
 
         _imageSize.Record(bytes, tags);
     }

@@ -183,7 +183,7 @@ public sealed class PageMetricsTests {
 
     private static async Task RenderAsync(PageService pages, string path) {
         PagePath key = Key(path);
-        SimpleContext context = new(NullLoggerFactory.Instance, TestHttp.Request(key.Path), CancellationToken.None, new StringWriter());
+        SimpleContext context = new(NullLoggerFactory.Instance, TestHttp.Request(key.Key), CancellationToken.None, new StringWriter());
 
         await pages.RenderAsync(key, context, CancellationToken.None);
     }

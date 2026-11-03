@@ -466,7 +466,7 @@ public sealed class PageServiceTests {
         PagePath key = Key(path);
         SimpleContext context = new(
             NullLoggerFactory.Instance,
-            TestHttp.Request(key.Path),
+            TestHttp.Request(key.Key),
             CancellationToken.None,
             new StringWriter(),
             maxBodyChars);

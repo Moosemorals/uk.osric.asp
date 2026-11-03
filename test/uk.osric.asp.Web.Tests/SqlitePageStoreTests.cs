@@ -194,7 +194,7 @@ public sealed class SqlitePageStoreTests {
     public async Task LegacyStringDiagnosticsAreReadAsErrorsWithoutAnImageAsync() {
         await using (StorageDbContext writer = new(_options)) {
             writer.Add(new StoredFile {
-                Path = Key("/legacy").Path,
+                Path = Key("/legacy").Key,
                 Content = "broken",
                 RuntimeId = "1:build",
                 ContentHash = "hash",
@@ -216,7 +216,7 @@ public sealed class SqlitePageStoreTests {
     public async Task LegacyStringDiagnosticsAreReadAsWarningsWithAnImageAsync() {
         await using (StorageDbContext writer = new(_options)) {
             writer.Add(new StoredFile {
-                Path = Key("/legacy-warning").Path,
+                Path = Key("/legacy-warning").Key,
                 Content = "warning",
                 RuntimeId = "1:build",
                 ContentHash = "hash",

@@ -24,7 +24,7 @@ internal sealed class EditorEndpoint {
         }
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
-        string editorUrl = "/edit" + path.Path;
+        string editorUrl = "/edit" + path.Key;
 
         // Saving under a key that is not a path would store a page no URL can reach, so the editor
         // refuses the same way the page route does.
@@ -60,7 +60,7 @@ internal sealed class EditorEndpoint {
         context.Response.Headers.CacheControl = "no-store";
 
         await context.Response.WriteAsync(PageLayout.Header("Editor"));
-        await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path.Path)}</h1>");
+        await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path.Key)}</h1>");
 
         if (!string.IsNullOrEmpty(message)) {
             await context.Response.WriteAsync($"<p>{WebUtility.HtmlEncode(message)}</p>");
@@ -73,7 +73,7 @@ internal sealed class EditorEndpoint {
         }
 
         await context.Response.WriteAsync($"""
-            <p><a href="{WebUtility.HtmlEncode(path.Path)}">Back to file</a></p>
+            <p><a href="{WebUtility.HtmlEncode(path.Key)}">Back to file</a></p>
             <form method="post" action="?">
                 <input type="hidden" name="{WebUtility.HtmlEncode(tokens.FormFieldName)}" value="{WebUtility.HtmlEncode(tokens.RequestToken)}">
                 <textarea name="content" rows="10" cols="50">{WebUtility.HtmlEncode(page?.Content ?? "")}</textarea>
@@ -93,7 +93,7 @@ internal sealed class EditorEndpoint {
     // the edit to report the error would be the worse failure.
     private static async Task<string> SaveAsync(HttpContext context, PageService pages, ReservedPaths reserved, PagePath path) {
         if (reserved.IsReserved(path)) {
-            return $"{path.Path} is reserved by the site.";
+            return $"{path.Key} is reserved by the site.";
         }
 
         if (!context.Request.Form.TryGetValue("content", out StringValues content)) {

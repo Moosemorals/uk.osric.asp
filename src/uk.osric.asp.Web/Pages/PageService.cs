@@ -56,7 +56,7 @@ internal sealed class PageService(
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
         metrics.RecordSave(path, compilation.Image is not null, duration);
-        logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Path, duration.TotalMilliseconds,
+        logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
             Outcome(compilation));
 
         return compilation.Diagnostics;
@@ -91,7 +91,7 @@ internal sealed class PageService(
                 outcome = PageMetrics.RenderTimeout;
                 metrics.RecordWait(Stopwatch.GetElapsedTime(queueStart));
                 logger.LogWarning("Page {Path} waited {ElapsedMs:0} ms for a render slot and was dropped",
-                    path.Path, Stopwatch.GetElapsedTime(queueStart).TotalMilliseconds);
+                    path.Key, Stopwatch.GetElapsedTime(queueStart).TotalMilliseconds);
 
                 return RenderResult.TimedOut;
             }
@@ -107,7 +107,7 @@ internal sealed class PageService(
                     // give up on: the answer is the same 504 all the same.
                     outcome = PageMetrics.RenderTimeout;
                     logger.LogWarning("Page {Path} spent its {TimeoutSeconds} s budget before it ran and was dropped",
-                        path.Path, budget.RenderOptions.TimeoutSeconds);
+                        path.Key, budget.RenderOptions.TimeoutSeconds);
 
                     return RenderResult.TimedOut;
                 }
@@ -169,7 +169,7 @@ internal sealed class PageService(
                 return fallback;
             }
 
-            logger.LogDebug("Discarded a compile of {Path} because the page changed while it compiled", path.Path);
+            logger.LogDebug("Discarded a compile of {Path} because the page changed while it compiled", path.Key);
         }
 
         // The page kept changing; serving the last compile is better than failing the request.
@@ -247,8 +247,8 @@ internal sealed class PageService(
                                 $"PAGE004: the page took longer than {budget.CompileOptions.TimeoutSeconds} s to compile."),
                         ]);
                     } catch (InvalidOperationException ex) {
-                        logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Path, Environment.NewLine, source);
-                        logger.LogError(ex, "The generated source for {Path} did not compile; this is a compiler fault", path.Path);
+                        logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, source);
+                        logger.LogError(ex, "The generated source for {Path} did not compile; this is a compiler fault", path.Key);
                         metrics.RecordCompile(path, false, reason, Stopwatch.GetElapsedTime(start));
                         throw;
                     }
@@ -257,7 +257,7 @@ internal sealed class PageService(
                 }
 
                 if (!result.Success) {
-                    logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Path, Environment.NewLine, source);
+                    logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, source);
                 }
             }
         } else {
@@ -270,7 +270,7 @@ internal sealed class PageService(
             metrics.RecordImageSize(path, image.Length);
         }
 
-        logger.LogDebug("Compiled {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Path, duration.TotalMilliseconds,
+        logger.LogDebug("Compiled {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
             result.Success ? "ok" : "error");
 
         return new PageCompilation(ContentFingerprint.Of(content), compiler.RuntimeId, result.Image, result.Diagnostics);
@@ -348,10 +348,10 @@ internal sealed class PageService(
 
         if (disconnected) {
             logger.LogWarning("Page {Path} was abandoned after {ElapsedMs:0} ms because the client went away",
-                path.Path, elapsed.TotalMilliseconds);
+                path.Key, elapsed.TotalMilliseconds);
         } else {
             logger.LogWarning("Page {Path} exceeded its {TimeoutSeconds} s budget after {ElapsedMs:0} ms; the render was abandoned",
-                path.Path, budget.RenderOptions.TimeoutSeconds, elapsed.TotalMilliseconds);
+                path.Key, budget.RenderOptions.TimeoutSeconds, elapsed.TotalMilliseconds);
         }
 
         // The template is released when the page finally stops, not now: unloading the assembly under
@@ -362,7 +362,7 @@ internal sealed class PageService(
             health.Release();
 
             if (finished.Exception is { } failure) {
-                logger.LogError(failure.GetBaseException(), "Abandoned page {Path} faulted after it was given up on", path.Path);
+                logger.LogError(failure.GetBaseException(), "Abandoned page {Path} faulted after it was given up on", path.Key);
             }
         }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }

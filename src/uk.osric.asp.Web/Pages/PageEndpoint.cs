@@ -31,10 +31,10 @@ internal sealed class PageEndpoint() {
             return;
         }
 
-        if (!string.Equals(context.Request.Path.Value, path.Path, StringComparison.Ordinal)) {
+        if (!string.Equals(context.Request.Path.Value, path.Key, StringComparison.Ordinal)) {
             // The query is carried across, because the page is handed it and dropping it would change
             // what the page sees for a URL that is merely written with the wrong case.
-            Redirects.Permanent(context, path.Path + context.Request.QueryString.ToUriComponent());
+            Redirects.Permanent(context, path.Key + context.Request.QueryString.ToUriComponent());
             return;
         }
 

@@ -18,7 +18,7 @@ internal sealed class SqlitePageStore(StorageDbContext database) : IPageStore {
 
     public async Task<StoredPage?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
         StoredFile? file = await database.Set<StoredFile>().AsNoTracking()
-            .SingleOrDefaultAsync(file => file.Path == path.Path, cancellationToken);
+            .SingleOrDefaultAsync(file => file.Path == path.Key, cancellationToken);
 
         return file is null ? null : ToPage(file);
     }
@@ -35,7 +35,7 @@ internal sealed class SqlitePageStore(StorageDbContext database) : IPageStore {
         // belongs to the content beside it.
         await database.Database.ExecuteSqlAsync($"""
             INSERT INTO "Files" ("Path", "Content", "ContentHash", "RuntimeId", "Image", "Diagnostics")
-            VALUES ({page.Path.Path}, {page.Content}, {compilation?.ContentHash}, {compilation?.RuntimeId}, {compilation?.Image}, {diagnostics})
+            VALUES ({page.Path.Key}, {page.Content}, {compilation?.ContentHash}, {compilation?.RuntimeId}, {compilation?.Image}, {diagnostics})
             ON CONFLICT ("Path") DO UPDATE SET
                 "Content" = excluded."Content",
                 "ContentHash" = excluded."ContentHash",
@@ -51,7 +51,7 @@ internal sealed class SqlitePageStore(StorageDbContext database) : IPageStore {
         // The content predicate is the point: a page saved while its previous version was compiling
         // must keep the newer source instead of being overwritten by a result for the older one.
         int updated = await database.Set<StoredFile>()
-            .Where(file => file.Path == path.Path && file.Content == expectedContent)
+            .Where(file => file.Path == path.Key && file.Content == expectedContent)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(file => file.ContentHash, compilation.ContentHash)
                 .SetProperty(file => file.RuntimeId, compilation.RuntimeId)

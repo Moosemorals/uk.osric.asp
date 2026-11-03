@@ -32,7 +32,7 @@ internal sealed class ReservedPaths {
 
         foreach (string path in paths ?? []) {
             if (!string.IsNullOrWhiteSpace(path)) {
-                prefixes.Add(PagePath.Normalize(path).Path);
+                prefixes.Add(PagePath.Normalize(path).Key);
             }
         }
 
@@ -45,8 +45,8 @@ internal sealed class ReservedPaths {
         ArgumentNullException.ThrowIfNull(path);
 
         foreach (string prefix in _prefixes) {
-            if (string.Equals(path.Path, prefix, StringComparison.Ordinal)
-                || path.Path.StartsWith(prefix + "/", StringComparison.Ordinal)) {
+            if (string.Equals(path.Key, prefix, StringComparison.Ordinal)
+                || path.Key.StartsWith(prefix + "/", StringComparison.Ordinal)) {
                 return true;
             }
         }

@@ -41,7 +41,7 @@ public sealed record PagePath {
 
     /// <summary>The canonical key: absolute, lowercase, and never ending with <c>/</c> unless it is
     /// the root.</summary>
-    public string Path => _path;
+    public string Key => _path;
 
     /// <summary>Whether the key can name a page a request may be served from.</summary>
     /// <remarks>
@@ -83,5 +83,5 @@ public sealed record PagePath {
         return new PagePath('/' + string.Join('/', normalized));
     }
 
-    public override string ToString() => Path;
+    public override string ToString() => Key;
 }
