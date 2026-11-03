@@ -6,7 +6,7 @@ namespace uk.osric.asp.Runtime;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Runtime.Loader;
-using uk.osric.asp.Core;
+using uk.osric.asp.Sdk;
 
 /// <summary>A compiled page, loaded into its own collectible assembly load context.</summary>
 /// <remarks>

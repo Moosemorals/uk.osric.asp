@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Core;
+namespace uk.osric.asp.Sdk;
 
 /// <summary>What a page asked the response to be.</summary>
 /// <remarks>

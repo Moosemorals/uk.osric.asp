@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text;
 using uk.osric.asp.Core;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Sdk;
 
 [TestFixture]
 public sealed class PageCompilerTests {
@@ -180,13 +181,17 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void RuntimeIdStartsWithTheFormatAndPolicyVersions() {
-        Assert.That(PageCompiler.RuntimeId, Does.StartWith("2:1:"));
+        Assert.That(PageCompiler.RuntimeId, Does.StartWith("3:1:"));
     }
 
     [Test]
-    public void RuntimeIdContainsTheCoreModuleVersionId() {
-        Assert.That(PageCompiler.RuntimeId,
-            Does.EndWith(typeof(IHandler).Assembly.ManifestModule.ModuleVersionId.ToString("N")));
+    public void RuntimeIdContainsTheSdkAndCoreModuleVersionIds() {
+        string runtimeId = PageCompiler.RuntimeId;
+
+        Assert.That(runtimeId,
+            Does.Contain(typeof(IHandler).Assembly.ManifestModule.ModuleVersionId.ToString("N")));
+        Assert.That(runtimeId,
+            Does.Contain(typeof(PageDiagnostic).Assembly.ManifestModule.ModuleVersionId.ToString("N")));
     }
 
     private static PageCompileResult Compile(string template) {

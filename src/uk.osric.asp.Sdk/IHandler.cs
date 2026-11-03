@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Core;
+namespace uk.osric.asp.Sdk;
 
 /// <summary>The entry point of a compiled page.</summary>
 public interface IHandler {

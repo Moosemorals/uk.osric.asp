@@ -13,22 +13,25 @@ core stays pure and the shell stays thin.
 | Project | Tool | Scope | Speed |
 | --- | --- | --- | --- |
 | `test/uk.osric.asp.Core.Tests` | NUnit | Individual rules in the functional core | Milliseconds |
-| `test/uk.osric.asp.Runtime.Tests` | NUnit | The template compiler: emit, load and run | Milliseconds to seconds |
+| `test/uk.osric.asp.Runtime.Tests` | NUnit | The page compiler: emit, load and run | Milliseconds to seconds |
 | `test/uk.osric.asp.Web.Tests` | NUnit | The endpoints and storage of the web shell | Milliseconds to seconds |
 | `test/uk.osric.asp.Web.IntegrationTests` | NUnit + `WebApplicationFactory` | The composed pipeline: routing, middleware, error handling, startup | Seconds |
 
-- **Core tests** cover one rule at a time and exercise `Core` directly.
+- **Core tests** cover one rule at a time and exercise `Core` directly. `Sdk` has no suite of its
+own: it is five declarations with documentation and no behaviour, and what depends on it is asserted
+by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScopeTests`,
+`PageLoadContextTests`, `PageReferenceSetTests`).
 - **Runtime tests** cover what the core cannot: Roslyn emitting a handler, loading the assembly and
   invoking it. They also cover the page API policy — one test per banned construct, plus a page of
   ordinary code that must still compile — the reference set the compiler is built on, and the load
-  context, which is reachable from the tests through `InternalsVisibleTo`. They reference `Runtime`,
-  never `Web`.
+  context, which is reachable from the tests through `InternalsVisibleTo`. They reference `Runtime`
+  and `Sdk`, never `Web`.
 - **Web tests** cover the shell: endpoints driven through a hand-built `HttpContext` with an
-  in-memory `IStorage`, a `TestSession`, a `TestAntiforgery` and the real compiler, and storage
+  in-memory `IPageStore`, a `TestSession`, a `TestAntiforgery` and the real compiler, and storage
   against a real SQLite database file. The page-cache tests swap in a counting compiler wrapped
   around the real one, so "a second request does not compile" is asserted rather than inferred.
-  `PageScopeTests` lives here because it names the shell's own types to prove the trimmed reference
-  set cannot resolve them.
+  `PageScopeTests` lives here because it names the shell's own types — and `Core`'s — to prove the
+  trimmed reference set cannot resolve them.
 - **The execution budget** is tested in `Web.Tests` (`PageServiceTests` for the deadline, the render
   and compile queues, the abandoned context and the body cap; `AbandonedRenderHealthCheckTests` for
   the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the
@@ -57,8 +60,8 @@ core stays pure and the shell stays thin.
   real one so a test can count compilations.
 
 Each project references only the layers it exercises, so the reference graph stops a test from
-reaching past its subject: `Core.Tests` has no ASP.NET or Roslyn to call, `Runtime.Tests` has no
-endpoints, and the web suites use `Runtime` only through `IPageCompiler` and the
+reaching past its subject: `Core.Tests` has no ASP.NET, Roslyn or `Sdk` to call, `Runtime.Tests`
+has no endpoints, and the web suites use `Runtime` only through `IPageCompiler` and the
 `PageCompiler` that implements it. `Web.Tests` and `Web.IntegrationTests` split on what is under
 test rather than what is referenced: one proves a handler in isolation, the other proves the wiring
 between handlers.

@@ -10,6 +10,11 @@ public static class TemplateSourceGenerator {
 
     private const string TemplateName = "page";
 
+    // The page contract's namespace, as text: Core references nothing, so it cannot name the SDK at
+    // compile time. PageApiPolicy holds the other copy of this value; PageScopeTests fails if the two
+    // drift apart.
+    private const string SdkNamespace = "uk.osric.asp.Sdk";
+
     /// <summary>Generates the handler source for a page template.</summary>
     /// <param name="template">The page template.</param>
     /// <returns>
@@ -27,8 +32,8 @@ public static class TemplateSourceGenerator {
 
         StringBuilder result = new();
 
-        result.Append("""
-            using uk.osric.asp.Core;
+        result.Append($$"""
+            using {{SdkNamespace}};
             public class GeneratedPage : IHandler {
             public void Handle(IContext ctx) {
         """);

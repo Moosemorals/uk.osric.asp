@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web;
 
 using System.Net;
-using uk.osric.asp.Core;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>The only <see cref="IContext"/> a page ever runs against.</summary>

@@ -5,14 +5,15 @@ namespace uk.osric.asp.Runtime.Tests;
 
 using NUnit.Framework;
 using System.Reflection;
-using uk.osric.asp.Core;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Sdk;
 
 [TestFixture]
 public sealed class PageLoadContextTests {
 
     [TestCase("uk.osric.asp.Web")]
     [TestCase("uk.osric.asp.Web.Endpoints")]
+    [TestCase("uk.osric.asp.Core")]
     [TestCase("uk.osric.asp.Runtime")]
     [TestCase("Microsoft.AspNetCore.Http")]
     [TestCase("Microsoft.EntityFrameworkCore")]

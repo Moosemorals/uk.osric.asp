@@ -4,8 +4,8 @@
 namespace uk.osric.asp.Runtime.Tests;
 
 using NUnit.Framework;
-using uk.osric.asp.Core;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Sdk;
 
 [TestFixture]
 public sealed class PageReferenceSetTests {
@@ -24,6 +24,16 @@ public sealed class PageReferenceSetTests {
         Assert.That(displays, Has.Some.Matches<string?>(
             display => display is not null && display.EndsWith("System.Private.CoreLib.dll", StringComparison.Ordinal)));
         Assert.That(displays, Has.Some.EqualTo(typeof(IHandler).Assembly.Location));
+    }
+
+    [Test]
+    public void TheSdkIsTheOnlyProductAssemblyReferenced() {
+        string?[] displays = [.. PageReferenceSet.ForPages().Select(reference => reference.Display)];
+
+        Assert.That(displays, Has.Some.EqualTo(typeof(IHandler).Assembly.Location));
+        Assert.That(displays, Has.None.Matches<string?>(
+            display => display is not null
+                && display.EndsWith("uk.osric.asp.Core.dll", StringComparison.Ordinal)));
     }
 
     [Test]

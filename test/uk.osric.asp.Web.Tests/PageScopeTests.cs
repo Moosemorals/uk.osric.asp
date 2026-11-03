@@ -20,6 +20,7 @@ public sealed class PageScopeTests {
     [TestCase("<% uk.osric.asp.Web.SimpleContext context = null; %>")]
     [TestCase("<% _ = new uk.osric.asp.Web.Program(); %>")]
     [TestCase("<% uk.osric.asp.Runtime.PageCompiler compiler = null; %>")]
+    [TestCase("<% uk.osric.asp.Core.PagePath path = null; %>")]
     public void ShellTypesAreNotReferenced(string template) {
         PageCompileResult result = Compiler.Compile(Generate(template));
 

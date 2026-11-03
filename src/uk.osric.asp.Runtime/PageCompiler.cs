@@ -7,14 +7,15 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using uk.osric.asp.Core;
+using uk.osric.asp.Sdk;
 
 /// <summary>Compiles generated page source into page images and loads them for execution.</summary>
 public sealed class PageCompiler : IPageCompiler {
 
-    // Bump this when a change outside Core invalidates stored images: the compiler options, the
-    // reference set, or how a compiled handler is invoked. Core's module version id covers everything
-    // in the generated source's contract: IContext, IHandler and the source generator.
-    private const string FormatVersion = "2";
+    // Bump this when a change outside the SDK and Core invalidates stored images: the compiler
+    // options, the reference set, or how a compiled handler is invoked. The SDK's module version id
+    // covers the page contract; Core's covers the generated source and its diagnostics.
+    private const string FormatVersion = "3";
 
     // Bump this whenever PageApiPolicy tightens. The policy is applied when a page compiles, so an
     // image built under looser rules would otherwise keep being served without ever being rechecked.
@@ -31,8 +32,15 @@ public sealed class PageCompiler : IPageCompiler {
     }
 
     /// <summary>Identifies the build and the page policy that produced a compiled image.</summary>
+    /// <remarks>
+    /// Both module version ids are in the value. The SDK's covers what a page binds against; Core's
+    /// covers the generator, so a change that alters the generated source invalidates an image even
+    /// when the contract is unchanged.
+    /// </remarks>
     internal static string RuntimeId { get; } =
-        $"{FormatVersion}:{PolicyVersion}:{typeof(IHandler).Assembly.ManifestModule.ModuleVersionId:N}";
+        $"{FormatVersion}:{PolicyVersion}"
+        + $":{typeof(IHandler).Assembly.ManifestModule.ModuleVersionId:N}"
+        + $":{typeof(PageDiagnostic).Assembly.ManifestModule.ModuleVersionId:N}";
 
     string IPageCompiler.RuntimeId => RuntimeId;
 

@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
-using uk.osric.asp.Core;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Endpoints;
 
 [TestFixture]

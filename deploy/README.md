@@ -193,10 +193,10 @@ deployment depends on it.
 
 Each page row carries the assembly emitted when it was last saved, so the database grows by roughly
 the size of each page's assembly (tens of kilobytes per page) on top of its source. A release that
-changes `uk.osric.asp.Core` changes the runtime id stored beside every image, so each page is
-compiled again on its next request: the first visit after such a deploy is slower, once, and the
-row is rewritten in place. There is no startup warm-up, so a page nobody visits is not recompiled
-until someone asks for it.
+changes `uk.osric.asp.Sdk` or `uk.osric.asp.Core` changes the runtime id stored beside every image,
+so each page is compiled again on its next request: the first visit after such a deploy is slower,
+once, and the row is rewritten in place. There is no startup warm-up, so a page nobody visits is
+not recompiled until someone asks for it.
 
 The rootless named volume `uk.osric.asp-storage` is mounted read-write at `/data`. Podman creates it
 on first use and reuses it when the container or image is replaced. It belongs to the `deploy` user's

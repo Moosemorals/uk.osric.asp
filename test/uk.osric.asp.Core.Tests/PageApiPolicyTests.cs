@@ -9,7 +9,7 @@ using uk.osric.asp.Core;
 [TestFixture]
 public sealed class PageApiPolicyTests {
 
-    [TestCase("uk.osric.asp.Core", "IContext", "Write", true)]
+    [TestCase("uk.osric.asp.Sdk", "IContext", "Write", true)]
     [TestCase("System", "String", "Concat", true)]
     [TestCase("System.Text", "StringBuilder", "Append", true)]
     [TestCase("System.Collections.Generic", "List", "Add", true)]
@@ -24,6 +24,7 @@ public sealed class PageApiPolicyTests {
     [TestCase("System.Threading", "Thread", "Sleep", false)]
     [TestCase("Microsoft.AspNetCore.Http", "HttpContext", "", false)]
     [TestCase("uk.osric.asp.Web", "SimpleContext", "", false)]
+    [TestCase("uk.osric.asp.Core", "PagePath", "", false)]
     [TestCase("uk.osric.asp.Runtime", "PageCompiler", "", false)]
     public void ReferenceIsAllowedAsExpected(string ns, string type, string member, bool allowed) {
         ApiReference reference = new(ns, type, member, new TemplatePosition(3, 1));

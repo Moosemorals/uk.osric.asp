@@ -1,0 +1,13 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+SPDX-License-Identifier: MIT
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The page contract: the only assembly a compiled page binds against, and the only one the page
+    policy lets it name. Reference-free on purpose, so nothing it exposes can drag the host in.
+  -->
+
+</Project>

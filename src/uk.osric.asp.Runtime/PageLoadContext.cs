@@ -16,9 +16,13 @@ using System.Runtime.Loader;
 /// <c>uk.osric.asp.Web</c> by name.
 /// </para>
 /// <para>
-/// <c>uk.osric.asp.Core</c> is deliberately not denied: it is the page SDK, and the fallback to the
-/// default context hands the page the same copy of <see cref="IContext"/> the host is using, so the
-/// handler signature matches.
+/// <c>uk.osric.asp.Sdk</c> is deliberately not denied: it is the page contract, and the fallback to
+/// the default context hands the page the same copy of <see cref="uk.osric.asp.Sdk.IContext"/> the
+/// host is using, so the handler signature matches.
+/// </para>
+/// <para>
+/// <c>uk.osric.asp.Core</c> is host support — the template pipeline, diagnostics and charts — and is
+/// denied like the rest of the site. A page names the SDK and the base class library, nothing else.
 /// </para>
 /// <para>
 /// This is isolation from the app's internals, not a sandbox. A page still runs with the site's
@@ -31,6 +35,7 @@ internal sealed class PageLoadContext() : AssemblyLoadContext("pages", isCollect
         "Microsoft.AspNetCore",
         "Microsoft.Data.Sqlite",
         "Microsoft.EntityFrameworkCore",
+        "uk.osric.asp.Core",
         "uk.osric.asp.Runtime",
         "uk.osric.asp.Web",
     ];

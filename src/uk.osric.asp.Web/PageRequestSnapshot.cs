@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web;
 
 using Microsoft.Extensions.Primitives;
-using uk.osric.asp.Core;
+using uk.osric.asp.Sdk;
 
 /// <summary>Reads the live ASP.NET request once, into the plain values a page sees.</summary>
 internal static class PageRequestSnapshot {

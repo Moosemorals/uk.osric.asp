@@ -22,8 +22,9 @@ autocomplete and real error messages.
   compiled on their next request.
 - `/edit/anything` is the editor: sign in with a local account, then a textarea, a save button, and
   a line telling you it worked. Accounts are created from the command line, not from the site.
-- `uk.osric.asp.Core` is pure functions, `uk.osric.asp.Runtime` is Roslyn and assembly loading, and
-  `uk.osric.asp.Web` is the endpoints. The core references nothing, not even another project.
+- `uk.osric.asp.Sdk` is the page contract, `uk.osric.asp.Core` is the host's pure functions,
+  `uk.osric.asp.Runtime` is Roslyn and assembly loading, and `uk.osric.asp.Web` is the endpoints.
+  `Sdk` and `Core` each reference nothing, not even another project.
 
 ## A page
 

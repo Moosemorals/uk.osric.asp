@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Endpoints;
 
 using Microsoft.AspNetCore.Diagnostics;
 using System.Net;
-using uk.osric.asp.Core;
+using uk.osric.asp.Sdk;
 
 internal static class ErrorEndpoint {
 

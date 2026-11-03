@@ -42,7 +42,7 @@ public sealed class TemplateSourceGeneratorTests {
     public void GeneratedSourceDeclaresAHandler() {
         string? source = TemplateSourceGenerator.Generate("").Source;
 
-        Assert.That(source, Does.Contain("using uk.osric.asp.Core;"));
+        Assert.That(source, Does.Contain("using uk.osric.asp.Sdk;"));
         Assert.That(source, Does.Contain("class GeneratedPage : IHandler"));
         Assert.That(source, Does.Contain("void Handle(IContext ctx)"));
     }

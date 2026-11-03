@@ -10,22 +10,27 @@ SPDX-License-Identifier: MIT
 The boundary is pure rules over values, with effects isolated in their own project where the compiler
 can enforce it.
 
-- **`src/uk.osric.asp.Core`** holds the pure half: the template tokenizer, the source generator, and
-  the `IContext`/`IHandler` contracts. It has no project or package references at all, so it cannot
-  reach for I/O, a clock, DI or ASP.NET. Its only dependency is the base class library.
-- **`src/uk.osric.asp.Runtime`** holds the imperative half of template execution: `PageCompiler`
-  reads platform assembly paths, generates assembly names, emits to a stream, and loads and invokes
-  the compiled handler in a collectible `AssemblyLoadContext`. It also applies the page API policy
+- **`src/uk.osric.asp.Sdk`** is the page contract: `IContext`, `PageRequest`, `PageResponse`,
+  `IHandler` and `UserFacingException`. It is what a compiled page binds against and the only
+  product assembly a page may name. It has no references at all, so nothing it exposes can drag the
+  host in.
+- **`src/uk.osric.asp.Core`** holds the host's pure half: the template tokenizer and source
+  generator, the page diagnostics, the API policy, page identity and the chart helpers. It has no
+  project or package references at all, so it cannot reach for I/O, a clock, DI or ASP.NET. Its only
+  dependency is the base class library.
+- **`src/uk.osric.asp.Runtime`** holds the imperative half of page execution: `PageCompiler` reads
+  platform assembly paths, generates assembly names, emits to a stream, and loads and invokes the
+  compiled handler in a collectible `AssemblyLoadContext`. It also applies the page API policy
   (`PageApiChecker`) before emitting, and hands each image a `PageLoadContext` that refuses the
-  shell's assemblies. It references `Core` and Roslyn, and nothing else — in particular no ASP.NET,
-  storage or logging types, because it is not built on the Web SDK.
+  shell's assemblies. It references `Core`, `Sdk` and Roslyn, and nothing else — in particular no
+  ASP.NET, storage or logging types, because it is not built on the Web SDK.
 - **`src/uk.osric.asp.Web`** owns HTTP endpoints, hosting, configuration, `SimpleContext`, and source
-  storage. EF Core, SQLite, database migrations and `IStorage` belong here.
+  storage. EF Core, SQLite, database migrations and `IPageStore` belong here.
 
-The dependency direction is one-way: `Web` → `Runtime` → `Core`, and `Web` → `Core`. Nothing points
-back up. `PageCompiler` returns a `PageCompileResult` of an optional image and
-`PageDiagnostic` values rather than Roslyn `EmitResult`/`Diagnostic` values, so the shell never sees
-the compiler's types.
+The dependency direction is one-way: `Web` → `Runtime` → `Core`, `Web` → `Sdk`, and
+`Runtime` → `Sdk`. Nothing points back up. `PageCompiler` returns a `PageCompileResult` of an
+optional image and `PageDiagnostic` values rather than Roslyn `EmitResult`/`Diagnostic` values, so
+the shell never sees the compiler's types.
 
 Nothing the author types is an exception either. A template that does not parse comes back from
 `TemplateSourceGenerator` as a `TemplateParseResult` with no source and a `TEMPLATE`-coded
@@ -63,23 +68,25 @@ and the logs quote them:
 | Compiling templates, loading assemblies, invoking handlers | `Runtime` |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
-| Source storage, `IStorage`, EF Core context and migrations | `Web`, under `Storage` for implementation |
+| Source storage, `IPageStore`, EF Core context and migrations | `Web`, under `Storage` for implementation |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
-| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageApiPolicy` | `Core`, as plain values and pure rules |
+| The page contract: `IContext`, `PageRequest`, `PageResponse`, `IHandler`, `UserFacingException` | `Sdk`, as plain values a compiled page binds against |
+| The page policy: `PageApiPolicy`, `ApiReference` | `Core`, as a pure rule over strings |
 | The Roslyn walk that applies the page policy | `Runtime` |
 
 When something in the shell needs a decision from a pure rule, pass the data in and return a value;
-do not hand that rule `IStorage`, a database context, a logger, or `HttpContext`. The runtime passes
+do not hand that rule `IPageStore`, a database context, a logger, or `HttpContext`. The runtime passes
 `IContext` to a compiled handler; that is the deliberate seam between compiled page code and the
 host, and `SimpleContext` is its only implementation.
 
 ## Visibility
 
-Nothing is `public` unless another product assembly needs it. `Core` exposes the page contract, the
-diagnostics and the pure helpers `Runtime` and `Web` call; `Runtime` exposes the compiler seam `Web`
-uses; everything else in both is `internal`. Every type in `Web` is `internal`, because it is the
-application assembly and its consumers are its own endpoints and the host.
+Nothing is `public` unless another product assembly needs it. `Sdk` exposes the page contract and
+nothing else; `Core` exposes the diagnostics and the pure helpers `Runtime` and `Web` call; `Runtime`
+exposes the compiler seam `Web` uses; everything else is `internal`. Every type in `Web` is
+`internal`, because it is the application assembly and its consumers are its own endpoints and the
+host.
 
 Test projects are the one deliberate exception: they reach internals through `InternalsVisibleTo`
 in the project file rather than by widening a type. A member that only a test uses stays `internal`
@@ -93,7 +100,7 @@ the EF tools discover internal migrations and an internal `StorageDbContext` wit
 ## Page contract
 
 A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it
-touches is a plain record in `Core`. `IContext` is the whole surface — `Request` (method, path, query,
+touches is a plain record in `Sdk`. `IContext` is the whole surface — `Request` (method, path, query,
 form, headers, cookies), `Path`, `Aborted`, `Log`/`LogWarning`/`LogError`, `Write`/`WriteRaw`,
 `SetStatus`, `SetContentType`, `SetHeader` and `Redirect`.
 
@@ -163,8 +170,9 @@ Stored pages are C#, so the surface they may touch is constrained twice.
   what stops a page closing the method to declare statics, its own entry point or a module
   initializer.
 
-The compiler's reference set is trimmed to the base class library: `uk.osric.asp.*` and `Microsoft.*`
-are not referenced, so naming the shell or Roslyn fails with CS02xx before the policy runs. The trim
+The compiler's reference set is the page SDK plus the base class library: every other
+`uk.osric.asp.*` assembly and `Microsoft.*` is left out, so naming the shell, the host's compiler
+support or Roslyn fails with CS02xx before the policy runs. The trim
 cannot remove `System.IO` or `System.Environment`, which live in `System.Private.CoreLib`; that is the
 policy's job. A post-emit scan of the image's type references was considered and dropped, because it
 could only find what the semantic walk already reports, at the price of false rejections for
@@ -176,15 +184,18 @@ assemblies — a single-file or trimmed deployment — therefore fails the start
 the value, instead of compiling every page against nothing.
 
 The policy is versioned, because it is applied when a page compiles. `RuntimeId` is
-`{FormatVersion}:{PolicyVersion}:{CoreMvid}`, so tightening the list invalidates every stored image
-and each page is rechecked on its next request.
+`{FormatVersion}:{PolicyVersion}:{SdkMvid}:{CoreMvid}`, so tightening the list invalidates every
+stored image and each page is rechecked on its next request. Both module version ids are in the
+value: the SDK's covers what a page binds against, and Core's covers the generator, so a change
+to the generated source invalidates an image even when the contract is unchanged.
 
 ## Load isolation
 
 `CompiledPage` loads each image into a `PageLoadContext`, a collectible `AssemblyLoadContext`
-that refuses `uk.osric.asp.Web`, `uk.osric.asp.Runtime`, `Microsoft.AspNetCore*`,
-`Microsoft.EntityFrameworkCore*` and `Microsoft.Data.Sqlite`, and lets everything else resolve
-through the default context. It throws rather than returning `null`, because `null` means "ask the
+that refuses `uk.osric.asp.Core`, `uk.osric.asp.Runtime`, `uk.osric.asp.Web`,
+`Microsoft.AspNetCore*`, `Microsoft.EntityFrameworkCore*` and `Microsoft.Data.Sqlite`, and lets
+everything else resolve through the default context. The SDK is allowed through on purpose: the
+fallback hands the page the same `IContext` type the host is using. It throws rather than returning `null`, because `null` means "ask the
 default context" — the exact escape the type exists to close.
 
 This is isolation from the site's internals, not a sandbox: a page still runs in-process with the
@@ -251,7 +262,7 @@ rootless Podman named volume. Database access and migration lifecycle stay in th
 
 This is source storage: `EditorEndpoint` writes a page's source, `MainEndpoint` reads it by route
 path and runs its compiled image. Pure rules still receive the values loaded by the shell rather
-than being given `IStorage`.
+than being given `IPageStore`.
 
 A save is a single `INSERT … ON CONFLICT("Path") DO UPDATE`, so a save that lands while another is
 in flight updates the row rather than failing the primary key: a read followed by an insert left a
@@ -269,12 +280,13 @@ A stored image is trusted only when both keys match:
 
 - `ContentHash` is the SHA-256 of the source (`ContentFingerprint` in `Core`), so an edit that
   bypasses the editor cannot be answered with stale code.
-- `RuntimeId` is the compile format version, the page policy version and the module version id of
-  `uk.osric.asp.Core`, so a build with a different page contract — or a tightened policy — never runs
-  an image it did not produce. Debug and Release builds differ, as they should.
+- `RuntimeId` is the compile format version, the page policy version and the module version ids of
+  `uk.osric.asp.Sdk` and `uk.osric.asp.Core`, so a build with a different page contract, a changed
+  generator, or a tightened policy never runs an image it did not produce. Debug and Release builds
+  differ, as they should.
 
 A page whose image is missing or stale — a row written before images existed, a direct database
-write, or every row after an upgrade that touched `Core` — is compiled on its next request and
+write, or every row after an upgrade that touched `Sdk` or `Core` — is compiled on its next request and
 stored. That is the only compile outside a save: there is no startup warm-up, so the first visitor
 after a deploy pays one compile per page. A failure is stored too, so a broken page serves its
 diagnostics without recompiling, and the editor shows them after the save instead of losing the
@@ -286,7 +298,7 @@ Compilation happens before the database write, so the lazy path stores its resul
 page still holds the content it compiled, and re-reads the page when a save landed in between. A
 page that keeps changing is served from the last compile rather than failing.
 
-`IStorage` owns both halves: `GetPageAsync`, `SavePageAsync` and the conditional
+`IPageStore` owns both halves: `GetPageAsync`, `SavePageAsync` and the conditional
 `TrySetCompilationAsync`. `Runtime` knows only how to turn generated source into bytes and bytes into
 a loaded handler (`IPageCompiler`, `CompiledPage`); it never sees a page.
 

@@ -35,7 +35,8 @@ public readonly record struct ApiReference(string Namespace, string Type, string
 /// </remarks>
 public static class PageApiPolicy {
 
-    private const string SdkNamespace = "uk.osric.asp.Core";
+    // The page contract's namespace: TemplateSourceGenerator holds the other copy of this value.
+    private const string SdkNamespace = "uk.osric.asp.Sdk";
 
     private static readonly FrozenSet<string> s_allowedNamespaces = new[] {
         "System.Collections.Generic",
