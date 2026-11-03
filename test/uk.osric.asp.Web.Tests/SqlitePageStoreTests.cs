@@ -94,7 +94,7 @@ public sealed class SqlitePageStoreTests {
 
         Task[] saves = [.. Enumerable.Range(0, Writers).Select(index => Task.Run(async () => {
             string content = $"content-{index}";
-            PageCompilation compilation = new(ContentFingerprint.Of(content), "1:build", [(byte)index], []);
+            PageCompilation compilation = new(ContentFingerprint.Of(content), "1:build", [(byte)index], [(byte)(index + 1)], []);
             await using StorageDbContext database = new(_options);
             IPageStore storage = new SqlitePageStore(database);
 
@@ -154,7 +154,7 @@ public sealed class SqlitePageStoreTests {
 
     [Test]
     public async Task CompilationSurvivesReopeningAsync() {
-        PageCompilation compilation = new(ContentFingerprint.Of("Hello."), "1:build", [1, 2, 3], []);
+        PageCompilation compilation = new(ContentFingerprint.Of("Hello."), "1:build", [1, 2, 3], [4, 5, 6], []);
 
         await using (StorageDbContext writer = new(_options)) {
             IPageStore storage = new SqlitePageStore(writer);
@@ -168,12 +168,13 @@ public sealed class SqlitePageStoreTests {
         Assert.That(actual?.ContentHash, Is.EqualTo(compilation.ContentHash));
         Assert.That(actual?.RuntimeId, Is.EqualTo("1:build"));
         Assert.That(actual?.Image, Is.EqualTo(compilation.Image));
+        Assert.That(actual?.Symbols, Is.EqualTo(compilation.Symbols));
         Assert.That(actual?.Diagnostics, Is.Empty);
     }
 
     [Test]
     public async Task CompileDiagnosticsSurviveReopeningAsync() {
-        PageCompilation failure = new(ContentFingerprint.Of("<% broken"), "1:build", null, [
+        PageCompilation failure = new(ContentFingerprint.Of("<% broken"), "1:build", null, null, [
             new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(2, 16), "CS1525: broken"),
             new PageDiagnostic(PageDiagnosticSeverity.Warning, new TemplatePosition(3, 5), "CS0219: unused"),
         ]);
@@ -240,13 +241,14 @@ public sealed class SqlitePageStoreTests {
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database);
         await storage.SavePageAsync(new StoredPage(Key("/hello"), "Hello."));
-        PageCompilation compilation = new(ContentFingerprint.Of("Hello."), "1:build", [4, 5, 6], []);
+        PageCompilation compilation = new(ContentFingerprint.Of("Hello."), "1:build", [4, 5, 6], [7, 8, 9], []);
 
         bool stored = await storage.TrySetCompilationAsync(Key("/hello"), "Hello.", compilation);
 
         PageCompilation? actual = (await storage.GetPageAsync(Key("/hello")))?.Compilation;
         Assert.That(stored, Is.True);
         Assert.That(actual?.Image, Is.EqualTo(compilation.Image));
+        Assert.That(actual?.Symbols, Is.EqualTo(compilation.Symbols));
         Assert.That(actual?.RuntimeId, Is.EqualTo("1:build"));
     }
 
@@ -255,7 +257,7 @@ public sealed class SqlitePageStoreTests {
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database);
         await storage.SavePageAsync(new StoredPage(Key("/hello"), "newer"));
-        PageCompilation compilation = new(ContentFingerprint.Of("older"), "1:build", [1], []);
+        PageCompilation compilation = new(ContentFingerprint.Of("older"), "1:build", [1], [2], []);
 
         bool stored = await storage.TrySetCompilationAsync(Key("/hello"), "older", compilation);
 
@@ -269,7 +271,7 @@ public sealed class SqlitePageStoreTests {
     public async Task TrySetCompilationRefusesAMissingPageAsync() {
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database);
-        PageCompilation compilation = new(ContentFingerprint.Of("content"), "1:build", [1], []);
+        PageCompilation compilation = new(ContentFingerprint.Of("content"), "1:build", [1], [2], []);
 
         bool stored = await storage.TrySetCompilationAsync(Key("/missing"), "content", compilation);
 
@@ -282,7 +284,7 @@ public sealed class SqlitePageStoreTests {
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database);
         CancellationToken cancelled = new(true);
-        PageCompilation compilation = new("hash", "1:build", [1], []);
+        PageCompilation compilation = new("hash", "1:build", [1], [2], []);
 
         await Assert.CatchAsync<OperationCanceledException>(() => storage.GetPageAsync(Key("/example.cs"), cancelled));
         await Assert.CatchAsync<OperationCanceledException>(() => storage.SavePageAsync(new StoredPage(Key("/example.cs"), "content"), cancelled));

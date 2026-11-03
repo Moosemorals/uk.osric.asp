@@ -15,7 +15,7 @@ public sealed class PageCompiler : IPageCompiler {
     // Bump this when a change outside the SDK and Core invalidates stored images: the compiler
     // options, the reference set, or how a compiled handler is invoked. The SDK's module version id
     // covers the page contract; Core's covers the generated source and its diagnostics.
-    private const string FormatVersion = "3";
+    private const string FormatVersion = "4";
 
     // Bump this whenever PageApiPolicy tightens. The policy is applied when a page compiles, so an
     // image built under looser rules would otherwise keep being served without ever being rechecked.
@@ -67,11 +67,16 @@ public sealed class PageCompiler : IPageCompiler {
         // could be stored and served.
         IReadOnlyList<PageDiagnostic> violations = PageApiChecker.Check(tree, compilation.GetSemanticModel(tree));
         if (violations.Count > 0) {
-            return new PageCompileResult(null, violations);
+            return new PageCompileResult(null, null, violations);
         }
 
         using MemoryStream image = new();
-        EmitResult result = compilation.Emit(image, cancellationToken: cancellationToken);
+        using MemoryStream symbols = new();
+        EmitResult result = compilation.Emit(
+            peStream: image,
+            pdbStream: symbols,
+            options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb),
+            cancellationToken: cancellationToken);
         List<PageDiagnostic> diagnostics = MapDiagnostics(result.Diagnostics);
 
         if (!result.Success && !diagnostics.Exists(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error)) {
@@ -79,16 +84,19 @@ public sealed class PageCompiler : IPageCompiler {
                 "The generated page source did not emit an assembly and reported no error diagnostic. This is a compiler fault, not a page error.");
         }
 
-        return new PageCompileResult(result.Success ? image.ToArray() : null, diagnostics);
+        return new PageCompileResult(
+            result.Success ? image.ToArray() : null,
+            result.Success ? symbols.ToArray() : null,
+            diagnostics);
     }
 
     /// <summary>Loads a compiled image so its handler can be run.</summary>
     /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
     /// <returns>The loaded handler; dispose it to release the assembly.</returns>
-    public CompiledPage Load(byte[] image) {
+    public CompiledPage Load(byte[] image, byte[]? symbols = null) {
         ArgumentNullException.ThrowIfNull(image);
 
-        return new CompiledPage(image);
+        return new CompiledPage(image, symbols);
     }
 
     // Mapped diagnostics belong to the page. Unmapped ones belong to generated code; they are a

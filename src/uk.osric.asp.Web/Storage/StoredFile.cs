@@ -17,6 +17,9 @@ internal sealed class StoredFile {
     /// <summary>The emitted assembly; null when compilation failed.</summary>
     public byte[]? Image { get; set; }
 
+    /// <summary>The portable PDB emitted with <see cref="Image"/>; null when compilation failed.</summary>
+    public byte[]? Symbols { get; set; }
+
     /// <summary>The compiler's diagnostics as a JSON array; null when no compile result is stored.</summary>
     public string? Diagnostics { get; set; }
 }

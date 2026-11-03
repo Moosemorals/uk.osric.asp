@@ -64,7 +64,7 @@ internal sealed class TemplateCompiler(
             }
 
             if (!queued) {
-                result = new PageCompileResult(null, [
+                result = new PageCompileResult(null, null, [
                     new PageDiagnostic(PageDiagnosticSeverity.Error, null,
                         $"PAGE003: the page waited longer than {budget.CompileOptions.TimeoutSeconds} s for a compile slot."),
                 ]);
@@ -76,7 +76,7 @@ internal sealed class TemplateCompiler(
                         // Roslyn honours the token between operations, so this is a coarse bound: it is
                         // stored like any other page error so the editor shows it and the page is not
                         // recompiled on every request.
-                        result = new PageCompileResult(null, [
+                        result = new PageCompileResult(null, null, [
                             new PageDiagnostic(PageDiagnosticSeverity.Error, null,
                                 $"PAGE004: the page took longer than {budget.CompileOptions.TimeoutSeconds} s to compile."),
                         ]);
@@ -95,7 +95,7 @@ internal sealed class TemplateCompiler(
                 }
             }
         } else {
-            result = new PageCompileResult(null, parse.Errors);
+            result = new PageCompileResult(null, null, parse.Errors);
         }
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
@@ -107,6 +107,6 @@ internal sealed class TemplateCompiler(
         logger.LogDebug("Compiled {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
             result.Success ? "ok" : "error");
 
-        return new PageCompilation(ContentFingerprint.Of(content), compiler.RuntimeId, result.Image, result.Diagnostics);
+        return new PageCompilation(ContentFingerprint.Of(content), compiler.RuntimeId, result.Image, result.Symbols, result.Diagnostics);
     }
 }

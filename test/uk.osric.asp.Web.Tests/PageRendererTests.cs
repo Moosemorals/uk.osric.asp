@@ -66,7 +66,7 @@ public sealed class PageRendererTests {
     public async Task RenderRecompilesWhenTheContentChangedBehindTheCacheAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        PageCompilation stale = new(ContentFingerprint.Of("Old."), pages.Compiler.RuntimeId, [1, 2, 3], []);
+        PageCompilation stale = new(ContentFingerprint.Of("Old."), pages.Compiler.RuntimeId, [1, 2, 3], null, []);
         storage["/edited"] = new StoredPage(PageHarness.Key("/edited"), "New.", stale);
 
         (RenderResult result, string output) = await pages.RenderAsync("/edited");
@@ -80,7 +80,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task RenderRecompilesWhenTheBuildChangedAsync() {
         FakePageStore storage = new();
-        PageCompilation previousBuild = new(ContentFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], []);
+        PageCompilation previousBuild = new(ContentFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], null, []);
         storage["/hello"] = new StoredPage(PageHarness.Key("/hello"), "Hello.", previousBuild);
         using PageHarness pages = new(storage);
 
@@ -96,7 +96,7 @@ public sealed class PageRendererTests {
     public async Task AStoredCompileErrorIsServedWithoutCompilingAgainAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        PageCompilation failed = new(ContentFingerprint.Of("<% int value = ; %>"), pages.Compiler.RuntimeId, null, [
+        PageCompilation failed = new(ContentFingerprint.Of("<% int value = ; %>"), pages.Compiler.RuntimeId, null, null, [
             new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(1, 16), "CS1525: broken"),
         ]);
         storage["/broken"] = new StoredPage(PageHarness.Key("/broken"), "<% int value = ; %>", failed);

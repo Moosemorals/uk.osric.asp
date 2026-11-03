@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Runtime.Tests;
 
 using NUnit.Framework;
+using System.Diagnostics;
 using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Runtime;
@@ -77,6 +78,7 @@ public sealed class PageCompilerTests {
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
+        Assert.That(result.Symbols, Is.Not.Null.And.Not.Empty);
         Assert.That(result.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Severity == PageDiagnosticSeverity.Warning
@@ -179,17 +181,22 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void TemplateExceptionsSurfaceUnwrapped() {
-        using CompiledPage template = Load("<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
+        using CompiledPage template = Load("line one\nline two\n<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
         InvalidOperationException? failure = Assert.Throws<InvalidOperationException>(() => template.Invoke(new TestContext()));
 
         Assert.That(failure?.Message, Is.EqualTo("Template executed."));
         Assert.That(failure?.StackTrace, Does.Contain("GeneratedPage.Handle"));
+        StackFrame? templateFrame = new StackTrace(failure, true).GetFrames()
+            ?.SingleOrDefault(frame => frame.GetFileName() == "page");
+        Assert.That(templateFrame, Is.Not.Null);
+        Assert.That(templateFrame!.GetFileLineNumber(), Is.EqualTo(3));
+        Assert.That(templateFrame.GetFileColumnNumber(), Is.EqualTo(4));
     }
 
     [Test]
     public void RuntimeIdStartsWithTheFormatAndPolicyVersions() {
-        Assert.That(PageCompiler.RuntimeId, Does.StartWith("3:1:"));
+        Assert.That(PageCompiler.RuntimeId, Does.StartWith("4:1:"));
     }
 
     [Test]
@@ -219,7 +226,7 @@ public sealed class PageCompilerTests {
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
 
         // The assertion above proves the image exists when compilation succeeded.
-        return Compiler.Load(result.Image!);
+        return Compiler.Load(result.Image!, result.Symbols);
     }
 
     private static TestContext CompileAndRun(string template) {

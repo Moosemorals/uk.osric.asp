@@ -30,8 +30,9 @@ public interface IPageCompiler {
     /// </exception>
     PageCompileResult Compile(string source, CancellationToken cancellationToken = default);
 
-    /// <summary>Loads a compiled image so its handler can be run.</summary>
+    /// <summary>Loads a compiled image and its portable symbols so its handler can be run.</summary>
     /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
+    /// <param name="symbols">The portable PDB bytes emitted with the image, if present.</param>
     /// <returns>The loaded handler; dispose it to release the assembly.</returns>
-    CompiledPage Load(byte[] image);
+    CompiledPage Load(byte[] image, byte[]? symbols = null);
 }

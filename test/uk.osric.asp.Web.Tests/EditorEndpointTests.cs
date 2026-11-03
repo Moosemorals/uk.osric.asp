@@ -191,6 +191,7 @@ public sealed class EditorEndpointTests {
             ContentFingerprint.Of("line one\nline two"),
             "1:build",
             null,
+            null,
             [
                 new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(2, 5), "CS0103: later line"),
                 new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(1, 9), "CS1002: earlier line"),

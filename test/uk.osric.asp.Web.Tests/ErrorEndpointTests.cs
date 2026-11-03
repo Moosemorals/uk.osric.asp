@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
+using System.Security.Claims;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Errors;
 
@@ -58,9 +59,28 @@ public sealed class ErrorEndpointTests {
         Assert.That(body, Does.Contain("&lt;trace&gt;&amp;"));
     }
 
-    private static DefaultHttpContext CreateContext(Exception? error) {
+    [Test]
+    public async Task AuthenticatedUnexpectedErrorShowsEncodedDetailsWithoutUnmappedFramesAsync() {
+        DefaultHttpContext context = CreateContext(new InvalidOperationException("<script>failure</script>"), authenticated: true);
+
+        await ErrorEndpoint.HandleAsync(context);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("InvalidOperationException"));
+        Assert.That(body, Does.Contain("&lt;script&gt;failure&lt;/script&gt;"));
+        Assert.That(body, Does.Contain("No template location is available."));
+        Assert.That(body, Does.Not.Contain("<script>"));
+        Assert.That(body, Does.Not.Contain("ErrorEndpointTests"));
+        Assert.That(context.Response.Headers.CacheControl, Is.EqualTo("no-store"));
+    }
+
+    private static DefaultHttpContext CreateContext(Exception? error, bool authenticated = false) {
         DefaultHttpContext context = TestHttp.CreateContext(null);
         context.TraceIdentifier = "trace";
+        if (authenticated) {
+            context.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "owner")], "test"));
+        }
+
         if (error is not null) {
             context.Features.Set<IExceptionHandlerPathFeature>(new ExceptionHandlerFeature {
                 Error = error,

@@ -39,6 +39,9 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.Property<string>("RuntimeId")
                         .HasColumnType("TEXT");
 
+                    b.Property<byte[]>("Symbols")
+                        .HasColumnType("BLOB");
+
                     b.HasKey("Path");
 
                     b.ToTable("Files", (string)null);

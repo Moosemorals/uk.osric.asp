@@ -14,7 +14,7 @@ internal sealed class FaultingCompiler : IPageCompiler {
         throw new InvalidOperationException("The generated page source did not compile.");
     }
 
-    public CompiledPage Load(byte[] image) {
+    public CompiledPage Load(byte[] image, byte[]? symbols = null) {
         throw new NotSupportedException("A faulting compiler never produces an image.");
     }
 }
@@ -33,8 +33,8 @@ internal sealed class SlowCompiler(IPageCompiler inner) : IPageCompiler {
         return inner.Compile(source, cancellationToken);
     }
 
-    public CompiledPage Load(byte[] image) {
-        return inner.Load(image);
+    public CompiledPage Load(byte[] image, byte[]? symbols = null) {
+        return inner.Load(image, symbols);
     }
 }
 
@@ -52,7 +52,7 @@ internal sealed class StallingCompiler : IPageCompiler {
         throw new OperationCanceledException(cancellationToken);
     }
 
-    public CompiledPage Load(byte[] image) {
+    public CompiledPage Load(byte[] image, byte[]? symbols = null) {
         throw new NotSupportedException("A stalling compiler never produces an image.");
     }
 }

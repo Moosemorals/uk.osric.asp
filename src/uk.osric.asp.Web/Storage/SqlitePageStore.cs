@@ -34,13 +34,14 @@ internal sealed class SqlitePageStore(StorageDbContext database) : IPageStore {
         // the second insert failed the primary key. The row is written whole, so the image always
         // belongs to the content beside it.
         await database.Database.ExecuteSqlAsync($"""
-            INSERT INTO "Files" ("Path", "Content", "ContentHash", "RuntimeId", "Image", "Diagnostics")
-            VALUES ({page.Path.Key}, {page.Content}, {compilation?.ContentHash}, {compilation?.RuntimeId}, {compilation?.Image}, {diagnostics})
+            INSERT INTO "Files" ("Path", "Content", "ContentHash", "RuntimeId", "Image", "Symbols", "Diagnostics")
+            VALUES ({page.Path.Key}, {page.Content}, {compilation?.ContentHash}, {compilation?.RuntimeId}, {compilation?.Image}, {compilation?.Symbols}, {diagnostics})
             ON CONFLICT ("Path") DO UPDATE SET
                 "Content" = excluded."Content",
                 "ContentHash" = excluded."ContentHash",
                 "RuntimeId" = excluded."RuntimeId",
                 "Image" = excluded."Image",
+                "Symbols" = excluded."Symbols",
                 "Diagnostics" = excluded."Diagnostics"
             """, cancellationToken);
     }
@@ -56,6 +57,7 @@ internal sealed class SqlitePageStore(StorageDbContext database) : IPageStore {
                 .SetProperty(file => file.ContentHash, compilation.ContentHash)
                 .SetProperty(file => file.RuntimeId, compilation.RuntimeId)
                 .SetProperty(file => file.Image, compilation.Image)
+                .SetProperty(file => file.Symbols, compilation.Symbols)
                 .SetProperty(file => file.Diagnostics, SerializeDiagnostics(compilation.Diagnostics)), cancellationToken);
 
         return updated > 0;
@@ -74,6 +76,7 @@ internal sealed class SqlitePageStore(StorageDbContext database) : IPageStore {
             file.ContentHash ?? string.Empty,
             file.RuntimeId,
             file.Image,
+            file.Symbols,
             Deserialize(file.Diagnostics, file.Image is not null));
     }
 

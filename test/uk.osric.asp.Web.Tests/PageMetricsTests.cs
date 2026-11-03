@@ -57,7 +57,7 @@ public sealed class PageMetricsTests {
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        PageCompilation stale = new(ContentFingerprint.Of("Old."), pages.Compiler.RuntimeId, [1, 2, 3], []);
+        PageCompilation stale = new(ContentFingerprint.Of("Old."), pages.Compiler.RuntimeId, [1, 2, 3], null, []);
         storage["/edited"] = new StoredPage(Key("/edited"), "New.", stale);
 
         await pages.RenderAsync("/edited");
@@ -69,7 +69,7 @@ public sealed class PageMetricsTests {
     public async Task AChangedBuildIsAttributedToTheRuntimeAsync() {
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
-        PageCompilation previousBuild = new(ContentFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], []);
+        PageCompilation previousBuild = new(ContentFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], null, []);
         storage["/hello"] = new StoredPage(Key("/hello"), "Hello.", previousBuild);
         using PageHarness pages = new(storage);
 

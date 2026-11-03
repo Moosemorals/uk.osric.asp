@@ -25,12 +25,18 @@ public sealed class CompiledPage : IDisposable {
     private readonly Type _handler;
     private readonly MethodInfo _handle;
 
-    internal CompiledPage(byte[] image) {
+    internal CompiledPage(byte[] image, byte[]? symbols) {
         _context = new PageLoadContext();
 
         try {
             using MemoryStream stream = new(image, writable: false);
-            Assembly assembly = _context.LoadFromStream(stream);
+            Assembly assembly;
+            if (symbols is null) {
+                assembly = _context.LoadFromStream(stream);
+            } else {
+                using MemoryStream symbolStream = new(symbols, writable: false);
+                assembly = _context.LoadFromStream(stream, symbolStream);
+            }
 
             _handler = assembly.GetTypes().FirstOrDefault(type => type.IsAssignableTo(typeof(IHandler)))
                 ?? throw new InvalidOperationException("No handler found in the assembly.");

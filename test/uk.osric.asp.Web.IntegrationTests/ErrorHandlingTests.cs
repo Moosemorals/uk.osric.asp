@@ -26,6 +26,29 @@ public sealed class ErrorHandlingTests : IntegrationTest {
     }
 
     [Test]
+    public async Task ThrowingPageShowsTemplateDetailsToSignedInEditorAsync() {
+        await SavePageAsync("/throw", "line one\nline two\n<% throw new System.InvalidOperationException(\"Boom.\"); %>");
+        using HttpClient client = await CreateSignedInClientAsync();
+        int compileCount = CompileCount;
+
+        HttpResponseMessage response = await client.GetAsync("/throw");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+        Assert.That(body, Does.Contain("InvalidOperationException").And.Contain("Boom."));
+        Assert.That(body, Does.Contain("at Handle(IContext ctx) in /throw:line 3"));
+        Assert.That(body, Does.Not.Contain("/throw:3:4"));
+        Assert.That(body, Does.Not.Contain("GeneratedPage.Handle"));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(CompileCount, Is.EqualTo(compileCount + 1));
+
+        HttpResponseMessage cachedResponse = await client.GetAsync("/throw");
+        string cachedBody = await cachedResponse.Content.ReadAsStringAsync();
+        Assert.That(cachedBody, Does.Contain("at Handle(IContext ctx) in /throw:line 3"));
+        Assert.That(CompileCount, Is.EqualTo(compileCount + 1), "the stored image and symbols should be reused together");
+    }
+
+    [Test]
     public async Task ThrowingPostIsAnsweredByTheErrorPage() {
         // The page route accepts every verb, so this reproduces BUG-01: a failed POST used to fall
         // through the router and be answered with a 404 instead of the error page.

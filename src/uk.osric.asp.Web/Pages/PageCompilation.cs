@@ -9,6 +9,7 @@ using uk.osric.asp.Core.Compilation;
 /// <param name="ContentHash">The fingerprint of the source the image was built from.</param>
 /// <param name="RuntimeId">The build that produced the image.</param>
 /// <param name="Image">The emitted assembly, or <see langword="null"/> when compilation failed.</param>
+/// <param name="Symbols">The emitted portable PDB, or <see langword="null"/> when compilation failed.</param>
 /// <param name="Diagnostics">
 /// The compiler's author-facing diagnostics, errors and warnings, in template space; empty when the
 /// page compiled cleanly.
@@ -17,6 +18,7 @@ internal sealed record PageCompilation(
     string ContentHash,
     string RuntimeId,
     byte[]? Image,
+    byte[]? Symbols,
     IReadOnlyList<PageDiagnostic> Diagnostics) {
 
     /// <summary>Whether the stored result still matches the content and the build it came from.</summary>
@@ -27,6 +29,7 @@ internal sealed record PageCompilation(
         ArgumentNullException.ThrowIfNull(runtimeId);
 
         return string.Equals(ContentHash, contentHash, StringComparison.Ordinal)
-            && string.Equals(RuntimeId, runtimeId, StringComparison.Ordinal);
+            && string.Equals(RuntimeId, runtimeId, StringComparison.Ordinal)
+            && (Image is null || Symbols is not null);
     }
 }

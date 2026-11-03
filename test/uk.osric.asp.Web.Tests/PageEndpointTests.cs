@@ -144,7 +144,7 @@ public sealed class PageEndpointTests {
         PageCompiler compiler = new();
         PageCompileResult compiled = compiler.Compile(Generate("Hello."));
         PageCompilation compilation = new(
-            ContentFingerprint.Of("Hello."), PageCompiler.RuntimeId, compiled.Image, compiled.Diagnostics);
+            ContentFingerprint.Of("Hello."), PageCompiler.RuntimeId, compiled.Image, compiled.Symbols, compiled.Diagnostics);
         FakePageStore storage = new();
         storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello.", compilation);
         int compiles = _compiler.CompileCount;

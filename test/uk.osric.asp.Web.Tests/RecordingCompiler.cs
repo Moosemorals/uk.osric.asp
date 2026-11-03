@@ -17,7 +17,7 @@ internal sealed class RecordingCompiler(IPageCompiler inner) : IPageCompiler {
         return inner.Compile(source, cancellationToken);
     }
 
-    public CompiledPage Load(byte[] image) {
-        return inner.Load(image);
+    public CompiledPage Load(byte[] image, byte[]? symbols = null) {
+        return inner.Load(image, symbols);
     }
 }

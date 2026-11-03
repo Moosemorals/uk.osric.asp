@@ -14,6 +14,7 @@ public sealed class PageCompilationTests {
         ContentFingerprint.Of("Hello."),
         "3:1:build",
         [1, 2, 3],
+        [4, 5, 6],
         []);
 
     [Test]
@@ -29,5 +30,12 @@ public sealed class PageCompilationTests {
     [Test]
     public void IsNotCurrentWhenTheBuildChanged() {
         Assert.That(s_compilation.IsCurrent(ContentFingerprint.Of("Hello."), "4:1:build"), Is.False);
+    }
+
+    [Test]
+    public void IsNotCurrentWhenAnExecutableImageHasNoSymbols() {
+        PageCompilation withoutSymbols = s_compilation with { Symbols = null };
+
+        Assert.That(withoutSymbols.IsCurrent(ContentFingerprint.Of("Hello."), "3:1:build"), Is.False);
     }
 }

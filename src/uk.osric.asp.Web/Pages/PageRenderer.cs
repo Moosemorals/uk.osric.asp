@@ -89,7 +89,8 @@ internal sealed class PageRenderer(
                     return RenderResult.CompileFailed(loaded.Compilation.Diagnostics);
                 }
 
-                RenderResult rendered = await RunAsync(path, loaded.Compilation.Image, context, deadline, cancellationToken);
+                RenderResult rendered = await RunAsync(
+                    path, loaded.Compilation.Image, loaded.Compilation.Symbols, context, deadline, cancellationToken);
                 outcome = rendered.Status == RenderStatus.Timeout ? PageMetrics.RenderTimeout : PageMetrics.RenderOk;
 
                 return rendered;
@@ -154,6 +155,7 @@ internal sealed class PageRenderer(
     private async Task<RenderResult> RunAsync(
         PagePath path,
         byte[] image,
+        byte[]? symbols,
         SimpleContext context,
         CancellationTokenSource deadline,
         CancellationToken cancellationToken) {
@@ -167,7 +169,7 @@ internal sealed class PageRenderer(
         }
 
         long loadStart = Stopwatch.GetTimestamp();
-        CompiledPage template = compiler.Load(image);
+        CompiledPage template = compiler.Load(image, symbols);
 
         metrics.RecordLoad(path, Stopwatch.GetElapsedTime(loadStart));
 
