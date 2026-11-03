@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Low |
 | Area | Web, developer experience |
-| Location | `src/uk.osric.asp.Web/Endpoints/EditorEndpoint.cs`, `src/uk.osric.asp.Core/TemplateSourceGenerator.cs` |
+| Location | `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs`, `src/uk.osric.asp.Core/Compilation/TemplateSourceGenerator.cs` |
 
 ## Problem
 

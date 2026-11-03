@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Medium |
 | Area | Security, runtime |
-| Location | `src/uk.osric.asp.Runtime/CompiledPage.cs`, `src/uk.osric.asp.Web/Endpoints/MainEndpoint.cs` |
+| Location | `src/uk.osric.asp.Runtime/CompiledPage.cs`, `src/uk.osric.asp.Web/Pages/PageEndpoint.cs` |
 
 ## Problem
 

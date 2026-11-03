@@ -9,13 +9,13 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Size | Medium |
 | Area | Core, Web, storage |
-| Location | `src/uk.osric.asp.Core/IContext.cs`, `src/uk.osric.asp.Web/Storage/SqliteStorage.cs` |
+| Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Storage/SqlitePageStore.cs` |
 
 ## Idea
 
 Everything a page knows arrives in the request and leaves in the response. A guestbook needs a
 table, a counter needs a row, a form that survives a validation failure needs somewhere to put the
-draft — and none of that exists. `IStorage` holds pages, users and nothing else, and page code
+draft — and none of that exists. `IPageStore` holds pages, users and nothing else, and page code
 cannot reach the database anyway.
 
 The smallest useful thing is a key/value store scoped to the page that owns it, reachable from
@@ -29,7 +29,7 @@ The smallest useful thing is a key/value store scoped to the page that owns it, 
 2. Shape: `ctx.Storage.Get("key")`, `Set("key", value)`, `Delete("key")`, `Keys()`. Values are
    strings — anything structured is the page's business to serialise, and JSON is available.
 3. Keep `Core` pure: the methods are a contract on `IContext`; the table, the queries and the
-   transaction live in `Web` behind `IStorage`.
+   transaction live in `Web` behind `IPageStore`.
 4. Bound it: a key is a short ordinal string with a path-ish shape, a value has a byte cap (say
    64 KiB), and a page has a total cap. A page that writes in a loop should hit a wall, not fill
    the disk.

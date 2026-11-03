@@ -9,13 +9,16 @@ ASP.NET Core **minimal endpoints** on .NET 10 — no MVC controllers, no Razor v
 held in the database, compiled when saved, and rendered through `IContext`. Developed on **Linux** —
 assume Linux tooling, paths and scripts, with `/` separators.
 
-- `src/uk.osric.asp.Core` — pure functions and values; no references at all.
-- `src/uk.osric.asp.Runtime` — template compiler and assembly loading; Roslyn, nothing web-facing.
+- `src/uk.osric.asp.Sdk` — the page contract a compiled page binds against; no references at all.
+- `src/uk.osric.asp.Core` — host support: pure functions and values; no references at all.
+- `src/uk.osric.asp.Runtime` — page compiler and assembly loading; Roslyn, nothing web-facing.
 - `src/uk.osric.asp.Web` — imperative shell: endpoints, hosting, storage, configuration.
-- `test/` — one NUnit project per `src/` project, plus `Web.IntegrationTests` against the real host.
+- `test/` — one NUnit project per product project with behaviour, plus `Web.IntegrationTests`
+  against the real host. `Sdk` has no suite of its own.
 - `docs/` — architecture, decisions and testing notes. `deploy/` — cloud-init, quadlets, Caddyfile.
 
-Dependency direction is `Web` → `Runtime` → `Core`, plus `Web` → `Core`; keep `Core` reference-free.
+Dependency direction is `Web` → `Runtime` → `Core`, `Runtime` → `Sdk` and `Web` → `Sdk`; keep `Core`
+and `Sdk` reference-free.
 Build output goes to `artifacts/` (`UseArtifactsOutput`) — never reference or commit it. Shared
 settings live in the top-level `Directory.*` files and the SDK is pinned in `global.json`.
 

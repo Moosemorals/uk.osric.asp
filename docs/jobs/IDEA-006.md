@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Size | Small |
 | Area | Web, product |
-| Location | `src/uk.osric.asp.Web/wwwroot/site.css`, `src/uk.osric.asp.Web/Framework.cs:20`, `src/uk.osric.asp.Web/Program.cs:99` |
+| Location | `src/uk.osric.asp.Web/wwwroot/site.css`, `src/uk.osric.asp.Web/Html/PageLayout.cs`, `src/uk.osric.asp.Web/Program.cs` |
 
 ## Idea
 

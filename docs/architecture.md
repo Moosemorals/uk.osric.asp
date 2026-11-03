@@ -262,7 +262,7 @@ startup, before serving requests. `ConnectionStrings:Storage` defaults to
 `Data Source=data/storage.db`; deployment overrides it to `Data Source=/data/storage.db` on a durable
 rootless Podman named volume. Database access and migration lifecycle stay in the shell.
 
-This is source storage: `EditorEndpoint` writes a page's source, `MainEndpoint` reads it by route
+This is source storage: `EditorEndpoint` writes a page's source, `PageEndpoint` reads it by route
 path and runs its compiled image. Pure rules still receive the values loaded by the shell rather
 than being given `IPageStore`.
 

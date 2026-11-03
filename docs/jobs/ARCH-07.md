@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Medium |
 | Area | Storage, product |
-| Location | `src/uk.osric.asp.Web/Storage/StoredFile.cs`, `src/uk.osric.asp.Web/Storage/SqliteStorage.cs:24-38` |
+| Location | `src/uk.osric.asp.Web/Storage/StoredFile.cs`, `src/uk.osric.asp.Web/Storage/SqlitePageStore.cs` |
 
 ## Problem
 

@@ -9,11 +9,11 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Low |
 | Area | Core, web shell |
-| Location | `src/uk.osric.asp.Core/IContext.cs`, `src/uk.osric.asp.Web/SimpleContext.cs`, `src/uk.osric.asp.Web/Endpoints/MainEndpoint.cs` |
+| Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Pages/SimpleContext.cs`, `src/uk.osric.asp.Web/Pages/PageEndpoint.cs` |
 
 ## Problem
 
-`SimpleContext` writes into a `StringWriter` and `MainEndpoint` sends the whole thing once
+`SimpleContext` writes into a `StringWriter` and `PageEndpoint` sends the whole thing once
 `IHandler.Handle` has returned. That buffering is not an accident — it is what buys three
 guarantees:
 
@@ -48,7 +48,7 @@ first page that wants to stream starts from the right shape.
 5. Keep the body cap for buffered pages; for a streamed page the cap becomes a per-flush limit or
    disappears, because the point is that the body does not live in memory. Decide it in the issue
    that implements this, not here.
-6. Consider whether `MainEndpoint` should ask for the response to be sent early (an explicit
+6. Consider whether `PageEndpoint` should ask for the response to be sent early (an explicit
    `IHttpResponseBodyFeature.StartAsync` / disable buffering) or whether Kestrel's own buffering is
    enough once the page flushes. Measure before choosing; the honest default is to let the page's
    flush be the trigger and leave Kestrel alone.

@@ -9,17 +9,17 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Size | Large |
 | Area | Core, Runtime, template language |
-| Location | `src/uk.osric.asp.Core/TemplateSourceGenerator.cs`, `src/uk.osric.asp.Runtime/PageApiChecker.cs:81` |
+| Location | `src/uk.osric.asp.Core/Compilation/TemplateSourceGenerator.cs`, `src/uk.osric.asp.Runtime/PageApiChecker.cs` |
 
 ## Idea
 
 A page's `<% %>` blocks are pasted into the body of `GeneratedPage.Handle`, and `PAGE002` rejects
-anything else: a page may not declare types or members. That is why `Framework` — the header,
-footer and diagnostics markup — lives in `src/uk.osric.asp.Web/Framework.cs` as C# in the host and
+anything else: a page may not declare types or members. That is why `PageLayout` — the header,
+footer and diagnostics markup — lives in `src/uk.osric.asp.Web/Html/PageLayout.cs` as C# in the host and
 is unavailable to pages. Writing a page means writing one method, with everything it needs inlined,
 and no page can share anything with another.
 
-The goal is to write a version of `Framework` *as pages*: a page that declares a helper type or two
+The goal is to write a version of `PageLayout` *as pages*: a page that declares a helper type or two
 which other pages can use.
 
 ## Sketch

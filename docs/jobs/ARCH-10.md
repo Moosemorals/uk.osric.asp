@@ -9,11 +9,11 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Medium |
 | Area | Storage, Web, product |
-| Location | `src/uk.osric.asp.Web/IStorage.cs`, `src/uk.osric.asp.Web/Endpoints/EditorEndpoint.cs` |
+| Location | `src/uk.osric.asp.Web/Pages/IPageStore.cs`, `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` |
 
 ## Problem
 
-A page can be created and overwritten but never removed. `IStorage` offers only `GetPageAsync`,
+A page can be created and overwritten but never removed. `IPageStore` offers only `GetPageAsync`,
 `SavePageAsync` and `TrySetCompilationAsync`, and the editor maps only the read and save of
 `/edit/<path>`, so the sole way to retire a page is a direct write to the database. A page saved by
 mistake — or one that should never have been public, since a page is served at its URL the moment it
@@ -24,7 +24,7 @@ and history is about undoing a save rather than retiring a key.
 
 ## Fix outline
 
-1. Add `DeletePageAsync(PagePath, CancellationToken)` to `IStorage` and implement it in
+1. Add `DeletePageAsync(PagePath, CancellationToken)` to `IPageStore` and implement it in
    `SqliteStorage` by deleting the row; the source, image and diagnostics go with it. Return whether
    a row was removed so the editor can tell "deleted" from "was not there".
 2. Add `POST /edit/<path>/delete` behind the `Editor` policy, with the antiforgery token the other

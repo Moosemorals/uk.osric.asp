@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Medium |
 | Area | Core, template language |
-| Location | `src/uk.osric.asp.Core/TemplateTokenizer.cs`, `src/uk.osric.asp.Core/TemplateSourceGenerator.cs`, `README.md` |
+| Location | `src/uk.osric.asp.Core/Compilation/TemplateTokenizer.cs`, `src/uk.osric.asp.Core/Compilation/TemplateSourceGenerator.cs`, `README.md` |
 
 ## Problem
 

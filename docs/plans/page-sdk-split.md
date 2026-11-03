@@ -5,16 +5,21 @@ SPDX-License-Identifier: MIT
 
 # The page SDK, and the names that go with it
 
-Implementation plan for [IDEA-004](../jobs/IDEA-004.md), plus the structural tidy-up that goes with it:
+Implementation plan for IDEA-004 (closed by this work; the [job index](../jobs/README.md) records it), plus the structural tidy-up that goes with it:
 vertical slices instead of a flat namespace per project, and names that say whether a thing is a
 template (what the author edits) or a page (what the compiler produces).
 
 ## Status
 
-Not started. Plan written 2026-11-03 against the tree at that commit.
+Implemented 2026-11-03, one commit per phase. Test counts after the work: 155 core, 47 runtime,
+328 web, 54 integration (584 tests). The nine extra web tests are the compile, editor-read and
+freshness cases that used to hide inside `PageServiceTests`, plus the three `PageCompilation`
+cases.
 
-Baseline before any change: `make test` green — 154 core, 45 runtime, 318 web, 54 integration
-(571 tests).
+One deviation from the plan: [suggestion 4](#additional-changes-agreed-2026-11-03) — dropping the
+unused `InternalsVisibleTo` grants in `Core` — was reverted. `Runtime.Tests` and `Web.Tests` both
+call the internal `TemplateParseResult.Success` in their `Generate` helpers, so the grants are load
+bearing after all; the build failed when they went.
 
 ## The short version
 
@@ -459,7 +464,7 @@ Each is folded into a phase above rather than left as a suggestion.
 | 1 | Delete the dead `PageApiPolicy.AllowedNamespaces`/`AllowedTypes` | Phase 3 |
 | 2 | `PagePath.Path` → `PagePath.Key` | Phase 4 |
 | 3 | Leave `StoredFile` alone | recorded, no work |
-| 4 | Drop the unused `InternalsVisibleTo` grants in `Core` | Phase 3 |
+| 4 | Drop unused `InternalsVisibleTo` grants | reverted — see Status |
 | 5 | `PageCompilation.IsCurrent(contentHash, runtimeId)` | Phase 5 |
 | 6 | Say which `page.*` instruments each new class records | Phase 5 |
 | 7 | `CompileResult` → `PageCompileResult` | Phase 1 |

@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 # Jobs
 
 One file per distinct job — something the site gets wrong (`SEC-`, `BUG-`, `OPS-`, `ARCH-`) and
-something it could usefully become (`IDEA-`). Each file has a short ID (`SEC-03`, `IDEA-004`, ...)
+something it could usefully become (`IDEA-`). Each file has a short ID (`SEC-03`, `IDEA-005`, ...)
 to use in commits, branches and discussion.
 
 Two measures, and neither is a plan. **Severity** is the reviewer's assessment of risk, and is blank
@@ -34,7 +34,6 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea |
 | [IDEA-002](IDEA-002.md) | — | M | A page cannot call an outbound HTTP API |
 | [IDEA-003](IDEA-003.md) | — | M | A page has nowhere to keep state |
-| [IDEA-004](IDEA-004.md) | — | L | `Core` is both the page SDK and the host's compiler support |
 | [IDEA-005](IDEA-005.md) | — | L | A page cannot declare a type, so shared code has to be copied |
 | [IDEA-006](IDEA-006.md) | — | S | `site.css` is a static file rather than a page |
 | [IDEA-007](IDEA-007.md) | — | S | The site has no favicon |
@@ -59,10 +58,10 @@ self-contained comes first, because these are the ones that never get scheduled 
 4. **ARCH-12** — the write shorthand. A small language change, a large effect on how a page reads.
 5. **IDEA-002, fetch** — the biggest single improvement to what a page can do. Allow-listed, bounded
    and testable; take it before persistence, which has more open questions and less immediate payoff.
-6. **IDEA-003, persistence**, then **IDEA-004, the split.** Persistence is useful sooner; the split
-   is the unlock for the three large ideas, so it follows immediately.
+6. **IDEA-003, persistence.** Useful sooner than most, and the answer to what a page may keep.
 7. **ARCH-07, history** — undo for edits, once there is enough content to be worth versioning.
-8. **IDEA-005, page types** — with IDEA-004 in place, the shared-code question has a real answer.
+8. **IDEA-005, page types** — with the page SDK split done, the shared-code question has a real
+   answer.
 9. **IDEA-001, a proper editor** — by now there are pages to justify it, and IDEA-008 needs it.
 10. **IDEA-008, drafting** — last of the ideas, because every one of the others makes it better.
 11. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
@@ -76,6 +75,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| IDEA-004 | The page contract moved to its own reference-free assembly, `uk.osric.asp.Sdk`. `Core` is host support again, the policy allows the SDK namespace and nothing else, the load context refuses `Core`, and `RuntimeId` carries both module version ids. See [the plan](../plans/page-sdk-split.md) |
 | ARCH-03 | Renders have a deadline, a slot count and a body cap, compiles have their own slot and deadline, an abandoned render is logged and counted, and `/heath` reports it so podman restarts a wedged container. See [the plan](../plans/page-execution-budget.md). SEC-03 (the process boundary) is deliberately still open |
 | ARCH-02 | Pages are a restricted runtime: `IContext` carries a plain `PageRequest` snapshot and asks for `SetStatus`/`SetContentType`/`SetHeader`/`Redirect`, all applied after the buffered handler returns. `SimpleContext` is the only implementation, headers are allow-listed so a page cannot clobber the site's cookies, pages run only for `GET`/`POST`/`HEAD`, and a body over 1 MiB is refused. Documented in `docs/architecture.md` |
 | ARCH-04 | `CompiledTemplate.Invoke` unwraps the reflection wrapper with `ExceptionDispatchInfo`, so the shell sees the page's own exception and no longer knows about `TargetInvocationException`. The `NoInlining` attributes were removed with a note on what they would have been protecting |

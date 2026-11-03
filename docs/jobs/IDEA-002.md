@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Size | Medium |
 | Area | Core, Web, security |
-| Location | `src/uk.osric.asp.Core/IContext.cs`, `src/uk.osric.asp.Web/SimpleContext.cs` |
+| Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Pages/SimpleContext.cs` |
 
 ## Idea
 
