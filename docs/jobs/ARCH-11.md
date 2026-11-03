@@ -20,7 +20,7 @@ for text, the `#line` directives, the page's code blocks and the closing braces.
 That view is useful when a diagnostic is surprising, when a `#line` mapping looks wrong, or when a
 compiler fault has to be reported. Today the source is only in the `Debug` log (see the
 [compiler-diagnostics plan](../plans/compiler-diagnostics.md)) or one
-`TemplateSourceGenerator.GenerateTemplateSource` call away in a debugger. Showing it also makes the
+`TemplateSourceGenerator.Generate` call away in a debugger. Showing it also makes the
 template language legible: it answers "what does my text become?" without requiring the author to
 read the generator.
 
@@ -30,7 +30,7 @@ read the generator.
    to the diagnostics, or `/edit/{**path}/generated`). It must use the same Editor authentication
    policy as `/edit/**` and answer `Cache-Control: no-store`.
 2. Generate on demand from the stored content with
-   `TemplateSourceGenerator.GenerateTemplateSource`; when the template does not parse, show the
+   `TemplateSourceGenerator.Generate`; when the template does not parse, show the
    `TEMPLATE001` diagnostic instead of a partial source.
 3. Render it as HTML-encoded `<pre>` (or `text/plain`). Do not execute or compile anything for this
    view.

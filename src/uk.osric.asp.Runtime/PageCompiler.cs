@@ -8,8 +8,8 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using uk.osric.asp.Core;
 
-/// <summary>Compiles C# source into page assemblies and loads them for execution.</summary>
-public sealed class TemplateCompiler : ITemplateCompiler {
+/// <summary>Compiles generated page source into page images and loads them for execution.</summary>
+public sealed class PageCompiler : IPageCompiler {
 
     // Bump this when a change outside Core invalidates stored images: the compiler options, the
     // reference set, or how a compiled handler is invoked. Core's module version id covers everything
@@ -26,15 +26,15 @@ public sealed class TemplateCompiler : ITemplateCompiler {
     /// <exception cref="InvalidOperationException">
     /// The runtime does not describe its platform assemblies, so no page could be compiled.
     /// </exception>
-    public TemplateCompiler() {
-        _references = PageReferenceSet.ForRuntime();
+    public PageCompiler() {
+        _references = PageReferenceSet.ForPages();
     }
 
     /// <summary>Identifies the build and the page policy that produced a compiled image.</summary>
     internal static string RuntimeId { get; } =
         $"{FormatVersion}:{PolicyVersion}:{typeof(IHandler).Assembly.ManifestModule.ModuleVersionId:N}";
 
-    string ITemplateCompiler.RuntimeId => RuntimeId;
+    string IPageCompiler.RuntimeId => RuntimeId;
 
     /// <summary>Compiles generated C# source into an assembly image.</summary>
     /// <param name="source">The generated C# source, not the page template.</param>
@@ -44,7 +44,7 @@ public sealed class TemplateCompiler : ITemplateCompiler {
     /// The generated source itself is broken. A diagnostic without a template position means the
     /// fault is in code the generator wrote, not in the page, so it must not be shown to the author.
     /// </exception>
-    public CompileResult Compile(string source, CancellationToken cancellationToken = default) {
+    public PageCompileResult Compile(string source, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(source);
 
         SyntaxTree tree = CSharpSyntaxTree.ParseText(source, cancellationToken: cancellationToken);
@@ -59,7 +59,7 @@ public sealed class TemplateCompiler : ITemplateCompiler {
         // could be stored and served.
         IReadOnlyList<PageDiagnostic> violations = PageApiChecker.Check(tree, compilation.GetSemanticModel(tree));
         if (violations.Count > 0) {
-            return new CompileResult(null, violations);
+            return new PageCompileResult(null, violations);
         }
 
         using MemoryStream image = new();
@@ -71,16 +71,16 @@ public sealed class TemplateCompiler : ITemplateCompiler {
                 "The generated page source did not emit an assembly and reported no error diagnostic. This is a compiler fault, not a page error.");
         }
 
-        return new CompileResult(result.Success ? image.ToArray() : null, diagnostics);
+        return new PageCompileResult(result.Success ? image.ToArray() : null, diagnostics);
     }
 
     /// <summary>Loads a compiled image so its handler can be run.</summary>
     /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
     /// <returns>The loaded handler; dispose it to release the assembly.</returns>
-    public CompiledTemplate Load(byte[] image) {
+    public CompiledPage Load(byte[] image) {
         ArgumentNullException.ThrowIfNull(image);
 
-        return new CompiledTemplate(image);
+        return new CompiledPage(image);
     }
 
     // Mapped diagnostics belong to the page. Unmapped ones belong to generated code; they are a

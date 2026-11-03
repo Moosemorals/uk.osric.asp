@@ -15,7 +15,7 @@ using uk.osric.asp.Runtime;
 /// </remarks>
 internal sealed class PageService(
     IStorage storage,
-    ITemplateCompiler compiler,
+    IPageCompiler compiler,
     PageMetrics metrics,
     PageBudget budget,
     PageHealth health,
@@ -203,12 +203,12 @@ internal sealed class PageService(
         CancellationToken cancellationToken,
         CancellationToken renderDeadline = default) {
         long start = Stopwatch.GetTimestamp();
-        TemplateParseResult parse = TemplateSourceGenerator.GenerateTemplateSource(content);
+        TemplateParseResult parse = TemplateSourceGenerator.Generate(content);
 
         // A template that does not parse never reaches the compiler, but it fails exactly like a
         // syntax error: stored with its diagnostics, so the editor shows the fix and the page is not
         // recompiled on every request.
-        CompileResult result;
+        PageCompileResult result;
         if (parse.Source is { } source) {
             using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(budget.CompileOptions.Timeout);
@@ -228,7 +228,7 @@ internal sealed class PageService(
             }
 
             if (!queued) {
-                result = new CompileResult(null, [
+                result = new PageCompileResult(null, [
                     new PageDiagnostic(PageDiagnosticSeverity.Error, null,
                         $"PAGE003: the page waited longer than {budget.CompileOptions.TimeoutSeconds} s for a compile slot."),
                 ]);
@@ -240,7 +240,7 @@ internal sealed class PageService(
                         // Roslyn honours the token between operations, so this is a coarse bound: it is
                         // stored like any other page error so the editor shows it and the page is not
                         // recompiled on every request.
-                        result = new CompileResult(null, [
+                        result = new PageCompileResult(null, [
                             new PageDiagnostic(PageDiagnosticSeverity.Error, null,
                                 $"PAGE004: the page took longer than {budget.CompileOptions.TimeoutSeconds} s to compile."),
                         ]);
@@ -259,7 +259,7 @@ internal sealed class PageService(
                 }
             }
         } else {
-            result = new CompileResult(null, parse.Errors);
+            result = new PageCompileResult(null, parse.Errors);
         }
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
@@ -298,7 +298,7 @@ internal sealed class PageService(
         }
 
         long loadStart = Stopwatch.GetTimestamp();
-        CompiledTemplate template = compiler.Load(image);
+        CompiledPage template = compiler.Load(image);
 
         metrics.RecordLoad(path, Stopwatch.GetElapsedTime(loadStart));
 
@@ -332,7 +332,7 @@ internal sealed class PageService(
     private void Abandon(
         PagePath path,
         SimpleContext context,
-        CompiledTemplate template,
+        CompiledPage template,
         Task page,
         long invokeStart,
         bool disconnected) {

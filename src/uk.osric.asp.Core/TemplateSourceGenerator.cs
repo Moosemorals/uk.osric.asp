@@ -17,7 +17,7 @@ public static class TemplateSourceGenerator {
     /// source is generated for a template that does not parse: Roslyn would then report a syntax error
     /// where the text was cut off on top of the real one, and the author would fix the wrong thing.
     /// </returns>
-    public static TemplateParseResult GenerateTemplateSource(string template) {
+    public static TemplateParseResult Generate(string template) {
         ArgumentNullException.ThrowIfNull(template);
 
         TokenizeResult tokenized = TemplateTokenizer.Tokenize(template);

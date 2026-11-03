@@ -195,7 +195,7 @@ internal sealed class MetricsDashboard {
 
         DateTimeOffset earliest = samples.Min(point => point.At);
         DateTimeOffset latest = samples.Max(point => point.At);
-        ChartAxis x = new("time", NiceTicks.Time(earliest, latest, _zone));
+        ChartAxis x = new("time", NiceTicks.ForTime(earliest, latest, _zone));
         string svg = Heatmap.Render(
             rows, x, new ChartSize(width, HeatmapHeight), heatmapTitle, "seconds", HeatmapValueUnit);
 
@@ -226,8 +226,8 @@ internal sealed class MetricsDashboard {
             (min, max, unit) = (scale.Min, scale.Max, scale.Unit);
         }
 
-        ChartAxis x = new("time", NiceTicks.Time(earliest, latest, _zone));
-        ChartAxis y = new(unit, NiceTicks.Value(min, max));
+        ChartAxis x = new("time", NiceTicks.ForTime(earliest, latest, _zone));
+        ChartAxis y = new(unit, NiceTicks.ForValue(min, max));
         string svg = LineChart.Render(series, x, y, new ChartSize(width, PanelHeight));
 
         return new StatusPanel($"{definition.Title} ({unit})", svg, [.. series.Select(line => line.Label)]);

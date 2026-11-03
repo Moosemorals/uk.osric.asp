@@ -19,13 +19,13 @@ using uk.osric.asp.Core;
 /// ever appears to hang, that attribute is the knob to revisit.
 /// </para>
 /// </remarks>
-public sealed class CompiledTemplate : IDisposable {
+public sealed class CompiledPage : IDisposable {
 
     private readonly AssemblyLoadContext _context;
     private readonly Type _handler;
     private readonly MethodInfo _handle;
 
-    internal CompiledTemplate(byte[] image) {
+    internal CompiledPage(byte[] image) {
         _context = new PageLoadContext();
 
         try {

@@ -33,7 +33,7 @@ public static class NiceTicks {
     /// The ticks, positioned in seconds after <paramref name="from"/>. A span with no width yields a
     /// single tick rather than none.
     /// </returns>
-    public static IReadOnlyList<ChartTick> Time(DateTimeOffset from, DateTimeOffset to, TimeZoneInfo zone) {
+    public static IReadOnlyList<ChartTick> ForTime(DateTimeOffset from, DateTimeOffset to, TimeZoneInfo zone) {
         ArgumentNullException.ThrowIfNull(zone);
 
         TimeSpan span = to - from;
@@ -71,7 +71,7 @@ public static class NiceTicks {
     /// Ticks at 1/2/5 × 10ⁿ intervals. A flat range is widened so the line does not sit on the axis,
     /// and a range that is not a number yields <c>0..1</c>.
     /// </returns>
-    public static IReadOnlyList<ChartTick> Value(double min, double max) {
+    public static IReadOnlyList<ChartTick> ForValue(double min, double max) {
         if (!double.IsFinite(min) || !double.IsFinite(max)) {
             (min, max) = (0, 1);
         }

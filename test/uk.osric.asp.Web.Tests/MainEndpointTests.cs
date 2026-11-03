@@ -20,7 +20,7 @@ public sealed class MainEndpointTests {
 
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
     private static readonly RenderOptions Options = new();
-    private readonly RecordingCompiler _compiler = new(new TemplateCompiler());
+    private readonly RecordingCompiler _compiler = new(new PageCompiler());
     private readonly PageMetrics _metrics = new();
 
     [TearDown]
@@ -142,10 +142,10 @@ public sealed class MainEndpointTests {
     [Test]
     public async Task StoredCompilationIsRenderedWithoutCompilingAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
-        TemplateCompiler compiler = new();
-        CompileResult compiled = compiler.Compile(Generate("Hello."));
+        PageCompiler compiler = new();
+        PageCompileResult compiled = compiler.Compile(Generate("Hello."));
         PageCompilation compilation = new(
-            ContentFingerprint.Of("Hello."), TemplateCompiler.RuntimeId, compiled.Image, compiled.Diagnostics);
+            ContentFingerprint.Of("Hello."), PageCompiler.RuntimeId, compiled.Image, compiled.Diagnostics);
         FakeStorage storage = new();
         storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello.", compilation);
         int compiles = _compiler.CompileCount;
@@ -326,7 +326,7 @@ public sealed class MainEndpointTests {
     }
 
     private static string Generate(string template) {
-        TemplateParseResult parsed = TemplateSourceGenerator.GenerateTemplateSource(template);
+        TemplateParseResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 
         // The assertion above proves source was generated.

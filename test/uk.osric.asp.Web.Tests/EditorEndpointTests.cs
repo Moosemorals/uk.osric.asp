@@ -22,7 +22,7 @@ using uk.osric.asp.Web.Pages;
 public sealed class EditorEndpointTests {
 
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
-    private readonly RecordingCompiler _compiler = new(new TemplateCompiler());
+    private readonly RecordingCompiler _compiler = new(new PageCompiler());
     private readonly PageMetrics _metrics = new();
     private readonly TestAntiforgery _antiforgery = new();
 

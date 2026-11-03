@@ -21,7 +21,7 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageServiceTests {
 
     // A fresh fixture instance per test keeps the compile count and the meter belonging to one test.
-    private readonly RecordingCompiler _compiler = new(new TemplateCompiler());
+    private readonly RecordingCompiler _compiler = new(new PageCompiler());
     private readonly PageMetrics _metrics = new();
 
     [TearDown]
@@ -443,7 +443,7 @@ public sealed class PageServiceTests {
 
     private PageService CreateService(
         FakeStorage storage,
-        ITemplateCompiler compiler,
+        IPageCompiler compiler,
         RenderOptions? options = null,
         PageBudget? budget = null,
         PageHealth? health = null) {
@@ -487,48 +487,48 @@ public sealed class PageServiceTests {
         return PagePath.Normalize(path);
     }
 
-    private sealed class FaultingCompiler : ITemplateCompiler {
+    private sealed class FaultingCompiler : IPageCompiler {
 
         public string RuntimeId => "faulting";
 
-        public CompileResult Compile(string source, CancellationToken cancellationToken = default) {
+        public PageCompileResult Compile(string source, CancellationToken cancellationToken = default) {
             throw new InvalidOperationException("The generated page source did not compile.");
         }
 
-        public CompiledTemplate Load(byte[] image) {
+        public CompiledPage Load(byte[] image) {
             throw new NotSupportedException("A faulting compiler never produces an image.");
         }
     }
 
     // A compile that outlasts a one-second render budget, which is what a cold Roslyn does on a small
     // container: it finishes, so its image must be kept even though the answer was given up on.
-    private sealed class SlowCompiler(ITemplateCompiler inner) : ITemplateCompiler {
+    private sealed class SlowCompiler(IPageCompiler inner) : IPageCompiler {
 
         public string RuntimeId => inner.RuntimeId;
 
-        public CompileResult Compile(string source, CancellationToken cancellationToken = default) {
+        public PageCompileResult Compile(string source, CancellationToken cancellationToken = default) {
             Thread.Sleep(TimeSpan.FromMilliseconds(1300));
 
             return inner.Compile(source, cancellationToken);
         }
 
-        public CompiledTemplate Load(byte[] image) {
+        public CompiledPage Load(byte[] image) {
             return inner.Load(image);
         }
     }
 
     // Roslyn honours the token between operations rather than inside one, so a compile that outruns
     // its budget reports by cancelling. This one waits for the deadline the way Roslyn would.
-    private sealed class StallingCompiler : ITemplateCompiler {
+    private sealed class StallingCompiler : IPageCompiler {
 
         public string RuntimeId => "stalling";
 
-        public CompileResult Compile(string source, CancellationToken cancellationToken = default) {
+        public PageCompileResult Compile(string source, CancellationToken cancellationToken = default) {
             cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
             throw new OperationCanceledException(cancellationToken);
         }
 
-        public CompiledTemplate Load(byte[] image) {
+        public CompiledPage Load(byte[] image) {
             throw new NotSupportedException("A stalling compiler never produces an image.");
         }
     }

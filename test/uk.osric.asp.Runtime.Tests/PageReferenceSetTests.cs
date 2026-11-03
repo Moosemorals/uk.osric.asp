@@ -18,7 +18,7 @@ public sealed class PageReferenceSetTests {
 
     [Test]
     public void TheRuntimeProvidesThePageReferenceSet() {
-        string?[] displays = [.. PageReferenceSet.ForRuntime().Select(reference => reference.Display)];
+        string?[] displays = [.. PageReferenceSet.ForPages().Select(reference => reference.Display)];
 
         Assert.That(displays, Is.Not.Empty);
         Assert.That(displays, Has.Some.Matches<string?>(

@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.IntegrationTests;
 using uk.osric.asp.Runtime;
 
 /// <summary>Counts the compilations the running host performs, then delegates to the real compiler.</summary>
-internal sealed class RecordingCompiler(ITemplateCompiler inner) : ITemplateCompiler {
+internal sealed class RecordingCompiler(IPageCompiler inner) : IPageCompiler {
 
     private int _compileCount;
 
@@ -14,12 +14,12 @@ internal sealed class RecordingCompiler(ITemplateCompiler inner) : ITemplateComp
 
     public string RuntimeId => inner.RuntimeId;
 
-    public CompileResult Compile(string source, CancellationToken cancellationToken = default) {
+    public PageCompileResult Compile(string source, CancellationToken cancellationToken = default) {
         Interlocked.Increment(ref _compileCount);
         return inner.Compile(source, cancellationToken);
     }
 
-    public CompiledTemplate Load(byte[] image) {
+    public CompiledPage Load(byte[] image) {
         return inner.Load(image);
     }
 }

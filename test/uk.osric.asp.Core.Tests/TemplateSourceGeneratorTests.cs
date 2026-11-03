@@ -10,28 +10,28 @@ using uk.osric.asp.Core;
 public sealed class TemplateSourceGeneratorTests {
     [Test]
     public void TextBecomesAWriteRawCall() {
-        string? source = TemplateSourceGenerator.GenerateTemplateSource("Hello").Source;
+        string? source = TemplateSourceGenerator.Generate("Hello").Source;
 
         Assert.That(source, Does.Contain("ctx.WriteRaw(@\"Hello\");"));
     }
 
     [Test]
     public void QuotesInTextAreDoubledForAVerbatimLiteral() {
-        string? source = TemplateSourceGenerator.GenerateTemplateSource("Quote: \"Hello\"\\path").Source;
+        string? source = TemplateSourceGenerator.Generate("Quote: \"Hello\"\\path").Source;
 
         Assert.That(source, Does.Contain("ctx.WriteRaw(@\"Quote: \"\"Hello\"\"\\path\");"));
     }
 
     [Test]
     public void NewlinesInTextArePreserved() {
-        string? source = TemplateSourceGenerator.GenerateTemplateSource("first\r\nsecond").Source;
+        string? source = TemplateSourceGenerator.Generate("first\r\nsecond").Source;
 
         Assert.That(source, Does.Contain("@\"first\r\nsecond\""));
     }
 
     [Test]
     public void CodeBlocksAreCopiedVerbatimBetweenText() {
-        string? source = TemplateSourceGenerator.GenerateTemplateSource("before<% ctx.Write(\"middle\"); %>after").Source;
+        string? source = TemplateSourceGenerator.Generate("before<% ctx.Write(\"middle\"); %>after").Source;
 
         Assert.That(source, Does.Contain("ctx.WriteRaw(@\"before\");"));
         Assert.That(source, Does.Contain("ctx.Write(\"middle\");"));
@@ -40,7 +40,7 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void GeneratedSourceDeclaresAHandler() {
-        string? source = TemplateSourceGenerator.GenerateTemplateSource("").Source;
+        string? source = TemplateSourceGenerator.Generate("").Source;
 
         Assert.That(source, Does.Contain("using uk.osric.asp.Core;"));
         Assert.That(source, Does.Contain("class GeneratedPage : IHandler"));
@@ -49,7 +49,7 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void AnUnterminatedCodeBlockProducesNoSourceAndOneError() {
-        TemplateParseResult result = TemplateSourceGenerator.GenerateTemplateSource("before<% if (true) {");
+        TemplateParseResult result = TemplateSourceGenerator.Generate("before<% if (true) {");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Source, Is.Null);
@@ -61,7 +61,7 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void AnUnterminatedCodeBlockIsReportedOnItsOwnTemplateLine() {
-        TemplateParseResult result = TemplateSourceGenerator.GenerateTemplateSource("line one\nline two <% if (true) {");
+        TemplateParseResult result = TemplateSourceGenerator.Generate("line one\nline two <% if (true) {");
 
         // NUnit types the Matches predicate's item as nullable, so check it before reading it.
         Assert.That(result.Errors, Has.Exactly(1).Matches<PageDiagnostic>(
@@ -100,7 +100,7 @@ public sealed class TemplateSourceGeneratorTests {
     }
 
     private static string Generate(string template) {
-        TemplateParseResult result = TemplateSourceGenerator.GenerateTemplateSource(template);
+        TemplateParseResult result = TemplateSourceGenerator.Generate(template);
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Errors));
 
         // The assertion above proves source was generated.
@@ -109,7 +109,7 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void AParsedTemplateReportsNoErrors() {
-        TemplateParseResult result = TemplateSourceGenerator.GenerateTemplateSource("Hello");
+        TemplateParseResult result = TemplateSourceGenerator.Generate("Hello");
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Errors, Is.Empty);

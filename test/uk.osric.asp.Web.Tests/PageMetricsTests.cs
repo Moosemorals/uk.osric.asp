@@ -18,7 +18,7 @@ using uk.osric.asp.Web.Pages;
 [NonParallelizable]
 public sealed class PageMetricsTests {
 
-    private readonly RecordingCompiler _compiler = new(new TemplateCompiler());
+    private readonly RecordingCompiler _compiler = new(new PageCompiler());
     private readonly PageMetrics _metrics = new();
 
     [TearDown]

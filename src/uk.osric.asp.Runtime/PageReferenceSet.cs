@@ -27,7 +27,7 @@ internal static class PageReferenceSet {
     /// <exception cref="InvalidOperationException">
     /// The runtime did not describe its platform assemblies, or described none that pages can use.
     /// </exception>
-    internal static MetadataReference[] ForRuntime() {
+    internal static MetadataReference[] ForPages() {
         lock (s_gate) {
             // Only a successful set is kept, so a failure to read one assembly is not remembered for
             // the life of the process.

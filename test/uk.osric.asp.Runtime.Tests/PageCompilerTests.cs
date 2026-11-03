@@ -10,9 +10,9 @@ using uk.osric.asp.Core;
 using uk.osric.asp.Runtime;
 
 [TestFixture]
-public sealed class TemplateCompilerTests {
+public sealed class PageCompilerTests {
 
-    private static readonly TemplateCompiler Compiler = new();
+    private static readonly PageCompiler Compiler = new();
 
     [Test]
     public void EmptyTemplateCompilesAndProducesNoOutput() {
@@ -39,7 +39,7 @@ public sealed class TemplateCompilerTests {
 
     [Test]
     public void InvalidSourceReportsDiagnosticsWithoutAnImage() {
-        CompileResult result = Compile("<% int value = ; %>");
+        PageCompileResult result = Compile("<% int value = ; %>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Is.Not.Empty);
@@ -53,7 +53,7 @@ public sealed class TemplateCompilerTests {
 
     [Test]
     public void ASyntaxErrorReportsItsTemplateLineAndColumn() {
-        CompileResult result = Compile("line one\nline two\n<% int value = ; %>");
+        PageCompileResult result = Compile("line one\nline two\n<% int value = ; %>");
 
         PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
             diagnostic.Message.Contains("CS1525", StringComparison.Ordinal));
@@ -64,7 +64,7 @@ public sealed class TemplateCompilerTests {
 
     [Test]
     public void AWarningOnlyPageSucceedsAndEmitsAnImage() {
-        CompileResult result = Compile("<% int unused = 1; %>");
+        PageCompileResult result = Compile("<% int unused = 1; %>");
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
@@ -76,7 +76,7 @@ public sealed class TemplateCompilerTests {
 
     [Test]
     public void AWarningDoesNotHideAnError() {
-        CompileResult result = Compile("<% int unused = 1; int value = \"text\"; %>");
+        PageCompileResult result = Compile("<% int unused = 1; int value = \"text\"; %>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -90,7 +90,7 @@ public sealed class TemplateCompilerTests {
 
     [Test]
     public void AnUnclosedBlockIsReportedAtTheEndOfTheTemplate() {
-        CompileResult result = Compile("<% if (true) { %>");
+        PageCompileResult result = Compile("<% if (true) { %>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -138,7 +138,7 @@ public sealed class TemplateCompilerTests {
             }}
             """;
 
-        CompileResult result = Compiler.Compile(source);
+        PageCompileResult result = Compiler.Compile(source);
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -149,7 +149,7 @@ public sealed class TemplateCompilerTests {
 
     [Test]
     public void ValidSourceEmitsAnImage() {
-        CompileResult result = Compile("Hello.");
+        PageCompileResult result = Compile("Hello.");
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
@@ -157,7 +157,7 @@ public sealed class TemplateCompilerTests {
 
     [Test]
     public void OneImageCanBeLoadedAndInvokedMoreThanOnce() {
-        using CompiledTemplate template = Load("Hello, <% ctx.Write(\"world\"); %>!");
+        using CompiledPage template = Load("Hello, <% ctx.Write(\"world\"); %>!");
         TestContext first = new();
         TestContext second = new();
 
@@ -170,7 +170,7 @@ public sealed class TemplateCompilerTests {
 
     [Test]
     public void TemplateExceptionsSurfaceUnwrapped() {
-        using CompiledTemplate template = Load("<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
+        using CompiledPage template = Load("<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
         InvalidOperationException? failure = Assert.Throws<InvalidOperationException>(() => template.Invoke(new TestContext()));
 
@@ -180,29 +180,29 @@ public sealed class TemplateCompilerTests {
 
     [Test]
     public void RuntimeIdStartsWithTheFormatAndPolicyVersions() {
-        Assert.That(TemplateCompiler.RuntimeId, Does.StartWith("2:1:"));
+        Assert.That(PageCompiler.RuntimeId, Does.StartWith("2:1:"));
     }
 
     [Test]
     public void RuntimeIdContainsTheCoreModuleVersionId() {
-        Assert.That(TemplateCompiler.RuntimeId,
+        Assert.That(PageCompiler.RuntimeId,
             Does.EndWith(typeof(IHandler).Assembly.ManifestModule.ModuleVersionId.ToString("N")));
     }
 
-    private static CompileResult Compile(string template) {
+    private static PageCompileResult Compile(string template) {
         return Compiler.Compile(Generate(template));
     }
 
     private static string Generate(string template) {
-        TemplateParseResult parsed = TemplateSourceGenerator.GenerateTemplateSource(template);
+        TemplateParseResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 
         // The assertion above proves source was generated.
         return parsed.Source!;
     }
 
-    private static CompiledTemplate Load(string template) {
-        CompileResult result = Compile(template);
+    private static CompiledPage Load(string template) {
+        PageCompileResult result = Compile(template);
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
 
         // The assertion above proves the image exists when compilation succeeded.
@@ -210,7 +210,7 @@ public sealed class TemplateCompilerTests {
     }
 
     private static TestContext CompileAndRun(string template) {
-        using CompiledTemplate page = Load(template);
+        using CompiledPage page = Load(template);
         TestContext context = new();
         page.Invoke(context);
         return context;

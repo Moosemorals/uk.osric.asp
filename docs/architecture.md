@@ -13,7 +13,7 @@ can enforce it.
 - **`src/uk.osric.asp.Core`** holds the pure half: the template tokenizer, the source generator, and
   the `IContext`/`IHandler` contracts. It has no project or package references at all, so it cannot
   reach for I/O, a clock, DI or ASP.NET. Its only dependency is the base class library.
-- **`src/uk.osric.asp.Runtime`** holds the imperative half of template execution: `TemplateCompiler`
+- **`src/uk.osric.asp.Runtime`** holds the imperative half of template execution: `PageCompiler`
   reads platform assembly paths, generates assembly names, emits to a stream, and loads and invokes
   the compiled handler in a collectible `AssemblyLoadContext`. It also applies the page API policy
   (`PageApiChecker`) before emitting, and hands each image a `PageLoadContext` that refuses the
@@ -23,7 +23,7 @@ can enforce it.
   storage. EF Core, SQLite, database migrations and `IStorage` belong here.
 
 The dependency direction is one-way: `Web` → `Runtime` → `Core`, and `Web` → `Core`. Nothing points
-back up. `TemplateCompiler` returns a `CompileResult` of an optional image and
+back up. `PageCompiler` returns a `PageCompileResult` of an optional image and
 `PageDiagnostic` values rather than Roslyn `EmitResult`/`Diagnostic` values, so the shell never sees
 the compiler's types.
 
@@ -39,7 +39,7 @@ page the author typed, or `null` when there is no position. The generator wraps 
 Roslyn reports the author's position rather than a generated one. The closing braces are mapped to
 one line past the template, which turns an unclosed block into a positioned author error. A Roslyn
 error with no mapped position, and no mapped error explaining it, is a fault in generated code:
-`TemplateCompiler` throws instead of returning a diagnostic, `PageService` preserves the source and
+`PageCompiler` throws instead of returning a diagnostic, `PageService` preserves the source and
 rethrows, and the host answers `500`. Warnings are author-facing only when they are mapped; a
 warning never stops a page compiling.
 
@@ -181,7 +181,7 @@ and each page is rechecked on its next request.
 
 ## Load isolation
 
-`CompiledTemplate` loads each image into a `PageLoadContext`, a collectible `AssemblyLoadContext`
+`CompiledPage` loads each image into a `PageLoadContext`, a collectible `AssemblyLoadContext`
 that refuses `uk.osric.asp.Web`, `uk.osric.asp.Runtime`, `Microsoft.AspNetCore*`,
 `Microsoft.EntityFrameworkCore*` and `Microsoft.Data.Sqlite`, and lets everything else resolve
 through the default context. It throws rather than returning `null`, because `null` means "ask the
@@ -288,7 +288,7 @@ page that keeps changing is served from the last compile rather than failing.
 
 `IStorage` owns both halves: `GetPageAsync`, `SavePageAsync` and the conditional
 `TrySetCompilationAsync`. `Runtime` knows only how to turn generated source into bytes and bytes into
-a loaded handler (`ITemplateCompiler`, `CompiledTemplate`); it never sees a page.
+a loaded handler (`IPageCompiler`, `CompiledPage`); it never sees a page.
 
 ## Instrumentation
 

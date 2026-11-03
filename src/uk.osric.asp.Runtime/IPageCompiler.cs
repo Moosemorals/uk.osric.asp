@@ -3,12 +3,12 @@
 
 namespace uk.osric.asp.Runtime;
 
-/// <summary>Compiles template source and loads compiled pages.</summary>
+/// <summary>Compiles generated page source into an assembly image and loads compiled pages.</summary>
 /// <remarks>
 /// The shell depends on this interface rather than on a compiler type, so compilation can be
 /// counted, timed or replaced without the shell naming Roslyn.
 /// </remarks>
-public interface ITemplateCompiler {
+public interface IPageCompiler {
 
     /// <summary>Identifies the build that produced a compiled image.</summary>
     /// <remarks>
@@ -28,10 +28,10 @@ public interface ITemplateCompiler {
     /// The generated source itself is broken. A fault is not a page diagnostic and must reach the
     /// shell as an exception.
     /// </exception>
-    CompileResult Compile(string source, CancellationToken cancellationToken = default);
+    PageCompileResult Compile(string source, CancellationToken cancellationToken = default);
 
     /// <summary>Loads a compiled image so its handler can be run.</summary>
     /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
     /// <returns>The loaded handler; dispose it to release the assembly.</returns>
-    CompiledTemplate Load(byte[] image);
+    CompiledPage Load(byte[] image);
 }

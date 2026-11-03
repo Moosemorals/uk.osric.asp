@@ -33,7 +33,7 @@ internal sealed class AspApplication(
         Path.Combine(Path.GetTempPath(), $"uk.osric.asp.integration.{Guid.NewGuid():N}.db");
 
     /// <summary>Counts every compilation the host performs, so a test can prove a cache hit.</summary>
-    public RecordingCompiler Compiler { get; } = new(new TemplateCompiler());
+    public RecordingCompiler Compiler { get; } = new(new PageCompiler());
 
     protected override void ConfigureWebHost(IWebHostBuilder builder) {
         // Production, so the exception-handler branch is what answers a failure rather than the
@@ -42,7 +42,7 @@ internal sealed class AspApplication(
         builder.UseSetting("ConnectionStrings:Storage", $"Data Source={DatabasePath}");
         builder.UseSetting("Pages:Render:TimeoutSeconds", renderTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
         builder.ConfigureTestServices(services => {
-            services.AddSingleton<ITemplateCompiler>(Compiler);
+            services.AddSingleton<IPageCompiler>(Compiler);
             // The shared fixture signs in many times; the dedicated throttle test lowers this.
             services.Configure<LoginRateLimitOptions>(options => options.PermitLimit = loginPermitLimit);
 

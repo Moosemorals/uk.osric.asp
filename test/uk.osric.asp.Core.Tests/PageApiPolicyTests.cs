@@ -24,7 +24,7 @@ public sealed class PageApiPolicyTests {
     [TestCase("System.Threading", "Thread", "Sleep", false)]
     [TestCase("Microsoft.AspNetCore.Http", "HttpContext", "", false)]
     [TestCase("uk.osric.asp.Web", "SimpleContext", "", false)]
-    [TestCase("uk.osric.asp.Runtime", "TemplateCompiler", "", false)]
+    [TestCase("uk.osric.asp.Runtime", "PageCompiler", "", false)]
     public void ReferenceIsAllowedAsExpected(string ns, string type, string member, bool allowed) {
         ApiReference reference = new(ns, type, member, new TemplatePosition(3, 1));
 

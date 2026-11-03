@@ -50,7 +50,7 @@ internal class Program {
         builder.Services.AddSingleton<IPasswordService, PasswordService>();
         builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
         builder.Services.AddScoped<PageService>();
-        builder.Services.AddSingleton<ITemplateCompiler, TemplateCompiler>();
+        builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton(services => MetricsOptions.FromConfiguration(
             builder.Configuration,
@@ -114,7 +114,7 @@ internal class Program {
 
         // The compiler's reference set comes from the runtime, so resolve it before the host listens:
         // a runtime that cannot supply one must fail the deploy, not the first page that gets saved.
-        _ = app.Services.GetRequiredService<ITemplateCompiler>();
+        _ = app.Services.GetRequiredService<IPageCompiler>();
 
         // Before anything that reads the scheme. Without it every request arrives as plain HTTP from
         // the proxy, so HSTS emits nothing and IsHttps is always false.
