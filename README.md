@@ -31,15 +31,37 @@ autocomplete and real error messages.
 
 ```
 <h1>Hello</h1>
-<p>You asked for <% ctx.Write(ctx.Path); %>.</p>
+<p>You asked for <%= ctx.Path %>.</p>
 
 <% for (int i = 1; i <= 3; i++) { %>
-    <p>Line <% ctx.Write(i.ToString()); %></p>
+    <p>Line <%= i.ToString() %></p>
 <% } %>
+<%== "<hr>" %>
 ```
 
-`ctx.Write` escapes, `ctx.WriteRaw` does not, and `ctx.Log` writes to the log. The
+`<%= expression %>` writes a string through `ctx.Write` and HTML-encodes it; `<%== expression %>`
+writes through `ctx.WriteRaw` without encoding. Expressions must produce a string, so convert other
+values explicitly, for example with `.ToString()`. Statement blocks can still call `ctx.Write`,
+`ctx.WriteRaw` or `ctx.Log` directly. The
 [architecture notes](docs/architecture.md#page-contract) list the rest of the surface.
+
+A `<%! %>` block holds declarations rather than statements: `using` directives and types of the
+page's own. They are hoisted above the handler and are usable from every `<% %>` block, before or
+after the block that declares them.
+
+```
+<%!
+using System.Globalization;
+
+sealed class Amount {
+    public static string Format(decimal value) => value.ToString("N2", CultureInfo.InvariantCulture);
+}
+%>
+<p>Total: <% ctx.Write(Amount.Format(42.5m)); %></p>
+```
+
+Declaration blocks keep their template order, which is also the order of the generated `using`
+directives: a `using` written after a type is a compiler error on the line it is written.
 
 ## Running it
 

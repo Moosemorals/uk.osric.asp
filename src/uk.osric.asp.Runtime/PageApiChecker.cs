@@ -19,6 +19,12 @@ internal static class PageApiChecker {
     private const string HandlerTypeName = "GeneratedPage";
     private const string HandlerMethodName = "Handle";
 
+    private const string ShapeMessage =
+        "PAGE002: page code must stay inside a code block; a declaration block may only declare types.";
+    private const string NamespaceMessage = "PAGE002: a page may not declare a namespace.";
+    private const string HandlerNameMessage = "PAGE002: a page may not declare its own GeneratedPage.";
+    private const string AssemblyAttributeMessage = "PAGE002: a page may not add assembly attributes.";
+
     /// <summary>Reports everything the page may not do.</summary>
     /// <param name="tree">The parsed generated source.</param>
     /// <param name="model">The semantic model bound to <paramref name="tree"/>.</param>
@@ -76,29 +82,52 @@ internal static class PageApiChecker {
         return diagnostics;
     }
 
-    // The page body is a method body. A page that closes the method or the type gains members here,
-    // which is what stops it declaring statics, its own entry point or a module initializer.
+    // The page body is a method body. Closing the method or the type gains members here, which is
+    // what stops it declaring statics, its own entry point or a module initializer. A declaration
+    // block hops over that by being emitted before the handler, so the rule allows the page's own
+    // type declarations — and only those — ahead of the generated class.
     private static List<PageDiagnostic> CheckShape(SyntaxTree tree) {
-        const string Message =
-            "PAGE002: page code must stay inside a code block; a page may not declare types or members.";
+        if (tree.GetRoot() is not CompilationUnitSyntax unit) {
+            return [Error(tree.GetRoot(), ShapeMessage)];
+        }
 
         List<PageDiagnostic> diagnostics = [];
-        PageDiagnostic error = new(PageDiagnosticSeverity.Error, null, Message);
 
-        if (tree.GetRoot() is not CompilationUnitSyntax unit) {
-            diagnostics.Add(error);
+        // A namespace would wrap the handler, so the rest of the rule cannot be applied to it.
+        foreach (MemberDeclarationSyntax member in unit.Members) {
+            if (member is BaseNamespaceDeclarationSyntax @namespace) {
+                diagnostics.Add(Error(@namespace, NamespaceMessage));
+            }
+        }
+
+        foreach (AttributeListSyntax attribute in unit.AttributeLists) {
+            diagnostics.Add(Error(attribute, AssemblyAttributeMessage));
+        }
+
+        if (diagnostics.Count > 0) {
             return diagnostics;
         }
 
-        if (unit.Members is not [ClassDeclarationSyntax type]
-            || !string.Equals(type.Identifier.ValueText, HandlerTypeName, StringComparison.Ordinal)) {
-            diagnostics.Add(error);
-            return diagnostics;
+        // The generator always emits its class last, so the handler is the only member that may
+        // carry a body; everything before it has to be a declaration the page hoisted.
+        if (unit.Members is not [.., ClassDeclarationSyntax handler]) {
+            return [Error(unit, ShapeMessage)];
         }
 
-        if (type.Members is not [MethodDeclarationSyntax method]
+        if (!string.Equals(handler.Identifier.ValueText, HandlerTypeName, StringComparison.Ordinal)
+            || handler.Members is not [MethodDeclarationSyntax method]
             || !string.Equals(method.Identifier.ValueText, HandlerMethodName, StringComparison.Ordinal)) {
-            diagnostics.Add(error);
+            return [Error(handler, ShapeMessage)];
+        }
+
+        for (int index = 0; index < unit.Members.Count - 1; index++) {
+            MemberDeclarationSyntax declaration = unit.Members[index];
+            if (declaration is BaseTypeDeclarationSyntax type
+                && string.Equals(type.Identifier.ValueText, HandlerTypeName, StringComparison.Ordinal)) {
+                diagnostics.Add(Error(type, HandlerNameMessage));
+            } else if (declaration is not (BaseTypeDeclarationSyntax or DelegateDeclarationSyntax)) {
+                diagnostics.Add(Error(declaration, ShapeMessage));
+            }
         }
 
         return diagnostics;
@@ -113,6 +142,10 @@ internal static class PageApiChecker {
             IdentifierNameSyntax { Identifier.ValueText: "dynamic" } => "dynamic",
             _ => null,
         };
+    }
+
+    private static PageDiagnostic Error(SyntaxNode node, string message) {
+        return new PageDiagnostic(PageDiagnosticSeverity.Error, TemplatePositionOf(node), message);
     }
 
     private static InvalidOperationException CompilerFault(string message) {

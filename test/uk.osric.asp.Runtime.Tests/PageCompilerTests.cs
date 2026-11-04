@@ -73,6 +73,36 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
+    public void AWriteExpressionErrorOnALaterLineReportsItsTemplatePosition() {
+        PageCompileResult result = Compile("first\n<%=\n    ctx\n      .Missing\n%>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS1061", StringComparison.Ordinal));
+
+        Assert.That(error.Position, Is.EqualTo(new TemplatePosition(4, 8)));
+    }
+
+    [Test]
+    public void AWriteExpressionMustHaveAStringType() {
+        PageCompileResult result = Compile("<%= 42 %>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS1503", StringComparison.Ordinal));
+
+        Assert.That(error.Position, Is.EqualTo(new TemplatePosition(1, 5)));
+    }
+
+    [Test]
+    public void AWriteCallDiagnosticReportsItsTemplateLineAndCallColumn() {
+        PageCompileResult result = Compile("\n  <%=\n    ctx.Path, ctx.Path %>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS1501", StringComparison.Ordinal));
+
+        Assert.That(error.Position, Is.EqualTo(new TemplatePosition(2, 7)));
+    }
+
+    [Test]
     public void AWarningOnlyPageSucceedsAndEmitsAnImage() {
         PageCompileResult result = Compile("<% int unused = 1; %>");
 
@@ -156,6 +186,88 @@ public sealed class PageCompilerTests {
             diagnostic => diagnostic is not null
                 && diagnostic.Message.Contains("CS1525", StringComparison.Ordinal)
                 && diagnostic.Position?.Line == 1));
+    }
+
+    [Test]
+    public void AUsingBlockAfterATypeBlockIsReportedInTemplateSpace() {
+        PageCompileResult result = Compile("<%! class Amount { } %>\n<%! using System.Globalization; %>");
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS1529", StringComparison.Ordinal)
+                && diagnostic.Position is { Line: 2, Column: > 0 }));
+    }
+
+    [Test]
+    public void AnErrorInsideADeclaredTypeReportsItsTemplateLineAndColumn() {
+        PageCompileResult result = Compile("""
+            first
+            <%!
+            class Amount {
+                public static int Value() => "text";
+            }
+            %>
+            """);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS0029", StringComparison.Ordinal)
+                && diagnostic.Position == new TemplatePosition(4, 34)));
+    }
+
+    [Test]
+    public void APageDeclaredTypeIsUsableFromPageCode() {
+        TestContext context = CompileAndRun("""
+            <%!
+            sealed class Amount {
+                public static string Format(decimal value) => value.ToString("N2", System.Globalization.CultureInfo.InvariantCulture);
+            }
+            %>
+            Total: <% ctx.Write(Amount.Format(42.5m)); %>
+            """);
+
+        Assert.That(context.Output, Is.EqualTo("\nTotal: 42.50"));
+    }
+
+    [Test]
+    public void APageDeclaredTypeIsUsableFromMoreThanOneBlock() {
+        TestContext context = CompileAndRun("""
+            <%!static class Greeting { public static string For(string who) => "Hello, " + who; }%>
+            <% ctx.Write(Greeting.For("world")); %><% ctx.Write(Greeting.For("again")); %>
+            """);
+
+        Assert.That(context.Output, Is.EqualTo("\nHello, worldHello, again"));
+    }
+
+    [Test]
+    public void APageDeclaredHandlerIsNotTheEntryPoint() {
+        TestContext context = CompileAndRun("""
+            <%!
+            sealed class Decoy : uk.osric.asp.Sdk.IHandler {
+                public void Handle(uk.osric.asp.Sdk.IContext ctx) => ctx.Write("decoy");
+            }
+            %>
+            real
+            """);
+
+        Assert.That(context.Output, Does.Not.Contain("decoy"));
+        Assert.That(context.Output, Does.Contain("real"));
+    }
+
+    [Test]
+    public void AnUnmappedDeclarationPolicyViolationThrowsInsteadOfReturningADiagnostic() {
+        const string source = """
+            class Helper {
+                public static string Read() => System.IO.File.ReadAllText("page.txt");
+            }
+            public class GeneratedPage : uk.osric.asp.Sdk.IHandler {
+            public void Handle(uk.osric.asp.Sdk.IContext ctx) {
+            }}
+            """;
+
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(source));
     }
 
     [Test]

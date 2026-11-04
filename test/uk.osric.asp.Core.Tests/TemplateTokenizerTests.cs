@@ -41,6 +41,83 @@ public sealed class TemplateTokenizerTests {
         }));
     }
 
+    [TestCase("", "<%!%>")]
+    [TestCase("using System.Globalization;", "<%!using System.Globalization;%>")]
+    [TestCase("class Amount { }", "<%!class Amount { }%>")]
+    public void ADeclarationBlockIsADeclarationToken(string expected, string input) {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Declaration, expected, new TemplatePosition(1, 4)),
+        }));
+    }
+
+    [Test]
+    public void ADeclarationBlockPreservesItsContent() {
+        const string content = " \r\nclass Amount {\n    public static string Format() => \"\";\n}\r\n ";
+
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<%!" + content + "%>").Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Declaration, content, new TemplatePosition(1, 4)),
+        }));
+    }
+
+    [TestCase("<%= ctx.Path %>", false)]
+    [TestCase("<%== ctx.Path %>", true)]
+    public void AWriteBlockIsTokenizedWithItsContentAndOpenerPosition(string input, bool isRaw) {
+        TokenType type = isRaw ? TokenType.WriteRaw : TokenType.Write;
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(type, " ctx.Path ", new TemplatePosition(1, isRaw ? 5 : 4),
+                new TemplatePosition(1, 1)),
+        }));
+    }
+
+    [Test]
+    public void AWriteBlockPreservesItsWhitespaceAndNewlines() {
+        const string content = " \r\n ctx.Path\n ";
+
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<%==" + content + "%>").Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.WriteRaw, content, new TemplatePosition(1, 5), new TemplatePosition(1, 1)),
+        }));
+    }
+
+    [Test]
+    public void ASeparatedEqualsRemainsACodeBlock() {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<% = value %>").Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Code, " = value ", new TemplatePosition(1, 3)),
+        }));
+    }
+
+    [Test]
+    public void WriteBlocksStayAdjacentToTextAndEachOtherWithoutEmptyTextTokens() {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("before<%=x%><%==y%>after").Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Text, "before", new TemplatePosition(1, 1)),
+            new(TokenType.Write, "x", new TemplatePosition(1, 10), new TemplatePosition(1, 7)),
+            new(TokenType.WriteRaw, "y", new TemplatePosition(1, 17), new TemplatePosition(1, 13)),
+            new(TokenType.Text, "after", new TemplatePosition(1, 20)),
+        }));
+    }
+
+    [TestCase("<% !value %>")]
+    [TestCase("<%\t!value %>")]
+    [TestCase("<%\n!value %>")]
+    public void AnExclamationIsADeclarationOnlyWhenAdjacentToTheOpener(string input) {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Code, input[2..^2], new TemplatePosition(1, 3)),
+        }));
+    }
+
     [Test]
     public void AlternatingTextAndCodeRemainInSourceOrder() {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("before<%first();%>between<%second();%>after").Tokens;
@@ -89,6 +166,16 @@ public sealed class TemplateTokenizerTests {
         }));
     }
 
+    [Test]
+    public void ClosingDelimiterEndsAWriteBlockInsideAQuotedString() {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<%= \"before%>after").Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Write, " \"before", new TemplatePosition(1, 4), new TemplatePosition(1, 1)),
+            new(TokenType.Text, "after", new TemplatePosition(1, 14)),
+        }));
+    }
+
     [TestCase("<%", 1, 1)]
     [TestCase("<%>", 1, 1)]
     [TestCase("before<%code", 1, 7)]
@@ -102,6 +189,39 @@ public sealed class TemplateTokenizerTests {
         Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
                 "TEMPLATE001: unterminated code block; the '<%' has no matching '%>'."),
+        }));
+    }
+
+    [TestCase("<%!", 1, 1)]
+    [TestCase("<%!>", 1, 1)]
+    [TestCase("before<%!class Amount", 1, 7)]
+    [TestCase("<%!using System;\nclass Amount {", 1, 1)]
+    [TestCase("line one\r\n<%!class Amount", 2, 1)]
+    public void AnUnterminatedDeclarationBlockIsReportedAtItsOpeningDelimiter(string input, int line, int column) {
+        TokenizeResult result = TemplateTokenizer.Tokenize(input);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
+                "TEMPLATE001: unterminated declaration block; the '<%!' has no matching '%>'."),
+        }));
+    }
+
+    [TestCase("<%= value", 1, 1, "<%=")]
+    [TestCase("before<%= value", 1, 7, "<%=")]
+    [TestCase("line\r\n<%== value", 2, 1, "<%==")]
+    public void AnUnterminatedWriteBlockIsReportedAtItsOpeningDelimiter(
+        string input,
+        int line,
+        int column,
+        string opener) {
+        TokenizeResult result = TemplateTokenizer.Tokenize(input);
+        string kind = opener == "<%==" ? "raw-write" : "write";
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
+                $"TEMPLATE001: unterminated {kind} block; the '{opener}' has no matching '%>'."),
         }));
     }
 
