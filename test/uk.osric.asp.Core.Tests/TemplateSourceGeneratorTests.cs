@@ -38,6 +38,74 @@ public sealed class TemplateSourceGeneratorTests {
         Assert.That(source, Does.Contain("ctx.WriteRaw(@\"after\");"));
     }
 
+    [TestCase("<%= ctx.Path %>", "ctx.Write(", "ctx.Path")]
+    [TestCase("<%== ctx.Path %>", "ctx.WriteRaw(", "ctx.Path")]
+    public void WriteBlocksGenerateTheMatchingContextCall(string template, string call, string expression) {
+        string source = Generate(template);
+
+        Assert.That(source, Does.Contain($"{call}{Environment.NewLine}"));
+        Assert.That(source, Does.Contain($"{expression}{Environment.NewLine}#line default{Environment.NewLine});"));
+    }
+
+    [Test]
+    public void WriteExpressionWhitespaceIsTrimmedButInternalTextIsPreserved() {
+        string source = Generate("<%=   ctx.Path +\n      ctx.Path   %>");
+
+        Assert.That(source, Does.Contain(
+            $"#line 1 \"page\"{Environment.NewLine}ctx.Write({Environment.NewLine}"
+            + $"#line 1 \"page\"{Environment.NewLine}      ctx.Path +\n      ctx.Path"));
+    }
+
+    [TestCase("<%= ctx.Path; %>", "ctx.Write(", "ctx.Path")]
+    [TestCase("<%== ctx.Path; %>", "ctx.WriteRaw(", "ctx.Path")]
+    public void OneTrailingSemicolonIsRemoved(string template, string call, string expression) {
+        string source = Generate(template);
+
+        Assert.That(source, Does.Contain($"{call}{Environment.NewLine}"));
+        Assert.That(source, Does.Contain($"{expression}{Environment.NewLine}#line default{Environment.NewLine});"));
+    }
+
+    [Test]
+    public void OnlyOneTrailingSemicolonIsRemoved() {
+        string source = Generate("<%== ctx.Path; ; %>");
+
+        Assert.That(source, Does.Contain($"ctx.Path; {Environment.NewLine}#line default{Environment.NewLine});"));
+    }
+
+    [Test]
+    public void AWriteExpressionAfterLeadingNewlinesMapsToItsTemplateColumn() {
+        string source = Generate("<%=\r\n  ctx.Path\r\n%>");
+
+        Assert.That(source, Does.Contain(
+            $"#line 2 \"page\"{Environment.NewLine}  ctx.Path{Environment.NewLine}#line default{Environment.NewLine}"));
+    }
+
+    [Test]
+    public void AWriteWrapperMapsToItsOpenerAndTheExpressionMapsToItsContent() {
+        string source = Generate("  <%=\n    ctx.Path %>");
+
+        Assert.That(source, Does.Contain(
+            $"#line 1 \"page\"{Environment.NewLine}  ctx.Write({Environment.NewLine}"
+            + $"#line 2 \"page\"{Environment.NewLine}    ctx.Path{Environment.NewLine}#line default{Environment.NewLine});"));
+    }
+
+    [TestCase("<%=   %>", 1, 1)]
+    [TestCase("<%== ; %>", 1, 1)]
+    [TestCase("before\n  <%= ; %>", 2, 3)]
+    public void AnEmptyWriteExpressionProducesNoSourceAndOneDiagnostic(
+        string template,
+        int line,
+        int column) {
+        TemplateParseResult result = TemplateSourceGenerator.Generate(template);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Source, Is.Null);
+        Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
+                "TEMPLATE002: write expression is empty."),
+        }));
+    }
+
     [Test]
     public void GeneratedSourceDeclaresAHandler() {
         string? source = TemplateSourceGenerator.Generate("").Source;

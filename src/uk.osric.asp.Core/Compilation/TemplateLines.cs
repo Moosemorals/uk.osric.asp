@@ -45,4 +45,28 @@ internal static class TemplateLines {
 
         return new TemplatePosition(line, offset - lineStart + 1);
     }
+
+    /// <summary>Advances a template position over a piece of template text.</summary>
+    /// <param name="position">The position before the text.</param>
+    /// <param name="text">The text to move past.</param>
+    /// <returns>The position immediately after the text.</returns>
+    public static TemplatePosition Advance(TemplatePosition position, string text) {
+        int line = position.Line;
+        int column = position.Column;
+
+        for (int index = 0; index < text.Length; index++) {
+            if (text[index] == '\r' && index + 1 < text.Length && text[index + 1] == '\n') {
+                index++;
+                line++;
+                column = 1;
+            } else if (text[index] is '\r' or '\n') {
+                line++;
+                column = 1;
+            } else {
+                column++;
+            }
+        }
+
+        return new TemplatePosition(line, column);
+    }
 }

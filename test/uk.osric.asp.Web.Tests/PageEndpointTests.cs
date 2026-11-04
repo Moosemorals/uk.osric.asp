@@ -125,6 +125,20 @@ public sealed class PageEndpointTests {
     }
 
     [Test]
+    public async Task WriteExpressionsEscapeAndRawWriteExpressionsPreserveTheirValuesAsync() {
+        DefaultHttpContext context = CreateContext("hello.cs");
+        FakePageStore storage = new();
+        storage["/hello.cs"] = new StoredPage(
+            PagePath.Normalize("/hello.cs"),
+            "<p><%= \"<tag>&\" %>|<%== \"<tag>&\" %></p>");
+
+        await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("<p>&lt;tag&gt;&amp;|<tag>&</p>"));
+    }
+
+    [Test]
     public async Task PageLogsAreFiledUnderThePageCategory() {
         DefaultHttpContext context = CreateContext("hello.cs");
         FakePageStore storage = new();

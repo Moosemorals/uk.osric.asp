@@ -57,7 +57,8 @@ self-contained comes first, because these are the ones that never get scheduled 
    [IDEA-010](IDEA-010.md).
 3. **OPS-03, CI** — before the tree grows, so `make format-check`, `make test` and the licence check
    run without being asked.
-4. **ARCH-12** — the write shorthand. A small language change, a large effect on how a page reads.
+4. **ARCH-12** — the write shorthand. A small language change, a large effect on how a page reads;
+   see the [implementation plan](../plans/template-value-output.md).
 5. **IDEA-002, fetch** — the biggest single improvement to what a page can do. Allow-listed, bounded
    and testable; take it before persistence, which has more open questions and less immediate payoff.
 6. **IDEA-003, persistence.** Useful sooner than most, and the answer to what a page may keep.

@@ -30,6 +30,20 @@ public static class TemplateSourceGenerator {
             return new TemplateParseResult(null, tokenized.Errors);
         }
 
+        foreach (Token token in tokenized.Tokens) {
+            if (token.Type is TokenType.Write or TokenType.WriteRaw
+                && NormalizeWriteExpression(token).Length == 0) {
+                TemplatePosition opener = token.OpenerPosition
+                    ?? throw new InvalidOperationException("A write token has no opener position.");
+                return new TemplateParseResult(null, [
+                    new PageDiagnostic(
+                        PageDiagnosticSeverity.Error,
+                        opener,
+                        "TEMPLATE002: write expression is empty."),
+                ]);
+            }
+        }
+
         StringBuilder result = new();
 
         // The generated using stays for the page's own convenience; the generated signature names the
@@ -59,6 +73,10 @@ public static class TemplateSourceGenerator {
                     break;
                 case TokenType.Code:
                     AppendMapped(result, token);
+                    break;
+                case TokenType.Write:
+                case TokenType.WriteRaw:
+                    AppendWrite(result, token);
                     break;
                 case TokenType.Declaration:
                     // Emitted above the handler; a declaration block writes no output.
@@ -93,6 +111,39 @@ public static class TemplateSourceGenerator {
         result.Append(Environment.NewLine);
         result.Append("#line default");
         result.Append(Environment.NewLine);
+    }
+
+    private static void AppendWrite(StringBuilder result, Token token) {
+        TemplatePosition opener = token.OpenerPosition
+            ?? throw new InvalidOperationException("A write token has no opener position.");
+        string expression = NormalizeWriteExpression(token);
+        int leadingWhitespaceLength = token.Value.Length - token.Value.TrimStart().Length;
+        TemplatePosition expressionPosition = TemplateLines.Advance(
+            token.Position,
+            token.Value[..leadingWhitespaceLength]);
+
+        result.Append($"#line {opener.Line} \"{TemplateName}\"");
+        result.Append(Environment.NewLine);
+        result.Append(' ', opener.Column - 1);
+        result.Append(token.Type == TokenType.Write ? "ctx.Write(" : "ctx.WriteRaw(");
+        result.Append(Environment.NewLine);
+
+        result.Append($"#line {expressionPosition.Line} \"{TemplateName}\"");
+        result.Append(Environment.NewLine);
+        result.Append(' ', expressionPosition.Column - 1);
+        result.Append(expression);
+        result.Append(Environment.NewLine);
+        result.Append("#line default");
+        result.Append(Environment.NewLine);
+        result.Append(");");
+        result.Append(Environment.NewLine);
+    }
+
+    private static string NormalizeWriteExpression(Token token) {
+        string expression = token.Value.Trim();
+        return expression.EndsWith(';')
+            ? expression[..^1]
+            : expression;
     }
 
     // A verbatim literal keeps newlines, quotes and backslashes legible in the generated source, and

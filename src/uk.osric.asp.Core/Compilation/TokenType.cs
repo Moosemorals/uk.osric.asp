@@ -8,4 +8,6 @@ internal enum TokenType {
     Text,
     Code,
     Declaration,
+    Write,
+    WriteRaw,
 }

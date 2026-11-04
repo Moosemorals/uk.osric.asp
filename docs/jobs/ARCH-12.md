@@ -30,6 +30,9 @@ for unescaped output either; the author has to drop back to `<% ctx.WriteRaw(...
 
 ## Fix outline
 
+The syntax, normalization and source-mapping decisions are recorded in the
+[implementation plan](../plans/template-value-output.md).
+
 1. Add two openers to `TemplateTokenizer`: `<%=` for an escaped write and `<%==` for a raw one. Match
    the longest first — `<%==` before `<%=` before `<%` — or `<%== value %>` is read as `<%=` followed
    by the expression `= value`. The `=` must follow `<%` immediately, so `<% = value %>` stays ordinary
@@ -37,8 +40,8 @@ for unescaped output either; the author has to drop back to `<% ctx.WriteRaw(...
 2. Carry the distinction in the token rather than a flag on `Code`: give `TokenType` a `Write` and a
    `WriteRaw` member (alongside STYLE-03's move of `Token`/`TokenType` into their own file), so the
    generator's `switch` stays exhaustive and a new form cannot fall through as text.
-3. Generate `ctx.Write(<expression>);` and `ctx.WriteRaw(<expression>);`, with the expression copied
-   verbatim between the parentheses so Roslyn reports its own errors against the author's code.
+3. Generate `ctx.Write(<expression>);` and `ctx.WriteRaw(<expression>);`, preserving the expression
+   internally after the edge-trim and optional terminal-semicolon normalization.
 4. Trim the expression and drop a single trailing `;`, so `<%= ctx.Path; %>` does not become
    `ctx.Write(ctx.Path;);`. Reject an empty expression with a `TEMPLATE002` diagnostic naming the line
    and column of the opener, rather than emitting `ctx.Write();` and letting Roslyn complain about a
@@ -49,14 +52,20 @@ for unescaped output either; the author has to drop back to `<% ctx.WriteRaw(...
    needs `.ToString()`; the compile error says exactly that, and the page API policy needs no change
    because both calls are already allowed. An `object` overload is a separate decision about escaping
    raw values and is not part of this issue.
-7. Check the line mapping still holds. An expression may span lines, and the generated statement must
-   not add or remove lines the page did not write; text tokens already embed the template's newlines
-   in a verbatim literal, so this is a constraint on the new statements rather than a new problem for
-   BUG-05 to absorb.
-8. Update the docs: the README's **A page** section gains `<%= %>` and `<%== %>` beside `<% %>`, and
-   `docs/architecture.md` still says text becomes a `WriteRaw` call — name the two new statements
-   there as well.
+7. Check the line mapping still holds. An expression may span lines, and the generated wrapper must
+   preserve the expression's template line and column mapping; text tokens already embed the
+   template's newlines in a verbatim literal, so this is a constraint on the new statements rather
+   than a new problem for BUG-05 to absorb.
+8. Update the docs: teach `<%= %>` and `<%== %>` in the README's **A page** section and document the
+   generated calls, escaping and source mapping in `docs/architecture.md`.
 9. Tests: tokenizer — `<%=`, `<%==`, `<% =` staying code, the two forms adjacent to text and to each
    other, unterminated, and `%>` inside a quoted string ending the block as it already does; generator
    — the exact statements, verbatim expression text, a trailing semicolon, and the `TEMPLATE002`
    diagnostic; runtime or integration — a page renders escaped text escaped and `<%== %>` raw.
+
+## Status
+
+Complete. The expressions generate escaped and raw output, with author-facing compile diagnostics.
+`make check` passed: Core 209, Runtime 68, Web 387 and Web Integration 76 tests. See the
+[implementation plan](../plans/template-value-output.md) for the syntax, normalization and mapping
+decisions, including the wrapper-diagnostic column offset.

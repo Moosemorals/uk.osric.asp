@@ -30,14 +30,18 @@ autocomplete and real error messages.
 
 ```
 <h1>Hello</h1>
-<p>You asked for <% ctx.Write(ctx.Path); %>.</p>
+<p>You asked for <%= ctx.Path %>.</p>
 
 <% for (int i = 1; i <= 3; i++) { %>
-    <p>Line <% ctx.Write(i.ToString()); %></p>
+    <p>Line <%= i.ToString() %></p>
 <% } %>
+<%== "<hr>" %>
 ```
 
-`ctx.Write` escapes, `ctx.WriteRaw` does not, and `ctx.Log` writes to the log. The
+`<%= expression %>` writes a string through `ctx.Write` and HTML-encodes it; `<%== expression %>`
+writes through `ctx.WriteRaw` without encoding. Expressions must produce a string, so convert other
+values explicitly, for example with `.ToString()`. Statement blocks can still call `ctx.Write`,
+`ctx.WriteRaw` or `ctx.Log` directly. The
 [architecture notes](docs/architecture.md#page-contract) list the rest of the surface.
 
 A `<%! %>` block holds declarations rather than statements: `using` directives and types of the

@@ -73,6 +73,36 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
+    public void AWriteExpressionErrorOnALaterLineReportsItsTemplatePosition() {
+        PageCompileResult result = Compile("first\n<%=\n    ctx\n      .Missing\n%>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS1061", StringComparison.Ordinal));
+
+        Assert.That(error.Position, Is.EqualTo(new TemplatePosition(4, 8)));
+    }
+
+    [Test]
+    public void AWriteExpressionMustHaveAStringType() {
+        PageCompileResult result = Compile("<%= 42 %>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS1503", StringComparison.Ordinal));
+
+        Assert.That(error.Position, Is.EqualTo(new TemplatePosition(1, 5)));
+    }
+
+    [Test]
+    public void AWriteCallDiagnosticReportsItsTemplateLineAndCallColumn() {
+        PageCompileResult result = Compile("\n  <%=\n    ctx.Path, ctx.Path %>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS1501", StringComparison.Ordinal));
+
+        Assert.That(error.Position, Is.EqualTo(new TemplatePosition(2, 7)));
+    }
+
+    [Test]
     public void AWarningOnlyPageSucceedsAndEmitsAnImage() {
         PageCompileResult result = Compile("<% int unused = 1; %>");
 

@@ -3,10 +3,12 @@
 
 namespace uk.osric.asp.Core.Compilation;
 
-/// <summary>The template language: text, plus <c>&lt;% %&gt;</c> blocks of C# and <c>&lt;%! %&gt;</c> declarations.</summary>
+/// <summary>
+/// The template language: text, C# blocks, declaration blocks, and escaped or raw value writes.
+/// </summary>
 internal static class TemplateTokenizer {
 
-    /// <summary>Splits a page template into its text, code and declaration tokens.</summary>
+    /// <summary>Splits a page template into text, code, declaration and write tokens.</summary>
     /// <param name="input">The template as its author wrote it.</param>
     /// <returns>The tokens, and one error naming the opener of an unterminated block.</returns>
     public static TokenizeResult Tokenize(string input) {
@@ -23,20 +25,34 @@ internal static class TemplateTokenizer {
             if (codeStart > index) {
                 tokens.Add(new Token(TokenType.Text, input[index..codeStart], TemplateLines.PositionOf(input, index)));
             }
-            // A C# statement cannot begin with '!', so an adjacent one is unambiguous: it marks the
-            // block as namespace-level declarations rather than statements.
-            bool isDeclaration = codeStart + 2 < input.Length && input[codeStart + 2] == '!';
-            int contentStart = isDeclaration ? codeStart + 3 : codeStart + 2;
+            int openerLength = 2;
+            TokenType type = TokenType.Code;
+            if (codeStart + 2 < input.Length && input[codeStart + 2] == '=') {
+                if (codeStart + 3 < input.Length && input[codeStart + 3] == '=') {
+                    type = TokenType.WriteRaw;
+                    openerLength = 4;
+                } else {
+                    type = TokenType.Write;
+                    openerLength = 3;
+                }
+            } else if (codeStart + 2 < input.Length && input[codeStart + 2] == '!') {
+                type = TokenType.Declaration;
+                openerLength = 3;
+            }
+
+            int contentStart = codeStart + openerLength;
 
             int codeEnd = input.IndexOf("%>", contentStart, StringComparison.Ordinal);
             if (codeEnd == -1) {
-                return new TokenizeResult(tokens, [isDeclaration
-                    ? UnterminatedBlock(input, codeStart, "declaration", "<%!")
-                    : UnterminatedBlock(input, codeStart, "code", "<%")]);
+                return new TokenizeResult(tokens, [UnterminatedBlock(input, codeStart, type)]);
             }
-            tokens.Add(new Token(isDeclaration ? TokenType.Declaration : TokenType.Code,
+            TemplatePosition? openerPosition = type is TokenType.Write or TokenType.WriteRaw
+                ? TemplateLines.PositionOf(input, codeStart)
+                : null;
+            tokens.Add(new Token(type,
                 input[contentStart..codeEnd],
-                TemplateLines.PositionOf(input, contentStart)));
+                TemplateLines.PositionOf(input, contentStart),
+                openerPosition));
             index = codeEnd + 2;
         }
 
@@ -45,7 +61,13 @@ internal static class TemplateTokenizer {
 
     // The author is given a position in the text they typed, not in the generated source, and it
     // names the opener they have to close rather than the end of the template.
-    private static PageDiagnostic UnterminatedBlock(string input, int codeStart, string kind, string opener) {
+    private static PageDiagnostic UnterminatedBlock(string input, int codeStart, TokenType type) {
+        (string kind, string opener) = type switch {
+            TokenType.Declaration => ("declaration", "<%!"),
+            TokenType.Write => ("write", "<%="),
+            TokenType.WriteRaw => ("raw-write", "<%=="),
+            _ => ("code", "<%"),
+        };
         return new PageDiagnostic(
             PageDiagnosticSeverity.Error,
             TemplateLines.PositionOf(input, codeStart),
