@@ -91,14 +91,21 @@ internal static class PageApiChecker {
             return [Error(tree.GetRoot(), ShapeMessage)];
         }
 
+        List<PageDiagnostic> diagnostics = [];
+
         // A namespace would wrap the handler, so the rest of the rule cannot be applied to it.
-        List<MemberDeclarationSyntax> namespaces = [.. unit.Members.Where(member => member is BaseNamespaceDeclarationSyntax)];
-        if (namespaces.Count > 0) {
-            return [.. namespaces.Select(@namespace => Error(@namespace, NamespaceMessage))];
+        foreach (MemberDeclarationSyntax member in unit.Members) {
+            if (member is BaseNamespaceDeclarationSyntax @namespace) {
+                diagnostics.Add(Error(@namespace, NamespaceMessage));
+            }
         }
 
-        if (unit.AttributeLists.Count > 0) {
-            return [.. unit.AttributeLists.Select(attribute => Error(attribute, AssemblyAttributeMessage))];
+        foreach (AttributeListSyntax attribute in unit.AttributeLists) {
+            diagnostics.Add(Error(attribute, AssemblyAttributeMessage));
+        }
+
+        if (diagnostics.Count > 0) {
+            return diagnostics;
         }
 
         // The generator always emits its class last, so the handler is the only member that may
@@ -113,8 +120,8 @@ internal static class PageApiChecker {
             return [Error(handler, ShapeMessage)];
         }
 
-        List<PageDiagnostic> diagnostics = [];
-        foreach (MemberDeclarationSyntax declaration in unit.Members.Take(unit.Members.Count - 1)) {
+        for (int index = 0; index < unit.Members.Count - 1; index++) {
+            MemberDeclarationSyntax declaration = unit.Members[index];
             if (declaration is BaseTypeDeclarationSyntax type
                 && string.Equals(type.Identifier.ValueText, HandlerTypeName, StringComparison.Ordinal)) {
                 diagnostics.Add(Error(type, HandlerNameMessage));
