@@ -32,23 +32,36 @@ public static class TemplateSourceGenerator {
 
         StringBuilder result = new();
 
+        // The generated using stays for the page's own convenience; the generated signature names the
+        // SDK explicitly below, so a page type called IContext or IHandler cannot shadow it.
+        result.Append($"using {SdkNamespace};");
+        result.Append(Environment.NewLine);
+
+        // Declarations are compile-time only, so hoisting them changes nothing about the body's
+        // output order. Template order is also the using order: a using directive cannot follow a
+        // type declaration, and Roslyn reports that at the using's own template position.
+        foreach (Token token in tokenized.Tokens) {
+            if (token.Type == TokenType.Declaration) {
+                AppendMapped(result, token);
+            }
+        }
+
         result.Append($$"""
-            using {{SdkNamespace}};
-            public class GeneratedPage : IHandler {
-            public void Handle(IContext ctx) {
+            public class GeneratedPage : {{SdkNamespace}}.IHandler {
+            public void Handle({{SdkNamespace}}.IContext ctx) {
         """);
         result.Append(Environment.NewLine);
 
         foreach (Token token in tokenized.Tokens) {
             switch (token.Type) {
                 case TokenType.Text:
-                    result.Append("ctx.WriteRaw(");
-                    result.Append(ToCSharpLiteral(token.Value));
-                    result.Append(");");
-                    result.Append(Environment.NewLine);
+                    AppendText(result, token);
                     break;
                 case TokenType.Code:
-                    AppendCode(result, token);
+                    AppendMapped(result, token);
+                    break;
+                case TokenType.Declaration:
+                    // Emitted above the handler; a declaration block writes no output.
                     break;
             }
         }
@@ -63,9 +76,16 @@ public static class TemplateSourceGenerator {
         return new TemplateParseResult(result.ToString(), []);
     }
 
-    private static void AppendCode(StringBuilder result, Token token) {
+    private static void AppendText(StringBuilder result, Token token) {
+        result.Append("ctx.WriteRaw(");
+        result.Append(ToCSharpLiteral(token.Value));
+        result.Append(");");
+        result.Append(Environment.NewLine);
+    }
+
+    private static void AppendMapped(StringBuilder result, Token token) {
         // Token.Position is template space, which is exactly what #line expects. Padding the first
-        // line to the code's template column makes Roslyn's column match the author's column too.
+        // line to the token's template column makes Roslyn's column match the author's column too.
         result.Append($"#line {token.Position.Line} \"{TemplateName}\"");
         result.Append(Environment.NewLine);
         result.Append(' ', token.Position.Column - 1);

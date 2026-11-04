@@ -43,8 +43,81 @@ public sealed class TemplateSourceGeneratorTests {
         string? source = TemplateSourceGenerator.Generate("").Source;
 
         Assert.That(source, Does.Contain("using uk.osric.asp.Sdk;"));
-        Assert.That(source, Does.Contain("class GeneratedPage : IHandler"));
-        Assert.That(source, Does.Contain("void Handle(IContext ctx)"));
+        Assert.That(source, Does.Contain("class GeneratedPage : uk.osric.asp.Sdk.IHandler"));
+        Assert.That(source, Does.Contain("void Handle(uk.osric.asp.Sdk.IContext ctx)"));
+    }
+
+    [Test]
+    public void TheHandlerNamesSdkTypesFullyQualified() {
+        string source = Generate("");
+
+        Assert.That(source, Does.Contain("public class GeneratedPage : uk.osric.asp.Sdk.IHandler {"));
+        Assert.That(source, Does.Contain("public void Handle(uk.osric.asp.Sdk.IContext ctx) {"));
+    }
+
+    [Test]
+    public void DeclarationsAreEmittedBeforeTheHandler() {
+        string source = Generate("<%! class Amount { } %>Hello");
+
+        int declaration = source.IndexOf("class Amount { }", StringComparison.Ordinal);
+        int handler = source.IndexOf("class GeneratedPage", StringComparison.Ordinal);
+
+        Assert.That(declaration, Is.GreaterThan(-1));
+        Assert.That(handler, Is.GreaterThan(declaration));
+    }
+
+    [Test]
+    public void DeclarationBlocksAreMappedToTheirTemplateLineAndColumn() {
+        string source = Generate("first\n<%!class Amount { }%>");
+
+        Assert.That(source, Does.Contain($"#line 2 \"page\"{Environment.NewLine}   class Amount {{ }}"));
+        Assert.That(source, Does.Contain($"#line default{Environment.NewLine}"));
+    }
+
+    [Test]
+    public void DeclarationBlocksDoNotWriteOutput() {
+        string source = Generate("<%! class Amount { } %>");
+
+        Assert.That(source, Does.Not.Contain("ctx.WriteRaw"));
+    }
+
+    [Test]
+    public void MultipleDeclarationBlocksKeepTheirOrder() {
+        string source = Generate("<%! class Amount { } %><%! class Formatter { } %>");
+
+        int first = source.IndexOf("class Amount { }", StringComparison.Ordinal);
+        int second = source.IndexOf("class Formatter { }", StringComparison.Ordinal);
+
+        Assert.That(first, Is.GreaterThan(-1));
+        Assert.That(second, Is.GreaterThan(first));
+    }
+
+    [Test]
+    public void TextAroundDeclarationBlocksKeepsItsOutputOrder() {
+        string source = Generate("before<%! class Amount { } %>middle<%! class Formatter { } %>after");
+
+        int amount = source.IndexOf("class Amount { }", StringComparison.Ordinal);
+        int formatter = source.IndexOf("class Formatter { }", StringComparison.Ordinal);
+        int before = source.IndexOf("ctx.WriteRaw(@\"before\");", StringComparison.Ordinal);
+        int middle = source.IndexOf("ctx.WriteRaw(@\"middle\");", StringComparison.Ordinal);
+        int after = source.IndexOf("ctx.WriteRaw(@\"after\");", StringComparison.Ordinal);
+
+        Assert.That(amount, Is.GreaterThan(-1).And.LessThan(before));
+        Assert.That(formatter, Is.GreaterThan(amount).And.LessThan(before));
+        Assert.That(before, Is.LessThan(middle));
+        Assert.That(middle, Is.LessThan(after));
+    }
+
+    [Test]
+    public void AnUnterminatedDeclarationBlockProducesNoSourceAndOneError() {
+        TemplateParseResult result = TemplateSourceGenerator.Generate("before<%! class Amount {");
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Source, Is.Null);
+        Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(1, 7),
+                "TEMPLATE001: unterminated declaration block; the '<%!' has no matching '%>'."),
+        }));
     }
 
     [Test]
