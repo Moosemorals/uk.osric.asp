@@ -52,3 +52,16 @@ Two questions, and they are separable — settle the first before the second.
 5. Start with (1) alone — it makes a single long page bearable and is testable in `Core` with no
    storage change at all. Treat (2) as its own job once (1) has been written with real pages. Phase
    (1) is planned in [page declarations](../plans/page-declarations.md).
+
+## Status
+
+Phase 1 is done, by [page declarations](../plans/page-declarations.md) and DEC-92: a page declares
+`using` directives and types in `<%! %>` blocks, uses them from its `<% %>` blocks, and saves and
+serves like any other page. No storage, schema or `RuntimeId` decision moved — the generator lives
+in `Core`, whose module version id was already in the id — and the API policy applies to a declared
+type exactly as it does to a code block, so writing a class is not a way to reach `System.IO`.
+
+Phase 2 is open: types shared *between* pages. Nothing about it has been settled, and the three
+options, the dependency order and the invalidation story are all still the question. It is easier to
+answer now that one page can hold the helper it wants to share, and it needs a plan of its own
+before any code is written.

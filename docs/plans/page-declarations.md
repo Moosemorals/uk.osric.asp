@@ -13,7 +13,9 @@ real pages.
 
 ## Status
 
-Not started. Decisions settled 2026-11-04.
+Done, 2026-11-04. `make check` is green: 715 tests — 188 Core, 65 Runtime, 386 web, 76 integration —
+of which 36 are new for this phase (19 in Core, 17 in Runtime). No storage, schema, migration or
+`RuntimeId` change, and no allow-listed type or namespace added. Recorded as DEC-92.
 
 ## Goal and constraints
 

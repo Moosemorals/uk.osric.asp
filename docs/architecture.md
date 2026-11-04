@@ -37,6 +37,13 @@ Nothing the author types is an exception either. A template that does not parse 
 `PageDiagnostic`, so it is stored beside the source exactly like a compile error: the editor shows
 it, the page answers "Handler failed to compile.", and it is not recompiled on every request.
 
+A template is text, `<% %>` code blocks and `<%! %>` declaration blocks. The generator wraps the code
+in the body of `GeneratedPage.Handle` and hoists every declaration block above that class, in
+template order, so a page's `using` directives and types are visible to its whole body. Declarations
+are compile-time only: they write no output and are never conditional, even inside an `if` in the
+template. Template order is also the using order, so a `using` written after a type is `CS1529` on
+the line that wrote it.
+
 Diagnostics live in template space: `PageDiagnostic.Position` is a 1-based `TemplatePosition` in the
 page the author typed, or `null` when there is no position. The generator wraps each code block in
 `#line` directives that name the template line and pads the first line to the template column, so
@@ -52,9 +59,9 @@ and the logs quote them:
 
 | Code | Raised by | Means |
 | --- | --- | --- |
-| `TEMPLATE001` | `TemplateTokenizer` | a `<%` has no matching `%>` |
+| `TEMPLATE001` | `TemplateTokenizer` | a `<%` or `<%!` has no matching `%>` |
 | `PAGE001` | `PageApiPolicy` | the page used an API it may not use |
-| `PAGE002` | `PageApiChecker` | page code escaped its method or declared types or members |
+| `PAGE002` | `PageApiChecker` | page code escaped its method, or a declaration block declared something other than a type |
 | `PAGE003` | `TemplateCompiler` | the page waited too long for a compile slot |
 | `PAGE004` | `TemplateCompiler` | the page took too long to compile |
 
@@ -176,9 +183,13 @@ Stored pages are C#, so the surface they may touch is constrained twice.
   API to add. `System.Object` is deliberately absent: allowing it would allow `GetType()`.
 - `PageApiChecker` in `Runtime` walks the generated syntax tree, projects Roslyn symbols onto
   `ApiReference` values, rejects `stackalloc`, `dynamic`, pointers, function pointers and `unsafe`,
-  and enforces the shape rule: one type, `GeneratedPage`, with one method, `Handle`. That rule is
-  what stops a page closing the method to declare statics, its own entry point or a module
-  initializer.
+  and enforces the shape rule: the generated `GeneratedPage`, last, plus the page's own type
+  declarations ahead of it. That rule is what stops a page closing the method to declare statics,
+  its own entry point or a module initializer. A declaration block that holds a namespace, an
+  assembly attribute, a statement or a member outside a type, or that names its type `GeneratedPage`,
+  is `PAGE002` with the specific message and, where the node has one, the template position.
+  Declarations are not a way around the list: a banned type named inside a declared type is
+  `PAGE001`, and a `using` directive grants nothing by itself.
 
 The compiler's reference set is the page SDK plus the base class library: every other
 `uk.osric.asp.*` assembly and `Microsoft.*` is left out, so naming the shell, the host's compiler

@@ -40,6 +40,24 @@ autocomplete and real error messages.
 `ctx.Write` escapes, `ctx.WriteRaw` does not, and `ctx.Log` writes to the log. The
 [architecture notes](docs/architecture.md#page-contract) list the rest of the surface.
 
+A `<%! %>` block holds declarations rather than statements: `using` directives and types of the
+page's own. They are hoisted above the handler and are usable from every `<% %>` block, before or
+after the block that declares them.
+
+```
+<%!
+using System.Globalization;
+
+sealed class Amount {
+    public static string Format(decimal value) => value.ToString("N2", CultureInfo.InvariantCulture);
+}
+%>
+<p>Total: <% ctx.Write(Amount.Format(42.5m)); %></p>
+```
+
+Declaration blocks keep their template order, which is also the order of the generated `using`
+directives: a `using` written after a type is a compiler error on the line it is written.
+
 ## Running it
 
 ```bash
