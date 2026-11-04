@@ -159,6 +159,35 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
+    public void AUsingBlockAfterATypeBlockIsReportedInTemplateSpace() {
+        PageCompileResult result = Compile("<%! class Amount { } %>\n<%! using System.Globalization; %>");
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS1529", StringComparison.Ordinal)
+                && diagnostic.Position is { Line: 2, Column: > 0 }));
+    }
+
+    [Test]
+    public void AnErrorInsideADeclaredTypeReportsItsTemplateLineAndColumn() {
+        PageCompileResult result = Compile("""
+            first
+            <%!
+            class Amount {
+                public static int Value() => "text";
+            }
+            %>
+            """);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("CS0029", StringComparison.Ordinal)
+                && diagnostic.Position == new TemplatePosition(4, 34)));
+    }
+
+    [Test]
     public void ValidSourceEmitsAnImage() {
         PageCompileResult result = Compile("Hello.");
 
