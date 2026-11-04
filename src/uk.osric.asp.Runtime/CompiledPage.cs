@@ -21,6 +21,8 @@ using uk.osric.asp.Sdk;
 /// </remarks>
 public sealed class CompiledPage : IDisposable {
 
+    private const string HandlerTypeName = "GeneratedPage";
+
     private readonly AssemblyLoadContext _context;
     private readonly Type _handler;
     private readonly MethodInfo _handle;
@@ -38,7 +40,9 @@ public sealed class CompiledPage : IDisposable {
                 assembly = _context.LoadFromStream(stream, symbolStream);
             }
 
-            _handler = assembly.GetTypes().FirstOrDefault(type => type.IsAssignableTo(typeof(IHandler)))
+            // By name, not "the first type that implements IHandler": a page may declare a type of
+            // its own that implements the interface, and the generator always emits its handler.
+            _handler = assembly.GetType(HandlerTypeName)
                 ?? throw new InvalidOperationException("No handler found in the assembly.");
 
             _handle = _handler.GetMethod("Handle")

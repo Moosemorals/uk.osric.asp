@@ -188,6 +188,59 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
+    public void APageDeclaredTypeIsUsableFromPageCode() {
+        TestContext context = CompileAndRun("""
+            <%!
+            sealed class Amount {
+                public static string Format(decimal value) => value.ToString("N2", System.Globalization.CultureInfo.InvariantCulture);
+            }
+            %>
+            Total: <% ctx.Write(Amount.Format(42.5m)); %>
+            """);
+
+        Assert.That(context.Output, Is.EqualTo("\nTotal: 42.50"));
+    }
+
+    [Test]
+    public void APageDeclaredTypeIsUsableFromMoreThanOneBlock() {
+        TestContext context = CompileAndRun("""
+            <%!static class Greeting { public static string For(string who) => "Hello, " + who; }%>
+            <% ctx.Write(Greeting.For("world")); %><% ctx.Write(Greeting.For("again")); %>
+            """);
+
+        Assert.That(context.Output, Is.EqualTo("\nHello, worldHello, again"));
+    }
+
+    [Test]
+    public void APageDeclaredHandlerIsNotTheEntryPoint() {
+        TestContext context = CompileAndRun("""
+            <%!
+            sealed class Decoy : uk.osric.asp.Sdk.IHandler {
+                public void Handle(uk.osric.asp.Sdk.IContext ctx) => ctx.Write("decoy");
+            }
+            %>
+            real
+            """);
+
+        Assert.That(context.Output, Does.Not.Contain("decoy"));
+        Assert.That(context.Output, Does.Contain("real"));
+    }
+
+    [Test]
+    public void AnUnmappedDeclarationPolicyViolationThrowsInsteadOfReturningADiagnostic() {
+        const string source = """
+            class Helper {
+                public static string Read() => System.IO.File.ReadAllText("page.txt");
+            }
+            public class GeneratedPage : uk.osric.asp.Sdk.IHandler {
+            public void Handle(uk.osric.asp.Sdk.IContext ctx) {
+            }}
+            """;
+
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(source));
+    }
+
+    [Test]
     public void ValidSourceEmitsAnImage() {
         PageCompileResult result = Compile("Hello.");
 
