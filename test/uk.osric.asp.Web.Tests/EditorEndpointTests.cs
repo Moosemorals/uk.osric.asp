@@ -227,6 +227,41 @@ public sealed class EditorEndpointTests {
     }
 
     [Test]
+    public async Task GetPutsNavigationAndActionsInOneMenuAsync() {
+        FakePageStore storage = new();
+        storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "line one");
+        DefaultHttpContext context = CreateContext();
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain(string.Concat(
+            "<nav class=\"editor-menu\" aria-label=\"Editor navigation\">",
+            "<a href=\"/edit\">Page listing</a> ",
+            "<a href=\"/page.cs\">Back to file</a> ",
+            "<a href=\"/edit/page.cs?cmd=generated\">Generated C#</a> ",
+            "<a href=\"/edit/page.cs?cmd=history\">History</a> ",
+            "<a href=\"/edit/page.cs?cmd=delete\">Delete</a></nav>")));
+        Assert.That(body, Does.Not.Contain("?cmd=scrub"));
+    }
+
+    [Test]
+    public async Task GetOffersOnlyHistoryAndScrubInTheMenuOfADeletedPageAsync() {
+        FakePageStore storage = new();
+        storage["/gone"] = new StoredPage(PagePath.Normalize("/gone"), "retained");
+        await storage.DeletePageAsync(PagePath.Normalize("/gone"));
+        DefaultHttpContext context = CreateContext(path: "gone");
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain(
+            "<a href=\"/edit/gone?cmd=history\">History</a>"
+            + " <a href=\"/edit/gone?cmd=scrub\">Scrub retained history</a></nav>"));
+        Assert.That(body, Does.Not.Contain("?cmd=delete"));
+    }
+
+    [Test]
     public async Task GetLinksAPositionedDiagnosticToItsGutterNumberAsync() {
         const string source = "line one\nline two";
         FakePageStore storage = new();
@@ -358,6 +393,7 @@ public sealed class EditorEndpointTests {
         Assert.That(deleteBody, Does.Contain("retains its source and revision history"));
         PageHeadSummary? liveHead = await storage.GetHeadAsync(PagePath.Normalize("/page.cs"));
         Assert.That(liveHead?.IsDeleted, Is.False);
+        await storage.DeletePageAsync(PagePath.Normalize("/page.cs"));
 
         DefaultHttpContext scrub = CreateContext();
         scrub.Request.QueryString = new QueryString("?cmd=scrub");
@@ -373,12 +409,36 @@ public sealed class EditorEndpointTests {
     }
 
     [Test]
+    public async Task ScrubConfirmationAndPostRejectALivePageAsync() {
+        FakePageStore storage = new();
+        storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "saved");
+
+        DefaultHttpContext confirmation = CreateContext();
+        confirmation.Request.QueryString = new QueryString("?cmd=scrub");
+        await EditorEndpoint.Handler(confirmation, CreatePages(storage), Reserved, _antiforgery);
+
+        DefaultHttpContext post = CreateContext("POST");
+        post.Request.QueryString = new QueryString("?cmd=scrub");
+        SetField(post, "confirmation", new StringValues("/page.cs"));
+        await EditorEndpoint.Handler(post, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(confirmation.Response.StatusCode, Is.EqualTo(409));
+        Assert.That(await TestHttp.ReadBodyAsync(confirmation), Does.Contain("Delete the page before scrubbing its history."));
+        Assert.That(post.Response.StatusCode, Is.EqualTo(409));
+        PageHeadSummary? head = await storage.GetHeadAsync(PagePath.Normalize("/page.cs"));
+        Assert.That(head?.IsDeleted, Is.False);
+        Assert.That(await storage.GetRevisionByHashAsync(storage["/page.cs"]!.Hash), Is.Not.Null);
+        Assert.That(storage.WriteCount, Is.Zero);
+    }
+
+    [Test]
     public async Task ScrubRequiresExactCanonicalPathAndDoesNotLeakCleanupErrorsAsync() {
         DefaultHttpContext context = CreateContext("POST");
         context.Request.QueryString = new QueryString("?cmd=scrub");
         SetField(context, "confirmation", new StringValues("/PAGE.CS"));
         FakePageStore storage = new();
         storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), "sensitive-source");
+        await storage.DeletePageAsync(PagePath.Normalize("/page.cs"));
 
         await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
@@ -663,7 +723,7 @@ public sealed class EditorEndpointTests {
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain($"href=\"{url}\""));
-        Assert.That(body, Does.Contain($"href=\"/edit{url}?cmd=scrub\""));
+        Assert.That(body, Does.Not.Contain("?cmd=scrub"));
     }
 
     [TestCase("space name", "/edit/space%20name")]
@@ -690,14 +750,14 @@ public sealed class EditorEndpointTests {
     }
 
     [Test]
-    public async Task MissingHeadStillOffersScrubCleanupRetryAsync() {
+    public async Task MissingHeadCannotBeScrubbedAsync() {
         DefaultHttpContext context = CreateContext();
         context.Request.QueryString = new QueryString("?cmd=scrub");
 
         await EditorEndpoint.Handler(context, CreatePages(new FakePageStore()), Reserved, _antiforgery);
 
-        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
-        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("name=\"confirmation\""));
+        Assert.That(context.Response.StatusCode, Is.EqualTo(404));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Not.Contain("name=\"confirmation\""));
     }
 
     private PageEditor CreatePages(IPageStore storage) {

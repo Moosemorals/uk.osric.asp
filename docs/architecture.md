@@ -148,8 +148,9 @@ in `Pages:ReservedPaths`, refused by the editor and never served.
 
 ## Authentication and the editor
 
-The editor is the only part of the site that writes, so it is the only part behind a sign-in. Pages
-stay public.
+The editor and the `/admin` route group are behind a sign-in; pages stay public. `/admin/restore`
+shows the bundled source for an asset and, on confirmation, saves it through the ordinary revision
+path. It can restore a deleted seeded page without discarding its earlier revisions.
 
 - Accounts live in the `Users` table in the same SQLite database. There is no registration endpoint
   and no account UI: the `users` command in the Web app creates, lists, resets and removes accounts
@@ -311,17 +312,19 @@ head and ignore deleted pages.
 Deletion marks a head as a tombstone without removing its revision pointer or history. Saving again
 at the same path appends a revision and clears the tombstone. Startup seeding checks whether a head
 exists, so a deleted seeded asset stays deleted across restarts. Explicit scrub removes the head and
-all revisions for one path, then performs SQLite secure-delete and WAL checkpoint cleanup where
-applicable. This is best-effort cleanup, not forensic erasure: it cannot revoke running code or
-erase browser/CDN copies, exported archives, backups or filesystem snapshots. Rotate exposed secrets
-and clean external copies separately. Runtime-change cleanup of obsolete images and symbols is
-future work; source and revision identity are retained unless explicitly scrubbed.
+all revisions for one path, but only after deletion; live pages must be deleted first. Scrub then
+performs SQLite secure-delete and WAL checkpoint cleanup where applicable. This is best-effort
+cleanup, not forensic erasure: it cannot revoke running code or erase browser/CDN copies, exported
+archives, backups or filesystem snapshots. Rotate exposed secrets and clean external copies
+separately. Runtime-change cleanup of obsolete images and symbols is future work; source and
+revision identity are retained unless explicitly scrubbed.
 
 Built-in page templates live in `src/uk.osric.asp.Web/Pages/Seeds`, included as content in build and
 publish output. Each file is a complete page template, including its response content type and cache
 headers; its filename becomes the page path. `/site.css` holds shared layout and diagnostic styles,
 while `/status.css` holds dashboard styles and is linked only by `/status`. Editing a seed file
-changes the initial content for a never-created page, not an existing database page.
+changes the initial content for a never-created page, not an existing database page. The authenticated
+restore action applies the bundled source to an existing or tombstoned page as a new revision.
 
 ## Compiled pages
 

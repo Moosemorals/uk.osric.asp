@@ -388,7 +388,7 @@ public sealed class SqlitePageStoreTests {
     }
 
     [Test]
-    public async Task ScrubRemovesTheHeadAndEveryRevisionAsync() {
+    public async Task ScrubRequiresADeletedHeadAndRemovesEveryRevisionAsync() {
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database);
         await storage.SavePageAsync(new StoredPage(Key("/scrub"), "first"));
@@ -396,6 +396,12 @@ public sealed class SqlitePageStoreTests {
         await storage.SavePageAsync(new StoredPage(Key("/scrub"), "second"));
         string secondHash = (await storage.GetPageAsync(Key("/scrub")))!.Hash;
 
+        Assert.That(await storage.ScrubPageAsync(Key("/scrub")), Is.False);
+        Assert.That((await storage.GetHeadAsync(Key("/scrub")))?.IsDeleted, Is.False);
+        Assert.That(await storage.GetRevisionByHashAsync(firstHash), Is.Not.Null);
+        Assert.That(await storage.GetRevisionByHashAsync(secondHash), Is.Not.Null);
+
+        await storage.DeletePageAsync(Key("/scrub"));
         bool scrubbed = await storage.ScrubPageAsync(Key("/scrub"));
 
         Assert.That(scrubbed, Is.True);
@@ -424,6 +430,7 @@ public sealed class SqlitePageStoreTests {
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database);
         await storage.SavePageAsync(new StoredPage(Key("/pinned"), "reader marker"));
+        await storage.DeletePageAsync(Key("/pinned"));
 
         await using SqliteConnection pinned = new(connectionString.ToString());
         await pinned.OpenAsync();
@@ -448,6 +455,7 @@ public sealed class SqlitePageStoreTests {
         IPageStore storage = new SqlitePageStore(database);
         await storage.SavePageAsync(new StoredPage(Key("/rollback"), "retained secret"));
         StoredPage saved = (await storage.GetPageAsync(Key("/rollback")))!;
+        await storage.DeletePageAsync(Key("/rollback"));
         await database.Database.ExecuteSqlRawAsync("""
             CREATE TRIGGER reject_scrub BEFORE DELETE ON "PageRevisions"
             BEGIN SELECT RAISE(ABORT, 'injected scrub failure'); END;
@@ -455,7 +463,8 @@ public sealed class SqlitePageStoreTests {
 
         await Assert.ThrowsAsync<SqliteException>(() => storage.ScrubPageAsync(Key("/rollback")));
 
-        Assert.That((await storage.GetPageAsync(Key("/rollback")))?.RevisionId, Is.EqualTo(saved.RevisionId));
+        Assert.That((await storage.GetHeadAsync(Key("/rollback")))?.IsDeleted, Is.True);
+        Assert.That((await storage.GetRevisionByHashAsync(saved.Hash))?.RevisionId, Is.EqualTo(saved.RevisionId));
         Assert.That(await storage.GetRevisionByHashAsync(saved.Hash), Is.Not.Null);
     }
 
@@ -465,6 +474,7 @@ public sealed class SqlitePageStoreTests {
         IPageStore storage = new SqlitePageStore(database);
         await storage.SavePageAsync(new StoredPage(Key("/late"), "secret"));
         StoredPage saved = (await storage.GetPageAsync(Key("/late")))!;
+        await storage.DeletePageAsync(Key("/late"));
         await storage.ScrubPageAsync(Key("/late"));
         PageCompilation compilation = new(ContentFingerprint.Of("secret"), "runtime", [1], [2], []);
 
@@ -488,7 +498,9 @@ public sealed class SqlitePageStoreTests {
             """);
 
         await database.Database.MigrateAsync();
-        await new SqlitePageStore(database).ScrubPageAsync(Key("/legacy-secret"));
+        SqlitePageStore storage = new(database);
+        await storage.DeletePageAsync(Key("/legacy-secret"));
+        await storage.ScrubPageAsync(Key("/legacy-secret"));
 
         try {
             await using SqliteConnection copy = new(new SqliteConnectionStringBuilder { DataSource = temporaryCopy, Pooling = false }.ToString());
@@ -511,6 +523,7 @@ public sealed class SqlitePageStoreTests {
         await using (StorageDbContext database = new(_options)) {
             IPageStore storage = new SqlitePageStore(database);
             await storage.SavePageAsync(new StoredPage(Key("/secret"), sourceMarker, compilation));
+            await storage.DeletePageAsync(Key("/secret"));
             Assert.That(await storage.ScrubPageAsync(Key("/secret")), Is.True);
         }
 

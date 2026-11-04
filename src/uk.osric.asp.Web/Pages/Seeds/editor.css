@@ -3,19 +3,34 @@
 
 body.editor-page {
     box-sizing: border-box;
+    /* The editor wants the window, not site.css's column of prose. */
+    max-width: none;
     /* A definite height, so the editor is the viewport and the textarea scrolls inside it. A long
        header still pushes the page taller: .editor's min-height is what it refuses to go below. */
     height: 100vh;
     height: 100dvh;
     display: flex;
     flex-direction: column;
+    gap: 0.5rem;
+}
+
+.editor-menu {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
 }
 
 .editor-page form.editor-form {
     display: flex;
     flex-direction: column;
     flex: 1;
+    gap: 0.5rem;
     min-height: 0;
+}
+
+/* Stretched to the form's width it reads as a text field; it takes the width its label needs. */
+.editor-page form.editor-form > button {
+    align-self: flex-start;
 }
 
 .editor {
@@ -29,9 +44,12 @@ body.editor-page {
 
     & .gutter {
         box-sizing: border-box;
+        /* Never shrinks: as a shrinkable flex item it lost width to the textarea's intrinsic size,
+           which crowded the numbers up against the text. */
+        flex: none;
         overflow: hidden;
         /* The same bottom padding as the textarea keeps the two scroll ranges identical. */
-        padding: 0.5rem 0.5rem 0.5rem 0;
+        padding: 0.5rem 0.5rem 0.5rem 0.25rem;
         text-align: right;
         white-space: nowrap;
         user-select: none;
@@ -42,7 +60,9 @@ body.editor-page {
 
     & .gutter > span {
         display: block;
-        min-width: 3ch;
+        /* Two digits before a longer page widens the column by itself; reserving three left a gap
+           most pages never fill. */
+        min-width: 2ch;
     }
 
     & .gutter > span:target {
@@ -60,6 +80,8 @@ body.editor-page {
         white-space: pre;
         background: transparent;
         resize: both;
+        /* Inside its own box, so the focus ring does not draw over the numbers. */
+        outline-offset: -2px;
     }
 }
 

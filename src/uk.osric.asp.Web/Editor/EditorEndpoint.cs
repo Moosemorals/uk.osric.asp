@@ -136,8 +136,7 @@ internal sealed class EditorEndpoint {
                 string generatedUrl = WebUtility.HtmlEncode(EditorUrl(head.Path) + "?cmd=generated");
                 string historyUrl = WebUtility.HtmlEncode(EditorUrl(head.Path) + "?cmd=history");
                 string deleteUrl = WebUtility.HtmlEncode(EditorUrl(head.Path) + "?cmd=delete");
-                string scrubUrl = WebUtility.HtmlEncode(EditorUrl(head.Path) + "?cmd=scrub");
-                await context.Response.WriteAsync($"<li><a href=\"{WebUtility.HtmlEncode(PageUrl(head.Path))}\">{path}</a> <a href=\"{editorUrl}\">Edit</a> <a href=\"{generatedUrl}\">Generated C#</a> <a href=\"{historyUrl}\">History</a> <a href=\"{deleteUrl}\">Delete</a> <a href=\"{scrubUrl}\">Scrub history</a></li>");
+                await context.Response.WriteAsync($"<li><a href=\"{WebUtility.HtmlEncode(PageUrl(head.Path))}\">{path}</a> <a href=\"{editorUrl}\">Edit</a> <a href=\"{generatedUrl}\">Generated C#</a> <a href=\"{historyUrl}\">History</a> <a href=\"{deleteUrl}\">Delete</a></li>");
             }
             await context.Response.WriteAsync("</ul>");
         }
@@ -192,6 +191,7 @@ internal sealed class EditorEndpoint {
         PageHeadSummary? head = page is null ? await pages.GetHeadAsync(path, context.RequestAborted) : null;
         bool wasDeleted = head?.IsDeleted == true;
         string content = page?.Content ?? "";
+        string? bundledContent = await PageAssetSeeder.ReadSeedContentAsync(path, context.RequestAborted);
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
 
         await BeginHtmlAsync(context, "Editor", stylesheet: "/editor.css", bodyClass: "editor-page");
@@ -206,12 +206,23 @@ internal sealed class EditorEndpoint {
         }
 
         string editorUrl = WebUtility.HtmlEncode(EditorUrl(path));
-        await context.Response.WriteAsync($"<nav aria-label=\"Page navigation\"><a href=\"/edit\">Page listing</a> <a href=\"{WebUtility.HtmlEncode(PageUrl(path))}\">Back to file</a></nav>");
+        List<string> menu = [
+            "<a href=\"/edit\">Page listing</a>",
+            $"<a href=\"{WebUtility.HtmlEncode(PageUrl(path))}\">Back to file</a>",
+        ];
         if (page is not null) {
-            await context.Response.WriteAsync($"<nav aria-label=\"Page actions\"><a href=\"{editorUrl}?cmd=generated\">Generated C#</a> <a href=\"{editorUrl}?cmd=history\">History</a> <a href=\"{editorUrl}?cmd=delete\">Delete</a> <a href=\"{editorUrl}?cmd=scrub\">Scrub history</a></nav>");
+            menu.Add($"<a href=\"{editorUrl}?cmd=generated\">Generated C#</a>");
+            menu.Add($"<a href=\"{editorUrl}?cmd=history\">History</a>");
+            menu.Add($"<a href=\"{editorUrl}?cmd=delete\">Delete</a>");
         } else if (wasDeleted) {
-            await context.Response.WriteAsync($"<nav aria-label=\"Page actions\"><a href=\"{editorUrl}?cmd=history\">History</a> <a href=\"{editorUrl}?cmd=scrub\">Scrub retained history</a></nav>");
+            menu.Add($"<a href=\"{editorUrl}?cmd=history\">History</a>");
+            menu.Add($"<a href=\"{editorUrl}?cmd=scrub\">Scrub retained history</a>");
         }
+        if (bundledContent is not null) {
+            menu.Add($"<a href=\"{WebUtility.HtmlEncode(RestoreUrl(path))}\">Restore bundled version</a>");
+        }
+
+        await context.Response.WriteAsync($"<nav class=\"editor-menu\" aria-label=\"Editor navigation\">{string.Join(" ", menu)}</nav>");
 
         await context.Response.WriteAsync($"""
             <form method="post" action="?" class="editor-form">
@@ -243,7 +254,7 @@ internal sealed class EditorEndpoint {
         await BeginHtmlAsync(context, "Generated C#", stylesheet: "/editor.css");
         await context.Response.WriteAsync($"<h1>Generated C# for {WebUtility.HtmlEncode(path.Key)}</h1>");
         await context.Response.WriteAsync("<p>Generated from the saved template by the current runtime; unsaved edits are not included.</p>");
-        await context.Response.WriteAsync($"<nav aria-label=\"Editor navigation\"><a href=\"{WebUtility.HtmlEncode(EditorUrl(path))}\">Back to editor</a> <a href=\"/edit\">Page listing</a></nav>");
+        await context.Response.WriteAsync($"<nav class=\"editor-menu\" aria-label=\"Editor navigation\"><a href=\"{WebUtility.HtmlEncode(EditorUrl(path))}\">Back to editor</a> <a href=\"/edit\">Page listing</a></nav>");
         if (generated.Source is null) {
             await context.Response.WriteAsync(PageLayout.Diagnostics(generated.Errors));
         } else {
@@ -268,17 +279,27 @@ internal sealed class EditorEndpoint {
                 <input type="hidden" name="{WebUtility.HtmlEncode(tokens.FormFieldName)}" value="{WebUtility.HtmlEncode(tokens.RequestToken)}">
                 <button type="submit">Delete page</button>
             </form>
-            <nav aria-label="Confirmation navigation"><a href="{WebUtility.HtmlEncode(EditorUrl(path))}">Cancel</a></nav>
+            <nav class="editor-menu" aria-label="Confirmation navigation"><a href="{WebUtility.HtmlEncode(EditorUrl(path))}">Cancel</a></nav>
             """);
         await context.Response.WriteAsync(PageLayout.Footer());
     }
 
     private static async Task WriteScrubConfirmationAsync(HttpContext context, PageEditor pages, IAntiforgery antiforgery, PagePath path) {
+        PageHeadSummary? head = await pages.GetHeadAsync(path, context.RequestAborted);
+        if (head is null) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+        if (!head.IsDeleted) {
+            await WriteScrubRequiresDeletedPageAsync(context);
+            return;
+        }
+
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         await BeginHtmlAsync(context, "Scrub page history");
         await context.Response.WriteAsync($"<h1>Scrub {WebUtility.HtmlEncode(path.Key)}?</h1>");
         await context.Response.WriteAsync("""
-            <p>This irreversibly removes the live page, if present, and all retained revisions. It cannot be undone and is intended for cases such as committed secrets.</p>
+            <p>This irreversibly removes this deleted page and all retained revisions. It cannot be undone and is intended for cases such as committed secrets.</p>
             <p>Scrubbing does not revoke already-running page code or remove browser/CDN copies, exported archives, database backups, or filesystem snapshots. Rotate exposed secrets and clean those copies separately. It cannot promise forensic erasure from SSDs or external copies.</p>
             """);
         await context.Response.WriteAsync($"""
@@ -287,9 +308,16 @@ internal sealed class EditorEndpoint {
                 <label>Type {WebUtility.HtmlEncode(path.Key)} to confirm <input name="confirmation" required></label>
                 <button type="submit">Permanently scrub</button>
             </form>
-            <nav aria-label="Confirmation navigation"><a href="{WebUtility.HtmlEncode(EditorUrl(path))}">Cancel</a></nav>
+            <nav class="editor-menu" aria-label="Confirmation navigation"><a href="{WebUtility.HtmlEncode(EditorUrl(path))}">Cancel</a></nav>
             """);
         await context.Response.WriteAsync(PageLayout.Footer());
+    }
+
+    private static async Task WriteScrubRequiresDeletedPageAsync(HttpContext context) {
+        context.Response.StatusCode = StatusCodes.Status409Conflict;
+        context.Response.ContentType = "text/plain; charset=utf-8";
+        context.Response.Headers.CacheControl = "no-store";
+        await context.Response.WriteAsync("Delete the page before scrubbing its history.");
     }
 
     private static async Task PostCommandAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, PagePath path, string? command) {
@@ -329,8 +357,28 @@ internal sealed class EditorEndpoint {
         }
 
         try {
+            PageHeadSummary? head = await pages.GetHeadAsync(path, context.RequestAborted);
+            if (head is null) {
+                await NotFound.WriteAsync(context, path);
+                return;
+            }
+            if (!head.IsDeleted) {
+                await WriteScrubRequiresDeletedPageAsync(context);
+                return;
+            }
+
             bool scrubbed = await pages.ScrubAsync(path, context.RequestAborted);
-            context.Session.SetString(MessageKey, scrubbed ? $"Scrubbed {path.Key} and its retained history." : "Page was already missing.");
+            if (!scrubbed) {
+                PageHeadSummary? currentHead = await pages.GetHeadAsync(path, context.RequestAborted);
+                if (currentHead is null) {
+                    await NotFound.WriteAsync(context, path);
+                } else {
+                    await WriteScrubRequiresDeletedPageAsync(context);
+                }
+                return;
+            }
+
+            context.Session.SetString(MessageKey, $"Scrubbed {path.Key} and its retained history.");
             Redirects.SeeOther(context, "/edit");
         } catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested) {
             throw;
@@ -338,9 +386,9 @@ internal sealed class EditorEndpoint {
             if (context.RequestServices is { } services) {
                 services.GetService<ILogger<EditorEndpoint>>()?.LogError(exception, "Page scrub cleanup did not complete.");
             }
-            context.Session.SetString(MessageKey, "Scrub cleanup did not complete. Retry safely; the page may already be logically removed.");
+            context.Session.SetString(MessageKey, "Scrub cleanup did not complete. Check the deleted pages list; if the page remains there, scrub it again.");
             await BeginHtmlAsync(context, "Scrub incomplete", StatusCodes.Status503ServiceUnavailable);
-            await context.Response.WriteAsync($"<h1>Scrub cleanup did not complete</h1><p>Retry safely; the page may already be logically removed.</p><nav aria-label=\"Recovery navigation\"><a href=\"{WebUtility.HtmlEncode(EditorUrl(path))}?cmd=scrub\">Retry scrub</a> <a href=\"/edit\">Page listing</a></nav>");
+            await context.Response.WriteAsync("<h1>Scrub cleanup did not complete</h1><p>Check the deleted pages list; if the page remains there, scrub it again. It may already have been logically removed.</p><nav class=\"editor-menu\" aria-label=\"Recovery navigation\"><a href=\"/edit\">Page listing</a></nav>");
             await context.Response.WriteAsync(PageLayout.Footer());
         }
     }
@@ -370,6 +418,9 @@ internal sealed class EditorEndpoint {
     }
 
     private static string EditorUrl(PagePath path) => "/edit" + PageUrl(path);
+
+    private static string RestoreUrl(PagePath path) =>
+        "/admin/restore" + QueryString.Create("path", path.Key).ToUriComponent();
 
     private static string PageUrl(PagePath path) => string.Join('/', path.Key.Split('/').Select(Uri.EscapeDataString));
 
@@ -438,7 +489,7 @@ internal sealed class EditorEndpoint {
         if (head.IsDeleted) {
             await context.Response.WriteAsync("<p>This page is deleted. Its revisions remain available here.</p>");
         }
-        await context.Response.WriteAsync($"<nav aria-label=\"Editor navigation\"><a href=\"{WebUtility.HtmlEncode(EditorUrl(path))}\">Back to editor</a> <a href=\"/edit\">Page listing</a></nav>");
+        await context.Response.WriteAsync($"<nav class=\"editor-menu\" aria-label=\"Editor navigation\"><a href=\"{WebUtility.HtmlEncode(EditorUrl(path))}\">Back to editor</a> <a href=\"/edit\">Page listing</a></nav>");
         if (revisions.Count == 0) {
             await context.Response.WriteAsync("<p>No saved revisions.</p>");
         } else {
@@ -464,7 +515,7 @@ internal sealed class EditorEndpoint {
         await BeginHtmlAsync(context, "Saved revision", stylesheet: "/editor.css");
         await context.Response.WriteAsync($"<h1>Saved revision for {WebUtility.HtmlEncode(path.Key)}</h1>");
         await context.Response.WriteAsync($"<p>Saved {WebUtility.HtmlEncode(revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}; {WebUtility.HtmlEncode(revision.CompilationStatus)}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}.</p>");
-        await context.Response.WriteAsync($"<nav aria-label=\"Revision navigation\"><a href=\"{WebUtility.HtmlEncode(EditorUrl(path))}?cmd=history\">Back to history</a></nav>");
+        await context.Response.WriteAsync($"<nav class=\"editor-menu\" aria-label=\"Revision navigation\"><a href=\"{WebUtility.HtmlEncode(EditorUrl(path))}?cmd=history\">Back to history</a></nav>");
         await context.Response.WriteAsync($"<pre class=\"source\">{WebUtility.HtmlEncode(revision.Content)}</pre>");
         await context.Response.WriteAsync(PageLayout.Footer());
     }

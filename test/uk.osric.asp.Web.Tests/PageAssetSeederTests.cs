@@ -26,6 +26,21 @@ public sealed class PageAssetSeederTests {
     }
 
     [TestCaseSource(nameof(SeedPaths))]
+    public async Task ShippedSeedCanBeReadByItsPagePathAsync(string path) {
+        string? content = await PageAssetSeeder.ReadSeedContentAsync(PagePath.Normalize(path));
+
+        Assert.That(content, Is.EqualTo(ShippedSeed(path)));
+    }
+
+    [TestCase("/not-a-seed")]
+    [TestCase("/admin/restore")]
+    public async Task UnknownAndNestedPagesHaveNoShippedSeedAsync(string path) {
+        string? content = await PageAssetSeeder.ReadSeedContentAsync(PagePath.Normalize(path));
+
+        Assert.That(content, Is.Null);
+    }
+
+    [TestCaseSource(nameof(SeedPaths))]
     public async Task ExistingAssetsArePreservedAndSeedingIsIdempotentAsync(string editedPath) {
         const string editedContent = "body { color: rebeccapurple; }";
         FakePageStore storage = new();

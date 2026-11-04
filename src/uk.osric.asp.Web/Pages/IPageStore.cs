@@ -42,5 +42,9 @@ internal interface IPageStore {
 
     Task<bool> DeletePageAsync(PagePath path, CancellationToken cancellationToken = default);
 
+    /// <summary>Removes a deleted page head and all of its revisions.</summary>
+    /// <param name="path">The canonical key of a deleted page.</param>
+    /// <param name="cancellationToken">Cancels the cleanup.</param>
+    /// <returns><see langword="true"/> when a deleted head was scrubbed; otherwise, <see langword="false"/>.</returns>
     Task<bool> ScrubPageAsync(PagePath path, CancellationToken cancellationToken = default);
 }

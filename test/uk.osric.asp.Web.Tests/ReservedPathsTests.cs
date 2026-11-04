@@ -21,6 +21,8 @@ public sealed class ReservedPathsTests {
     [TestCase("/logout")]
     [TestCase("/metrics")]
     [TestCase("/status")]
+    [TestCase("/admin")]
+    [TestCase("/admin/restore")]
     public void DefaultKeysAreReserved(string path) {
         Assert.That(Defaults.IsReserved(PagePath.Normalize(path)), Is.True);
     }

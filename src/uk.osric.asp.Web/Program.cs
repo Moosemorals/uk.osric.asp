@@ -10,6 +10,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
@@ -150,6 +151,11 @@ internal class Program {
 
         app.MapGet("/status", StatusEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
+        RouteGroupBuilder admin = app.MapGroup("/admin")
+            .RequireAuthorization(EditorPolicy.Name);
+        admin.MapGet("/restore", AdminRestoreEndpoint.GetAsync);
+        admin.MapPost("/restore", AdminRestoreEndpoint.PostAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         app.MapGet("/edit/{**path}", EditorEndpoint.Handler)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/edit/{**path}", EditorEndpoint.Handler)

@@ -174,13 +174,32 @@ public sealed class EditorEndpointTests : IntegrationTest {
     public async Task ScrubRequiresExactTypedPathAndRemovesThePage() {
         await SavePageAsync("/private", "private source");
         using HttpClient client = await CreateSignedInClientAsync();
-        string token = await GetAntiforgeryTokenAsync(client, "/edit/private?cmd=scrub");
+
+        HttpResponseMessage liveConfirmation = await client.GetAsync("/edit/private?cmd=scrub");
+        string token = await GetAntiforgeryTokenAsync(client, "/edit/private");
+        HttpResponseMessage liveScrub = await client.PostAsync("/edit/private?cmd=scrub", Form(
+            ("__RequestVerificationToken", token),
+            ("confirmation", "/private")));
+
+        Assert.That(liveConfirmation.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
+        Assert.That(await liveConfirmation.Content.ReadAsStringAsync(), Does.Contain("Delete the page before scrubbing its history."));
+        Assert.That(liveScrub.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
+        Assert.That(await ReadPageAsync("/private"), Is.Not.Null);
+
+        token = await GetAntiforgeryTokenAsync(client, "/edit/private?cmd=delete");
+        HttpResponseMessage deleted = await client.PostAsync("/edit/private?cmd=delete", Form(("__RequestVerificationToken", token)));
+        Assert.That(deleted.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(await (await client.GetAsync("/edit/private?cmd=history")).Content.ReadAsStringAsync(),
+            Does.Contain("This page is deleted. Its revisions remain available here."));
+
+        token = await GetAntiforgeryTokenAsync(client, "/edit/private?cmd=scrub");
         HttpResponseMessage wrongConfirmation = await client.PostAsync("/edit/private?cmd=scrub", Form(
             ("__RequestVerificationToken", token),
             ("confirmation", "/PRIVATE")));
 
         Assert.That(wrongConfirmation.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(await ReadPageAsync("/private"), Is.Not.Null);
+        Assert.That(await (await client.GetAsync("/edit/private?cmd=history")).Content.ReadAsStringAsync(),
+            Does.Contain("This page is deleted. Its revisions remain available here."));
 
         token = await GetAntiforgeryTokenAsync(client, "/edit/private?cmd=scrub");
         HttpResponseMessage scrubbed = await client.PostAsync("/edit/private?cmd=scrub", Form(
@@ -217,24 +236,25 @@ public sealed class EditorEndpointTests : IntegrationTest {
 
         Assert.That(editor.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await editor.Content.ReadAsStringAsync(), Does.Contain(">\nliteral path source</textarea>"));
-        Assert.That(await listing.Content.ReadAsStringAsync(), Does.Contain($"href=\"/edit{url}?cmd=scrub\""));
+        Assert.That(await listing.Content.ReadAsStringAsync(), Does.Not.Contain($"href=\"/edit{url}?cmd=scrub\""));
         Assert.That(generated.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
     [Test]
-    public async Task ScrubCanBeConfirmedAgainAfterTheHeadIsGone() {
+    public async Task ScrubCannotBeConfirmedAgainAfterTheHeadIsGone() {
         await SavePageAsync("/retry-scrub", "secret");
         using HttpClient client = await CreateSignedInClientAsync();
-        string token = await GetAntiforgeryTokenAsync(client, "/edit/retry-scrub?cmd=scrub");
+        string token = await GetAntiforgeryTokenAsync(client, "/edit/retry-scrub?cmd=delete");
+        await client.PostAsync("/edit/retry-scrub?cmd=delete", Form(("__RequestVerificationToken", token)));
+        token = await GetAntiforgeryTokenAsync(client, "/edit/retry-scrub?cmd=scrub");
         await client.PostAsync("/edit/retry-scrub?cmd=scrub", Form(
             ("__RequestVerificationToken", token), ("confirmation", "/retry-scrub")));
 
-        token = await GetAntiforgeryTokenAsync(client, "/edit/retry-scrub?cmd=scrub");
+        token = await GetAntiforgeryTokenAsync(client, "/edit/retry-scrub");
         HttpResponseMessage retry = await client.PostAsync("/edit/retry-scrub?cmd=scrub", Form(
             ("__RequestVerificationToken", token), ("confirmation", "/retry-scrub")));
 
-        Assert.That(retry.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
-        Assert.That(retry.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(retry.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         Assert.That(await ReadPageAsync("/retry-scrub"), Is.Null);
     }
 
@@ -251,8 +271,13 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(body, Does.Contain("name=\"content\""));
         Assert.That(body, Does.Contain(">\nHello, world!</textarea>"));
         Assert.That(body, Does.Contain("?cmd=history"));
-        Assert.That(body, Does.Contain("<nav aria-label=\"Page navigation\">"));
-        Assert.That(body, Does.Contain("<nav aria-label=\"Page actions\">"));
+        Assert.That(body, Does.Contain(
+            "<nav class=\"editor-menu\" aria-label=\"Editor navigation\"><a href=\"/edit\">Page listing</a>"
+            + " <a href=\"/hello\">Back to file</a>"
+            + " <a href=\"/edit/hello?cmd=generated\">Generated C#</a>"
+            + " <a href=\"/edit/hello?cmd=history\">History</a>"
+            + " <a href=\"/edit/hello?cmd=delete\">Delete</a></nav>"));
+        Assert.That(body, Does.Not.Contain("?cmd=scrub"));
         Assert.That(body, Does.Contain("name=\"__RequestVerificationToken\""));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }

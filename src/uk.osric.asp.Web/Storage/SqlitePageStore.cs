@@ -179,12 +179,14 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
             bool existed;
             await using (IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken)) {
                 int deletedHeads = await database.Set<PageHead>()
-                    .Where(head => head.Path == path.Key)
+                    .Where(head => head.Path == path.Key && head.IsDeleted)
                     .ExecuteDeleteAsync(cancellationToken);
-                int deletedRevisions = await database.Set<StoredRevision>()
-                    .Where(revision => revision.Path == path.Key)
-                    .ExecuteDeleteAsync(cancellationToken);
-                existed = deletedHeads + deletedRevisions > 0;
+                if (deletedHeads > 0) {
+                    await database.Set<StoredRevision>()
+                        .Where(revision => revision.Path == path.Key)
+                        .ExecuteDeleteAsync(cancellationToken);
+                }
+                existed = deletedHeads > 0;
                 await transaction.CommitAsync(cancellationToken);
             }
 

@@ -169,7 +169,13 @@ internal sealed class FakePageStore : IPageStore {
 
     public Task<bool> ScrubPageAsync(PagePath path, CancellationToken cancellationToken = default) {
         Check(cancellationToken);
-        bool removed = _heads.Remove(path.Key) | _pages.Remove(path.Key);
+        if (!_heads.TryGetValue(path.Key, out bool isDeleted) || !isDeleted) {
+            return Task.FromResult(false);
+        }
+
+        _heads.Remove(path.Key);
+        _pages.Remove(path.Key);
+        bool removed = true;
         foreach (string hash in _revisions.Where(item => item.Value.Path == path).Select(item => item.Key).ToArray()) {
             removed |= _revisions.Remove(hash);
         }

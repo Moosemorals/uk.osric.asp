@@ -9,6 +9,18 @@ body {
     line-height: 1.6;
 }
 
+/* The browser's default heading margins are a third of the heading's own height at the top; a
+   tighter block keeps a title attached to what it titles. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin-block: 0.4em 0.2em;
+    line-height: 1.2;
+}
+
 .diagnostics {
     padding: 1rem;
     overflow-x: auto;

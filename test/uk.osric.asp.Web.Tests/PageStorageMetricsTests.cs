@@ -64,6 +64,7 @@ public sealed class PageStorageMetricsTests {
         SqlitePageStore store = new(database);
         await store.SavePageAsync(new StoredPage(PagePath.Normalize("/large"), new string('x', 131072)));
         (long beforePayload, long beforeAllocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
+        await store.DeletePageAsync(PagePath.Normalize("/large"));
 
         await store.ScrubPageAsync(PagePath.Normalize("/large"));
         (long payload, long allocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
@@ -132,6 +133,7 @@ public sealed class PageStorageMetricsTests {
         PageStorageRefresh refresh = new();
         SqlitePageStore store = new(database, refresh);
         await store.SavePageAsync(new StoredPage(PagePath.Normalize("/scrub"), "payload"));
+        await store.DeletePageAsync(PagePath.Normalize("/scrub"));
 
         Assert.That(await store.ScrubPageAsync(PagePath.Normalize("/scrub")), Is.True);
         await refresh.WaitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2));
