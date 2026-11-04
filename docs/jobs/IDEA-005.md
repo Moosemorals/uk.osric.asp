@@ -50,4 +50,5 @@ Two questions, and they are separable — settle the first before the second.
 4. Invalidation: a library page's change must recompile its dependents, the same way
    `ContentFingerprint` invalidates a page's stored image. Decide before shipping anything shared.
 5. Start with (1) alone — it makes a single long page bearable and is testable in `Core` with no
-   storage change at all. Treat (2) as its own job once (1) has been written with real pages.
+   storage change at all. Treat (2) as its own job once (1) has been written with real pages. Phase
+   (1) is planned in [page declarations](../plans/page-declarations.md).
