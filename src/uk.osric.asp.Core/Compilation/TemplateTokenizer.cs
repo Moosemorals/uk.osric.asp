@@ -3,12 +3,12 @@
 
 namespace uk.osric.asp.Core.Compilation;
 
-/// <summary>The template language: text, plus <c>&lt;% %&gt;</c> blocks of C#.</summary>
+/// <summary>The template language: text, plus <c>&lt;% %&gt;</c> blocks of C# and <c>&lt;%! %&gt;</c> declarations.</summary>
 internal static class TemplateTokenizer {
 
-    /// <summary>Splits a page template into its text and code tokens.</summary>
+    /// <summary>Splits a page template into its text, code and declaration tokens.</summary>
     /// <param name="input">The template as its author wrote it.</param>
-    /// <returns>The tokens, and one error naming the opener of an unterminated code block.</returns>
+    /// <returns>The tokens, and one error naming the opener of an unterminated block.</returns>
     public static TokenizeResult Tokenize(string input) {
         ArgumentNullException.ThrowIfNull(input);
 
@@ -23,12 +23,20 @@ internal static class TemplateTokenizer {
             if (codeStart > index) {
                 tokens.Add(new Token(TokenType.Text, input[index..codeStart], TemplateLines.PositionOf(input, index)));
             }
-            int codeEnd = input.IndexOf("%>", codeStart + 2, StringComparison.Ordinal);
+            // A C# statement cannot begin with '!', so an adjacent one is unambiguous: it marks the
+            // block as namespace-level declarations rather than statements.
+            bool isDeclaration = codeStart + 2 < input.Length && input[codeStart + 2] == '!';
+            int contentStart = isDeclaration ? codeStart + 3 : codeStart + 2;
+
+            int codeEnd = input.IndexOf("%>", contentStart, StringComparison.Ordinal);
             if (codeEnd == -1) {
-                return new TokenizeResult(tokens, [UnterminatedCodeBlock(input, codeStart)]);
+                return new TokenizeResult(tokens, [isDeclaration
+                    ? UnterminatedBlock(input, codeStart, "declaration", "<%!")
+                    : UnterminatedBlock(input, codeStart, "code", "<%")]);
             }
-            tokens.Add(new Token(TokenType.Code, input[(codeStart + 2)..codeEnd],
-                TemplateLines.PositionOf(input, codeStart + 2)));
+            tokens.Add(new Token(isDeclaration ? TokenType.Declaration : TokenType.Code,
+                input[contentStart..codeEnd],
+                TemplateLines.PositionOf(input, contentStart)));
             index = codeEnd + 2;
         }
 
@@ -37,10 +45,10 @@ internal static class TemplateTokenizer {
 
     // The author is given a position in the text they typed, not in the generated source, and it
     // names the opener they have to close rather than the end of the template.
-    private static PageDiagnostic UnterminatedCodeBlock(string input, int codeStart) {
+    private static PageDiagnostic UnterminatedBlock(string input, int codeStart, string kind, string opener) {
         return new PageDiagnostic(
             PageDiagnosticSeverity.Error,
             TemplateLines.PositionOf(input, codeStart),
-            "TEMPLATE001: unterminated code block; the '<%' has no matching '%>'.");
+            $"TEMPLATE001: unterminated {kind} block; the '{opener}' has no matching '%>'.");
     }
 }

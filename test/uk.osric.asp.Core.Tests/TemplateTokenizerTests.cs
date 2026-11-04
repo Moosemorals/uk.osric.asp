@@ -41,6 +41,39 @@ public sealed class TemplateTokenizerTests {
         }));
     }
 
+    [TestCase("", "<%!%>")]
+    [TestCase("using System.Globalization;", "<%!using System.Globalization;%>")]
+    [TestCase("class Amount { }", "<%!class Amount { }%>")]
+    public void ADeclarationBlockIsADeclarationToken(string expected, string input) {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Declaration, expected, new TemplatePosition(1, 4)),
+        }));
+    }
+
+    [Test]
+    public void ADeclarationBlockPreservesItsContent() {
+        const string content = " \r\nclass Amount {\n    public static string Format() => \"\";\n}\r\n ";
+
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<%!" + content + "%>").Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Declaration, content, new TemplatePosition(1, 4)),
+        }));
+    }
+
+    [TestCase("<% !value %>")]
+    [TestCase("<%\t!value %>")]
+    [TestCase("<%\n!value %>")]
+    public void AnExclamationIsADeclarationOnlyWhenAdjacentToTheOpener(string input) {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Code, input[2..^2], new TemplatePosition(1, 3)),
+        }));
+    }
+
     [Test]
     public void AlternatingTextAndCodeRemainInSourceOrder() {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("before<%first();%>between<%second();%>after").Tokens;
@@ -102,6 +135,21 @@ public sealed class TemplateTokenizerTests {
         Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
                 "TEMPLATE001: unterminated code block; the '<%' has no matching '%>'."),
+        }));
+    }
+
+    [TestCase("<%!", 1, 1)]
+    [TestCase("<%!>", 1, 1)]
+    [TestCase("before<%!class Amount", 1, 7)]
+    [TestCase("<%!using System;\nclass Amount {", 1, 1)]
+    [TestCase("line one\r\n<%!class Amount", 2, 1)]
+    public void AnUnterminatedDeclarationBlockIsReportedAtItsOpeningDelimiter(string input, int line, int column) {
+        TokenizeResult result = TemplateTokenizer.Tokenize(input);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
+                "TEMPLATE001: unterminated declaration block; the '<%!' has no matching '%>'."),
         }));
     }
 
