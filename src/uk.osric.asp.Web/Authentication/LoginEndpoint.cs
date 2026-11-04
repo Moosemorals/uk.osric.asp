@@ -126,29 +126,27 @@ internal static class LoginEndpoint {
         string? error) {
 
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
+        bool failed = !string.IsNullOrEmpty(error);
+        // Both fields hold the pair that failed, so both say so; the alert above is their description.
+        string invalid = failed ? " aria-describedby=\"login-error\" aria-invalid=\"true\"" : string.Empty;
 
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "text/html; charset=utf-8";
-        context.Response.Headers.CacheControl = "no-store";
+        await ShellDocument.BeginAsync(context, "Sign in");
+        await context.Response.WriteAsync("<h1>Sign in</h1>");
 
-        await context.Response.WriteAsync(PageLayout.Header("Sign in"));
-        await context.Response.WriteAsync("<main><h1>Sign in</h1>");
-
-        if (!string.IsNullOrEmpty(error)) {
-            await context.Response.WriteAsync($"<p class=\"error\">{WebUtility.HtmlEncode(error)}</p>");
+        if (failed) {
+            await context.Response.WriteAsync($"<p class=\"error\" id=\"login-error\" role=\"alert\">{WebUtility.HtmlEncode(error)}</p>");
         }
 
         await context.Response.WriteAsync($"""
             <form method="post" action="/login">
-                <input type="hidden" name="{WebUtility.HtmlEncode(tokens.FormFieldName)}" value="{WebUtility.HtmlEncode(tokens.RequestToken)}">
+                {AntiforgeryField.Hidden(tokens)}
                 <input type="hidden" name="returnUrl" value="{WebUtility.HtmlEncode(returnUrl ?? string.Empty)}">
-                <p><label>Username <input name="username" autocomplete="username" value="{WebUtility.HtmlEncode(userName ?? string.Empty)}"></label></p>
-                <p><label>Password <input type="password" name="password" autocomplete="current-password"></label></p>
+                <p><label>Username <input name="username" autocomplete="username" value="{WebUtility.HtmlEncode(userName ?? string.Empty)}"{invalid}></label></p>
+                <p><label>Password <input type="password" name="password" autocomplete="current-password"{invalid}></label></p>
                 <p><label><input type="checkbox" name="{RememberMeField}"{(rememberMe ? " checked" : "")}> Keep me signed in</label></p>
                 <button type="submit">Sign in</button>
             </form>
-            </main>
             """);
-        await context.Response.WriteAsync(PageLayout.Footer());
+        await ShellDocument.EndAsync(context);
     }
 }

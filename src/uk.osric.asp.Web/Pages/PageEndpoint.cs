@@ -127,13 +127,11 @@ internal sealed class PageEndpoint() {
     }
 
     private static async Task WriteCompileErrorAsync(HttpContext context, IReadOnlyList<PageDiagnostic> diagnostics) {
-        context.Response.ContentType = "text/html; charset=utf-8";
-        context.Response.StatusCode = 500;
-
-        await context.Response.WriteAsync(PageLayout.Header("Main - Error"));
+        await ShellDocument.BeginAsync(context, "Compilation failed", StatusCodes.Status500InternalServerError);
+        await context.Response.WriteAsync("<h1>Compilation failed</h1>");
         await context.Response.WriteAsync("<p>Handler failed to compile.</p>");
-        await context.Response.WriteAsync(PageLayout.Diagnostics(diagnostics));
-        await context.Response.WriteAsync(PageLayout.Footer());
+        await context.Response.WriteAsync(PageLayout.Diagnostics(DiagnosticLine.From(diagnostics)));
+        await ShellDocument.EndAsync(context);
     }
 
     private static async Task WriteTimeoutAsync(HttpContext context, PagePath path) {

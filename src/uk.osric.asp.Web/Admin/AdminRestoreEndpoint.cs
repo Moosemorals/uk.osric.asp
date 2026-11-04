@@ -64,7 +64,7 @@ internal static class AdminRestoreEndpoint {
 
         await pages.SaveAsync(path, content, context.RequestAborted);
         context.Session.SetString(EditorEndpoint.MessageKey, "Restored the bundled version.");
-        Redirects.SeeOther(context, EditorUrl(path));
+        Redirects.SeeOther(context, PageUrls.Editor(path));
     }
 
     private static bool TryGetPath(StringValues values, out PagePath path) {
@@ -82,27 +82,23 @@ internal static class AdminRestoreEndpoint {
         PagePath path,
         string content,
         AntiforgeryTokenSet tokens) {
-        context.Response.ContentType = "text/html; charset=utf-8";
-        await context.Response.WriteAsync(PageLayout.Header("Restore bundled version", stylesheet: "/editor.css"));
+        await ShellDocument.BeginAsync(context, "Restore bundled version", stylesheet: "/editor.css");
         await context.Response.WriteAsync($"<h1>Restore {WebUtility.HtmlEncode(path.Key)}</h1>");
         await context.Response.WriteAsync(
-            $"<p>This will replace the current page content with the version bundled with this release. "
-            + "The existing revision history will be retained.</p>");
-        await context.Response.WriteAsync($"<pre class=\"source\">{WebUtility.HtmlEncode(content)}</pre>");
+            "This will replace the current page content with the version bundled with this release. "
+            + "The existing revision history will be retained.");
+        await context.Response.WriteAsync($"<pre class=\"source\" tabindex=\"0\">{WebUtility.HtmlEncode(content)}</pre>");
         await context.Response.WriteAsync($"""
             <form method="post" action="/admin/restore">
-                <input type="hidden" name="{WebUtility.HtmlEncode(tokens.FormFieldName)}" value="{WebUtility.HtmlEncode(tokens.RequestToken)}">
+                {AntiforgeryField.Hidden(tokens)}
                 <input type="hidden" name="path" value="{WebUtility.HtmlEncode(path.Key)}">
                 <button type="submit">Restore bundled version</button>
             </form>
-            <nav class="editor-menu" aria-label="Admin navigation">
-                <a href="{WebUtility.HtmlEncode(EditorUrl(path))}">Cancel and return to editor</a>
-                <a href="/edit">Page listing</a>
-            </nav>
             """);
-        await context.Response.WriteAsync(PageLayout.Footer());
+        await context.Response.WriteAsync(PageLayout.Nav("Admin navigation", [
+            new(PageUrls.Editor(path), "Cancel and return to editor"),
+            new("/edit", "Page listing"),
+        ], "editor-menu"));
+        await ShellDocument.EndAsync(context);
     }
-
-    private static string EditorUrl(PagePath path) => "/edit"
-        + string.Join('/', path.Key.Split('/').Select(Uri.EscapeDataString));
 }

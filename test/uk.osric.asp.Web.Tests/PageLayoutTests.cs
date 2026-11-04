@@ -27,21 +27,14 @@ public sealed class PageLayoutTests {
     }
 
     [Test]
-    public void HeaderSetsABodyClassOnlyWhenAsked() {
-        Assert.That(PageLayout.Header("Title"), Does.Contain("<body>"));
-        Assert.That(PageLayout.Header("Title", "/editor.css", "editor-page"),
-            Does.Contain("<body class=\"editor-page\">"));
-    }
-
-    [Test]
     public void DiagnosticsEncodesTheMessageAndLinksAPositionedOne() {
         PageDiagnostic[] diagnostics = [
             new(PageDiagnosticSeverity.Error, new TemplatePosition(2, 5), "CS0103: <name> does not exist"),
         ];
 
-        Assert.That(PageLayout.Diagnostics(diagnostics, linkToLines: true), Is.EqualTo(
-            "<pre class=\"diagnostics\"><span class=\"diagnostic-error\"><a href=\"#L2\">"
-            + "line 2, column 5: error CS0103: &lt;name&gt; does not exist</a></span>\n</pre>"));
+        Assert.That(PageLayout.Diagnostics(DiagnosticLine.From(diagnostics), linkToLines: true), Is.EqualTo(
+            "<ul class=\"diagnostics\" role=\"list\"><li class=\"diagnostic-error\"><a href=\"#L2\">"
+            + "line 2, column 5: error CS0103: &lt;name&gt; does not exist</a></li></ul>"));
     }
 
     [Test]
@@ -50,9 +43,9 @@ public sealed class PageLayoutTests {
             new(PageDiagnosticSeverity.Error, null, "PAGE001: no entry point"),
         ];
 
-        Assert.That(PageLayout.Diagnostics(diagnostics, linkToLines: true), Is.EqualTo(
-            "<pre class=\"diagnostics\"><span class=\"diagnostic-error\">"
-            + "error PAGE001: no entry point</span>\n</pre>"));
+        Assert.That(PageLayout.Diagnostics(DiagnosticLine.From(diagnostics), linkToLines: true), Is.EqualTo(
+            "<ul class=\"diagnostics\" role=\"list\"><li class=\"diagnostic-error\">"
+            + "error PAGE001: no entry point</li></ul>"));
     }
 
     [Test]
@@ -61,8 +54,10 @@ public sealed class PageLayoutTests {
             new(PageDiagnosticSeverity.Warning, new TemplatePosition(1, 9), "CS0219: unused"),
         ];
 
-        Assert.That(PageLayout.Diagnostics(diagnostics), Is.EqualTo(PageLayout.Diagnostics(diagnostics, linkToLines: false)));
-        Assert.That(PageLayout.Diagnostics(diagnostics), Does.Not.Contain("<a "));
+        IReadOnlyList<DiagnosticLine> lines = DiagnosticLine.From(diagnostics);
+
+        Assert.That(PageLayout.Diagnostics(lines), Is.EqualTo(PageLayout.Diagnostics(lines, linkToLines: false)));
+        Assert.That(PageLayout.Diagnostics(lines), Does.Not.Contain("<a "));
     }
 
     [Test]
@@ -72,7 +67,7 @@ public sealed class PageLayoutTests {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(2, 1), "CS1002: earlier"),
         ];
 
-        string block = PageLayout.Diagnostics(diagnostics, linkToLines: true);
+        string block = PageLayout.Diagnostics(DiagnosticLine.From(diagnostics), linkToLines: true);
 
         Assert.That(block.IndexOf("CS1002", StringComparison.Ordinal), Is.LessThan(block.IndexOf("CS0103", StringComparison.Ordinal)));
     }
@@ -80,10 +75,10 @@ public sealed class PageLayoutTests {
     [Test]
     public void EveryDiagnosticLinkTargetsALineTheGutterRenders() {
         string gutter = PageLayout.Gutter(40);
-        string diagnostics = PageLayout.Diagnostics([
+        string diagnostics = PageLayout.Diagnostics(DiagnosticLine.From([
             new(PageDiagnosticSeverity.Error, new TemplatePosition(2, 5), "CS0103: missing"),
             new(PageDiagnosticSeverity.Warning, new TemplatePosition(40, 1), "CS0219: unused"),
-        ], linkToLines: true);
+        ]), linkToLines: true);
         MatchCollection targets = Regex.Matches(diagnostics, "href=\"#(L[0-9]+)\"");
 
         Assert.That(targets, Is.Not.Empty);

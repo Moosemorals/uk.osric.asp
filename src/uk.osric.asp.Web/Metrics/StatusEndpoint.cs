@@ -22,7 +22,7 @@ internal static class StatusEndpoint {
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.Headers.CacheControl = "no-store";
 
-        await context.Response.WriteAsync(PageLayout.Header("Status", "/status.css"), cancellationToken: cancellationToken);
+        await ShellDocument.BeginAsync(context, "Status", stylesheet: "/status.css", cancellationToken: cancellationToken);
         await context.Response.WriteAsync("<h1>Status</h1>", cancellationToken: cancellationToken);
         await WriteNavAsync(context, duration, cancellationToken);
 
@@ -44,30 +44,21 @@ internal static class StatusEndpoint {
             await context.Response.WriteAsync("</section>", cancellationToken: cancellationToken);
         }
 
-        await context.Response.WriteAsync(PageLayout.Footer(), cancellationToken: cancellationToken);
+        await ShellDocument.EndAsync(context, cancellationToken);
     }
 
-    private static async Task WriteNavAsync(HttpContext context, StatusDuration current, CancellationToken cancellationToken) {
-        await context.Response.WriteAsync("<nav class=\"status-nav\">", cancellationToken: cancellationToken);
+    private static Task WriteNavAsync(HttpContext context, StatusDuration current, CancellationToken cancellationToken) {
+        // The current window is where you already are, so it is text, not a link to itself.
+        NavLink[] links = [.. StatusDuration.All.Select(duration => new NavLink(
+            "/status?duration=" + Uri.EscapeDataString(duration.Token),
+            duration.Token,
+            duration.Token == current.Token))];
 
-        foreach (StatusDuration duration in StatusDuration.All) {
-            if (duration.Token == current.Token) {
-                // The current window is where you already are, so it is text, not a link to itself.
-                await context.Response.WriteAsync(
-                    $"<span class=\"current\" aria-current=\"true\">{duration.Token}</span>",
-                    cancellationToken: cancellationToken);
-            } else {
-                await context.Response.WriteAsync(
-                    $"<a href=\"/status?duration={duration.Token}\">{duration.Token}</a>",
-                    cancellationToken: cancellationToken);
-            }
-        }
-
-        await context.Response.WriteAsync("</nav>", cancellationToken: cancellationToken);
+        return context.Response.WriteAsync(PageLayout.Nav("Time window", links, "status-nav"), cancellationToken);
     }
 
     private static async Task WriteLegendAsync(HttpContext context, IReadOnlyList<string> labels) {
-        await context.Response.WriteAsync("<ul class=\"chart-legend\">");
+        await context.Response.WriteAsync("<ul class=\"chart-legend\" role=\"list\">");
 
         for (int index = 0; index < labels.Count; index++) {
             string colour = "series-" + ((index % SeriesColours) + 1);

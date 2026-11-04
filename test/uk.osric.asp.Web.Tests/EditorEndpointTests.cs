@@ -291,7 +291,7 @@ public sealed class EditorEndpointTests {
         string generatedBody = await TestHttp.ReadBodyAsync(generated);
         Assert.That(generatedBody, Does.Contain("<body>"));
         Assert.That(generatedBody, Does.Contain("<link rel=\"stylesheet\" href=\"/editor.css\">"));
-        Assert.That(generatedBody, Does.Contain("<pre class=\"source\">"));
+        Assert.That(generatedBody, Does.Contain("<pre class=\"source\" tabindex=\"0\">"));
 
         DefaultHttpContext revision = CreateContext();
         revision.Request.QueryString = new QueryString($"?cmd=revision&hash={page.Hash}");
@@ -299,7 +299,7 @@ public sealed class EditorEndpointTests {
 
         string revisionBody = await TestHttp.ReadBodyAsync(revision);
         Assert.That(revisionBody, Does.Contain("<body>"));
-        Assert.That(revisionBody, Does.Contain("<pre class=\"source\">saved source</pre>"));
+        Assert.That(revisionBody, Does.Contain("<pre class=\"source\" tabindex=\"0\">saved source</pre>"));
     }
 
     [Test]
@@ -320,7 +320,7 @@ public sealed class EditorEndpointTests {
         Assert.That(body, Does.Contain("Generated from the saved template by the current runtime"));
         Assert.That(body, Does.Contain("ctx.Write(&quot;ok&quot;);"));
         Assert.That(body, Does.Contain("#line 1 &quot;page&quot;"));
-        Assert.That(body, Does.Contain("<pre class=\"source\">"));
+        Assert.That(body, Does.Contain("<pre class=\"source\" tabindex=\"0\">"));
         Assert.That(body, Does.Not.Contain(" style=\""));
         Assert.That(body, Does.Not.Contain("stored compile failure"));
         Assert.That(_compiler.CompileCount, Is.EqualTo(compiles));

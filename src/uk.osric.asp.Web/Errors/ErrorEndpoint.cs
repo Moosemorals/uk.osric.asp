@@ -9,6 +9,7 @@ using System.Net;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
+using uk.osric.asp.Web.Http;
 
 internal static class ErrorEndpoint {
 
@@ -27,44 +28,34 @@ internal static class ErrorEndpoint {
             && isAuthenticated;
 
         string message = userFacingException?.Message ?? "An unexpected error occurred. Please try again.";
-        string editLink = isAuthenticated
-            ? $"<p><a href=\"{WebUtility.HtmlEncode("/edit" + PagePath.Normalize(pathFeature?.Path ?? context.Request.Path.Value).Key)}\">Edit this page</a></p>"
-            : string.Empty;
-        string details = showDetails
-            ? EditorDetails(exception!, pathFeature?.Path ?? context.Request.Path.Value ?? "/")
-            : string.Empty;
-        string page = PageLayout.Header("Error") + $"""
-                <main>
-                    <h1>Something went wrong</h1>
-                    <p>{WebUtility.HtmlEncode(message)}</p>
-                    {details}
-                    <p>Reference: {WebUtility.HtmlEncode(context.TraceIdentifier)}</p>
-                    {editLink}
-                    <p><a href="/">Return to the home page</a></p>
-                </main>
-        """ + PageLayout.Footer();
+        string path = pathFeature?.Path ?? context.Request.Path.Value ?? "/";
 
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "text/html; charset=utf-8";
+        await ShellDocument.BeginAsync(context, "Error", StatusCodes.Status500InternalServerError);
+        await context.Response.WriteAsync("<h1>Something went wrong</h1>");
+        await context.Response.WriteAsync($"<p>{WebUtility.HtmlEncode(message)}</p>");
         if (showDetails) {
-            context.Response.Headers.CacheControl = "no-store";
+            await context.Response.WriteAsync(EditorDetails(exception!, path));
         }
-
-        await context.Response.WriteAsync(page);
+        await context.Response.WriteAsync($"<p>Reference: {WebUtility.HtmlEncode(context.TraceIdentifier)}</p>");
+        if (isAuthenticated) {
+            await context.Response.WriteAsync($"<p><a href=\"{WebUtility.HtmlEncode(PageUrls.Editor(PagePath.Normalize(path)))}\">Edit this page</a></p>");
+        }
+        await context.Response.WriteAsync("<p><a href=\"/\">Return to the home page</a></p>");
+        await ShellDocument.EndAsync(context);
     }
 
     private static string EditorDetails(Exception exception, string path) {
         StackFrame[] frames = new StackTrace(exception, fNeedFileInfo: true).GetFrames() ?? [];
-        string locations = string.Concat(frames
+        DiagnosticLine[] locations = [.. frames
             .Where(frame => string.Equals(frame.GetFileName(), "page", StringComparison.Ordinal))
             .Select(frame => (Method: frame.GetMethod()?.Name, Line: frame.GetFileLineNumber()))
             .Where(location => location.Line > 0)
             .Select(location => {
                 string method = location.Method == "Handle" ? "Handle(IContext ctx)" : "page code";
-                return $"at {method} in {WebUtility.HtmlEncode(path)}:line {location.Line}\n";
-            }));
+                return new DiagnosticLine($"at {method} in {path}:line {location.Line}", null, null);
+            })];
         string locationList = locations.Length > 0
-            ? $"<pre class=\"diagnostics\">{locations}</pre>"
+            ? PageLayout.Diagnostics(locations)
             : "<p>No template location is available.</p>";
 
         return $"""

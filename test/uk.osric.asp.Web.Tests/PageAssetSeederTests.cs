@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/editor.css", "/editor.js", "/rocket.svg", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/editor.css", "/editor.js", "/layout.css", "/rocket.svg", "/site.css", "/status.css"];
 
     [Test]
     public async Task MissingAssetsAreSeededWithoutCompiledImagesAsync() {

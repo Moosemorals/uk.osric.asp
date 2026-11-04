@@ -31,7 +31,7 @@ public sealed class StatusEndpointTests {
         Assert.That(body, Does.Contain("<h1>Status</h1>"));
         Assert.That(body, Does.Contain("<svg class=\"chart\""));
         Assert.That(body, Does.Contain("<svg class=\"heatmap\""));
-        Assert.That(body, Does.Contain("<ul class=\"chart-legend\">"));
+        Assert.That(body, Does.Contain("<ul class=\"chart-legend\" role=\"list\">"));
         Assert.That(body, Does.Contain("series-1"));
     }
 
@@ -66,7 +66,7 @@ public sealed class StatusEndpointTests {
             ]),
         ]));
 
-        Assert.That(body, Does.Contain("<nav class=\"status-nav\">"));
+        Assert.That(body, Does.Contain("<nav class=\"status-nav\" aria-label=\"Time window\">"));
 
         foreach (string token in (string[])["3h", "8h", "1d", "7d", "30d"]) {
             Assert.That(body, Does.Contain($"<a href=\"/status?duration={token}\">{token}</a>"));
