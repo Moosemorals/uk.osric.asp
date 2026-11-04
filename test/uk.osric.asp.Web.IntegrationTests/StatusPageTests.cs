@@ -26,6 +26,9 @@ public sealed class StatusPageTests : IntegrationTest {
         string login = await anonymous.GetStringAsync("/login");
 
         Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/status.css\">"));
+        Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/layout.css\">"));
+        Assert.That(status.IndexOf("/status.css", StringComparison.Ordinal),
+            Is.LessThan(status.IndexOf("/layout.css", StringComparison.Ordinal)), "layout.css is linked last");
         Assert.That(stylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(stylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
         Assert.That(stylesheet.Headers.CacheControl?.NoCache, Is.True);
@@ -34,6 +37,7 @@ public sealed class StatusPageTests : IntegrationTest {
         Assert.That(sharedStyles, Does.Contain("body {").And.Contain(".diagnostics"));
         Assert.That(sharedStyles, Does.Not.Contain(".status-nav").And.Not.Contain(".chart").And.Not.Contain(".heatmap"));
         Assert.That(login, Does.Not.Contain("/status.css"));
+        Assert.That(login, Does.Contain("<link rel=\"stylesheet\" href=\"/layout.css\">"));
     }
 
     [Test]
