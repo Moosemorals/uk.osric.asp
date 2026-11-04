@@ -13,8 +13,8 @@ real pages.
 
 ## Status
 
-Done, 2026-11-04. `make check` is green: 715 tests — 188 Core, 65 Runtime, 386 web, 76 integration —
-of which 36 are new for this phase (19 in Core, 17 in Runtime). No storage, schema, migration or
+Done, 2026-11-04. `make check` is green: 716 tests — 189 Core, 65 Runtime, 386 web, 76 integration —
+of which 37 are new for this phase (20 in Core, 17 in Runtime). No storage, schema, migration or
 `RuntimeId` change, and no allow-listed type or namespace added. Recorded as DEC-92.
 
 ## Goal and constraints

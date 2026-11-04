@@ -109,6 +109,17 @@ public sealed class TemplateSourceGeneratorTests {
     }
 
     [Test]
+    public void ADeclarationBlockInsideAConditionalIsStillHoisted() {
+        string source = Generate("<% if (true) { %><%! class Amount { } %><% } %>");
+
+        int declaration = source.IndexOf("class Amount { }", StringComparison.Ordinal);
+        int conditional = source.IndexOf("if (true) {", StringComparison.Ordinal);
+
+        Assert.That(declaration, Is.GreaterThan(-1));
+        Assert.That(conditional, Is.GreaterThan(declaration));
+    }
+
+    [Test]
     public void AnUnterminatedDeclarationBlockProducesNoSourceAndOneError() {
         TemplateParseResult result = TemplateSourceGenerator.Generate("before<%! class Amount {");
 
