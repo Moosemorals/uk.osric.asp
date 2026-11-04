@@ -35,6 +35,21 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   does not compile" is asserted rather than inferred.
   `PageScopeTests` lives here because it names the shell's own types — and `Core`'s — to prove the
   trimmed reference set cannot resolve them.
+- **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
+  `ShellViews` renders all fourteen shell views once each — the sign-in form and its failure, the
+  listing, the editor clean and with diagnostics, history, a saved revision, generated source, the
+  delete confirmation, the restore confirmation, status, the error page, the error page with details
+  and the compile failure — and `AccessibilityTests` applies ten shared rules to every document: one
+  `main`, one `h1`, no skipped heading level, a distinct name on every `nav`, `scope` on every `th`, a
+  label on every control, no role that repeats an implicit one (bar the documented `role="list"`), no
+  focusable element inside an `aria-hidden` subtree, no inline style, and a name for every image and
+  every `svg role="img"`. `MarkupReader` is a hand-written reader rather than a parser dependency,
+  which is sound only because this repository encodes every value at the boundary — and is why it has
+  to fail loudly when it meets something it does not expect. `ShellDocumentTests` covers the document
+  itself: the language, the title, the sheet order, the status, the cache header and the skip link
+  before `main`. **What a string cannot show** — the accessibility tree, tab order, focus visibility,
+  zoom and reflow, contrast, and how a chart is read aloud — is a written hand pass (DEC-110), with its
+  findings recorded beside the plan.
 - **The execution budget** is tested in `Web.Tests` (`PageRendererTests` for the render deadline, the
   render queue, the abandoned context and the body cap; `TemplateCompilerTests` for the compile queue
   and the compile deadline; `AbandonedRenderHealthCheckTests` for the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the

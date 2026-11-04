@@ -5,11 +5,12 @@ SPDX-License-Identifier: MIT
 
 # Semantic HTML and accessibility across the shell
 
-Implementation plan for [BUG-16](../jobs/BUG-16.md) — audit every server-rendered view for the
-semantics it claims, replace generic wrappers where an element already means the right thing, and
-make the parts of accessibility that can be asserted into tests rather than a habit. The markup is
-also where the shell's duplication is worst, so the audit carries the refactor: one document shell,
-one diagnostics renderer, one navigation renderer, one antiforgery field, one URL builder.
+Implementation plan for BUG-16, now closed and recorded in [the jobs list](../jobs/README.md) —
+audit every server-rendered view for the semantics it claims, replace generic wrappers where an
+element already means the right thing, and make the parts of accessibility that can be asserted into
+tests rather than a habit. The markup is also where the shell's duplication is worst, so the audit
+carries the refactor: one document shell, one diagnostics renderer, one navigation renderer, one
+antiforgery field, one URL builder.
 
 ## Status
 
@@ -40,7 +41,7 @@ one.
 ## What the shell renders today
 
 Everything a visitor sees from the site itself is a C# string. Pages written by the owner are
-served verbatim and get no layout, so this audit is about the shell's own thirteen views.
+served verbatim and get no layout, so this audit is about the shell's own fourteen views.
 
 | View | Producer | Today | What is wrong |
 | --- | --- | --- | --- |
@@ -324,37 +325,88 @@ in this plan, correct the code, and re-run.
 `docs/decisions.md` rows for D1, D6, D7 and D9, and update `docs/architecture.md` and
 `docs/testing.md` where they describe the layout and the suites.
 
+### As built
+
+Steps 1–6 are `7d69d1e` and `33f640e`. Two details differ from the sequence above, both small:
+
+- Rule 7's sanction became a named predicate — a `ul` whose markers a sheet strips, on
+  `.diagnostics`, `.chart-legend` or `.pages` — because the listing's own `role="list"` tripped the
+  rule as stated. The listing stays a list, not a table (D11).
+- `PageLayout.Diagnostics` takes `IReadOnlyList<DiagnosticLine>` and nothing else. An overload for
+  `IReadOnlyList<PageDiagnostic>` made `PageLayout.Diagnostics([])` ambiguous at the call site, so
+  the conversion is explicit: `DiagnosticLine.From(diagnostics)`.
+
 ## Verification
 
 Automated, in `make test`:
 
-- `AccessibilityTests` — the ten shared rules over all thirteen views, plus the per-view assertions.
+- `AccessibilityTests` — the ten shared rules over all fourteen views, plus the per-view assertions.
 - `PageLayoutTests` — gutter, nav rendering and encoding, the diagnostics list and its links.
 - `PageAssetSeederTests`, `PageAssetTests`, `StatusPageTests` — `/layout.css` is seeded and served.
 - `EditorEndpointTests`, `ErrorEndpointTests`, `StatusEndpointTests`, `LoginEndpointTests` — the
   view-specific markup as it now is.
 - `SecurityHeaderTests` unchanged: nothing here adds inline script or style.
 
-Manual, once, with `make run` and a signed-in browser:
+`make format-check` is clean, `make audit` reports "no vulnerable or deprecated packages", and
+`make test` is green at Core 218, Runtime 68, Web 455, Integration 84.
 
-| Check | How |
+### The walk
+
+`make run` against a throwaway database (`ConnectionStrings__Storage=/tmp/a11y/storage.db`) with one
+account, driven by a scripted session: `/login`, a failed `/login`, `/edit`, `/edit/hello` clean and
+with diagnostics, `?cmd=history`, `?cmd=revision`, `?cmd=generated`, `?cmd=delete`, `/status`, and a
+template that does not compile. Each answered with the shell — the skip link first, one
+`main id="main"`, one `h1`, `/site.css`, the view's own sheet where it has one, `/layout.css`.
+
+| Check | What the walk showed |
 | --- | --- |
-| Landmarks and reading order | accessibility tree in the browser's devtools, per view |
-| Tab order | keyboard only, from the address bar to the last control; the skip link first, focus visible throughout |
-| The gutter's role | confirm the numbers are absent from the tree and the diagnostic link announces its position in words |
-| Charts | confirm each `svg` is announced by its `<title>`/`<desc>` and the legend is read as a list |
-| Zoom and reflow | 200% text-only zoom and a 320px viewport; the editor's `dvh` layout is the risky one |
-| Contrast | devtools picker on the gutter, the diagnostics colours, the banner and the status nav's current item |
+| Landmarks and reading order | `main#main` is the body's only element after the skip link on every route; one `h1` each ("Pages", "Editing /hello", "History for /hello", "Saved revision for /hello", "Generated C# for /hello", "Delete /hello?", "Status", "Sign in", "Compilation failed"); the listing's `h2`s have no gap, and no view skips a level |
+| Tab order | no positive `tabindex` in `src`; the only `aria-hidden` is the gutter, whose children are non-focusable `span`s; the skip link is the first focusable thing in every document; nothing sets `outline: none`, so the only focus styling is additive (`layout.css`) |
+| The gutter's role | `aria-hidden="true"` on `div.gutter`, so the numbers are not announced; the diagnostic item reads "line 2, column 12: error CS0029: Cannot implicitly convert type 'string' to 'int'" — the position in words — and its link is the gutter number it names |
+| Charts | thirteen `svg.chart` on `/status`, each `role="img"` with a `<title>` naming its series and a `<desc>`; every one is followed by `ul.chart-legend[role="list"]`, so the legend is a list |
+| Zoom and reflow | from the sheets, not a render: `100dvh` is on the editor body only, and the risk it carries is contained — `main` is now the body's flex child, `.editor` keeps `min-height: 12rem`, the gutter is `flex: none` and the textarea is `min-width: 0` with `overflow-x: auto`, so a narrow viewport shortens the textarea rather than widening the document; the listing wraps and wraps paths anywhere |
+| Contrast | computed from the seed colours, all text past AA: gutter 6.42:1 (`#595959` on `#f5f5f5`, and 4.17:1 before, which is why D8 changed it), diagnostics error 5.40:1, warning 5.44:1, skip link 6.63:1, target line 16.28:1, chart labels 5.74:1 and axis title 9.74:1 |
+
+`editor.js` was the one contract no test can see. It still finds `#content`, `#gutter`, `.editor`,
+`.diagnostics`, `a[href^="#L"]` and the `#L{n}` ids, and its diagnostics handler matches on the class,
+so the block changing from `pre` to `ul` does not reach it.
+
+### Found, and deliberately not fixed here
+
+- The chart series colours fall below the 3:1 non-text threshold on white: `#ff7f0e` 2.53:1,
+  `#2ca02c` 3.40:1, `#9467bd` 4.26:1. The `<title>`, the `<desc>` and the legend name the series, but
+  telling two lines apart on the chart itself is colour only. A palette that clears 3:1 is a design
+  pass, not a shell change.
+- The history table — five columns, one a 64-character hash — is wider than a 320px viewport and
+  scrolls the document sideways. WCAG 1.4.10 exempts parts that need two dimensions, which a data
+  table does; a scrolling wrapper would be kinder, but the wrapper is markup in `EditorEndpoint`, so
+  it is a follow-up.
+- `/status`'s charts are `viewBox`-scaled, so their axis labels shrink with the column at 320px. The
+  title, description and legend carry the meaning there; the labels are decoration below that width.
+- An unknown path still answers with plain text (`/nope not found.`), so the one response that is not
+  a document is the 404. It was like that before this change and it is only one line, but it is the
+  place where "every page gets the shell" stops being true.
+
+### Left for a person with a browser
+
+The announcements themselves (VoiceOver or NVDA reading order, the `role="alert"` on a failed sign
+in, the gutter numbers being skipped), the visible focus ring and the skip link appearing on focus,
+and 200% text-only zoom with a real 320px render — the editor's `100dvh` and the status charts in
+particular. The CSS above says both should hold; neither has actually been seen.
 
 ## Files touched
 
 New:
 
 - `src/uk.osric.asp.Web/Html/ShellDocument.cs`
+- `src/uk.osric.asp.Web/Html/NavLink.cs`
+- `src/uk.osric.asp.Web/Html/DiagnosticLine.cs`
 - `src/uk.osric.asp.Web/Html/AntiforgeryField.cs`
 - `src/uk.osric.asp.Web/Http/PageUrls.cs`
 - `src/uk.osric.asp.Web/Pages/Seeds/layout.css`
 - `test/uk.osric.asp.Web.Tests/MarkupReader.cs`
+- `test/uk.osric.asp.Web.Tests/MarkupElement.cs`
+- `test/uk.osric.asp.Web.Tests/ShellView.cs`
 - `test/uk.osric.asp.Web.Tests/ShellViews.cs`
 - `test/uk.osric.asp.Web.Tests/ShellDocumentTests.cs`
 - `test/uk.osric.asp.Web.Tests/AccessibilityTests.cs`
@@ -366,8 +418,8 @@ Changed:
 - `Editor/EditorEndpoint.cs` — the largest change: eight preambles, seven navs, one label, one list.
 - `Authentication/LoginEndpoint.cs`, `Errors/ErrorEndpoint.cs`, `Admin/AdminRestoreEndpoint.cs`,
   `Metrics/StatusEndpoint.cs`, `Pages/PageEndpoint.cs` — the document shell, the nav, the label.
-- `test/uk.osric.asp.Web.Tests/{PageLayoutTests,EditorEndpointTests,LoginEndpointTests,ErrorEndpointTests,StatusEndpointTests,PageAssetSeederTests}.cs`
-- `test/uk.osric.asp.Web.IntegrationTests/{StatusPageTests,EditorEndpointTests,PageAssetTests}.cs`
+- `test/uk.osric.asp.Web.Tests/{PageLayoutTests,EditorEndpointTests,StatusEndpointTests,PageAssetSeederTests}.cs`
+- `test/uk.osric.asp.Web.IntegrationTests/{StatusPageTests,PageAssetTests}.cs`
 - `docs/architecture.md`, `docs/testing.md`, `docs/decisions.md`, `docs/jobs/README.md`, and the
   deletion of `docs/jobs/BUG-16.md`.
 

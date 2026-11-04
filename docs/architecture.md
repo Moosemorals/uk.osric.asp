@@ -146,6 +146,33 @@ over 1 MiB is refused with 413 before it is read. A page that outruns its execut
 `504` with no body — see "Page execution budget" below. Keys the site's own routes answer for are listed
 in `Pages:ReservedPaths`, refused by the editor and never served.
 
+## The document shell
+
+Everything the site itself serves — the editor, the listing, sign-in, status, the error branches and
+the confirmations — is one document shape, written by `Html/ShellDocument.cs`. `BeginAsync` sets the
+content type, the status and `Cache-Control: no-store`, writes the head (the title, `/site.css`, the
+view's own sheet where it has one, then `/layout.css`, then the icon), writes the skip link and opens
+`<main id="main">`; `EndAsync` closes the landmark and the document. A view writes its own body
+content and nothing else, so the title, the landmark, the skip link and the sheet order cannot drift
+apart from one view to the next.
+
+- The skip link is the first thing in the document and targets `#main`, which is the only `main` on
+  the page — one landmark per document, and the one thing a keyboard reader can jump to.
+- `/layout.css` is a seeded page and is linked **last** (DEC-109). Seeded pages are never overwritten,
+  so a new sheet is how a rule the markup needs reaches an installation that has been running since
+  before it existed, and being last it also beats a stale copy of `/editor.css` on that installation.
+  `site.css` owns look and `/layout.css` owns layout.
+- `PageLayout` keeps the fragments: `Gutter`, `Diagnostics` (a `ul` with `role="list"`, DEC-108) and
+  `Nav`. `Html/` keeps `NavLink`, `DiagnosticLine`, `AntiforgeryField` and `PageUrls` beside it, so a
+  named nav, an antiforgery field and an editor URL are each built once rather than concatenated at
+  every endpoint.
+- A page written by the owner gets none of this: it owns its whole response, and giving it a layout
+  would be a product change rather than a semantics fix.
+
+Every one of these views is rendered once by `ShellViews` and checked against the shared accessibility
+rules — see [testing](testing.md#the-four-suites-and-the-planned-fifth) — with what a string cannot
+prove left to a recorded hand pass (DEC-110).
+
 ## Authentication and the editor
 
 The editor and the `/admin` route group are behind a sign-in; pages stay public. `/admin/restore`
@@ -321,10 +348,11 @@ revision identity are retained unless explicitly scrubbed.
 
 Built-in page templates live in `src/uk.osric.asp.Web/Pages/Seeds`, included as content in build and
 publish output. Each file is a complete page template, including its response content type and cache
-headers; its filename becomes the page path. `/site.css` holds shared layout and diagnostic styles,
-while `/status.css` holds dashboard styles and is linked only by `/status`. Editing a seed file
-changes the initial content for a never-created page, not an existing database page. The authenticated
-restore action applies the bundled source to an existing or tombstoned page as a new revision.
+headers; its filename becomes the page path. `/site.css` holds the site's look, `/layout.css` the
+rules the document shell's markup needs (see "The document shell"), while `/status.css` holds
+dashboard styles and is linked only by `/status`. Editing a seed file changes the initial content for
+a never-created page, not an existing database page. The authenticated restore action applies the
+bundled source to an existing or tombstoned page as a new revision.
 
 ## Compiled pages
 

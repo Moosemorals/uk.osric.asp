@@ -23,7 +23,6 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | --- | --- | --- | --- |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore UI |
-| [BUG-16](BUG-16.md) | Low | M | Some site markup is not semantic HTML |
 | [ARCH-12](ARCH-12.md) | Medium | M | A template has no shorthand for writing a value |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
 | [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
@@ -71,8 +70,6 @@ self-contained comes first, because these are the ones that never get scheduled 
 12. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
     and a rule, once there is something worth being woken for.
 13. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
-14. **BUG-16, semantic HTML audit** — audit the rendered page structure after the current editor
-   navigation landmarks have been corrected.
 
 ## Closed
 
@@ -115,3 +112,4 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-15 | A page key can contain a URL delimiter. Routing decodes `%3F` and `%23` into `Request.Path`, so `/hello%3Fworld` normalised to the key `/hello?world` and a page stored there was served. `PagePath.IsAddressable` is false for a key containing `?` or `#`, and both the page and the editor answer `404` before the canonical redirect and before storage, so an impossible key is neither served nor saved. Deliberately not normalised to a placeholder character: that would alias `/hello?world`, `/hello#world` and `/hello_world` onto one page and hide the broken link. Covered in `PagePathTests`, `MainEndpointTests`, `EditorEndpointTests` and `ShellTests` |
 | BUG-07 | `SavePageAsync` is a single `INSERT … ON CONFLICT("Path") DO UPDATE`, so two saves for the same new key update one row instead of the second failing the primary key; the winner writes content and compile result together. `ConcurrentSavesForTheSameNewPathLeaveOneRowAsync` races eight writers to prove it |
 | BUG-08 | The page reference set is built from `TRUSTED_PLATFORM_ASSEMBLIES` when `TemplateCompiler` is constructed, and `Program` constructs it before the host listens, so a missing or empty value stops startup with a message naming the AppContext key instead of compiling every page against nothing |
+| BUG-16 | Every view the site serves is one document. `ShellDocument` writes the head, the skip link, `<main id="main">` and the foot, so a view writes body content and nothing else; the duplication went with it — one nav renderer, one antiforgery field, one URL builder, one diagnostics renderer, and eight hand-written preambles gone. The listing's actions name the page they act on, the editor's textarea has a label, a failed sign-in is an alert that describes both fields, every `th` is scoped, the gutter is out of the accessibility tree while its diagnostic links give the position in words, charts are named by `<title>`/`<desc>`, and diagnostics are a list wherever they appear. `/layout.css` is a new seeded page, linked last, carrying the rules the new markup needs so they reach an installation that has been running since before it existed (DEC-109). `AccessibilityTests` applies ten rules to all fourteen views over rendered markup (DEC-110), and the contrast was measured rather than eyeballed: the gutter's grey was below AA and is now 6.42:1. See [the plan](../plans/semantic-html-and-accessibility.md) |
