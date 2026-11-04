@@ -43,6 +43,68 @@ public sealed class PageApiPolicyTests {
     }
 
     [Test]
+    public void ADeclarationBlockMayDeclareAType() {
+        string template = """
+            <%!
+            using System.Globalization;
+
+            sealed class Amount {
+                public static string Format(decimal value) => value.ToString("N2", CultureInfo.InvariantCulture);
+            }
+            %>
+            <p>Total: <% ctx.Write(Amount.Format(42.5m)); %></p>
+            """;
+
+        PageCompileResult result = Compile(template);
+
+        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [TestCase("<%! int value = 1; %>")]
+    [TestCase("<%! System.Console.WriteLine(\"escaped\"); %>")]
+    [TestCase("<%! if (true) { } %>")]
+    public void AStatementInADeclarationBlockIsRejected(string template) {
+        PageCompileResult result = Compile(template);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.StartsWith("PAGE002:", StringComparison.Ordinal)
+                && diagnostic.Position is { Line: 1, Column: > 0 }));
+    }
+
+    [Test]
+    public void ANamespaceInADeclarationBlockIsRejected() {
+        PageCompileResult result = Compile("<%! namespace Page { class Amount { } } %>");
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message == "PAGE002: a page may not declare a namespace."
+                && diagnostic.Position is { Line: 1, Column: > 0 }));
+    }
+
+    [Test]
+    public void APageMayNotDeclareGeneratedPage() {
+        PageCompileResult result = Compile("<%! class GeneratedPage { } %>");
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message == "PAGE002: a page may not declare its own GeneratedPage."));
+    }
+
+    [Test]
+    public void AnAssemblyAttributeIsRejected() {
+        PageCompileResult result = Compile("<%![assembly: System.Reflection.AssemblyTitle(\"page\")]%>");
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message == "PAGE002: a page may not add assembly attributes."));
+    }
+
+    [Test]
     public void RejectionReportsThePageLineAndColumn() {
         PageCompileResult result = Compile("first line\n<% System.IO.File.ReadAllText(\"page.txt\"); %>");
 
