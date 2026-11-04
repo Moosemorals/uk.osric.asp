@@ -30,7 +30,7 @@ decision for a project that has otherwise avoided them, so it needs the justific
    survive a save that does not compile.
 2. Ours: keep the textarea, add a server-rendered line gutter and anchor each diagnostic to a line
    with a link; the whole thing stays HTML and the save path does not change. Cheap, and enough if
-   the pages stay small. [Planned](../plans/editor-line-gutter.md) — with one correction: a
+   the pages stay small. [Done](../plans/editor-line-gutter.md) — with one correction: a
    server-rendered gutter is only true until the first keystroke, so the page carries a small
    native module that keeps the numbers in step with what is typed.
 3. Third party: [Ace](../spikes/ace-editor.md) is the option that needs no build step — it ships a
@@ -40,7 +40,7 @@ decision for a project that has otherwise avoided them, so it needs the justific
    the editor is worth. Either way the asset is pinned and the spike records how to update it.
 4. There is no `Content-Security-Policy` today, so adding script at all is the moment to add one
    (self, and a nonce only for any inline script we add — the spike found Ace needs none) rather
-   than afterwards. [Planned](../plans/editor-line-gutter.md) with the module as an external file,
+   than afterwards. [Done](../plans/editor-line-gutter.md) with the module as an external file,
    which needs no nonce at all.
 5. Keep the save path exactly as it is: an antiforgery-checked `POST`, then `303` back to the
    editor with a flash message. The editor is a view; it must not grow a second way to save.

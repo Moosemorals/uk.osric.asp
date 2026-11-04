@@ -24,7 +24,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(listing.Headers.CacheControl?.NoStore, Is.True);
         Assert.That(listingBody, Does.Not.Contain("name=\"content\""));
         Assert.That(rootEditor.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(editorBody, Does.Contain(">Root source.</textarea>"));
+        Assert.That(editorBody, Does.Contain(">\nRoot source.</textarea>"));
     }
 
     [TestCase("generated")]
@@ -37,7 +37,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
         HttpResponseMessage response = await client.GetAsync("/edit/" + key);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain(">" + key + " source.</textarea>"));
+        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain(">\n" + key + " source.</textarea>"));
     }
 
     [Test]
@@ -216,7 +216,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
         HttpResponseMessage generated = await client.GetAsync("/edit" + url + "?cmd=generated");
 
         Assert.That(editor.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(await editor.Content.ReadAsStringAsync(), Does.Contain(">literal path source</textarea>"));
+        Assert.That(await editor.Content.ReadAsStringAsync(), Does.Contain(">\nliteral path source</textarea>"));
         Assert.That(await listing.Content.ReadAsStringAsync(), Does.Contain($"href=\"/edit{url}?cmd=scrub\""));
         Assert.That(generated.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
@@ -249,7 +249,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
         Assert.That(body, Does.Contain("name=\"content\""));
-        Assert.That(body, Does.Contain(">Hello, world!</textarea>"));
+        Assert.That(body, Does.Contain(">\nHello, world!</textarea>"));
         Assert.That(body, Does.Contain("?cmd=history"));
         Assert.That(body, Does.Contain("<nav aria-label=\"Page navigation\">"));
         Assert.That(body, Does.Contain("<nav aria-label=\"Page actions\">"));
@@ -266,7 +266,22 @@ public sealed class EditorEndpointTests : IntegrationTest {
         string body = await response.Content.ReadAsStringAsync();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(body, Does.Contain("name=\"content\""));
-        Assert.That(body, Does.Contain("></textarea>"));
+        Assert.That(body, Does.Contain(">\n</textarea>"));
+    }
+
+    [Test]
+    public async Task ASourceBeginningWithANewlineRoundTripsThroughASave() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        using HttpResponseMessage save = await PostEditorAsync(client, "leading-newline", "\nHello, world!");
+        Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+
+        HttpResponseMessage response = await client.GetAsync("/edit/leading-newline");
+        string body = await response.Content.ReadAsStringAsync();
+
+        // The newline the marker emits is the one the HTML parser drops, so the author's survives.
+        Assert.That(body, Does.Contain(">\n\nHello, world!</textarea>"));
+        Assert.That(body, Does.Contain("<span id=\"L1\">1</span><span id=\"L2\">2</span>"));
     }
 
     [Test]

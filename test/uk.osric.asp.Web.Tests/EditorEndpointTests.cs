@@ -45,7 +45,7 @@ public sealed class EditorEndpointTests {
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
-        Assert.That(body, Does.Contain($"<textarea name=\"content\" rows=\"10\" cols=\"50\">{WebUtility.HtmlEncode(source)}</textarea>"));
+        Assert.That(body, Does.Contain($"<textarea name=\"content\" id=\"content\" rows=\"10\" cols=\"50\" wrap=\"off\" spellcheck=\"false\">\n{WebUtility.HtmlEncode(source)}</textarea>"));
         Assert.That(storage.LastReadPath?.Key, Is.EqualTo("/page.cs"));
         Assert.That(storage.WriteCount, Is.Zero);
     }
@@ -70,7 +70,7 @@ public sealed class EditorEndpointTests {
         await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
-        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("cols=\"50\"></textarea>"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("spellcheck=\"false\">\n</textarea>"));
     }
 
     [TestCase(null)]
@@ -195,6 +195,78 @@ public sealed class EditorEndpointTests {
         Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
     }
 
+    [TestCase("", 1)]
+    [TestCase("only line", 1)]
+    [TestCase("a\nb", 2)]
+    [TestCase("a\r\nb", 2)]
+    [TestCase("a\rb", 2)]
+    public async Task GetRendersOneGutterNumberPerSourceLineAsync(string source, int lines) {
+        DefaultHttpContext context = CreateContext();
+        FakePageStore storage = new();
+        storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), source);
+        string expected = "<div class=\"gutter\" id=\"gutter\" aria-hidden=\"true\">"
+            + string.Concat(Enumerable.Range(1, lines).Select(number => $"<span id=\"L{number}\">{number}</span>"))
+            + "</div>";
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain(expected));
+    }
+
+    [Test]
+    public async Task GetRendersTheEditorShellAsync() {
+        DefaultHttpContext context = CreateContext();
+
+        await EditorEndpoint.Handler(context, CreatePages(new FakePageStore()), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<body class=\"editor-page\">"));
+        Assert.That(body, Does.Contain("<link rel=\"stylesheet\" href=\"/editor.css\">"));
+        Assert.That(body, Does.Contain("<form method=\"post\" action=\"?\" class=\"editor-form\">"));
+        Assert.That(body, Does.Contain("<script type=\"module\" src=\"/editor.js\"></script>"));
+    }
+
+    [Test]
+    public async Task GetLinksAPositionedDiagnosticToItsGutterNumberAsync() {
+        const string source = "line one\nline two";
+        FakePageStore storage = new();
+        storage["/page.cs"] = new StoredPage(PagePath.Normalize("/page.cs"), source, new PageCompilation(
+            ContentFingerprint.Of(source), "1:build", null, null,
+            [new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(2, 5), "CS0103: missing")]));
+        DefaultHttpContext context = CreateContext();
+
+        await EditorEndpoint.Handler(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<a href=\"#L2\">line 2, column 5: error CS0103: missing</a>"));
+        Assert.That(body, Does.Contain("<span id=\"L2\">2</span>"));
+    }
+
+    [Test]
+    public async Task GeneratedAndRevisionViewsTakeTheStylesheetWithoutTheEditorLayoutAsync() {
+        PagePath path = PagePath.Normalize("/page.cs");
+        FakePageStore storage = new();
+        StoredPage page = new(path, "saved source");
+        await storage.SavePageAsync(page);
+
+        DefaultHttpContext generated = CreateContext();
+        generated.Request.QueryString = new QueryString("?cmd=generated");
+        await EditorEndpoint.Handler(generated, CreatePages(storage), Reserved, _antiforgery);
+
+        string generatedBody = await TestHttp.ReadBodyAsync(generated);
+        Assert.That(generatedBody, Does.Contain("<body>"));
+        Assert.That(generatedBody, Does.Contain("<link rel=\"stylesheet\" href=\"/editor.css\">"));
+        Assert.That(generatedBody, Does.Contain("<pre class=\"source\">"));
+
+        DefaultHttpContext revision = CreateContext();
+        revision.Request.QueryString = new QueryString($"?cmd=revision&hash={page.Hash}");
+        await EditorEndpoint.Handler(revision, CreatePages(storage), Reserved, _antiforgery);
+
+        string revisionBody = await TestHttp.ReadBodyAsync(revision);
+        Assert.That(revisionBody, Does.Contain("<body>"));
+        Assert.That(revisionBody, Does.Contain("<pre class=\"source\">saved source</pre>"));
+    }
+
     [Test]
     public async Task GeneratedViewEncodesSourceAndDoesNotCompileOrWriteAsync() {
         const string source = "<% ctx.Write(\"ok\"); %>";
@@ -213,6 +285,8 @@ public sealed class EditorEndpointTests {
         Assert.That(body, Does.Contain("Generated from the saved template by the current runtime"));
         Assert.That(body, Does.Contain("ctx.Write(&quot;ok&quot;);"));
         Assert.That(body, Does.Contain("#line 1 &quot;page&quot;"));
+        Assert.That(body, Does.Contain("<pre class=\"source\">"));
+        Assert.That(body, Does.Not.Contain(" style=\""));
         Assert.That(body, Does.Not.Contain("stored compile failure"));
         Assert.That(_compiler.CompileCount, Is.EqualTo(compiles));
         Assert.That(storage.WriteCount, Is.Zero);
@@ -231,7 +305,7 @@ public sealed class EditorEndpointTests {
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("TEMPLATE001"));
         Assert.That(body, Does.Not.Contain("class GeneratedPage"));
-        Assert.That(body, Does.Not.Contain("style=\"max-width:100%;overflow-x:auto\""));
+        Assert.That(body, Does.Not.Contain(" style=\""));
         Assert.That(storage.WriteCount, Is.Zero);
     }
 

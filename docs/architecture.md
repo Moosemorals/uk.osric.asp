@@ -164,6 +164,10 @@ stay public.
   not in a cookie, and a successful save answers `303` so the browser follows with a `GET`.
 - The data-protection key ring is persisted on a volume. That is what lets the 30-day cookie and
   in-flight antiforgery tokens survive a redeploy.
+- Every response carries one set of security headers, written by `SecurityHeaders` when the response
+  starts (DEC-92). The editor view is the only one that widens the policy to `script-src 'self'`, for
+  the `/editor.js` module that keeps its line gutter true; every other response forbids scripts
+  outright. `/editor.css` and `/editor.js` are seeded pages like `/site.css`, so they stay editable.
 
 ## Page API policy
 

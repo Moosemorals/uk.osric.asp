@@ -12,7 +12,16 @@ viewport, the caret survives a save, and the two inline `<pre style>` attributes
 
 ## Status
 
-Planned.
+Implemented on 2026-11-04. Test counts after the work: 178 core, 48 runtime, 419 web and 81
+integration. Built as written, with three corrections found by checking it in a browser:
+
+- `body.editor-page` takes a *definite* height, not `min-height`. With `min-height` alone the
+  gutter's own content sets the row height, so a 120-line page made the editor 120 lines tall and
+  the textarea never scrolled; `.editor { min-height: 12rem }` still stops a long header crushing it.
+- The gutter's bottom padding matches the textarea's, so the two scroll ranges end at the same
+  offset. Without it the last rows sat 8px apart at maximum scroll.
+- A `reveal()` in the module: the browser scrolls the *gutter* to a `#L{n}` fragment and stops
+  there, so the textarea has to be moved to the same line or the numbers drift off their rows.
 
 ## Goal and constraints
 
@@ -102,16 +111,18 @@ there" — an `h1` that wraps, a flash message, two navs, a diagnostics block:
 ```css
 body.editor-page {
     box-sizing: border-box;
-    min-height: 100vh;   /* fallback */
-    min-height: 100dvh;  /* dvh, so a mobile URL bar does not add a scrollbar */
+    height: 100vh;   /* fallback */
+    height: 100dvh;  /* dvh, so a mobile URL bar does not add a scrollbar */
     display: flex;
     flex-direction: column;
 }
 ```
 
-`min-height` and not `height`: a long diagnostics block then scrolls the page instead of crushing
-the editor, and `.editor { min-height: 12rem }` keeps the box usable when it does. The sign-out form
-and the footer sit at the bottom of a short page, which is what "minus the header and footer" means.
+The height is definite, and that is what makes the layout work: `min-height` alone left the row
+sized by the gutter's content, so a long page made the editor as tall as its text and the textarea
+never scrolled. A long diagnostics block still scrolls the page rather than crushing the editor,
+because `.editor { min-height: 12rem }` is what the box refuses to go below; the sign-out form and
+the footer sit at the bottom of a short page, which is what "minus the header and footer" means.
 
 `PageLayout.Header` gains a body-class parameter so only the editing view opts in: the history,
 generated and revision views also link `/editor.css`, for `.source`, without taking the layout.
@@ -291,8 +302,9 @@ rules stay flat.
 ```css
 body.editor-page {
     box-sizing: border-box;
-    min-height: 100vh;
-    min-height: 100dvh;
+    /* Definite, so the editor is the viewport and the textarea is what scrolls. */
+    height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
 }
@@ -316,7 +328,8 @@ body.editor-page {
     & .gutter {
         box-sizing: border-box;
         overflow: hidden;
-        padding: 0.5rem 0.5rem 0 0;
+        /* The textarea's bottom padding too, so both scroll ranges end together. */
+        padding: 0.5rem 0.5rem 0.5rem 0;
         text-align: right;
         white-space: nowrap;
         user-select: none;
@@ -391,6 +404,20 @@ function follow() {
     gutter.scrollTop = textarea.scrollTop;
 }
 
+// A diagnostic link is a fragment on a gutter number, so the browser scrolls the gutter alone; the
+// textarea has to follow, or the numbers no longer describe the rows they sit beside.
+function reveal() {
+    const line = Number.parseInt(location.hash.slice(2), 10);
+    const number = gutter.children[line - 1];
+    if (!number) {
+        return;
+    }
+
+    textarea.scrollTop = number.getBoundingClientRect().top - gutter.getBoundingClientRect().top
+        + gutter.scrollTop;
+    follow();
+}
+
 function fit() {
     // Clipped to the content box, so no number hides behind the horizontal scrollbar.
     gutter.style.maxHeight = `${textarea.clientHeight}px`;
@@ -420,6 +447,7 @@ function restore() {
         textarea.setSelectionRange(Math.min(saved.start, length), Math.min(saved.end, length));
         textarea.scrollTop = saved.scrollTop;
         textarea.focus();
+        follow();
     } catch {
         // A stale or unreadable entry restores nothing.
     }
@@ -428,12 +456,20 @@ function restore() {
 textarea.addEventListener('input', sync);
 textarea.addEventListener('scroll', follow, { passive: true });
 textarea.form.addEventListener('submit', remember);
+addEventListener('hashchange', reveal);
+document.querySelector('.diagnostics')?.addEventListener('click', event => {
+    if (event.target.closest('a[href^="#L"]')) {
+        // After the browser has scrolled to the fragment, so this is the last word on the position.
+        setTimeout(reveal);
+    }
+});
 new ResizeObserver(fit).observe(textarea);
 
 sync();
 fit();
 follow();
 restore();
+reveal();
 ```
 
 `sync` adds and removes only the difference, so existing `id`s and a `:target` highlight survive

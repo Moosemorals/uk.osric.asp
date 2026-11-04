@@ -80,6 +80,7 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | DEC-44 | `504`, not `503`: the request was understood and the site failed to answer in time. `503` is left for "not ready", which this design has no state to report. | [page-execution-budget](plans/page-execution-budget.md#decisions) |
 | DEC-45 | The health endpoint is `/heath` (deliberately not `/healthz`), returns detailed JSON, pings storage and reports abandoned renders — not CPU or memory, which belong to the container. | [OPS-02](jobs/OPS-02.md) |
 | DEC-46 | The supervisor is the kill switch: the budget cannot reclaim a thread, so podman restarts a wedged container and `StartLimitBurst` stops a crash loop. That is the whole "hard boundary" in this design. | [architecture](architecture.md#health-and-restarts) |
+| DEC-92 | Every response carries one security-header set, written by middleware when the response starts and only where the header is still absent; the editor view is the one response that widens `Content-Security-Policy` from `script-src 'none'` to `script-src 'self'` for its own module. `style-src 'self'` carries no `'unsafe-inline'`, so a page cannot use an inline `style=` attribute or a `<style>` block either, and a page that wants a script is a policy change rather than a header it may set. | [editor-line-gutter](plans/editor-line-gutter.md#7-one-middleware-sets-the-security-headers-only-the-editor-allows-script) |
 
 ## Editor authentication
 
@@ -164,8 +165,6 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 
 Not decisions yet — recorded so they are not rediscovered:
 
-- There is no `Content-Security-Policy` today. IDEA-001 notes that adding *any* script is the moment
-  to add one, and that is a decision, not a default.
 - Responses are buffered by DEC-31. Streaming (ARCH-13) would change that, and with it the "answer
   `504`, send nothing" guarantee.
 - The process boundary (SEC-03 step 3) rests on the owner being the only author. If that premise

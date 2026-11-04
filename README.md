@@ -20,8 +20,9 @@ autocomplete and real error messages.
   emitted assembly beside the source; a request loads that assembly into a collectible
   `AssemblyLoadContext` and runs it against `IContext`. Pages that have no usable assembly are
   compiled on their next request.
-- `/edit/anything` is the editor: sign in with a local account, then a textarea, a save button, and
-  a line telling you it worked. Accounts are created from the command line, not from the site.
+- `/edit/anything` is the editor: sign in with a local account, then a textarea with a line-number
+  gutter, a save button, and a line telling you it worked. Diagnostics link to the line that caused
+  them, and the caret survives a save. Accounts are created from the command line, not from the site.
 - `uk.osric.asp.Sdk` is the page contract, `uk.osric.asp.Core` is the host's pure functions,
   `uk.osric.asp.Runtime` is Roslyn and assembly loading, and `uk.osric.asp.Web` is the endpoints.
   `Sdk` and `Core` each reference nothing, not even another project.

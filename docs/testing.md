@@ -79,12 +79,18 @@ Every test is an NUnit test. Assert the behaviour, not the method, and keep one 
 ```bash
 make check             # the gate: formatting, licences, package audit, all four suites, Release publish
 make ci                # the same from `make clean`, plus "the build wrote no tracked file"
-make test              # all four suites; no browser needed
+make test              # all four suites; no browser needed for the assertions they make
 make test-core         # core tests only
 make test-runtime      # runtime tests only
 make test-web          # web tests only
 make test-integration  # the composed pipeline only, against a throwaway database
 ```
+
+**No browser needed** covers what the suites assert, not everything the editor does. Alignment of the
+gutter numbers with the text rows, the native resize handle, the caret coming back after a save and a
+clean console under the policy are browser behaviour: the modules are seeded pages, and no assertion
+here can prove them. They are checked by hand against [the plan](plans/editor-line-gutter.md#verification)
+until the Playwright suite that plan describes gets its own job and make target.
 
 ## The gate
 

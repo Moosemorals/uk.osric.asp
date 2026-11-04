@@ -185,12 +185,16 @@ internal sealed class EditorEndpoint {
     }
 
     private static async Task WriteEditorAsync(HttpContext context, PageEditor pages, IAntiforgery antiforgery, PagePath path) {
+        // The only page on the site that loads a script, so the only response that widens its policy.
+        SecurityHeaders.AllowScripts(context);
+
         StoredPage? page = await pages.GetAsync(path, context.RequestAborted);
         PageHeadSummary? head = page is null ? await pages.GetHeadAsync(path, context.RequestAborted) : null;
         bool wasDeleted = head?.IsDeleted == true;
+        string content = page?.Content ?? "";
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
 
-        await BeginHtmlAsync(context, "Editor");
+        await BeginHtmlAsync(context, "Editor", stylesheet: "/editor.css", bodyClass: "editor-page");
         await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path.Key)}</h1>");
         await WriteMessageAsync(context);
         if (wasDeleted) {
@@ -198,7 +202,7 @@ internal sealed class EditorEndpoint {
         }
 
         if (page?.Compilation?.Diagnostics is { Count: > 0 } diagnostics) {
-            await context.Response.WriteAsync(PageLayout.Diagnostics(diagnostics));
+            await context.Response.WriteAsync(PageLayout.Diagnostics(diagnostics, linkToLines: true));
         }
 
         string editorUrl = WebUtility.HtmlEncode(EditorUrl(path));
@@ -210,16 +214,20 @@ internal sealed class EditorEndpoint {
         }
 
         await context.Response.WriteAsync($"""
-            <form method="post" action="?">
+            <form method="post" action="?" class="editor-form">
                 <input type="hidden" name="{WebUtility.HtmlEncode(tokens.FormFieldName)}" value="{WebUtility.HtmlEncode(tokens.RequestToken)}">
-                <textarea name="content" rows="10" cols="50">{WebUtility.HtmlEncode(page?.Content ?? "")}</textarea>
-                <br>
+                <div class="editor">
+                    {PageLayout.Gutter(TemplateLines.Count(content))}
+                    <textarea name="content" id="content" rows="10" cols="50" wrap="off" spellcheck="false">
+            {WebUtility.HtmlEncode(content)}</textarea>
+                </div>
                 <button type="submit">Save</button>
             </form>
             <form method="post" action="/logout">
                 <input type="hidden" name="{WebUtility.HtmlEncode(tokens.FormFieldName)}" value="{WebUtility.HtmlEncode(tokens.RequestToken)}">
                 <button type="submit">Sign out</button>
             </form>
+            <script type="module" src="/editor.js"></script>
             """);
         await context.Response.WriteAsync(PageLayout.Footer());
     }
@@ -232,14 +240,14 @@ internal sealed class EditorEndpoint {
         }
 
         TemplateParseResult generated = TemplateSourceGenerator.Generate(page.Content);
-        await BeginHtmlAsync(context, "Generated C#");
+        await BeginHtmlAsync(context, "Generated C#", stylesheet: "/editor.css");
         await context.Response.WriteAsync($"<h1>Generated C# for {WebUtility.HtmlEncode(path.Key)}</h1>");
         await context.Response.WriteAsync("<p>Generated from the saved template by the current runtime; unsaved edits are not included.</p>");
         await context.Response.WriteAsync($"<nav aria-label=\"Editor navigation\"><a href=\"{WebUtility.HtmlEncode(EditorUrl(path))}\">Back to editor</a> <a href=\"/edit\">Page listing</a></nav>");
         if (generated.Source is null) {
             await context.Response.WriteAsync(PageLayout.Diagnostics(generated.Errors));
         } else {
-            await context.Response.WriteAsync($"<pre style=\"max-width:100%;overflow-x:auto\">{WebUtility.HtmlEncode(generated.Source)}</pre>");
+            await context.Response.WriteAsync($"<pre class=\"source\">{WebUtility.HtmlEncode(generated.Source)}</pre>");
         }
         await context.Response.WriteAsync(PageLayout.Footer());
     }
@@ -349,11 +357,16 @@ internal sealed class EditorEndpoint {
         }
     }
 
-    private static async Task BeginHtmlAsync(HttpContext context, string title, int statusCode = StatusCodes.Status200OK) {
+    private static async Task BeginHtmlAsync(
+        HttpContext context,
+        string title,
+        int statusCode = StatusCodes.Status200OK,
+        string? stylesheet = null,
+        string? bodyClass = null) {
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.StatusCode = statusCode;
         context.Response.Headers.CacheControl = "no-store";
-        await context.Response.WriteAsync(PageLayout.Header(title));
+        await context.Response.WriteAsync(PageLayout.Header(title, stylesheet, bodyClass));
     }
 
     private static string EditorUrl(PagePath path) => "/edit" + PageUrl(path);
@@ -448,11 +461,11 @@ internal sealed class EditorEndpoint {
             return;
         }
 
-        await BeginHtmlAsync(context, "Saved revision");
+        await BeginHtmlAsync(context, "Saved revision", stylesheet: "/editor.css");
         await context.Response.WriteAsync($"<h1>Saved revision for {WebUtility.HtmlEncode(path.Key)}</h1>");
         await context.Response.WriteAsync($"<p>Saved {WebUtility.HtmlEncode(revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}; {WebUtility.HtmlEncode(revision.CompilationStatus)}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}.</p>");
         await context.Response.WriteAsync($"<nav aria-label=\"Revision navigation\"><a href=\"{WebUtility.HtmlEncode(EditorUrl(path))}?cmd=history\">Back to history</a></nav>");
-        await context.Response.WriteAsync($"<pre style=\"max-width:100%;overflow-x:auto\">{WebUtility.HtmlEncode(revision.Content)}</pre>");
+        await context.Response.WriteAsync($"<pre class=\"source\">{WebUtility.HtmlEncode(revision.Content)}</pre>");
         await context.Response.WriteAsync(PageLayout.Footer());
     }
 }

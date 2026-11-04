@@ -14,6 +14,7 @@ using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Health;
+using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
@@ -126,6 +127,9 @@ internal class Program {
         // Before anything that reads the scheme. Without it every request arrives as plain HTTP from
         // the proxy, so HSTS emits nothing and IsHttps is always false.
         app.UseForwardedHeaders();
+
+        // Before the exception handler, so a request that throws still gets the default header set.
+        app.Use(SecurityHeaders.ApplyAsync);
 
         if (app.Environment.IsDevelopment()) {
             app.UseDeveloperExceptionPage();

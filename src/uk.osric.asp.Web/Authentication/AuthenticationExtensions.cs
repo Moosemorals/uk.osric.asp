@@ -77,6 +77,9 @@ internal static class AuthenticationExtensions {
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
             options.Cookie.SecurePolicy = SecurePolicy(environment);
+            // One header set owns this: SecurityHeaders sends DENY, which is stricter than the
+            // SAMEORIGIN this would add when a token is generated.
+            options.SuppressXFrameOptionsHeader = true;
         });
 
         services.AddDistributedMemoryCache();

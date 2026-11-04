@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/rocket.svg", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/editor.css", "/editor.js", "/rocket.svg", "/site.css", "/status.css"];
 
     [Test]
     public async Task MissingAssetsAreSeededWithoutCompiledImagesAsync() {
@@ -22,7 +22,7 @@ public sealed class PageAssetSeederTests {
             Assert.That(storage[path]?.Content, Is.EqualTo(ShippedSeed(path)), path);
             Assert.That(storage[path]?.Compilation, Is.Null, path);
         }
-        Assert.That(storage.WriteCount, Is.EqualTo(3));
+        Assert.That(storage.WriteCount, Is.EqualTo(SeedPaths.Length));
     }
 
     [TestCaseSource(nameof(SeedPaths))]
@@ -53,7 +53,7 @@ public sealed class PageAssetSeederTests {
 
         Assert.That(await storage.GetPageAsync(PagePath.Normalize(deletedPath)), Is.Null);
         Assert.That((await storage.GetHeadAsync(PagePath.Normalize(deletedPath)))?.IsDeleted, Is.True);
-        Assert.That(storage.WriteCount, Is.EqualTo(writes + 2), "only the never-created assets are seeded");
+        Assert.That(storage.WriteCount, Is.EqualTo(writes + SeedPaths.Length - 1), "only the never-created assets are seeded");
     }
 
     private static string ShippedSeed(string path) {

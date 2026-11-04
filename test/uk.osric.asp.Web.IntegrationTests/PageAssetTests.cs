@@ -35,6 +35,20 @@ public sealed class PageAssetTests : IntegrationTest {
         Assert.That(statusStylesheet.Headers.CacheControl?.NoCache, Is.True);
         Assert.That(await statusStylesheet.Content.ReadAsStringAsync(), Is.EqualTo(RenderedSeed("status.css")));
 
+        using HttpResponseMessage editorStylesheet = await client.GetAsync("/editor.css");
+        Assert.That(editorStylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(editorStylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
+        Assert.That(editorStylesheet.Headers.CacheControl?.NoCache, Is.True);
+        Assert.That(await editorStylesheet.Content.ReadAsStringAsync(), Is.EqualTo(RenderedSeed("editor.css")));
+
+        using HttpResponseMessage editorScript = await client.GetAsync("/editor.js");
+        string editorScriptBody = await editorScript.Content.ReadAsStringAsync();
+        Assert.That(editorScript.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(editorScript.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/javascript; charset=utf-8"));
+        Assert.That(editorScript.Headers.CacheControl?.NoCache, Is.True);
+        Assert.That(editorScriptBody, Is.EqualTo(RenderedSeed("editor.js")));
+        Assert.That(editorScriptBody, Does.Not.Contain("<%"), "template code in the script would be a page error");
+
         using HttpResponseMessage login = await client.GetAsync("/login");
         string loginBody = await login.Content.ReadAsStringAsync();
         Assert.That(loginBody, Does.Contain("<link rel=\"stylesheet\" href=\"/site.css\">"));
