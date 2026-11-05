@@ -8,6 +8,11 @@ using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
+internal sealed record ConditionalPageSaveResult(
+    bool Saved,
+    string? RevisionHash,
+    IReadOnlyList<PageDiagnostic> Diagnostics);
+
 /// <summary>Reads and saves pages for the editor.</summary>
 /// <remarks>
 /// <para>
@@ -87,6 +92,39 @@ internal sealed class PageEditor(
             Outcome(compilation));
 
         return compilation.Diagnostics;
+    }
+
+    /// <summary>Compiles and saves a page only while its current revision hash still matches.</summary>
+    public async Task<ConditionalPageSaveResult> SaveIfRevisionAsync(
+        PagePath path,
+        string content,
+        string expectedRevisionHash,
+        CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedRevisionHash);
+        long start = Stopwatch.GetTimestamp();
+
+        PageCompilation compilation;
+        try {
+            compilation = templates.Compile(path, content, PageMetrics.ReasonSave, cancellationToken);
+        } catch (InvalidOperationException) {
+            await storage.TrySavePageAsync(NewRevision(path, content, null), expectedRevisionHash, cancellationToken);
+            metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
+            throw;
+        }
+
+        StoredPage revision = NewRevision(path, content, compilation);
+        bool saved = await storage.TrySavePageAsync(revision, expectedRevisionHash, cancellationToken);
+        if (!saved) {
+            return new ConditionalPageSaveResult(false, null, []);
+        }
+
+        TimeSpan duration = Stopwatch.GetElapsedTime(start);
+        metrics.RecordSave(path, compilation.Image is not null, duration);
+        logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
+            Outcome(compilation));
+        return new ConditionalPageSaveResult(true, revision.Hash, compilation.Diagnostics);
     }
 
     private static string Outcome(PageCompilation compilation) {

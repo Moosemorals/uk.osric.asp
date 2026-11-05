@@ -81,6 +81,21 @@ public sealed class SqlitePageStoreTests {
     }
 
     [Test]
+    public async Task ConditionalSaveRejectsAStaleHashWithoutAddingARevisionAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database);
+        PagePath path = Key("/conditional");
+        await storage.SavePageAsync(new StoredPage(path, "first"));
+        string expectedHash = (await storage.GetPageAsync(path))!.Hash;
+
+        Assert.That(await storage.TrySavePageAsync(new StoredPage(path, "second"), expectedHash), Is.True);
+        Assert.That(await storage.TrySavePageAsync(new StoredPage(path, "stale"), expectedHash), Is.False);
+
+        Assert.That((await storage.GetPageAsync(path))?.Content, Is.EqualTo("second"));
+        Assert.That(await database.Set<StoredRevision>().CountAsync(), Is.EqualTo(2));
+    }
+
+    [Test]
     public async Task DistinctKeysAreSeparatePagesAsync() {
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database);

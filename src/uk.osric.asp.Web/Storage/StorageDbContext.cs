@@ -47,6 +47,66 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
         modelBuilder.Entity<LocalUser>().Property(user => user.UserName).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
         modelBuilder.Entity<LocalUser>().Property(user => user.PasswordHash).HasMaxLength(256);
         modelBuilder.Entity<LocalUser>().Property(user => user.SecurityStamp).HasMaxLength(128);
+
+        modelBuilder.Entity<AgentConversation>(conversation => {
+            conversation.ToTable("AgentConversations");
+            conversation.HasKey(row => row.Id);
+            conversation.Property(row => row.Owner).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
+            conversation.Property(row => row.Title).HasMaxLength(200);
+            conversation.Property(row => row.ApprovalMode).HasMaxLength(32);
+            conversation.HasIndex(row => new { row.Owner, row.UpdatedAt }).IsDescending(false, true);
+        });
+
+        modelBuilder.Entity<AgentRun>(run => {
+            run.ToTable("AgentRuns");
+            run.HasKey(row => row.Id);
+            run.Property(row => row.Id).HasMaxLength(32).UseCollation("BINARY");
+            run.Property(row => row.Status).HasMaxLength(32);
+            run.Property(row => row.Model).HasMaxLength(200);
+            run.Property(row => row.ApprovalMode).HasMaxLength(32);
+            run.Property(row => row.PromptVersion).HasMaxLength(100);
+            run.Property(row => row.ErrorCode).HasMaxLength(100);
+            run.HasOne<AgentConversation>()
+                .WithMany()
+                .HasForeignKey(row => row.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            run.HasIndex(row => row.ConversationId)
+                .IsUnique()
+                .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_approval')");
+        });
+
+        modelBuilder.Entity<AgentMessage>(message => {
+            message.ToTable("AgentMessages");
+            message.HasKey(row => row.Id);
+            message.Property(row => row.Role).HasMaxLength(16);
+            message.Property(row => row.Status).HasMaxLength(16);
+            message.Property(row => row.ToolCallId).UseCollation("BINARY");
+            message.Property(row => row.RunId).HasMaxLength(32).UseCollation("BINARY");
+            message.HasOne<AgentConversation>()
+                .WithMany()
+                .HasForeignKey(row => row.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            message.HasOne<AgentRun>()
+                .WithMany()
+                .HasForeignKey(row => row.RunId)
+                .OnDelete(DeleteBehavior.Cascade);
+            message.HasIndex(row => new { row.ConversationId, row.Sequence }).IsUnique();
+            message.HasIndex(row => new { row.ConversationId, row.RunId });
+        });
+
+        modelBuilder.Entity<AgentToolApproval>(approval => {
+            approval.ToTable("AgentToolApprovals");
+            approval.HasKey(row => new { row.RunId, row.ToolCallId });
+            approval.Property(row => row.RunId).HasMaxLength(32).UseCollation("BINARY");
+            approval.Property(row => row.ToolCallId).UseCollation("BINARY");
+            approval.Property(row => row.Status).HasMaxLength(16);
+            approval.Property(row => row.ResolvedBy).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
+            approval.Property(row => row.FailureCode).HasMaxLength(100);
+            approval.HasOne<AgentRun>()
+                .WithMany()
+                .HasForeignKey(row => row.RunId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     private sealed class RevisionHashInterceptor : DbConnectionInterceptor {

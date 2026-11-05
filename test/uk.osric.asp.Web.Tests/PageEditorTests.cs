@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using NUnit.Framework;
 using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>Proves what a save stores, and what it keeps when the compile fails.</summary>
@@ -86,6 +87,37 @@ public sealed class PageEditorTests {
 
         StoredPage saved = PageHarness.Stored(storage, "/warned");
         Assert.That(saved.Compilation?.Image, Is.Not.Null.And.Not.Empty);
+    }
+
+    [Test]
+    public async Task ConditionalSaveCompilesAndReturnsTheNewRevisionHashAsync() {
+        FakePageStore storage = new();
+        StoredPage original = new(PageHarness.Key("/conditional"), "first");
+        storage["/conditional"] = original;
+        using PageHarness pages = new(storage);
+
+        ConditionalPageSaveResult result = await pages.Editor.SaveIfRevisionAsync(
+            PageHarness.Key("/conditional"), "second", original.Hash);
+
+        Assert.That(result.Saved, Is.True);
+        Assert.That(result.RevisionHash, Is.EqualTo(PageHarness.Stored(storage, "/conditional").Hash));
+        Assert.That(PageHarness.Stored(storage, "/conditional").Content, Is.EqualTo("second"));
+        Assert.That(result.Diagnostics, Is.Empty);
+    }
+
+    [Test]
+    public async Task ConditionalSaveReturnsConflictWithoutWritingForAStaleHashAsync() {
+        FakePageStore storage = new();
+        StoredPage original = new(PageHarness.Key("/conditional"), "first");
+        storage["/conditional"] = original;
+        using PageHarness pages = new(storage);
+
+        ConditionalPageSaveResult result = await pages.Editor.SaveIfRevisionAsync(
+            PageHarness.Key("/conditional"), "stale replacement", "old-hash");
+
+        Assert.That(result.Saved, Is.False);
+        Assert.That(storage.WriteCount, Is.Zero);
+        Assert.That(PageHarness.Stored(storage, "/conditional").Content, Is.EqualTo("first"));
     }
 
     [Test]

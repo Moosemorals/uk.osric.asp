@@ -146,6 +146,48 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
         }
     }
 
+    public async Task<bool> TrySavePageAsync(StoredPage page, string expectedHash, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(page);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+
+        StoredPage revision = page;
+        for (int attempt = 0; ; attempt++) {
+            StoredRevision row = ToStoredRevision(revision);
+            try {
+                await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+                int matched = await database.Database.ExecuteSqlInterpolatedAsync($"""
+                    UPDATE "PageHeads" SET "RevisionId" = "RevisionId"
+                    WHERE "Path" = {revision.Path.Key} AND "IsDeleted" = 0
+                        AND EXISTS (
+                            SELECT 1 FROM "PageRevisions" AS revision
+                            WHERE revision."RevisionId" = "PageHeads"."RevisionId"
+                                AND revision."Path" = "PageHeads"."Path"
+                                AND revision."Hash" = {expectedHash})
+                    """, cancellationToken);
+                if (matched == 0) {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return false;
+                }
+
+                database.Add(row);
+                await database.SaveChangesAsync(cancellationToken);
+                await database.Database.ExecuteSqlInterpolatedAsync($"""
+                    UPDATE "PageHeads" SET "RevisionId" = {revision.RevisionId}
+                    WHERE "Path" = {revision.Path.Key} AND "IsDeleted" = 0
+                    """, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return true;
+            } catch (DbUpdateException exception) when (attempt + 1 < IdentityRetryCount && IsIdentityCollision(exception)) {
+                database.Entry(row).State = EntityState.Detached;
+                string revisionId = Guid.NewGuid().ToString("N");
+                revision = revision with {
+                    RevisionId = revisionId,
+                    Hash = PageRevisionHash.Compute(revision.Content, revision.CreationRuntimeId, revision.SavedAt, revisionId),
+                };
+            }
+        }
+    }
+
     public async Task<bool> TrySetCompilationAsync(string revisionId, string expectedContent, PageCompilation compilation, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(revisionId);
         ArgumentNullException.ThrowIfNull(expectedContent);

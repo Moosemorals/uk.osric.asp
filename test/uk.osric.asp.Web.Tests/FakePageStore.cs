@@ -119,6 +119,24 @@ internal sealed class FakePageStore : IPageStore {
         return Task.CompletedTask;
     }
 
+    public Task<bool> TrySavePageAsync(StoredPage page, string expectedHash, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(page);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+        Check(cancellationToken);
+
+        if (_heads.GetValueOrDefault(page.Path.Key)
+            || !string.Equals(_pages.GetValueOrDefault(page.Path.Key)?.Hash, expectedHash, StringComparison.Ordinal)) {
+            return Task.FromResult(false);
+        }
+
+        return SaveAndSucceedAsync(page, cancellationToken);
+    }
+
+    private async Task<bool> SaveAndSucceedAsync(StoredPage page, CancellationToken cancellationToken) {
+        await SavePageAsync(page, cancellationToken);
+        return true;
+    }
+
     public Task<bool> TrySetCompilationAsync(string revisionId, string expectedContent, PageCompilation compilation, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(compilation);
         Check(cancellationToken);

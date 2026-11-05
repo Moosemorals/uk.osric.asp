@@ -29,6 +29,13 @@ internal interface IPageStore {
     /// <param name="cancellationToken">Cancels the write.</param>
     Task SavePageAsync(StoredPage page, CancellationToken cancellationToken = default);
 
+    /// <summary>Saves a revision only when the current live head still has the expected hash.</summary>
+    /// <param name="page">The new source and compile result.</param>
+    /// <param name="expectedHash">The current head hash the caller read.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <returns>False when the page is missing, deleted or has changed since it was read.</returns>
+    Task<bool> TrySavePageAsync(StoredPage page, string expectedHash, CancellationToken cancellationToken = default);
+
     /// <summary>Stores a compile result only while the page still holds the content it was built from.</summary>
     /// <param name="path">The canonical key to update.</param>
     /// <param name="expectedContent">The content the compile result belongs to.</param>
