@@ -50,7 +50,17 @@ public sealed class MetricsEndpointTests : IntegrationTest {
         using HttpClient client = CreateClient();
         await client.GetAsync("/bucketed");
 
-        string body = await (await client.GetAsync("/metrics")).Content.ReadAsStringAsync();
+        // The exporter caches a scrape for 300 ms, and this fixture scrapes more than once; wait for
+        // the render to reach the exposition rather than racing the cache.
+        using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(10));
+        string body;
+        do {
+            body = await client.GetStringAsync("/metrics", deadline.Token);
+            if (body.Contains("le=\"0.0005\"", StringComparison.Ordinal)) {
+                break;
+            }
+            await Task.Delay(TimeSpan.FromMilliseconds(25), deadline.Token);
+        } while (!deadline.IsCancellationRequested);
 
         Assert.That(body, Does.Contain("le=\"0.0005\""));
         Assert.That(body, Does.Contain("le=\"10\""));
