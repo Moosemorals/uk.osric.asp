@@ -109,6 +109,12 @@ internal class Program {
             .AddView("page.handler.invoke.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.image.size", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.ImageBuckets })
+            .AddView("agent.run.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("agent.provider.first_token.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("agent.provider.request.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("agent.tool.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("agent.run.steps", new ExplicitBucketHistogramConfiguration { Boundaries = AgentMetrics.StepBuckets })
+            .AddView("agent.run.tool_calls", new ExplicitBucketHistogramConfiguration { Boundaries = AgentMetrics.ToolCallBuckets })
             .AddPrometheusExporter());
         builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton(CompileOptions.FromConfiguration(builder.Configuration));

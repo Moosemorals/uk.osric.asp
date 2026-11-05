@@ -9,6 +9,8 @@ using uk.osric.asp.Core.Agent;
 
 internal sealed class AgentMetrics : IDisposable {
     public const string MeterName = "uk.osric.asp.Agent";
+    public static readonly double[] StepBuckets = [1, 2, 3, 5, 8, 12, 16, 24];
+    public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32, 64];
 
     private readonly Meter _meter = new(MeterName, typeof(AgentMetrics).Assembly.GetName().Version?.ToString() ?? "0.0.0");
     private readonly Histogram<double> _runDuration;
