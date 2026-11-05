@@ -1,0 +1,133 @@
+/* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
+/* SPDX-License-Identifier: MIT */
+
+.assistant-page {
+    --assistant-rule: #c7c7c7;
+    --assistant-paper: #f3f5f4;
+    --assistant-user: #e8f1ee;
+    --assistant-alert: #fff1dc;
+}
+
+.assistant-chat {
+    display: grid;
+    gap: 1rem;
+}
+
+.assistant-chat form {
+    margin-block: 0.5rem;
+}
+
+.assistant-rename,
+.assistant-approval-mode {
+    display: flex;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding-block: 0.5rem;
+    border-bottom: 1px solid var(--assistant-rule);
+}
+
+.assistant-rename label,
+.assistant-approval-mode label,
+#assistant-message-form label {
+    flex-basis: 100%;
+    font-weight: 600;
+}
+
+.assistant-rename input {
+    flex: 1 1 16rem;
+}
+
+#assistant-transcript {
+    display: grid;
+    gap: 0.75rem;
+    min-width: 0;
+    padding-block: 0.5rem;
+}
+
+.assistant-message {
+    min-width: 0;
+    padding: 0.75rem;
+    border-left: 0.25rem solid #54786d;
+    background: var(--assistant-paper);
+}
+
+.assistant-message.user-message {
+    border-left-color: #375d77;
+    background: var(--assistant-user);
+}
+
+.assistant-message pre,
+.assistant-approval pre,
+.assistant-tool-result {
+    margin: 0;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.assistant-reasoning {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--assistant-rule);
+}
+
+.assistant-reasoning summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.assistant-reasoning pre {
+    margin-top: 0.5rem;
+    color: #414b48;
+}
+
+.assistant-activity {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.assistant-tool-result {
+    color: #3f5f56;
+}
+
+.assistant-approval {
+    padding: 0.75rem;
+    border: 1px solid #9a6b27;
+    background: var(--assistant-alert);
+}
+
+.assistant-approval form {
+    display: inline-block;
+    margin: 0.75rem 0.75rem 0 0;
+}
+
+#assistant-message-form textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 7rem;
+    resize: vertical;
+}
+
+.assistant-char-count {
+    margin: 0.25rem 0 0.5rem;
+    color: #4b4b4b;
+    text-align: right;
+}
+
+#assistant-status {
+    min-height: 1.5em;
+    margin: 0;
+    font-weight: 600;
+}
+
+@media (max-width: 38rem) {
+    .assistant-message,
+    .assistant-approval {
+        padding: 0.6rem;
+    }
+
+    .assistant-rename input {
+        flex-basis: 100%;
+    }
+}
+/* <% ctx.SetContentType("text/css; charset=utf-8"); ctx.SetHeader("Cache-Control", "no-cache"); %> */

@@ -8,9 +8,11 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
+using uk.osric.asp.Web.Agent;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
@@ -45,11 +47,31 @@ internal class Program {
         }
 
         builder.Services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
+        builder.Services.AddSingleton<IValidateOptions<AgentOptions>, AgentOptionsValidator>();
+        builder.Services.AddOptions<AgentOptions>()
+            .Bind(builder.Configuration.GetSection("Agent"))
+            .ValidateOnStart();
+        if (builder.Configuration.GetValue<bool>("Agent:Enabled")) {
+            builder.Services.AddSingleton(services => services.GetRequiredService<IOptions<AgentOptions>>().Value);
+            builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
+                client.Timeout = Timeout.InfiniteTimeSpan;
+            }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+            builder.Services.AddSingleton<AgentPaths>();
+            builder.Services.AddSingleton<AgentMetrics>();
+            builder.Services.AddSingleton<AgentPageToolExecutor>();
+            builder.Services.AddSingleton<AgentRunQueue>();
+            builder.Services.AddSingleton<AgentRunRegistry>();
+            builder.Services.AddSingleton<AgentToolApprovalCoordinator>();
+            builder.Services.AddScoped<AgentRunProcessor>();
+            builder.Services.AddHostedService<AgentRunWorker>();
+            builder.Services.AddHostedService<AgentRunJournalCleanupService>();
+        }
         builder.Services.AddHealthChecks()
             .AddCheck<StorageHealthCheck>("storage")
             .AddCheck<AbandonedRenderHealthCheck>("pages");
         builder.Services.AddScoped<IPageStore, SqlitePageStore>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
+        builder.Services.AddScoped<IAgentConversationStore, SqliteAgentConversationStore>();
         builder.Services.AddSingleton<IPasswordService, PasswordService>();
         builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
         builder.Services.AddScoped<TemplateCompiler>();
@@ -76,6 +98,7 @@ internal class Program {
         // The exporter serves /metrics on this listener; Caddy refuses that path publicly.
         _ = builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics
             .AddMeter(PageMetrics.MeterName)
+            .AddMeter(AgentMetrics.MeterName)
             .AddMeter("Microsoft.AspNetCore.Hosting")
             .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
             .AddMeter("System.Runtime")
@@ -109,6 +132,10 @@ internal class Program {
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
+            if (builder.Configuration.GetValue<bool>("Agent:Enabled")) {
+                IAgentConversationStore agentConversations = scope.ServiceProvider.GetRequiredService<IAgentConversationStore>();
+                await agentConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
+            }
             IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
             await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
         }
@@ -173,6 +200,40 @@ internal class Program {
         app.MapHealthChecks("/heath", new HealthCheckOptions {
             ResponseWriter = HealthReportWriter.WriteAsync,
         });
+        if (builder.Configuration.GetValue<bool>("Agent:Enabled")) {
+            app.MapGet("/assistant", AssistantEndpoint.ListAsync)
+                .RequireAuthorization(EditorPolicy.Name);
+            app.MapPost("/assistant", AssistantEndpoint.ListAsync)
+                .RequireAuthorization(EditorPolicy.Name)
+                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+            app.MapGet("/assistant/{id:long}", AssistantEndpoint.ConversationAsync)
+                .RequireAuthorization(EditorPolicy.Name);
+            app.MapPost("/assistant/{id:long}/messages", AssistantEndpoint.MessagesAsync)
+                .RequireAuthorization(EditorPolicy.Name)
+                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+            app.MapGet("/assistant/{id:long}/events", AssistantEndpoint.EventsAsync)
+                .RequireAuthorization(EditorPolicy.Name);
+            app.MapPost("/assistant/{id:long}/stop", AssistantEndpoint.StopAsync)
+                .RequireAuthorization(EditorPolicy.Name)
+                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+            app.MapPost("/assistant/{id:long}/runs/{runId}/tool-calls/{toolCallId}/approval", AssistantEndpoint.ApprovalAsync)
+                .RequireAuthorization(EditorPolicy.Name)
+                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+            app.MapPost("/assistant/{id:long}/approval-mode", AssistantEndpoint.ApprovalModeAsync)
+                .RequireAuthorization(EditorPolicy.Name)
+                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+            app.MapPost("/assistant/{id:long}/rename", AssistantEndpoint.RenameAsync)
+                .RequireAuthorization(EditorPolicy.Name)
+                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+            app.MapGet("/assistant/{id:long}/delete", AssistantEndpoint.DeleteConfirmationAsync)
+                .RequireAuthorization(EditorPolicy.Name);
+            app.MapPost("/assistant/{id:long}/delete", AssistantEndpoint.DeleteAsync)
+                .RequireAuthorization(EditorPolicy.Name)
+                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        } else {
+            app.MapMethods("/assistant", ["GET", "POST", "HEAD"], AssistantDisabled);
+            app.MapMethods("/assistant/{**path}", ["GET", "POST", "HEAD"], AssistantDisabled);
+        }
         // The scrape target is Prometheus inside the podman network; /metrics is reserved so a page
         // cannot claim the key, and Caddy answers 404 for it on the public origin.
         app.MapPrometheusScrapingEndpoint("/metrics");
@@ -181,5 +242,11 @@ internal class Program {
         app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.Handle);
 
         await app.RunAsync();
+    }
+
+    private static Task AssistantDisabled(HttpContext context) {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return Task.CompletedTask;
     }
 }

@@ -13,11 +13,13 @@ using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Admin;
+using uk.osric.asp.Web.Agent;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Storage;
 
 /// <summary>Renders each document the shell serves, once, for the shared accessibility rules.</summary>
 /// <remarks>
@@ -46,6 +48,10 @@ internal static class ShellViews {
         "error",
         "error-details",
         "compile-error",
+        "assistant-list",
+        "assistant-chat",
+        "assistant-chat-reasoning",
+        "assistant-delete",
     ];
 
     /// <summary>Renders one of <see cref="Names"/>.</summary>
@@ -65,6 +71,10 @@ internal static class ShellViews {
         "error" => RenderAsync(name, () => ErrorAsync(withDetails: false)),
         "error-details" => RenderAsync(name, () => ErrorAsync(withDetails: true)),
         "compile-error" => RenderAsync(name, CompileErrorAsync),
+        "assistant-list" => RenderAsync(name, AssistantListAsync),
+        "assistant-chat" => RenderAsync(name, () => AssistantChatAsync(withReasoning: false)),
+        "assistant-chat-reasoning" => RenderAsync(name, () => AssistantChatAsync(withReasoning: true)),
+        "assistant-delete" => RenderAsync(name, AssistantDeleteAsync),
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, "No such shell view."),
     };
 
@@ -170,6 +180,43 @@ internal static class ShellViews {
         await PageEndpoint.Handle(context, pages.Renderer, NullLoggerFactory.Instance, Reserved, new RenderOptions());
 
         return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AssistantListAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/assistant");
+        await AssistantEndpoint.ListAsync(context, new ShellAgentConversationStore(), new TestAntiforgery(),
+            Microsoft.Extensions.Options.Options.Create(new AgentOptions { Enabled = true }));
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AssistantChatAsync(bool withReasoning) {
+        DefaultHttpContext context = AuthenticatedContext("/assistant/1");
+        ShellAgentConversationStore conversations = new(withReasoning
+            ? [new AgentMessage {
+                ConversationId = 1,
+                RunId = "run-1",
+                Sequence = 1,
+                Role = "assistant",
+                Content = "Answer",
+                Reasoning = "Reasoning",
+                CreatedAt = DateTimeOffset.UtcNow,
+            }]
+            : []);
+        await AssistantEndpoint.ConversationAsync(context, 1, conversations, new TestAntiforgery(),
+            new AgentRunRegistry(new AgentOptions(), TimeProvider.System), new AgentOptions());
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AssistantDeleteAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/assistant/1/delete");
+        await AssistantEndpoint.DeleteConfirmationAsync(context, 1, new ShellAgentConversationStore(), new TestAntiforgery());
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static DefaultHttpContext AuthenticatedContext(string path) {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", path);
+        context.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
+        return context;
     }
 
     private static async Task<string> EditorAsync(FakePageStore storage, string? path, string command = "") {

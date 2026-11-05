@@ -6,10 +6,12 @@ namespace uk.osric.asp.Web.Editor;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using System.Net;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Agent;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
@@ -95,7 +97,8 @@ internal sealed class EditorEndpoint {
                 await WriteScrubConfirmationAsync(context, pages, antiforgery, path);
                 return;
             case null:
-                await WriteEditorAsync(context, pages, antiforgery, path);
+                bool assistantEnabled = context.RequestServices?.GetService<IOptions<AgentOptions>>()?.Value.Enabled == true;
+                await WriteEditorAsync(context, pages, antiforgery, assistantEnabled, path);
                 return;
             default:
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -185,7 +188,7 @@ internal sealed class EditorEndpoint {
         return Task.CompletedTask;
     }
 
-    private static async Task WriteEditorAsync(HttpContext context, PageEditor pages, IAntiforgery antiforgery, PagePath path) {
+    private static async Task WriteEditorAsync(HttpContext context, PageEditor pages, IAntiforgery antiforgery, bool assistantEnabled, PagePath path) {
         // The only page on the site that loads a script, so the only response that widens its policy.
         SecurityHeaders.AllowScripts(context);
 
@@ -211,6 +214,9 @@ internal sealed class EditorEndpoint {
             new("/edit", "Page listing"),
             new(PageUrls.Page(path), "Back to file"),
         ];
+        if (assistantEnabled) {
+            menu.Add(new("/assistant", "Assistant"));
+        }
         if (page is not null) {
             menu.Add(new(PageUrls.EditorCommand(path, "generated"), "Generated C#"));
             menu.Add(new(PageUrls.EditorCommand(path, "history"), "History"));

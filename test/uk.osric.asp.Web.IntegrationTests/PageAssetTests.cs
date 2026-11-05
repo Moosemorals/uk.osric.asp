@@ -56,6 +56,18 @@ public sealed class PageAssetTests : IntegrationTest {
         Assert.That(editorScriptBody, Is.EqualTo(RenderedSeed("editor.js")));
         Assert.That(editorScriptBody, Does.Not.Contain("<%"), "template code in the script would be a page error");
 
+        using HttpResponseMessage assistantStylesheet = await client.GetAsync("/assistant.css");
+        Assert.That(assistantStylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(assistantStylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
+        Assert.That(await assistantStylesheet.Content.ReadAsStringAsync(), Is.EqualTo(RenderedSeed("assistant.css")));
+
+        using HttpResponseMessage assistantScript = await client.GetAsync("/assistant.js");
+        string assistantScriptBody = await assistantScript.Content.ReadAsStringAsync();
+        Assert.That(assistantScript.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(assistantScript.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/javascript; charset=utf-8"));
+        Assert.That(assistantScriptBody, Is.EqualTo(RenderedSeed("assistant.js")));
+        Assert.That(assistantScriptBody, Does.Not.Contain("<%"));
+
         using HttpResponseMessage login = await client.GetAsync("/login");
         string loginBody = await login.Content.ReadAsStringAsync();
         Assert.That(loginBody, Does.Contain("<link rel=\"stylesheet\" href=\"/site.css\">"));

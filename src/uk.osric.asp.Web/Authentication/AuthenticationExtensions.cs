@@ -40,6 +40,11 @@ internal static class AuthenticationExtensions {
 
                 options.Events.OnRedirectToLogin = context => {
                     context.Response.Headers.CacheControl = "no-store";
+                    if (context.Request.Path.Value?.EndsWith("/events", StringComparison.Ordinal) == true
+                        && context.Request.Path.StartsWithSegments("/assistant")) {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return Task.CompletedTask;
+                    }
                     context.Response.Redirect(context.RedirectUri);
                     return Task.CompletedTask;
                 };

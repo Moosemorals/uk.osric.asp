@@ -1,0 +1,137 @@
+// SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+// SPDX-License-Identifier: MIT
+
+namespace uk.osric.asp.Web.IntegrationTests;
+
+using NUnit.Framework;
+using System.Net;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
+using uk.osric.asp.Core.Agent;
+using uk.osric.asp.Web.Agent;
+
+[TestFixture]
+public sealed class AssistantApprovalFlowTests : IntegrationTest {
+    private readonly PlannedClient _provider = new();
+
+    internal override AspApplication CreateApplication() => new(agentEnabled: true, chatCompletionClient: _provider);
+
+    [Test]
+    public async Task RequiredApprovalPausesWritesAndAlwaysApproveExecutesWithoutPromptAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        string gatedConversation = await CreateConversationAsync(client);
+        string modeToken = await GetAntiforgeryTokenAsync(client, gatedConversation);
+        using HttpResponseMessage mode = await client.PostAsync(gatedConversation + "/approval-mode", Form(
+            ("__RequestVerificationToken", modeToken),
+            ("mode", "RequireApproval")));
+        Assert.That(mode.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+
+        string messageToken = await GetAntiforgeryTokenAsync(client, gatedConversation);
+        using HttpResponseMessage started = await client.PostAsync(gatedConversation + "/messages", Form(
+            ("__RequestVerificationToken", messageToken),
+            ("content", "Write a page")));
+        Assert.That(started.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+        using JsonDocument run = JsonDocument.Parse(await started.Content.ReadAsStringAsync());
+        string runId = run.RootElement.GetProperty("runId").GetString()!;
+
+        using HttpRequestMessage eventRequest = new(HttpMethod.Get,
+            $"{gatedConversation}/events?run={Uri.EscapeDataString(runId)}&after=0");
+        using HttpResponseMessage eventResponse = await client.SendAsync(eventRequest, HttpCompletionOption.ResponseHeadersRead);
+        Assert.That(eventResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        using Stream eventStream = await eventResponse.Content.ReadAsStreamAsync();
+        using StreamReader reader = new(eventStream, Encoding.UTF8);
+        string approvalEvent = await ReadUntilEventAsync(reader, "approval.required");
+        Assert.That(approvalEvent, Does.Contain("/gated-page"));
+        Assert.That(await ReadPageAsync("/gated-page"), Is.Null, "the write must wait for the owner");
+
+        string pendingToken = await GetAntiforgeryTokenAsync(client, gatedConversation);
+        using HttpResponseMessage pendingView = await client.GetAsync(gatedConversation);
+        string pendingBody = await pendingView.Content.ReadAsStringAsync();
+        Assert.That(pendingBody, Does.Contain("write_page"));
+        Assert.That(pendingBody, Does.Contain("&lt;h1&gt;Gated&lt;/h1&gt;"));
+
+        string approvalPath = $"{gatedConversation}/runs/{runId}/tool-calls/gated-call/approval";
+        using HttpResponseMessage approved = await client.PostAsync(approvalPath, Form(
+            ("__RequestVerificationToken", pendingToken),
+            ("decision", "approve")));
+        Assert.That(approved.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        string completedEvents = await ReadUntilEventAsync(reader, "run.completed");
+        Assert.That(completedEvents, Does.Contain("event: tool.finished"));
+        Assert.That((await ReadPageAsync("/gated-page"))?.Content, Is.EqualTo("<h1>Gated</h1>"));
+
+        string automaticConversation = await CreateConversationAsync(client);
+        string automaticToken = await GetAntiforgeryTokenAsync(client, automaticConversation);
+        using HttpResponseMessage automaticStarted = await client.PostAsync(automaticConversation + "/messages", Form(
+            ("__RequestVerificationToken", automaticToken),
+            ("content", "Write without a prompt")));
+        using JsonDocument automaticRun = JsonDocument.Parse(await automaticStarted.Content.ReadAsStringAsync());
+        string automaticRunId = automaticRun.RootElement.GetProperty("runId").GetString()!;
+        using HttpResponseMessage automaticEvents = await client.GetAsync(
+            $"{automaticConversation}/events?run={Uri.EscapeDataString(automaticRunId)}&after=0");
+        string automaticBody = await automaticEvents.Content.ReadAsStringAsync();
+
+        Assert.That(automaticStarted.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+        Assert.That(automaticBody, Does.Not.Contain("event: approval.required"));
+        Assert.That(automaticBody, Does.Contain("event: run.completed"));
+        Assert.That((await ReadPageAsync("/automatic-page"))?.Content, Is.EqualTo("<h1>Automatic</h1>"));
+    }
+
+    [Test]
+    public async Task AnonymousSseRequestAnswersUnauthorizedInsteadOfRedirectingAsync() {
+        using HttpClient anonymous = CreateClient();
+
+        using HttpResponseMessage response = await anonymous.GetAsync("/assistant/1/events");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
+    }
+
+    private static async Task<string> CreateConversationAsync(HttpClient client) {
+        string token = await GetAntiforgeryTokenAsync(client, "/assistant");
+        using HttpResponseMessage created = await client.PostAsync("/assistant", Form(("__RequestVerificationToken", token)));
+        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        return created.Headers.Location!.ToString();
+    }
+
+    private static async Task<string> ReadUntilEventAsync(StreamReader reader, string eventName) {
+        StringBuilder content = new();
+        bool found = false;
+        while (true) {
+            string? line = await reader.ReadLineAsync();
+            Assert.That(line, Is.Not.Null, $"SSE closed before {eventName}");
+            content.AppendLine(line);
+            found |= line == $"event: {eventName}";
+            if (found && line!.Length == 0) {
+                return content.ToString();
+            }
+        }
+    }
+
+    private sealed class PlannedClient : IChatCompletionClient {
+        private readonly IReadOnlyList<AgentChatStreamEvent>[] _responses = [
+            [
+                new AgentToolCallDelta(0, "gated-call", "write_page", "{\"path\":\"/gated-page\",\"content\":\"<h1>Gated</h1>\"}"),
+                new AgentFinished("tool_calls"),
+            ],
+            [new AgentContentDelta("The gated page is ready."), new AgentFinished("stop")],
+            [
+                new AgentToolCallDelta(0, "automatic-call", "write_page", "{\"path\":\"/automatic-page\",\"content\":\"<h1>Automatic</h1>\"}"),
+                new AgentFinished("tool_calls"),
+            ],
+            [new AgentContentDelta("The automatic page is ready."), new AgentFinished("stop")],
+        ];
+        private int _request;
+
+        public async IAsyncEnumerable<AgentChatStreamEvent> StreamAsync(
+            AgentChatRequest request,
+            [EnumeratorCancellation] CancellationToken cancellationToken) {
+            int index = Interlocked.Increment(ref _request) - 1;
+            foreach (AgentChatStreamEvent @event in _responses[index]) {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return @event;
+                await Task.Yield();
+            }
+        }
+    }
+}
