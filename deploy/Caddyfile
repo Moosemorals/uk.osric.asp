@@ -7,8 +7,10 @@
 }
 
 moosemorals.com {
-	# Kestrel sends no Server header; drop Caddy's too, so the public hop advertises nothing.
+	# Kestrel sends no Server header; drop Caddy's too, so the public hop advertises nothing. A Via
+	# header names the proxy the same way, so remove any that reaches the response.
 	header -Server
+	header -Via
 	@notAssistantEvents not path /assistant/*/events
 	encode @notAssistantEvents zstd gzip
 	# Prometheus scrapes inside the podman network. The public origin must not serve metrics.
