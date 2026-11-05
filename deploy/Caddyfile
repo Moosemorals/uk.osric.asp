@@ -7,6 +7,8 @@
 }
 
 moosemorals.com {
+	# Kestrel sends no Server header; drop Caddy's too, so the public hop advertises nothing.
+	header -Server
 	@notAssistantEvents not path /assistant/*/events
 	encode @notAssistantEvents zstd gzip
 	# Prometheus scrapes inside the podman network. The public origin must not serve metrics.

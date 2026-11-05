@@ -32,6 +32,9 @@ internal class Program {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(
             isUserCommand ? [] : args);
 
+        // The site is behind Caddy; nothing on this hop needs to advertise the server that ran it.
+        builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+
         if (isUserCommand) {
             // The command's output is its result; migration chatter belongs in the log, not on stdout.
             builder.Logging.SetMinimumLevel(LogLevel.Warning);

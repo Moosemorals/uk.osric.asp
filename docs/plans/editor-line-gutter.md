@@ -190,8 +190,9 @@ X-XSS-Protection: 0
 - `Strict-Transport-Security` is already `app.UseHsts()`. Its defaults are 30 days and no
   `includeSubDomains`; raising it commits every subdomain of the domain, so it is a deploy decision
   and not a side effect of this job.
-- Kestrel still advertises itself; `AddServerHeader = false` would stop that, and Caddy passes the
-  header through. Also a decision of its own.
+- Neither hop advertises itself: the host sets `AddServerHeader = false` and the Caddyfile deletes
+  the header with `header -Server`, which covers Caddy's own `Server: Caddy` as well as anything an
+  upstream sends.
 
 The CSP is the one that varies by page. The editor's copy is the same string with `script-src 'self'`
 in place of `'none'`. Both come from one helper so they cannot drift, and a unit test asserts they
@@ -589,8 +590,6 @@ Hand checks until the browser suite exists:
 - **HSTS settings** — `app.UseHsts()` runs with its defaults (30 days, no `includeSubDomains`).
   Raising it commits every subdomain of the domain, so it is a deploy decision; see
   [deploy/README.md](../../deploy/README.md).
-- **`Server` header** — Kestrel advertises itself and Caddy passes it through;
-  `AddServerHeader = false` removes it, whenever it is worth a line.
 - **Ace** (IDEA-001 steps 1 and 3): this page is the fallback it enhances, and the annotation payload
   reuses `PageDiagnostic.Position` with `Line - 1`.
 - **Per-page policies**: the middleware's set-if-absent rule is the hook; nothing needs it yet.
