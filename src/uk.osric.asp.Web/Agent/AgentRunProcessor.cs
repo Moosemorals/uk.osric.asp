@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 using System.Text.Json;
 using uk.osric.asp.Core.Agent;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Storage;
 
 internal sealed class AgentRunProcessor(
@@ -158,14 +159,14 @@ internal sealed class AgentRunProcessor(
                         step,
                         toolCallId = call.Id,
                         name = call.Name,
-                        summary = $"Using {call.Name}",
+                        summary = $"Using {call.DisplayName}",
                     });
 
                     long toolStart = Stopwatch.GetTimestamp();
                     if (callsThisStep > options.MaxToolCallsPerStep) {
-                        result = ToolFailure("The provider exceeded the per-step tool-call limit.", $"{call.Name}: per-step tool-call limit");
+                        result = ToolFailure("The provider exceeded the per-step tool-call limit.", $"{call.DisplayName}: per-step tool-call limit");
                     } else if (toolCallCount >= options.MaxToolCalls) {
-                        result = ToolFailure("The run reached its tool-call limit.", $"{call.Name}: tool-call limit");
+                        result = ToolFailure("The run reached its tool-call limit.", $"{call.DisplayName}: tool-call limit");
                     } else if (requiresApproval) {
                         result = await ResolveApprovalAsync(queued, stream, step, call, definition!, runTimeout.Token);
                     } else {
@@ -173,7 +174,7 @@ internal sealed class AgentRunProcessor(
                     }
 
                     toolCallCount++;
-                    metrics.RecordTool(call.Name, result.Success, Stopwatch.GetElapsedTime(toolStart));
+                    metrics.RecordTool(definition, result.Success, Stopwatch.GetElapsedTime(toolStart));
                     await StoreAsync(store => store.AppendMessageAsync(
                         queued.ConversationId,
                         queued.RunId,
@@ -214,7 +215,7 @@ internal sealed class AgentRunProcessor(
                 await StoreAsync(store => store.AppendMessageAsync(
                     queued.ConversationId,
                     queued.RunId,
-                    new AgentMessageInput("tool", ToolFailure(message, activeToolName ?? "tool").Content,
+                    new AgentMessageInput("tool", ToolFailure(message, MessageText.Sanitize(activeToolName ?? "tool")).Content,
                         ToolCallId: activeToolCallId, ToolName: activeToolName),
                     CancellationToken.None));
             }
@@ -265,7 +266,7 @@ internal sealed class AgentRunProcessor(
                 await wait;
             } catch (OperationCanceledException) {
             }
-            return ToolFailure("This tool call already has an approval record.", $"{call.Name}: approval conflict");
+            return ToolFailure("This tool call already has an approval record.", $"{call.DisplayName}: approval conflict");
         }
 
         await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "awaiting_approval", cancellationToken: cancellationToken));
@@ -284,7 +285,7 @@ internal sealed class AgentRunProcessor(
             stream.Publish("approval.resolved", new { step, toolCallId = call.Id, decision = decision == AgentApprovalResolutionResult.Approved ? "approved" : "denied" });
             return decision == AgentApprovalResolutionResult.Approved
                 ? await ExecuteToolAsync(call, stream, step, cancellationToken)
-                : ToolFailure("The owner denied this tool call.", $"{call.Name}: denied");
+                : ToolFailure("The owner denied this tool call.", $"{call.DisplayName}: denied");
         } catch (OperationCanceledException) {
             throw;
         }
@@ -300,12 +301,12 @@ internal sealed class AgentRunProcessor(
         try {
             return await tools.ExecuteAsync(call.Name, call.Arguments, timeout.Token);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
-            return ToolFailure("The tool exceeded its configured time limit.", $"{call.Name}: timeout");
+            return ToolFailure("The tool exceeded its configured time limit.", $"{call.DisplayName}: timeout");
         } catch (OperationCanceledException) {
             throw;
         } catch (Exception exception) {
             logger.LogWarning(exception, "Agent tool {ToolName} in run {RunId} failed", call.Name, stream.RunId);
-            return ToolFailure("The tool could not complete this operation.", $"{call.Name}: failed");
+            return ToolFailure("The tool could not complete this operation.", $"{call.DisplayName}: failed");
         }
     }
 
@@ -421,5 +422,8 @@ internal sealed class AgentRunProcessor(
         JsonSerializer.Serialize(new { ok = false, data = (object?)null, error }, s_jsonOptions),
         summary);
 
-    private sealed record PreparedToolCall(string Id, string Name, string Arguments);
+    private sealed record PreparedToolCall(string Id, string Name, string Arguments) {
+
+        public string DisplayName => MessageText.Sanitize(Name);
+    }
 }

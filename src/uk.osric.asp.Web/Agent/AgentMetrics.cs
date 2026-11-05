@@ -12,6 +12,15 @@ internal sealed class AgentMetrics : IDisposable {
     public static readonly double[] StepBuckets = [1, 2, 3, 5, 8, 12, 16, 24];
     public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32, 64];
 
+    /// <summary>The tool tag recorded when a call names no registered tool.</summary>
+    /// <remarks>
+    /// A tool name is model-supplied, so tagging a made-up or mistyped name verbatim would mint one
+    /// time series per value — the same trap as tagging a render that found no page with the path the
+    /// caller typed. The transcript still carries the real name; the metric only needs to show that a
+    /// call was refused.
+    /// </remarks>
+    public const string UnknownTool = "(unknown)";
+
     private readonly Meter _meter = new(MeterName, typeof(AgentMetrics).Assembly.GetName().Version?.ToString() ?? "0.0.0");
     private readonly Histogram<double> _runDuration;
     private readonly Histogram<long> _runSteps;
@@ -45,9 +54,15 @@ internal sealed class AgentMetrics : IDisposable {
     public void RecordProviderRequest(string model, string outcome, TimeSpan duration) =>
         _providerRequest.Record(duration.TotalSeconds, new TagList { { "model", model }, { "outcome", outcome } });
 
-    public void RecordTool(string tool, bool success, TimeSpan duration) =>
+    /// <summary>Records one tool call under a registered tool's name, or
+    /// <see cref="UnknownTool"/> when <paramref name="tool"/> is null.</summary>
+    /// <param name="tool">The definition the call resolved to, or null when it named no registered
+    /// tool. A definition rather than a name, so a model-supplied string cannot become a label.</param>
+    /// <param name="success">Whether the call succeeded.</param>
+    /// <param name="duration">How long the call took.</param>
+    public void RecordTool(AgentToolDefinition? tool, bool success, TimeSpan duration) =>
         _toolDuration.Record(duration.TotalSeconds, new TagList {
-            { "tool", tool },
+            { "tool", tool?.Name ?? UnknownTool },
             { "outcome", success ? "ok" : "error" },
         });
 

@@ -31,14 +31,19 @@ public sealed class AgentMetricsTests {
         metrics.RecordRun("completed", "test-model", TimeSpan.FromSeconds(1), 2, 1);
         metrics.RecordProviderFirstToken("test-model", TimeSpan.FromMilliseconds(20));
         metrics.RecordProviderRequest("test-model", "ok", TimeSpan.FromMilliseconds(90));
-        metrics.RecordTool("write_page", true, TimeSpan.FromMilliseconds(10));
+        AgentToolDefinition writePage = AgentPageToolExecutor.Definitions.Single(definition => definition.Name == "write_page");
+        metrics.RecordTool(writePage, true, TimeSpan.FromMilliseconds(10));
+        metrics.RecordTool(null, false, TimeSpan.FromMilliseconds(10));
         metrics.RecordUsage(new AgentUsage(12, 4));
 
         Assert.That(measurements.Select(item => item.Name), Is.EquivalentTo([
             "agent.run.duration", "agent.run.steps", "agent.run.tool_calls",
             "agent.provider.first_token.duration", "agent.provider.request.duration",
-            "agent.tool.duration", "agent.tokens", "agent.tokens",
+            "agent.tool.duration", "agent.tool.duration", "agent.tokens", "agent.tokens",
         ]));
+        Assert.That(
+            measurements.Where(item => item.Name == "agent.tool.duration").Select(item => item.Tags),
+            Is.EquivalentTo(["tool=write_page,outcome=ok", $"tool={AgentMetrics.UnknownTool},outcome=error"]));
         Assert.That(measurements.Select(item => item.Tags), Has.None.Contain("runId"));
         Assert.That(measurements.Select(item => item.Tags), Has.None.Contain("conversationId"));
     }

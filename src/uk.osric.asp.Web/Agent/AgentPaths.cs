@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Agent;
 
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Pages;
 
 internal sealed record AgentPathResult(PagePath? Path, string? Error) {
@@ -39,7 +40,7 @@ internal sealed class AgentPaths {
             return Invalid("The page path is not addressable.");
         }
         if (IsProtected(path)) {
-            return Invalid($"The path {path.Key} is reserved or protected by the site.");
+            return Invalid($"The path {MessageText.Sanitize(path.Key)} is reserved or protected by the site.");
         }
         if (write && _writablePrefix is { } prefix && !IsWithin(path, prefix)) {
             return Invalid("The path is outside Agent:WritablePathPrefix.");

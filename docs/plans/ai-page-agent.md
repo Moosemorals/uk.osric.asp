@@ -500,7 +500,11 @@ result. The model sees a JSON envelope:
 ```
 
 Error strings are safe to show to the model and the user. They never include a connection string, an
-API key or a stack trace.
+API key or a stack trace. A value the model or an owner supplied — a tool name, an argument name, a
+page path, a search query — is quoted through `MessageText.Sanitize` (`Core/Text`), which drops
+control and formatting characters, collapses whitespace to one line and stops at 32 text elements
+with an ellipsis, so a crafted value cannot forge a message, spoof its direction or bloat the
+transcript.
 
 | Tool | NeedsApproval | Arguments | Behaviour |
 | --- | --- | --- | --- |
@@ -963,11 +967,14 @@ list and to `Program` beside `PageMetrics`.
 | `agent.run.tool_calls` | histogram | `outcome` |
 | `agent.provider.first_token.duration` | histogram | `model` |
 | `agent.provider.request.duration` | histogram | `model`, `outcome` |
-| `agent.tool.duration` | histogram | `tool`, `outcome` |
+| `agent.tool.duration` | histogram | `tool` (registered name, or `(unknown)`), `outcome` |
 | `agent.tokens` | counter | `kind` (`prompt`, `completion`) |
 
 - No conversation id, run id, page key or model text as a metric tag; those are high-cardinality or
   sensitive. They belong in logs.
+- A tool name is model-supplied, so only a name resolved against the registered definitions becomes
+  a tag; a call that names anything else is tagged `(unknown)`, the same bound
+  `PageMetrics.NotFoundPath` puts on a render that found no page.
 - Log lines: run start/finish (run id, conversation id, model, outcome, steps, duration), tool
   start/finish (tool name, outcome, duration, a short summary), provider errors (status code and
   provider request id if present). No prompt, no page source, no reasoning, no key.

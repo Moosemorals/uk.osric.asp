@@ -48,7 +48,14 @@ internal sealed class MetricCapture : IDisposable {
 
     /// <summary>Starts capturing. Create this before the meter so no instrument is missed.</summary>
     public static MetricCapture Start() {
-        return new MetricCapture(PageMetrics.MeterName);
+        return Start(PageMetrics.MeterName);
+    }
+
+    /// <summary>Starts capturing one named meter. Create this before the meter so no instrument is
+    /// missed.</summary>
+    /// <param name="meterName">The meter to listen to.</param>
+    public static MetricCapture Start(string meterName) {
+        return new MetricCapture(meterName);
     }
 
     private void Add(Instrument instrument, double value, KeyValuePair<string, object?>[] tags) {

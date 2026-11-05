@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Core.Agent;
 
 using System.Text;
+using uk.osric.asp.Core.Text;
 
 /// <summary>Builds a compact title from the first line of a conversation's first message.</summary>
 public static class ConversationTitle {
@@ -49,13 +50,13 @@ public static class ConversationTitle {
             return collapsed.ToString();
         }
 
-        const int suffixLength = 3;
+        int suffixLength = MessageText.Ellipsis.Length;
         int contentLength = MaximumLength - suffixLength;
         int boundary = collapsed.ToString().AsSpan(0, contentLength).LastIndexOf(' ');
         if (boundary <= 0) {
             boundary = contentLength;
         }
 
-        return collapsed.ToString(0, boundary).TrimEnd() + "...";
+        return collapsed.ToString(0, boundary).TrimEnd() + MessageText.Ellipsis;
     }
 }

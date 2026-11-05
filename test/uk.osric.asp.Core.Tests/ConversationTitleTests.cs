@@ -29,7 +29,7 @@ public sealed class ConversationTitleTests {
         string title = ConversationTitle.From(string.Join(' ', Enumerable.Repeat("word", 60)));
 
         Assert.That(title.Length, Is.LessThanOrEqualTo(200));
-        Assert.That(title, Does.EndWith("..."));
-        Assert.That(title[..^3].Split(' '), Does.Not.Contain(""));
+        Assert.That(title, Does.EndWith("\u2026"));
+        Assert.That(title[..^1].Split(' '), Does.Not.Contain(""));
     }
 }

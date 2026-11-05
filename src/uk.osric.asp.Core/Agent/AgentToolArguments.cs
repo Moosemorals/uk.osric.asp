@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Core.Agent;
 
 using System.Text.Json;
+using uk.osric.asp.Core.Text;
 
 /// <summary>The JSON value kind accepted by one tool argument.</summary>
 public enum AgentToolArgumentType {
@@ -64,7 +65,7 @@ public static class AgentToolArguments {
             Dictionary<string, JsonElement> values = new(StringComparer.Ordinal);
             foreach (JsonProperty property in document.RootElement.EnumerateObject()) {
                 if (!allowed.TryGetValue(property.Name, out AgentToolArgumentSchema? definition)) {
-                    return Invalid($"Unknown tool argument '{property.Name}'.");
+                    return Invalid($"Unknown tool argument '{MessageText.Sanitize(property.Name)}'.");
                 }
                 if (!values.TryAdd(property.Name, property.Value.Clone())) {
                     return Invalid($"Tool argument '{property.Name}' was repeated.");

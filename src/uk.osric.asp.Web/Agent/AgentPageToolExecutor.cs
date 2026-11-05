@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using uk.osric.asp.Core.Agent;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
@@ -45,7 +46,8 @@ internal sealed class AgentPageToolExecutor(
         string argumentsJson,
         CancellationToken cancellationToken) {
         if (!s_schemas.TryGetValue(name, out AgentToolArgumentSchema[]? schema)) {
-            return Failure($"Unknown tool '{name}'.", $"Unknown tool {name}");
+            string unknown = MessageText.Sanitize(name);
+            return Failure($"Unknown tool '{unknown}'.", $"Unknown tool {unknown}");
         }
 
         AgentToolArgumentsResult parsed = AgentToolArguments.Parse(argumentsJson, schema, options.MaxToolArgumentChars);
@@ -63,7 +65,7 @@ internal sealed class AgentPageToolExecutor(
             "delete_page" => await DeletePageAsync(parsed.Values, pages, cancellationToken),
             "search_pages" => await SearchPagesAsync(parsed.Values, pages, cancellationToken),
             "shell" => await ShellAsync(parsed.Values, pages, cancellationToken),
-            _ => Failure("Unknown tool.", $"Unknown tool {name}"),
+            _ => Failure("Unknown tool.", $"Unknown tool {MessageText.Sanitize(name)}"),
         };
     }
 
@@ -111,14 +113,14 @@ internal sealed class AgentPageToolExecutor(
         CancellationToken cancellationToken) {
         StoredPage? page = await pages.GetAsync(path, cancellationToken);
         if (page is null) {
-            return Failure($"Page {path.Key} was not found.", $"Read {path.Key}: not found");
+            return Failure($"Page {Describe(path)} was not found.", $"Read {Describe(path)}: not found");
         }
 
         string[] lines = ReadLines(page.Content);
         int start = requestedStart ?? 1;
         int end = requestedEnd ?? (requestedStart is null ? lines.Length : start);
         if (start < 1 || end < start || end > lines.Length) {
-            return Failure("The requested line range is outside the page.", $"Read {path.Key}: invalid range");
+            return Failure("The requested line range is outside the page.", $"Read {Describe(path)}: invalid range");
         }
 
         string source = string.Join('\n', lines.Skip(start - 1).Take(end - start + 1));
@@ -126,7 +128,7 @@ internal sealed class AgentPageToolExecutor(
         if (truncated) {
             int window = Math.Max(1, options.MaxToolResultChars / 5);
             source = source[..Math.Min(window, source.Length)]
-                + "\n...[source omitted; request a line range]...\n"
+                + "\n\u2026[source omitted; request a line range]\u2026\n"
                 + source[^Math.Min(window, source.Length)..];
         }
 
@@ -142,7 +144,7 @@ internal sealed class AgentPageToolExecutor(
             truncated,
             source,
         };
-        return Success(data, $"Read {path.Key}");
+        return Success(data, $"Read {Describe(path)}");
     }
 
     private async Task<AgentToolExecutionResult> EditPageAsync(
@@ -158,10 +160,10 @@ internal sealed class AgentPageToolExecutor(
         string expectedHash = String(arguments, "expectedRevisionHash")!;
         StoredPage? current = await pages.GetAsync(checkedPath.Path!, cancellationToken);
         if (current is null) {
-            return Failure($"Page {checkedPath.Path!.Key} was not found. Use write_page to create it.", "Edit target not found");
+            return Failure($"Page {Describe(checkedPath.Path!)} was not found. Use write_page to create it.", "Edit target not found");
         }
         if (!string.Equals(current.Hash, expectedHash, StringComparison.Ordinal)) {
-            return Failure("The page has changed since read_page. Re-read it and reconcile before editing.", $"Edit {checkedPath.Path!.Key}: stale revision");
+            return Failure("The page has changed since read_page. Re-read it and reconcile before editing.", $"Edit {Describe(checkedPath.Path!)}: stale revision");
         }
 
         AgentPageRangeEditResult edited = AgentPageRangeEditor.Replace(
@@ -171,17 +173,17 @@ internal sealed class AgentPageToolExecutor(
             String(arguments, "replacement")!,
             options.MaxPageChars);
         if (!edited.Success) {
-            return Failure(edited.Error!, $"Edit {checkedPath.Path!.Key}: rejected");
+            return Failure(edited.Error!, $"Edit {Describe(checkedPath.Path!)}: rejected");
         }
 
         ConditionalPageSaveResult saved = await pages.SaveIfRevisionAsync(
             checkedPath.Path!, edited.Content!, expectedHash, cancellationToken);
         if (!saved.Saved) {
-            return Failure("The page changed while the edit was being saved. Re-read and reconcile before retrying.", $"Edit {checkedPath.Path!.Key}: stale revision");
+            return Failure("The page changed while the edit was being saved. Re-read and reconcile before retrying.", $"Edit {Describe(checkedPath.Path!)}: stale revision");
         }
 
         return Success(new { path = checkedPath.Path!.Key, revisionHash = saved.RevisionHash, diagnostics = DiagnosticData(saved.Diagnostics) },
-            $"Edited {checkedPath.Path.Key} ({saved.Diagnostics.Count} diagnostics)");
+            $"Edited {Describe(checkedPath.Path)} ({saved.Diagnostics.Count} diagnostics)");
     }
 
     private async Task<AgentToolExecutionResult> WritePageAsync(
@@ -195,14 +197,14 @@ internal sealed class AgentPageToolExecutor(
 
         string content = String(arguments, "content")!;
         if (content.Length > options.MaxPageChars) {
-            return Failure("The page exceeds Agent:MaxPageChars.", $"Write {checkedPath.Path!.Key}: too large");
+            return Failure("The page exceeds Agent:MaxPageChars.", $"Write {Describe(checkedPath.Path!)}: too large");
         }
 
         IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic> diagnostics =
             await pages.SaveAsync(checkedPath.Path!, content, cancellationToken);
         StoredPage saved = (await pages.GetAsync(checkedPath.Path!, cancellationToken))!;
         return Success(new { path = checkedPath.Path!.Key, revisionHash = saved.Hash, diagnostics = DiagnosticData(diagnostics) },
-            $"Wrote {checkedPath.Path.Key} ({diagnostics.Count} diagnostics)");
+            $"Wrote {Describe(checkedPath.Path)} ({diagnostics.Count} diagnostics)");
     }
 
     private async Task<AgentToolExecutionResult> DeletePageAsync(
@@ -216,7 +218,7 @@ internal sealed class AgentPageToolExecutor(
 
         bool deleted = await pages.DeleteAsync(checkedPath.Path!, cancellationToken);
         return Success(new { path = checkedPath.Path!.Key, deleted },
-            deleted ? $"Deleted {checkedPath.Path.Key}" : $"Delete {checkedPath.Path.Key}: not live");
+            deleted ? $"Deleted {Describe(checkedPath.Path)}" : $"Delete {Describe(checkedPath.Path)}: not live");
     }
 
     private async Task<AgentToolExecutionResult> SearchPagesAsync(
@@ -281,7 +283,7 @@ internal sealed class AgentPageToolExecutor(
             IReadOnlyList<PageHeadSummary> heads = await pages.ListAsync(cancellationToken);
             string shellOutput = string.Join('\n', heads.Where(head => !head.IsDeleted && !paths.IsProtected(head.Path) && IsUnderPrefix(head.Path, prefix))
                 .OrderBy(head => head.Path.Key, StringComparer.Ordinal).Take(500).Select(head => head.Path.Key));
-            return Success(new { output = shellOutput }, $"{command.Name} {prefix?.Key ?? ""}".TrimEnd());
+            return Success(new { output = shellOutput }, prefix is null ? command.Name : $"{command.Name} {Describe(prefix)}");
         }
 
         string pathText = command.Name switch {
@@ -313,7 +315,7 @@ internal sealed class AgentPageToolExecutor(
                     break;
                 }
             }
-            return Success(new { output = string.Join('\n', found) }, $"grep {query}");
+            return Success(new { output = string.Join('\n', found) }, $"grep {MessageText.Sanitize(query)}");
         }
 
         AgentPathResult checkedPath = paths.Validate(pathText, write: false);
@@ -322,7 +324,7 @@ internal sealed class AgentPageToolExecutor(
         }
         StoredPage? target = await pages.GetAsync(checkedPath.Path!, cancellationToken);
         if (target is null) {
-            return Failure($"Page {checkedPath.Path!.Key} was not found.", $"{command.Name} {checkedPath.Path!.Key}: not found");
+            return Failure($"Page {Describe(checkedPath.Path!)} was not found.", $"{command.Name} {Describe(checkedPath.Path!)}: not found");
         }
         string[] sourceLines = ReadLines(target.Content);
         string output = command.Name switch {
@@ -336,7 +338,7 @@ internal sealed class AgentPageToolExecutor(
         if (output.Length > options.MaxToolResultChars) {
             output = output[..options.MaxToolResultChars] + "\n[truncated]";
         }
-        return Success(new { output }, $"{command.Name} {checkedPath.Path!.Key}");
+        return Success(new { output }, $"{command.Name} {Describe(checkedPath.Path!)}");
     }
 
     private AgentToolExecutionResult Success(object data, string summary) => Bounded(new { ok = true, data, error = (string?)null }, summary);
@@ -392,6 +394,8 @@ internal sealed class AgentPageToolExecutor(
 
     private static bool Boolean(IReadOnlyDictionary<string, JsonElement> values, string name) =>
         values.TryGetValue(name, out JsonElement value) && value.GetBoolean();
+
+    private static string Describe(PagePath path) => MessageText.Sanitize(path.Key);
 
     private static bool IsUnderPrefix(PagePath path, PagePath? prefix) => prefix is null
         || string.Equals(path.Key, prefix.Key, StringComparison.Ordinal)

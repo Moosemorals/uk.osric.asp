@@ -87,6 +87,24 @@ public sealed class AgentRunProcessorTests {
     }
 
     [Test]
+    public async Task AToolNameTheProviderInventedBecomesOneMetricLabelAsync() {
+        ScriptedClient client = new([
+            new AgentToolCallDelta(0, "call-1", "make_up_a_tool", "{}"),
+            new AgentFinished("tool_calls"),
+        ]);
+        using MetricCapture capture = MetricCapture.Start(AgentMetrics.MeterName);
+        (AgentConversation conversation, AgentRunStartResult started, AgentRunStream stream, AgentRunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new AgentQueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(capture.Count("agent.tool.duration", "tool", "make_up_a_tool"), Is.Zero);
+            Assert.That(capture.Count("agent.tool.duration", "tool", AgentMetrics.UnknownTool), Is.GreaterThan(0));
+        });
+    }
+
+    [Test]
     public async Task ProviderFailurePersistsPartialAssistantTextAndSafeFailureAsync() {
         ScriptedClient client = new([
             new AgentContentDelta("Partial answer"),

@@ -11,6 +11,7 @@ using System.Net.ServerSentEvents;
 using System.Security.Claims;
 using System.Text.Json;
 using uk.osric.asp.Core.Agent;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
@@ -441,7 +442,7 @@ internal static class AssistantEndpoint {
             return;
         }
         if (message.Role == "tool") {
-            await context.Response.WriteAsync($"<p class=\"assistant-tool-result\">{Encode(message.ToolName ?? "Tool")} completed</p>");
+            await context.Response.WriteAsync($"<p class=\"assistant-tool-result\">{Encode(MessageText.Sanitize(message.ToolName ?? "Tool"))} completed</p>");
         }
     }
 
@@ -463,7 +464,7 @@ internal static class AssistantEndpoint {
             AgentToolDefinition? definition = AgentPageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
             string description = definition?.Description ?? "Review this tool call.";
             string action = $"/assistant/{conversationId}/runs/{Encode(approval.RunId)}/tool-calls/{Encode(approval.ToolCallId)}/approval";
-            await context.Response.WriteAsync($"<article><h3>{Encode(call.Name)}</h3><p>{Encode(description)}</p><pre>{Encode(call.Arguments)}</pre>");
+            await context.Response.WriteAsync($"<article><h3>{Encode(MessageText.Sanitize(call.Name))}</h3><p>{Encode(description)}</p><pre>{Encode(call.Arguments)}</pre>");
             foreach ((string decision, string label) in new[] { ("approve", "Approve"), ("deny", "Deny") }) {
                 await context.Response.WriteAsync($"<form method=\"post\" action=\"{action}\">{AntiforgeryField.Hidden(tokens)}<input type=\"hidden\" name=\"decision\" value=\"{decision}\"><button type=\"submit\">{label}</button></form>");
             }
