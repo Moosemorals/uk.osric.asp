@@ -115,6 +115,7 @@ public sealed class LoginEndpointTests {
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/page"));
         Assert.That(_authentication.SignedInScheme, Is.EqualTo(CookieAuthenticationDefaults.AuthenticationScheme));
         Assert.That(_authentication.SignedInPrincipal?.FindFirstValue(ClaimTypes.NameIdentifier), Is.EqualTo("owner"));
+        Assert.That(_authentication.SignedInPrincipal?.FindFirstValue(ClaimTypes.Name), Is.Null, "the username is carried once");
         Assert.That(_authentication.SignedInPrincipal?.FindFirstValue(EditorPolicy.SecurityStampClaim), Is.EqualTo("stamp"));
         Assert.That(_authentication.SignedInProperties?.IsPersistent, Is.True);
     }

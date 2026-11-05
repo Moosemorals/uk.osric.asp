@@ -104,7 +104,6 @@ internal static class LoginEndpoint {
 
         ClaimsIdentity identity = new(
             [
-                new Claim(ClaimTypes.Name, user.UserName),
                 new Claim(ClaimTypes.NameIdentifier, user.UserName),
                 new Claim(EditorPolicy.SecurityStampClaim, user.SecurityStamp),
             ],
