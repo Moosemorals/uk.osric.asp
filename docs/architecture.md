@@ -215,6 +215,11 @@ path. It can restore a deleted seeded page without discarding its earlier revisi
 - The session is a cookie from `Microsoft.AspNetCore.Authentication.Cookies`. It slides for 30 days
   of inactivity, and the login form's **Keep me signed in** checkbox makes it persistent across
   browser restarts.
+- The cookie carries a random 128-bit key, not the identity: the framework's own data-protected
+  ticket lives in the `AuthTickets` table in the same SQLite database, so the request header stays
+  small and serialisation stays the framework's. A sign-in always mints a new key; only a sliding
+  renewal keeps the one the browser has. Sign-out deletes the row, and an hourly sweep drops tickets
+  that expired with no request to remove them.
 - Long-lived cookies are revocable: `users passwd` rotates the account's `SecurityStamp`, and
   `OnValidatePrincipal` rejects any cookie whose stamp no longer matches the row. Removing the
   account has the same effect on the next request. Signing in again does **not** rotate the stamp,

@@ -26,6 +26,12 @@ internal static class AuthenticationExtensions {
 
         _ = services.AddDataProtection().SetApplicationName("uk.osric.asp");
 
+        // The cookie carries a random key; the framework's own protected ticket lives in SQLite.
+        // Sign-out and a rejected stamp delete the row; the sweep drops the rest.
+        _ = services.AddHttpContextAccessor();
+        services.AddSingleton<AuthTicketStore>();
+        services.AddHostedService<AuthTicketCleanupService>();
+
         services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options => {
                 options.Cookie.Name = ".uk.osric.asp.auth";
@@ -70,6 +76,38 @@ internal static class AuthenticationExtensions {
                     if (user is null || !string.Equals(user.SecurityStamp, stamp, StringComparison.Ordinal)) {
                         context.RejectPrincipal();
                         await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    }
+                };
+            });
+
+        // Registered after AddCookie, so the framework's post-configure has already built the
+        // data-protected TicketDataFormat this wraps: serialisation and crypto stay the framework's.
+        services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
+            .PostConfigure<AuthTicketStore, IHttpContextAccessor, ILoggerFactory>((options, tickets, http, loggers) => {
+                ISecureDataFormat<AuthenticationTicket> inner = options.TicketDataFormat
+                    ?? throw new InvalidOperationException("Cookie authentication supplied no ticket format to wrap.");
+
+                options.TicketDataFormat = new StoredTicketDataFormat(inner, tickets, http, options.Cookie.Name!);
+
+                ILogger logger = loggers.CreateLogger(typeof(AuthenticationExtensions).FullName!);
+
+                // ISecureDataFormat has no sign-out callback, so without this a stolen cookie would
+                // outlive the browser's copy until it expired. The stamp still revokes on use.
+                Func<CookieSigningOutContext, Task>? existing = options.Events.OnSigningOut;
+                options.Events.OnSigningOut = async context => {
+                    if (existing is not null) {
+                        await existing(context);
+                    }
+
+                    string? key = context.Options.CookieManager.GetRequestCookie(context.HttpContext, context.Options.Cookie.Name!);
+                    if (!string.IsNullOrEmpty(key)) {
+                        try {
+                            _ = tickets.Remove(key);
+                        } catch (Exception exception) {
+                            // The browser's cookie is still deleted below, but the row survives until
+                            // its ticket expires, so a stolen copy would keep working.
+                            logger.LogWarning(exception, "Could not delete the stored authentication ticket on sign-out.");
+                        }
                     }
                 };
             });

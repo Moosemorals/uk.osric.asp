@@ -110,6 +110,8 @@ internal static class LoginEndpoint {
             ],
             CookieAuthenticationDefaults.AuthenticationScheme);
 
+        StoredTicketDataFormat.MarkSignIn(context);
+
         await authentication.SignInAsync(
             context,
             CookieAuthenticationDefaults.AuthenticationScheme,

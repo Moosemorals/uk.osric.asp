@@ -187,6 +187,59 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
         Assert.That((await client.GetAsync("/edit/hello")).StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
     }
 
+    [Test]
+    public async Task SigningInStoresTheTicketAndSendsOnlyAKey() {
+        using HttpClient client = CreateClient();
+        int stored = await CountStoredTicketsAsync();
+        string token = await GetAntiforgeryTokenAsync(client, "/login");
+
+        HttpResponseMessage response = await client.PostAsync("/login", Form(
+            ("username", UserName),
+            ("password", Password),
+            ("rememberMe", "on"),
+            ("__RequestVerificationToken", token)));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(AuthCookieValue(response), Has.Length.LessThan(100), "the cookie should carry a random key, not the ticket");
+        Assert.That(await CountStoredTicketsAsync(), Is.EqualTo(stored + 1));
+    }
+
+    [Test]
+    public async Task SigningInAgainReplacesTheKey() {
+        using HttpClient client = CreateClient();
+        int stored = await CountStoredTicketsAsync();
+
+        string firstToken = await GetAntiforgeryTokenAsync(client, "/login");
+        HttpResponseMessage first = await client.PostAsync("/login", Form(
+            ("username", UserName),
+            ("password", Password),
+            ("rememberMe", "on"),
+            ("__RequestVerificationToken", firstToken)));
+
+        string secondToken = await GetAntiforgeryTokenAsync(client, "/edit/hello");
+        HttpResponseMessage second = await client.PostAsync("/login", Form(
+            ("username", UserName),
+            ("password", Password),
+            ("rememberMe", "on"),
+            ("__RequestVerificationToken", secondToken)));
+
+        Assert.That(second.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(AuthCookieValue(second), Is.Not.EqualTo(AuthCookieValue(first)));
+        Assert.That(await CountStoredTicketsAsync(), Is.EqualTo(stored + 1), "the old row is replaced, not added to");
+    }
+
+    [Test]
+    public async Task SigningOutDeletesTheStoredTicket() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        int stored = await CountStoredTicketsAsync();
+        string token = await GetAntiforgeryTokenAsync(client, "/edit/hello");
+
+        HttpResponseMessage logout = await client.PostAsync("/logout", Form(("__RequestVerificationToken", token)));
+
+        Assert.That(logout.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(await CountStoredTicketsAsync(), Is.EqualTo(stored - 1));
+    }
+
     private static string AuthCookie(HttpResponseMessage response) {
         Assert.That(response.Headers.TryGetValues("Set-Cookie", out IEnumerable<string>? values), Is.True, "the response set no cookies");
 
@@ -194,5 +247,9 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
         Assert.That(cookie, Is.Not.Null, "the response did not set the authentication cookie");
 
         return cookie ?? string.Empty;
+    }
+
+    private static string AuthCookieValue(HttpResponseMessage response) {
+        return AuthCookie(response)[".uk.osric.asp.auth=".Length..].Split(';')[0];
     }
 }

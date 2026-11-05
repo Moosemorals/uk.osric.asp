@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Data.Common;
 using System.Globalization;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Users;
 
 internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> options) : DbContext(options) {
@@ -47,6 +48,14 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
         modelBuilder.Entity<LocalUser>().Property(user => user.UserName).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
         modelBuilder.Entity<LocalUser>().Property(user => user.PasswordHash).HasMaxLength(256);
         modelBuilder.Entity<LocalUser>().Property(user => user.SecurityStamp).HasMaxLength(128);
+
+        modelBuilder.Entity<AuthTicket>(ticket => {
+            ticket.ToTable("AuthTickets");
+            ticket.HasKey(row => row.Key);
+            ticket.Property(row => row.Key).HasMaxLength(32).UseCollation("BINARY");
+            ticket.Property(row => row.UserName).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
+            ticket.HasIndex(row => row.ExpiresAt);
+        });
 
         modelBuilder.Entity<AgentConversation>(conversation => {
             conversation.ToTable("AgentConversations");

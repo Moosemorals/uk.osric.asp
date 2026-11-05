@@ -4,12 +4,15 @@
 namespace uk.osric.asp.Web.IntegrationTests;
 
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using System.Net;
 using System.Text.RegularExpressions;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Storage;
 using uk.osric.asp.Web.Users;
 
 /// <summary>Starts the composed application once per fixture, against a throwaway database.</summary>
@@ -157,6 +160,13 @@ public abstract class IntegrationTest {
 
     /// <summary>How many times the running host has compiled a page.</summary>
     protected int CompileCount => _application.Compiler.CompileCount;
+
+    /// <summary>How many authentication tickets the host currently holds in storage.</summary>
+    protected async Task<int> CountStoredTicketsAsync() {
+        await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
+        StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
+        return await database.Set<AuthTicket>().CountAsync();
+    }
 
     /// <summary>Builds a form body from named values.</summary>
     protected static FormUrlEncodedContent Form(params (string Name, string Value)[] fields) {
