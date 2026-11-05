@@ -111,9 +111,24 @@ and applies them.
   before a release, or from any machine that is asked to prove the tree. Neither needs a CI service,
   an account or a secret, and nothing runs them behind a `git push`.
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
+- **Page assistant:** disabled by default. To enable it, create
+  `~/.config/uk.osric.asp/agent.env` for the `deploy` user, restrict it to mode `0600`, and set
+  `Agent__Enabled=true`, `Agent__ApiKey=<provider-key>`, and optionally `Agent__Model` or
+  `Agent__BaseUrl`. The configured provider must speak OpenAI-compatible streaming chat completions
+  with tool calls. Local HTTP is allowed only for a loopback provider or when explicitly enabled.
+  The host sends the system prompt, conversation transcript, and any page source read by the agent to
+  that provider. Do not store content there that the provider must not receive. Prompts, page source,
+  reasoning, credentials, and provider error bodies are not logged. The default provider is DeepSeek;
+  compatible services and local Ollama can be selected by configuration. Restart the app after
+  changing the environment file.
+- **Assistant streaming through Caddy:** `/assistant/*/events` is excluded from compression and the
+  reverse proxy flushes events immediately. Verify through the proxy with a real queued conversation
+  using `curl -N`, not only against the Kestrel port. A run continues if its browser is closed; the
+  `Stop` form cancels it. During graceful shutdown the host records unfinished runs as interrupted;
+  the 600-second default run timeout is independent of the container's 35-second graceful stop.
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
-  covers `/admin`, `/edit`, `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics` and `/status`;
+  covers `/admin`, `/assistant`, `/edit`, `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics` and `/status`;
   `/admin` reserves the namespace for authenticated site administration. Change it only when the
   route table changes.
 - **Health:** `ssh deploy@<server-ip> curl -s http://127.0.0.1:8080/heath` returns detailed JSON —

@@ -34,7 +34,7 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [IDEA-005](IDEA-005.md) | — | L | A page cannot declare a type, so shared code has to be copied |
 | [IDEA-006](IDEA-006.md) | — | S | `site.css` is a static file rather than a page |
 | [IDEA-007](IDEA-007.md) | — | S | The site has no favicon |
-| [IDEA-008](IDEA-008.md) | — | L | Writing pages by hand is the only way to write pages |
+| [IDEA-008](IDEA-008.md) | — | L | Writing pages by hand is the only way to write pages (implemented; see [plan](../plans/ai-page-agent.md)) |
 | [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 
@@ -64,16 +64,18 @@ self-contained comes first, because these are the ones that never get scheduled 
 7. **ARCH-07, history restore** — restore a selected revision as a new save.
 8. **IDEA-005, page types** — with the page SDK split done, the shared-code question has a real
    answer.
-9. **IDEA-001, a proper editor** — by now there are pages to justify it, and IDEA-008 needs it.
-10. **IDEA-008, drafting** — last of the ideas, because every one of the others makes it better.
-11. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
-12. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
+9. **IDEA-001, a proper editor** — a better authoring surface for the pages the site already has.
+10. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
+11. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
     and a rule, once there is something worth being woken for.
-13. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
+12. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 
 ## Closed
 
 Resolved jobs; the files were deleted and their history is in git.
+
+IDEA-008 remains listed above as an implemented idea because its plan is the detailed behavior and
+operational record; it is not open work.
 
 | ID | Fix |
 | --- | --- |

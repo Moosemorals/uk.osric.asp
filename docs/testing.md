@@ -35,11 +35,19 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   does not compile" is asserted rather than inferred.
   `PageScopeTests` lives here because it names the shell's own types — and `Core`'s — to prove the
   trimmed reference set cannot resolve them.
+- **The assistant** is covered at the same boundaries: `Core.Tests` checks transcript trimming,
+  stream accumulation, strict tool arguments, virtual-shell parsing, title generation and authored
+  template-source line edits. `Web.Tests` uses migrated SQLite files for conversations, sequence
+  allocation, approvals and restart repair; fake HTTP handlers for provider SSE; and scripted model
+  streams for the run processor. `Web.IntegrationTests` runs the real authenticated host with a
+  scripted provider to verify disabled routing, conversation streaming, approval gating and writes.
+  No suite contacts a real model provider.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
-  `ShellViews` renders all fourteen shell views once each — the sign-in form and its failure, the
+  `ShellViews` renders all eighteen shell views once each — the sign-in form and its failure, the
   listing, the editor clean and with diagnostics, history, a saved revision, generated source, the
-  delete confirmation, the restore confirmation, status, the error page, the error page with details
-  and the compile failure — and `AccessibilityTests` applies ten shared rules to every document: one
+  delete confirmation, the restore confirmation, status, the error page, the error page with details,
+  the compile failure, and the assistant list, chat, reasoning chat, and delete confirmation — and
+  `AccessibilityTests` applies ten shared rules to every document: one
   `main`, one `h1`, no skipped heading level, a distinct name on every `nav`, `scope` on every `th`, a
   label on every control, no role that repeats an implicit one (bar the documented `role="list"`), no
   focusable element inside an `aria-hidden` subtree, no inline style, and a name for every image and

@@ -18,6 +18,9 @@ NetworkAlias=app
 PublishPort=127.0.0.1:8080:8080
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment="ConnectionStrings__Storage=Data Source=/data/storage.db"
+# Optional. Create as deploy:deploy with mode 0600 to enable the outbound page agent; it contains
+# Agent__Enabled=true and Agent__ApiKey=..., never put the provider key in the image or appsettings.
+EnvironmentFile=-%h/.config/uk.osric.asp/agent.env
 # The image ships APP_UID 1654; inside the user namespace it maps to a subuid on the host.
 User=1654:1654
 Volume=uk.osric.asp-storage:/data:U

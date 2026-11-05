@@ -8,7 +8,9 @@ SPDX-License-Identifier: MIT
 Implementation plan for [IDEA-008](../jobs/IDEA-008.md), extended from a one-shot drafting
 surface into a multi-turn agent that can read, create, change and delete pages.
 
-**Status:** draft for review, 2026-11-05. Nothing here is built yet.
+**Status:** implemented, 2026-11-05. The automated suites cover the host, provider fakes, tools,
+approvals, recovery and accessibility. The Caddy-through-proxy `curl -N` check and browser/screen-reader
+hand pass remain deployment checks.
 
 ## Read this first
 
@@ -515,8 +517,12 @@ approval request and is resolved before the next call is considered. The approva
 registered tool description, name and complete parsed arguments. Never truncate or transform the
 arguments before displaying them; HTML-encode them as data.
 
-`edit_page` requires the current hash returned by `read_page`. It replaces the existing lines from
-`startLine` through `endLine`, inclusive, preserving all other lines. Invalid or out-of-range
+`edit_page` requires the current hash returned by `read_page`. `startLine` and `endLine` are 1-based
+physical lines in the stored template source before tokenization, C# generation or rendering:
+literal HTML, C# blocks and template delimiters count where they are authored. CRLF is one line
+break; bare CR and LF are each one. A final line break creates an empty final line. These numbers
+never refer to generated C# or rendered HTML. It replaces the existing lines from `startLine`
+through `endLine`, inclusive, preserving all other lines. Invalid or out-of-range
 bounds, an empty/stale expected hash, or a resulting page over `Agent:MaxPageChars` is an error with
 no write. The expected-hash comparison and revision save must be atomic at the storage boundary;
 checking in the tool and then calling unconditional `PageEditor.SaveAsync` is not sufficient. A

@@ -173,6 +173,33 @@ Every one of these views is rendered once by `ShellViews` and checked against th
 rules — see [testing](testing.md#the-four-suites-and-the-planned-fifth) — with what a string cannot
 prove left to a recorded hand pass (DEC-110).
 
+## AI page agent
+
+The optional `/assistant` shell is disabled by default. When enabled it is an authenticated owner
+feature, separate from stored pages: the views are host code under the reserved `/assistant` prefix,
+and `/assistant.js` plus `/assistant.css` are seeded, protected assets. Every conversation operation
+is filtered by the signed-in owner.
+
+A submitted message and its queued run are committed together. A hosted worker owns the run after the
+request returns; the browser is only a viewer and can disconnect without cancelling work. SQLite is
+the transcript and lifecycle record. A bounded in-memory journal carries live deltas and reconnect
+replay; on restart, active runs become interrupted, unresolved approvals fail closed, and dangling
+tool calls receive synthetic results rather than being replayed to the provider.
+
+The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
+endpoint. Enabling the feature sends the system prompt, conversation transcript, and page source read
+by tools to that provider. No provider SDK is used. Agent tools have access only to the page store
+through `PageEditor`: list/read/search, bounded template-source line edits with an atomic revision-hash
+check, whole-page writes, tombstone deletes, and a read-only virtual shell. There is no process,
+filesystem, git, package, or outbound-network tool. The per-conversation approval mode defaults to
+`AlwaysApprove`; `RequireApproval` waits for an individual owner decision on each flagged mutation.
+Unresolved, stale, stopped, or restarted approvals never execute.
+
+The feature bounds run duration, request duration, concurrency, queue depth, steps, tool calls,
+arguments, page size, results, context and event replay. Provider content and reasoning are never
+logged; reasoning is display-only and is omitted from subsequent provider requests. Agent metrics use
+only low-cardinality model, tool, outcome, and token-kind tags.
+
 ## Authentication and the editor
 
 The editor and the `/admin` route group are behind a sign-in; pages stay public. `/admin/restore`
