@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Tests;
 
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
-using uk.osric.asp.Web.Storage;
 
 internal sealed class ShellAssistantConversationStore(
     IReadOnlyList<AssistantMessage>? messages = null,

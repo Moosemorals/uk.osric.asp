@@ -5,7 +5,6 @@ namespace uk.osric.asp.Core.Tests;
 
 using NUnit.Framework;
 using System.Globalization;
-using System.Text;
 using uk.osric.asp.Core.Text;
 
 [TestFixture]

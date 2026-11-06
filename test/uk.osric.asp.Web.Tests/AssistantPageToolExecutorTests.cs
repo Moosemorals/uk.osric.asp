@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using System.Text.Json;
-using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;

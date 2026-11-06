@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 namespace uk.osric.asp.Web.Pages;
-
-using uk.osric.asp.Core.Pages;
-
 /// <summary>One row of a page's revision history.</summary>
 internal sealed record PageRevisionSummary(
     string Hash,

@@ -11,7 +11,6 @@ using System.Globalization;
 using System.Security.Claims;
 using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Core.Compilation;
-using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
@@ -19,7 +18,6 @@ using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
-using uk.osric.asp.Web.Storage;
 
 /// <summary>Renders each document the shell serves, once, for the shared accessibility rules.</summary>
 /// <remarks>

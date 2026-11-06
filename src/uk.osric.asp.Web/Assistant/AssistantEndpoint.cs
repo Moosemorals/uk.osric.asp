@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Assistant;
 
 using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.ServerSentEvents;
@@ -12,10 +11,8 @@ using System.Security.Claims;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Text;
-using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
-using uk.osric.asp.Web.Storage;
 
 /// <summary>Serves the assistant page and the JSON endpoints its stream and approvals use.</summary>
 internal static class AssistantEndpoint {
