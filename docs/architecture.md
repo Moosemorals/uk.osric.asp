@@ -86,7 +86,7 @@ and the logs quote them:
 | The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
-| The page contract: `IContext`, `PageRequest`, `PageResponse`, `IHandler`, `UserFacingException` | `Sdk`, as plain values a compiled page binds against |
+| The page contract: `IContext`, `PageRequest`, `PageResponse`, `IHandler`, `UserFacingException`, `IPageStorage`/`PageValue<T>`, `PageFetchRequest`/`PageFetchResponse`/`PageFetchMethod`/`PageFetchFailure` | `Sdk`, as plain values a compiled page binds against |
 | The page policy: `PageApiPolicy`, `ApiReference` | `Core.Compilation`, as a pure rule over strings |
 | The Roslyn walk that applies the page policy | `Runtime` |
 | The template language and its diagnostics | `Core.Compilation` |
@@ -126,6 +126,16 @@ The handler is asynchronous: `IHandler.HandleAsync` returns a `Task`, the genera
 `async` method, and `await` is therefore an ordinary expression in a code block and inside a write
 expression. Any member `IContext` gains that does I/O returns a `Task` and takes no cancellation
 token — the context owns `Aborted` and the render's deadline and links them per call (DEC-123).
+
+Two capabilities hang off the context, both asynchronous and both bounded by the render:
+
+- `Storage` is the page's own key/value store. It is bound to `IContext.Path`, so a page cannot name
+  another page's state; the handle is the isolation. Values are JSON round-tripped by the host, keys
+  are ordinal, and writes are last-write-wins. A `HEAD` render may read but never write (DEC-125,
+  DEC-126, DEC-127).
+- `FetchAsync` makes one outbound HTTP request from the host, not the browser, and only to hosts the
+  operator has allow-listed. It returns a value for every failure rather than throwing, and the
+  render's request count, the deadline and `Abandon` all bound it (DEC-128, DEC-129).
 
 A page's log entries are filed under the single `uk.osric.asp.Pages` category, with the page's key on
 a `Path` scope property, so one page can be filtered or levelled without touching another. That
@@ -276,6 +286,11 @@ Stored pages are C#, so the surface they may touch is constrained twice.
   and `Yield` — because each starts work the render deadline cannot stop or turns an `await` back
   into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`,
   `Parallel` and `ValueTask` are `PAGE001` without being named (DEC-124).
+- A narrow set of `System.Text.Json` types is allowed, so a fetched JSON body can be parsed:
+  `JsonDocument`, `JsonElement`, `JsonSerializer`, `JsonSerializerOptions`,
+  `JsonSerializerDefaults`, `JsonValueKind` and `JsonException`. The
+  `System.Text.Json.Serialization` attributes are not, and `System.Net` stays denied — `FetchAsync`
+  is the page's only egress (DEC-130).
 - `PageApiChecker` in `Runtime` walks the generated syntax tree, projects Roslyn symbols onto
   `ApiReference` values, rejects `stackalloc`, `dynamic`, pointers, function pointers and `unsafe`,
   and enforces the shape rule: the generated `GeneratedPage`, last, plus the page's own type
@@ -383,6 +398,12 @@ This is template storage: `EditorEndpoint` writes a page's template, `PageEndpoi
 path and runs its compiled image. Pure rules still receive the values loaded by the shell rather
 than being given `IPageStore`.
 
+`PageState` holds a page's key/value store: one row per page and key, with the value as JSON and a
+primary key of the whole access path, so no separate index is needed. There is no foreign key — the
+deletes that keep state from outliving its page are explicit, and SQLite's enforcement depends on the
+connection. State is per path, not per revision: an edit or a restore keeps it, and deleting the page
+clears it in the same transaction as the tombstone.
+
 `PageRevisions` holds every save as a separate row, including its source, revision hash, creation
 runtime id and optional compilation result. A save inserts the revision and advances its
 `PageHeads` row in one transaction. The head is the authoritative current-page pointer; reads do not
@@ -462,8 +483,9 @@ a loaded handler (`IPageCompiler`, `LoadedPage`); it never sees a page.
 | `page.load.duration` | histogram | s | `page.path` |
 | `page.invoke.duration` | histogram | s | `page.path`, `outcome` |
 | `page.save.duration` | histogram | s | `page.path`, `outcome` |
+| `page.fetch.duration` | histogram | s | `page.path`, `outcome` (`ok`, `http-error`, `not-allowed`, `timeout`, `network`, `invalid`, `limit`, `redirect-limit`, `aborted`) |
 | `page.image.size` | histogram | By | `page.path` |
-| `page.storage.payload.size` | observable gauge | By | — logical UTF-8 bytes for every revision text column plus image/symbol blobs; excludes indexes and SQLite overhead |
+| `page.storage.payload.size` | observable gauge | By | — logical UTF-8 bytes for every revision text column plus image/symbol blobs, and the `PageState` key and value bytes; excludes indexes and SQLite overhead |
 | `page.storage.database.size` | observable gauge | By | — whole database `page_count * page_size`, including indexes and freelist pages; excludes the separate WAL |
 | `page.storage.volume.capacity` | observable gauge | By | — total capacity of the filesystem volume containing the database |
 | `page.cache.lookups` | counter | — | `result` (`hit`, `stale`, `absent`) |

@@ -5,19 +5,20 @@ SPDX-License-Identifier: MIT
 
 # Fetch and per-page storage
 
-Implementation plan for [IDEA-002 — a page cannot call an outbound HTTP API](../jobs/IDEA-002.md)
-and [IDEA-003 — a page has nowhere to keep state](../jobs/IDEA-003.md). The two jobs are one
+Implementation plan for IDEA-002 — a page cannot call an outbound HTTP API — and IDEA-003 — a page
+has nowhere to keep state. Both are closed; their rows are in the closed table in
+[the job index](../../jobs/README.md#closed). The two jobs are one
 change because they share the same seam: both are capabilities a page reaches through `IContext`,
 both need the render's deadline, and both must keep the page contract free of ASP.NET, database and
 `HttpClient` types.
 
 ## Status
 
-Proposed 2026-11-06. Not implemented. IDEA-002 and IDEA-003 stay open until the phases below ship;
-this document is the implementation contract and the job files keep the original idea. See
-[Folding the jobs](#folding-the-jobs) for the index changes.
+Implemented 2026-11-06, in four commits after [the async page contract](async-page-contract.md).
+Every phase below shipped; the decisions are DEC-125 to DEC-130 and the behaviour is recorded in
+[architecture](../../architecture.md#page-contract) and [decisions](../../decisions.md).
 
-Revised 2026-11-06 against [the async page contract](../archive/async-page-contract.md): the handler is
+Revised 2026-11-06 against [the async page contract](async-page-contract.md): the handler is
 `Task HandleAsync(IContext)`, so both capabilities are `Task`-returning at the page surface and the
 synchronous members this plan originally described are never written. The `out`-parameter read is
 replaced by `PageValue<T>`, `PolicyVersion` moves `2` → `3` rather than `1` → `2`, and Phase 1
@@ -344,7 +345,7 @@ The alternatives were considered and rejected:
   beside the render's.
 
 A synchronous page surface was rejected before this plan was written; the argument and the decision
-are recorded in [the async page contract](../archive/async-page-contract.md), which ships first. Pages are
+are recorded in [the async page contract](async-page-contract.md), which shipped first. Pages are
 templates, so the generated signature is not written by hand, and the surface was new — nothing
 existing had to change to gain `await`.
 
@@ -658,7 +659,7 @@ information. Neither logs the URL query, request headers, response headers or bo
 - `PageRenderer.RenderAsync` calls `context.AttachDeadline(deadline.Token)` before `RunAsync`, so a
   page's storage and fetch calls are cancelled with the render rather than only with the request.
   `RunAsync` owns the deadline's lifetime from that point — see [D8 of the async page
-  contract](../archive/async-page-contract.md#d8--the-deadlines-token-must-outlive-an-abandoned-page) — and
+  contract](async-page-contract.md#d8--the-deadlines-token-must-outlive-an-abandoned-page) — and
   disposes it when the page finished, or inside the abandon continuation when it did not. That is
   what keeps the token alive for as long as an abandoned page's continuation might still register on
   it.
@@ -839,13 +840,12 @@ port and a flaky dependency for no extra proof.
 
 ## Folding the jobs
 
-- [IDEA-002](../jobs/IDEA-002.md) and [IDEA-003](../jobs/IDEA-003.md) each gain a `## Status`
-  section pointing here. Their idea and sketch are retained as the original context.
+- IDEA-002 and IDEA-003 are closed: they moved to the closed table in
+  [the job index](../../jobs/README.md#closed) and their files were deleted into git history.
 - `docs/jobs/README.md` links both entries to this plan, and items 5 and 6 of the rough order become
   one item: fetch and storage are planned together, with storage first because it is the smaller
   independent slice and fetch's integration test depends on the same context plumbing.
-- [IDEA-009](../jobs/IDEA-009.md) gains one line: the archive must include page state once storage
-  exists, and import must validate it with the same caps.
-- On completion, both files are deleted into git history and their row moves to the closed table,
-  following the IDEA-004 convention. IDEA-008 stays as the exception it records because its plan is
-  the detailed behavior record; here the plan is, and the job files are only the original idea.
+- [IDEA-009](../../jobs/IDEA-009.md) carries the requirement that the archive includes page state
+  and validates it with the same caps on import.
+- Both files were deleted into git history and their rows moved to the closed table, following the
+  IDEA-004 convention.

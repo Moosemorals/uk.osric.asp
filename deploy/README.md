@@ -134,6 +134,14 @@ and applies them.
   using `curl -N`, not only against the Kestrel port. A run continues if its browser is closed; the
   `Stop` form cancels it. During graceful shutdown the host records unfinished runs as interrupted;
   the 600-second default run timeout is independent of the container's 35-second graceful stop.
+- **Outbound fetch:** off until an operator lists a host. Set `Pages__Fetch__AllowedHosts__0`,
+  `__1`, ... in the environment file and restart; each entry is a bare host name, with no scheme,
+  path or port, and a malformed one fails the start rather than being ignored. The container's
+  egress is not otherwise restricted — the allow-list is a footgun guard, not a sandbox (SEC-03).
+  `Pages__Fetch__TimeoutSeconds` defaults to 4, deliberately below the 5-second render budget.
+- **Page state:** `ctx.Storage` is stored in `PageState` in the same database, so `storage.db` now
+  carries it and a backup includes it. Deleting a page clears its state; editing or restoring it
+  keeps it. The caps live under `Pages:Storage` (`Pages__Storage__MaxValueBytes`, and so on).
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
   covers `/admin`, `/assistant`, `/edit`, `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics` and `/status`;

@@ -51,6 +51,42 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void TheStorageSectionTeachesTheShapesThatWork() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Page storage"));
+            Assert.That(prompt, Does.Contain("TryGetValueAsync<T>"));
+            Assert.That(prompt, Does.Contain("SetAsync"));
+            Assert.That(prompt, Does.Contain("PageValue<int>"));
+            Assert.That(prompt, Does.Contain("unawaited"), "a dropped task is a page bug and must be said");
+        });
+    }
+
+    [Test]
+    public void TheFetchSectionSaysFailuresAreValues() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Outbound fetch"));
+            Assert.That(prompt, Does.Contain("ctx.FetchAsync"));
+            Assert.That(prompt, Does.Contain("allow-listed"));
+            Assert.That(prompt, Does.Contain("Failures are values"));
+        });
+    }
+
+    [Test]
+    public void TheHandlerIsNoLongerDescribedAsSynchronous() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Not.Contain("contains synchronous C# statements"));
+            Assert.That(prompt, Does.Not.Contain("handler is synchronous"));
+            Assert.That(prompt, Does.Contain("await"));
+        });
+    }
+
+    [Test]
     public void PromptVersionIsStableAndPresentInThePrompt() {
         Assert.That(PageAuthorPrompt.Build(), Does.Contain(PageAuthorPrompt.Version));
     }

@@ -42,7 +42,9 @@ autocomplete and real error messages.
 `<%= expression %>` writes a string through `ctx.Write` and HTML-encodes it; `<%== expression %>`
 writes through `ctx.WriteRaw` without encoding. Expressions must produce a string, so convert other
 values explicitly, for example with `.ToString()`. Statement blocks can still call `ctx.Write`,
-`ctx.WriteRaw` or `ctx.Log` directly. The
+`ctx.WriteRaw` or `ctx.Log` directly. The handler is asynchronous, so `await` is an ordinary
+expression in a block and inside `<%= %>`: `ctx.Storage` keeps a page's own key/value state, and
+`ctx.FetchAsync` reaches an allow-listed host from the server. The
 [architecture notes](docs/architecture.md#page-contract) list the rest of the surface.
 
 A `<%! %>` block holds declarations rather than statements: `using` directives and types of the

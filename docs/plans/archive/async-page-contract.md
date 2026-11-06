@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 Implementation plan for IDEA-012 — a page cannot await its I/O. The idea recorded an argument, not a
 decision; this document is the decision set, the shape of the generated code, the exact edits in every
-project, and the revisions [fetch and storage](../page-fetch-and-storage.md) must take if it is
+project, and the revisions [fetch and storage](page-fetch-and-storage.md) must take if it is
 accepted.
 
 ## Status
@@ -15,7 +15,7 @@ accepted.
 Implemented 2026-11-06, in five commits from `b3e9715`. Every phase below shipped; IDEA-012 is in the
 closed table in [the job index](../../jobs/README.md#closed), and the revisions in
 [What fetch and storage must change](#what-fetch-and-storage-must-change) landed in
-[fetch and storage](../page-fetch-and-storage.md) before its Phase 1 started, so the synchronous
+[fetch and storage](page-fetch-and-storage.md) before its Phase 1 started, so the synchronous
 members it described are never written.
 
 The decisions are DEC-123 (the asynchronous contract and its tokenless members) and DEC-124 (the
@@ -560,7 +560,7 @@ Proposed entries for `docs/decisions.md`:
 
 ## What fetch and storage must change
 
-These are the revisions to [page-fetch-and-storage.md](../page-fetch-and-storage.md). They are part of
+These are the revisions to [page-fetch-and-storage.md](page-fetch-and-storage.md). They are part of
 accepting this plan, and land before that plan's Phase 1 starts.
 
 ### The short version, item 4
