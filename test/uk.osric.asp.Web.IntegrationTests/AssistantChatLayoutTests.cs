@@ -8,9 +8,9 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using uk.osric.asp.Core.Agent;
+using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Text;
-using uk.osric.asp.Web.Agent;
+using uk.osric.asp.Web.Assistant;
 
 [TestFixture]
 public sealed class AssistantChatLayoutTests : IntegrationTest {
@@ -18,7 +18,7 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
 
     private readonly ToolCallingClient _provider = new(Arguments);
 
-    internal override AspApplication CreateApplication() => new(agentEnabled: true, chatCompletionClient: _provider);
+    internal override AspApplication CreateApplication() => new(assistantEnabled: true, chatCompletionClient: _provider);
 
     [Test]
     public async Task ChatGroupsControlsInOrderedFieldsetsAndHidesToolDetailBehindASummaryAsync() {
@@ -79,20 +79,20 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
     }
 
     private sealed class ToolCallingClient(string arguments) : IChatCompletionClient {
-        private readonly IReadOnlyList<AgentChatStreamEvent>[] _responses = [
+        private readonly IReadOnlyList<AssistantChatStreamEvent>[] _responses = [
             [
-                new AgentToolCallDelta(0, "layout-call", "read_page", arguments),
-                new AgentFinished("tool_calls"),
+                new AssistantToolCallDelta(0, "layout-call", "read_page", arguments),
+                new AssistantFinished("tool_calls"),
             ],
-            [new AgentContentDelta("I read the page."), new AgentFinished("stop")],
+            [new AssistantContentDelta("I read the page."), new AssistantFinished("stop")],
         ];
         private int _request;
 
-        public async IAsyncEnumerable<AgentChatStreamEvent> StreamAsync(
-            AgentChatRequest request,
+        public async IAsyncEnumerable<AssistantChatStreamEvent> StreamAsync(
+            AssistantChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
             int index = Interlocked.Increment(ref _request) - 1;
-            foreach (AgentChatStreamEvent @event in _responses[index]) {
+            foreach (AssistantChatStreamEvent @event in _responses[index]) {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return @event;
                 await Task.Yield();

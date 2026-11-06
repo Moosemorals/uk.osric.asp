@@ -9,7 +9,7 @@ using System.Net;
 [TestFixture]
 public sealed class AssistantOptionsTests : IntegrationTest {
 
-    internal override AspApplication CreateApplication() => new(agentEnabled: true);
+    internal override AspApplication CreateApplication() => new(assistantEnabled: true);
 
     [Test]
     public async Task SavingOptionsRenamesAndSwitchesApprovalModeWithoutARedirectAsync() {

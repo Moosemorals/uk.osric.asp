@@ -1,0 +1,65 @@
+// SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+// SPDX-License-Identifier: MIT
+
+namespace uk.osric.asp.Web.Assistant;
+
+using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
+using uk.osric.asp.Web.Pages;
+
+/// <summary>A validated page path, or why the assistant may not use the one it asked for.</summary>
+internal sealed record AssistantPathResult(PagePath? Path, string? Error) {
+    public bool Success => Error is null;
+}
+
+/// <summary>The rule for which pages the assistant may read and write.</summary>
+internal sealed class AssistantPaths {
+    private readonly ReservedPaths _reserved;
+    private readonly HashSet<string> _protectedPaths;
+    private readonly PagePath? _writablePrefix;
+
+    public AssistantPaths(ReservedPaths reserved, AssistantOptions options) {
+        ArgumentNullException.ThrowIfNull(reserved);
+        ArgumentNullException.ThrowIfNull(options);
+        _reserved = reserved;
+        _protectedPaths = options.ProtectedPaths
+            .Select(PagePath.Normalize)
+            .Where(path => path.IsAddressable)
+            .Select(path => path.Key)
+            .ToHashSet(StringComparer.Ordinal);
+        _writablePrefix = string.IsNullOrWhiteSpace(options.WritablePathPrefix)
+            ? null
+            : PagePath.Normalize(options.WritablePathPrefix);
+    }
+
+    public AssistantPathResult Validate(string? pathText, bool write) {
+        if (string.IsNullOrWhiteSpace(pathText)) {
+            return Invalid("A page path is required.");
+        }
+
+        PagePath path = PagePath.Normalize(pathText);
+        if (!path.IsAddressable) {
+            return Invalid("The page path is not addressable.");
+        }
+        if (IsProtected(path)) {
+            return Invalid($"The path {MessageText.Sanitize(path.Key)} is reserved or protected by the site.");
+        }
+        if (write && _writablePrefix is { } prefix && !IsWithin(path, prefix)) {
+            return Invalid("The path is outside Assistant:WritablePathPrefix.");
+        }
+
+        return new AssistantPathResult(path, null);
+    }
+
+    public bool IsProtected(PagePath path) {
+        ArgumentNullException.ThrowIfNull(path);
+        return _reserved.IsReserved(path) || _protectedPaths.Contains(path.Key);
+    }
+
+    private static bool IsWithin(PagePath path, PagePath prefix) =>
+        string.Equals(path.Key, prefix.Key, StringComparison.Ordinal)
+        || prefix.Key == "/"
+        || path.Key.StartsWith(prefix.Key + "/", StringComparison.Ordinal);
+
+    private static AssistantPathResult Invalid(string error) => new(null, error);
+}

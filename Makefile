@@ -343,11 +343,11 @@ deploy: deploy-guard check image | $(SSH_CONTROL_DIR)
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_SHA_REF)
 	$(SSH) $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_SHA_REF)
-	@# The agent's EnvironmentFile is optional in intent but not in podman: quadlet turns it into
+	@# The assistant's EnvironmentFile is optional in intent but not in podman: quadlet turns it into
 	@# `podman run --env-file`, which has no `-` form and fails the container when the path is
-	@# absent. Seed it once so a host that never enables the agent still starts; a host that does
+	@# absent. Seed it once so a host that never enables the assistant still starts; a host that does
 	@# has already filled it in, and `test -e` leaves the secret alone.
-	$(SSH) $(HOST) 'install -d -m 0700 .config/uk.osric.asp; test -e .config/uk.osric.asp/agent.env || install -m 0600 /dev/null .config/uk.osric.asp/agent.env'
+	$(SSH) $(HOST) 'install -d -m 0700 .config/uk.osric.asp; test -e .config/uk.osric.asp/assistant.env || install -m 0600 /dev/null .config/uk.osric.asp/assistant.env'
 	$(SSH) $(HOST) install -d .config/prometheus
 	$(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.network' < deploy/uk.osric.asp.network
 	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | $(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'

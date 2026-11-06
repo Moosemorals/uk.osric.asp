@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Data.Common;
 using System.Globalization;
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Web.Agent;
+using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Users;
@@ -60,8 +60,8 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             ticket.HasIndex(row => row.ExpiresAt);
         });
 
-        modelBuilder.Entity<AgentConversation>(conversation => {
-            conversation.ToTable("AgentConversations");
+        modelBuilder.Entity<AssistantConversation>(conversation => {
+            conversation.ToTable("AssistantConversations");
             conversation.HasKey(row => row.Id);
             conversation.Property(row => row.Owner).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
             conversation.Property(row => row.Title).HasMaxLength(200);
@@ -69,8 +69,8 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             conversation.HasIndex(row => new { row.Owner, row.UpdatedAt }).IsDescending(false, true);
         });
 
-        modelBuilder.Entity<AgentRun>(run => {
-            run.ToTable("AgentRuns");
+        modelBuilder.Entity<AssistantRun>(run => {
+            run.ToTable("AssistantRuns");
             run.HasKey(row => row.Id);
             run.Property(row => row.Id).HasMaxLength(32).UseCollation("BINARY");
             run.Property(row => row.Status).HasMaxLength(32);
@@ -78,7 +78,7 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             run.Property(row => row.ApprovalMode).HasMaxLength(32);
             run.Property(row => row.PromptVersion).HasMaxLength(100);
             run.Property(row => row.ErrorCode).HasMaxLength(100);
-            run.HasOne<AgentConversation>()
+            run.HasOne<AssistantConversation>()
                 .WithMany()
                 .HasForeignKey(row => row.ConversationId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -87,18 +87,18 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
                 .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_approval')");
         });
 
-        modelBuilder.Entity<AgentMessage>(message => {
-            message.ToTable("AgentMessages");
+        modelBuilder.Entity<AssistantMessage>(message => {
+            message.ToTable("AssistantMessages");
             message.HasKey(row => row.Id);
             message.Property(row => row.Role).HasMaxLength(16);
             message.Property(row => row.Status).HasMaxLength(16);
             message.Property(row => row.ToolCallId).UseCollation("BINARY");
             message.Property(row => row.RunId).HasMaxLength(32).UseCollation("BINARY");
-            message.HasOne<AgentConversation>()
+            message.HasOne<AssistantConversation>()
                 .WithMany()
                 .HasForeignKey(row => row.ConversationId)
                 .OnDelete(DeleteBehavior.Cascade);
-            message.HasOne<AgentRun>()
+            message.HasOne<AssistantRun>()
                 .WithMany()
                 .HasForeignKey(row => row.RunId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -106,15 +106,15 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             message.HasIndex(row => new { row.ConversationId, row.RunId });
         });
 
-        modelBuilder.Entity<AgentToolApproval>(approval => {
-            approval.ToTable("AgentToolApprovals");
+        modelBuilder.Entity<AssistantToolApproval>(approval => {
+            approval.ToTable("AssistantToolApprovals");
             approval.HasKey(row => new { row.RunId, row.ToolCallId });
             approval.Property(row => row.RunId).HasMaxLength(32).UseCollation("BINARY");
             approval.Property(row => row.ToolCallId).UseCollation("BINARY");
             approval.Property(row => row.Status).HasMaxLength(16);
             approval.Property(row => row.ResolvedBy).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
             approval.Property(row => row.FailureCode).HasMaxLength(100);
-            approval.HasOne<AgentRun>()
+            approval.HasOne<AssistantRun>()
                 .WithMany()
                 .HasForeignKey(row => row.RunId)
                 .OnDelete(DeleteBehavior.Cascade);

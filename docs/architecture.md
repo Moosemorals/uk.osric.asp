@@ -82,8 +82,8 @@ and the logs quote them:
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
 | Source storage: the EF Core context and its migrations | `Web`, under `Storage` |
-| A table's EF entity | `Web`, with the vertical that owns it (`Users`, `Authentication`, `Pages`, `Agent`) |
-| The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteAgentConversationStore` | `Web`, beside the interface it implements |
+| A table's EF entity | `Web`, with the vertical that owns it (`Users`, `Authentication`, `Pages`, `Assistant`) |
+| The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteAssistantConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
 | The page contract: `IContext`, `PageRequest`, `PageResponse`, `IHandler`, `UserFacingException` | `Sdk`, as plain values a compiled page binds against |
@@ -181,7 +181,7 @@ Every one of these views is rendered once by `ShellViews` and checked against th
 rules — see [testing](testing.md#the-four-suites-and-the-planned-fifth) — with what a string cannot
 prove left to a recorded hand pass (DEC-110).
 
-## AI page agent
+## AI page assistant
 
 The optional `/assistant` shell is disabled by default. When enabled it is an authenticated owner
 feature, separate from stored pages: the views are host code under the reserved `/assistant` prefix,
@@ -196,7 +196,7 @@ tool calls receive synthetic results rather than being replayed to the provider.
 
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
 endpoint. Enabling the feature sends the system prompt, conversation transcript, and page source read
-by tools to that provider. No provider SDK is used. Agent tools have access only to the page store
+by tools to that provider. No provider SDK is used. Assistant tools have access only to the page store
 through `PageEditor`: list/read/search, bounded template-source line edits with an atomic revision-hash
 check, whole-page writes, tombstone deletes, and a read-only virtual shell. There is no process,
 filesystem, git, package, or outbound-network tool. The per-conversation approval mode defaults to
@@ -205,7 +205,7 @@ Unresolved, stale, stopped, or restarted approvals never execute.
 
 The feature bounds run duration, request duration, concurrency, queue depth, steps, tool calls,
 arguments, page size, results, context and event replay. Provider content and reasoning are never
-logged; reasoning is display-only and is omitted from subsequent provider requests. Agent metrics use
+logged; reasoning is display-only and is omitted from subsequent provider requests. Assistant metrics use
 only low-cardinality model, tool, outcome, and token-kind tags.
 
 ## Authentication and the editor

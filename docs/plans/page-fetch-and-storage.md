@@ -635,7 +635,7 @@ information. Neither logs the URL query, request headers, response headers or bo
 - Tests that construct `SimpleContext` directly pass a fake `IPageStorage` and `IPageFetcher`; the
   `Runtime.Tests` `TestContext` implements the two new members with no-op values.
 
-## Agent prompt and documentation
+## Assistant prompt and documentation
 
 ### Page-author prompt
 

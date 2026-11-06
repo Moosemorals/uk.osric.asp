@@ -12,7 +12,7 @@ using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
-using uk.osric.asp.Web.Agent;
+using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
@@ -48,15 +48,15 @@ internal class Program {
             Directory.CreateDirectory(Path.GetDirectoryName(connection.DataSource)
                 ?? throw new InvalidOperationException("The storage database must have a parent directory."));
         }
-        bool agentEnabled = builder.Configuration.GetValue<bool>("Agent:Enabled");
+        bool assistantEnabled = builder.Configuration.GetValue<bool>("Assistant:Enabled");
 
         // Configuration: the database, its options, and the proxy trust the host depends on.
         builder.Services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
 
-        builder.Services.AddOptions<AgentOptions>()
-            .Bind(builder.Configuration.GetSection("Agent"))
+        builder.Services.AddOptions<AssistantOptions>()
+            .Bind(builder.Configuration.GetSection("Assistant"))
             .ValidateOnStart();
-        builder.Services.AddSingleton<IValidateOptions<AgentOptions>, AgentOptionsValidator>();
+        builder.Services.AddSingleton<IValidateOptions<AssistantOptions>, AssistantOptionsValidator>();
 
         builder.Services.Configure<ForwardedHeadersOptions>(options => {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
@@ -89,26 +89,26 @@ internal class Program {
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
 
-        builder.Services.AddScoped<IAgentConversationStore, SqliteAgentConversationStore>();
+        builder.Services.AddScoped<IAssistantConversationStore, SqliteAssistantConversationStore>();
         builder.Services.AddScoped<IPageStore, SqlitePageStore>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
         builder.Services.AddScoped<PageEditor>();
         builder.Services.AddScoped<PageRenderer>();
         builder.Services.AddScoped<PageImageBuilder>();
 
-        if (agentEnabled) {
-            builder.Services.AddHostedService<AgentRunWorker>();
-            builder.Services.AddHostedService<AgentRunJournalCleanupService>();
+        if (assistantEnabled) {
+            builder.Services.AddHostedService<AssistantRunWorker>();
+            builder.Services.AddHostedService<AssistantRunJournalCleanupService>();
 
-            builder.Services.AddSingleton(services => services.GetRequiredService<IOptions<AgentOptions>>().Value);
-            builder.Services.AddSingleton<AgentMetrics>();
-            builder.Services.AddSingleton<AgentPageToolExecutor>();
-            builder.Services.AddSingleton<AgentPaths>();
-            builder.Services.AddSingleton<AgentRunQueue>();
-            builder.Services.AddSingleton<AgentRunRegistry>();
-            builder.Services.AddSingleton<AgentToolApprovalCoordinator>();
+            builder.Services.AddSingleton(services => services.GetRequiredService<IOptions<AssistantOptions>>().Value);
+            builder.Services.AddSingleton<AssistantMetrics>();
+            builder.Services.AddSingleton<AssistantPageToolExecutor>();
+            builder.Services.AddSingleton<AssistantPaths>();
+            builder.Services.AddSingleton<AssistantRunQueue>();
+            builder.Services.AddSingleton<AssistantRunRegistry>();
+            builder.Services.AddSingleton<AssistantToolApprovalCoordinator>();
 
-            builder.Services.AddScoped<AgentRunProcessor>();
+            builder.Services.AddScoped<AssistantRunProcessor>();
 
             builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
                 client.Timeout = Timeout.InfiniteTimeSpan;
@@ -139,7 +139,7 @@ internal class Program {
         // The exporter serves /metrics on this listener; Caddy refuses that path publicly.
         builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics
             .AddMeter(PageMetrics.MeterName)
-            .AddMeter(AgentMetrics.MeterName)
+            .AddMeter(AssistantMetrics.MeterName)
             .AddMeter("Microsoft.AspNetCore.Hosting")
             .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
             .AddMeter("System.Runtime")
@@ -150,21 +150,21 @@ internal class Program {
             .AddView("page.handler.invoke.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.image.size", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.ImageBuckets })
-            .AddView("agent.run.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("agent.provider.first_token.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("agent.provider.request.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("agent.tool.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("agent.run.steps", new ExplicitBucketHistogramConfiguration { Boundaries = AgentMetrics.StepBuckets })
-            .AddView("agent.run.tool_calls", new ExplicitBucketHistogramConfiguration { Boundaries = AgentMetrics.ToolCallBuckets })
+            .AddView("assistant.run.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("assistant.provider.first_token.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("assistant.provider.request.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("assistant.tool.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("assistant.run.steps", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.StepBuckets })
+            .AddView("assistant.run.tool_calls", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ToolCallBuckets })
             .AddPrometheusExporter());
 
         WebApplication app = builder.Build();
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
-            if (agentEnabled) {
-                IAgentConversationStore agentConversations = scope.ServiceProvider.GetRequiredService<IAgentConversationStore>();
-                await agentConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
+            if (assistantEnabled) {
+                IAssistantConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IAssistantConversationStore>();
+                await assistantConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
             }
             IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
             await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
@@ -240,7 +240,7 @@ internal class Program {
             ResponseWriter = HealthReportWriter.WriteAsync,
         });
 
-        if (agentEnabled) {
+        if (assistantEnabled) {
             app.MapGet("/assistant", AssistantEndpoint.ListAsync)
                 .RequireAuthorization(EditorPolicy.Name);
             app.MapPost("/assistant", AssistantEndpoint.ListAsync)

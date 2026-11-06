@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Core.Tests;
 
 using NUnit.Framework;
-using uk.osric.asp.Core.Agent;
+using uk.osric.asp.Core.Assistant;
 
 [TestFixture]
 public sealed class VirtualShellTests {

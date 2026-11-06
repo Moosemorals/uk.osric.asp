@@ -8,14 +8,14 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using uk.osric.asp.Core.Agent;
-using uk.osric.asp.Web.Agent;
+using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Web.Assistant;
 
 [TestFixture]
 public sealed class AssistantApprovalFlowTests : IntegrationTest {
     private readonly PlannedClient _provider = new();
 
-    internal override AspApplication CreateApplication() => new(agentEnabled: true, chatCompletionClient: _provider);
+    internal override AspApplication CreateApplication() => new(assistantEnabled: true, chatCompletionClient: _provider);
 
     [Test]
     public async Task RequiredApprovalPausesWritesAndAlwaysApproveExecutesWithoutPromptAsync() {
@@ -110,25 +110,25 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
     }
 
     private sealed class PlannedClient : IChatCompletionClient {
-        private readonly IReadOnlyList<AgentChatStreamEvent>[] _responses = [
+        private readonly IReadOnlyList<AssistantChatStreamEvent>[] _responses = [
             [
-                new AgentToolCallDelta(0, "gated-call", "write_page", "{\"path\":\"/gated-page\",\"content\":\"<h1>Gated</h1>\"}"),
-                new AgentFinished("tool_calls"),
+                new AssistantToolCallDelta(0, "gated-call", "write_page", "{\"path\":\"/gated-page\",\"content\":\"<h1>Gated</h1>\"}"),
+                new AssistantFinished("tool_calls"),
             ],
-            [new AgentContentDelta("The gated page is ready."), new AgentFinished("stop")],
+            [new AssistantContentDelta("The gated page is ready."), new AssistantFinished("stop")],
             [
-                new AgentToolCallDelta(0, "automatic-call", "write_page", "{\"path\":\"/automatic-page\",\"content\":\"<h1>Automatic</h1>\"}"),
-                new AgentFinished("tool_calls"),
+                new AssistantToolCallDelta(0, "automatic-call", "write_page", "{\"path\":\"/automatic-page\",\"content\":\"<h1>Automatic</h1>\"}"),
+                new AssistantFinished("tool_calls"),
             ],
-            [new AgentContentDelta("The automatic page is ready."), new AgentFinished("stop")],
+            [new AssistantContentDelta("The automatic page is ready."), new AssistantFinished("stop")],
         ];
         private int _request;
 
-        public async IAsyncEnumerable<AgentChatStreamEvent> StreamAsync(
-            AgentChatRequest request,
+        public async IAsyncEnumerable<AssistantChatStreamEvent> StreamAsync(
+            AssistantChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
             int index = Interlocked.Increment(ref _request) - 1;
-            foreach (AgentChatStreamEvent @event in _responses[index]) {
+            foreach (AssistantChatStreamEvent @event in _responses[index]) {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return @event;
                 await Task.Yield();

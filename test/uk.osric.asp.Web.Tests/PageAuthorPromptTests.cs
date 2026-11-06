@@ -8,7 +8,7 @@ using System.Reflection;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
-using uk.osric.asp.Web.Agent;
+using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]

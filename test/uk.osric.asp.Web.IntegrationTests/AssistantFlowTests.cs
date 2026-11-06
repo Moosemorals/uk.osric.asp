@@ -7,17 +7,17 @@ using NUnit.Framework;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using uk.osric.asp.Core.Agent;
-using uk.osric.asp.Web.Agent;
+using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Web.Assistant;
 
 [TestFixture]
 public sealed class AssistantFlowTests : IntegrationTest {
     private readonly ScriptedClient _provider = new([
-        new AgentContentDelta("Hello from the agent."),
-        new AgentFinished("stop"),
+        new AssistantContentDelta("Hello from the assistant."),
+        new AssistantFinished("stop"),
     ]);
 
-    internal override AspApplication CreateApplication() => new(agentEnabled: true, chatCompletionClient: _provider);
+    internal override AspApplication CreateApplication() => new(assistantEnabled: true, chatCompletionClient: _provider);
 
     [Test]
     public async Task SignedInOwnerCanCreateSendStreamAndReloadAConversationAsync() {
@@ -50,26 +50,26 @@ public sealed class AssistantFlowTests : IntegrationTest {
         Assert.That(events.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(events.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/event-stream"));
         Assert.That(eventStream, Does.Contain("event: content.delta"));
-        Assert.That(eventStream, Does.Contain("Hello from the agent."));
+        Assert.That(eventStream, Does.Contain("Hello from the assistant."));
         Assert.That(eventStream, Does.Contain("event: run.completed"));
 
         using HttpResponseMessage reloaded = await client.GetAsync(location);
         string reloadedBody = await reloaded.Content.ReadAsStringAsync();
-        Assert.That(reloadedBody, Does.Contain("Hello from the agent."));
+        Assert.That(reloadedBody, Does.Contain("Hello from the assistant."));
         Assert.That(reloadedBody, Does.Contain("Say hello"));
         Assert.That(_provider.RequestCount, Is.EqualTo(1));
     }
 
-    private sealed class ScriptedClient(IReadOnlyList<AgentChatStreamEvent> events) : IChatCompletionClient {
+    private sealed class ScriptedClient(IReadOnlyList<AssistantChatStreamEvent> events) : IChatCompletionClient {
         private int _requestCount;
 
         public int RequestCount => _requestCount;
 
-        public async IAsyncEnumerable<AgentChatStreamEvent> StreamAsync(
-            AgentChatRequest request,
+        public async IAsyncEnumerable<AssistantChatStreamEvent> StreamAsync(
+            AssistantChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
             Interlocked.Increment(ref _requestCount);
-            foreach (AgentChatStreamEvent @event in events) {
+            foreach (AssistantChatStreamEvent @event in events) {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return @event;
                 await Task.Yield();

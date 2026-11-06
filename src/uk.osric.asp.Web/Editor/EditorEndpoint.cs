@@ -11,7 +11,7 @@ using Microsoft.Extensions.Primitives;
 using System.Net;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Web.Agent;
+using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
@@ -100,7 +100,7 @@ internal sealed class EditorEndpoint {
                 await WriteScrubConfirmationAsync(context, pages, antiforgery, path);
                 return;
             case null:
-                bool assistantEnabled = context.RequestServices?.GetService<IOptions<AgentOptions>>()?.Value.Enabled == true;
+                bool assistantEnabled = context.RequestServices?.GetService<IOptions<AssistantOptions>>()?.Value.Enabled == true;
                 await WriteEditorAsync(context, pages, antiforgery, assistantEnabled, path);
                 return;
             default:

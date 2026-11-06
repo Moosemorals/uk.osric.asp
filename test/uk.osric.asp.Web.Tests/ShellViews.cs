@@ -13,7 +13,7 @@ using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Admin;
-using uk.osric.asp.Web.Agent;
+using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
@@ -197,8 +197,8 @@ internal static class ShellViews {
 
     private static async Task<string> AssistantListAsync() {
         DefaultHttpContext context = AuthenticatedContext("/assistant");
-        await AssistantEndpoint.ListAsync(context, new ShellAgentConversationStore(), new TestAntiforgery(),
-            Microsoft.Extensions.Options.Options.Create(new AgentOptions { Enabled = true }));
+        await AssistantEndpoint.ListAsync(context, new ShellAssistantConversationStore(), new TestAntiforgery(),
+            Microsoft.Extensions.Options.Options.Create(new AssistantOptions { Enabled = true }));
         return await TestHttp.ReadBodyAsync(context);
     }
 
@@ -206,9 +206,9 @@ internal static class ShellViews {
     // details the chat renders from stored messages: arguments in the summary, both halves inside.
     private static async Task<string> AssistantChatAsync(bool withReasoning) {
         DefaultHttpContext context = AuthenticatedContext("/assistant/1");
-        ShellAgentConversationStore conversations = new(withReasoning
+        ShellAssistantConversationStore conversations = new(withReasoning
             ? [
-                new AgentMessage {
+                new AssistantMessage {
                     ConversationId = 1,
                     RunId = "run-1",
                     Sequence = 1,
@@ -218,7 +218,7 @@ internal static class ShellViews {
                     ToolCallsJson = """[{"id":"call-1","type":"function","function":{"name":"read_page","arguments":"{\"path\":\"/blog\"}"}}]""",
                     CreatedAt = DateTimeOffset.UtcNow,
                 },
-                new AgentMessage {
+                new AssistantMessage {
                     ConversationId = 1,
                     RunId = "run-1",
                     Sequence = 2,
@@ -231,13 +231,13 @@ internal static class ShellViews {
             ]
             : []);
         await AssistantEndpoint.ConversationAsync(context, 1, conversations, new TestAntiforgery(),
-            new AgentRunRegistry(new AgentOptions(), TimeProvider.System), new AgentOptions());
+            new AssistantRunRegistry(new AssistantOptions(), TimeProvider.System), new AssistantOptions());
         return await TestHttp.ReadBodyAsync(context);
     }
 
     private static async Task<string> AssistantDeleteAsync() {
         DefaultHttpContext context = AuthenticatedContext("/assistant/1/delete");
-        await AssistantEndpoint.DeleteConfirmationAsync(context, 1, new ShellAgentConversationStore(), new TestAntiforgery());
+        await AssistantEndpoint.DeleteConfirmationAsync(context, 1, new ShellAssistantConversationStore(), new TestAntiforgery());
         return await TestHttp.ReadBodyAsync(context);
     }
 

@@ -112,14 +112,14 @@ and applies them.
   an account or a secret, and nothing runs them behind a `git push`.
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
 - **Page assistant:** disabled by default. `make deploy` keeps an empty, mode `0600`
-  `~/.config/uk.osric.asp/agent.env` for the `deploy` user, because the container cannot start
+  `~/.config/uk.osric.asp/assistant.env` for the `deploy` user, because the container cannot start
   without that file — podman's env file, which is what the quadlet's `EnvironmentFile=` becomes, has
-  no optional form. Fill it in and redeploy to enable the agent: `Agent__Enabled=true`,
-  `Agent__ApiKey=<provider-key>`, and optionally `Agent__Model` or `Agent__BaseUrl`. The deploy never
+  no optional form. Fill it in and redeploy to enable the assistant: `Assistant__Enabled=true`,
+  `Assistant__ApiKey=<provider-key>`, and optionally `Assistant__Model` or `Assistant__BaseUrl`. The deploy never
   overwrites an existing file. The configured provider must speak OpenAI-compatible streaming chat
   completions with tool calls. Local HTTP is allowed only for a loopback provider or when explicitly
   enabled.
-  The host sends the system prompt, conversation transcript, and any page source read by the agent to
+  The host sends the system prompt, conversation transcript, and any page source read by the assistant to
   that provider. Do not store content there that the provider must not receive. Prompts, page source,
   reasoning, credentials, and provider error bodies are not logged. The default provider is DeepSeek;
   compatible services and local Ollama can be selected by configuration. Restart the app after

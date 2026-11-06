@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Globalization;
 using uk.osric.asp.Runtime;
-using uk.osric.asp.Web.Agent;
+using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Users;
@@ -23,14 +23,14 @@ using uk.osric.asp.Web.Users;
 /// is about signing in sets this; the rest sign in only to reach the page they prove.
 /// </param>
 /// <param name="metricsSource">Stands in for Prometheus, which no fixture can reach.</param>
-/// <param name="agentEnabled">Enables the assistant for the agent integration fixtures.</param>
+/// <param name="assistantEnabled">Enables the assistant for the assistant integration fixtures.</param>
 /// <param name="chatCompletionClient">Stands in for the configured provider.</param>
 internal sealed class AspApplication(
     int loginPermitLimit = 100,
     int renderTimeoutSeconds = 5,
     bool realPasswordHasher = false,
     IMetricsSource? metricsSource = null,
-    bool agentEnabled = false,
+    bool assistantEnabled = false,
     IChatCompletionClient? chatCompletionClient = null) : WebApplicationFactory<Program> {
 
     /// <summary>The database this host migrates and serves; it is deleted with the factory.</summary>
@@ -46,9 +46,9 @@ internal sealed class AspApplication(
         builder.UseEnvironment(Environments.Production);
         builder.UseSetting("ConnectionStrings:Storage", $"Data Source={DatabasePath}");
         builder.UseSetting("Pages:Render:TimeoutSeconds", renderTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
-        builder.UseSetting("Agent:Enabled", agentEnabled.ToString(CultureInfo.InvariantCulture));
-        if (agentEnabled) {
-            builder.UseSetting("Agent:ApiKey", "integration-test-key");
+        builder.UseSetting("Assistant:Enabled", assistantEnabled.ToString(CultureInfo.InvariantCulture));
+        if (assistantEnabled) {
+            builder.UseSetting("Assistant:ApiKey", "integration-test-key");
         }
         builder.ConfigureTestServices(services => {
             services.AddSingleton<IPageCompiler>(Compiler);
