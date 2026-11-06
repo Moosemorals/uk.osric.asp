@@ -59,7 +59,7 @@
 
 .assistant-message pre,
 .assistant-approval pre,
-.assistant-tool-result {
+.assistant-tool pre {
     margin: 0;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
@@ -81,13 +81,28 @@
     color: #414b48;
 }
 
-.assistant-activity {
-    margin: 0;
-    padding-left: 1.5rem;
+.assistant-tool {
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    border-left: 0.25rem solid #8a8a8a;
+    background: var(--assistant-paper);
 }
 
-.assistant-tool-result {
-    color: #3f5f56;
+.assistant-tool summary {
+    cursor: pointer;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.assistant-tool-label {
+    margin: 0.5rem 0 0.25rem;
+    color: #414b48;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.assistant-tool-error {
+    border-left-color: #9a6b27;
 }
 
 .assistant-approval {

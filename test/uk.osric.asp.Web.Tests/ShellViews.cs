@@ -189,18 +189,33 @@ internal static class ShellViews {
         return await TestHttp.ReadBodyAsync(context);
     }
 
+    // The reasoning view also carries a finished tool call, so the shared rules see the tool
+    // details the chat renders from stored messages: arguments in the summary, both halves inside.
     private static async Task<string> AssistantChatAsync(bool withReasoning) {
         DefaultHttpContext context = AuthenticatedContext("/assistant/1");
         ShellAgentConversationStore conversations = new(withReasoning
-            ? [new AgentMessage {
-                ConversationId = 1,
-                RunId = "run-1",
-                Sequence = 1,
-                Role = "assistant",
-                Content = "Answer",
-                Reasoning = "Reasoning",
-                CreatedAt = DateTimeOffset.UtcNow,
-            }]
+            ? [
+                new AgentMessage {
+                    ConversationId = 1,
+                    RunId = "run-1",
+                    Sequence = 1,
+                    Role = "assistant",
+                    Content = "Answer",
+                    Reasoning = "Reasoning",
+                    ToolCallsJson = """[{"id":"call-1","type":"function","function":{"name":"read_page","arguments":"{\"path\":\"/blog\"}"}}]""",
+                    CreatedAt = DateTimeOffset.UtcNow,
+                },
+                new AgentMessage {
+                    ConversationId = 1,
+                    RunId = "run-1",
+                    Sequence = 2,
+                    Role = "tool",
+                    Content = """{"ok":true,"data":null}""",
+                    ToolCallId = "call-1",
+                    ToolName = "read_page",
+                    CreatedAt = DateTimeOffset.UtcNow,
+                },
+            ]
             : []);
         await AssistantEndpoint.ConversationAsync(context, 1, conversations, new TestAntiforgery(),
             new AgentRunRegistry(new AgentOptions(), TimeProvider.System), new AgentOptions());

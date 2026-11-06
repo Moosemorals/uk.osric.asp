@@ -645,10 +645,10 @@ sets `Cache-Control: no-store` and `X-Accel-Buffering: no` before returning the 
 | `reasoning.delta` | `step`, `text` | Thinking fragment |
 | `content.delta` | `step`, `text` | Answer fragment |
 | `message.completed` | `step`, `messageId`, `status`, `finishReason` | The step's assistant message is stored |
-| `tool.started` | `step`, `toolCallId`, `name`, `summary` | A tool call is about to run |
+| `tool.started` | `step`, `toolCallId`, `name`, `arguments`, `summary` | A tool call is about to run |
 | `approval.required` | `step`, `toolCallId`, `name`, `description`, `arguments` | Owner action is required before execution; full call data for review |
 | `approval.resolved` | `step`, `toolCallId`, `decision` | The owner approved or denied the call |
-| `tool.finished` | `step`, `toolCallId`, `name`, `ok`, `summary`, `durationMs` | The tool returned |
+| `tool.finished` | `step`, `toolCallId`, `name`, `arguments`, `ok`, `summary`, `content`, `durationMs` | The tool returned |
 | `run.warning` | `code`, `message` | For example, the reply hit the token limit |
 | `run.completed` | `runId`, `steps`, `usage?` | Terminal |
 | `run.failed` | `runId`, `code`, `message` | Terminal; the message is safe to show |
@@ -657,8 +657,10 @@ sets `Cache-Control: no-store` and `X-Accel-Buffering: no` before returning the 
 | `stream.reset` | `reason` | The journal cannot replay this point; reload the conversation |
 | `heartbeat` | `at` | Keep-alive; ignored by the UI |
 
-`summary` is a short human-readable description, not the tool's full result: `"Read /blog"`,
-`"Wrote /blog (2 errors)"`, `"ls /blog"`. The full content is in the transcript, not on the wire.
+`summary` is a short human-readable description: `"Read /blog"`, `"Wrote /blog (2 errors)"`,
+`"ls /blog"`. `arguments` and `content` carry the call and its result so the page can fold them into
+a `<details>` without waiting for a reload; the result is already bounded by
+`Agent:MaxToolResultChars`.
 
 ### Journal, replay and reconnects
 

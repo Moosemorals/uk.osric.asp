@@ -160,6 +160,7 @@ internal sealed class AgentRunProcessor(
                         step,
                         toolCallId = call.Id,
                         name = call.Name,
+                        arguments = call.Arguments,
                         summary = $"Using {call.DisplayName}",
                     });
 
@@ -185,8 +186,10 @@ internal sealed class AgentRunProcessor(
                         step,
                         toolCallId = call.Id,
                         name = call.Name,
+                        arguments = call.Arguments,
                         ok = result.Success,
                         summary = result.Summary,
+                        content = result.Content,
                         durationMs = (long)Stopwatch.GetElapsedTime(toolStart).TotalMilliseconds,
                     });
                     activeToolCallId = null;

@@ -132,10 +132,11 @@ internal static class AssistantEndpoint {
                 <section id="assistant-transcript" aria-label="Conversation">
             """);
 
+        Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
         foreach (AgentMessage message in visibleMessages) {
-            await WriteMessageAsync(context, message);
+            await WriteMessageAsync(context, message, calls);
         }
-        await WritePendingApprovalsAsync(context, messages, pending, tokens, id);
+        await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
         await context.Response.WriteAsync("</section>");
         await context.Response.WriteAsync($"""
             <form id="assistant-message-form" method="post" action="/assistant/{id}/messages">
@@ -424,7 +425,10 @@ internal static class AssistantEndpoint {
         Redirect.SeeOther(context, "/assistant");
     }
 
-    private static async Task WriteMessageAsync(HttpContext context, AgentMessage message) {
+    private static async Task WriteMessageAsync(
+        HttpContext context,
+        AgentMessage message,
+        IReadOnlyDictionary<string, (string Name, string Arguments)> calls) {
         if (message.Role == "user") {
             await context.Response.WriteAsync($"<article class=\"assistant-message user-message\"><h2 class=\"visually-hidden\">You</h2><pre>{Encode(message.Content)}</pre></article>");
             return;
@@ -444,20 +448,28 @@ internal static class AssistantEndpoint {
             return;
         }
         if (message.Role == "tool") {
-            await context.Response.WriteAsync($"<p class=\"assistant-tool-result\">{Encode(MessageText.Sanitize(message.ToolName ?? "Tool"))} completed</p>");
+            string name = Encode(MessageText.Sanitize(message.ToolName ?? "Tool"));
+            string arguments = message.ToolCallId is not null && calls.TryGetValue(message.ToolCallId, out (string Name, string Arguments) call)
+                ? call.Arguments
+                : "";
+            string summary = string.IsNullOrEmpty(arguments) ? name : $"{name} {Encode(MessageText.Sanitize(arguments))}";
+            await context.Response.WriteAsync($"<details class=\"assistant-tool\"><summary>{summary}</summary>");
+            if (!string.IsNullOrEmpty(arguments)) {
+                await context.Response.WriteAsync($"<p class=\"assistant-tool-label\">Arguments</p><pre class=\"assistant-tool-arguments\">{Encode(arguments)}</pre>");
+            }
+            await context.Response.WriteAsync($"<p class=\"assistant-tool-label\">Response</p><pre class=\"assistant-tool-response\">{Encode(message.Content)}</pre></details>");
         }
     }
 
     private static async Task WritePendingApprovalsAsync(
         HttpContext context,
-        IReadOnlyList<AgentMessage> messages,
+        IReadOnlyDictionary<string, (string Name, string Arguments)> calls,
         IReadOnlyList<AgentToolApproval> pending,
         AntiforgeryTokenSet tokens,
         long conversationId) {
         if (pending.Count == 0) {
             return;
         }
-        Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
         await context.Response.WriteAsync("<section class=\"assistant-approvals\" aria-label=\"Pending tool approvals\"><h2>Approval required</h2>");
         foreach (AgentToolApproval approval in pending) {
             if (!calls.TryGetValue(approval.ToolCallId, out (string Name, string Arguments) call)) {

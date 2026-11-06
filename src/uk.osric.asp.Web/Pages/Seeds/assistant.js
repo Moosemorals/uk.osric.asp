@@ -12,7 +12,9 @@ if (root) {
     const count = document.getElementById('assistant-char-count');
     const token = messageForm.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
     const messages = new Map();
-    let activityList = null;
+    // Matches MessageText.MaximumLength, so a streamed tool summary matches the stored one.
+    const argumentsLimit = 32;
+    const graphemes = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
     let source = null;
     let reconnectFailures = 0;
 
@@ -73,15 +75,51 @@ if (root) {
         return messages.get(step);
     }
 
-    function activity() {
-        if (!activityList) {
-            activityList = document.createElement('ul');
-            activityList.className = 'assistant-activity';
-            activityList.setAttribute('role', 'list');
-            activityList.setAttribute('aria-label', 'Tool activity');
-            transcript.append(activityList);
+    function element(tag, className, text) {
+        const created = document.createElement(tag);
+        if (className) {
+            created.className = className;
         }
-        return activityList;
+        if (text !== undefined) {
+            created.textContent = text;
+        }
+        return created;
+    }
+
+    function toolSummary(name, args) {
+        const collapsed = String(args ?? '').replace(/\s+/g, ' ').trim();
+        const parts = graphemes ? Array.from(graphemes.segment(collapsed), part => part.segment) : Array.from(collapsed);
+        const clipped = parts.length > argumentsLimit ? `${parts.slice(0, argumentsLimit - 1).join('')}…` : collapsed;
+        return clipped ? `${name ?? 'Tool'} ${clipped}` : String(name ?? 'Tool');
+    }
+
+    function buildTool(data) {
+        const details = element('details', 'assistant-tool');
+        details.dataset.toolCallId = data.toolCallId;
+        if (data.ok === false) {
+            details.classList.add('assistant-tool-error');
+        }
+        details.append(element('summary', null, toolSummary(data.name, data.arguments)));
+        if (data.arguments) {
+            details.append(element('p', 'assistant-tool-label', 'Arguments'), element('pre', 'assistant-tool-arguments', data.arguments));
+        }
+        if (data.content) {
+            details.append(element('p', 'assistant-tool-label', 'Response'), element('pre', 'assistant-tool-response', data.content));
+        }
+        return details;
+    }
+
+    function showTool(data) {
+        const wasNear = nearBottom();
+        const existing = transcript.querySelector(`details.assistant-tool[data-tool-call-id="${CSS.escape(data.toolCallId)}"]`);
+        const details = buildTool(data);
+        if (existing) {
+            details.open = existing.open;
+            existing.replaceWith(details);
+        } else {
+            transcript.append(details);
+        }
+        keepNearBottom(wasNear);
     }
 
     function addApproval(data) {
@@ -168,13 +206,7 @@ if (root) {
             }
             statusLine.textContent = 'Response step complete';
         });
-        source.addEventListener('tool.started', event => {
-            const data = JSON.parse(event.data);
-            const item = document.createElement('li');
-            item.dataset.toolCallId = data.toolCallId;
-            item.textContent = data.summary;
-            activity().append(item);
-        });
+        source.addEventListener('tool.started', event => showTool(JSON.parse(event.data)));
         source.addEventListener('approval.required', event => addApproval(JSON.parse(event.data)));
         source.addEventListener('approval.resolved', event => {
             const data = JSON.parse(event.data);
@@ -183,10 +215,7 @@ if (root) {
         });
         source.addEventListener('tool.finished', event => {
             const data = JSON.parse(event.data);
-            const item = activityList?.querySelector(`[data-tool-call-id="${CSS.escape(data.toolCallId)}"]`);
-            if (item) {
-                item.textContent = data.summary;
-            }
+            showTool(data);
             statusLine.textContent = data.ok ? 'Tool complete' : 'Tool returned an error';
         });
         source.addEventListener('run.warning', event => {
