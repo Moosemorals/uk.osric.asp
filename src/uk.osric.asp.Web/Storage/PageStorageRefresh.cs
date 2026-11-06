@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Storage;
 
 using System.Threading.Channels;
 
+/// <summary>Wakes the storage sampler after a write, coalescing repeated requests.</summary>
 internal sealed class PageStorageRefresh {
     private readonly Channel<bool> _requests = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) {
         FullMode = BoundedChannelFullMode.DropWrite,

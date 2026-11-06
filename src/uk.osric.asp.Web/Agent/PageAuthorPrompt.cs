@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Agent;
 using System.Reflection;
 using uk.osric.asp.Sdk;
 
+/// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
     public const string Version = "page-author-v1";
 

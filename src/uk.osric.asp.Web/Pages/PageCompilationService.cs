@@ -11,19 +11,19 @@ using uk.osric.asp.Runtime;
 /// <summary>Turns a page template into the compilation stored beside it.</summary>
 /// <remarks>
 /// <para>
-/// This is the Web half of compilation: generate source, wait for a compile slot, bound the compile,
-/// and turn the result into a <see cref="PageCompilation"/>. It never touches storage, so a save and
-/// a lazy compile share it without either owning the other.
+/// This is the Web half of compilation: generate a <see cref="GeneratedPageSource"/>, wait for a
+/// compile slot, bound the compile, and turn the result into a <see cref="PageCompilation"/>. It
+/// never touches storage, so a save and a lazy compile share it without either owning the other.
 /// </para>
 /// <para>
 /// Records <c>page.compile.duration</c> and <c>page.image.size</c>.
 /// </para>
 /// </remarks>
-internal sealed class TemplateCompiler(
+internal sealed class PageCompilationService(
     IPageCompiler compiler,
     PageBudget budget,
     PageMetrics metrics,
-    ILogger<TemplateCompiler> logger) {
+    ILogger<PageCompilationService> logger) {
 
     public string RuntimeId => compiler.RuntimeId;
 

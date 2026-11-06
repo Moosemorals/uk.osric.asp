@@ -10,6 +10,7 @@ using uk.osric.asp.Core.Agent;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Storage;
 
+/// <summary>Runs one queued agent run to completion, streaming its events and executing its tools.</summary>
 internal sealed class AgentRunProcessor(
     IServiceScopeFactory scopeFactory,
     IChatCompletionClient client,

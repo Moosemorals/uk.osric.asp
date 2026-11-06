@@ -52,10 +52,10 @@ public sealed class PageCompiler : IPageCompiler {
     /// The generated source itself is broken. A diagnostic without a template position means the
     /// fault is in code the generator wrote, not in the page, so it must not be shown to the author.
     /// </exception>
-    public PageCompileResult Compile(string source, CancellationToken cancellationToken = default) {
+    public PageCompileResult Compile(GeneratedPageSource source, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(source);
 
-        SyntaxTree tree = CSharpSyntaxTree.ParseText(source, cancellationToken: cancellationToken);
+        SyntaxTree tree = CSharpSyntaxTree.ParseText(source.Text, cancellationToken: cancellationToken);
         CSharpCompilation compilation = CSharpCompilation.Create(
             assemblyName: $"Dynamic_{Guid.NewGuid():N}",
             syntaxTrees: [tree],

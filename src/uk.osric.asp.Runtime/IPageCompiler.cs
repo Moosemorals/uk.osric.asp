@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Runtime;
 
+using uk.osric.asp.Core.Compilation;
+
 /// <summary>Compiles generated page source into an assembly image and loads compiled pages.</summary>
 /// <remarks>
 /// The shell depends on this interface rather than on a compiler type, so compilation can be
@@ -18,7 +20,7 @@ public interface IPageCompiler {
     string RuntimeId { get; }
 
     /// <summary>Compiles generated C# source into an assembly image.</summary>
-    /// <param name="source">The generated C# source, not the page template.</param>
+    /// <param name="source">The generated source, not the page template.</param>
     /// <param name="cancellationToken">
     /// Bounds the compile. Roslyn observes it between operations rather than inside one, so it is a
     /// coarse bound on a pathological template, not a hard one.
@@ -28,7 +30,7 @@ public interface IPageCompiler {
     /// The generated source itself is broken. A fault is not a page diagnostic and must reach the
     /// shell as an exception.
     /// </exception>
-    PageCompileResult Compile(string source, CancellationToken cancellationToken = default);
+    PageCompileResult Compile(GeneratedPageSource source, CancellationToken cancellationToken = default);
 
     /// <summary>Loads a compiled image and its portable symbols so its handler can be run.</summary>
     /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>

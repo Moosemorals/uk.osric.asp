@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Html;
 using System.Net;
 using uk.osric.asp.Core.Compilation;
 
+/// <summary>Renders the editor's source-line gutter.</summary>
 internal static class PageLayout {
 
     /// <summary>Renders one number per source line, each an anchor a diagnostic can point at.</summary>

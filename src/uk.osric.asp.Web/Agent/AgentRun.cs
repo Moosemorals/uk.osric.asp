@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Web.Storage;
+namespace uk.osric.asp.Web.Agent;
 
+/// <summary>One stored run of a conversation: its status, model, usage and any error.</summary>
 internal sealed class AgentRun {
     public required string Id { get; set; }
     public long ConversationId { get; set; }

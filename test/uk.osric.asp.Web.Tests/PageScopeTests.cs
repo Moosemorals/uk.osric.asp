@@ -57,7 +57,7 @@ public sealed class PageScopeTests {
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
-    private static string Generate(string template) {
+    private static GeneratedPageSource Generate(string template) {
         TemplateParseResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 

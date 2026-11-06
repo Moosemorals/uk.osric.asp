@@ -13,6 +13,7 @@ using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Users;
 
+/// <summary>Renders the sign-in form, accepts its POST and signs the visitor out.</summary>
 internal static class LoginEndpoint {
 
     private const string RememberMeField = "rememberMe";
@@ -21,7 +22,7 @@ internal static class LoginEndpoint {
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
         context.Response.Headers.CacheControl = "no-store";
         if (context.User.Identity?.IsAuthenticated == true) {
-            Redirects.SeeOther(context, LocalRedirect.Safe(context.Request.Query["returnUrl"].ToString()));
+            Redirect.SeeOther(context, LocalRedirect.Safe(context.Request.Query["returnUrl"].ToString()));
             return;
         }
 
@@ -72,7 +73,7 @@ internal static class LoginEndpoint {
 
             if (result != PasswordVerificationResult.Failed) {
                 await SignInAsync(context, user, rememberMe, authentication);
-                Redirects.SeeOther(context, LocalRedirect.Safe(returnUrl));
+                Redirect.SeeOther(context, LocalRedirect.Safe(returnUrl));
                 return;
             }
         }
@@ -93,7 +94,7 @@ internal static class LoginEndpoint {
             CookieAuthenticationDefaults.AuthenticationScheme,
             new AuthenticationProperties());
 
-        Redirects.SeeOther(context, "/");
+        Redirect.SeeOther(context, "/");
     }
 
     private static async Task SignInAsync(

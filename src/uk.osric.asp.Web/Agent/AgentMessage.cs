@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Web.Storage;
+namespace uk.osric.asp.Web.Agent;
 
+/// <summary>One stored message of a conversation, including its tool calls and their results.</summary>
 internal sealed class AgentMessage {
     public long Id { get; set; }
     public long ConversationId { get; set; }

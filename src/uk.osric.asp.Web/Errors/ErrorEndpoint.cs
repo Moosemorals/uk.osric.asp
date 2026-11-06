@@ -11,6 +11,7 @@ using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 
+/// <summary>Writes the error page from inside the exception handler.</summary>
 internal static class ErrorEndpoint {
 
     /// <summary>Writes the error page. Runs inside the exception handler's branch, not from routing.</summary>

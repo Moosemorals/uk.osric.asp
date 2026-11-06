@@ -29,9 +29,9 @@ internal sealed class PageHarness : IDisposable {
         Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
         Metrics = new PageMetrics();
 
-        Templates = new TemplateCompiler(Compiler, Budget, Metrics, NullLogger<TemplateCompiler>.Instance);
-        Renderer = new PageRenderer(storage, Compiler, Templates, Metrics, Budget, Health, NullLogger<PageRenderer>.Instance);
-        Editor = new PageEditor(storage, Templates, Metrics, NullLogger<PageEditor>.Instance);
+        Compilations = new PageCompilationService(Compiler, Budget, Metrics, NullLogger<PageCompilationService>.Instance);
+        Renderer = new PageRenderer(storage, Compiler, Compilations, Metrics, Budget, Health, NullLogger<PageRenderer>.Instance);
+        Editor = new PageEditor(storage, Compilations, Metrics, NullLogger<PageEditor>.Instance);
     }
 
     public RenderOptions Options { get; }
@@ -44,7 +44,7 @@ internal sealed class PageHarness : IDisposable {
 
     public PageMetrics Metrics { get; }
 
-    public TemplateCompiler Templates { get; }
+    public PageCompilationService Compilations { get; }
 
     public PageRenderer Renderer { get; }
 

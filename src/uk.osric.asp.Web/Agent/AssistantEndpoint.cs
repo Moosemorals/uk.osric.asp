@@ -17,6 +17,7 @@ using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Storage;
 
+/// <summary>Serves the assistant page and the JSON endpoints its stream and approvals use.</summary>
 internal static class AssistantEndpoint {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
@@ -39,7 +40,7 @@ internal static class AssistantEndpoint {
                 return;
             }
             AgentConversation created = await conversations.CreateAsync(owner, context.RequestAborted);
-            Redirects.SeeOther(context, $"/assistant/{created.Id}");
+            Redirect.SeeOther(context, $"/assistant/{created.Id}");
             return;
         }
 
@@ -214,7 +215,7 @@ internal static class AssistantEndpoint {
 
             reservationConsumed = true;
             if (context.Request.Headers.Accept.Any(value => value?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true)) {
-                Redirects.SeeOther(context, $"/assistant/{id}");
+                Redirect.SeeOther(context, $"/assistant/{id}");
                 return;
             }
             context.Response.StatusCode = StatusCodes.Status202Accepted;
@@ -316,7 +317,7 @@ internal static class AssistantEndpoint {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
-        Redirects.SeeOther(context, $"/assistant/{id}");
+        Redirect.SeeOther(context, $"/assistant/{id}");
     }
 
     public static async Task ApprovalModeAsync(HttpContext context, long id, IAgentConversationStore conversations) {
@@ -338,7 +339,7 @@ internal static class AssistantEndpoint {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
-        Redirects.SeeOther(context, $"/assistant/{id}");
+        Redirect.SeeOther(context, $"/assistant/{id}");
     }
 
     public static async Task ApprovalAsync(
@@ -419,7 +420,7 @@ internal static class AssistantEndpoint {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
-        Redirects.SeeOther(context, "/assistant");
+        Redirect.SeeOther(context, "/assistant");
     }
 
     private static async Task WriteMessageAsync(HttpContext context, AgentMessage message) {

@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using uk.osric.asp.Core.Agent;
 
+/// <summary>The meter and instruments that describe agent runs.</summary>
 internal sealed class AgentMetrics : IDisposable {
     public const string MeterName = "uk.osric.asp.Agent";
     public static readonly double[] StepBuckets = [1, 2, 3, 5, 8, 12, 16, 24];

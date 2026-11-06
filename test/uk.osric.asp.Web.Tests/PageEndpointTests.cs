@@ -249,7 +249,7 @@ public sealed class PageEndpointTests {
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("done"));
     }
 
-    // The encoding matrix belongs to Redirects.To and is covered there; this is the wiring: the page's
+    // The encoding matrix belongs to Redirect.To and is covered there; this is the wiring: the page's
     // target reaches the header and no body is written with it.
     [TestCase("/elsewhere")]
     [TestCase("/search?q=metrics")]
@@ -398,7 +398,7 @@ public sealed class PageEndpointTests {
             PageEndpoint.Handle(context, CreatePages(storage, options), NullLoggerFactory.Instance, Reserved, options));
     }
 
-    private static string Generate(string template) {
+    private static GeneratedPageSource Generate(string template) {
         TemplateParseResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 
@@ -409,12 +409,12 @@ public sealed class PageEndpointTests {
     private PageRenderer CreatePages(IPageStore storage, RenderOptions? options = null) {
         RenderOptions render = options ?? Options;
         PageBudget budget = new(render, new CompileOptions());
-        TemplateCompiler templates = new(_compiler, budget, _metrics, NullLogger<TemplateCompiler>.Instance);
+        PageCompilationService compilations = new(_compiler, budget, _metrics, NullLogger<PageCompilationService>.Instance);
 
         return new PageRenderer(
             storage,
             _compiler,
-            templates,
+            compilations,
             _metrics,
             budget,
             new PageHealth(render.AbandonedLimit),

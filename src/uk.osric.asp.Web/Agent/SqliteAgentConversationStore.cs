@@ -12,6 +12,7 @@ using System.Text.Json;
 using uk.osric.asp.Core.Agent;
 using uk.osric.asp.Web.Storage;
 
+/// <summary>The SQLite-backed conversation store.</summary>
 internal sealed class SqliteAgentConversationStore(StorageDbContext database, TimeProvider clock) : IAgentConversationStore {
 
     public async Task<AgentConversation> CreateAsync(string owner, CancellationToken cancellationToken = default) {

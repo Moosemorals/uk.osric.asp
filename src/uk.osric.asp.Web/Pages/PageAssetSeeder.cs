@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Pages;
 
+/// <summary>Seeds the pages the shell ships with, and reads them back for a restore.</summary>
 internal static class PageAssetSeeder {
 
     public static async Task SeedAsync(IPageStore pages, CancellationToken cancellationToken = default) {

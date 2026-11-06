@@ -6,8 +6,10 @@ namespace uk.osric.asp.Web.Agent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
+/// <summary>A run waiting for a worker.</summary>
 internal sealed record AgentQueuedRun(long ConversationId, string RunId, string Owner);
 
+/// <summary>The bounded queue of runs waiting for a worker.</summary>
 internal sealed class AgentRunQueue {
     private readonly Channel<AgentQueuedRun> _queue;
     private readonly int _capacity;

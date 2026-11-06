@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Http;
 
 using uk.osric.asp.Core.Pages;
 
+/// <summary>Answers a URL that names no page with a plain-text 404.</summary>
 internal static class NotFound {
 
     // One message for every "this URL names no page" answer - missing, reserved or impossible - so a

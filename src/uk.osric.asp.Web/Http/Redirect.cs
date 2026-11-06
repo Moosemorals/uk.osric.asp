@@ -3,7 +3,8 @@
 
 namespace uk.osric.asp.Web.Http;
 
-internal static class Redirects {
+/// <summary>Sends a redirect, encoding each part of the target with the type that understands it.</summary>
+internal static class Redirect {
 
     /// <summary>Sends <paramref name="target"/> as the location of a redirect.</summary>
     /// <param name="context">The request being answered.</param>

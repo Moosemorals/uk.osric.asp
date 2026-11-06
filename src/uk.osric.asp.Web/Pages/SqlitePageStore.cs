@@ -13,6 +13,7 @@ using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Storage;
 
+/// <summary>The SQLite-backed page store.</summary>
 internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefresh? storageRefresh = null) : IPageStore {
 
     private const int IdentityRetryCount = 3;
@@ -23,7 +24,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
     };
 
     public async Task<StoredPage?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
-        StoredRevision? revision = await database.Set<PageHead>().AsNoTracking()
+        StoredRevision? revision = await database.Set<StoredPageHead>().AsNoTracking()
             .Where(head => head.Path == path.Key && !head.IsDeleted)
             .Join(database.Set<StoredRevision>().AsNoTracking(),
                 head => new { head.RevisionId, head.Path },
@@ -35,7 +36,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
     }
 
     public async Task<IReadOnlyList<PageHeadSummary>> ListPagesAsync(CancellationToken cancellationToken = default) {
-        var rows = await database.Set<PageHead>().AsNoTracking()
+        var rows = await database.Set<StoredPageHead>().AsNoTracking()
             .Select(head => new { head.Path, head.IsDeleted })
             .ToArrayAsync(cancellationToken);
 
@@ -44,7 +45,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
     }
 
     public async Task<PageHeadSummary?> GetHeadAsync(PagePath path, CancellationToken cancellationToken = default) {
-        PageHead? head = await database.Set<PageHead>().AsNoTracking()
+        StoredPageHead? head = await database.Set<StoredPageHead>().AsNoTracking()
             .SingleOrDefaultAsync(row => row.Path == path.Key, cancellationToken);
 
         return head is null ? null : new PageHeadSummary(PagePath.Normalize(head.Path), head.IsDeleted);
@@ -69,7 +70,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 revision.RuntimeId,
                 HasImage = revision.Image != null,
                 HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
-                IsCurrent = database.Set<PageHead>().Any(head =>
+                IsCurrent = database.Set<StoredPageHead>().Any(head =>
                     head.Path == path.Key
                     && !head.IsDeleted
                     && head.RevisionId == revision.RevisionId),
@@ -140,7 +141,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 string revisionId = Guid.NewGuid().ToString("N");
                 revision = revision with {
                     RevisionId = revisionId,
-                    Hash = PageRevisionHash.Compute(revision.Content, revision.CreationRuntimeId, revision.SavedAt, revisionId),
+                    Hash = PageRevisionHash.Of(revision.Content, revision.CreationRuntimeId, revision.SavedAt, revisionId),
                 };
             }
         }
@@ -182,7 +183,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 string revisionId = Guid.NewGuid().ToString("N");
                 revision = revision with {
                     RevisionId = revisionId,
-                    Hash = PageRevisionHash.Compute(revision.Content, revision.CreationRuntimeId, revision.SavedAt, revisionId),
+                    Hash = PageRevisionHash.Of(revision.Content, revision.CreationRuntimeId, revision.SavedAt, revisionId),
                 };
             }
         }
@@ -206,7 +207,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
     }
 
     public async Task<bool> DeletePageAsync(PagePath path, CancellationToken cancellationToken = default) {
-        int updated = await database.Set<PageHead>()
+        int updated = await database.Set<StoredPageHead>()
             .Where(head => head.Path == path.Key && !head.IsDeleted)
             .ExecuteUpdateAsync(setters => setters.SetProperty(head => head.IsDeleted, true), cancellationToken);
 
@@ -220,7 +221,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
 
             bool existed;
             await using (IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken)) {
-                int deletedHeads = await database.Set<PageHead>()
+                int deletedHeads = await database.Set<StoredPageHead>()
                     .Where(head => head.Path == path.Key && head.IsDeleted)
                     .ExecuteDeleteAsync(cancellationToken);
                 if (deletedHeads > 0) {

@@ -12,6 +12,7 @@ using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
+/// <summary>Restores a shipped page over the live one, behind a confirmation form.</summary>
 internal static class AdminRestoreEndpoint {
 
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
@@ -64,7 +65,7 @@ internal static class AdminRestoreEndpoint {
 
         await pages.SaveAsync(path, content, context.RequestAborted);
         context.Session.SetString(EditorEndpoint.MessageKey, "Restored the bundled version.");
-        Redirects.SeeOther(context, PageUrls.Editor(path));
+        Redirect.SeeOther(context, PageUrls.Editor(path));
     }
 
     private static bool TryGetPath(StringValues values, out PagePath path) {

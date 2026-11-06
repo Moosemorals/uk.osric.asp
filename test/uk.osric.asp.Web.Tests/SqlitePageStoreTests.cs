@@ -105,7 +105,7 @@ public sealed class SqlitePageStoreTests {
 
         Assert.That((await storage.GetPageAsync(Key("/example.cs")))?.Content, Is.EqualTo("first"));
         Assert.That((await storage.GetPageAsync(Key("/other.cs")))?.Content, Is.EqualTo("second"));
-        Assert.That(await database.Set<PageHead>().CountAsync(), Is.EqualTo(2));
+        Assert.That(await database.Set<StoredPageHead>().CountAsync(), Is.EqualTo(2));
     }
 
     [Test]
@@ -132,7 +132,7 @@ public sealed class SqlitePageStoreTests {
 
         Assert.That(rows, Has.Length.EqualTo(Writers));
         Assert.That(rows, Has.All.Matches<StoredRevision>(row => row is not null && row.ContentHash == ContentFingerprint.Of(row.Content)));
-        PageHead head = (await reader.Set<PageHead>().SingleAsync(row => row.Path == path.Key))!;
+        StoredPageHead head = (await reader.Set<StoredPageHead>().SingleAsync(row => row.Path == path.Key))!;
         Assert.That(rows, Has.Some.Matches<StoredRevision>(row => row is not null && row.RevisionId == head.RevisionId));
     }
 
@@ -231,7 +231,7 @@ public sealed class SqlitePageStoreTests {
         StoredPage page = (await storage.GetPageAsync(Key("/first")))!;
 
         await Assert.ThrowsAsync<DbUpdateException>(async () => {
-            database.Add(new PageHead { Path = "/second", RevisionId = page.RevisionId });
+            database.Add(new StoredPageHead { Path = "/second", RevisionId = page.RevisionId });
             await database.SaveChangesAsync();
         });
     }

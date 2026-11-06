@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Agent;
 
 using Microsoft.Extensions.Options;
 
+/// <summary>The agent's configuration: provider, model, limits and the enabled switch.</summary>
 internal sealed class AgentOptions {
     public bool Enabled { get; init; }
     public string Provider { get; init; } = "deepseek";
@@ -43,6 +44,7 @@ internal sealed class AgentOptions {
     public string WritablePathPrefix { get; init; } = "";
 }
 
+/// <summary>Rejects an agent configuration its client could not use.</summary>
 internal sealed class AgentOptionsValidator : IValidateOptions<AgentOptions> {
     private const int MinimumContextChars = 16_384;
 

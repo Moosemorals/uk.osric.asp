@@ -762,9 +762,9 @@ public sealed class EditorEndpointTests {
 
     private PageEditor CreatePages(IPageStore storage) {
         PageBudget budget = new(new RenderOptions(), new CompileOptions());
-        TemplateCompiler templates = new(_compiler, budget, _metrics, NullLogger<TemplateCompiler>.Instance);
+        PageCompilationService compilations = new(_compiler, budget, _metrics, NullLogger<PageCompilationService>.Instance);
 
-        return new PageEditor(storage, templates, _metrics, NullLogger<PageEditor>.Instance);
+        return new PageEditor(storage, compilations, _metrics, NullLogger<PageEditor>.Instance);
     }
 
     private static DefaultHttpContext CreateContext(string method = "GET", string? path = "page.cs") {

@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using uk.osric.asp.Core.Agent;
 
+/// <summary>Streams completions from an OpenAI-compatible chat-completions endpoint.</summary>
 internal sealed class OpenAiChatCompletionClient(HttpClient client, AgentOptions options) : IChatCompletionClient {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new() {

@@ -7,10 +7,12 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Pages;
 
+/// <summary>A validated page path, or why the agent may not use the one it asked for.</summary>
 internal sealed record AgentPathResult(PagePath? Path, string? Error) {
     public bool Success => Error is null;
 }
 
+/// <summary>The rule for which pages the agent may read and write.</summary>
 internal sealed class AgentPaths {
     private readonly ReservedPaths _reserved;
     private readonly HashSet<string> _protectedPaths;

@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Html;
 using Microsoft.AspNetCore.Antiforgery;
 using System.Net;
 
+/// <summary>The one renderer of the antiforgery field every mutating form carries.</summary>
 internal static class AntiforgeryField {
 
     /// <summary>Renders the hidden input that carries the antiforgery pair in a form.</summary>

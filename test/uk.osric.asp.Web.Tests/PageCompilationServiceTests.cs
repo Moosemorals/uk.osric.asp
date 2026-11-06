@@ -14,7 +14,7 @@ using uk.osric.asp.Web.Pages;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 // The two deadline tests measure a wall clock, so the fixture wants the process to itself.
 [NonParallelizable]
-public sealed class TemplateCompilerTests {
+public sealed class PageCompilationServiceTests {
 
     [Test]
     public void CompileReturnsAnImageWithNoDiagnostics() {
@@ -103,6 +103,6 @@ public sealed class TemplateCompilerTests {
     private static PageCompilation Compile(PageHarness pages, string path, string content) {
         PagePath key = PageHarness.Key(path);
 
-        return pages.Templates.Compile(key, content, PageMetrics.ReasonSave, CancellationToken.None);
+        return pages.Compilations.Compile(key, content, PageMetrics.ReasonSave, CancellationToken.None);
     }
 }

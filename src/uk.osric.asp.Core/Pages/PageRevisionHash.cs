@@ -19,7 +19,7 @@ public static class PageRevisionHash {
     /// <param name="savedAt">The save instant, normalized to UTC for encoding.</param>
     /// <param name="revisionId">The unique shell-generated identifier for this save.</param>
     /// <returns>A lowercase 64-character SHA-256 digest.</returns>
-    public static string Compute(string source, string creationRuntimeId, DateTimeOffset savedAt, string revisionId) {
+    public static string Of(string source, string creationRuntimeId, DateTimeOffset savedAt, string revisionId) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(creationRuntimeId);
         ArgumentNullException.ThrowIfNull(revisionId);

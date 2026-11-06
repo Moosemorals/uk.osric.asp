@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Html;
 
 using System.Net;
 
+/// <summary>Writes the document shell every non-page view shares: head, skip link and the open <c>main</c> landmark.</summary>
 internal static class ShellDocument {
 
     /// <summary>Starts a shell document: the head, the skip link and the open <c>main</c> landmark.</summary>

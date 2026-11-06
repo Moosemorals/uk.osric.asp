@@ -40,7 +40,7 @@ internal sealed class PageEndpoint() {
         if (!string.Equals(context.Request.Path.Value, path.Key, StringComparison.Ordinal)) {
             // The query is carried across, because the page is handed it and dropping it would change
             // what the page sees for a URL that is merely written with the wrong case.
-            Redirects.Permanent(context, path.Key + context.Request.QueryString.ToUriComponent());
+            Redirect.Permanent(context, path.Key + context.Request.QueryString.ToUriComponent());
             return;
         }
 
@@ -86,7 +86,7 @@ internal sealed class PageEndpoint() {
     // headers first, and nothing at all when the page redirected or the request was a HEAD.
     private static async Task WritePageAsync(HttpContext context, PageResponse response, string body) {
         if (response.Location is not null) {
-            Redirects.To(context, response.Status, response.Location);
+            Redirect.To(context, response.Status, response.Location);
             return;
         }
 

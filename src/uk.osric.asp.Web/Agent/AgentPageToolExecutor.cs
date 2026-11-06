@@ -11,8 +11,10 @@ using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
+/// <summary>What one tool call produced, as the model receives it.</summary>
 internal sealed record AgentToolExecutionResult(bool Success, string Content, string Summary);
 
+/// <summary>Runs the page tools the model asks for: read, write, list and delete.</summary>
 internal sealed class AgentPageToolExecutor(
     IServiceScopeFactory scopeFactory,
     AgentPaths paths,

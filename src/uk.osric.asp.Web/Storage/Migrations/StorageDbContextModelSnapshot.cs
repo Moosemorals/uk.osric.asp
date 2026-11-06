@@ -44,7 +44,7 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("AuthTickets", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.AgentConversation", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentConversation", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -86,7 +86,7 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("AgentConversations", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.AgentMessage", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentMessage", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -146,7 +146,7 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("AgentMessages", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.AgentRun", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentRun", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(32)
@@ -213,7 +213,7 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("AgentRuns", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.AgentToolApproval", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentToolApproval", b =>
                 {
                     b.Property<string>("RunId")
                         .HasMaxLength(32)
@@ -249,7 +249,7 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("AgentToolApprovals", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.PageHead", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Pages.StoredPageHead", b =>
                 {
                     b.Property<string>("Path")
                         .HasColumnType("TEXT")
@@ -270,7 +270,7 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("PageHeads", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.StoredRevision", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Pages.StoredRevision", b =>
                 {
                     b.Property<string>("RevisionId")
                         .HasColumnType("TEXT")
@@ -347,42 +347,42 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.AgentMessage", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentMessage", b =>
                 {
-                    b.HasOne("uk.osric.asp.Web.Storage.AgentConversation", null)
+                    b.HasOne("uk.osric.asp.Web.Agent.AgentConversation", null)
                         .WithMany()
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("uk.osric.asp.Web.Storage.AgentRun", null)
+                    b.HasOne("uk.osric.asp.Web.Agent.AgentRun", null)
                         .WithMany()
                         .HasForeignKey("RunId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.AgentRun", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentRun", b =>
                 {
-                    b.HasOne("uk.osric.asp.Web.Storage.AgentConversation", null)
+                    b.HasOne("uk.osric.asp.Web.Agent.AgentConversation", null)
                         .WithMany()
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.AgentToolApproval", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentToolApproval", b =>
                 {
-                    b.HasOne("uk.osric.asp.Web.Storage.AgentRun", null)
+                    b.HasOne("uk.osric.asp.Web.Agent.AgentRun", null)
                         .WithMany()
                         .HasForeignKey("RunId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Storage.PageHead", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Pages.StoredPageHead", b =>
                 {
-                    b.HasOne("uk.osric.asp.Web.Storage.StoredRevision", null)
+                    b.HasOne("uk.osric.asp.Web.Pages.StoredRevision", null)
                         .WithMany()
                         .HasForeignKey("RevisionId", "Path")
                         .HasPrincipalKey("RevisionId", "Path")

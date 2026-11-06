@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Agent;
 
+/// <summary>One journaled event of a run, as the assistant page replays it.</summary>
 internal sealed record AgentEvent(string RunId, long Sequence, string Type, string DataJson) {
     public string EventId => $"{RunId}:{Sequence}";
 }

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Data.Common;
 using uk.osric.asp.Web.Pages;
 
+/// <summary>Samples the database file's size and records it for the status page.</summary>
 internal sealed class PageStorageSampler(
     IServiceScopeFactory scopes,
     PageMetrics metrics,

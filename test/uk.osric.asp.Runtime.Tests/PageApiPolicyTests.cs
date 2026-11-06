@@ -238,7 +238,7 @@ public sealed class PageApiPolicyTests {
         return Compiler.Compile(Generate(template));
     }
 
-    private static string Generate(string template) {
+    private static GeneratedPageSource Generate(string template) {
         TemplateParseResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 

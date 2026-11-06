@@ -9,9 +9,12 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Data.Common;
 using System.Globalization;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Agent;
 using uk.osric.asp.Web.Authentication;
+using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Users;
 
+/// <summary>The EF Core context: every table the site stores, mapped in one place.</summary>
 internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> options) : DbContext(options) {
     private static readonly DbConnectionInterceptor s_revisionHashInterceptor = new RevisionHashInterceptor();
 
@@ -31,7 +34,7 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             revision.HasIndex(row => row.Path);
         });
 
-        modelBuilder.Entity<PageHead>(head => {
+        modelBuilder.Entity<StoredPageHead>(head => {
             head.ToTable("PageHeads");
             head.HasKey(row => row.Path);
             head.Property(row => row.Path).UseCollation("BINARY");
@@ -135,7 +138,7 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
 
             sqlite.CreateFunction<string, string, string, string, string>(
                 "page_revision_hash",
-                (source, runtimeId, savedAt, revisionId) => PageRevisionHash.Compute(
+                (source, runtimeId, savedAt, revisionId) => PageRevisionHash.Of(
                     source,
                     runtimeId,
                     DateTimeOffset.Parse(savedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),

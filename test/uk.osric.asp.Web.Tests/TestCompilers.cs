@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Runtime;
 
 /// <summary>A compiler that always fails the way a broken generator would.</summary>
@@ -10,7 +11,7 @@ internal sealed class FaultingCompiler : IPageCompiler {
 
     public string RuntimeId => "faulting";
 
-    public PageCompileResult Compile(string source, CancellationToken cancellationToken = default) {
+    public PageCompileResult Compile(GeneratedPageSource source, CancellationToken cancellationToken = default) {
         throw new InvalidOperationException("The generated page source did not compile.");
     }
 
@@ -27,7 +28,7 @@ internal sealed class SlowCompiler(IPageCompiler inner) : IPageCompiler {
 
     public string RuntimeId => inner.RuntimeId;
 
-    public PageCompileResult Compile(string source, CancellationToken cancellationToken = default) {
+    public PageCompileResult Compile(GeneratedPageSource source, CancellationToken cancellationToken = default) {
         Thread.Sleep(TimeSpan.FromMilliseconds(1300));
 
         return inner.Compile(source, cancellationToken);
@@ -47,7 +48,7 @@ internal sealed class StallingCompiler : IPageCompiler {
 
     public string RuntimeId => "stalling";
 
-    public PageCompileResult Compile(string source, CancellationToken cancellationToken = default) {
+    public PageCompileResult Compile(GeneratedPageSource source, CancellationToken cancellationToken = default) {
         cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
         throw new OperationCanceledException(cancellationToken);
     }

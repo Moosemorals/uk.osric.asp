@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Agent;
 
+/// <summary>Drops expired run journals on a timer.</summary>
 internal sealed class AgentRunJournalCleanupService(
     AgentRunRegistry registry,
     ILogger<AgentRunJournalCleanupService> logger) : BackgroundService {

@@ -23,7 +23,7 @@ using uk.osric.asp.Runtime;
 internal sealed class PageRenderer(
     IPageStore storage,
     IPageCompiler compiler,
-    TemplateCompiler templates,
+    PageCompilationService compilations,
     PageMetrics metrics,
     PageBudget budget,
     PageHealth health,
@@ -126,7 +126,7 @@ internal sealed class PageRenderer(
             metrics.RecordStaleness(path, StalenessReason(page.Compilation));
             metrics.RecordCacheLookup(PageMetrics.LookupStale);
 
-            PageCompilation compilation = templates.Compile(path, page.Content, PageMetrics.ReasonLazy, cancellationToken, deadline);
+            PageCompilation compilation = compilations.Compile(path, page.Content, PageMetrics.ReasonLazy, cancellationToken, deadline);
 
             if (await storage.TrySetCompilationAsync(page.RevisionId, page.Content, compilation, cancellationToken)) {
                 StoredPage? current = await storage.GetPageAsync(path, deadline);

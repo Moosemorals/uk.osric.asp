@@ -10,28 +10,28 @@ using uk.osric.asp.Core.Compilation;
 public sealed class TemplateSourceGeneratorTests {
     [Test]
     public void TextBecomesAWriteRawCall() {
-        string? source = TemplateSourceGenerator.Generate("Hello").Source;
+        string? source = TemplateSourceGenerator.Generate("Hello").Source?.Text;
 
         Assert.That(source, Does.Contain("ctx.WriteRaw(@\"Hello\");"));
     }
 
     [Test]
     public void QuotesInTextAreDoubledForAVerbatimLiteral() {
-        string? source = TemplateSourceGenerator.Generate("Quote: \"Hello\"\\path").Source;
+        string? source = TemplateSourceGenerator.Generate("Quote: \"Hello\"\\path").Source?.Text;
 
         Assert.That(source, Does.Contain("ctx.WriteRaw(@\"Quote: \"\"Hello\"\"\\path\");"));
     }
 
     [Test]
     public void NewlinesInTextArePreserved() {
-        string? source = TemplateSourceGenerator.Generate("first\r\nsecond").Source;
+        string? source = TemplateSourceGenerator.Generate("first\r\nsecond").Source?.Text;
 
         Assert.That(source, Does.Contain("@\"first\r\nsecond\""));
     }
 
     [Test]
     public void CodeBlocksAreCopiedVerbatimBetweenText() {
-        string? source = TemplateSourceGenerator.Generate("before<% ctx.Write(\"middle\"); %>after").Source;
+        string? source = TemplateSourceGenerator.Generate("before<% ctx.Write(\"middle\"); %>after").Source?.Text;
 
         Assert.That(source, Does.Contain("ctx.WriteRaw(@\"before\");"));
         Assert.That(source, Does.Contain("ctx.Write(\"middle\");"));
@@ -108,7 +108,7 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void GeneratedSourceDeclaresAHandler() {
-        string? source = TemplateSourceGenerator.Generate("").Source;
+        string? source = TemplateSourceGenerator.Generate("").Source?.Text;
 
         Assert.That(source, Does.Contain("using uk.osric.asp.Sdk;"));
         Assert.That(source, Does.Contain("class GeneratedPage : uk.osric.asp.Sdk.IHandler"));
@@ -256,7 +256,7 @@ public sealed class TemplateSourceGeneratorTests {
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Errors));
 
         // The assertion above proves source was generated.
-        return result.Source!;
+        return result.Source!.Text;
     }
 
     [Test]

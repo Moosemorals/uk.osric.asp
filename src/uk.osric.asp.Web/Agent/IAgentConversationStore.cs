@@ -4,39 +4,8 @@
 namespace uk.osric.asp.Web.Agent;
 
 using uk.osric.asp.Core.Agent;
-using uk.osric.asp.Web.Storage;
 
-internal sealed record AgentConversationListItem(
-    long Id,
-    string Title,
-    string ApprovalMode,
-    DateTimeOffset UpdatedAt,
-    string? ActiveRunId);
-
-internal enum AgentRunStartStatus {
-    Started,
-    NotFound,
-    AlreadyActive,
-}
-
-internal enum AgentApprovalResolutionResult {
-    Approved,
-    Denied,
-    NotFound,
-    Conflict,
-}
-
-internal sealed record AgentRunStartResult(AgentRunStartStatus Status, string? RunId, long? UserMessageSequence);
-
-internal sealed record AgentMessageInput(
-    string Role,
-    string Content,
-    string? Reasoning = null,
-    string? ToolCallsJson = null,
-    string? ToolCallId = null,
-    string? ToolName = null,
-    string Status = "complete");
-
+/// <summary>Stores conversations, their messages, runs and tool approvals.</summary>
 internal interface IAgentConversationStore {
     Task<AgentConversation> CreateAsync(string owner, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AgentConversationListItem>> ListAsync(string owner, CancellationToken cancellationToken = default);

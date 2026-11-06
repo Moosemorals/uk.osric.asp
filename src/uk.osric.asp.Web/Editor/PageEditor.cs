@@ -8,6 +8,7 @@ using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
+/// <summary>The outcome of a save that applies only while the head still has the expected revision.</summary>
 internal sealed record ConditionalPageSaveResult(
     bool Saved,
     string? RevisionHash,
@@ -26,7 +27,7 @@ internal sealed record ConditionalPageSaveResult(
 /// </remarks>
 internal sealed class PageEditor(
     IPageStore storage,
-    TemplateCompiler templates,
+    PageCompilationService compilations,
     PageMetrics metrics,
     ILogger<PageEditor> logger) {
 
@@ -75,7 +76,7 @@ internal sealed class PageEditor(
 
         PageCompilation compilation;
         try {
-            compilation = templates.Compile(path, content, PageMetrics.ReasonSave, cancellationToken);
+            compilation = compilations.Compile(path, content, PageMetrics.ReasonSave, cancellationToken);
         } catch (InvalidOperationException) {
             // A compiler fault is our bug, but the author's edit must survive it. Store the source
             // without a compilation; the next request retries, and the failure still answers 500.
@@ -107,7 +108,7 @@ internal sealed class PageEditor(
 
         PageCompilation compilation;
         try {
-            compilation = templates.Compile(path, content, PageMetrics.ReasonSave, cancellationToken);
+            compilation = compilations.Compile(path, content, PageMetrics.ReasonSave, cancellationToken);
         } catch (InvalidOperationException) {
             await storage.TrySavePageAsync(NewRevision(path, content, null), expectedRevisionHash, cancellationToken);
             metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
@@ -140,9 +141,9 @@ internal sealed class PageEditor(
         DateTimeOffset savedAt = DateTimeOffset.UtcNow;
         return new StoredPage(path, content, compilation) {
             RevisionId = revisionId,
-            CreationRuntimeId = templates.RuntimeId,
+            CreationRuntimeId = compilations.RuntimeId,
             SavedAt = savedAt,
-            Hash = PageRevisionHash.Compute(content, templates.RuntimeId, savedAt, revisionId),
+            Hash = PageRevisionHash.Of(content, compilations.RuntimeId, savedAt, revisionId),
         };
     }
 }

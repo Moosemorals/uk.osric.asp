@@ -150,7 +150,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(source));
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedPageSource(source)));
     }
 
     [Test]
@@ -163,7 +163,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(source));
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedPageSource(source)));
     }
 
     [Test]
@@ -179,7 +179,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        PageCompileResult result = Compiler.Compile(source);
+        PageCompileResult result = Compiler.Compile(new GeneratedPageSource(source));
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -267,7 +267,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(source));
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedPageSource(source)));
     }
 
     [Test]
@@ -325,7 +325,7 @@ public sealed class PageCompilerTests {
         return Compiler.Compile(Generate(template));
     }
 
-    private static string Generate(string template) {
+    private static GeneratedPageSource Generate(string template) {
         TemplateParseResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 

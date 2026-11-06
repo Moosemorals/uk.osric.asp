@@ -59,7 +59,7 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   zoom and reflow, contrast, and how a chart is read aloud — is a written hand pass (DEC-110), with its
   findings recorded beside the plan.
 - **The execution budget** is tested in `Web.Tests` (`PageRendererTests` for the render deadline, the
-  render queue, the abandoned context and the body cap; `TemplateCompilerTests` for the compile queue
+  render queue, the abandoned context and the body cap; `PageCompilationServiceTests` for the compile queue
   and the compile deadline; `AbandonedRenderHealthCheckTests` for the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the
   host on a one-second budget and asserts `504`. A slow page there burns CPU against a wall clock
   rather than sleeping, because the page API policy refuses `Thread.Sleep` and `Task.Delay`. Nothing
@@ -149,7 +149,7 @@ its `TestAssembly.cs`:
   process, including the page meter another fixture is recording into. `MetricsEndpointTests` reads
   the same process-wide meter through the exporter, but asserts that a series is present rather than
   what it counts, so it is safe beside other fixtures.
-- `PageRendererTests`, `TemplateCompilerTests` and the one budget test in `PageEndpointTests` are
+- `PageRendererTests`, `PageCompilationServiceTests` and the one budget test in `PageEndpointTests` are
   `[NonParallelizable]`, for the same reason fixtures are the unit of parallelism: a page that
   outruns its budget cannot be stopped, so it keeps a core busy while the deadline continuation
   queues for a thread. Run beside another fixture's compiles, the answer lands late and a timing

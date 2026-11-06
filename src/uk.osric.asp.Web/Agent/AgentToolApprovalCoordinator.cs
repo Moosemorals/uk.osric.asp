@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Agent;
 
 using System.Collections.Concurrent;
 
+/// <summary>Pairs a run waiting on an approval with the decision the browser submits.</summary>
 internal sealed class AgentToolApprovalCoordinator {
     private readonly ConcurrentDictionary<(string RunId, string ToolCallId), TaskCompletionSource<AgentApprovalResolutionResult>> _pending = [];
 

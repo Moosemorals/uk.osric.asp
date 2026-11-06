@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Web.Storage;
+namespace uk.osric.asp.Web.Agent;
 
+/// <summary>A stored conversation: its owner, title and approval mode.</summary>
 internal sealed class AgentConversation {
     public long Id { get; set; }
     public required string Owner { get; set; }

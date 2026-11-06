@@ -91,7 +91,7 @@ public static class TemplateSourceGenerator {
         result.Append(Environment.NewLine);
         result.Append("}}");
 
-        return new TemplateParseResult(result.ToString(), []);
+        return new TemplateParseResult(new GeneratedPageSource(result.ToString()), []);
     }
 
     private static void AppendText(StringBuilder result, Token token) {

@@ -25,7 +25,7 @@ public sealed class RedirectsTests {
     public void ARelativeTargetKeepsItsQueryAndFragment(string target, string expectedLocation) {
         DefaultHttpContext context = TestHttp.CreateContext(null);
 
-        Redirects.To(context, StatusCodes.Status302Found, target);
+        Redirect.To(context, StatusCodes.Status302Found, target);
 
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(expectedLocation));
     }
@@ -34,7 +34,7 @@ public sealed class RedirectsTests {
     public void ToSendsTheStatusItIsGiven() {
         DefaultHttpContext context = TestHttp.CreateContext(null);
 
-        Redirects.To(context, StatusCodes.Status307TemporaryRedirect, "/hello");
+        Redirect.To(context, StatusCodes.Status307TemporaryRedirect, "/hello");
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(307));
     }
@@ -43,7 +43,7 @@ public sealed class RedirectsTests {
     public void PermanentIsPermanent() {
         DefaultHttpContext context = TestHttp.CreateContext(null);
 
-        Redirects.Permanent(context, "/hello?q=1");
+        Redirect.Permanent(context, "/hello?q=1");
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(308));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/hello?q=1"));
@@ -53,7 +53,7 @@ public sealed class RedirectsTests {
     public void SeeOtherIsSeeOther() {
         DefaultHttpContext context = TestHttp.CreateContext(null);
 
-        Redirects.SeeOther(context, "/edit/hello?tab=source");
+        Redirect.SeeOther(context, "/edit/hello?tab=source");
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/hello?tab=source"));

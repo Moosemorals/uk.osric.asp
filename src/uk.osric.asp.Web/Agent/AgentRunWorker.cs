@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Agent;
 
 using Microsoft.Extensions.DependencyInjection;
 
+/// <summary>Reads the run queue and runs jobs within the configured concurrency.</summary>
 internal sealed class AgentRunWorker(
     AgentRunQueue queue,
     IServiceScopeFactory scopeFactory,

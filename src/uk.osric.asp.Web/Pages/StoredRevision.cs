@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Web.Storage;
+namespace uk.osric.asp.Web.Pages;
 
+/// <summary>One immutable saved revision, with the compile result built from it.</summary>
 internal sealed class StoredRevision {
     public required string RevisionId { get; init; }
 

@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Web.Storage;
+namespace uk.osric.asp.Web.Agent;
 
+/// <summary>A stored decision on one tool call that awaited approval.</summary>
 internal sealed class AgentToolApproval {
     public required string RunId { get; set; }
     public required string ToolCallId { get; set; }

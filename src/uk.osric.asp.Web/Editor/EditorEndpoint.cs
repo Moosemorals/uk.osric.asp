@@ -16,6 +16,7 @@ using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
+/// <summary>Serves the editor: source, revisions, save, rename and delete.</summary>
 internal sealed class EditorEndpoint {
 
     internal const string MessageKey = "editor.message";
@@ -67,7 +68,7 @@ internal sealed class EditorEndpoint {
         }
 
         if (!string.Equals(context.Request.Path.Value, "/edit" + path.Key, StringComparison.Ordinal)) {
-            Redirects.Permanent(context, editorUrl + context.Request.QueryString.ToUriComponent());
+            Redirect.Permanent(context, editorUrl + context.Request.QueryString.ToUriComponent());
             return;
         }
 
@@ -184,7 +185,7 @@ internal sealed class EditorEndpoint {
             return Task.CompletedTask;
         }
 
-        Redirects.SeeOther(context, PageUrls.Editor(path));
+        Redirect.SeeOther(context, PageUrls.Editor(path));
         return Task.CompletedTask;
     }
 
@@ -266,10 +267,10 @@ internal sealed class EditorEndpoint {
             new(PageUrls.Editor(path), "Back to editor"),
             new("/edit", "Page listing"),
         ], "editor-menu"));
-        if (generated.Source is null) {
-            await context.Response.WriteAsync(PageLayout.Diagnostics(DiagnosticLine.From(generated.Errors)));
+        if (generated.Source is { } source) {
+            await context.Response.WriteAsync($"<pre class=\"source\" tabindex=\"0\">{WebUtility.HtmlEncode(source.Text)}</pre>");
         } else {
-            await context.Response.WriteAsync($"<pre class=\"source\" tabindex=\"0\">{WebUtility.HtmlEncode(generated.Source)}</pre>");
+            await context.Response.WriteAsync(PageLayout.Diagnostics(DiagnosticLine.From(generated.Errors)));
         }
         await ShellDocument.EndAsync(context);
     }
@@ -334,7 +335,7 @@ internal sealed class EditorEndpoint {
     private static async Task PostCommandAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, PagePath path, string? command) {
         if (command is null) {
             context.Session.SetString(MessageKey, await SaveAsync(context, pages, reserved, path));
-            Redirects.SeeOther(context, PageUrls.Editor(path));
+            Redirect.SeeOther(context, PageUrls.Editor(path));
             return;
         }
 
@@ -346,7 +347,7 @@ internal sealed class EditorEndpoint {
         if (command == "delete") {
             bool deleted = await pages.DeleteAsync(path, context.RequestAborted);
             context.Session.SetString(MessageKey, deleted ? $"Deleted {path.Key}; revision history is retained." : "Page was already missing.");
-            Redirects.SeeOther(context, "/edit");
+            Redirect.SeeOther(context, "/edit");
             return;
         }
 
@@ -390,7 +391,7 @@ internal sealed class EditorEndpoint {
             }
 
             context.Session.SetString(MessageKey, $"Scrubbed {path.Key} and its retained history.");
-            Redirects.SeeOther(context, "/edit");
+            Redirect.SeeOther(context, "/edit");
         } catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested) {
             throw;
         } catch (Exception exception) {

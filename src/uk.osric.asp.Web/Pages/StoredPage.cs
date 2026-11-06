@@ -24,7 +24,7 @@ internal sealed record StoredPage {
         RevisionId = Guid.NewGuid().ToString("N");
         CreationRuntimeId = Compilation?.RuntimeId ?? "legacy:unknown";
         SavedAt = DateTimeOffset.UtcNow;
-        Hash = PageRevisionHash.Compute(Content, CreationRuntimeId, SavedAt, RevisionId);
+        Hash = PageRevisionHash.Of(Content, CreationRuntimeId, SavedAt, RevisionId);
     }
 
     public PagePath Path { get; init; }

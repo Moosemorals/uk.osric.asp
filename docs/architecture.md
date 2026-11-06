@@ -68,8 +68,8 @@ and the logs quote them:
 | `TEMPLATE002` | `TemplateSourceGenerator` | a `<%=` or `<%==` expression is empty |
 | `PAGE001` | `PageApiPolicy` | the page used an API it may not use |
 | `PAGE002` | `PageApiChecker` | page code escaped its method, or a declaration block declared something other than a type |
-| `PAGE003` | `TemplateCompiler` | the page waited too long for a compile slot |
-| `PAGE004` | `TemplateCompiler` | the page took too long to compile |
+| `PAGE003` | `PageCompilationService` | the page waited too long for a compile slot |
+| `PAGE004` | `PageCompilationService` | the page took too long to compile |
 
 ## Where does code go?
 
@@ -78,10 +78,11 @@ and the logs quote them:
 | Business rules, calculations, parsing, formatting, validation | `Core`, as pure functions |
 | Values passed between layers | `Core`, as `record`/`readonly record struct` |
 | Emitting a page assembly, loading it and invoking the handler | `Runtime` |
-| Deciding when to compile, store and run a page | `Web`, in `TemplateCompiler`, `PageRenderer` and `PageEditor` |
+| Deciding when to compile, store and run a page | `Web`, in `PageCompilationService`, `PageRenderer` and `PageEditor` |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
-| Source storage: the EF Core context, its entities and migrations | `Web`, under `Storage` |
+| Source storage: the EF Core context and its migrations | `Web`, under `Storage` |
+| A table's EF entity | `Web`, with the vertical that owns it (`Users`, `Authentication`, `Pages`, `Agent`) |
 | The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteAgentConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
@@ -391,7 +392,7 @@ bundled source to an existing or tombstoned page as a new revision.
 
 Compiling is the expensive part of serving a page, so it happens when a page is saved rather than
 when it is viewed. `EditorEndpoint` hands the source to `PageEditor`, which compiles it through
-`TemplateCompiler` and stores the emitted assembly beside the source in the same row; `PageEndpoint`
+`PageCompilationService` and stores the emitted assembly beside the source in the same row; `PageEndpoint`
 then reads the image and runs it through `PageRenderer`. Four derived columns carry the result: `ContentHash`, `RuntimeId`, `Image` and `Diagnostics`.
 
 A stored image is trusted only when both keys match:
