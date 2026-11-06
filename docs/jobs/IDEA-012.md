@@ -140,7 +140,7 @@ rather than page-author costs while the surface is still new.
 - [IDEA-005](IDEA-005.md) page-declared types would let a page write its own async helper; that is
   only possible if the policy admits `Task`, which is a reason to settle the policy question here
   rather than there.
-- [ARCH-12](ARCH-12.md) changes write expressions. It is unaffected as long as the generator keeps
+- ARCH-12 changes write expressions. It is unaffected as long as the generator keeps
   accepting an arbitrary expression in `ctx.Write(...)`, `await` included.
 
 ## Not this idea

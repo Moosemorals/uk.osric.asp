@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Answered | 2026-11-03 |
 | Version measured | `ace-builds` 1.45.2, tag [`v1.45.2`](https://github.com/ajaxorg/ace-builds/tree/v1.45.2) |
 | Verdict | Yes as a progressively-enhanced editor over the existing textarea; no as a literal drop-in — it needs a custom mode, a mount script and a CSP decision, and it does not format C# |
-| Recorded | Nothing decided; adopting it needs a `DEC-` entry and a reconciliation with [IDEA-006](../jobs/IDEA-006.md) |
+| Recorded | Nothing decided; adopting it needs a `DEC-` entry and a reconciliation with IDEA-006 |
 
 ## The answer
 

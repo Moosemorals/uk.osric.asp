@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Writing a value from a template
 
-Implementation plan for [ARCH-12](../jobs/ARCH-12.md): add an escaped expression block,
+Implementation plan for ARCH-12: add an escaped expression block,
 `<%= %>`, and a raw expression block, `<%== %>`, alongside statement blocks and declaration blocks.
 
 ## Status

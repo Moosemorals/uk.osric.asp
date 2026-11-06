@@ -5,8 +5,8 @@ SPDX-License-Identifier: MIT
 
 # Non-HTML pages: favicon and stylesheet
 
-Implementation plan for [IDEA-007](../jobs/IDEA-007.md) and
-[IDEA-006](../jobs/IDEA-006.md). Together they prove that a stored page can serve useful non-HTML
+Implementation plan for IDEA-007 and
+IDEA-006. Together they prove that a stored page can serve useful non-HTML
 content, and move the site's own icon and stylesheet into the editor.
 
 ## Status

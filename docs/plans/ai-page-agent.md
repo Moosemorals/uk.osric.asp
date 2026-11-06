@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # AI page agent
 
-Implementation plan for [IDEA-008](../jobs/IDEA-008.md), extended from a one-shot drafting
+Implementation plan for IDEA-008, extended from a one-shot drafting
 surface into a multi-turn agent that can read, create, change and delete pages.
 
 **Status:** implemented, 2026-11-05. The automated suites cover the host, provider fakes, tools,

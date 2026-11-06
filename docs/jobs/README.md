@@ -17,24 +17,21 @@ first effort there.
 
 The defect and operation jobs were raised by the architecture review and the code-health scan of
 2026-10-30; BUG-13 came out of the BUG-06 fix, ARCH-11 came out of the BUG-05/BUG-13 planning, and
-BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added on 2026-11-01.
+BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added on 2026-11-01, and
+every status below was checked against the code on 2026-11-06.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
-| [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore UI |
-| [ARCH-12](ARCH-12.md) | Medium | M | A template has no shorthand for writing a value |
+| [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore action |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
 | [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
-| [OPS-03](OPS-03.md) | Medium | M | There is no CI pipeline |
+| [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
-| [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea |
+| [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter and linked diagnostics |
 | [IDEA-002](IDEA-002.md) | — | M | A page cannot call an outbound HTTP API — planned in [fetch and storage](../plans/page-fetch-and-storage.md) |
 | [IDEA-003](IDEA-003.md) | — | M | A page has nowhere to keep state — planned in [fetch and storage](../plans/page-fetch-and-storage.md) |
-| [IDEA-005](IDEA-005.md) | — | L | A page cannot declare a type, so shared code has to be copied |
-| [IDEA-006](IDEA-006.md) | — | S | `site.css` is a static file rather than a page |
-| [IDEA-007](IDEA-007.md) | — | S | The site has no favicon |
-| [IDEA-008](IDEA-008.md) | — | L | Writing pages by hand is the only way to write pages (implemented; see [plan](../plans/ai-page-agent.md)) |
+| [IDEA-005](IDEA-005.md) | — | L | Pages cannot share types between them |
 | [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive — must include page state once storage exists |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-011](IDEA-011.md) | — | M | Pages cannot opt into authentication |
@@ -60,50 +57,45 @@ Doing it after the sync members ship would be a second breaking contract and pol
 Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and
 self-contained comes first, because these are the ones that never get scheduled otherwise.
 
-1. **IDEA-007, then IDEA-006** — the icon and then the stylesheet as pages. Both small, and together
-   they answer the question the product work depends on: can a page serve CSS and an image as
-   happily as HTML? Do them back to back; the second tells you what caching needs fixing. See the
-   [combined plan](../plans/non-html-pages.md).
-2. **ARCH-07, history restore.** Retained revisions, page listing, generated-source inspection,
-   history browsing, tombstone deletion and explicit scrub are implemented. The remaining work is
-   restoring a selected revision as a new save; asset serving and PageLayout adoption remain
-   [IDEA-010](IDEA-010.md).
-3. **OPS-03, CI** — before the tree grows, so `make format-check`, `make test` and the licence check
-   run without being asked.
-4. **ARCH-12** — the write shorthand. A small language change, a large effect on how a page reads;
-   see the [implementation plan](../plans/template-value-output.md).
-5. **IDEA-012, async all the way** — decide before fetch and storage Phase 1. It is the cheapest
+1. **ARCH-07, revision restore.** History storage, page listing, generated-source inspection,
+   history browsing, tombstone deletion, explicit scrub and restoring a bundled seed are
+   implemented. What remains is restoring a selected revision as a new save; asset serving and
+   PageLayout adoption remain [IDEA-010](IDEA-010.md).
+2. **OPS-03, CI automation** — `make check` and `make ci` already exist; what is missing is
+   something that runs one of them without being asked.
+3. **IDEA-012, async all the way** — decide before fetch and storage Phase 1. It is the cheapest
    moment: nothing calls the new capabilities yet, so there is no page-author migration, and the
    signature change rides the same policy bump and recompile. See [the idea](IDEA-012.md).
-6. **IDEA-002 + IDEA-003, fetch and page storage** — planned together in
+4. **IDEA-002 + IDEA-003, fetch and page storage** — planned together in
    [fetch and storage](../plans/page-fetch-and-storage.md). Storage is the smaller independent
    slice; fetch follows on the same context plumbing. Both are allow-listed or bounded, and both
    are testable without a browser.
-7. **ARCH-07, history restore** — restore a selected revision as a new save.
-8. **IDEA-005, page types** — with the page SDK split done, the shared-code question has a real
-   answer.
-9. **IDEA-001, a proper editor** — a better authoring surface for the pages the site already has.
-10. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
-11. **IDEA-011, page authentication** — a page can opt into the existing sign-in, still with one
-    actual user and no roles. It is the hook that makes private pages and, later, per-user state
-    possible. It changes DEC-02, so it needs its own plan; it is not part of fetch/storage.
-12. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
-    and a rule, once there is something worth being woken for.
-13. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
+5. **IDEA-005, shared page types** — declarations inside one page are done; sharing them between
+   pages is the remaining question now that the page SDK split has an answer.
+6. **IDEA-001, a proper editor** — the line gutter, linked diagnostics and caret persistence are
+   done; syntax highlighting or adopting a third-party editor is what is left.
+7. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
+8. **IDEA-011, page authentication** — a page can opt into the existing sign-in, still with one
+   actual user and no roles. It is the hook that makes private pages and, later, per-user state
+   possible. It changes DEC-02, so it needs its own plan; it is not part of fetch/storage.
+9. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
+   and a rule, once there is something worth being woken for.
+10. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 
 ## Closed
 
 Resolved jobs; the files were deleted and their history is in git.
-
-IDEA-008 remains listed above as an implemented idea because its plan is the detailed behavior and
-operational record; it is not open work.
 
 | ID | Fix |
 | --- | --- |
 | ARCH-06 | The authenticated `/edit` listing shows live pages and tombstones, offers new-page navigation, and avoids loading revision bodies for the listing. See [the implementation plan](../plans/editor-tools-and-immutable-assets.md) |
 | ARCH-10 | Delete tombstones a page while retaining its revisions; saving recreates it in the same history. Explicit scrub removes the path's revisions with bounded SQLite secure-delete/WAL cleanup and clearly documented limitations. Startup seeding respects tombstones. See [the implementation plan](../plans/editor-tools-and-immutable-assets.md) and [deployment guidance](../../deploy/README.md#storage-and-migrations) |
 | ARCH-11 | The authenticated editor generates C# from the saved template without compiling, rendering or saving it; output is encoded and parse errors show diagnostics. See [the implementation plan](../plans/editor-tools-and-immutable-assets.md) |
+| ARCH-12 | `<%= %>` writes an escaped value and `<%== %>` a raw one; the tokenizer carries `Write`/`WriteRaw`, the generated expression keeps its template position, and an empty expression is `TEMPLATE002`. See [the implementation plan](../plans/template-value-output.md) |
 | IDEA-004 | The page contract moved to its own reference-free assembly, `uk.osric.asp.Sdk`. `Core` is host support again, the policy allows the SDK namespace and nothing else, the load context refuses `Core`, and `RuntimeId` carries both module version ids. See [the plan](../plans/page-sdk-split.md) |
+| IDEA-006 | `/site.css` is a seeded page rather than a static file, so the site's look is edited like any other page; `wwwroot` is empty, `UseStaticFiles` is gone, and the page owns its content type and validator. See [the non-HTML pages plan](../plans/non-html-pages.md) |
+| IDEA-007 | `/rocket.svg` is a seeded page served as `image/svg+xml`, and the document shell links it as the icon. See [the non-HTML pages plan](../plans/non-html-pages.md) |
+| IDEA-008 | Implemented as the multi-turn authenticated page-authoring agent. It is disabled by default, uses a configured OpenAI-compatible provider and bounded page-store tools, and its approval defaults and provider data flow are recorded in DEC-111. See [the plan](../plans/ai-page-agent.md) |
 | ARCH-03 | Renders have a deadline, a slot count and a body cap, compiles have their own slot and deadline, an abandoned render is logged and counted, and `/heath` reports it so podman restarts a wedged container. See [the plan](../plans/page-execution-budget.md). SEC-03 (the process boundary) is deliberately still open |
 | ARCH-02 | Pages are a restricted runtime: `IContext` carries a plain `PageRequest` snapshot and asks for `SetStatus`/`SetContentType`/`SetHeader`/`Redirect`, all applied after the buffered handler returns. `SimpleContext` is the only implementation, headers are allow-listed so a page cannot clobber the site's cookies, pages run only for `GET`/`POST`/`HEAD`, and a body over 1 MiB is refused. Documented in `docs/architecture.md` |
 | ARCH-04 | `CompiledTemplate.Invoke` unwraps the reflection wrapper with `ExceptionDispatchInfo`, so the shell sees the page's own exception and no longer knows about `TargetInvocationException`. The `NoInlining` attributes were removed with a note on what they would have been protecting |
