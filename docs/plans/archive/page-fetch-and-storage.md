@@ -506,7 +506,8 @@ deadline into each call.
 
 ### JSON
 
-`SqlitePageStateStore` owns one static `JsonSerializerOptions`:
+`PageStorageScope` owns one static `JsonSerializerOptions`, because it is the layer that knows `T`;
+the store deals in JSON text:
 
 ```csharp
 new JsonSerializerOptions(JsonSerializerDefaults.Web) {
