@@ -59,6 +59,60 @@ public sealed class AdminSeedsEndpointTests {
     }
 
     [Test]
+    public async Task ListOmitsTheRestoreFormForASeedThatMatchesAsync() {
+        FakePageStore storage = new();
+        foreach (PagePath path in PageAssetSeeder.SeedPaths()) {
+            storage[path.Key] = new PageTemplate(path, (await PageAssetSeeder.ReadSeedTemplateAsync(path))!);
+        }
+
+        PagePath edited = PagePath.Normalize("/assistant.css");
+        storage[edited.Key] = new PageTemplate(edited, "/* edited */");
+        using PageHarness pages = new(storage);
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
+
+        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("aria-label=\"Restore /assistant.css to its seed\""));
+        Assert.That(body, Does.Not.Contain("aria-label=\"Restore /editor.css to its seed\""));
+    }
+
+    [Test]
+    public async Task ListOmitsRestoreAllWhenEverySeedMatchesAsync() {
+        FakePageStore storage = new();
+        foreach (PagePath path in PageAssetSeeder.SeedPaths()) {
+            storage[path.Key] = new PageTemplate(path, (await PageAssetSeeder.ReadSeedTemplateAsync(path))!);
+        }
+
+        using PageHarness pages = new(storage);
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
+
+        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Not.Contain("Restore all seeds"));
+        Assert.That(body, Does.Not.Contain("action=\"/admin/seeds/restore-all\""));
+        Assert.That(body, Does.Not.Contain("action=\"/admin/seeds/restore\""));
+    }
+
+    [Test]
+    public async Task ListKeepsRestoreAllWhenOneSeedDiffersAsync() {
+        FakePageStore storage = new();
+        foreach (PagePath path in PageAssetSeeder.SeedPaths()) {
+            storage[path.Key] = new PageTemplate(path, (await PageAssetSeeder.ReadSeedTemplateAsync(path))!);
+        }
+
+        PagePath edited = PagePath.Normalize("/assistant.css");
+        storage[edited.Key] = new PageTemplate(edited, "/* edited */");
+        using PageHarness pages = new(storage);
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
+
+        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
+
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("action=\"/admin/seeds/restore-all\""));
+    }
+
+    [Test]
     public async Task ListMarksASeedThatAlreadyMatchesAsync() {
         PagePath path = PagePath.Normalize("/assistant.css");
         string seed = (await PageAssetSeeder.ReadSeedTemplateAsync(path))!;

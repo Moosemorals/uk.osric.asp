@@ -72,6 +72,22 @@ public sealed class AdminSeedsTests : IntegrationTest {
     }
 
     [Test]
+    public async Task ThePageHidesRestoreAllWhenEverySeedMatchesAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        await SavePageAsync("/assistant.css", "/* local edit */");
+        string token = await GetAntiforgeryTokenAsync(client, "/admin");
+        using HttpResponseMessage restored = await client.PostAsync("/admin/seeds/restore-all", Form(
+            ("__RequestVerificationToken", token)));
+        Assert.That(restored.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+
+        using HttpResponseMessage page = await client.GetAsync("/admin");
+        string body = await page.Content.ReadAsStringAsync();
+        Assert.That(body, Does.Contain("<td>Matches seed</td>"));
+        Assert.That(body, Does.Not.Contain("Restore all seeds"));
+        Assert.That(body, Does.Not.Contain("Restore to seed"));
+    }
+
+    [Test]
     public async Task RestoreRequiresAntiforgeryAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
 

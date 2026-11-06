@@ -22,9 +22,9 @@ internal static class AdminSeedsEndpoint {
 
     public static async Task ListAsync(HttpContext context, PageEditor pages, IAntiforgery antiforgery) {
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
-        List<(PagePath Path, string State)> rows = [];
+        List<SeedRow> rows = [];
         foreach (PagePath path in PageAssetSeeder.SeedPaths()) {
-            rows.Add((path, await StateAsync(pages, path, context.RequestAborted)));
+            rows.Add(await RowAsync(pages, path, context.RequestAborted));
         }
 
         await ShellDocument.BeginAsync(context, "Seeded pages");
@@ -32,31 +32,39 @@ internal static class AdminSeedsEndpoint {
         await WriteMessageAsync(context);
         await context.Response.WriteAsync(
             "<p>Restoring replaces the live page with the version bundled with this release. "
-            + "Revision history is retained; a page that already matches its seed is left alone.</p>");
+            + "Revision history is retained; a page that already matches its seed offers no restore.</p>");
         await context.Response.WriteAsync(PageLayout.Nav("Admin navigation", [
             new("/edit", "Page listing"),
         ], "editor-menu"));
-        await context.Response.WriteAsync($"""
-            <form method="post" action="{RestoreAllAction}">
-                {AntiforgeryField.Hidden(tokens)}
-                <button type="submit">Restore all seeds</button>
-            </form>
-            """);
-        await context.Response.WriteAsync("<table><thead><tr><th scope=\"col\">Page</th><th scope=\"col\">State</th><th scope=\"col\">Action</th></tr></thead><tbody>");
-        foreach ((PagePath path, string state) in rows) {
-            string key = WebUtility.HtmlEncode(path.Key);
-            string editor = WebUtility.HtmlEncode(PageUrls.Editor(path));
+        if (rows.Exists(row => row.NeedsRestore)) {
             await context.Response.WriteAsync($"""
-                <tr>
-                    <td><a href="{editor}">{key}</a></td>
-                    <td>{WebUtility.HtmlEncode(state)}</td>
-                    <td>
+                <form method="post" action="{RestoreAllAction}">
+                    {AntiforgeryField.Hidden(tokens)}
+                    <button type="submit">Restore all seeds</button>
+                </form>
+                """);
+        }
+
+        await context.Response.WriteAsync("<table><thead><tr><th scope=\"col\">Page</th><th scope=\"col\">State</th><th scope=\"col\">Action</th></tr></thead><tbody>");
+        foreach (SeedRow row in rows) {
+            string key = WebUtility.HtmlEncode(row.Path.Key);
+            string editor = WebUtility.HtmlEncode(PageUrls.Editor(row.Path));
+            string action = string.Empty;
+            if (row.NeedsRestore) {
+                action = $"""
                         <form method="post" action="{RestoreAction}">
                             {AntiforgeryField.Hidden(tokens)}
                             <input type="hidden" name="path" value="{key}">
                             <button type="submit" aria-label="Restore {key} to its seed">Restore to seed</button>
                         </form>
-                    </td>
+                    """;
+            }
+
+            await context.Response.WriteAsync($"""
+                <tr>
+                    <td><a href="{editor}">{key}</a></td>
+                    <td>{WebUtility.HtmlEncode(row.State)}</td>
+                    <td>{action}</td>
                 </tr>
                 """);
         }
@@ -118,23 +126,24 @@ internal static class AdminSeedsEndpoint {
         Redirect.SeeOther(context, "/admin");
     }
 
-    private static async Task<string> StateAsync(PageEditor pages, PagePath path, CancellationToken cancellationToken) {
+    private static async Task<SeedRow> RowAsync(PageEditor pages, PagePath path, CancellationToken cancellationToken) {
         PageHeadSummary? head = await pages.GetHeadAsync(path, cancellationToken);
         if (head is null) {
-            return "Missing";
+            return new SeedRow(path, "Missing", NeedsRestore: true);
         }
 
         if (head.IsDeleted) {
-            return "Deleted";
+            return new SeedRow(path, "Deleted", NeedsRestore: true);
         }
 
         PageTemplate? live = await pages.GetAsync(path, cancellationToken);
         string? seed = await PageAssetSeeder.ReadSeedTemplateAsync(path, cancellationToken);
         if (live is null || seed is null) {
-            return "Unavailable";
+            return new SeedRow(path, "Unavailable", NeedsRestore: true);
         }
 
-        return string.Equals(live.Template, seed, StringComparison.Ordinal) ? "Matches seed" : "Edited";
+        bool matches = string.Equals(live.Template, seed, StringComparison.Ordinal);
+        return new SeedRow(path, matches ? "Matches seed" : "Edited", NeedsRestore: !matches);
     }
 
     private static async Task<bool> SaveSeedAsync(
@@ -183,4 +192,6 @@ internal static class AdminSeedsEndpoint {
             await context.Response.WriteAsync($"<p>{WebUtility.HtmlEncode(message)}</p>");
         }
     }
+
+    private readonly record struct SeedRow(PagePath Path, string State, bool NeedsRestore);
 }

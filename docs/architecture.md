@@ -399,7 +399,8 @@ rules the document shell's markup needs (see "The document shell"), while `/stat
 dashboard styles and is linked only by `/status`. Editing a seed file changes the initial content for
 a never-created page, not an existing database page. The authenticated restore action applies the
 bundled source to an existing or tombstoned page as a new revision. `/admin` lists every seed with a
-per-page restore button and a restore-all action; a page that already matches its seed is left alone.
+per-page restore button, shown only where the page differs from its seed, and a restore-all action
+that disappears once every page matches; a page that already matches its seed is left alone.
 
 ## Compiled pages
 
