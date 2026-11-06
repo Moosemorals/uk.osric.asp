@@ -29,3 +29,7 @@ to treat the archive as untrusted input and validate it before changing stored p
    are imported; avoid a partially applied archive by accident.
 4. Put both operations behind the existing editor authorization and test malformed archives,
    path traversal names, duplicate paths, and a successful export/import round trip.
+5. Once page storage exists ([IDEA-003](IDEA-003.md)), include each page's key/value state in the
+   archive and validate it with the same key and value caps on import. A page archive that loses
+   state is not a round trip. The storage shape is recorded in
+   [the fetch and storage plan](../plans/page-fetch-and-storage.md).

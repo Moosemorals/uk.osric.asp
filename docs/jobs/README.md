@@ -29,18 +29,26 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [OPS-03](OPS-03.md) | Medium | M | There is no CI pipeline |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea |
-| [IDEA-002](IDEA-002.md) | — | M | A page cannot call an outbound HTTP API |
-| [IDEA-003](IDEA-003.md) | — | M | A page has nowhere to keep state |
+| [IDEA-002](IDEA-002.md) | — | M | A page cannot call an outbound HTTP API — planned in [fetch and storage](../plans/page-fetch-and-storage.md) |
+| [IDEA-003](IDEA-003.md) | — | M | A page has nowhere to keep state — planned in [fetch and storage](../plans/page-fetch-and-storage.md) |
 | [IDEA-005](IDEA-005.md) | — | L | A page cannot declare a type, so shared code has to be copied |
 | [IDEA-006](IDEA-006.md) | — | S | `site.css` is a static file rather than a page |
 | [IDEA-007](IDEA-007.md) | — | S | The site has no favicon |
 | [IDEA-008](IDEA-008.md) | — | L | Writing pages by hand is the only way to write pages (implemented; see [plan](../plans/ai-page-agent.md)) |
-| [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive |
+| [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive — must include page state once storage exists |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
+| [IDEA-011](IDEA-011.md) | — | M | Pages cannot opt into authentication |
 | [IDEA-012](IDEA-012.md) | — | M | A page cannot await its I/O — recommended before fetch and storage lands |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
+
+IDEA-002 and IDEA-003 are one planned change: both add capabilities to `IContext`, share the render
+deadline and need the same page contract. Their job files stay open until the plan ships; the plan
+is the implementation contract.
+
+IDEA-011 is deliberately separate from that work. It is the auth hook that makes a private page
+possible, and later makes per-user state possible; storage itself stays page-scoped and shared.
 
 IDEA-012 is the async question that fetch and storage deliberately answered "no" to (plan D3 and
 D6). It is recorded separately so the plan is not disturbed: it argues for an async handler and an
@@ -67,14 +75,18 @@ self-contained comes first, because these are the ones that never get scheduled 
 5. **IDEA-012, async all the way** — decide before fetch and storage Phase 1. It is the cheapest
    moment: nothing calls the new capabilities yet, so there is no page-author migration, and the
    signature change rides the same policy bump and recompile. See [the idea](IDEA-012.md).
-6. **IDEA-002, fetch** — the biggest single improvement to what a page can do. Allow-listed, bounded
-   and testable; take it before persistence, which has more open questions and less immediate payoff.
-7. **IDEA-003, persistence.** Useful sooner than most, and the answer to what a page may keep.
-8. **ARCH-07, history restore** — restore a selected revision as a new save.
-9. **IDEA-005, page types** — with the page SDK split done, the shared-code question has a real
+6. **IDEA-002 + IDEA-003, fetch and page storage** — planned together in
+   [fetch and storage](../plans/page-fetch-and-storage.md). Storage is the smaller independent
+   slice; fetch follows on the same context plumbing. Both are allow-listed or bounded, and both
+   are testable without a browser.
+7. **ARCH-07, history restore** — restore a selected revision as a new save.
+8. **IDEA-005, page types** — with the page SDK split done, the shared-code question has a real
    answer.
-10. **IDEA-001, a proper editor** — a better authoring surface for the pages the site already has.
-11. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
+9. **IDEA-001, a proper editor** — a better authoring surface for the pages the site already has.
+10. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
+11. **IDEA-011, page authentication** — a page can opt into the existing sign-in, still with one
+    actual user and no roles. It is the hook that makes private pages and, later, per-user state
+    possible. It changes DEC-02, so it needs its own plan; it is not part of fetch/storage.
 12. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
     and a rule, once there is something worth being woken for.
 13. **SEC-03** — the process boundary, only if page authors ever stop being the owner.

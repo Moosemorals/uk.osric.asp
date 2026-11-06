@@ -11,6 +11,12 @@ SPDX-License-Identifier: MIT
 | Area | Core, Web, security |
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Pages/SimpleContext.cs` |
 
+## Status
+
+Planned, together with [IDEA-003](IDEA-003.md), in
+[the fetch and storage plan](../plans/page-fetch-and-storage.md). This file keeps the original
+idea; the plan is the implementation contract.
+
 ## Idea
 
 `IContext` can read a request and shape a response but cannot reach anything: no `HttpClient`, no

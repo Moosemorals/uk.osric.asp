@@ -11,6 +11,12 @@ SPDX-License-Identifier: MIT
 | Area | Core, Web, storage |
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Storage/SqlitePageStore.cs` |
 
+## Status
+
+Planned, together with [IDEA-002](IDEA-002.md), in
+[the fetch and storage plan](../plans/page-fetch-and-storage.md). This file keeps the original
+idea; the plan is the implementation contract.
+
 ## Idea
 
 Everything a page knows arrives in the request and leaves in the response. A guestbook needs a
