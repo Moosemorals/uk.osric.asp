@@ -51,6 +51,23 @@ public sealed class ErrorHandlingTests : IntegrationTest {
     }
 
     [Test]
+    public async Task AThrowAfterAnAwaitIsReportedOnceAtItsTemplateLineAsync() {
+        // Resumption points can sit on the same template line as the statement that throws, so the
+        // projection has to keep one entry per line rather than one per frame.
+        await SavePageAsync("/throw", "line one\n<% await System.Threading.Tasks.Task.CompletedTask; throw new System.InvalidOperationException(\"Boom.\"); %>");
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync("/throw");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+        Assert.That(body, Does.Contain("at HandleAsync(IContext ctx) in /throw:line 2"));
+        Assert.That(body.Split("in /throw:line 2", StringSplitOptions.None).Length, Is.EqualTo(2),
+            "the template line must be reported once, not once per async frame");
+        Assert.That(body, Does.Not.Contain("GeneratedPage."), "no state-machine or handler name should leak");
+    }
+
+    [Test]
     public async Task ThrowingPostIsAnsweredByTheErrorPage() {
         // The page route accepts every verb, so this reproduces BUG-01: a failed POST used to fall
         // through the router and be answered with a 404 instead of the error page.
