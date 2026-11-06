@@ -19,7 +19,7 @@ public sealed class HealthReportWriterTests {
         DefaultHttpContext context = new();
         context.Response.Body = new MemoryStream();
 
-        await HealthReportWriter.WriteAsync(context, Report());
+        await ReportWriter.WriteAsync(context, Report());
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Not.Contain(Secret));
@@ -33,7 +33,7 @@ public sealed class HealthReportWriterTests {
         context.Response.Body = new MemoryStream();
         context.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "owner")], "Cookies"));
 
-        await HealthReportWriter.WriteAsync(context, Report());
+        await ReportWriter.WriteAsync(context, Report());
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain(Secret));
@@ -45,7 +45,7 @@ public sealed class HealthReportWriterTests {
         DefaultHttpContext context = new();
         context.Response.Body = new MemoryStream();
 
-        await HealthReportWriter.WriteAsync(context, Report());
+        await ReportWriter.WriteAsync(context, Report());
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status503ServiceUnavailable));

@@ -24,7 +24,7 @@ internal sealed record PageTemplate {
         RevisionId = Guid.NewGuid().ToString("N");
         CreationRuntimeId = Image?.RuntimeId ?? "legacy:unknown";
         SavedAt = DateTimeOffset.UtcNow;
-        Hash = PageRevisionHash.Of(Template, CreationRuntimeId, SavedAt, RevisionId);
+        Hash = RevisionHash.Of(Template, CreationRuntimeId, SavedAt, RevisionId);
     }
 
     public PagePath Path { get; init; }

@@ -10,12 +10,12 @@ using uk.osric.asp.Core.Charting;
 /// Failure is a value rather than an exception, because the status page is what gets opened when
 /// things are broken and must survive Prometheus being down.
 /// </remarks>
-internal abstract record MetricsQueryResult;
+internal abstract record QueryResult;
 
 /// <summary>The query answered with one series per labelled result.</summary>
 /// <param name="Series">The series, possibly empty when the query matched nothing.</param>
-internal sealed record MetricsMatrix(IReadOnlyList<ChartSeries> Series) : MetricsQueryResult;
+internal sealed record MetricsMatrix(IReadOnlyList<ChartSeries> Series) : QueryResult;
 
 /// <summary>The query could not be answered.</summary>
 /// <param name="Reason">Text for the banner, written for the person reading the page.</param>
-internal sealed record MetricsUnavailable(string Reason) : MetricsQueryResult;
+internal sealed record MetricsUnavailable(string Reason) : QueryResult;

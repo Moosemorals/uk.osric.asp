@@ -18,7 +18,7 @@ public sealed class PrometheusMetricsSourceTests {
 
     [Test]
     public async Task ValuesAreParsedAsInvariantStrings() {
-        MetricsQueryResult result = await QueryAsync("""
+        QueryResult result = await QueryAsync("""
             {"status":"success","data":{"resultType":"matrix","result":[
               {"metric":{"outcome":"ok"},"values":[[1700000000,"0.5"],[1700000060,"1.25"]]}
             ]}}
@@ -34,7 +34,7 @@ public sealed class PrometheusMetricsSourceTests {
 
     [Test]
     public async Task NanAndInfinitiesBecomeGaps() {
-        MetricsQueryResult result = await QueryAsync("""
+        QueryResult result = await QueryAsync("""
             {"status":"success","data":{"resultType":"matrix","result":[
               {"metric":{},"values":[[1700000000,"NaN"],[1700000060,"+Inf"],[1700000120,"-Inf"]]}
             ]}}
@@ -46,7 +46,7 @@ public sealed class PrometheusMetricsSourceTests {
 
     [Test]
     public async Task AnUnlabelledSeriesHasNoLabel() {
-        MetricsQueryResult result = await QueryAsync("""
+        QueryResult result = await QueryAsync("""
             {"status":"success","data":{"resultType":"matrix","result":[
               {"metric":{},"values":[[1700000000,"1"]]}
             ]}}
@@ -57,7 +57,7 @@ public sealed class PrometheusMetricsSourceTests {
 
     [Test]
     public async Task APagePathLabelArrivesUnderItsPrometheusName() {
-        MetricsQueryResult result = await QueryAsync("""
+        QueryResult result = await QueryAsync("""
             {"status":"success","data":{"resultType":"matrix","result":[
               {"metric":{"page_path":"/hue/ws"},"values":[[1700000000,"1"]]}
             ]}}
@@ -68,7 +68,7 @@ public sealed class PrometheusMetricsSourceTests {
 
     [Test]
     public async Task AStatusCodeLabelArrivesUnderItsPrometheusName() {
-        MetricsQueryResult result = await QueryAsync("""
+        QueryResult result = await QueryAsync("""
             {"status":"success","data":{"resultType":"matrix","result":[
               {"metric":{"http_response_status_code":"404"},"values":[[1700000000,"1"]]}
             ]}}
@@ -79,7 +79,7 @@ public sealed class PrometheusMetricsSourceTests {
 
     [Test]
     public async Task AReasonLabelArrivesUnderItsPrometheusName() {
-        MetricsQueryResult result = await QueryAsync("""
+        QueryResult result = await QueryAsync("""
             {"status":"success","data":{"resultType":"matrix","result":[
               {"metric":{"reason":"first-use"},"values":[[1700000000,"1"]]}
             ]}}
@@ -90,7 +90,7 @@ public sealed class PrometheusMetricsSourceTests {
 
     [Test]
     public async Task AnEmptyResultIsAnEmptyMatrix() {
-        MetricsQueryResult result = await QueryAsync("""
+        QueryResult result = await QueryAsync("""
             {"status":"success","data":{"resultType":"matrix","result":[]}}
             """);
 
@@ -99,7 +99,7 @@ public sealed class PrometheusMetricsSourceTests {
 
     [Test]
     public async Task AnErrorPayloadBecomesUnavailable() {
-        MetricsQueryResult result = await QueryAsync("""
+        QueryResult result = await QueryAsync("""
             {"status":"error","errorType":"bad_data","error":"parse error at char 3"}
             """);
 
@@ -109,14 +109,14 @@ public sealed class PrometheusMetricsSourceTests {
 
     [Test]
     public async Task ANonSuccessStatusBecomesUnavailable() {
-        MetricsQueryResult result = await QueryAsync("{}", HttpStatusCode.ServiceUnavailable);
+        QueryResult result = await QueryAsync("{}", HttpStatusCode.ServiceUnavailable);
 
         Assert.That(((MetricsUnavailable)result).Reason, Does.Contain("503"));
     }
 
     [Test]
     public async Task ABadQuerySurfacesPrometheusOwnMessage() {
-        MetricsQueryResult result = await QueryAsync(
+        QueryResult result = await QueryAsync(
             """{"status":"error","errorType":"bad_data","error":"unknown function with name \"nope\""}""",
             HttpStatusCode.BadRequest);
 
@@ -130,7 +130,7 @@ public sealed class PrometheusMetricsSourceTests {
             """));
         using HttpClient http = Client(handler);
 
-        await new PrometheusMetricsSource(http).QueryAsync("sum(rate(x[5m]))", From, To, Step, CancellationToken.None);
+        await new PrometheusSource(http).QueryAsync("sum(rate(x[5m]))", From, To, Step, CancellationToken.None);
 
         string uri = handler.Requests.Single().ToString();
         Assert.That(uri, Does.Contain("query=sum%28rate%28x%5B5m%5D%29%29"));
@@ -143,9 +143,9 @@ public sealed class PrometheusMetricsSourceTests {
     public async Task ATimeoutNamesTheTarget() {
         StubHttpMessageHandler handler = new(_ => throw new TaskCanceledException());
         using HttpClient http = Client(handler);
-        PrometheusMetricsSource source = new(http, TimeSpan.FromMilliseconds(20));
+        PrometheusSource source = new(http, TimeSpan.FromMilliseconds(20));
 
-        MetricsQueryResult result = await source.QueryAsync("up", From, To, Step, CancellationToken.None);
+        QueryResult result = await source.QueryAsync("up", From, To, Step, CancellationToken.None);
 
         Assert.That(((MetricsUnavailable)result).Reason, Does.Contain("prometheus:9090"));
         Assert.That(((MetricsUnavailable)result).Reason, Does.Contain("did not answer"));
@@ -153,29 +153,29 @@ public sealed class PrometheusMetricsSourceTests {
 
     [Test]
     public async Task AMissingNameIsReportedAsNotResolving() {
-        MetricsQueryResult result = await FailingAsync(new SocketException((int)SocketError.HostNotFound));
+        QueryResult result = await FailingAsync(new SocketException((int)SocketError.HostNotFound));
 
         Assert.That(((MetricsUnavailable)result).Reason, Is.EqualTo("Prometheus at prometheus:9090 does not resolve."));
     }
 
     [Test]
     public async Task ARefusedConnectionIsReportedAsUnreachable() {
-        MetricsQueryResult result = await FailingAsync(new SocketException((int)SocketError.ConnectionRefused));
+        QueryResult result = await FailingAsync(new SocketException((int)SocketError.ConnectionRefused));
 
         Assert.That(((MetricsUnavailable)result).Reason, Is.EqualTo("Prometheus at prometheus:9090 is unreachable."));
     }
 
-    private static async Task<MetricsQueryResult> FailingAsync(Exception inner) {
+    private static async Task<QueryResult> FailingAsync(Exception inner) {
         using HttpClient http = Client(new StubHttpMessageHandler(_ => throw new HttpRequestException("boom", inner)));
 
-        return await new PrometheusMetricsSource(http)
+        return await new PrometheusSource(http)
             .QueryAsync("up", From, To, Step, CancellationToken.None);
     }
 
-    private static async Task<MetricsQueryResult> QueryAsync(string body, HttpStatusCode status = HttpStatusCode.OK) {
+    private static async Task<QueryResult> QueryAsync(string body, HttpStatusCode status = HttpStatusCode.OK) {
         using HttpClient http = Client(new StubHttpMessageHandler(_ => Json(body, status)));
 
-        return await new PrometheusMetricsSource(http)
+        return await new PrometheusSource(http)
             .QueryAsync("up", From, To, Step, CancellationToken.None);
     }
 

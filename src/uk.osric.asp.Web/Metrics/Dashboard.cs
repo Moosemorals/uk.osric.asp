@@ -11,7 +11,7 @@ using uk.osric.asp.Core.Charting;
 /// view is eight queries; a refresh loop must not become a load test. A remote failure is a banner,
 /// never an exception, so the page still renders when Prometheus does not.
 /// </remarks>
-internal sealed class MetricsDashboard {
+internal sealed class Dashboard {
 
     private const int PanelHeight = 200;
     // Fifteen `le` rows need more height than a line chart, or 11px labels overlap.
@@ -86,17 +86,17 @@ internal sealed class MetricsDashboard {
     private readonly IMetricsSource _source;
     private readonly TimeZoneInfo _zone;
     private readonly TimeProvider _time;
-    private readonly ILogger<MetricsDashboard> _logger;
+    private readonly ILogger<Dashboard> _logger;
     private readonly Lock _gate = new();
 
     // One page per window: switching ranges must not throw away the page for the range behind it.
     private readonly Dictionary<string, CachedPage> _cached = [];
 
-    public MetricsDashboard(
+    public Dashboard(
         IMetricsSource source,
         MetricsOptions options,
         TimeProvider time,
-        ILogger<MetricsDashboard> logger) {
+        ILogger<Dashboard> logger) {
 
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(options);
@@ -141,7 +141,7 @@ internal sealed class MetricsDashboard {
             bool failed = false;
 
             foreach (PanelQuery query in definition.Queries) {
-                MetricsQueryResult result = await _source.QueryAsync(query.PromQL, from, now, step, cancellationToken);
+                QueryResult result = await _source.QueryAsync(query.PromQL, from, now, step, cancellationToken);
                 switch (result) {
                     case MetricsUnavailable unavailable:
                         failed = true;
@@ -161,7 +161,7 @@ internal sealed class MetricsDashboard {
             }
         }
 
-        MetricsQueryResult buckets = await _source.QueryAsync(HeatmapQuery, from, now, step, cancellationToken);
+        QueryResult buckets = await _source.QueryAsync(HeatmapQuery, from, now, step, cancellationToken);
         switch (buckets) {
             case MetricsUnavailable unavailable:
                 banner ??= unavailable.Reason;

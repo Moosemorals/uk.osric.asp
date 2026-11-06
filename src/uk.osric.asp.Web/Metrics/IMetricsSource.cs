@@ -13,7 +13,7 @@ internal interface IMetricsSource {
     /// <param name="step">The spacing of the returned samples.</param>
     /// <param name="cancellationToken">Aborted when the request is abandoned.</param>
     /// <returns>The series, or why there are none; never throws for a remote failure.</returns>
-    Task<MetricsQueryResult> QueryAsync(
+    Task<QueryResult> QueryAsync(
         string query,
         DateTimeOffset from,
         DateTimeOffset to,

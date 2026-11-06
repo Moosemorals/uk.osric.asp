@@ -143,7 +143,7 @@ internal sealed class PageEditor(
             RevisionId = revisionId,
             CreationRuntimeId = images.RuntimeId,
             SavedAt = savedAt,
-            Hash = PageRevisionHash.Of(template, images.RuntimeId, savedAt, revisionId),
+            Hash = RevisionHash.Of(template, images.RuntimeId, savedAt, revisionId),
         };
     }
 }

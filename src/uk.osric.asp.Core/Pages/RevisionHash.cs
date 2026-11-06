@@ -8,7 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 /// <summary>Creates stable addresses for individual saved page revisions.</summary>
-public static class PageRevisionHash {
+public static class RevisionHash {
 
     /// <summary>The versioned framing prefix used by the revision identity format.</summary>
     public const string FormatVersion = "page-revision-v1";

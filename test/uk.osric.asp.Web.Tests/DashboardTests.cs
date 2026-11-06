@@ -18,7 +18,7 @@ public sealed class MetricsDashboardTests {
 
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-11-02T06:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
 
-    private static MetricsQueryResult Answer(string label = "ok") => new MetricsMatrix([
+    private static QueryResult Answer(string label = "ok") => new MetricsMatrix([
         new ChartSeries(label, [
             new ChartPoint(Now.AddMinutes(-30), 1),
             new ChartPoint(Now, 2),
@@ -28,17 +28,17 @@ public sealed class MetricsDashboardTests {
     [Test]
     public void NoQueryUsesAnOpenTelemetryTagNameAsALabel() {
         // PromQL label names cannot contain dots: the exporter writes the tag page.path as page_path.
-        Assert.That(MetricsDashboard.Queries, Is.All.Not.Contain("page.path"));
-        Assert.That(MetricsDashboard.Queries, Has.Some.Contain("page_path"));
+        Assert.That(Dashboard.Queries, Is.All.Not.Contain("page.path"));
+        Assert.That(Dashboard.Queries, Has.Some.Contain("page_path"));
     }
 
     [Test]
     public async Task RequestsByPageIsTheFirstPanel() {
-        MetricsDashboard dashboard = new(
+        Dashboard dashboard = new(
             new FakeMetricsSource(_ => Answer()),
             Options,
             new TestClock { Now = Now },
-            NullLogger<MetricsDashboard>.Instance);
+            NullLogger<Dashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
@@ -48,13 +48,13 @@ public sealed class MetricsDashboardTests {
 
     [Test]
     public async Task AnAnonymousSeriesIsNamedAfterItsQuery() {
-        MetricsDashboard dashboard = new(
+        Dashboard dashboard = new(
             new FakeMetricsSource(_ => new MetricsMatrix([
                 new ChartSeries("", [new ChartPoint(Now.AddMinutes(-1), 1)]),
             ])),
             Options,
             new TestClock { Now = Now },
-            NullLogger<MetricsDashboard>.Instance);
+            NullLogger<Dashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
@@ -64,7 +64,7 @@ public sealed class MetricsDashboardTests {
 
     [Test]
     public async Task ASubSecondDurationAxisIsDrawnInMilliseconds() {
-        MetricsDashboard dashboard = new(
+        Dashboard dashboard = new(
             new FakeMetricsSource(_ => new MetricsMatrix([
                 new ChartSeries("", [
                     new ChartPoint(Now.AddMinutes(-30), 0.0002),
@@ -73,7 +73,7 @@ public sealed class MetricsDashboardTests {
             ])),
             Options,
             new TestClock { Now = Now },
-            NullLogger<MetricsDashboard>.Instance);
+            NullLogger<Dashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
@@ -89,7 +89,7 @@ public sealed class MetricsDashboardTests {
 
     [Test]
     public async Task ABytesAxisIsDrawnInMegabytes() {
-        MetricsDashboard dashboard = new(
+        Dashboard dashboard = new(
             new FakeMetricsSource(_ => new MetricsMatrix([
                 new ChartSeries("", [
                     new ChartPoint(Now.AddMinutes(-30), 166_000_000),
@@ -98,7 +98,7 @@ public sealed class MetricsDashboardTests {
             ])),
             Options,
             new TestClock { Now = Now },
-            NullLogger<MetricsDashboard>.Instance);
+            NullLogger<Dashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
@@ -109,7 +109,7 @@ public sealed class MetricsDashboardTests {
 
     [Test]
     public async Task EveryPanelIsDrawnWhenTheSourceAnswers() {
-        MetricsDashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
+        Dashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<Dashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
@@ -123,11 +123,11 @@ public sealed class MetricsDashboardTests {
 
     [Test]
     public async Task ARemoteFailureBecomesABannerInsteadOfCharts() {
-        MetricsDashboard dashboard = new(
+        Dashboard dashboard = new(
             new FakeMetricsSource(_ => new MetricsUnavailable("Prometheus is unreachable.")),
             Options,
             new TestClock { Now = Now },
-            NullLogger<MetricsDashboard>.Instance);
+            NullLogger<Dashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
@@ -137,13 +137,13 @@ public sealed class MetricsDashboardTests {
 
     [Test]
     public async Task OneFailedPanelLeavesTheOthers() {
-        MetricsDashboard dashboard = new(
+        Dashboard dashboard = new(
             new FakeMetricsSource(query => query.Contains("page_cache_lookups_total", StringComparison.Ordinal)
                 ? new MetricsUnavailable("cache query failed")
                 : Answer()),
             Options,
             new TestClock { Now = Now },
-            NullLogger<MetricsDashboard>.Instance);
+            NullLogger<Dashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
@@ -154,11 +154,11 @@ public sealed class MetricsDashboardTests {
 
     [Test]
     public async Task AnEmptyAnswerIsReportedAsNoData() {
-        MetricsDashboard dashboard = new(
+        Dashboard dashboard = new(
             new FakeMetricsSource(_ => new MetricsMatrix([])),
             Options,
             new TestClock { Now = Now },
-            NullLogger<MetricsDashboard>.Instance);
+            NullLogger<Dashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
 
@@ -170,7 +170,7 @@ public sealed class MetricsDashboardTests {
     public async Task ThePageIsReusedForFifteenSeconds() {
         FakeMetricsSource source = new(_ => Answer());
         TestClock clock = new() { Now = Now };
-        MetricsDashboard dashboard = new(source, Options, clock, NullLogger<MetricsDashboard>.Instance);
+        Dashboard dashboard = new(source, Options, clock, NullLogger<Dashboard>.Instance);
 
         await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);
         int afterFirst = source.Calls;
@@ -189,7 +189,7 @@ public sealed class MetricsDashboardTests {
     [Test]
     public async Task TheSelectedDurationSetsTheQueryWindow() {
         FakeMetricsSource source = new(_ => Answer());
-        MetricsDashboard dashboard = new(source, Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
+        Dashboard dashboard = new(source, Options, new TestClock { Now = Now }, NullLogger<Dashboard>.Instance);
 
         await dashboard.GetAsync(StatusDuration.FromToken("7d"), CancellationToken.None);
 
@@ -200,7 +200,7 @@ public sealed class MetricsDashboardTests {
 
     [Test]
     public async Task ALongerWindowIsDrawnWider() {
-        MetricsDashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<MetricsDashboard>.Instance);
+        Dashboard dashboard = new(new FakeMetricsSource(_ => Answer()), Options, new TestClock { Now = Now }, NullLogger<Dashboard>.Instance);
 
         StatusPage page = await dashboard.GetAsync(StatusDuration.FromToken("30d"), CancellationToken.None);
 
@@ -212,7 +212,7 @@ public sealed class MetricsDashboardTests {
     public async Task EachWindowIsCachedSeparately() {
         FakeMetricsSource source = new(_ => Answer());
         TestClock clock = new() { Now = Now };
-        MetricsDashboard dashboard = new(source, Options, clock, NullLogger<MetricsDashboard>.Instance);
+        Dashboard dashboard = new(source, Options, clock, NullLogger<Dashboard>.Instance);
         StatusDuration sevenDays = StatusDuration.FromToken("7d");
 
         await dashboard.GetAsync(StatusDuration.Default, CancellationToken.None);

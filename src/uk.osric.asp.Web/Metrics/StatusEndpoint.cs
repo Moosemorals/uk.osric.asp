@@ -13,7 +13,7 @@ internal static class StatusEndpoint {
 
     public static async Task HandleAsync(
         HttpContext context,
-        MetricsDashboard dashboard,
+        Dashboard dashboard,
         CancellationToken cancellationToken) {
 
         StatusDuration duration = StatusDuration.FromToken(context.Request.Query["duration"]);

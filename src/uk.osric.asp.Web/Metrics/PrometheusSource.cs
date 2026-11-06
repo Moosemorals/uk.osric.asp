@@ -16,7 +16,7 @@ using uk.osric.asp.Core.Charting;
 /// The response is parsed with small DTOs and a hand-written sample reader, because the values array
 /// mixes a number and a <em>string</em>, and the string is where <c>NaN</c> and the infinities hide.
 /// </remarks>
-internal sealed class PrometheusMetricsSource : IMetricsSource {
+internal sealed class PrometheusSource : IMetricsSource {
 
     private static readonly TimeSpan DefaultQueryTimeout = TimeSpan.FromSeconds(2);
     // The exporter sanitises tag names: the tag `page.path` is the label `page_path`.
@@ -28,7 +28,7 @@ internal sealed class PrometheusMetricsSource : IMetricsSource {
     /// <summary>Creates a source over a client whose base address is the Prometheus origin.</summary>
     /// <param name="http">The client to send queries with.</param>
     /// <param name="queryTimeout">The per-query deadline; two seconds unless a test says otherwise.</param>
-    public PrometheusMetricsSource(HttpClient http, TimeSpan? queryTimeout = null) {
+    public PrometheusSource(HttpClient http, TimeSpan? queryTimeout = null) {
         ArgumentNullException.ThrowIfNull(http);
         _http = http;
         _queryTimeout = queryTimeout ?? DefaultQueryTimeout;
@@ -39,7 +39,7 @@ internal sealed class PrometheusMetricsSource : IMetricsSource {
     private string Target => _http.BaseAddress?.Authority ?? "the configured address";
 
     /// <inheritdoc/>
-    public async Task<MetricsQueryResult> QueryAsync(
+    public async Task<QueryResult> QueryAsync(
         string query,
         DateTimeOffset from,
         DateTimeOffset to,
@@ -85,7 +85,7 @@ internal sealed class PrometheusMetricsSource : IMetricsSource {
 
     // A bad query comes back as 400 carrying {status: error, error: "..."}: the message is worth
     // far more than the status code, so read it when the body is the JSON we expect.
-    private static async Task<MetricsQueryResult> UnavailableAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
+    private static async Task<QueryResult> UnavailableAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
         try {
             PrometheusResponse? payload = await response.Content.ReadFromJsonAsync<PrometheusResponse>(cancellationToken);
             return new MetricsUnavailable(payload?.Error ?? $"Prometheus answered {(int)response.StatusCode}.");
@@ -94,7 +94,7 @@ internal sealed class PrometheusMetricsSource : IMetricsSource {
         }
     }
 
-    private static MetricsQueryResult ToResult(PrometheusResponse? payload) {
+    private static QueryResult ToResult(PrometheusResponse? payload) {
         if (payload is null) {
             return new MetricsUnavailable("Prometheus returned no payload.");
         }

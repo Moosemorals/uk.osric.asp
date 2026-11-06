@@ -141,7 +141,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 string revisionId = Guid.NewGuid().ToString("N");
                 revision = revision with {
                     RevisionId = revisionId,
-                    Hash = PageRevisionHash.Of(revision.Template, revision.CreationRuntimeId, revision.SavedAt, revisionId),
+                    Hash = RevisionHash.Of(revision.Template, revision.CreationRuntimeId, revision.SavedAt, revisionId),
                 };
             }
         }
@@ -183,7 +183,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 string revisionId = Guid.NewGuid().ToString("N");
                 revision = revision with {
                     RevisionId = revisionId,
-                    Hash = PageRevisionHash.Of(revision.Template, revision.CreationRuntimeId, revision.SavedAt, revisionId),
+                    Hash = RevisionHash.Of(revision.Template, revision.CreationRuntimeId, revision.SavedAt, revisionId),
                 };
             }
         }

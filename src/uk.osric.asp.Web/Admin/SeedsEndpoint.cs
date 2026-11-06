@@ -13,7 +13,7 @@ using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>Lists the pages bundled with the release and restores them over the live copies.</summary>
-internal static class AdminSeedsEndpoint {
+internal static class SeedsEndpoint {
 
     internal const string MessageKey = "admin.seeds.message";
 

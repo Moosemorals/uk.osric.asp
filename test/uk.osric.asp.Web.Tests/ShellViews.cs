@@ -122,7 +122,7 @@ internal static class ShellViews {
         using PageHarness pages = new(storage);
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
 
-        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, new TestAntiforgery());
+        await SeedsEndpoint.ListAsync(context, pages.Editor, new TestAntiforgery());
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -138,13 +138,13 @@ internal static class ShellViews {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/restore");
         context.Request.QueryString = new QueryString("?path=%2Feditor.css");
 
-        await AdminRestoreEndpoint.GetAsync(context, new TestAntiforgery());
+        await RestoreEndpoint.GetAsync(context, new TestAntiforgery());
 
         return await TestHttp.ReadBodyAsync(context);
     }
 
     private static async Task<string> StatusAsync() {
-        MetricsDashboard dashboard = new(
+        Dashboard dashboard = new(
             new FakeMetricsSource(_ => new MetricsMatrix([
                 new ChartSeries("ok", [
                     new ChartPoint(DateTimeOffset.Parse("2026-11-02T05:30:00Z", CultureInfo.InvariantCulture), 1),
@@ -155,7 +155,7 @@ internal static class ShellViews {
                 TimeZone = TimeZoneInfo.Utc,
             },
             new TestClock(),
-            NullLogger<MetricsDashboard>.Instance);
+            NullLogger<Dashboard>.Instance);
         DefaultHttpContext context = TestHttp.CreateContext(null);
 
         await StatusEndpoint.HandleAsync(context, dashboard, CancellationToken.None);

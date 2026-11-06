@@ -128,12 +128,12 @@ internal class Program {
         builder.Services.AddSingleton<IMetricsSource>(services => {
             MetricsOptions options = services.GetRequiredService<MetricsOptions>();
             // The per-query deadline belongs to the source: one slow query must not hold the page.
-            return new PrometheusMetricsSource(new HttpClient {
+            return new PrometheusSource(new HttpClient {
                 BaseAddress = options.PrometheusUrl,
                 Timeout = Timeout.InfiniteTimeSpan,
             });
         });
-        builder.Services.AddSingleton<MetricsDashboard>();
+        builder.Services.AddSingleton<Dashboard>();
 
         // Metrics only: registering no instrumentation package means no tracer or logger provider.
         // The exporter serves /metrics on this listener; Caddy refuses that path publicly.
@@ -213,13 +213,13 @@ internal class Program {
 
         RouteGroupBuilder admin = app.MapGroup("/admin")
             .RequireAuthorization(EditorPolicy.Name);
-        admin.MapGet("", AdminSeedsEndpoint.ListAsync);
-        admin.MapPost("/seeds/restore", AdminSeedsEndpoint.RestoreAsync)
+        admin.MapGet("", SeedsEndpoint.ListAsync);
+        admin.MapPost("/seeds/restore", SeedsEndpoint.RestoreAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        admin.MapPost("/seeds/restore-all", AdminSeedsEndpoint.RestoreAllAsync)
+        admin.MapPost("/seeds/restore-all", SeedsEndpoint.RestoreAllAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        admin.MapGet("/restore", AdminRestoreEndpoint.GetAsync);
-        admin.MapPost("/restore", AdminRestoreEndpoint.PostAsync)
+        admin.MapGet("/restore", RestoreEndpoint.GetAsync);
+        admin.MapPost("/restore", RestoreEndpoint.PostAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
         app.MapGet("/edit/{**path}", EditorEndpoint.Handler)
@@ -237,7 +237,7 @@ internal class Program {
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
         app.MapHealthChecks("/heath", new HealthCheckOptions {
-            ResponseWriter = HealthReportWriter.WriteAsync,
+            ResponseWriter = ReportWriter.WriteAsync,
         });
 
         if (assistantEnabled) {

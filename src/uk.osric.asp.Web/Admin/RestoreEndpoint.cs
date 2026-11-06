@@ -13,7 +13,7 @@ using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>Restores a shipped page over the live one, behind a confirmation form.</summary>
-internal static class AdminRestoreEndpoint {
+internal static class RestoreEndpoint {
 
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
         if (!TryGetPath(context.Request.Query["path"], out PagePath path)) {

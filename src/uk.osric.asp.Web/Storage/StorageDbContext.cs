@@ -138,7 +138,7 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
 
             sqlite.CreateFunction<string, string, string, string, string>(
                 "page_revision_hash",
-                (source, runtimeId, savedAt, revisionId) => PageRevisionHash.Of(
+                (source, runtimeId, savedAt, revisionId) => RevisionHash.Of(
                     source,
                     runtimeId,
                     DateTimeOffset.Parse(savedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),

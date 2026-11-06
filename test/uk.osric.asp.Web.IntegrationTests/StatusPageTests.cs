@@ -79,14 +79,14 @@ public sealed class StatusPageTests : IntegrationTest {
 
     /// <summary>Answers every query with the same two-sample series; there is no Prometheus to ask.</summary>
     private sealed class FixedMetricsSource : IMetricsSource {
-        public Task<MetricsQueryResult> QueryAsync(
+        public Task<QueryResult> QueryAsync(
             string query,
             DateTimeOffset from,
             DateTimeOffset to,
             TimeSpan step,
             CancellationToken cancellationToken) {
 
-            return Task.FromResult<MetricsQueryResult>(new MetricsMatrix([
+            return Task.FromResult<QueryResult>(new MetricsMatrix([
                 new ChartSeries("ok", [
                     new ChartPoint(from.AddMinutes(1), 1),
                     new ChartPoint(to, 2),

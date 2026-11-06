@@ -26,7 +26,7 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(storage);
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
 
-        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
+        await SeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
@@ -53,7 +53,7 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(storage);
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
 
-        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
+        await SeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
 
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("<td>Deleted</td>"));
     }
@@ -70,7 +70,7 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(storage);
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
 
-        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
+        await SeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("aria-label=\"Restore /assistant.css to its seed\""));
@@ -87,7 +87,7 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(storage);
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
 
-        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
+        await SeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Not.Contain("Restore all seeds"));
@@ -107,7 +107,7 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(storage);
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
 
-        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
+        await SeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
 
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("action=\"/admin/seeds/restore-all\""));
     }
@@ -121,7 +121,7 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(storage);
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
 
-        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
+        await SeedsEndpoint.ListAsync(context, pages.Editor, _antiforgery);
 
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("<td>Matches seed</td>"));
     }
@@ -135,12 +135,12 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(storage);
         DefaultHttpContext context = PostContext("/admin/seeds/restore", ("path", path.Key));
 
-        await AdminSeedsEndpoint.RestoreAsync(context, pages.Editor);
+        await SeedsEndpoint.RestoreAsync(context, pages.Editor);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/admin"));
         Assert.That(storage[path.Key]?.Template, Is.EqualTo(seed));
-        Assert.That(Session(context).GetString(AdminSeedsEndpoint.MessageKey), Is.EqualTo("Restored /assistant.css."));
+        Assert.That(Session(context).GetString(SeedsEndpoint.MessageKey), Is.EqualTo("Restored /assistant.css."));
     }
 
     [Test]
@@ -153,10 +153,10 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(storage);
         DefaultHttpContext context = PostContext("/admin/seeds/restore", ("path", path.Key));
 
-        await AdminSeedsEndpoint.RestoreAsync(context, pages.Editor);
+        await SeedsEndpoint.RestoreAsync(context, pages.Editor);
 
         Assert.That(storage.WriteCount, Is.EqualTo(writes));
-        Assert.That(Session(context).GetString(AdminSeedsEndpoint.MessageKey), Is.EqualTo("/assistant.css already matched its seed."));
+        Assert.That(Session(context).GetString(SeedsEndpoint.MessageKey), Is.EqualTo("/assistant.css already matched its seed."));
     }
 
     [Test]
@@ -173,7 +173,7 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(storage);
         DefaultHttpContext context = PostContext("/admin/seeds/restore-all");
 
-        await AdminSeedsEndpoint.RestoreAllAsync(context, pages.Editor);
+        await SeedsEndpoint.RestoreAllAsync(context, pages.Editor);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/admin"));
@@ -181,7 +181,7 @@ public sealed class AdminSeedsEndpointTests {
             Assert.That(storage[path.Key]?.Template, Is.EqualTo((await PageAssetSeeder.ReadSeedTemplateAsync(path))!), path.Key);
         }
 
-        Assert.That(Session(context).GetString(AdminSeedsEndpoint.MessageKey), Is.EqualTo("Restored 2 seeded pages; 6 already matched."));
+        Assert.That(Session(context).GetString(SeedsEndpoint.MessageKey), Is.EqualTo("Restored 2 seeded pages; 6 already matched."));
     }
 
     [Test]
@@ -189,7 +189,7 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(new FakePageStore());
         DefaultHttpContext context = PostContext("/admin/seeds/restore", ("path", "/not-a-seed"));
 
-        await AdminSeedsEndpoint.RestoreAsync(context, pages.Editor);
+        await SeedsEndpoint.RestoreAsync(context, pages.Editor);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
     }
@@ -199,7 +199,7 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(new FakePageStore());
         DefaultHttpContext context = PostContext("/admin/seeds/restore", ("path", " "));
 
-        await AdminSeedsEndpoint.RestoreAsync(context, pages.Editor);
+        await SeedsEndpoint.RestoreAsync(context, pages.Editor);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
     }
@@ -210,7 +210,7 @@ public sealed class AdminSeedsEndpointTests {
         DefaultHttpContext context = PostContext("/admin/seeds/restore", ("path", "/assistant.css"));
         context.Features.Set<IAntiforgeryValidationFeature>(new TestAntiforgeryValidationFeature(false));
 
-        await AdminSeedsEndpoint.RestoreAsync(context, pages.Editor);
+        await SeedsEndpoint.RestoreAsync(context, pages.Editor);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
     }
@@ -220,7 +220,7 @@ public sealed class AdminSeedsEndpointTests {
         using PageHarness pages = new(new FakePageStore());
         DefaultHttpContext context = TestHttp.CreateContext(null, "POST", "/admin/seeds/restore");
 
-        await AdminSeedsEndpoint.RestoreAsync(context, pages.Editor);
+        await SeedsEndpoint.RestoreAsync(context, pages.Editor);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
     }
@@ -231,7 +231,7 @@ public sealed class AdminSeedsEndpointTests {
         DefaultHttpContext context = PostContext("/admin/seeds/restore-all");
         context.Features.Set<IAntiforgeryValidationFeature>(new TestAntiforgeryValidationFeature(false));
 
-        await AdminSeedsEndpoint.RestoreAllAsync(context, pages.Editor);
+        await SeedsEndpoint.RestoreAllAsync(context, pages.Editor);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
     }

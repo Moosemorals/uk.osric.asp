@@ -106,12 +106,12 @@ public sealed class StatusEndpointTests {
         Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">1h</span>"));
     }
 
-    private static async Task<string> RenderAsync(MetricsQueryResult answer, string? queryString = null) {
-        MetricsDashboard dashboard = new(
+    private static async Task<string> RenderAsync(QueryResult answer, string? queryString = null) {
+        Dashboard dashboard = new(
             new FakeMetricsSource(_ => answer),
             Options,
             new TestClock { Now = Now },
-            NullLogger<MetricsDashboard>.Instance);
+            NullLogger<Dashboard>.Instance);
         HttpContext context = TestHttp.CreateContext(null);
         context.Request.QueryString = new QueryString(queryString);
 

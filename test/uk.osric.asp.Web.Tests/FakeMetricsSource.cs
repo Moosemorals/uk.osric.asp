@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.Tests;
 using uk.osric.asp.Web.Metrics;
 
 /// <summary>Answers queries from a function, recording what was asked.</summary>
-internal sealed class FakeMetricsSource(Func<string, MetricsQueryResult> respond) : IMetricsSource {
+internal sealed class FakeMetricsSource(Func<string, QueryResult> respond) : IMetricsSource {
 
     /// <summary>How many queries were run, so a test can prove the page was cached.</summary>
     public int Calls { get; private set; }
@@ -20,7 +20,7 @@ internal sealed class FakeMetricsSource(Func<string, MetricsQueryResult> respond
     /// <summary>The spacing the last query asked for.</summary>
     public TimeSpan Step { get; private set; }
 
-    public Task<MetricsQueryResult> QueryAsync(
+    public Task<QueryResult> QueryAsync(
         string query,
         DateTimeOffset from,
         DateTimeOffset to,
