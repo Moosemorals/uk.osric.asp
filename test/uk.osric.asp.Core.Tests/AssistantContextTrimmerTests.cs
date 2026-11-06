@@ -11,14 +11,14 @@ public sealed class AssistantContextTrimmerTests {
 
     [Test]
     public void KeepsTheSystemPromptAndNewestUserTurn() {
-        AssistantChatMessage[] messages = [
+        ChatMessage[] messages = [
             new("system", "prompt"),
             new("user", "old"),
             new("assistant", "old answer"),
             new("user", "latest"),
         ];
 
-        AssistantContextTrimResult result = AssistantContextTrimmer.Trim(messages, 20);
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 20);
 
         Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["prompt", "latest"]));
         Assert.That(result.WasTrimmed, Is.True);
@@ -26,7 +26,7 @@ public sealed class AssistantContextTrimmerTests {
 
     [Test]
     public void DropsToolCallTurnsAsAUnit() {
-        AssistantChatMessage[] messages = [
+        ChatMessage[] messages = [
             new("system", "s"),
             new("user", "old"),
             new("assistant", "", "[{\"id\":\"call-1\"}]"),
@@ -35,7 +35,7 @@ public sealed class AssistantContextTrimmerTests {
             new("user", "new"),
         ];
 
-        AssistantContextTrimResult result = AssistantContextTrimmer.Trim(messages, 10);
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 10);
 
         Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["s", "new"]));
         Assert.That(result.Messages.Any(message => message.Role == "tool"), Is.False);
@@ -43,9 +43,9 @@ public sealed class AssistantContextTrimmerTests {
 
     [Test]
     public void ReportsWhenTheNewestTurnCannotFit() {
-        AssistantChatMessage[] messages = [new("system", "prompt"), new("user", "too long")];
+        ChatMessage[] messages = [new("system", "prompt"), new("user", "too long")];
 
-        AssistantContextTrimResult result = AssistantContextTrimmer.Trim(messages, 5);
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 5);
 
         Assert.That(result.Error, Is.Not.Null);
         Assert.That(result.Messages, Is.Empty);
@@ -53,13 +53,13 @@ public sealed class AssistantContextTrimmerTests {
 
     [Test]
     public void KeepsTheNewestWholeTurnWhenAnOlderTurnMustBeDropped() {
-        AssistantChatMessage[] messages = [
+        ChatMessage[] messages = [
             new("system", "s"),
             new("user", "a"), new("assistant", "b"),
             new("user", "c"), new("assistant", "d"),
         ];
 
-        AssistantContextTrimResult result = AssistantContextTrimmer.Trim(messages, 3);
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 3);
 
         Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["s", "c", "d"]));
         Assert.That(result.DroppedMessages, Is.EqualTo(2));

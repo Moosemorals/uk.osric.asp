@@ -31,10 +31,10 @@ public sealed class AssistantMetricsTests {
         metrics.RecordRun("completed", "test-model", TimeSpan.FromSeconds(1), 2, 1);
         metrics.RecordProviderFirstToken("test-model", TimeSpan.FromMilliseconds(20));
         metrics.RecordProviderRequest("test-model", "ok", TimeSpan.FromMilliseconds(90));
-        AssistantToolDefinition writePage = AssistantPageToolExecutor.Definitions.Single(definition => definition.Name == "write_page");
+        ToolDefinition writePage = AssistantPageToolExecutor.Definitions.Single(definition => definition.Name == "write_page");
         metrics.RecordTool(writePage, true, TimeSpan.FromMilliseconds(10));
         metrics.RecordTool(null, false, TimeSpan.FromMilliseconds(10));
-        metrics.RecordUsage(new AssistantUsage(12, 4));
+        metrics.RecordUsage(new TokenUsage(12, 4));
 
         Assert.That(measurements.Select(item => item.Name), Is.EquivalentTo([
             "assistant.run.duration", "assistant.run.steps", "assistant.run.tool_calls",

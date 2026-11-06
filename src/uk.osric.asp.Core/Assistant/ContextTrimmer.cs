@@ -9,7 +9,7 @@ namespace uk.osric.asp.Core.Assistant;
 /// <param name="ToolCallsJson">Complete assistant tool-call data, when present.</param>
 /// <param name="ToolCallId">The tool-call id for a tool result.</param>
 /// <param name="ToolName">The tool name for a tool result.</param>
-public sealed record AssistantChatMessage(
+public sealed record ChatMessage(
     string Role,
     string Content,
     string? ToolCallsJson = null,
@@ -20,8 +20,8 @@ public sealed record AssistantChatMessage(
 /// <param name="Messages">Messages to send, in provider order.</param>
 /// <param name="DroppedMessages">How many transcript messages were omitted.</param>
 /// <param name="Error">A safe reason no request can be built, when the newest turn cannot fit.</param>
-public sealed record AssistantContextTrimResult(
-    IReadOnlyList<AssistantChatMessage> Messages,
+public sealed record ContextTrimResult(
+    IReadOnlyList<ChatMessage> Messages,
     int DroppedMessages,
     string? Error) {
 
@@ -35,13 +35,13 @@ public sealed record AssistantContextTrimResult(
 }
 
 /// <summary>Fits a transcript to an approximate character budget without splitting turns.</summary>
-public static class AssistantContextTrimmer {
+public static class ContextTrimmer {
 
     /// <summary>Keeps the system prompt and the newest whole turns that fit.</summary>
     /// <param name="messages">The transcript, with the system prompt first when present.</param>
     /// <param name="maximumChars">The maximum approximate message size.</param>
     /// <returns>The ordered messages, or an error when the newest turn alone cannot fit.</returns>
-    public static AssistantContextTrimResult Trim(IReadOnlyList<AssistantChatMessage> messages, int maximumChars) {
+    public static ContextTrimResult Trim(IReadOnlyList<ChatMessage> messages, int maximumChars) {
         ArgumentNullException.ThrowIfNull(messages);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumChars);
 
@@ -51,19 +51,19 @@ public static class AssistantContextTrimmer {
             return TooLong();
         }
 
-        List<List<AssistantChatMessage>> turns = [];
-        foreach (AssistantChatMessage message in messages.Skip(systemCount)) {
+        List<List<ChatMessage>> turns = [];
+        foreach (ChatMessage message in messages.Skip(systemCount)) {
             if (message.Role == "user" || turns.Count == 0) {
                 turns.Add([]);
             }
             turns[^1].Add(message);
         }
 
-        List<AssistantChatMessage> kept = [];
+        List<ChatMessage> kept = [];
         long usedChars = systemChars;
         int keptMessages = systemCount;
         for (int index = turns.Count - 1; index >= 0; index--) {
-            List<AssistantChatMessage> turn = turns[index];
+            List<ChatMessage> turn = turns[index];
             long turnChars = turn.Sum(MessageLength);
             if (usedChars + turnChars > maximumChars) {
                 if (kept.Count == 0) {
@@ -81,12 +81,12 @@ public static class AssistantContextTrimmer {
             kept.Insert(0, messages[0]);
         }
 
-        return new AssistantContextTrimResult(kept, messages.Count - keptMessages, null);
+        return new ContextTrimResult(kept, messages.Count - keptMessages, null);
 
-        static AssistantContextTrimResult TooLong() => new([], 0,
+        static ContextTrimResult TooLong() => new([], 0,
             "The system prompt and newest user turn exceed the configured context budget.");
     }
 
-    private static int MessageLength(AssistantChatMessage message) =>
+    private static int MessageLength(ChatMessage message) =>
         message.Content.Length + (message.ToolCallsJson?.Length ?? 0);
 }

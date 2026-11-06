@@ -17,8 +17,8 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
 
-    public async IAsyncEnumerable<AssistantChatStreamEvent> StreamAsync(
-        AssistantChatRequest request,
+    public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
+        ChatRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(request);
         // A step that keeps thinking is healthy however long it takes: the deadline is silence, not
@@ -61,8 +61,8 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
                         yield break;
                     }
 
-                    IReadOnlyList<AssistantChatStreamEvent> events = ParsePayload(items.Current.Data, request.ReasoningField);
-                    foreach (AssistantChatStreamEvent @event in events) {
+                    IReadOnlyList<ChatStreamEvent> events = ParsePayload(items.Current.Data, request.ReasoningField);
+                    foreach (ChatStreamEvent @event in events) {
                         yield return @event;
                     }
                 }
@@ -74,7 +74,7 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         "provider_timeout",
         "The provider stopped sending before the answer was complete.");
 
-    private async Task<HttpResponseMessage> SendWithRetriesAsync(AssistantChatRequest request, CancellationToken cancellationToken) {
+    private async Task<HttpResponseMessage> SendWithRetriesAsync(ChatRequest request, CancellationToken cancellationToken) {
         Uri endpoint = new(options.BaseUrl.TrimEnd('/') + "/" + options.ChatCompletionsPath.TrimStart('/'));
         for (int attempt = 0; ; attempt++) {
             using HttpRequestMessage message = new(HttpMethod.Post, endpoint) {
@@ -102,9 +102,9 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         }
     }
 
-    private static string SerializeRequest(AssistantChatRequest request) {
+    private static string SerializeRequest(ChatRequest request) {
         List<Dictionary<string, object?>> messages = [];
-        foreach (AssistantChatMessage source in request.Messages) {
+        foreach (ChatMessage source in request.Messages) {
             Dictionary<string, object?> message = new(StringComparer.Ordinal) {
                 ["role"] = source.Role,
                 ["content"] = source.Content,
@@ -149,7 +149,7 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         return JsonSerializer.Serialize(body, s_jsonOptions);
     }
 
-    private static IReadOnlyList<AssistantChatStreamEvent> ParsePayload(string data, string reasoningField) {
+    private static IReadOnlyList<ChatStreamEvent> ParsePayload(string data, string reasoningField) {
         JsonDocument document;
         try {
             document = JsonDocument.Parse(data);
@@ -159,7 +159,7 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
 
         using (document) {
             JsonElement root = document.RootElement;
-            List<AssistantChatStreamEvent> events = [];
+            List<ChatStreamEvent> events = [];
             if (root.ValueKind != JsonValueKind.Object) {
                 throw Invalid();
             }
@@ -177,11 +177,11 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
                         throw Invalid();
                     }
                     if (delta.TryGetProperty("content", out JsonElement content) && content.ValueKind == JsonValueKind.String) {
-                        events.Add(new AssistantContentDelta(content.GetString()!));
+                        events.Add(new ContentDelta(content.GetString()!));
                     }
                     foreach (string field in ReasoningFields(reasoningField)) {
                         if (delta.TryGetProperty(field, out JsonElement reasoning) && reasoning.ValueKind == JsonValueKind.String) {
-                            events.Add(new AssistantReasoningDelta(reasoning.GetString()!));
+                            events.Add(new ReasoningDelta(reasoning.GetString()!));
                         }
                     }
                     if (delta.TryGetProperty("tool_calls", out JsonElement toolCalls) && toolCalls.ValueKind == JsonValueKind.Array) {
@@ -198,17 +198,17 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
                                 name = StringProperty(function, "name");
                                 arguments = StringProperty(function, "arguments");
                             }
-                            events.Add(new AssistantToolCallDelta(index, id, name, arguments));
+                            events.Add(new ToolCallDelta(index, id, name, arguments));
                         }
                     }
                 }
                 if (choice.TryGetProperty("finish_reason", out JsonElement finish) && finish.ValueKind == JsonValueKind.String) {
-                    events.Add(new AssistantFinished(finish.GetString()));
+                    events.Add(new Finished(finish.GetString()));
                 }
             }
 
             if (root.TryGetProperty("usage", out JsonElement usage) && usage.ValueKind == JsonValueKind.Object) {
-                events.Add(new AssistantUsageEvent(new AssistantUsage(
+                events.Add(new UsageEvent(new TokenUsage(
                     IntProperty(usage, "prompt_tokens"),
                     IntProperty(usage, "completion_tokens"))));
             }

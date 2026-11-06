@@ -110,25 +110,25 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
     }
 
     private sealed class PlannedClient : IChatCompletionClient {
-        private readonly IReadOnlyList<AssistantChatStreamEvent>[] _responses = [
+        private readonly IReadOnlyList<ChatStreamEvent>[] _responses = [
             [
-                new AssistantToolCallDelta(0, "gated-call", "write_page", "{\"path\":\"/gated-page\",\"content\":\"<h1>Gated</h1>\"}"),
-                new AssistantFinished("tool_calls"),
+                new ToolCallDelta(0, "gated-call", "write_page", "{\"path\":\"/gated-page\",\"content\":\"<h1>Gated</h1>\"}"),
+                new Finished("tool_calls"),
             ],
-            [new AssistantContentDelta("The gated page is ready."), new AssistantFinished("stop")],
+            [new ContentDelta("The gated page is ready."), new Finished("stop")],
             [
-                new AssistantToolCallDelta(0, "automatic-call", "write_page", "{\"path\":\"/automatic-page\",\"content\":\"<h1>Automatic</h1>\"}"),
-                new AssistantFinished("tool_calls"),
+                new ToolCallDelta(0, "automatic-call", "write_page", "{\"path\":\"/automatic-page\",\"content\":\"<h1>Automatic</h1>\"}"),
+                new Finished("tool_calls"),
             ],
-            [new AssistantContentDelta("The automatic page is ready."), new AssistantFinished("stop")],
+            [new ContentDelta("The automatic page is ready."), new Finished("stop")],
         ];
         private int _request;
 
-        public async IAsyncEnumerable<AssistantChatStreamEvent> StreamAsync(
-            AssistantChatRequest request,
+        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
+            ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
             int index = Interlocked.Increment(ref _request) - 1;
-            foreach (AssistantChatStreamEvent @event in _responses[index]) {
+            foreach (ChatStreamEvent @event in _responses[index]) {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return @event;
                 await Task.Yield();

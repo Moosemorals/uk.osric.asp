@@ -29,13 +29,13 @@ public sealed class AssistantProviderClientTests {
         using HttpClient client = Client(_ => Task.FromResult(Response(HttpStatusCode.OK, payload)));
         OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false });
 
-        List<AssistantChatStreamEvent> events = await CollectAsync(provider);
+        List<ChatStreamEvent> events = await CollectAsync(provider);
 
-        Assert.That(events.OfType<AssistantContentDelta>().Select(delta => delta.Text), Is.EqualTo(["Hello"]));
-        Assert.That(events.OfType<AssistantReasoningDelta>().Select(delta => delta.Text), Is.EqualTo(["Thinking"]));
-        Assert.That(events.OfType<AssistantToolCallDelta>().Select(delta => delta.Arguments), Is.EqualTo(["{\"path\":", "\"/home\"}"]));
-        Assert.That(events.OfType<AssistantUsageEvent>().Single().Usage, Is.EqualTo(new AssistantUsage(7, 2)));
-        Assert.That(events.OfType<AssistantFinished>().Single().Reason, Is.EqualTo("tool_calls"));
+        Assert.That(events.OfType<ContentDelta>().Select(delta => delta.Text), Is.EqualTo(["Hello"]));
+        Assert.That(events.OfType<ReasoningDelta>().Select(delta => delta.Text), Is.EqualTo(["Thinking"]));
+        Assert.That(events.OfType<ToolCallDelta>().Select(delta => delta.Arguments), Is.EqualTo(["{\"path\":", "\"/home\"}"]));
+        Assert.That(events.OfType<UsageEvent>().Single().Usage, Is.EqualTo(new TokenUsage(7, 2)));
+        Assert.That(events.OfType<Finished>().Single().Reason, Is.EqualTo("tool_calls"));
     }
 
     [Test]
@@ -119,9 +119,9 @@ public sealed class AssistantProviderClientTests {
         }));
         OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = 1 });
 
-        List<AssistantChatStreamEvent> events = await CollectAsync(provider);
+        List<ChatStreamEvent> events = await CollectAsync(provider);
 
-        Assert.That(events.OfType<AssistantContentDelta>().Select(delta => delta.Text), Is.EqualTo(["done"]));
+        Assert.That(events.OfType<ContentDelta>().Select(delta => delta.Text), Is.EqualTo(["done"]));
     }
 
     [Test]
@@ -149,10 +149,10 @@ public sealed class AssistantProviderClientTests {
         Content = new StringContent(body, Encoding.UTF8, "text/event-stream"),
     };
 
-    private static async Task<List<AssistantChatStreamEvent>> CollectAsync(IChatCompletionClient provider) {
-        AssistantChatRequest request = new("model", [new AssistantChatMessage("system", "prompt")], [], 0.2, 20, "reasoning_content", true);
-        List<AssistantChatStreamEvent> events = [];
-        await foreach (AssistantChatStreamEvent @event in provider.StreamAsync(request, CancellationToken.None)) {
+    private static async Task<List<ChatStreamEvent>> CollectAsync(IChatCompletionClient provider) {
+        ChatRequest request = new("model", [new ChatMessage("system", "prompt")], [], 0.2, 20, "reasoning_content", true);
+        List<ChatStreamEvent> events = [];
+        await foreach (ChatStreamEvent @event in provider.StreamAsync(request, CancellationToken.None)) {
             events.Add(@event);
         }
         return events;

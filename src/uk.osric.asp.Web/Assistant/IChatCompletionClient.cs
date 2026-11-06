@@ -7,5 +7,5 @@ using uk.osric.asp.Core.Assistant;
 
 /// <summary>Streams a completion from the configured provider.</summary>
 internal interface IChatCompletionClient {
-    IAsyncEnumerable<AssistantChatStreamEvent> StreamAsync(AssistantChatRequest request, CancellationToken cancellationToken);
+    IAsyncEnumerable<ChatStreamEvent> StreamAsync(ChatRequest request, CancellationToken cancellationToken);
 }

@@ -4,12 +4,12 @@
 namespace uk.osric.asp.Core.Assistant;
 
 /// <summary>The accumulated values from one provider response.</summary>
-public sealed record AssistantChatResponse(
+public sealed record ChatResponse(
     string Content,
     string Reasoning,
-    IReadOnlyList<AssistantToolCall> ToolCalls,
+    IReadOnlyList<ToolCall> ToolCalls,
     string? FinishReason,
-    AssistantUsage? Usage) {
+    TokenUsage? Usage) {
 
     /// <summary>Whether the provider emitted user-visible or actionable data.</summary>
     public bool HasContent => Content.Length > 0 || Reasoning.Length > 0 || ToolCalls.Count > 0;

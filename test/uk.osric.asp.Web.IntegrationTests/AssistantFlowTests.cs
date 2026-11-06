@@ -13,8 +13,8 @@ using uk.osric.asp.Web.Assistant;
 [TestFixture]
 public sealed class AssistantFlowTests : IntegrationTest {
     private readonly ScriptedClient _provider = new([
-        new AssistantContentDelta("Hello from the assistant."),
-        new AssistantFinished("stop"),
+        new ContentDelta("Hello from the assistant."),
+        new Finished("stop"),
     ]);
 
     internal override AspApplication CreateApplication() => new(assistantEnabled: true, chatCompletionClient: _provider);
@@ -60,16 +60,16 @@ public sealed class AssistantFlowTests : IntegrationTest {
         Assert.That(_provider.RequestCount, Is.EqualTo(1));
     }
 
-    private sealed class ScriptedClient(IReadOnlyList<AssistantChatStreamEvent> events) : IChatCompletionClient {
+    private sealed class ScriptedClient(IReadOnlyList<ChatStreamEvent> events) : IChatCompletionClient {
         private int _requestCount;
 
         public int RequestCount => _requestCount;
 
-        public async IAsyncEnumerable<AssistantChatStreamEvent> StreamAsync(
-            AssistantChatRequest request,
+        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
+            ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
             Interlocked.Increment(ref _requestCount);
-            foreach (AssistantChatStreamEvent @event in events) {
+            foreach (ChatStreamEvent @event in events) {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return @event;
                 await Task.Yield();

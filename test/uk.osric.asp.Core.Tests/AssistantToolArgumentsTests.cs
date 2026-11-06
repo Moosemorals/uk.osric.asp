@@ -9,15 +9,15 @@ using uk.osric.asp.Core.Assistant;
 [TestFixture]
 public sealed class AssistantToolArgumentsTests {
 
-    private static readonly AssistantToolArgumentSchema[] Schema = [
-        new("path", AssistantToolArgumentType.String, true),
-        new("startLine", AssistantToolArgumentType.Integer, false),
-        new("includeDeleted", AssistantToolArgumentType.Boolean, false),
+    private static readonly ToolArgumentSchema[] Schema = [
+        new("path", ToolArgumentType.String, true),
+        new("startLine", ToolArgumentType.Integer, false),
+        new("includeDeleted", ToolArgumentType.Boolean, false),
     ];
 
     [Test]
     public void ReadsRequiredAndOptionalValuesFromAnObject() {
-        AssistantToolArgumentsResult result = AssistantToolArguments.Parse(
+        ToolArgumentsResult result = ToolArguments.Parse(
             "{\"path\":\"/notes\",\"startLine\":3,\"includeDeleted\":false}", Schema, 200);
 
         Assert.That(result.Error, Is.Null);
@@ -27,21 +27,21 @@ public sealed class AssistantToolArgumentsTests {
 
     [Test]
     public void MissingRequiredArgumentIsRejected() {
-        Assert.That(AssistantToolArguments.Parse("{}", Schema, 200).Error, Does.Contain("path"));
+        Assert.That(ToolArguments.Parse("{}", Schema, 200).Error, Does.Contain("path"));
     }
 
     [Test]
     public void UnknownPropertiesAreRejected() {
-        Assert.That(AssistantToolArguments.Parse("{\"path\":\"/a\",\"extra\":true}", Schema, 200).Error, Does.Contain("extra"));
+        Assert.That(ToolArguments.Parse("{\"path\":\"/a\",\"extra\":true}", Schema, 200).Error, Does.Contain("extra"));
     }
 
     [Test]
     public void WrongJsonTypesAreRejected() {
-        Assert.That(AssistantToolArguments.Parse("{\"path\":4}", Schema, 200).Error, Does.Contain("string"));
+        Assert.That(ToolArguments.Parse("{\"path\":4}", Schema, 200).Error, Does.Contain("string"));
     }
 
     [Test]
     public void ArgumentsOverTheConfiguredCharacterLimitAreRejectedBeforeParsing() {
-        Assert.That(AssistantToolArguments.Parse("not-json", Schema, 3).Error, Does.Contain("limit"));
+        Assert.That(ToolArguments.Parse("not-json", Schema, 3).Error, Does.Contain("limit"));
     }
 }

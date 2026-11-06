@@ -8,7 +8,7 @@ namespace uk.osric.asp.Core.Assistant;
 /// <param name="Description">The provider-visible description.</param>
 /// <param name="ParametersJson">The JSON Schema object for the tool arguments.</param>
 /// <param name="NeedsApproval">Whether RequireApproval mode pauses before execution.</param>
-public sealed record AssistantToolDefinition(
+public sealed record ToolDefinition(
     string Name,
     string Description,
     string ParametersJson,
@@ -22,10 +22,10 @@ public sealed record AssistantToolDefinition(
 /// <param name="MaxOutputTokens">The provider completion limit.</param>
 /// <param name="ReasoningField">The provider field name used for optional reasoning deltas.</param>
 /// <param name="IncludeUsage">Whether the provider should include a final usage chunk.</param>
-public sealed record AssistantChatRequest(
+public sealed record ChatRequest(
     string Model,
-    IReadOnlyList<AssistantChatMessage> Messages,
-    IReadOnlyList<AssistantToolDefinition> Tools,
+    IReadOnlyList<ChatMessage> Messages,
+    IReadOnlyList<ToolDefinition> Tools,
     double Temperature,
     int MaxOutputTokens,
     string ReasoningField,

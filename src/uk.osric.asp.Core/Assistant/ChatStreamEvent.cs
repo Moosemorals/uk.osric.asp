@@ -4,19 +4,19 @@
 namespace uk.osric.asp.Core.Assistant;
 
 /// <summary>One event emitted while a provider streams a completion.</summary>
-public abstract record AssistantChatStreamEvent;
+public abstract record ChatStreamEvent;
 
 /// <summary>A fragment of assistant response text.</summary>
-public sealed record AssistantContentDelta(string Text) : AssistantChatStreamEvent;
+public sealed record ContentDelta(string Text) : ChatStreamEvent;
 
 /// <summary>A fragment of provider-supplied reasoning, kept display-only by the host.</summary>
-public sealed record AssistantReasoningDelta(string Text) : AssistantChatStreamEvent;
+public sealed record ReasoningDelta(string Text) : ChatStreamEvent;
 
 /// <summary>A fragment of one indexed tool call.</summary>
-public sealed record AssistantToolCallDelta(int Index, string? Id, string? Name, string? Arguments) : AssistantChatStreamEvent;
+public sealed record ToolCallDelta(int Index, string? Id, string? Name, string? Arguments) : ChatStreamEvent;
 
 /// <summary>A usage event from the provider.</summary>
-public sealed record AssistantUsageEvent(AssistantUsage Usage) : AssistantChatStreamEvent;
+public sealed record UsageEvent(TokenUsage Usage) : ChatStreamEvent;
 
 /// <summary>The provider's completion reason for a stream step.</summary>
-public sealed record AssistantFinished(string? Reason) : AssistantChatStreamEvent;
+public sealed record Finished(string? Reason) : ChatStreamEvent;

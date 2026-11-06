@@ -96,7 +96,7 @@ internal static class AssistantEndpoint {
         long replayFrom = replaying ? 0 : activeStream?.LastSequence ?? 0;
         IEnumerable<AssistantMessage> visibleMessages = messages.Where(message =>
             !replaying || message.RunId != activeRun!.Id || message.Role == "user");
-        IReadOnlyList<AssistantToolApproval> pending = conversation.ApprovalMode == AssistantApprovalMode.RequireApproval.ToString()
+        IReadOnlyList<AssistantToolApproval> pending = conversation.ApprovalMode == ApprovalMode.RequireApproval.ToString()
             && activeRun is not null
                 ? await conversations.GetPendingApprovalsAsync(id, owner!, context.RequestAborted)
                 : [];
@@ -336,7 +336,7 @@ internal static class AssistantEndpoint {
             || title.Count != 1 || string.IsNullOrWhiteSpace(title[0]) || title[0]!.Length > ConversationTitle.MaximumLength
             || !context.Request.Form.TryGetValue("mode", out Microsoft.Extensions.Primitives.StringValues mode)
             || mode.Count != 1
-            || !Enum.TryParse(mode[0], ignoreCase: false, out AssistantApprovalMode approvalMode)
+            || !Enum.TryParse(mode[0], ignoreCase: false, out ApprovalMode approvalMode)
             || !Enum.IsDefined(approvalMode)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
@@ -494,7 +494,7 @@ internal static class AssistantEndpoint {
             if (!calls.TryGetValue(approval.ToolCallId, out (string Name, string Arguments) call)) {
                 continue;
             }
-            AssistantToolDefinition? definition = AssistantPageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
+            ToolDefinition? definition = AssistantPageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
             string description = definition?.Description ?? "Review this tool call.";
             string action = $"/assistant/{conversationId}/runs/{Encode(approval.RunId)}/tool-calls/{Encode(approval.ToolCallId)}/approval";
             await context.Response.WriteAsync($"<article><h3>{Encode(MessageText.Sanitize(call.Name))}</h3><p>{Encode(description)}</p><pre>{Encode(call.Arguments)}</pre>");

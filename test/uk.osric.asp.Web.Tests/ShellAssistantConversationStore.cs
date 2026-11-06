@@ -14,7 +14,7 @@ internal sealed class ShellAssistantConversationStore(
         Owner = "owner",
         Title = "Test conversation",
         TitleIsGenerated = false,
-        ApprovalMode = AssistantApprovalMode.RequireApproval.ToString(),
+        ApprovalMode = ApprovalMode.RequireApproval.ToString(),
         CreatedAt = DateTimeOffset.UtcNow,
         UpdatedAt = DateTimeOffset.UtcNow,
     };
@@ -24,7 +24,7 @@ internal sealed class ShellAssistantConversationStore(
 
     public Task<IReadOnlyList<AssistantConversationListItem>> ListAsync(string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<AssistantConversationListItem>>([
-            new(1, "Test conversation", AssistantApprovalMode.RequireApproval.ToString(), DateTimeOffset.UtcNow, null),
+            new(1, "Test conversation", ApprovalMode.RequireApproval.ToString(), DateTimeOffset.UtcNow, null),
         ]);
 
     public Task<AssistantConversation?> GetAsync(long id, string owner, CancellationToken cancellationToken = default) =>
@@ -33,7 +33,7 @@ internal sealed class ShellAssistantConversationStore(
     public Task<bool> RenameAsync(long id, string owner, string title, CancellationToken cancellationToken = default) =>
         Task.FromResult(id == 1 && owner == "owner");
 
-    public Task<bool> SetApprovalModeAsync(long id, string owner, AssistantApprovalMode mode, CancellationToken cancellationToken = default) =>
+    public Task<bool> SetApprovalModeAsync(long id, string owner, ApprovalMode mode, CancellationToken cancellationToken = default) =>
         Task.FromResult(id == 1 && owner == "owner");
 
     public Task<bool> DeleteAsync(long id, string owner, CancellationToken cancellationToken = default) =>
@@ -72,7 +72,7 @@ internal sealed class ShellAssistantConversationStore(
     public Task<int> FailPendingApprovalsAsync(string runId, string failureCode, CancellationToken cancellationToken = default) =>
         Task.FromResult(0);
 
-    public Task<bool> RecordStepAsync(string runId, int toolCallCount, AssistantUsage? usage, CancellationToken cancellationToken = default) =>
+    public Task<bool> RecordStepAsync(string runId, int toolCallCount, TokenUsage? usage, CancellationToken cancellationToken = default) =>
         Task.FromResult(true);
 
     public Task<int> RecoverInterruptedRunsAsync(CancellationToken cancellationToken = default) =>

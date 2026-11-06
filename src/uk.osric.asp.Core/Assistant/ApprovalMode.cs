@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Core.Assistant;
 
 /// <summary>Controls whether tools marked for approval pause before execution.</summary>
-public enum AssistantApprovalMode {
+public enum ApprovalMode {
     /// <summary>Run flagged tools without an owner prompt.</summary>
     AlwaysApprove,
 

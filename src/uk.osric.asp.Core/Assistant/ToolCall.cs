@@ -4,4 +4,4 @@
 namespace uk.osric.asp.Core.Assistant;
 
 /// <summary>A complete provider tool call, ordered by its stream index.</summary>
-public sealed record AssistantToolCall(int Index, string? Id, string? Name, string Arguments);
+public sealed record ToolCall(int Index, string? Id, string? Name, string Arguments);

@@ -6,7 +6,7 @@ namespace uk.osric.asp.Core.Assistant;
 /// <summary>The result of replacing a bounded 1-based range of page lines.</summary>
 /// <param name="Content">The new source, or null when validation failed.</param>
 /// <param name="Error">A safe validation error, or null when replacement succeeded.</param>
-public sealed record AssistantPageRangeEditResult(string? Content, string? Error) {
+public sealed record PageRangeEditResult(string? Content, string? Error) {
     /// <summary>Whether the replacement is valid.</summary>
     public bool Success => Error is null;
 }
@@ -17,7 +17,7 @@ public sealed record AssistantPageRangeEditResult(string? Content, string? Error
 /// code, and template delimiters all occupy lines exactly where they appear in the stored source.
 /// CRLF is one line break; bare CR and LF are each one. A final line break creates an empty final line.
 /// </remarks>
-public static class AssistantPageRangeEditor {
+public static class PageRangeEditor {
 
     /// <summary>Replaces the selected lines and refuses invalid ranges or oversized output.</summary>
     /// <param name="source">The complete current page source.</param>
@@ -25,7 +25,7 @@ public static class AssistantPageRangeEditor {
     /// <param name="endLine">The last 1-based physical template-source line to replace, inclusive.</param>
     /// <param name="replacement">The replacement source, which may contain line breaks.</param>
     /// <param name="maximumChars">The maximum resulting source length.</param>
-    public static AssistantPageRangeEditResult Replace(
+    public static PageRangeEditResult Replace(
         string source,
         int startLine,
         int endLine,
@@ -47,7 +47,7 @@ public static class AssistantPageRangeEditor {
             return Invalid("The resulting page exceeds the configured size limit.");
         }
 
-        return new AssistantPageRangeEditResult(source[..start] + replacement + source[end..], null);
+        return new PageRangeEditResult(source[..start] + replacement + source[end..], null);
     }
 
     private static List<(int Start, int ContentEnd)> GetLines(string source) {
@@ -69,5 +69,5 @@ public static class AssistantPageRangeEditor {
         return lines;
     }
 
-    private static AssistantPageRangeEditResult Invalid(string error) => new(null, error);
+    private static PageRangeEditResult Invalid(string error) => new(null, error);
 }

@@ -79,7 +79,7 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
     public async Task<bool> SetApprovalModeAsync(
         long id,
         string owner,
-        AssistantApprovalMode mode,
+        ApprovalMode mode,
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         if (!Enum.IsDefined(mode)) {
@@ -422,7 +422,7 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
     public async Task<bool> RecordStepAsync(
         string runId,
         int toolCallCount,
-        AssistantUsage? usage,
+        TokenUsage? usage,
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         ArgumentOutOfRangeException.ThrowIfNegative(toolCallCount);

@@ -6,36 +6,36 @@ namespace uk.osric.asp.Core.Assistant;
 using System.Text;
 
 /// <summary>Combines provider deltas into one complete assistant response.</summary>
-public sealed class AssistantChatStreamAccumulator {
+public sealed class ChatStreamAccumulator {
     private readonly StringBuilder _content = new();
     private readonly StringBuilder _reasoning = new();
     private readonly Dictionary<int, ToolCallBuilder> _toolCalls = [];
     private string? _finishReason;
-    private AssistantUsage? _usage;
+    private TokenUsage? _usage;
 
     /// <summary>Adds one provider event to the current response.</summary>
     /// <param name="event">The provider event.</param>
-    public void Add(AssistantChatStreamEvent @event) {
+    public void Add(ChatStreamEvent @event) {
         ArgumentNullException.ThrowIfNull(@event);
 
         switch (@event) {
-            case AssistantContentDelta content:
+            case ContentDelta content:
                 _content.Append(content.Text);
                 break;
-            case AssistantReasoningDelta reasoning:
+            case ReasoningDelta reasoning:
                 _reasoning.Append(reasoning.Text);
                 break;
-            case AssistantToolCallDelta toolCall:
+            case ToolCallDelta toolCall:
                 if (!_toolCalls.TryGetValue(toolCall.Index, out ToolCallBuilder? builder)) {
                     builder = new ToolCallBuilder();
                     _toolCalls.Add(toolCall.Index, builder);
                 }
                 builder.Add(toolCall);
                 break;
-            case AssistantUsageEvent usage:
+            case UsageEvent usage:
                 _usage = usage.Usage;
                 break;
-            case AssistantFinished finished:
+            case Finished finished:
                 _finishReason = finished.Reason;
                 break;
             default:
@@ -44,7 +44,7 @@ public sealed class AssistantChatStreamAccumulator {
     }
 
     /// <summary>Returns the current complete response without changing the accumulator.</summary>
-    public AssistantChatResponse Complete() => new(
+    public ChatResponse Complete() => new(
         _content.ToString(),
         _reasoning.ToString(),
         [.. _toolCalls.OrderBy(pair => pair.Key).Select(pair => pair.Value.Build(pair.Key))],
@@ -56,7 +56,7 @@ public sealed class AssistantChatStreamAccumulator {
         private readonly StringBuilder _name = new();
         private readonly StringBuilder _arguments = new();
 
-        public void Add(AssistantToolCallDelta delta) {
+        public void Add(ToolCallDelta delta) {
             if (delta.Id is not null) {
                 _id.Append(delta.Id);
             }
@@ -68,7 +68,7 @@ public sealed class AssistantChatStreamAccumulator {
             }
         }
 
-        public AssistantToolCall Build(int index) => new(
+        public ToolCall Build(int index) => new(
             index,
             _id.Length == 0 ? null : _id.ToString(),
             _name.Length == 0 ? null : _name.ToString(),

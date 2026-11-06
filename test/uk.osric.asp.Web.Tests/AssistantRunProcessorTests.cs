@@ -59,10 +59,10 @@ public sealed class AssistantRunProcessorTests {
     [Test]
     public async Task StreamsAndPersistsACompleteTextTurnAsync() {
         ScriptedClient client = new([
-            new AssistantContentDelta("Hello "),
-            new AssistantReasoningDelta("provider reasoning"),
-            new AssistantContentDelta("there."),
-            new AssistantFinished("stop"),
+            new ContentDelta("Hello "),
+            new ReasoningDelta("provider reasoning"),
+            new ContentDelta("there."),
+            new Finished("stop"),
         ]);
         (AssistantConversation conversation, AssistantRunStartResult started, AssistantRunStream stream, AssistantRunProcessor processor) =
             await StartRunAsync(client);
@@ -89,8 +89,8 @@ public sealed class AssistantRunProcessorTests {
     [Test]
     public async Task AMessageStoppedAtTheTokenLimitIsStoredAsTruncatedAsync() {
         ScriptedClient client = new([
-            new AssistantContentDelta("Half an ans"),
-            new AssistantFinished("length"),
+            new ContentDelta("Half an ans"),
+            new Finished("length"),
         ]);
         (AssistantConversation conversation, AssistantRunStartResult started, _, AssistantRunProcessor processor) =
             await StartRunAsync(client);
@@ -105,7 +105,7 @@ public sealed class AssistantRunProcessorTests {
 
     [Test]
     public async Task AProviderThatStopsSendingFailsTheRunWithItsOwnCodeAsync() {
-        ScriptedClient client = new([new AssistantContentDelta("Starting")],
+        ScriptedClient client = new([new ContentDelta("Starting")],
             new AssistantProviderException("provider_timeout", "The provider stopped sending before the answer was complete."));
         (AssistantConversation conversation, AssistantRunStartResult started, _, AssistantRunProcessor processor) =
             await StartRunAsync(client);
@@ -125,8 +125,8 @@ public sealed class AssistantRunProcessorTests {
     [Test]
     public async Task AToolNameTheProviderInventedBecomesOneMetricLabelAsync() {
         ScriptedClient client = new([
-            new AssistantToolCallDelta(0, "call-1", "make_up_a_tool", "{}"),
-            new AssistantFinished("tool_calls"),
+            new ToolCallDelta(0, "call-1", "make_up_a_tool", "{}"),
+            new Finished("tool_calls"),
         ]);
         using MetricCapture capture = MetricCapture.Start(AssistantMetrics.MeterName);
         (AssistantConversation conversation, AssistantRunStartResult started, AssistantRunStream stream, AssistantRunProcessor processor) =
@@ -143,7 +143,7 @@ public sealed class AssistantRunProcessorTests {
     [Test]
     public async Task ProviderFailurePersistsPartialAssistantTextAndSafeFailureAsync() {
         ScriptedClient client = new([
-            new AssistantContentDelta("Partial answer"),
+            new ContentDelta("Partial answer"),
         ], new AssistantProviderException("provider_unreachable", "The configured provider could not be reached."));
         (AssistantConversation conversation, AssistantRunStartResult started, AssistantRunStream stream, AssistantRunProcessor processor) =
             await StartRunAsync(client);
@@ -197,13 +197,13 @@ public sealed class AssistantRunProcessorTests {
     }
 
     private sealed class ScriptedClient(
-        IReadOnlyList<AssistantChatStreamEvent> events,
+        IReadOnlyList<ChatStreamEvent> events,
         Exception? error = null) : IChatCompletionClient {
 
-        public async IAsyncEnumerable<AssistantChatStreamEvent> StreamAsync(
-            AssistantChatRequest request,
+        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
+            ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
-            foreach (AssistantChatStreamEvent @event in events) {
+            foreach (ChatStreamEvent @event in events) {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return @event;
                 await Task.Yield();

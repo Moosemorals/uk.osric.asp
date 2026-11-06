@@ -61,13 +61,13 @@ internal sealed class AssistantMetrics : IDisposable {
     /// tool. A definition rather than a name, so a model-supplied string cannot become a label.</param>
     /// <param name="success">Whether the call succeeded.</param>
     /// <param name="duration">How long the call took.</param>
-    public void RecordTool(AssistantToolDefinition? tool, bool success, TimeSpan duration) =>
+    public void RecordTool(ToolDefinition? tool, bool success, TimeSpan duration) =>
         _toolDuration.Record(duration.TotalSeconds, new TagList {
             { "tool", tool?.Name ?? UnknownTool },
             { "outcome", success ? "ok" : "error" },
         });
 
-    public void RecordUsage(AssistantUsage usage) {
+    public void RecordUsage(TokenUsage usage) {
         if (usage.PromptTokens is > 0) {
             _tokens.Add(usage.PromptTokens.Value, new TagList { { "kind", "prompt" } });
         }

@@ -11,7 +11,7 @@ internal interface IAssistantConversationStore {
     Task<IReadOnlyList<AssistantConversationListItem>> ListAsync(string owner, CancellationToken cancellationToken = default);
     Task<AssistantConversation?> GetAsync(long id, string owner, CancellationToken cancellationToken = default);
     Task<bool> RenameAsync(long id, string owner, string title, CancellationToken cancellationToken = default);
-    Task<bool> SetApprovalModeAsync(long id, string owner, AssistantApprovalMode mode, CancellationToken cancellationToken = default);
+    Task<bool> SetApprovalModeAsync(long id, string owner, ApprovalMode mode, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(long id, string owner, CancellationToken cancellationToken = default);
     Task<AssistantRunStartResult> StartRunAsync(long id, string owner, string content, string model, string promptVersion, CancellationToken cancellationToken = default);
     Task<long?> AppendMessageAsync(long conversationId, string runId, AssistantMessageInput message, CancellationToken cancellationToken = default);
@@ -24,6 +24,6 @@ internal interface IAssistantConversationStore {
     Task<AssistantApprovalResolutionResult> ResolveApprovalAsync(long conversationId, string owner, string runId, string toolCallId, string decision, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AssistantToolApproval>> GetPendingApprovalsAsync(long conversationId, string owner, CancellationToken cancellationToken = default);
     Task<int> FailPendingApprovalsAsync(string runId, string failureCode, CancellationToken cancellationToken = default);
-    Task<bool> RecordStepAsync(string runId, int toolCallCount, AssistantUsage? usage, CancellationToken cancellationToken = default);
+    Task<bool> RecordStepAsync(string runId, int toolCallCount, TokenUsage? usage, CancellationToken cancellationToken = default);
     Task<int> RecoverInterruptedRunsAsync(CancellationToken cancellationToken = default);
 }

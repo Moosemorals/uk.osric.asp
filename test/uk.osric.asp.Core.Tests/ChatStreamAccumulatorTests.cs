@@ -11,45 +11,45 @@ public sealed class ChatStreamAccumulatorTests {
 
     [Test]
     public void AccumulatesContentReasoningFinishAndUsage() {
-        AssistantChatStreamAccumulator accumulator = new();
-        accumulator.Add(new AssistantContentDelta("Hello "));
-        accumulator.Add(new AssistantReasoningDelta("Think"));
-        accumulator.Add(new AssistantContentDelta("world"));
-        accumulator.Add(new AssistantUsageEvent(new AssistantUsage(12, 4)));
-        accumulator.Add(new AssistantFinished("stop"));
+        ChatStreamAccumulator accumulator = new();
+        accumulator.Add(new ContentDelta("Hello "));
+        accumulator.Add(new ReasoningDelta("Think"));
+        accumulator.Add(new ContentDelta("world"));
+        accumulator.Add(new UsageEvent(new TokenUsage(12, 4)));
+        accumulator.Add(new Finished("stop"));
 
-        AssistantChatResponse response = accumulator.Complete();
+        ChatResponse response = accumulator.Complete();
 
         Assert.Multiple(() => {
             Assert.That(response.Content, Is.EqualTo("Hello world"));
             Assert.That(response.Reasoning, Is.EqualTo("Think"));
             Assert.That(response.FinishReason, Is.EqualTo("stop"));
-            Assert.That(response.Usage, Is.EqualTo(new AssistantUsage(12, 4)));
+            Assert.That(response.Usage, Is.EqualTo(new TokenUsage(12, 4)));
         });
     }
 
     [Test]
     public void JoinsToolCallFragmentsByIndexAndOrdersCallsByProviderIndex() {
-        AssistantChatStreamAccumulator accumulator = new();
-        accumulator.Add(new AssistantToolCallDelta(1, "call-b", "write_page", "{\"path\":"));
-        accumulator.Add(new AssistantToolCallDelta(0, "call-a", "read_page", "{\"path\":"));
-        accumulator.Add(new AssistantToolCallDelta(1, null, null, "\"/b\"}"));
-        accumulator.Add(new AssistantToolCallDelta(0, null, null, "\"/a\"}"));
+        ChatStreamAccumulator accumulator = new();
+        accumulator.Add(new ToolCallDelta(1, "call-b", "write_page", "{\"path\":"));
+        accumulator.Add(new ToolCallDelta(0, "call-a", "read_page", "{\"path\":"));
+        accumulator.Add(new ToolCallDelta(1, null, null, "\"/b\"}"));
+        accumulator.Add(new ToolCallDelta(0, null, null, "\"/a\"}"));
 
-        IReadOnlyList<AssistantToolCall> calls = accumulator.Complete().ToolCalls;
+        IReadOnlyList<ToolCall> calls = accumulator.Complete().ToolCalls;
 
         Assert.That(calls, Is.EqualTo([
-            new AssistantToolCall(0, "call-a", "read_page", "{\"path\":\"/a\"}"),
-            new AssistantToolCall(1, "call-b", "write_page", "{\"path\":\"/b\"}"),
+            new ToolCall(0, "call-a", "read_page", "{\"path\":\"/a\"}"),
+            new ToolCall(1, "call-b", "write_page", "{\"path\":\"/b\"}"),
         ]));
     }
 
     [Test]
     public void MissingToolCallIdOrNameRemainsVisibleForSafeToolErrorHandling() {
-        AssistantChatStreamAccumulator accumulator = new();
-        accumulator.Add(new AssistantToolCallDelta(0, null, null, "{}"));
+        ChatStreamAccumulator accumulator = new();
+        accumulator.Add(new ToolCallDelta(0, null, null, "{}"));
 
-        AssistantToolCall call = accumulator.Complete().ToolCalls.Single();
+        ToolCall call = accumulator.Complete().ToolCalls.Single();
 
         Assert.That(call.Id, Is.Null);
         Assert.That(call.Name, Is.Null);
@@ -58,6 +58,6 @@ public sealed class ChatStreamAccumulatorTests {
 
     [Test]
     public void EmptyProviderResponseHasNoDelta() {
-        Assert.That(new AssistantChatStreamAccumulator().Complete().HasContent, Is.False);
+        Assert.That(new ChatStreamAccumulator().Complete().HasContent, Is.False);
     }
 }

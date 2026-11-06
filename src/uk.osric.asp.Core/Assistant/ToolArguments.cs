@@ -7,7 +7,7 @@ using System.Text.Json;
 using uk.osric.asp.Core.Text;
 
 /// <summary>The JSON value kind accepted by one tool argument.</summary>
-public enum AssistantToolArgumentType {
+public enum ToolArgumentType {
     /// <summary>A JSON string.</summary>
     String,
     /// <summary>A signed 32-bit JSON integer.</summary>
@@ -20,26 +20,26 @@ public enum AssistantToolArgumentType {
 /// <param name="Name">The exact property name.</param>
 /// <param name="Type">The JSON value type.</param>
 /// <param name="Required">Whether the property must be present.</param>
-public sealed record AssistantToolArgumentSchema(string Name, AssistantToolArgumentType Type, bool Required);
+public sealed record ToolArgumentSchema(string Name, ToolArgumentType Type, bool Required);
 
 /// <summary>A validated argument object or a safe validation error.</summary>
 /// <param name="Values">Cloned JSON values for the declared properties.</param>
 /// <param name="Error">A safe validation failure, or null when valid.</param>
-public sealed record AssistantToolArgumentsResult(IReadOnlyDictionary<string, JsonElement> Values, string? Error) {
+public sealed record ToolArgumentsResult(IReadOnlyDictionary<string, JsonElement> Values, string? Error) {
     /// <summary>Whether the argument object passed validation.</summary>
     public bool Success => Error is null;
 }
 
 /// <summary>Validates strict, bounded JSON objects used as tool arguments.</summary>
-public static class AssistantToolArguments {
+public static class ToolArguments {
 
     /// <summary>Parses an object against an explicit allow-list and type schema.</summary>
     /// <param name="json">The provider-supplied argument JSON.</param>
     /// <param name="schema">The complete set of accepted argument names and types.</param>
     /// <param name="maximumChars">The maximum serialized argument length.</param>
-    public static AssistantToolArgumentsResult Parse(
+    public static ToolArgumentsResult Parse(
         string json,
-        IReadOnlyList<AssistantToolArgumentSchema> schema,
+        IReadOnlyList<ToolArgumentSchema> schema,
         int maximumChars) {
         ArgumentNullException.ThrowIfNull(json);
         ArgumentNullException.ThrowIfNull(schema);
@@ -61,10 +61,10 @@ public static class AssistantToolArguments {
                 return Invalid("Tool arguments must be a JSON object.");
             }
 
-            Dictionary<string, AssistantToolArgumentSchema> allowed = schema.ToDictionary(item => item.Name, StringComparer.Ordinal);
+            Dictionary<string, ToolArgumentSchema> allowed = schema.ToDictionary(item => item.Name, StringComparer.Ordinal);
             Dictionary<string, JsonElement> values = new(StringComparer.Ordinal);
             foreach (JsonProperty property in document.RootElement.EnumerateObject()) {
-                if (!allowed.TryGetValue(property.Name, out AssistantToolArgumentSchema? definition)) {
+                if (!allowed.TryGetValue(property.Name, out ToolArgumentSchema? definition)) {
                     return Invalid($"Unknown tool argument '{MessageText.Sanitize(property.Name)}'.");
                 }
                 if (!values.TryAdd(property.Name, property.Value.Clone())) {
@@ -75,30 +75,30 @@ public static class AssistantToolArguments {
                 }
             }
 
-            foreach (AssistantToolArgumentSchema definition in schema) {
+            foreach (ToolArgumentSchema definition in schema) {
                 if (definition.Required && !values.ContainsKey(definition.Name)) {
                     return Invalid($"Required tool argument '{definition.Name}' is missing.");
                 }
             }
 
-            return new AssistantToolArgumentsResult(values, null);
+            return new ToolArgumentsResult(values, null);
         }
 
-        static AssistantToolArgumentsResult Invalid(string error) => new(
+        static ToolArgumentsResult Invalid(string error) => new(
             new Dictionary<string, JsonElement>(StringComparer.Ordinal), error);
     }
 
-    private static bool Matches(JsonElement value, AssistantToolArgumentType type) => type switch {
-        AssistantToolArgumentType.String => value.ValueKind == JsonValueKind.String,
-        AssistantToolArgumentType.Integer => value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out _),
-        AssistantToolArgumentType.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
+    private static bool Matches(JsonElement value, ToolArgumentType type) => type switch {
+        ToolArgumentType.String => value.ValueKind == JsonValueKind.String,
+        ToolArgumentType.Integer => value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out _),
+        ToolArgumentType.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
         _ => false,
     };
 
-    private static string TypeName(AssistantToolArgumentType type) => type switch {
-        AssistantToolArgumentType.String => "string",
-        AssistantToolArgumentType.Integer => "integer",
-        AssistantToolArgumentType.Boolean => "boolean",
+    private static string TypeName(ToolArgumentType type) => type switch {
+        ToolArgumentType.String => "string",
+        ToolArgumentType.Integer => "integer",
+        ToolArgumentType.Boolean => "boolean",
         _ => "supported value",
     };
 }

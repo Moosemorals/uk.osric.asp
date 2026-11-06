@@ -4,4 +4,4 @@
 namespace uk.osric.asp.Core.Assistant;
 
 /// <summary>Provider token counts, when available.</summary>
-public sealed record AssistantUsage(int? PromptTokens, int? CompletionTokens);
+public sealed record TokenUsage(int? PromptTokens, int? CompletionTokens);

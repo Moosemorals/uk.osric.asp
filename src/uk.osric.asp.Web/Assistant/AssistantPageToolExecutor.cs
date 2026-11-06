@@ -22,18 +22,18 @@ internal sealed class AssistantPageToolExecutor(
 
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
 
-    private static readonly IReadOnlyDictionary<string, AssistantToolArgumentSchema[]> s_schemas =
-        new Dictionary<string, AssistantToolArgumentSchema[]>(StringComparer.Ordinal) {
-            ["list_pages"] = [new("prefix", AssistantToolArgumentType.String, false), new("includeDeleted", AssistantToolArgumentType.Boolean, false)],
-            ["read_page"] = [new("path", AssistantToolArgumentType.String, true), new("startLine", AssistantToolArgumentType.Integer, false), new("endLine", AssistantToolArgumentType.Integer, false)],
-            ["edit_page"] = [new("path", AssistantToolArgumentType.String, true), new("startLine", AssistantToolArgumentType.Integer, true), new("endLine", AssistantToolArgumentType.Integer, true), new("expectedRevisionHash", AssistantToolArgumentType.String, true), new("replacement", AssistantToolArgumentType.String, true)],
-            ["write_page"] = [new("path", AssistantToolArgumentType.String, true), new("content", AssistantToolArgumentType.String, true)],
-            ["delete_page"] = [new("path", AssistantToolArgumentType.String, true)],
-            ["search_pages"] = [new("query", AssistantToolArgumentType.String, true), new("prefix", AssistantToolArgumentType.String, false), new("caseSensitive", AssistantToolArgumentType.Boolean, false)],
-            ["shell"] = [new("command", AssistantToolArgumentType.String, true)],
+    private static readonly IReadOnlyDictionary<string, ToolArgumentSchema[]> s_schemas =
+        new Dictionary<string, ToolArgumentSchema[]>(StringComparer.Ordinal) {
+            ["list_pages"] = [new("prefix", ToolArgumentType.String, false), new("includeDeleted", ToolArgumentType.Boolean, false)],
+            ["read_page"] = [new("path", ToolArgumentType.String, true), new("startLine", ToolArgumentType.Integer, false), new("endLine", ToolArgumentType.Integer, false)],
+            ["edit_page"] = [new("path", ToolArgumentType.String, true), new("startLine", ToolArgumentType.Integer, true), new("endLine", ToolArgumentType.Integer, true), new("expectedRevisionHash", ToolArgumentType.String, true), new("replacement", ToolArgumentType.String, true)],
+            ["write_page"] = [new("path", ToolArgumentType.String, true), new("content", ToolArgumentType.String, true)],
+            ["delete_page"] = [new("path", ToolArgumentType.String, true)],
+            ["search_pages"] = [new("query", ToolArgumentType.String, true), new("prefix", ToolArgumentType.String, false), new("caseSensitive", ToolArgumentType.Boolean, false)],
+            ["shell"] = [new("command", ToolArgumentType.String, true)],
         };
 
-    public static IReadOnlyList<AssistantToolDefinition> Definitions { get; } = [
+    public static IReadOnlyList<ToolDefinition> Definitions { get; } = [
         Definition("list_pages", "List live page keys under an optional prefix.", [new("prefix", "string", false), new("includeDeleted", "boolean", false)], false),
         Definition("read_page", "Read a page, its revision hash, compile status and diagnostics. Optional 1-based line numbers refer to physical lines of the stored template source.", [new("path", "string", true), new("startLine", "integer", false), new("endLine", "integer", false)], false),
         Definition("edit_page", "Replace an inclusive range of 1-based physical template-source lines if the current revision hash still matches. Lines include literal HTML and template delimiters as authored, not generated C# or rendered HTML.", [new("path", "string", true), new("startLine", "integer", true), new("endLine", "integer", true), new("expectedRevisionHash", "string", true), new("replacement", "string", true)], true),
@@ -47,12 +47,12 @@ internal sealed class AssistantPageToolExecutor(
         string name,
         string argumentsJson,
         CancellationToken cancellationToken) {
-        if (!s_schemas.TryGetValue(name, out AssistantToolArgumentSchema[]? schema)) {
+        if (!s_schemas.TryGetValue(name, out ToolArgumentSchema[]? schema)) {
             string unknown = MessageText.Sanitize(name);
             return Failure($"Unknown tool '{unknown}'.", $"Unknown tool {unknown}");
         }
 
-        AssistantToolArgumentsResult parsed = AssistantToolArguments.Parse(argumentsJson, schema, options.MaxToolArgumentChars);
+        ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, schema, options.MaxToolArgumentChars);
         if (!parsed.Success) {
             return Failure(parsed.Error!, $"Invalid arguments for {name}");
         }
@@ -168,7 +168,7 @@ internal sealed class AssistantPageToolExecutor(
             return Failure("The page has changed since read_page. Re-read it and reconcile before editing.", $"Edit {Describe(checkedPath.Path!)}: stale revision");
         }
 
-        AssistantPageRangeEditResult edited = AssistantPageRangeEditor.Replace(
+        PageRangeEditResult edited = PageRangeEditor.Replace(
             current.Template,
             Integer(arguments, "startLine")!.Value,
             Integer(arguments, "endLine")!.Value,
@@ -369,7 +369,7 @@ internal sealed class AssistantPageToolExecutor(
         return prefix;
     }
 
-    private static AssistantToolDefinition Definition(
+    private static ToolDefinition Definition(
         string name,
         string description,
         (string Name, string Type, bool Required)[] properties,
@@ -385,7 +385,7 @@ internal sealed class AssistantPageToolExecutor(
             required,
             additionalProperties = false,
         }, s_jsonOptions);
-        return new AssistantToolDefinition(name, description, parameters, needsApproval);
+        return new ToolDefinition(name, description, parameters, needsApproval);
     }
 
     private static string? String(IReadOnlyDictionary<string, JsonElement> values, string name) =>

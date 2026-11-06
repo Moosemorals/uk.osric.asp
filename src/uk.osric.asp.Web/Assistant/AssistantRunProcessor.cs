@@ -32,7 +32,7 @@ internal sealed class AssistantRunProcessor(
 
         using CancellationTokenSource runTimeout = CancellationTokenSource.CreateLinkedTokenSource(hostStopping, stream.StopToken);
         runTimeout.CancelAfter(TimeSpan.FromSeconds(options.RunTimeoutSeconds));
-        AssistantChatStreamAccumulator? partial = null;
+        ChatStreamAccumulator? partial = null;
         int step = 0;
         string? activeToolCallId = null;
         string? activeToolName = null;
@@ -57,9 +57,9 @@ internal sealed class AssistantRunProcessor(
             for (step = 1; step <= options.MaxSteps; step++) {
                 IReadOnlyList<AssistantMessage> transcript = await StoreAsync(
                     store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
-                List<AssistantChatMessage> messages = [new AssistantChatMessage("system", PageAuthorPrompt.Build())];
+                List<ChatMessage> messages = [new ChatMessage("system", PageAuthorPrompt.Build())];
                 messages.AddRange(transcript.Select(ToChatMessage));
-                AssistantContextTrimResult trimmed = AssistantContextTrimmer.Trim(messages, options.MaxContextChars);
+                ContextTrimResult trimmed = ContextTrimmer.Trim(messages, options.MaxContextChars);
                 if (trimmed.Error is not null) {
                     await FailAsync(queued, stream, "context_too_long", trimmed.Error, partial, step, runTimeout.Token);
                     return;
@@ -72,8 +72,8 @@ internal sealed class AssistantRunProcessor(
                 }
 
                 stream.Publish("message.started", new { step });
-                partial = new AssistantChatStreamAccumulator();
-                AssistantChatRequest request = new(
+                partial = new ChatStreamAccumulator();
+                ChatRequest request = new(
                     run.Model,
                     trimmed.Messages,
                     AssistantPageToolExecutor.Definitions,
@@ -86,17 +86,17 @@ internal sealed class AssistantRunProcessor(
                 bool firstTokenRecorded = false;
                 string providerOutcome = "ok";
                 try {
-                    await foreach (AssistantChatStreamEvent @event in client.StreamAsync(request, runTimeout.Token)) {
+                    await foreach (ChatStreamEvent @event in client.StreamAsync(request, runTimeout.Token)) {
                         partial.Add(@event);
-                        if (!firstTokenRecorded && @event is AssistantContentDelta or AssistantReasoningDelta or AssistantToolCallDelta) {
+                        if (!firstTokenRecorded && @event is ContentDelta or ReasoningDelta or ToolCallDelta) {
                             metrics.RecordProviderFirstToken(run.Model, Stopwatch.GetElapsedTime(providerStart));
                             firstTokenRecorded = true;
                         }
                         switch (@event) {
-                            case AssistantContentDelta content:
+                            case ContentDelta content:
                                 stream.Publish("content.delta", new { step, text = content.Text });
                                 break;
-                            case AssistantReasoningDelta reasoning:
+                            case ReasoningDelta reasoning:
                                 stream.Publish("reasoning.delta", new { step, text = reasoning.Text });
                                 break;
                         }
@@ -117,7 +117,7 @@ internal sealed class AssistantRunProcessor(
                     metrics.RecordProviderRequest(run.Model, providerOutcome, Stopwatch.GetElapsedTime(providerStart));
                 }
 
-                AssistantChatResponse response = partial.Complete();
+                ChatResponse response = partial.Complete();
                 if (response.Usage is { } usage) {
                     metrics.RecordUsage(usage);
                 }
@@ -155,8 +155,8 @@ internal sealed class AssistantRunProcessor(
                     activeToolCallId = call.Id;
                     activeToolName = call.Name;
                     AssistantToolExecutionResult result;
-                    AssistantToolDefinition? definition = AssistantPageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
-                    bool requiresApproval = run.ApprovalMode == AssistantApprovalMode.RequireApproval.ToString()
+                    ToolDefinition? definition = AssistantPageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
+                    bool requiresApproval = run.ApprovalMode == ApprovalMode.RequireApproval.ToString()
                         && definition?.NeedsApproval == true;
                     stream.Publish("tool.started", new {
                         step,
@@ -261,7 +261,7 @@ internal sealed class AssistantRunProcessor(
         AssistantRunStream stream,
         int step,
         PreparedToolCall call,
-        AssistantToolDefinition definition,
+        ToolDefinition definition,
         CancellationToken cancellationToken) {
         using CancellationTokenSource waiterCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         Task<AssistantApprovalResolutionResult> wait = approvals.WaitAsync(queued.RunId, call.Id, waiterCancellation.Token);
@@ -320,7 +320,7 @@ internal sealed class AssistantRunProcessor(
         AssistantQueuedRun queued,
         AssistantRunStream stream,
         int step,
-        AssistantChatResponse response,
+        ChatResponse response,
         string status,
         bool includeToolCalls,
         CancellationToken cancellationToken) {
@@ -339,7 +339,7 @@ internal sealed class AssistantRunProcessor(
         AssistantQueuedRun queued,
         AssistantRunStream stream,
         int step,
-        AssistantChatResponse response,
+        ChatResponse response,
         IReadOnlyList<PreparedToolCall> calls,
         CancellationToken cancellationToken) {
         long? sequence = await StoreAsync(store => store.AppendMessageAsync(
@@ -356,13 +356,13 @@ internal sealed class AssistantRunProcessor(
         AssistantQueuedRun queued,
         AssistantRunStream stream,
         int step,
-        AssistantChatStreamAccumulator? accumulator,
+        ChatStreamAccumulator? accumulator,
         string status,
         CancellationToken cancellationToken) {
         if (accumulator is null) {
             return;
         }
-        AssistantChatResponse response = accumulator.Complete();
+        ChatResponse response = accumulator.Complete();
         if (response.Content.Length == 0 && response.Reasoning.Length == 0) {
             return;
         }
@@ -374,7 +374,7 @@ internal sealed class AssistantRunProcessor(
         AssistantRunStream stream,
         string code,
         string message,
-        AssistantChatStreamAccumulator? partial,
+        ChatStreamAccumulator? partial,
         int step,
         CancellationToken cancellationToken) {
         await PersistPartialAsync(queued, stream, step, partial, "failed", cancellationToken);
@@ -387,7 +387,7 @@ internal sealed class AssistantRunProcessor(
         AssistantQueuedRun queued,
         AssistantRunStream stream,
         int steps,
-        AssistantChatResponse response) {
+        ChatResponse response) {
         await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "completed"));
         stream.Publish("run.completed", new {
             runId = queued.RunId,
@@ -401,19 +401,19 @@ internal sealed class AssistantRunProcessor(
         return await action(scope.ServiceProvider.GetRequiredService<IAssistantConversationStore>());
     }
 
-    private static AssistantChatMessage ToChatMessage(AssistantMessage message) => new(
+    private static ChatMessage ToChatMessage(AssistantMessage message) => new(
         message.Role,
         message.Content,
         message.ToolCallsJson,
         message.ToolCallId,
         message.ToolName);
 
-    private static IReadOnlyList<PreparedToolCall> PrepareToolCalls(IReadOnlyList<AssistantToolCall> calls, int step) => [.. calls.Select(call => new PreparedToolCall(
+    private static IReadOnlyList<PreparedToolCall> PrepareToolCalls(IReadOnlyList<ToolCall> calls, int step) => [.. calls.Select(call => new PreparedToolCall(
         call.Id ?? $"missing-{step}-{call.Index}",
         call.Name ?? string.Empty,
         call.Arguments))];
 
-    private static string SerializeToolCalls(IReadOnlyList<AssistantToolCall> calls) =>
+    private static string SerializeToolCalls(IReadOnlyList<ToolCall> calls) =>
         SerializePreparedToolCalls(PrepareToolCalls(calls, 1));
 
     private static string SerializePreparedToolCalls(IReadOnlyList<PreparedToolCall> calls) => JsonSerializer.Serialize(

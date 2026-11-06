@@ -66,7 +66,7 @@ public sealed class AssistantConversationStoreTests {
         AssistantConversation conversation = await conversations.CreateAsync("owner");
 
         Assert.That(await conversations.RenameAsync(conversation.Id, "owner", "My pages"), Is.True);
-        Assert.That(await conversations.SetApprovalModeAsync(conversation.Id, "owner", AssistantApprovalMode.RequireApproval), Is.True);
+        Assert.That(await conversations.SetApprovalModeAsync(conversation.Id, "owner", ApprovalMode.RequireApproval), Is.True);
         Assert.That(await conversations.RenameAsync(conversation.Id, "other", "No"), Is.False);
 
         AssistantConversation saved = (await conversations.GetAsync(conversation.Id, "owner"))!;
@@ -123,7 +123,7 @@ public sealed class AssistantConversationStoreTests {
         await using StorageDbContext database = new(_options);
         IAssistantConversationStore conversations = NewStore(database);
         AssistantConversation conversation = await conversations.CreateAsync("owner");
-        await conversations.SetApprovalModeAsync(conversation.Id, "owner", AssistantApprovalMode.RequireApproval);
+        await conversations.SetApprovalModeAsync(conversation.Id, "owner", ApprovalMode.RequireApproval);
 
         AssistantRunStartResult started = await conversations.StartRunAsync(
             conversation.Id, "owner", "Build a page", "model", "prompt-v1");
