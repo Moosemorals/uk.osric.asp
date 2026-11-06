@@ -112,7 +112,7 @@ public sealed class TemplateSourceGeneratorTests {
 
         Assert.That(source, Does.Contain("using uk.osric.asp.Sdk;"));
         Assert.That(source, Does.Contain("class GeneratedPage : uk.osric.asp.Sdk.IHandler"));
-        Assert.That(source, Does.Contain("void Handle(uk.osric.asp.Sdk.IContext ctx)"));
+        Assert.That(source, Does.Contain("Task HandleAsync(uk.osric.asp.Sdk.IContext ctx)"));
     }
 
     [Test]
@@ -120,7 +120,26 @@ public sealed class TemplateSourceGeneratorTests {
         string source = Generate("");
 
         Assert.That(source, Does.Contain("public class GeneratedPage : uk.osric.asp.Sdk.IHandler {"));
-        Assert.That(source, Does.Contain("public void Handle(uk.osric.asp.Sdk.IContext ctx) {"));
+        Assert.That(source, Does.Contain("public async global::System.Threading.Tasks.Task HandleAsync(uk.osric.asp.Sdk.IContext ctx) {"));
+    }
+
+    [Test]
+    public void AnEmptyTemplateStillGeneratesAHandler() {
+        string source = Generate("");
+
+        Assert.That(source, Does.Contain("HandleAsync"));
+        Assert.That(source, Does.Not.Contain("ctx.WriteRaw"));
+    }
+
+    [Test]
+    public void TheAsyncMethodSuppressesTheNoAwaitWarning() {
+        string source = Generate("Hello");
+
+        int disable = source.IndexOf("#pragma warning disable CS1998", StringComparison.Ordinal);
+        int signature = source.IndexOf("HandleAsync", StringComparison.Ordinal);
+
+        Assert.That(disable, Is.GreaterThan(-1).And.LessThan(signature));
+        Assert.That(source, Does.Contain("#pragma warning restore CS1998"));
     }
 
     [Test]
@@ -242,6 +261,17 @@ public sealed class TemplateSourceGeneratorTests {
 
         Assert.That(source, Does.Contain("#line 3 \"page\""));
         Assert.That(source, Does.Contain("#line 6 \"page\""));
+    }
+
+    [Test]
+    public void AwaitInsideAWriteExpressionStaysInsideTheWriteCall() {
+        string source = Generate("<%= await ctx.Path.ToStringAsync() %>");
+
+        Assert.That(source, Does.Contain(
+            $"ctx.Write({Environment.NewLine}"
+            + $"#line 1 \"page\"{Environment.NewLine}"));
+        Assert.That(source, Does.Contain(
+            $"await ctx.Path.ToStringAsync(){Environment.NewLine}#line default{Environment.NewLine});"));
     }
 
     [Test]

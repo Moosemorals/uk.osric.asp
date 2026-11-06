@@ -15,6 +15,10 @@ public static class TemplateSourceGenerator {
     // drift apart.
     private const string SdkNamespace = "uk.osric.asp.Sdk";
 
+    // Fully qualified on purpose: a prelude `using System.Threading.Tasks;` would put the whole
+    // namespace, and every type in it, in scope for page code.
+    private const string TaskTypeName = "global::System.Threading.Tasks.Task";
+
     /// <summary>Generates the handler source for a page template.</summary>
     /// <param name="template">The page template.</param>
     /// <returns>
@@ -60,9 +64,14 @@ public static class TemplateSourceGenerator {
             }
         }
 
+        // Always async, so `await` is an ordinary expression in page code. A template with no await
+        // would then warn CS1998 on the generated signature, which is unmapped and would be dropped
+        // by the diagnostic mapping - an invisible fault. Suppress it instead.
+        result.Append("#pragma warning disable CS1998");
+        result.Append(Environment.NewLine);
         result.Append($$"""
             public class GeneratedPage : {{SdkNamespace}}.IHandler {
-            public void Handle({{SdkNamespace}}.IContext ctx) {
+            public async {{TaskTypeName}} HandleAsync({{SdkNamespace}}.IContext ctx) {
         """);
         result.Append(Environment.NewLine);
 
@@ -90,6 +99,8 @@ public static class TemplateSourceGenerator {
         result.Append($"#line {TemplateLines.Count(template) + 1} \"{TemplateName}\"");
         result.Append(Environment.NewLine);
         result.Append("}}");
+        result.Append(Environment.NewLine);
+        result.Append("#pragma warning restore CS1998");
 
         return new TemplateGenerationResult(new GeneratedSource(result.ToString()), []);
     }
