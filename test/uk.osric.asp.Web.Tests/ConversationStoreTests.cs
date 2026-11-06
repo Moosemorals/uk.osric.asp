@@ -12,7 +12,7 @@ using uk.osric.asp.Web.Storage;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
-public sealed class AssistantConversationStoreTests {
+public sealed class ConversationStoreTests {
 
     private string _databasePath = string.Empty;
     private DbContextOptions<StorageDbContext> _options = new DbContextOptionsBuilder<StorageDbContext>().Options;

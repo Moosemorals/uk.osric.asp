@@ -7,7 +7,7 @@ using NUnit.Framework;
 using uk.osric.asp.Core.Assistant;
 
 [TestFixture]
-public sealed class AssistantPageRangeEditorTests {
+public sealed class PageRangeEditorTests {
 
     [Test]
     public void ReplacesInclusiveLineRangeAndPreservesUnchangedLineEndings() {

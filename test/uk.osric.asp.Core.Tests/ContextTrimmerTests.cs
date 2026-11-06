@@ -7,7 +7,7 @@ using NUnit.Framework;
 using uk.osric.asp.Core.Assistant;
 
 [TestFixture]
-public sealed class AssistantContextTrimmerTests {
+public sealed class ContextTrimmerTests {
 
     [Test]
     public void KeepsTheSystemPromptAndNewestUserTurn() {

@@ -12,7 +12,7 @@ using uk.osric.asp.Web.Pages;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
-public sealed class AssistantPageToolExecutorTests {
+public sealed class PageToolExecutorTests {
 
     [Test]
     public async Task EditPageReplacesOnlyTheSelectedLinesAndReturnsDiagnosticsAsync() {

@@ -16,7 +16,7 @@ using uk.osric.asp.Web.Storage;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
-public sealed class AssistantRunProcessorTests {
+public sealed class RunProcessorTests {
 
     private string _databasePath = string.Empty;
     private DbContextOptions<StorageDbContext> _databaseOptions = new DbContextOptionsBuilder<StorageDbContext>().Options;

@@ -7,7 +7,7 @@ using NUnit.Framework;
 using uk.osric.asp.Core.Assistant;
 
 [TestFixture]
-public sealed class AssistantToolArgumentsTests {
+public sealed class ToolArgumentsTests {
 
     private static readonly ToolArgumentSchema[] Schema = [
         new("path", ToolArgumentType.String, true),

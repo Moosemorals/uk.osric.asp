@@ -8,7 +8,7 @@ using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
-public sealed class AssistantPathsTests {
+public sealed class PagePathPolicyTests {
 
     [Test]
     public void NormalizesBeforeCheckingReservedAndProtectedPaths() {

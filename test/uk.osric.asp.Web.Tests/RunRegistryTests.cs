@@ -7,7 +7,7 @@ using NUnit.Framework;
 using uk.osric.asp.Web.Assistant;
 
 [TestFixture]
-public sealed class AssistantRunRegistryTests {
+public sealed class RunRegistryTests {
 
     [Test]
     public async Task ReplaysEventsAfterTheRequestedSequenceAsync() {

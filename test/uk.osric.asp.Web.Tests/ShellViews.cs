@@ -195,7 +195,7 @@ internal static class ShellViews {
 
     private static async Task<string> AssistantListAsync() {
         DefaultHttpContext context = AuthenticatedContext("/assistant");
-        await AssistantEndpoint.ListAsync(context, new ShellAssistantConversationStore(), new TestAntiforgery(),
+        await AssistantEndpoint.ListAsync(context, new ShellConversationStore(), new TestAntiforgery(),
             Microsoft.Extensions.Options.Options.Create(new AssistantOptions { Enabled = true }));
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -204,7 +204,7 @@ internal static class ShellViews {
     // details the chat renders from stored messages: arguments in the summary, both halves inside.
     private static async Task<string> AssistantChatAsync(bool withReasoning) {
         DefaultHttpContext context = AuthenticatedContext("/assistant/1");
-        ShellAssistantConversationStore conversations = new(withReasoning
+        ShellConversationStore conversations = new(withReasoning
             ? [
                 new Message {
                     ConversationId = 1,
@@ -235,7 +235,7 @@ internal static class ShellViews {
 
     private static async Task<string> AssistantDeleteAsync() {
         DefaultHttpContext context = AuthenticatedContext("/assistant/1/delete");
-        await AssistantEndpoint.DeleteConfirmationAsync(context, 1, new ShellAssistantConversationStore(), new TestAntiforgery());
+        await AssistantEndpoint.DeleteConfirmationAsync(context, 1, new ShellConversationStore(), new TestAntiforgery());
         return await TestHttp.ReadBodyAsync(context);
     }
 

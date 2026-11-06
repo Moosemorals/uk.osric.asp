@@ -7,7 +7,7 @@ using NUnit.Framework;
 using uk.osric.asp.Web.Assistant;
 
 [TestFixture]
-public sealed class AssistantToolApprovalCoordinatorTests {
+public sealed class ToolApprovalCoordinatorTests {
 
     [TestCase(true)]
     [TestCase(false)]
