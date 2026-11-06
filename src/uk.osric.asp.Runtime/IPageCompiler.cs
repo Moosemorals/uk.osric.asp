@@ -30,11 +30,11 @@ public interface IPageCompiler {
     /// The generated source itself is broken. A fault is not a page diagnostic and must reach the
     /// shell as an exception.
     /// </exception>
-    PageCompileResult Compile(GeneratedPageSource source, CancellationToken cancellationToken = default);
+    CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default);
 
     /// <summary>Loads a compiled image and its portable symbols so its handler can be run.</summary>
     /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
     /// <param name="symbols">The portable PDB bytes emitted with the image, if present.</param>
     /// <returns>The loaded handler; dispose it to release the assembly.</returns>
-    CompiledPage Load(byte[] image, byte[]? symbols = null);
+    LoadedPage Load(byte[] image, byte[]? symbols = null);
 }

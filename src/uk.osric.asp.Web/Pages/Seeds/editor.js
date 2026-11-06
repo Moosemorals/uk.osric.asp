@@ -1,7 +1,7 @@
 /* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
 /* SPDX-License-Identifier: MIT */
 
-const textarea = document.getElementById('content');
+const textarea = document.getElementById('template');
 const gutter = document.getElementById('gutter');
 const editor = document.querySelector('.editor');
 const storageKey = `editor:caret:${location.pathname}`;

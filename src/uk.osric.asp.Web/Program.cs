@@ -90,7 +90,7 @@ internal class Program {
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
         builder.Services.AddScoped<PageEditor>();
         builder.Services.AddScoped<PageRenderer>();
-        builder.Services.AddScoped<PageCompilationService>();
+        builder.Services.AddScoped<PageImageBuilder>();
 
         if (agentEnabled) {
             builder.Services.AddHostedService<AgentRunWorker>();

@@ -17,12 +17,12 @@ internal static class PageAssetSeeder {
                 continue;
             }
 
-            string content = await File.ReadAllTextAsync(seed, cancellationToken);
-            await pages.SavePageAsync(new StoredPage(key, content), cancellationToken);
+            string template = await File.ReadAllTextAsync(seed, cancellationToken);
+            await pages.SavePageAsync(new PageTemplate(key, template), cancellationToken);
         }
     }
 
-    public static async Task<string?> ReadSeedContentAsync(PagePath path, CancellationToken cancellationToken = default) {
+    public static async Task<string?> ReadSeedTemplateAsync(PagePath path, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(path);
 
         string? seed = FindSeedFile(path);

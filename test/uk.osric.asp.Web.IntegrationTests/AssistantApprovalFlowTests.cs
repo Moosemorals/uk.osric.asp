@@ -58,7 +58,7 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
         Assert.That(approved.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
         string completedEvents = await ReadUntilEventAsync(reader, "run.completed");
         Assert.That(completedEvents, Does.Contain("event: tool.finished"));
-        Assert.That((await ReadPageAsync("/gated-page"))?.Content, Is.EqualTo("<h1>Gated</h1>"));
+        Assert.That((await ReadPageAsync("/gated-page"))?.Template, Is.EqualTo("<h1>Gated</h1>"));
 
         string automaticConversation = await CreateConversationAsync(client);
         string automaticToken = await GetAntiforgeryTokenAsync(client, automaticConversation);
@@ -74,7 +74,7 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
         Assert.That(automaticStarted.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         Assert.That(automaticBody, Does.Not.Contain("event: approval.required"));
         Assert.That(automaticBody, Does.Contain("event: run.completed"));
-        Assert.That((await ReadPageAsync("/automatic-page"))?.Content, Is.EqualTo("<h1>Automatic</h1>"));
+        Assert.That((await ReadPageAsync("/automatic-page"))?.Template, Is.EqualTo("<h1>Automatic</h1>"));
     }
 
     [Test]

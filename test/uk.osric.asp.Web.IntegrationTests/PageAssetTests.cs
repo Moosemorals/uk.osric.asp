@@ -106,7 +106,7 @@ public sealed class PageAssetTests : IntegrationTest {
     public async Task AdminRestoreRecreatesADeletedSeedAndKeepsItsHistory() {
         using HttpClient client = await CreateSignedInClientAsync();
         await SavePageAsync("/editor.css", "/* local edit */");
-        StoredPage edited = (await ReadPageAsync("/editor.css"))!;
+        PageTemplate edited = (await ReadPageAsync("/editor.css"))!;
 
         string deleteToken = await GetAntiforgeryTokenAsync(client, "/edit/editor.css?cmd=delete");
         using HttpResponseMessage deleted = await client.PostAsync("/edit/editor.css?cmd=delete", Form(
@@ -125,18 +125,18 @@ public sealed class PageAssetTests : IntegrationTest {
         using HttpResponseMessage confirmation = await client.GetAsync(confirmationPath);
         string confirmationBody = await confirmation.Content.ReadAsStringAsync();
         Assert.That(confirmation.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(confirmationBody, Does.Contain("will replace the current page content"));
+        Assert.That(confirmationBody, Does.Contain("will replace the current page template"));
         Assert.That(confirmationBody, Does.Contain(WebUtility.HtmlEncode(seedSource)));
         Assert.That(confirmationBody, Does.Contain("name=\"__RequestVerificationToken\""));
 
         using HttpResponseMessage restore = await client.PostAsync("/admin/restore", Form(
             ("__RequestVerificationToken", restoreToken),
             ("path", "/editor.css")));
-        StoredPage restored = (await ReadPageAsync("/editor.css"))!;
+        PageTemplate restored = (await ReadPageAsync("/editor.css"))!;
         Assert.That(restore.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
         Assert.That(restore.Headers.Location?.ToString(), Is.EqualTo("/edit/editor.css"));
         Assert.That(restore.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That(restored.Content, Is.EqualTo(seedSource));
+        Assert.That(restored.Template, Is.EqualTo(seedSource));
         Assert.That(restored.Hash, Is.Not.EqualTo(edited.Hash));
 
         using HttpResponseMessage history = await client.GetAsync("/edit/editor.css?cmd=history");

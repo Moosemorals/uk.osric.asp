@@ -22,7 +22,7 @@ public sealed class PageScopeTests {
     [TestCase("<% uk.osric.asp.Runtime.PageCompiler compiler = null; %>")]
     [TestCase("<% uk.osric.asp.Core.PagePath path = null; %>")]
     public void ShellTypesAreNotReferenced(string template) {
-        PageCompileResult result = Compiler.Compile(Generate(template));
+        CompileResult result = Compiler.Compile(Generate(template));
 
         Assert.That(result.Success, Is.False);
         // CS0234 rather than CS0246: the assembly is absent, so its namespace is unknown too.
@@ -37,7 +37,7 @@ public sealed class PageScopeTests {
 
     [Test]
     public void RoslynIsNotReferenced() {
-        PageCompileResult result = Compiler.Compile(
+        CompileResult result = Compiler.Compile(
             Generate("<% Microsoft.CodeAnalysis.CSharp.CSharpCompilation compilation = null; %>"));
 
         Assert.That(result.Success, Is.False);
@@ -51,14 +51,14 @@ public sealed class PageScopeTests {
 
     [Test]
     public void SdkTypesAreStillReferenced() {
-        PageCompileResult result = Compiler.Compile(
+        CompileResult result = Compiler.Compile(
             Generate("<% IContext page = ctx; page.Write(page.Path); %>"));
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
-    private static GeneratedPageSource Generate(string template) {
-        TemplateParseResult parsed = TemplateSourceGenerator.Generate(template);
+    private static GeneratedSource Generate(string template) {
+        TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 
         // The assertion above proves source was generated.

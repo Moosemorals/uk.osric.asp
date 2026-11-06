@@ -18,7 +18,7 @@ internal sealed record ConditionalPageSaveResult(
 /// <remarks>
 /// <para>
 /// A save compiles before it stores, so the page never sits in the database without the result of
-/// compiling it. A compiler fault is the one case where the source is stored without a compilation:
+/// compiling it. A compiler fault is the one case where the template is stored without an image:
 /// losing the author's edit to report our bug would be the worse failure.
 /// </para>
 /// <para>
@@ -27,14 +27,14 @@ internal sealed record ConditionalPageSaveResult(
 /// </remarks>
 internal sealed class PageEditor(
     IPageStore storage,
-    PageCompilationService compilations,
+    PageImageBuilder images,
     PageMetrics metrics,
     ILogger<PageEditor> logger) {
 
     /// <summary>Reads a page without compiling it.</summary>
     /// <param name="path">The canonical key to read.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
-    public Task<StoredPage?> GetAsync(PagePath path, CancellationToken cancellationToken = default) {
+    public Task<PageTemplate?> GetAsync(PagePath path, CancellationToken cancellationToken = default) {
         return storage.GetPageAsync(path, cancellationToken);
     }
 
@@ -46,7 +46,7 @@ internal sealed class PageEditor(
         return storage.GetHeadAsync(path, cancellationToken);
     }
 
-    public Task<StoredPage?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
+    public Task<PageTemplate?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
         return storage.GetRevisionByHashAsync(hash, cancellationToken);
     }
 
@@ -54,8 +54,8 @@ internal sealed class PageEditor(
         return storage.ListRevisionsAsync(path, cancellationToken);
     }
 
-    public Task<PageRevisionSource?> GetRevisionSourceByHashAsync(string hash, CancellationToken cancellationToken = default) {
-        return storage.GetRevisionSourceByHashAsync(hash, cancellationToken);
+    public Task<PageRevisionTemplate?> GetRevisionTemplateByHashAsync(string hash, CancellationToken cancellationToken = default) {
+        return storage.GetRevisionTemplateByHashAsync(hash, cancellationToken);
     }
 
     public Task<bool> DeleteAsync(PagePath path, CancellationToken cancellationToken = default) {
@@ -66,84 +66,84 @@ internal sealed class PageEditor(
         return storage.ScrubPageAsync(path, cancellationToken);
     }
 
-    /// <summary>Compiles a page and stores its source and result together.</summary>
+    /// <summary>Builds a page's image and stores it with the template.</summary>
     /// <param name="path">The canonical key to save.</param>
-    /// <param name="content">The template source.</param>
+    /// <param name="template">The template text.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <returns>The compiler's author-facing diagnostics, errors and warnings; empty when the page compiled cleanly.</returns>
-    public async Task<IReadOnlyList<PageDiagnostic>> SaveAsync(PagePath path, string content, CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<PageDiagnostic>> SaveAsync(PagePath path, string template, CancellationToken cancellationToken = default) {
         long start = Stopwatch.GetTimestamp();
 
-        PageCompilation compilation;
+        PageImage image;
         try {
-            compilation = compilations.Compile(path, content, PageMetrics.ReasonSave, cancellationToken);
+            image = images.Build(path, template, PageMetrics.ReasonSave, cancellationToken);
         } catch (InvalidOperationException) {
-            // A compiler fault is our bug, but the author's edit must survive it. Store the source
-            // without a compilation; the next request retries, and the failure still answers 500.
-            await storage.SavePageAsync(NewRevision(path, content, null), cancellationToken);
+            // A compiler fault is our bug, but the author's edit must survive it. Store the template
+            // without an image; the next request retries, and the failure still answers 500.
+            await storage.SavePageAsync(NewRevision(path, template, null), cancellationToken);
             metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
             throw;
         }
 
-        await storage.SavePageAsync(NewRevision(path, content, compilation), cancellationToken);
+        await storage.SavePageAsync(NewRevision(path, template, image), cancellationToken);
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
-        metrics.RecordSave(path, compilation.Image is not null, duration);
+        metrics.RecordSave(path, image.Bytes is not null, duration);
         logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
-            Outcome(compilation));
+            Outcome(image));
 
-        return compilation.Diagnostics;
+        return image.Diagnostics;
     }
 
     /// <summary>Compiles and saves a page only while its current revision hash still matches.</summary>
     public async Task<ConditionalPageSaveResult> SaveIfRevisionAsync(
         PagePath path,
-        string content,
+        string template,
         string expectedRevisionHash,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(path);
-        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(template);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedRevisionHash);
         long start = Stopwatch.GetTimestamp();
 
-        PageCompilation compilation;
+        PageImage image;
         try {
-            compilation = compilations.Compile(path, content, PageMetrics.ReasonSave, cancellationToken);
+            image = images.Build(path, template, PageMetrics.ReasonSave, cancellationToken);
         } catch (InvalidOperationException) {
-            await storage.TrySavePageAsync(NewRevision(path, content, null), expectedRevisionHash, cancellationToken);
+            await storage.TrySavePageAsync(NewRevision(path, template, null), expectedRevisionHash, cancellationToken);
             metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
             throw;
         }
 
-        StoredPage revision = NewRevision(path, content, compilation);
+        PageTemplate revision = NewRevision(path, template, image);
         bool saved = await storage.TrySavePageAsync(revision, expectedRevisionHash, cancellationToken);
         if (!saved) {
             return new ConditionalPageSaveResult(false, null, []);
         }
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
-        metrics.RecordSave(path, compilation.Image is not null, duration);
+        metrics.RecordSave(path, image.Bytes is not null, duration);
         logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
-            Outcome(compilation));
-        return new ConditionalPageSaveResult(true, revision.Hash, compilation.Diagnostics);
+            Outcome(image));
+        return new ConditionalPageSaveResult(true, revision.Hash, image.Diagnostics);
     }
 
-    private static string Outcome(PageCompilation compilation) {
-        if (compilation.Image is null) {
+    private static string Outcome(PageImage image) {
+        if (image.Bytes is null) {
             return "with errors";
         }
 
-        return compilation.Diagnostics.Count > 0 ? "compiled with warnings" : "compiled";
+        return image.Diagnostics.Count > 0 ? "compiled with warnings" : "compiled";
     }
 
-    private StoredPage NewRevision(PagePath path, string content, PageCompilation? compilation) {
+    private PageTemplate NewRevision(PagePath path, string template, PageImage? image) {
         string revisionId = Guid.NewGuid().ToString("N");
         DateTimeOffset savedAt = DateTimeOffset.UtcNow;
-        return new StoredPage(path, content, compilation) {
+        return new PageTemplate(path, template, image) {
             RevisionId = revisionId,
-            CreationRuntimeId = compilations.RuntimeId,
+            CreationRuntimeId = images.RuntimeId,
             SavedAt = savedAt,
-            Hash = PageRevisionHash.Of(content, compilations.RuntimeId, savedAt, revisionId),
+            Hash = PageRevisionHash.Of(template, images.RuntimeId, savedAt, revisionId),
         };
     }
 }

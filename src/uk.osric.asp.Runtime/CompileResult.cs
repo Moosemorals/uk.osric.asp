@@ -13,7 +13,7 @@ using uk.osric.asp.Core.Compilation;
 /// compiled cleanly. <see cref="PageDiagnostic"/> values rather than Roslyn types keep Roslyn out
 /// of the shell.
 /// </param>
-public sealed record PageCompileResult(byte[]? Image, byte[]? Symbols, IReadOnlyList<PageDiagnostic> Diagnostics) {
+public sealed record CompileResult(byte[]? Image, byte[]? Symbols, IReadOnlyList<PageDiagnostic> Diagnostics) {
 
     /// <summary>Whether the page can run; warnings do not stop it.</summary>
     public bool Success =>

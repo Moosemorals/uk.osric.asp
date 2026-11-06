@@ -8,22 +8,22 @@ using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 
-/// <summary>Turns a page template into the compilation stored beside it.</summary>
+/// <summary>Turns a page template into the image stored beside it.</summary>
 /// <remarks>
 /// <para>
-/// This is the Web half of compilation: generate a <see cref="GeneratedPageSource"/>, wait for a
-/// compile slot, bound the compile, and turn the result into a <see cref="PageCompilation"/>. It
-/// never touches storage, so a save and a lazy compile share it without either owning the other.
+/// This is the Web half of compilation: generate a <see cref="GeneratedSource"/>, wait for a
+/// compile slot, bound the compile, and turn the result into a <see cref="PageImage"/>. It never
+/// touches storage, so a save and a lazy compile share it without either owning the other.
 /// </para>
 /// <para>
 /// Records <c>page.compile.duration</c> and <c>page.image.size</c>.
 /// </para>
 /// </remarks>
-internal sealed class PageCompilationService(
+internal sealed class PageImageBuilder(
     IPageCompiler compiler,
     PageBudget budget,
     PageMetrics metrics,
-    ILogger<PageCompilationService> logger) {
+    ILogger<PageImageBuilder> logger) {
 
     public string RuntimeId => compiler.RuntimeId;
 
@@ -34,20 +34,20 @@ internal sealed class PageCompilationService(
     // A wait for a slot is abandoned at the render's deadline too when there is one: nothing has been
     // compiled, so nothing is lost and the next request tries again. The compile itself is not: it is
     // left to finish and store its image, because throwing the work away leaves the page unservable.
-    public PageCompilation Compile(
+    public PageImage Build(
         PagePath path,
-        string content,
+        string template,
         string reason,
         CancellationToken cancellationToken,
         CancellationToken renderDeadline = default) {
         long start = Stopwatch.GetTimestamp();
-        TemplateParseResult parse = TemplateSourceGenerator.Generate(content);
+        TemplateGenerationResult generated = TemplateSourceGenerator.Generate(template);
 
         // A template that does not parse never reaches the compiler, but it fails exactly like a
         // syntax error: stored with its diagnostics, so the editor shows the fix and the page is not
         // recompiled on every request.
-        PageCompileResult result;
-        if (parse.Source is { } source) {
+        CompileResult result;
+        if (generated.Source is { } generatedSource) {
             using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(budget.CompileOptions.Timeout);
 
@@ -66,24 +66,24 @@ internal sealed class PageCompilationService(
             }
 
             if (!queued) {
-                result = new PageCompileResult(null, null, [
+                result = new CompileResult(null, null, [
                     new PageDiagnostic(PageDiagnosticSeverity.Error, null,
                         $"PAGE003: the page waited longer than {budget.CompileOptions.TimeoutSeconds} s for a compile slot."),
                 ]);
             } else {
                 try {
                     try {
-                        result = compiler.Compile(source, deadline.Token);
+                        result = compiler.Compile(generatedSource, deadline.Token);
                     } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                         // Roslyn honours the token between operations, so this is a coarse bound: it is
                         // stored like any other page error so the editor shows it and the page is not
                         // recompiled on every request.
-                        result = new PageCompileResult(null, null, [
+                        result = new CompileResult(null, null, [
                             new PageDiagnostic(PageDiagnosticSeverity.Error, null,
                                 $"PAGE004: the page took longer than {budget.CompileOptions.TimeoutSeconds} s to compile."),
                         ]);
                     } catch (InvalidOperationException ex) {
-                        logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, source);
+                        logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, generatedSource);
                         logger.LogError(ex, "The generated source for {Path} did not compile; this is a compiler fault", path.Key);
                         metrics.RecordCompile(path, false, reason, Stopwatch.GetElapsedTime(start));
                         throw;
@@ -93,11 +93,11 @@ internal sealed class PageCompilationService(
                 }
 
                 if (!result.Success) {
-                    logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, source);
+                    logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, generatedSource);
                 }
             }
         } else {
-            result = new PageCompileResult(null, null, parse.Errors);
+            result = new CompileResult(null, null, generated.Errors);
         }
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
@@ -109,6 +109,6 @@ internal sealed class PageCompilationService(
         logger.LogDebug("Compiled {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
             result.Success ? "ok" : "error");
 
-        return new PageCompilation(ContentFingerprint.Of(content), compiler.RuntimeId, result.Image, result.Symbols, result.Diagnostics);
+        return new PageImage(TemplateFingerprint.Of(template), compiler.RuntimeId, result.Image, result.Symbols, result.Diagnostics);
     }
 }

@@ -14,7 +14,7 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageEditorTests {
 
     [Test]
-    public async Task SaveCompilesOnceAndStoresTheSourceWithTheImageAsync() {
+    public async Task SaveBuildsOnceAndStoresTheTemplateWithTheImageAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
@@ -23,19 +23,19 @@ public sealed class PageEditorTests {
         Assert.That(diagnostics, Is.Empty);
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1));
 
-        StoredPage saved = PageHarness.Stored(storage, "/hello");
-        Assert.That(saved.Content, Is.EqualTo("Hello."));
-        Assert.That(saved.Compilation?.Image, Is.Not.Null.And.Not.Empty);
-        Assert.That(saved.Compilation?.ContentHash, Is.EqualTo(ContentFingerprint.Of("Hello.")));
-        Assert.That(saved.Compilation?.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
+        PageTemplate saved = PageHarness.Stored(storage, "/hello");
+        Assert.That(saved.Template, Is.EqualTo("Hello."));
+        Assert.That(saved.Image?.Bytes, Is.Not.Null.And.Not.Empty);
+        Assert.That(saved.Image?.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("Hello.")));
+        Assert.That(saved.Image?.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
         Assert.That(saved.CreationRuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
         Assert.That(saved.RevisionId, Is.Not.Empty);
         Assert.That(saved.Hash, Does.Match("^[0-9a-f]{64}$"));
-        Assert.That(saved.Compilation?.Diagnostics, Is.Empty);
+        Assert.That(saved.Image?.Diagnostics, Is.Empty);
     }
 
     [Test]
-    public async Task SaveKeepsTheSourceAndStoresDiagnosticsWhenThePageDoesNotCompileAsync() {
+    public async Task SaveKeepsTheTemplateAndStoresDiagnosticsWhenThePageDoesNotCompileAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
@@ -48,10 +48,10 @@ public sealed class PageEditorTests {
                 && diagnostic.Message.Contains("CS", StringComparison.Ordinal)
                 && diagnostic.Severity == PageDiagnosticSeverity.Error));
 
-        StoredPage saved = PageHarness.Stored(storage, "/broken");
-        Assert.That(saved.Content, Is.EqualTo("<% int value = ; %>"));
-        Assert.That(saved.Compilation?.Image, Is.Null);
-        Assert.That(saved.Compilation?.Diagnostics, Is.EqualTo(diagnostics).AsCollection);
+        PageTemplate saved = PageHarness.Stored(storage, "/broken");
+        Assert.That(saved.Template, Is.EqualTo("<% int value = ; %>"));
+        Assert.That(saved.Image?.Bytes, Is.Null);
+        Assert.That(saved.Image?.Diagnostics, Is.EqualTo(diagnostics).AsCollection);
     }
 
     [Test]
@@ -67,10 +67,10 @@ public sealed class PageEditorTests {
         }));
         Assert.That(pages.Compiler.CompileCount, Is.Zero, "a template that does not parse never reaches the compiler");
 
-        StoredPage saved = PageHarness.Stored(storage, "/unterminated");
-        Assert.That(saved.Content, Is.EqualTo("before<% if (true) {"));
-        Assert.That(saved.Compilation?.Image, Is.Null);
-        Assert.That(saved.Compilation?.Diagnostics, Is.EqualTo(diagnostics).AsCollection);
+        PageTemplate saved = PageHarness.Stored(storage, "/unterminated");
+        Assert.That(saved.Template, Is.EqualTo("before<% if (true) {"));
+        Assert.That(saved.Image?.Bytes, Is.Null);
+        Assert.That(saved.Image?.Diagnostics, Is.EqualTo(diagnostics).AsCollection);
     }
 
     [Test]
@@ -85,14 +85,14 @@ public sealed class PageEditorTests {
                 && diagnostic.Severity == PageDiagnosticSeverity.Warning
                 && diagnostic.Message.Contains("CS0219", StringComparison.Ordinal)));
 
-        StoredPage saved = PageHarness.Stored(storage, "/warned");
-        Assert.That(saved.Compilation?.Image, Is.Not.Null.And.Not.Empty);
+        PageTemplate saved = PageHarness.Stored(storage, "/warned");
+        Assert.That(saved.Image?.Bytes, Is.Not.Null.And.Not.Empty);
     }
 
     [Test]
     public async Task ConditionalSaveCompilesAndReturnsTheNewRevisionHashAsync() {
         FakePageStore storage = new();
-        StoredPage original = new(PageHarness.Key("/conditional"), "first");
+        PageTemplate original = new(PageHarness.Key("/conditional"), "first");
         storage["/conditional"] = original;
         using PageHarness pages = new(storage);
 
@@ -101,14 +101,14 @@ public sealed class PageEditorTests {
 
         Assert.That(result.Saved, Is.True);
         Assert.That(result.RevisionHash, Is.EqualTo(PageHarness.Stored(storage, "/conditional").Hash));
-        Assert.That(PageHarness.Stored(storage, "/conditional").Content, Is.EqualTo("second"));
+        Assert.That(PageHarness.Stored(storage, "/conditional").Template, Is.EqualTo("second"));
         Assert.That(result.Diagnostics, Is.Empty);
     }
 
     [Test]
     public async Task ConditionalSaveReturnsConflictWithoutWritingForAStaleHashAsync() {
         FakePageStore storage = new();
-        StoredPage original = new(PageHarness.Key("/conditional"), "first");
+        PageTemplate original = new(PageHarness.Key("/conditional"), "first");
         storage["/conditional"] = original;
         using PageHarness pages = new(storage);
 
@@ -117,32 +117,32 @@ public sealed class PageEditorTests {
 
         Assert.That(result.Saved, Is.False);
         Assert.That(storage.WriteCount, Is.Zero);
-        Assert.That(PageHarness.Stored(storage, "/conditional").Content, Is.EqualTo("first"));
+        Assert.That(PageHarness.Stored(storage, "/conditional").Template, Is.EqualTo("first"));
     }
 
     [Test]
-    public async Task SavePreservesTheSourceWhenTheCompilerFaultsAsync() {
+    public async Task SavePreservesTheTemplateWhenTheCompilerFaultsAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage, new FaultingCompiler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => pages.Editor.SaveAsync(PageHarness.Key("/fault"), "Hello."));
 
-        StoredPage saved = PageHarness.Stored(storage, "/fault");
-        Assert.That(saved.Content, Is.EqualTo("Hello."));
-        Assert.That(saved.Compilation, Is.Null);
+        PageTemplate saved = PageHarness.Stored(storage, "/fault");
+        Assert.That(saved.Template, Is.EqualTo("Hello."));
+        Assert.That(saved.Image, Is.Null);
         Assert.That(saved.CreationRuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
     }
 
     [Test]
     public async Task GetReturnsTheStoredPageWithoutCompilingAsync() {
         FakePageStore storage = new();
-        storage["/hello"] = new StoredPage(PageHarness.Key("/hello"), "Hello.");
+        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "Hello.");
         using PageHarness pages = new(storage);
 
-        StoredPage? page = await pages.Editor.GetAsync(PageHarness.Key("/hello"));
+        PageTemplate? page = await pages.Editor.GetAsync(PageHarness.Key("/hello"));
 
-        Assert.That(page?.Content, Is.EqualTo("Hello."));
+        Assert.That(page?.Template, Is.EqualTo("Hello."));
         Assert.That(pages.Compiler.CompileCount, Is.Zero);
     }
 
@@ -150,7 +150,7 @@ public sealed class PageEditorTests {
     public async Task GetReturnsNullForAMissingPageAsync() {
         using PageHarness pages = new(new FakePageStore());
 
-        StoredPage? page = await pages.Editor.GetAsync(PageHarness.Key("/missing"));
+        PageTemplate? page = await pages.Editor.GetAsync(PageHarness.Key("/missing"));
 
         Assert.That(page, Is.Null);
     }

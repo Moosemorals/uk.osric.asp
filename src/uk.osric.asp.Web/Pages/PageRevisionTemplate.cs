@@ -5,11 +5,11 @@ namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Pages;
 
-/// <summary>A stored revision with its source, for the editor and its diff.</summary>
-internal sealed record PageRevisionSource(
+/// <summary>A stored revision's template, for the editor and its diff.</summary>
+internal sealed record PageRevisionTemplate(
     PagePath Path,
     string Hash,
     DateTimeOffset SavedAt,
     string CreationRuntimeId,
-    string CompilationStatus,
-    string Content);
+    string ImageStatus,
+    string Template);

@@ -18,7 +18,7 @@ public sealed class AgentPageToolExecutorTests {
     [Test]
     public async Task EditPageReplacesOnlyTheSelectedLinesAndReturnsDiagnosticsAsync() {
         FakePageStore storage = new();
-        StoredPage original = new(PageHarness.Key("/notes"), "first\r\nsecond\r\nthird");
+        PageTemplate original = new(PageHarness.Key("/notes"), "first\r\nsecond\r\nthird");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
@@ -34,7 +34,7 @@ public sealed class AgentPageToolExecutorTests {
         AgentToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, CancellationToken.None);
 
         Assert.That(result.Success, Is.True, result.Content);
-        Assert.That(storage["/notes"]?.Content, Is.EqualTo("first\r\nchanged\r\nthird"));
+        Assert.That(storage["/notes"]?.Template, Is.EqualTo("first\r\nchanged\r\nthird"));
         using JsonDocument document = JsonDocument.Parse(result.Content);
         Assert.That(document.RootElement.GetProperty("data").GetProperty("revisionHash").GetString(), Is.Not.EqualTo(original.Hash));
     }
@@ -42,7 +42,7 @@ public sealed class AgentPageToolExecutorTests {
     [Test]
     public async Task StaleEditReturnsConflictWithoutWritingAsync() {
         FakePageStore storage = new();
-        storage["/notes"] = new StoredPage(PageHarness.Key("/notes"), "original");
+        storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "original");
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
         AgentPageToolExecutor tools = CreateTools(services);
@@ -55,7 +55,7 @@ public sealed class AgentPageToolExecutorTests {
         Assert.That(result.Success, Is.False);
         Assert.That(result.Content, Does.Contain("changed since read_page"));
         Assert.That(storage.WriteCount, Is.Zero);
-        Assert.That(storage["/notes"]?.Content, Is.EqualTo("original"));
+        Assert.That(storage["/notes"]?.Template, Is.EqualTo("original"));
     }
 
     [Test]
@@ -83,7 +83,7 @@ public sealed class AgentPageToolExecutorTests {
             "write_page", "{\"path\":\"/new\",\"content\":\"<% int value = ; %>\"}", CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
-        Assert.That(storage["/new"]?.Content, Is.EqualTo("<% int value = ; %>"));
+        Assert.That(storage["/new"]?.Template, Is.EqualTo("<% int value = ; %>"));
         using JsonDocument document = JsonDocument.Parse(result.Content);
         Assert.That(document.RootElement.GetProperty("data").GetProperty("revisionHash").GetString(), Is.Not.Empty);
         Assert.That(document.RootElement.GetProperty("data").GetProperty("diagnostics").GetArrayLength(), Is.GreaterThan(0));
@@ -92,7 +92,7 @@ public sealed class AgentPageToolExecutorTests {
     [Test]
     public async Task DeleteCreatesATombstoneAndKeepsTheRevisionAsync() {
         FakePageStore storage = new();
-        storage["/notes"] = new StoredPage(PageHarness.Key("/notes"), "source");
+        storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "source");
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
         AgentPageToolExecutor tools = CreateTools(services);
@@ -109,7 +109,7 @@ public sealed class AgentPageToolExecutorTests {
     [Test]
     public async Task ReadPageLineNumbersReferToTheStoredTemplateSourceAsync() {
         FakePageStore storage = new();
-        storage["/template"] = new StoredPage(PageHarness.Key("/template"),
+        storage["/template"] = new PageTemplate(PageHarness.Key("/template"),
             "<h1>Title</h1>\r\n<%\r\nif (true) {\r\n%>\r\n<%= \"value\" %>\r\n<% } %>");
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);

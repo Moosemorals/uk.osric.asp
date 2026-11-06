@@ -22,12 +22,12 @@ public static class TemplateSourceGenerator {
     /// source is generated for a template that does not parse: Roslyn would then report a syntax error
     /// where the text was cut off on top of the real one, and the author would fix the wrong thing.
     /// </returns>
-    public static TemplateParseResult Generate(string template) {
+    public static TemplateGenerationResult Generate(string template) {
         ArgumentNullException.ThrowIfNull(template);
 
         TokenizeResult tokenized = TemplateTokenizer.Tokenize(template);
         if (!tokenized.Success) {
-            return new TemplateParseResult(null, tokenized.Errors);
+            return new TemplateGenerationResult(null, tokenized.Errors);
         }
 
         foreach (Token token in tokenized.Tokens) {
@@ -35,7 +35,7 @@ public static class TemplateSourceGenerator {
                 && NormalizeWriteExpression(token).Length == 0) {
                 TemplatePosition opener = token.OpenerPosition
                     ?? throw new InvalidOperationException("A write token has no opener position.");
-                return new TemplateParseResult(null, [
+                return new TemplateGenerationResult(null, [
                     new PageDiagnostic(
                         PageDiagnosticSeverity.Error,
                         opener,
@@ -91,7 +91,7 @@ public static class TemplateSourceGenerator {
         result.Append(Environment.NewLine);
         result.Append("}}");
 
-        return new TemplateParseResult(new GeneratedPageSource(result.ToString()), []);
+        return new TemplateGenerationResult(new GeneratedSource(result.ToString()), []);
     }
 
     private static void AppendText(StringBuilder result, Token token) {

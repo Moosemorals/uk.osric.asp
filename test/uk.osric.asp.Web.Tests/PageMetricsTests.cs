@@ -39,7 +39,7 @@ public sealed class PageMetricsTests {
     public async Task AColdPageIsMeasuredAsANeverCompiledMissAsync() {
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
-        storage["/cold"] = new StoredPage(Key("/cold"), "Hello.");
+        storage["/cold"] = new PageTemplate(Key("/cold"), "Hello.");
         using PageHarness pages = new(storage);
 
         await pages.RenderAsync("/cold");
@@ -57,20 +57,20 @@ public sealed class PageMetricsTests {
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        PageCompilation stale = new(ContentFingerprint.Of("Old."), pages.Compiler.RuntimeId, [1, 2, 3], null, []);
-        storage["/edited"] = new StoredPage(Key("/edited"), "New.", stale);
+        PageImage stale = new(TemplateFingerprint.Of("Old."), pages.Compiler.RuntimeId, [1, 2, 3], null, []);
+        storage["/edited"] = new PageTemplate(Key("/edited"), "New.", stale);
 
         await pages.RenderAsync("/edited");
 
-        Assert.That(capture.Count("page.cache.staleness", "reason", "content-changed"), Is.EqualTo(1));
+        Assert.That(capture.Count("page.cache.staleness", "reason", "template-changed"), Is.EqualTo(1));
     }
 
     [Test]
     public async Task AChangedBuildIsAttributedToTheRuntimeAsync() {
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
-        PageCompilation previousBuild = new(ContentFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], null, []);
-        storage["/hello"] = new StoredPage(Key("/hello"), "Hello.", previousBuild);
+        PageImage previousBuild = new(TemplateFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], null, []);
+        storage["/hello"] = new PageTemplate(Key("/hello"), "Hello.", previousBuild);
         using PageHarness pages = new(storage);
 
         await pages.RenderAsync("/hello");
@@ -82,7 +82,7 @@ public sealed class PageMetricsTests {
     public async Task ACompileFailureIsItsOwnRenderOutcomeAsync() {
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
-        storage["/broken"] = new StoredPage(Key("/broken"), "<% int value = ; %>");
+        storage["/broken"] = new PageTemplate(Key("/broken"), "<% int value = ; %>");
         using PageHarness pages = new(storage);
 
         await pages.RenderAsync("/broken");
@@ -97,7 +97,7 @@ public sealed class PageMetricsTests {
     public async Task AnExceptionIsMeasuredAsAnErrorAndStillPropagatesAsync() {
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
-        storage["/throw"] = new StoredPage(Key("/throw"), "<% throw new System.InvalidOperationException(); %>");
+        storage["/throw"] = new PageTemplate(Key("/throw"), "<% throw new System.InvalidOperationException(); %>");
         using PageHarness pages = new(storage);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => pages.RenderAsync("/throw"));

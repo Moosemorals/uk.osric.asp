@@ -96,7 +96,7 @@ public sealed class TemplateSourceGeneratorTests {
         string template,
         int line,
         int column) {
-        TemplateParseResult result = TemplateSourceGenerator.Generate(template);
+        TemplateGenerationResult result = TemplateSourceGenerator.Generate(template);
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Source, Is.Null);
@@ -189,7 +189,7 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void AnUnterminatedDeclarationBlockProducesNoSourceAndOneError() {
-        TemplateParseResult result = TemplateSourceGenerator.Generate("before<%! class Amount {");
+        TemplateGenerationResult result = TemplateSourceGenerator.Generate("before<%! class Amount {");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Source, Is.Null);
@@ -201,7 +201,7 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void AnUnterminatedCodeBlockProducesNoSourceAndOneError() {
-        TemplateParseResult result = TemplateSourceGenerator.Generate("before<% if (true) {");
+        TemplateGenerationResult result = TemplateSourceGenerator.Generate("before<% if (true) {");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Source, Is.Null);
@@ -213,7 +213,7 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void AnUnterminatedCodeBlockIsReportedOnItsOwnTemplateLine() {
-        TemplateParseResult result = TemplateSourceGenerator.Generate("line one\nline two <% if (true) {");
+        TemplateGenerationResult result = TemplateSourceGenerator.Generate("line one\nline two <% if (true) {");
 
         // NUnit types the Matches predicate's item as nullable, so check it before reading it.
         Assert.That(result.Errors, Has.Exactly(1).Matches<PageDiagnostic>(
@@ -252,7 +252,7 @@ public sealed class TemplateSourceGeneratorTests {
     }
 
     private static string Generate(string template) {
-        TemplateParseResult result = TemplateSourceGenerator.Generate(template);
+        TemplateGenerationResult result = TemplateSourceGenerator.Generate(template);
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Errors));
 
         // The assertion above proves source was generated.
@@ -261,7 +261,7 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void AParsedTemplateReportsNoErrors() {
-        TemplateParseResult result = TemplateSourceGenerator.Generate("Hello");
+        TemplateGenerationResult result = TemplateSourceGenerator.Generate("Hello");
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Errors, Is.Empty);

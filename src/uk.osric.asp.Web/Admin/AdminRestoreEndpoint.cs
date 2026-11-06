@@ -27,14 +27,14 @@ internal static class AdminRestoreEndpoint {
             return;
         }
 
-        string? content = await PageAssetSeeder.ReadSeedContentAsync(path, context.RequestAborted);
-        if (content is null) {
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(path, context.RequestAborted);
+        if (template is null) {
             await NotFound.WriteAsync(context, path);
             return;
         }
 
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
-        await WriteConfirmationAsync(context, path, content, tokens);
+        await WriteConfirmationAsync(context, path, template, tokens);
     }
 
     public static async Task PostAsync(HttpContext context, PageEditor pages) {
@@ -57,13 +57,13 @@ internal static class AdminRestoreEndpoint {
             return;
         }
 
-        string? content = await PageAssetSeeder.ReadSeedContentAsync(path, context.RequestAborted);
-        if (content is null) {
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(path, context.RequestAborted);
+        if (template is null) {
             await NotFound.WriteAsync(context, path);
             return;
         }
 
-        await pages.SaveAsync(path, content, context.RequestAborted);
+        await pages.SaveAsync(path, template, context.RequestAborted);
         context.Session.SetString(EditorEndpoint.MessageKey, "Restored the bundled version.");
         Redirect.SeeOther(context, PageUrls.Editor(path));
     }
@@ -81,14 +81,14 @@ internal static class AdminRestoreEndpoint {
     private static async Task WriteConfirmationAsync(
         HttpContext context,
         PagePath path,
-        string content,
+        string template,
         AntiforgeryTokenSet tokens) {
         await ShellDocument.BeginAsync(context, "Restore bundled version", stylesheet: "/editor.css");
         await context.Response.WriteAsync($"<h1>Restore {WebUtility.HtmlEncode(path.Key)}</h1>");
         await context.Response.WriteAsync(
-            "This will replace the current page content with the version bundled with this release. "
+            "This will replace the current page template with the version bundled with this release. "
             + "The existing revision history will be retained.");
-        await context.Response.WriteAsync($"<pre class=\"source\" tabindex=\"0\">{WebUtility.HtmlEncode(content)}</pre>");
+        await context.Response.WriteAsync($"<pre class=\"source\" tabindex=\"0\">{WebUtility.HtmlEncode(template)}</pre>");
         await context.Response.WriteAsync($"""
             <form method="post" action="/admin/restore">
                 {AntiforgeryField.Hidden(tokens)}

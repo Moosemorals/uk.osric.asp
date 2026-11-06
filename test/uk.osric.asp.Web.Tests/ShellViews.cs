@@ -174,7 +174,7 @@ internal static class ShellViews {
     private static async Task<string> CompileErrorAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        storage["/broken"] = new StoredPage(PageHarness.Key("/broken"), BrokenSource, Broken(pages.Compiler.RuntimeId));
+        storage["/broken"] = new PageTemplate(PageHarness.Key("/broken"), BrokenSource, Broken(pages.Compiler.RuntimeId));
         DefaultHttpContext context = TestHttp.CreateContext("broken", "GET", "/broken");
 
         await PageEndpoint.Handle(context, pages.Renderer, NullLoggerFactory.Instance, Reserved, new RenderOptions());
@@ -229,8 +229,8 @@ internal static class ShellViews {
     private static async Task<string> EditorWithDiagnosticsAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        storage["/page"] = new StoredPage(PageHarness.Key("/page"), Source, new PageCompilation(
-            ContentFingerprint.Of(Source),
+        storage["/page"] = new PageTemplate(PageHarness.Key("/page"), Source, new PageImage(
+            TemplateFingerprint.Of(Source),
             pages.Compiler.RuntimeId,
             null,
             null,
@@ -253,14 +253,14 @@ internal static class ShellViews {
     }
 
     private static FakePageStore NewStore() => new() {
-        ["/page"] = new StoredPage(PageHarness.Key("/page"), Source),
-        ["/notes"] = new StoredPage(PageHarness.Key("/notes"), Source),
+        ["/page"] = new PageTemplate(PageHarness.Key("/page"), Source),
+        ["/notes"] = new PageTemplate(PageHarness.Key("/notes"), Source),
     };
 
     private const string BrokenSource = "<% int value = ; %>";
 
-    private static PageCompilation Broken(string runtimeId) => new(
-        ContentFingerprint.Of(BrokenSource),
+    private static PageImage Broken(string runtimeId) => new(
+        TemplateFingerprint.Of(BrokenSource),
         runtimeId,
         null,
         null,

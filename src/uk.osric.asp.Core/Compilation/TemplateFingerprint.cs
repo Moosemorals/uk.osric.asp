@@ -6,7 +6,7 @@ namespace uk.osric.asp.Core.Compilation;
 using System.Security.Cryptography;
 using System.Text;
 
-/// <summary>Identifies one version of a page's source by its content.</summary>
+/// <summary>Identifies one version of a page's template by its text.</summary>
 /// <remarks>
 /// <para>
 /// A stored compiled image is only reused while its fingerprint still matches the source it was
@@ -21,14 +21,14 @@ using System.Text;
 /// not matter at this size.
 /// </para>
 /// </remarks>
-public static class ContentFingerprint {
+public static class TemplateFingerprint {
 
-    /// <summary>Fingerprints page content.</summary>
-    /// <param name="content">The page source.</param>
-    /// <returns>The lowercase hexadecimal SHA-256 of the content's UTF-8 bytes.</returns>
-    public static string Of(string content) {
-        ArgumentNullException.ThrowIfNull(content);
+    /// <summary>Fingerprints a page template.</summary>
+    /// <param name="template">The template source.</param>
+    /// <returns>The lowercase hexadecimal SHA-256 of the template's UTF-8 bytes.</returns>
+    public static string Of(string template) {
+        ArgumentNullException.ThrowIfNull(template);
 
-        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
+        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(template)));
     }
 }

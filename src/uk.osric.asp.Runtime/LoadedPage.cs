@@ -19,7 +19,7 @@ using uk.osric.asp.Sdk;
 /// ever appears to hang, that attribute is the knob to revisit.
 /// </para>
 /// </remarks>
-public sealed class CompiledPage : IDisposable {
+public sealed class LoadedPage : IDisposable {
 
     private const string HandlerTypeName = "GeneratedPage";
 
@@ -27,7 +27,7 @@ public sealed class CompiledPage : IDisposable {
     private readonly Type _handler;
     private readonly MethodInfo _handle;
 
-    internal CompiledPage(byte[] image, byte[]? symbols) {
+    internal LoadedPage(byte[] image, byte[]? symbols) {
         _context = new PageLoadContext();
 
         try {

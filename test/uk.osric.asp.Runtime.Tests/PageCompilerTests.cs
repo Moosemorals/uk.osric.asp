@@ -49,7 +49,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void InvalidSourceReportsDiagnosticsWithoutAnImage() {
-        PageCompileResult result = Compile("<% int value = ; %>");
+        CompileResult result = Compile("<% int value = ; %>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Is.Not.Empty);
@@ -63,7 +63,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void ASyntaxErrorReportsItsTemplateLineAndColumn() {
-        PageCompileResult result = Compile("line one\nline two\n<% int value = ; %>");
+        CompileResult result = Compile("line one\nline two\n<% int value = ; %>");
 
         PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
             diagnostic.Message.Contains("CS1525", StringComparison.Ordinal));
@@ -74,7 +74,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void AWriteExpressionErrorOnALaterLineReportsItsTemplatePosition() {
-        PageCompileResult result = Compile("first\n<%=\n    ctx\n      .Missing\n%>");
+        CompileResult result = Compile("first\n<%=\n    ctx\n      .Missing\n%>");
 
         PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
             diagnostic.Message.Contains("CS1061", StringComparison.Ordinal));
@@ -84,7 +84,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void AWriteExpressionMustHaveAStringType() {
-        PageCompileResult result = Compile("<%= 42 %>");
+        CompileResult result = Compile("<%= 42 %>");
 
         PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
             diagnostic.Message.Contains("CS1503", StringComparison.Ordinal));
@@ -94,7 +94,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void AWriteCallDiagnosticReportsItsTemplateLineAndCallColumn() {
-        PageCompileResult result = Compile("\n  <%=\n    ctx.Path, ctx.Path %>");
+        CompileResult result = Compile("\n  <%=\n    ctx.Path, ctx.Path %>");
 
         PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
             diagnostic.Message.Contains("CS1501", StringComparison.Ordinal));
@@ -104,7 +104,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void AWarningOnlyPageSucceedsAndEmitsAnImage() {
-        PageCompileResult result = Compile("<% int unused = 1; %>");
+        CompileResult result = Compile("<% int unused = 1; %>");
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
@@ -117,7 +117,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void AWarningDoesNotHideAnError() {
-        PageCompileResult result = Compile("<% int unused = 1; int value = \"text\"; %>");
+        CompileResult result = Compile("<% int unused = 1; int value = \"text\"; %>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -131,7 +131,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void AnUnclosedBlockIsReportedAtTheEndOfTheTemplate() {
-        PageCompileResult result = Compile("<% if (true) { %>");
+        CompileResult result = Compile("<% if (true) { %>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -150,7 +150,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedPageSource(source)));
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedSource(source)));
     }
 
     [Test]
@@ -163,7 +163,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedPageSource(source)));
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedSource(source)));
     }
 
     [Test]
@@ -179,7 +179,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        PageCompileResult result = Compiler.Compile(new GeneratedPageSource(source));
+        CompileResult result = Compiler.Compile(new GeneratedSource(source));
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -190,7 +190,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void AUsingBlockAfterATypeBlockIsReportedInTemplateSpace() {
-        PageCompileResult result = Compile("<%! class Amount { } %>\n<%! using System.Globalization; %>");
+        CompileResult result = Compile("<%! class Amount { } %>\n<%! using System.Globalization; %>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -201,7 +201,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void AnErrorInsideADeclaredTypeReportsItsTemplateLineAndColumn() {
-        PageCompileResult result = Compile("""
+        CompileResult result = Compile("""
             first
             <%!
             class Amount {
@@ -267,12 +267,12 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedPageSource(source)));
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedSource(source)));
     }
 
     [Test]
     public void ValidSourceEmitsAnImage() {
-        PageCompileResult result = Compile("Hello.");
+        CompileResult result = Compile("Hello.");
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
@@ -280,7 +280,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void OneImageCanBeLoadedAndInvokedMoreThanOnce() {
-        using CompiledPage template = Load("Hello, <% ctx.Write(\"world\"); %>!");
+        using LoadedPage template = Load("Hello, <% ctx.Write(\"world\"); %>!");
         TestContext first = new();
         TestContext second = new();
 
@@ -293,7 +293,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void TemplateExceptionsSurfaceUnwrapped() {
-        using CompiledPage template = Load("line one\nline two\n<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
+        using LoadedPage template = Load("line one\nline two\n<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
         InvalidOperationException? failure = Assert.Throws<InvalidOperationException>(() => template.Invoke(new TestContext()));
 
@@ -321,20 +321,20 @@ public sealed class PageCompilerTests {
             Does.Contain(typeof(PageDiagnostic).Assembly.ManifestModule.ModuleVersionId.ToString("N")));
     }
 
-    private static PageCompileResult Compile(string template) {
+    private static CompileResult Compile(string template) {
         return Compiler.Compile(Generate(template));
     }
 
-    private static GeneratedPageSource Generate(string template) {
-        TemplateParseResult parsed = TemplateSourceGenerator.Generate(template);
+    private static GeneratedSource Generate(string template) {
+        TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 
         // The assertion above proves source was generated.
         return parsed.Source!;
     }
 
-    private static CompiledPage Load(string template) {
-        PageCompileResult result = Compile(template);
+    private static LoadedPage Load(string template) {
+        CompileResult result = Compile(template);
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
 
         // The assertion above proves the image exists when compilation succeeded.
@@ -342,7 +342,7 @@ public sealed class PageCompilerTests {
     }
 
     private static TestContext CompileAndRun(string template) {
-        using CompiledPage page = Load(template);
+        using LoadedPage page = Load(template);
         TestContext context = new();
         page.Invoke(context);
         return context;

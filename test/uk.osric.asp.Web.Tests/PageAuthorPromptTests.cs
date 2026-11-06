@@ -42,10 +42,10 @@ public sealed class PageAuthorPromptTests {
         using PageHarness pages = new(new FakePageStore());
 
         foreach ((string name, string source) in PageAuthorPrompt.Examples) {
-            PageCompilation compilation = pages.Compilations.Compile(
+            PageImage compilation = pages.Images.Build(
                 PagePath.Normalize("/prompt-" + name), source, PageMetrics.ReasonSave, CancellationToken.None);
 
-            Assert.That(compilation.Image, Is.Not.Null, $"{name}: {string.Join("; ", compilation.Diagnostics.Select(item => item.Message))}");
+            Assert.That(compilation.Bytes, Is.Not.Null, $"{name}: {string.Join("; ", compilation.Diagnostics.Select(item => item.Message))}");
             Assert.That(compilation.Diagnostics.Where(item => item.Severity == PageDiagnosticSeverity.Error), Is.Empty, name);
         }
     }

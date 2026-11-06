@@ -52,7 +52,7 @@ public sealed class PageCompiler : IPageCompiler {
     /// The generated source itself is broken. A diagnostic without a template position means the
     /// fault is in code the generator wrote, not in the page, so it must not be shown to the author.
     /// </exception>
-    public PageCompileResult Compile(GeneratedPageSource source, CancellationToken cancellationToken = default) {
+    public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(source);
 
         SyntaxTree tree = CSharpSyntaxTree.ParseText(source.Text, cancellationToken: cancellationToken);
@@ -67,7 +67,7 @@ public sealed class PageCompiler : IPageCompiler {
         // could be stored and served.
         IReadOnlyList<PageDiagnostic> violations = PageApiChecker.Check(tree, compilation.GetSemanticModel(tree));
         if (violations.Count > 0) {
-            return new PageCompileResult(null, null, violations);
+            return new CompileResult(null, null, violations);
         }
 
         using MemoryStream image = new();
@@ -84,7 +84,7 @@ public sealed class PageCompiler : IPageCompiler {
                 "The generated page source did not emit an assembly and reported no error diagnostic. This is a compiler fault, not a page error.");
         }
 
-        return new PageCompileResult(
+        return new CompileResult(
             result.Success ? image.ToArray() : null,
             result.Success ? symbols.ToArray() : null,
             diagnostics);
@@ -93,10 +93,10 @@ public sealed class PageCompiler : IPageCompiler {
     /// <summary>Loads a compiled image so its handler can be run.</summary>
     /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
     /// <returns>The loaded handler; dispose it to release the assembly.</returns>
-    public CompiledPage Load(byte[] image, byte[]? symbols = null) {
+    public LoadedPage Load(byte[] image, byte[]? symbols = null) {
         ArgumentNullException.ThrowIfNull(image);
 
-        return new CompiledPage(image, symbols);
+        return new LoadedPage(image, symbols);
     }
 
     // Mapped diagnostics belong to the page. Unmapped ones belong to generated code; they are a

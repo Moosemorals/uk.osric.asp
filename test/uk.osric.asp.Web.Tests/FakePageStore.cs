@@ -8,9 +8,9 @@ using uk.osric.asp.Web.Pages;
 
 /// <summary>An in-memory <see cref="IPageStore"/> that records what the shell asked of it.</summary>
 internal sealed class FakePageStore : IPageStore {
-    private readonly Dictionary<string, StoredPage> _pages = [];
+    private readonly Dictionary<string, PageTemplate> _pages = [];
     private readonly Dictionary<string, bool> _heads = [];
-    private readonly Dictionary<string, StoredPage> _revisions = [];
+    private readonly Dictionary<string, PageTemplate> _revisions = [];
 
     public Exception? Failure { get; init; }
 
@@ -18,15 +18,15 @@ internal sealed class FakePageStore : IPageStore {
     /// Lets a test simulate a save that lands while a page is compiling: the replacement is stored
     /// and the conditional write is refused. Runs once.
     /// </summary>
-    public Func<PagePath, string, StoredPage?>? ReplaceOnCompilationWrite { get; set; }
+    public Func<PagePath, string, PageTemplate?>? ReplaceOnImageWrite { get; set; }
 
-    public bool DeleteOnCompilationWrite { get; set; }
+    public bool DeleteOnImageWrite { get; set; }
 
     public int ReadCount { get; private set; }
 
     public int WriteCount { get; private set; }
 
-    public int CompilationWriteCount { get; private set; }
+    public int ImageWriteCount { get; private set; }
 
     /// <summary>Spends time in every read, so a test can exhaust a render's budget before it runs.</summary>
     public TimeSpan ReadDelay { get; init; }
@@ -37,17 +37,17 @@ internal sealed class FakePageStore : IPageStore {
 
     public CancellationToken LastCancellationToken { get; private set; }
 
-    public StoredPage? this[string path] {
+    public PageTemplate? this[string path] {
         get => _pages.GetValueOrDefault(PagePath.Normalize(path).Key);
         set {
-            StoredPage page = value ?? throw new ArgumentNullException(nameof(value));
+            PageTemplate page = value ?? throw new ArgumentNullException(nameof(value));
             _pages[PagePath.Normalize(path).Key] = page;
             _heads[PagePath.Normalize(path).Key] = false;
             _revisions[page.Hash] = page;
         }
     }
 
-    public async Task<StoredPage?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
+    public async Task<PageTemplate?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
         Check(cancellationToken);
 
         ReadCount++;
@@ -75,7 +75,7 @@ internal sealed class FakePageStore : IPageStore {
             : null);
     }
 
-    public Task<StoredPage?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
+    public Task<PageTemplate?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
         Check(cancellationToken);
         return Task.FromResult(_revisions.GetValueOrDefault(hash));
     }
@@ -91,22 +91,22 @@ internal sealed class FakePageStore : IPageStore {
                 page.Hash,
                 page.SavedAt,
                 page.CreationRuntimeId,
-                page.Compilation is null ? "Not compiled" : page.Compilation.Image is null ? "Compile failed" : "Compiled",
+                page.Image is null ? "Not compiled" : page.Image.Bytes is null ? "Compile failed" : "Compiled",
                 page.RevisionId == currentRevisionId))];
         return Task.FromResult(revisions);
     }
 
-    public Task<PageRevisionSource?> GetRevisionSourceByHashAsync(string hash, CancellationToken cancellationToken = default) {
+    public Task<PageRevisionTemplate?> GetRevisionTemplateByHashAsync(string hash, CancellationToken cancellationToken = default) {
         Check(cancellationToken);
-        StoredPage? page = _revisions.GetValueOrDefault(hash);
+        PageTemplate? page = _revisions.GetValueOrDefault(hash);
         return Task.FromResult(page is null
             ? null
-            : new PageRevisionSource(page.Path, page.Hash, page.SavedAt, page.CreationRuntimeId,
-                page.Compilation is null ? "Not compiled" : page.Compilation.Image is null ? "Compile failed" : "Compiled",
-                page.Content));
+            : new PageRevisionTemplate(page.Path, page.Hash, page.SavedAt, page.CreationRuntimeId,
+                page.Image is null ? "Not compiled" : page.Image.Bytes is null ? "Compile failed" : "Compiled",
+                page.Template));
     }
 
-    public Task SavePageAsync(StoredPage page, CancellationToken cancellationToken = default) {
+    public Task SavePageAsync(PageTemplate page, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(page);
         Check(cancellationToken);
 
@@ -119,7 +119,7 @@ internal sealed class FakePageStore : IPageStore {
         return Task.CompletedTask;
     }
 
-    public Task<bool> TrySavePageAsync(StoredPage page, string expectedHash, CancellationToken cancellationToken = default) {
+    public Task<bool> TrySavePageAsync(PageTemplate page, string expectedHash, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(page);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
         Check(cancellationToken);
@@ -132,17 +132,17 @@ internal sealed class FakePageStore : IPageStore {
         return SaveAndSucceedAsync(page, cancellationToken);
     }
 
-    private async Task<bool> SaveAndSucceedAsync(StoredPage page, CancellationToken cancellationToken) {
+    private async Task<bool> SaveAndSucceedAsync(PageTemplate page, CancellationToken cancellationToken) {
         await SavePageAsync(page, cancellationToken);
         return true;
     }
 
-    public Task<bool> TrySetCompilationAsync(string revisionId, string expectedContent, PageCompilation compilation, CancellationToken cancellationToken = default) {
-        ArgumentNullException.ThrowIfNull(compilation);
+    public Task<bool> TrySetImageAsync(string revisionId, string expectedTemplate, PageImage image, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(image);
         Check(cancellationToken);
 
-        CompilationWriteCount++;
-        StoredPage? target = _revisions.Values.SingleOrDefault(page => page.RevisionId == revisionId);
+        ImageWriteCount++;
+        PageTemplate? target = _revisions.Values.SingleOrDefault(page => page.RevisionId == revisionId);
         if (target is null) {
             return Task.FromResult(false);
         }
@@ -150,24 +150,24 @@ internal sealed class FakePageStore : IPageStore {
         PagePath path = target.Path;
         LastWritePath = path;
 
-        if (ReplaceOnCompilationWrite?.Invoke(path, expectedContent) is { } replacement) {
-            ReplaceOnCompilationWrite = null;
+        if (ReplaceOnImageWrite?.Invoke(path, expectedTemplate) is { } replacement) {
+            ReplaceOnImageWrite = null;
             _pages[path.Key] = replacement;
             _heads[path.Key] = false;
             _revisions[replacement.Hash] = replacement;
             return Task.FromResult(false);
         }
 
-        if (DeleteOnCompilationWrite) {
-            DeleteOnCompilationWrite = false;
+        if (DeleteOnImageWrite) {
+            DeleteOnImageWrite = false;
             _heads[path.Key] = true;
         }
 
-        if (!string.Equals(target.Content, expectedContent, StringComparison.Ordinal)) {
+        if (!string.Equals(target.Template, expectedTemplate, StringComparison.Ordinal)) {
             return Task.FromResult(false);
         }
 
-        StoredPage compiled = target with { Compilation = compilation };
+        PageTemplate compiled = target with { Image = image };
         _revisions[compiled.Hash] = compiled;
         if (_pages.GetValueOrDefault(path.Key)?.RevisionId == revisionId) {
             _pages[path.Key] = compiled;

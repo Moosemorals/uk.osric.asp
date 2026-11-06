@@ -23,7 +23,7 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
-        modelBuilder.Entity<StoredRevision>(revision => {
+        modelBuilder.Entity<PageRevision>(revision => {
             revision.ToTable("PageRevisions");
             revision.HasKey(row => row.RevisionId);
             revision.HasAlternateKey(row => new { row.RevisionId, row.Path });
@@ -34,12 +34,12 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             revision.HasIndex(row => row.Path);
         });
 
-        modelBuilder.Entity<StoredPageHead>(head => {
+        modelBuilder.Entity<PageHead>(head => {
             head.ToTable("PageHeads");
             head.HasKey(row => row.Path);
             head.Property(row => row.Path).UseCollation("BINARY");
             head.Property(row => row.RevisionId).UseCollation("BINARY");
-            head.HasOne<StoredRevision>()
+            head.HasOne<PageRevision>()
                 .WithMany()
                 .HasForeignKey(row => new { row.RevisionId, row.Path })
                 .HasPrincipalKey(row => new { row.RevisionId, row.Path })

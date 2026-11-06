@@ -16,7 +16,7 @@ using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
-/// <summary>Serves the editor: source, revisions, save, rename and delete.</summary>
+/// <summary>Serves the editor: templates, revisions, save, rename and delete.</summary>
 internal sealed class EditorEndpoint {
 
     internal const string MessageKey = "editor.message";
@@ -193,11 +193,11 @@ internal sealed class EditorEndpoint {
         // The only page on the site that loads a script, so the only response that widens its policy.
         SecurityHeaders.AllowScripts(context);
 
-        StoredPage? page = await pages.GetAsync(path, context.RequestAborted);
+        PageTemplate? page = await pages.GetAsync(path, context.RequestAborted);
         PageHeadSummary? head = page is null ? await pages.GetHeadAsync(path, context.RequestAborted) : null;
         bool wasDeleted = head?.IsDeleted == true;
-        string content = page?.Content ?? "";
-        string? bundledContent = await PageAssetSeeder.ReadSeedContentAsync(path, context.RequestAborted);
+        string template = page?.Template ?? "";
+        string? bundledTemplate = await PageAssetSeeder.ReadSeedTemplateAsync(path, context.RequestAborted);
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
 
         await ShellDocument.BeginAsync(context, "Editor", stylesheet: "/editor.css", bodyClass: "editor-page");
@@ -207,7 +207,7 @@ internal sealed class EditorEndpoint {
             await context.Response.WriteAsync("<p>This page was deleted. Its history is retained; saving here continues that history.</p>");
         }
 
-        if (page?.Compilation?.Diagnostics is { Count: > 0 } diagnostics) {
+        if (page?.Image?.Diagnostics is { Count: > 0 } diagnostics) {
             await context.Response.WriteAsync(PageLayout.Diagnostics(DiagnosticLine.From(diagnostics), linkToLines: true));
         }
 
@@ -226,7 +226,7 @@ internal sealed class EditorEndpoint {
             menu.Add(new(PageUrls.EditorCommand(path, "history"), "History"));
             menu.Add(new(PageUrls.EditorCommand(path, "scrub"), "Scrub retained history"));
         }
-        if (bundledContent is not null) {
+        if (bundledTemplate is not null) {
             menu.Add(new(PageUrls.Restore(path), "Restore bundled version"));
         }
 
@@ -235,11 +235,11 @@ internal sealed class EditorEndpoint {
         await context.Response.WriteAsync($"""
             <form method="post" action="?" class="editor-form">
                 {AntiforgeryField.Hidden(tokens)}
-                <label class="visually-hidden" for="content">Page source</label>
+                <label class="visually-hidden" for="template">Page template</label>
                 <div class="editor">
-                    {PageLayout.Gutter(TemplateLines.Count(content))}
-                    <textarea name="content" id="content" rows="10" cols="50" wrap="off" spellcheck="false">
-            {WebUtility.HtmlEncode(content)}</textarea>
+                    {PageLayout.Gutter(TemplateLines.Count(template))}
+                    <textarea name="template" id="template" rows="10" cols="50" wrap="off" spellcheck="false">
+            {WebUtility.HtmlEncode(template)}</textarea>
                 </div>
                 <button type="submit">Save</button>
             </form>
@@ -253,13 +253,13 @@ internal sealed class EditorEndpoint {
     }
 
     private static async Task WriteGeneratedAsync(HttpContext context, PageEditor pages, PagePath path) {
-        StoredPage? page = await pages.GetAsync(path, context.RequestAborted);
+        PageTemplate? page = await pages.GetAsync(path, context.RequestAborted);
         if (page is null) {
             await NotFound.WriteAsync(context, path);
             return;
         }
 
-        TemplateParseResult generated = TemplateSourceGenerator.Generate(page.Content);
+        TemplateGenerationResult generated = TemplateSourceGenerator.Generate(page.Template);
         await ShellDocument.BeginAsync(context, "Generated C#", stylesheet: "/editor.css");
         await context.Response.WriteAsync($"<h1>Generated C# for {WebUtility.HtmlEncode(path.Key)}</h1>");
         await context.Response.WriteAsync("<p>Generated from the saved template by the current runtime; unsaved edits are not included.</p>");
@@ -285,7 +285,7 @@ internal sealed class EditorEndpoint {
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         await ShellDocument.BeginAsync(context, "Delete page");
         await context.Response.WriteAsync($"<h1>Delete {WebUtility.HtmlEncode(path.Key)}?</h1>");
-        await context.Response.WriteAsync("<p>This hides the page but retains its source and revision history.</p>");
+        await context.Response.WriteAsync("<p>This hides the page but retains its template and revision history.</p>");
         await context.Response.WriteAsync($"""
             <form method="post" action="{WebUtility.HtmlEncode(PageUrls.EditorCommand(path, "delete"))}">
                 {AntiforgeryField.Hidden(tokens)}
@@ -455,15 +455,15 @@ internal sealed class EditorEndpoint {
             return $"{path.Key} is reserved by the site.";
         }
 
-        if (!context.Request.Form.TryGetValue("content", out StringValues content)) {
-            return "Content is required.";
+        if (!context.Request.Form.TryGetValue("template", out StringValues template)) {
+            return "A template is required.";
         }
 
-        if (content.Count != 1) {
-            return "Content must have exactly one value.";
+        if (template.Count != 1) {
+            return "The template must have exactly one value.";
         }
 
-        IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(path, content.ToString(), context.RequestAborted);
+        IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(path, template.ToString(), context.RequestAborted);
         return diagnostics switch {
             { Count: 0 } => "Saved successfully.",
             _ when diagnostics.Any(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error) => "Saved with errors.",
@@ -496,7 +496,7 @@ internal sealed class EditorEndpoint {
                 string hash = WebUtility.HtmlEncode(revision.Hash);
                 string url = WebUtility.HtmlEncode(PageUrls.EditorRevision(path, revision.Hash));
                 string state = revision.IsCurrent ? "<strong>Current</strong>" : string.Empty;
-                await context.Response.WriteAsync($"<tr><td>{WebUtility.HtmlEncode(revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}</td><td><a href=\"{url}\">{hash}</a></td><td>{state}</td><td>{WebUtility.HtmlEncode(revision.CompilationStatus)}</td><td>{WebUtility.HtmlEncode(revision.CreationRuntimeId)}</td></tr>");
+                await context.Response.WriteAsync($"<tr><td>{WebUtility.HtmlEncode(revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}</td><td><a href=\"{url}\">{hash}</a></td><td>{state}</td><td>{WebUtility.HtmlEncode(revision.ImageStatus)}</td><td>{WebUtility.HtmlEncode(revision.CreationRuntimeId)}</td></tr>");
             }
             await context.Response.WriteAsync("</tbody></table>");
         }
@@ -504,7 +504,7 @@ internal sealed class EditorEndpoint {
     }
 
     private static async Task WriteRevisionAsync(HttpContext context, PageEditor pages, PagePath path, string hash) {
-        PageRevisionSource? revision = await pages.GetRevisionSourceByHashAsync(hash, context.RequestAborted);
+        PageRevisionTemplate? revision = await pages.GetRevisionTemplateByHashAsync(hash, context.RequestAborted);
         if (revision is null || revision.Path != path) {
             await NotFound.WriteAsync(context, path);
             return;
@@ -512,11 +512,11 @@ internal sealed class EditorEndpoint {
 
         await ShellDocument.BeginAsync(context, "Saved revision", stylesheet: "/editor.css");
         await context.Response.WriteAsync($"<h1>Saved revision for {WebUtility.HtmlEncode(path.Key)}</h1>");
-        await context.Response.WriteAsync($"<p>Saved {WebUtility.HtmlEncode(revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}; {WebUtility.HtmlEncode(revision.CompilationStatus)}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}.</p>");
+        await context.Response.WriteAsync($"<p>Saved {WebUtility.HtmlEncode(revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}; {WebUtility.HtmlEncode(revision.ImageStatus)}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}.</p>");
         await context.Response.WriteAsync(PageLayout.Nav("Revision navigation", [
             new(PageUrls.EditorCommand(path, "history"), "Back to history"),
         ], "editor-menu"));
-        await context.Response.WriteAsync($"<pre class=\"source\" tabindex=\"0\">{WebUtility.HtmlEncode(revision.Content)}</pre>");
+        await context.Response.WriteAsync($"<pre class=\"source\" tabindex=\"0\">{WebUtility.HtmlEncode(revision.Template)}</pre>");
         await ShellDocument.EndAsync(context);
     }
 }

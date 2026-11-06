@@ -11,11 +11,11 @@ internal sealed class FaultingCompiler : IPageCompiler {
 
     public string RuntimeId => "faulting";
 
-    public PageCompileResult Compile(GeneratedPageSource source, CancellationToken cancellationToken = default) {
+    public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
         throw new InvalidOperationException("The generated page source did not compile.");
     }
 
-    public CompiledPage Load(byte[] image, byte[]? symbols = null) {
+    public LoadedPage Load(byte[] image, byte[]? symbols = null) {
         throw new NotSupportedException("A faulting compiler never produces an image.");
     }
 }
@@ -28,13 +28,13 @@ internal sealed class SlowCompiler(IPageCompiler inner) : IPageCompiler {
 
     public string RuntimeId => inner.RuntimeId;
 
-    public PageCompileResult Compile(GeneratedPageSource source, CancellationToken cancellationToken = default) {
+    public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
         Thread.Sleep(TimeSpan.FromMilliseconds(1300));
 
         return inner.Compile(source, cancellationToken);
     }
 
-    public CompiledPage Load(byte[] image, byte[]? symbols = null) {
+    public LoadedPage Load(byte[] image, byte[]? symbols = null) {
         return inner.Load(image, symbols);
     }
 }
@@ -48,12 +48,12 @@ internal sealed class StallingCompiler : IPageCompiler {
 
     public string RuntimeId => "stalling";
 
-    public PageCompileResult Compile(GeneratedPageSource source, CancellationToken cancellationToken = default) {
+    public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
         cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
         throw new OperationCanceledException(cancellationToken);
     }
 
-    public CompiledPage Load(byte[] image, byte[]? symbols = null) {
+    public LoadedPage Load(byte[] image, byte[]? symbols = null) {
         throw new NotSupportedException("A stalling compiler never produces an image.");
     }
 }

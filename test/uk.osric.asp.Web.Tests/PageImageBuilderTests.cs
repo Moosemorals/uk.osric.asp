@@ -14,17 +14,17 @@ using uk.osric.asp.Web.Pages;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 // The two deadline tests measure a wall clock, so the fixture wants the process to itself.
 [NonParallelizable]
-public sealed class PageCompilationServiceTests {
+public sealed class PageImageBuilderTests {
 
     [Test]
-    public void CompileReturnsAnImageWithNoDiagnostics() {
+    public void BuildReturnsAnImageWithNoDiagnostics() {
         using PageHarness pages = new(new FakePageStore());
 
-        PageCompilation compilation = Compile(pages, "/hello", "Hello.");
+        PageImage compilation = Build(pages, "/hello", "Hello.");
 
         Assert.That(compilation.Diagnostics, Is.Empty);
-        Assert.That(compilation.Image, Is.Not.Null.And.Not.Empty);
-        Assert.That(compilation.ContentHash, Is.EqualTo(ContentFingerprint.Of("Hello.")));
+        Assert.That(compilation.Bytes, Is.Not.Null.And.Not.Empty);
+        Assert.That(compilation.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("Hello.")));
         Assert.That(compilation.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
     }
 
@@ -32,13 +32,13 @@ public sealed class PageCompilationServiceTests {
     public void AParseErrorDoesNotReachTheCompiler() {
         using PageHarness pages = new(new FakePageStore());
 
-        PageCompilation compilation = Compile(pages, "/unterminated", "before<% if (true) {");
+        PageImage compilation = Build(pages, "/unterminated", "before<% if (true) {");
 
         Assert.That(compilation.Diagnostics, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(1, 7),
                 "TEMPLATE001: unterminated code block; the '<%' has no matching '%>'."),
         }));
-        Assert.That(compilation.Image, Is.Null);
+        Assert.That(compilation.Bytes, Is.Null);
         Assert.That(pages.Compiler.CompileCount, Is.Zero, "a template that does not parse never reaches the compiler");
     }
 
@@ -46,9 +46,9 @@ public sealed class PageCompilationServiceTests {
     public void AWarningDoesNotStopThePage() {
         using PageHarness pages = new(new FakePageStore());
 
-        PageCompilation compilation = Compile(pages, "/warned", "<% int unused = 1; %>");
+        PageImage compilation = Build(pages, "/warned", "<% int unused = 1; %>");
 
-        Assert.That(compilation.Image, Is.Not.Null.And.Not.Empty);
+        Assert.That(compilation.Bytes, Is.Not.Null.And.Not.Empty);
         Assert.That(compilation.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Severity == PageDiagnosticSeverity.Warning
@@ -60,21 +60,21 @@ public sealed class PageCompilationServiceTests {
         using PageHarness pages = new(new FakePageStore(), new FaultingCompiler());
 
         Assert.That(
-            () => Compile(pages, "/fault", "Hello."),
+            () => Build(pages, "/fault", "Hello."),
             Throws.InvalidOperationException);
     }
 
     [Test]
-    public void ACompileThatOutranItsBudgetIsReported() {
+    public void ABuildThatOutranItsBudgetIsReported() {
         PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 1 });
         using PageHarness pages = new(new FakePageStore(), new StallingCompiler(), budget: budget);
 
-        PageCompilation compilation = Compile(pages, "/stalled", "Hello.");
+        PageImage compilation = Build(pages, "/stalled", "Hello.");
 
         Assert.That(compilation.Diagnostics, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, null, "PAGE004: the page took longer than 1 s to compile."),
         }));
-        Assert.That(compilation.Image, Is.Null);
+        Assert.That(compilation.Bytes, Is.Null);
     }
 
     [Test]
@@ -85,7 +85,7 @@ public sealed class PageCompilationServiceTests {
         await budget.CompileSlots.WaitAsync();
         try {
             long start = Stopwatch.GetTimestamp();
-            PageCompilation compilation = Compile(pages, "/queued", "Hello.");
+            PageImage compilation = Build(pages, "/queued", "Hello.");
 
             Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(3)),
                 "the wait for a slot is bounded by the compile budget");
@@ -100,9 +100,9 @@ public sealed class PageCompilationServiceTests {
         Assert.That(pages.Compiler.CompileCount, Is.Zero);
     }
 
-    private static PageCompilation Compile(PageHarness pages, string path, string content) {
+    private static PageImage Build(PageHarness pages, string path, string template) {
         PagePath key = PageHarness.Key(path);
 
-        return pages.Compilations.Compile(key, content, PageMetrics.ReasonSave, CancellationToken.None);
+        return pages.Images.Build(key, template, PageMetrics.ReasonSave, CancellationToken.None);
     }
 }

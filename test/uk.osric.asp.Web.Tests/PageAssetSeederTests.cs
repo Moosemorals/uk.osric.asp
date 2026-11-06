@@ -19,40 +19,40 @@ public sealed class PageAssetSeederTests {
         await PageAssetSeeder.SeedAsync(storage);
 
         foreach (string path in SeedPaths) {
-            Assert.That(storage[path]?.Content, Is.EqualTo(ShippedSeed(path)), path);
-            Assert.That(storage[path]?.Compilation, Is.Null, path);
+            Assert.That(storage[path]?.Template, Is.EqualTo(ShippedSeed(path)), path);
+            Assert.That(storage[path]?.Image, Is.Null, path);
         }
         Assert.That(storage.WriteCount, Is.EqualTo(SeedPaths.Length));
     }
 
     [TestCaseSource(nameof(SeedPaths))]
     public async Task ShippedSeedCanBeReadByItsPagePathAsync(string path) {
-        string? content = await PageAssetSeeder.ReadSeedContentAsync(PagePath.Normalize(path));
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
 
-        Assert.That(content, Is.EqualTo(ShippedSeed(path)));
+        Assert.That(template, Is.EqualTo(ShippedSeed(path)));
     }
 
     [TestCase("/not-a-seed")]
     [TestCase("/admin/restore")]
     public async Task UnknownAndNestedPagesHaveNoShippedSeedAsync(string path) {
-        string? content = await PageAssetSeeder.ReadSeedContentAsync(PagePath.Normalize(path));
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
 
-        Assert.That(content, Is.Null);
+        Assert.That(template, Is.Null);
     }
 
     [TestCaseSource(nameof(SeedPaths))]
     public async Task ExistingAssetsArePreservedAndSeedingIsIdempotentAsync(string editedPath) {
-        const string editedContent = "body { color: rebeccapurple; }";
+        const string editedTemplate = "body { color: rebeccapurple; }";
         FakePageStore storage = new();
-        storage[editedPath] = new StoredPage(PagePath.Normalize(editedPath), editedContent);
+        storage[editedPath] = new PageTemplate(PagePath.Normalize(editedPath), editedTemplate);
 
         await PageAssetSeeder.SeedAsync(storage);
         int writes = storage.WriteCount;
         await PageAssetSeeder.SeedAsync(storage);
 
-        Assert.That(storage[editedPath]?.Content, Is.EqualTo(editedContent));
+        Assert.That(storage[editedPath]?.Template, Is.EqualTo(editedTemplate));
         foreach (string path in SeedPaths.Where(path => path != editedPath)) {
-            Assert.That(storage[path]?.Content, Is.EqualTo(ShippedSeed(path)), path);
+            Assert.That(storage[path]?.Template, Is.EqualTo(ShippedSeed(path)), path);
         }
         Assert.That(storage.WriteCount, Is.EqualTo(writes));
     }
@@ -60,7 +60,7 @@ public sealed class PageAssetSeederTests {
     [TestCaseSource(nameof(SeedPaths))]
     public async Task DeletedSeededAssetsAreNotReseededAsync(string deletedPath) {
         FakePageStore storage = new();
-        storage[deletedPath] = new StoredPage(PagePath.Normalize(deletedPath), "edited asset");
+        storage[deletedPath] = new PageTemplate(PagePath.Normalize(deletedPath), "edited asset");
         await storage.DeletePageAsync(PagePath.Normalize(deletedPath));
 
         int writes = storage.WriteCount;

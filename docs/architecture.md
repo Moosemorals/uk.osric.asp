@@ -28,12 +28,12 @@ can enforce it.
   storage. EF Core, SQLite, database migrations and `IPageStore` belong here.
 
 The dependency direction is one-way: `Web` → `Runtime` → `Core`, `Web` → `Sdk`, and
-`Runtime` → `Sdk`. Nothing points back up. `PageCompiler` returns a `PageCompileResult` of an
+`Runtime` → `Sdk`. Nothing points back up. `PageCompiler` returns a `CompileResult` of an
 optional image and `PageDiagnostic` values rather than Roslyn `EmitResult`/`Diagnostic` values, so
 the shell never sees the compiler's types.
 
 Nothing the author types is an exception either. A template that does not parse comes back from
-`TemplateSourceGenerator` as a `TemplateParseResult` with no source and a `TEMPLATE`-coded
+`TemplateSourceGenerator` as a `TemplateGenerationResult` with no source and a `TEMPLATE`-coded
 `PageDiagnostic`, so it is stored beside the source exactly like a compile error: the editor shows
 it, the page answers "Handler failed to compile.", and it is not recompiled on every request.
 
@@ -68,8 +68,8 @@ and the logs quote them:
 | `TEMPLATE002` | `TemplateSourceGenerator` | a `<%=` or `<%==` expression is empty |
 | `PAGE001` | `PageApiPolicy` | the page used an API it may not use |
 | `PAGE002` | `PageApiChecker` | page code escaped its method, or a declaration block declared something other than a type |
-| `PAGE003` | `PageCompilationService` | the page waited too long for a compile slot |
-| `PAGE004` | `PageCompilationService` | the page took too long to compile |
+| `PAGE003` | `PageImageBuilder` | the page waited too long for a compile slot |
+| `PAGE004` | `PageImageBuilder` | the page took too long to compile |
 
 ## Where does code go?
 
@@ -78,7 +78,7 @@ and the logs quote them:
 | Business rules, calculations, parsing, formatting, validation | `Core`, as pure functions |
 | Values passed between layers | `Core`, as `record`/`readonly record struct` |
 | Emitting a page assembly, loading it and invoking the handler | `Runtime` |
-| Deciding when to compile, store and run a page | `Web`, in `PageCompilationService`, `PageRenderer` and `PageEditor` |
+| Deciding when to compile, store and run a page | `Web`, in `PageImageBuilder`, `PageRenderer` and `PageEditor` |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
 | Source storage: the EF Core context and its migrations | `Web`, under `Storage` |
@@ -284,7 +284,7 @@ to the generated source invalidates an image even when the contract is unchanged
 
 ## Load isolation
 
-`CompiledPage` loads each image into a `PageLoadContext`, a collectible `AssemblyLoadContext`
+`LoadedPage` loads each image into a `PageLoadContext`, a collectible `AssemblyLoadContext`
 that refuses `uk.osric.asp.Core`, `uk.osric.asp.Runtime`, `uk.osric.asp.Web`,
 `Microsoft.AspNetCore*`, `Microsoft.EntityFrameworkCore*` and `Microsoft.Data.Sqlite`, and lets
 everything else resolve through the default context. The SDK is allowed through on purpose: the
@@ -353,7 +353,7 @@ startup, before serving requests. `ConnectionStrings:Storage` defaults to
 `Data Source=data/storage.db`; deployment overrides it to `Data Source=/data/storage.db` on a durable
 rootless Podman named volume. Database access and migration lifecycle stay in the shell.
 
-This is source storage: `EditorEndpoint` writes a page's source, `PageEndpoint` reads it by route
+This is template storage: `EditorEndpoint` writes a page's template, `PageEndpoint` reads it by route
 path and runs its compiled image. Pure rules still receive the values loaded by the shell rather
 than being given `IPageStore`.
 
@@ -391,13 +391,13 @@ bundled source to an existing or tombstoned page as a new revision.
 ## Compiled pages
 
 Compiling is the expensive part of serving a page, so it happens when a page is saved rather than
-when it is viewed. `EditorEndpoint` hands the source to `PageEditor`, which compiles it through
-`PageCompilationService` and stores the emitted assembly beside the source in the same row; `PageEndpoint`
-then reads the image and runs it through `PageRenderer`. Four derived columns carry the result: `ContentHash`, `RuntimeId`, `Image` and `Diagnostics`.
+when it is viewed. `EditorEndpoint` hands the template to `PageEditor`, which compiles it through
+`PageImageBuilder` and stores the emitted assembly beside the template in the same row; `PageEndpoint`
+then reads the image and runs it through `PageRenderer`. Four derived columns carry the result: `TemplateHash`, `RuntimeId`, `Image` and `Diagnostics`.
 
 A stored image is trusted only when both keys match:
 
-- `ContentHash` is the SHA-256 of the source (`ContentFingerprint` in `Core`), so an edit that
+- `TemplateHash` is the SHA-256 of the template (`TemplateFingerprint` in `Core`), so an edit that
   bypasses the editor cannot be answered with stale code.
 - `RuntimeId` is the compile format version, the page policy version and the module version ids of
   `uk.osric.asp.Sdk` and `uk.osric.asp.Core`, so a build with a different page contract, a changed
@@ -419,7 +419,7 @@ page that keeps changing is served from the last compile rather than failing.
 
 `IPageStore` owns both halves: `GetPageAsync`, `SavePageAsync` and the conditional
 `TrySetCompilationAsync`. `Runtime` knows only how to turn generated source into bytes and bytes into
-a loaded handler (`IPageCompiler`, `CompiledPage`); it never sees a page.
+a loaded handler (`IPageCompiler`, `LoadedPage`); it never sees a page.
 
 ## Instrumentation
 
@@ -439,7 +439,7 @@ a loaded handler (`IPageCompiler`, `CompiledPage`); it never sees a page.
 | `page.storage.database.size` | observable gauge | By | — whole database `page_count * page_size`, including indexes and freelist pages; excludes the separate WAL |
 | `page.storage.volume.capacity` | observable gauge | By | — total capacity of the filesystem volume containing the database |
 | `page.cache.lookups` | counter | — | `result` (`hit`, `stale`, `absent`) |
-| `page.cache.staleness` | counter | — | `page.path`, `reason` (`never-compiled`, `content-changed`, `runtime-changed`) |
+| `page.cache.staleness` | counter | — | `page.path`, `reason` (`never-compiled`, `template-changed`, `runtime-changed`) |
 
 A miss is tagged `page.path="(not-found)"`. The requested path is unauthenticated and unbounded, so
 tagging it verbatim would let a scan mint one time series per URL; the real path is in the access log.

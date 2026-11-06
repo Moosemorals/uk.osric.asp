@@ -17,33 +17,6 @@ namespace uk.osric.asp.Web.Storage.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
-            modelBuilder.Entity("uk.osric.asp.Web.Authentication.AuthTicket", b =>
-                {
-                    b.Property<string>("Key")
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT")
-                        .UseCollation("BINARY");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ProtectedTicket")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UserName")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT")
-                        .UseCollation("BINARY");
-
-                    b.HasKey("Key");
-
-                    b.HasIndex("ExpiresAt");
-
-                    b.ToTable("AuthTickets", (string)null);
-                });
-
             modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentConversation", b =>
                 {
                     b.Property<long>("Id")
@@ -249,7 +222,34 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("AgentToolApprovals", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Pages.StoredPageHead", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Authentication.AuthTicket", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT")
+                        .UseCollation("BINARY");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProtectedTicket")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .UseCollation("BINARY");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("AuthTickets", (string)null);
+                });
+
+            modelBuilder.Entity("uk.osric.asp.Web.Pages.PageHead", b =>
                 {
                     b.Property<string>("Path")
                         .HasColumnType("TEXT")
@@ -270,18 +270,11 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("PageHeads", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Pages.StoredRevision", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Pages.PageRevision", b =>
                 {
                     b.Property<string>("RevisionId")
                         .HasColumnType("TEXT")
                         .UseCollation("BINARY");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ContentHash")
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("CreationRuntimeId")
                         .IsRequired()
@@ -311,6 +304,13 @@ namespace uk.osric.asp.Web.Storage.Migrations
 
                     b.Property<byte[]>("Symbols")
                         .HasColumnType("BLOB");
+
+                    b.Property<string>("Template")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TemplateHash")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("RevisionId");
 
@@ -380,9 +380,9 @@ namespace uk.osric.asp.Web.Storage.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Pages.StoredPageHead", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Pages.PageHead", b =>
                 {
-                    b.HasOne("uk.osric.asp.Web.Pages.StoredRevision", null)
+                    b.HasOne("uk.osric.asp.Web.Pages.PageRevision", null)
                         .WithMany()
                         .HasForeignKey("RevisionId", "Path")
                         .HasPrincipalKey("RevisionId", "Path")

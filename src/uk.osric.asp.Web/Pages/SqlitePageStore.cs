@@ -23,10 +23,10 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
         Converters = { new JsonStringEnumConverter() },
     };
 
-    public async Task<StoredPage?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
-        StoredRevision? revision = await database.Set<StoredPageHead>().AsNoTracking()
+    public async Task<PageTemplate?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
+        PageRevision? revision = await database.Set<PageHead>().AsNoTracking()
             .Where(head => head.Path == path.Key && !head.IsDeleted)
-            .Join(database.Set<StoredRevision>().AsNoTracking(),
+            .Join(database.Set<PageRevision>().AsNoTracking(),
                 head => new { head.RevisionId, head.Path },
                 row => new { row.RevisionId, row.Path },
                 (_, row) => row)
@@ -36,7 +36,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
     }
 
     public async Task<IReadOnlyList<PageHeadSummary>> ListPagesAsync(CancellationToken cancellationToken = default) {
-        var rows = await database.Set<StoredPageHead>().AsNoTracking()
+        var rows = await database.Set<PageHead>().AsNoTracking()
             .Select(head => new { head.Path, head.IsDeleted })
             .ToArrayAsync(cancellationToken);
 
@@ -45,23 +45,23 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
     }
 
     public async Task<PageHeadSummary?> GetHeadAsync(PagePath path, CancellationToken cancellationToken = default) {
-        StoredPageHead? head = await database.Set<StoredPageHead>().AsNoTracking()
+        PageHead? head = await database.Set<PageHead>().AsNoTracking()
             .SingleOrDefaultAsync(row => row.Path == path.Key, cancellationToken);
 
         return head is null ? null : new PageHeadSummary(PagePath.Normalize(head.Path), head.IsDeleted);
     }
 
-    public async Task<StoredPage?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
+    public async Task<PageTemplate?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(hash);
 
-        StoredRevision? revision = await database.Set<StoredRevision>().AsNoTracking()
+        PageRevision? revision = await database.Set<PageRevision>().AsNoTracking()
             .SingleOrDefaultAsync(row => row.Hash == hash, cancellationToken);
 
         return revision is null ? null : ToPage(revision);
     }
 
     public async Task<IReadOnlyList<PageRevisionSummary>> ListRevisionsAsync(PagePath path, CancellationToken cancellationToken = default) {
-        var rows = await database.Set<StoredRevision>().AsNoTracking()
+        var rows = await database.Set<PageRevision>().AsNoTracking()
             .Where(revision => revision.Path == path.Key)
             .Select(revision => new {
                 revision.Hash,
@@ -70,7 +70,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 revision.RuntimeId,
                 HasImage = revision.Image != null,
                 HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
-                IsCurrent = database.Set<StoredPageHead>().Any(head =>
+                IsCurrent = database.Set<PageHead>().Any(head =>
                     head.Path == path.Key
                     && !head.IsDeleted
                     && head.RevisionId == revision.RevisionId),
@@ -83,14 +83,14 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 row.Hash,
                 row.SavedAt,
                 row.CreationRuntimeId,
-                CompilationStatus(row.RuntimeId, row.HasImage, row.HasDiagnostics),
+                ImageStatus(row.RuntimeId, row.HasImage, row.HasDiagnostics),
                 row.IsCurrent))];
     }
 
-    public async Task<PageRevisionSource?> GetRevisionSourceByHashAsync(string hash, CancellationToken cancellationToken = default) {
+    public async Task<PageRevisionTemplate?> GetRevisionTemplateByHashAsync(string hash, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(hash);
 
-        var revision = await database.Set<StoredRevision>().AsNoTracking()
+        var revision = await database.Set<PageRevision>().AsNoTracking()
             .Where(row => row.Hash == hash)
             .Select(row => new {
                 row.Path,
@@ -100,27 +100,27 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 row.RuntimeId,
                 HasImage = row.Image != null,
                 HasDiagnostics = row.Diagnostics != null && row.Diagnostics != "[]",
-                row.Content,
+                row.Template,
             })
             .SingleOrDefaultAsync(cancellationToken);
 
         return revision is null
             ? null
-            : new PageRevisionSource(
+            : new PageRevisionTemplate(
                 PagePath.Normalize(revision.Path),
                 revision.Hash,
                 revision.SavedAt,
                 revision.CreationRuntimeId,
-                CompilationStatus(revision.RuntimeId, revision.HasImage, revision.HasDiagnostics),
-                revision.Content);
+                ImageStatus(revision.RuntimeId, revision.HasImage, revision.HasDiagnostics),
+                revision.Template);
     }
 
-    public async Task SavePageAsync(StoredPage page, CancellationToken cancellationToken = default) {
-        ArgumentNullException.ThrowIfNull(page);
+    public async Task SavePageAsync(PageTemplate template, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(template);
 
-        StoredPage revision = page;
+        PageTemplate revision = template;
         for (int attempt = 0; ; attempt++) {
-            StoredRevision row = ToStoredRevision(revision);
+            PageRevision row = ToRevision(revision);
             try {
                 await using (IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken)) {
                     database.Add(row);
@@ -141,19 +141,19 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 string revisionId = Guid.NewGuid().ToString("N");
                 revision = revision with {
                     RevisionId = revisionId,
-                    Hash = PageRevisionHash.Of(revision.Content, revision.CreationRuntimeId, revision.SavedAt, revisionId),
+                    Hash = PageRevisionHash.Of(revision.Template, revision.CreationRuntimeId, revision.SavedAt, revisionId),
                 };
             }
         }
     }
 
-    public async Task<bool> TrySavePageAsync(StoredPage page, string expectedHash, CancellationToken cancellationToken = default) {
-        ArgumentNullException.ThrowIfNull(page);
+    public async Task<bool> TrySavePageAsync(PageTemplate template, string expectedHash, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(template);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
 
-        StoredPage revision = page;
+        PageTemplate revision = template;
         for (int attempt = 0; ; attempt++) {
-            StoredRevision row = ToStoredRevision(revision);
+            PageRevision row = ToRevision(revision);
             try {
                 await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
                 int matched = await database.Database.ExecuteSqlInterpolatedAsync($"""
@@ -183,31 +183,31 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 string revisionId = Guid.NewGuid().ToString("N");
                 revision = revision with {
                     RevisionId = revisionId,
-                    Hash = PageRevisionHash.Of(revision.Content, revision.CreationRuntimeId, revision.SavedAt, revisionId),
+                    Hash = PageRevisionHash.Of(revision.Template, revision.CreationRuntimeId, revision.SavedAt, revisionId),
                 };
             }
         }
     }
 
-    public async Task<bool> TrySetCompilationAsync(string revisionId, string expectedContent, PageCompilation compilation, CancellationToken cancellationToken = default) {
+    public async Task<bool> TrySetImageAsync(string revisionId, string expectedTemplate, PageImage image, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(revisionId);
-        ArgumentNullException.ThrowIfNull(expectedContent);
-        ArgumentNullException.ThrowIfNull(compilation);
+        ArgumentNullException.ThrowIfNull(expectedTemplate);
+        ArgumentNullException.ThrowIfNull(image);
 
-        int updated = await database.Set<StoredRevision>()
-            .Where(row => row.RevisionId == revisionId && row.Content == expectedContent)
+        int updated = await database.Set<PageRevision>()
+            .Where(row => row.RevisionId == revisionId && row.Template == expectedTemplate)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(row => row.ContentHash, compilation.ContentHash)
-                .SetProperty(row => row.RuntimeId, compilation.RuntimeId)
-                .SetProperty(row => row.Image, compilation.Image)
-                .SetProperty(row => row.Symbols, compilation.Symbols)
-                .SetProperty(row => row.Diagnostics, SerializeDiagnostics(compilation.Diagnostics)), cancellationToken);
+                .SetProperty(row => row.TemplateHash, image.TemplateHash)
+                .SetProperty(row => row.RuntimeId, image.RuntimeId)
+                .SetProperty(row => row.Image, image.Bytes)
+                .SetProperty(row => row.Symbols, image.Symbols)
+                .SetProperty(row => row.Diagnostics, SerializeDiagnostics(image.Diagnostics)), cancellationToken);
 
         return updated > 0;
     }
 
     public async Task<bool> DeletePageAsync(PagePath path, CancellationToken cancellationToken = default) {
-        int updated = await database.Set<StoredPageHead>()
+        int updated = await database.Set<PageHead>()
             .Where(head => head.Path == path.Key && !head.IsDeleted)
             .ExecuteUpdateAsync(setters => setters.SetProperty(head => head.IsDeleted, true), cancellationToken);
 
@@ -221,11 +221,11 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
 
             bool existed;
             await using (IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken)) {
-                int deletedHeads = await database.Set<StoredPageHead>()
+                int deletedHeads = await database.Set<PageHead>()
                     .Where(head => head.Path == path.Key && head.IsDeleted)
                     .ExecuteDeleteAsync(cancellationToken);
                 if (deletedHeads > 0) {
-                    await database.Set<StoredRevision>()
+                    await database.Set<PageRevision>()
                         .Where(revision => revision.Path == path.Key)
                         .ExecuteDeleteAsync(cancellationToken);
                 }
@@ -282,8 +282,8 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
         return await command.ExecuteScalarAsync(cancellationToken);
     }
 
-    private static StoredPage ToPage(StoredRevision revision) {
-        return new StoredPage(PagePath.Normalize(revision.Path), revision.Content, ToCompilation(revision)) {
+    private static PageTemplate ToPage(PageRevision revision) {
+        return new PageTemplate(PagePath.Normalize(revision.Path), revision.Template, ToImage(revision)) {
             RevisionId = revision.RevisionId,
             Hash = revision.Hash,
             CreationRuntimeId = revision.CreationRuntimeId,
@@ -291,30 +291,30 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
         };
     }
 
-    private static StoredRevision ToStoredRevision(StoredPage page) {
-        PageCompilation? compilation = page.Compilation;
-        return new StoredRevision {
-            RevisionId = page.RevisionId,
-            Path = page.Path.Key,
-            Hash = page.Hash,
-            SavedAt = page.SavedAt,
-            Content = page.Content,
-            CreationRuntimeId = page.CreationRuntimeId,
-            ContentHash = compilation?.ContentHash,
-            RuntimeId = compilation?.RuntimeId,
-            Image = compilation?.Image,
-            Symbols = compilation?.Symbols,
-            Diagnostics = compilation is null ? null : SerializeDiagnostics(compilation.Diagnostics),
+    private static PageRevision ToRevision(PageTemplate template) {
+        PageImage? image = template.Image;
+        return new PageRevision {
+            RevisionId = template.RevisionId,
+            Path = template.Path.Key,
+            Hash = template.Hash,
+            SavedAt = template.SavedAt,
+            Template = template.Template,
+            CreationRuntimeId = template.CreationRuntimeId,
+            TemplateHash = image?.TemplateHash,
+            RuntimeId = image?.RuntimeId,
+            Image = image?.Bytes,
+            Symbols = image?.Symbols,
+            Diagnostics = image is null ? null : SerializeDiagnostics(image.Diagnostics),
         };
     }
 
-    private static PageCompilation? ToCompilation(StoredRevision revision) {
+    private static PageImage? ToImage(PageRevision revision) {
         if (revision.RuntimeId is null) {
             return null;
         }
 
-        return new PageCompilation(
-            revision.ContentHash ?? string.Empty,
+        return new PageImage(
+            revision.TemplateHash ?? string.Empty,
             revision.RuntimeId,
             revision.Image,
             revision.Symbols,
@@ -327,7 +327,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
         };
     }
 
-    private static string CompilationStatus(string? runtimeId, bool hasImage, bool hasDiagnostics) {
+    private static string ImageStatus(string? runtimeId, bool hasImage, bool hasDiagnostics) {
         if (runtimeId is null) {
             return "Not compiled";
         }

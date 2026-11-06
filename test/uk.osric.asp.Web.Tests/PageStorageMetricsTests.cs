@@ -23,7 +23,7 @@ public sealed class PageStorageMetricsTests {
         await using SqliteCommand command = connection.CreateCommand();
         command.CommandText = """
             CREATE TABLE PageRevisions (RevisionId TEXT PRIMARY KEY, Path TEXT, Hash TEXT,
-                SavedAt TEXT, Content TEXT, CreationRuntimeId TEXT, ContentHash TEXT,
+                SavedAt TEXT, Template TEXT, CreationRuntimeId TEXT, TemplateHash TEXT,
                 RuntimeId TEXT, Diagnostics TEXT, Image BLOB, Symbols BLOB);
             INSERT INTO PageRevisions VALUES ('r', '/p', 'h', 'date', char(233), 'c', 'ch', 'rt', '[]', zeroblob(10), zeroblob(5));
             INSERT INTO PageRevisions VALUES ('s', '/p', 'i', 'date', '', 'c', NULL, NULL, NULL, NULL, NULL);
@@ -62,7 +62,7 @@ public sealed class PageStorageMetricsTests {
         StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
         await database.Database.EnsureCreatedAsync();
         SqlitePageStore store = new(database);
-        await store.SavePageAsync(new StoredPage(PagePath.Normalize("/large"), new string('x', 131072)));
+        await store.SavePageAsync(new PageTemplate(PagePath.Normalize("/large"), new string('x', 131072)));
         (long beforePayload, long beforeAllocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
         await store.DeletePageAsync(PagePath.Normalize("/large"));
 
@@ -132,7 +132,7 @@ public sealed class PageStorageMetricsTests {
         await database.Database.EnsureCreatedAsync();
         PageStorageRefresh refresh = new();
         SqlitePageStore store = new(database, refresh);
-        await store.SavePageAsync(new StoredPage(PagePath.Normalize("/scrub"), "payload"));
+        await store.SavePageAsync(new PageTemplate(PagePath.Normalize("/scrub"), "payload"));
         await store.DeletePageAsync(PagePath.Normalize("/scrub"));
 
         Assert.That(await store.ScrubPageAsync(PagePath.Normalize("/scrub")), Is.True);

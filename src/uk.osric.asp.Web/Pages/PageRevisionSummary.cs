@@ -10,5 +10,5 @@ internal sealed record PageRevisionSummary(
     string Hash,
     DateTimeOffset SavedAt,
     string CreationRuntimeId,
-    string CompilationStatus,
+    string ImageStatus,
     bool IsCurrent);

@@ -20,7 +20,7 @@ public sealed class PageApiPolicyTests {
     [TestCase("<% System.Span<int> values = stackalloc int[4]; %>", "stackalloc")]
     [TestCase("<% System.AppDomain.CurrentDomain.GetAssemblies(); %>", "System.AppDomain")]
     public void BannedCodeIsRejectedWithoutAnImage(string template, string api) {
-        PageCompileResult result = Compile(template);
+        CompileResult result = Compile(template);
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Image, Is.Null);
@@ -34,7 +34,7 @@ public sealed class PageApiPolicyTests {
     [TestCase("<% } } class Extra { } %>")]
     [TestCase("<% } public static class Statics { } %>")]
     public void DeclaringMembersIsRejected(string template) {
-        PageCompileResult result = Compile(template);
+        CompileResult result = Compile(template);
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -55,7 +55,7 @@ public sealed class PageApiPolicyTests {
             <p>Total: <% ctx.Write(Amount.Format(42.5m)); %></p>
             """;
 
-        PageCompileResult result = Compile(template);
+        CompileResult result = Compile(template);
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
@@ -64,7 +64,7 @@ public sealed class PageApiPolicyTests {
     [TestCase("<%! System.Console.WriteLine(\"escaped\"); %>")]
     [TestCase("<%! if (true) { } %>")]
     public void AStatementInADeclarationBlockIsRejected(string template) {
-        PageCompileResult result = Compile(template);
+        CompileResult result = Compile(template);
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -75,7 +75,7 @@ public sealed class PageApiPolicyTests {
 
     [Test]
     public void ANamespaceInADeclarationBlockIsRejected() {
-        PageCompileResult result = Compile("<%! namespace Page { class Amount { } } %>");
+        CompileResult result = Compile("<%! namespace Page { class Amount { } } %>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -86,7 +86,7 @@ public sealed class PageApiPolicyTests {
 
     [Test]
     public void APageMayNotDeclareGeneratedPage() {
-        PageCompileResult result = Compile("<%! class GeneratedPage { } %>");
+        CompileResult result = Compile("<%! class GeneratedPage { } %>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -96,7 +96,7 @@ public sealed class PageApiPolicyTests {
 
     [Test]
     public void AnAssemblyAttributeIsRejected() {
-        PageCompileResult result = Compile("<%![assembly: System.Reflection.AssemblyTitle(\"page\")]%>");
+        CompileResult result = Compile("<%![assembly: System.Reflection.AssemblyTitle(\"page\")]%>");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -114,7 +114,7 @@ public sealed class PageApiPolicyTests {
             %>
             """;
 
-        PageCompileResult result = Compile(template);
+        CompileResult result = Compile(template);
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Image, Is.Null);
@@ -136,7 +136,7 @@ public sealed class PageApiPolicyTests {
             %>
             """;
 
-        PageCompileResult result = Compile(template);
+        CompileResult result = Compile(template);
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -171,21 +171,21 @@ public sealed class PageApiPolicyTests {
             <% Report report = new(); report.Add(1); ctx.Write(report.Format()); %>
             """;
 
-        PageCompileResult result = Compile(template);
+        CompileResult result = Compile(template);
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
     [Test]
     public void ADeclarationBlockThatOnlyImportsANamespaceCompiles() {
-        PageCompileResult result = Compile("<%! using System.Globalization; %>");
+        CompileResult result = Compile("<%! using System.Globalization; %>");
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
     [Test]
     public void RejectionReportsThePageLineAndColumn() {
-        PageCompileResult result = Compile("first line\n<% System.IO.File.ReadAllText(\"page.txt\"); %>");
+        CompileResult result = Compile("first line\n<% System.IO.File.ReadAllText(\"page.txt\"); %>");
 
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
@@ -211,14 +211,14 @@ public sealed class PageApiPolicyTests {
             %>
             """;
 
-        PageCompileResult result = Compile(template);
+        CompileResult result = Compile(template);
 
         Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
     [Test]
     public void CallingAnObjectMemberIsRejected() {
-        PageCompileResult result = Compile("<% System.Object value = 1; ctx.Write(value.ToString()); %>");
+        CompileResult result = Compile("<% System.Object value = 1; ctx.Write(value.ToString()); %>");
 
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
@@ -227,19 +227,19 @@ public sealed class PageApiPolicyTests {
 
     [Test]
     public void DynamicIsRejected() {
-        PageCompileResult result = Compile("<% dynamic value = 1; ctx.Write(value.ToString()); %>");
+        CompileResult result = Compile("<% dynamic value = 1; ctx.Write(value.ToString()); %>");
 
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message.Contains("dynamic", StringComparison.Ordinal)));
     }
 
-    private static PageCompileResult Compile(string template) {
+    private static CompileResult Compile(string template) {
         return Compiler.Compile(Generate(template));
     }
 
-    private static GeneratedPageSource Generate(string template) {
-        TemplateParseResult parsed = TemplateSourceGenerator.Generate(template);
+    private static GeneratedSource Generate(string template) {
+        TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 
         // The assertion above proves source was generated.

@@ -70,7 +70,7 @@ internal sealed class PageMetrics : IDisposable {
     public const string ReasonLazy = "lazy";
 
     public const string StaleNeverCompiled = "never-compiled";
-    public const string StaleContentChanged = "content-changed";
+    public const string StaleTemplateChanged = "template-changed";
     public const string StaleRuntimeChanged = "runtime-changed";
 
     private readonly Meter _meter;

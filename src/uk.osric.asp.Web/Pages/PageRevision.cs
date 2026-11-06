@@ -3,8 +3,8 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-/// <summary>One immutable saved revision, with the compile result built from it.</summary>
-internal sealed class StoredRevision {
+/// <summary>One immutable saved revision: a template, and the image built from it.</summary>
+internal sealed class PageRevision {
     public required string RevisionId { get; init; }
 
     public required string Path { get; init; }
@@ -13,11 +13,11 @@ internal sealed class StoredRevision {
 
     public required DateTimeOffset SavedAt { get; init; }
 
-    public required string Content { get; init; }
+    public required string Template { get; init; }
 
     public required string CreationRuntimeId { get; init; }
 
-    public string? ContentHash { get; set; }
+    public string? TemplateHash { get; set; }
 
     public string? RuntimeId { get; set; }
 

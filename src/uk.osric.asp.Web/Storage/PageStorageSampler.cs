@@ -55,8 +55,8 @@ internal sealed class PageStorageSampler(
             SELECT COALESCE(SUM(
                 length(CAST(RevisionId AS BLOB)) + length(CAST(Path AS BLOB)) +
                 length(CAST(Hash AS BLOB)) + length(CAST(SavedAt AS BLOB)) +
-                length(CAST(Content AS BLOB)) + length(CAST(CreationRuntimeId AS BLOB)) +
-                COALESCE(length(CAST(ContentHash AS BLOB)), 0) +
+                length(CAST(Template AS BLOB)) + length(CAST(CreationRuntimeId AS BLOB)) +
+                COALESCE(length(CAST(TemplateHash AS BLOB)), 0) +
                 COALESCE(length(CAST(RuntimeId AS BLOB)), 0) +
                 COALESCE(length(CAST(Diagnostics AS BLOB)), 0) +
                 COALESCE(length(Image), 0) + COALESCE(length(Symbols), 0)), 0)

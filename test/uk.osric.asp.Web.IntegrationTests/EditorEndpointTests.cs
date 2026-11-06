@@ -22,7 +22,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
         string editorBody = await rootEditor.Content.ReadAsStringAsync();
         Assert.That(listing.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(listing.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That(listingBody, Does.Not.Contain("name=\"content\""));
+        Assert.That(listingBody, Does.Not.Contain("name=\"template\""));
         Assert.That(rootEditor.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(editorBody, Does.Contain(">\nRoot source.</textarea>"));
     }
@@ -93,14 +93,14 @@ public sealed class EditorEndpointTests : IntegrationTest {
     public async Task GeneratedViewDoesNotCompileOrChangeTheStoredRevision() {
         const string source = "<% ctx.Write(\"ok\"); %>";
         await SavePageAsync("/inspect", source);
-        StoredPage before = (await ReadPageAsync("/inspect"))!;
+        PageTemplate before = (await ReadPageAsync("/inspect"))!;
         using HttpClient client = await CreateSignedInClientAsync();
         int compiles = CompileCount;
 
         HttpResponseMessage response = await client.GetAsync("/edit/inspect?cmd=generated");
 
         string body = await response.Content.ReadAsStringAsync();
-        StoredPage after = (await ReadPageAsync("/inspect"))!;
+        PageTemplate after = (await ReadPageAsync("/inspect"))!;
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
         Assert.That(body, Does.Contain("ctx.Write(&quot;ok&quot;)"));
@@ -113,7 +113,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
     public async Task HistoryListsAndShowsAnOlderRevisionWithoutCompilingItAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
         await PostEditorAsync(client, "history-page", "first <version>");
-        StoredPage first = (await ReadPageAsync("/history-page"))!;
+        PageTemplate first = (await ReadPageAsync("/history-page"))!;
         await PostEditorAsync(client, "history-page", "second version");
         int compiles = CompileCount;
 
@@ -138,7 +138,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
     public async Task RevisionViewerRejectsMalformedAndOtherPageHashesAsync() {
         await SavePageAsync("/first-page", "first");
         await SavePageAsync("/second-page", "second");
-        StoredPage first = (await ReadPageAsync("/first-page"))!;
+        PageTemplate first = (await ReadPageAsync("/first-page"))!;
         using HttpClient client = await CreateSignedInClientAsync();
 
         HttpResponseMessage malformed = await client.GetAsync("/edit/first-page?cmd=revision&hash=bad");
@@ -160,7 +160,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
         HttpResponseMessage deleted = await client.PostAsync("/edit/archive?cmd=delete", Form(("__RequestVerificationToken", token)));
 
         Assert.That(confirmation.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(confirmationBody, Does.Contain("retains its source and revision history"));
+        Assert.That(confirmationBody, Does.Contain("retains its template and revision history"));
         Assert.That(deleted.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
         Assert.That(deleted.Headers.Location?.ToString(), Is.EqualTo("/edit"));
         Assert.That((await client.GetAsync("/archive")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
@@ -268,7 +268,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
         string body = await response.Content.ReadAsStringAsync();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
-        Assert.That(body, Does.Contain("name=\"content\""));
+        Assert.That(body, Does.Contain("name=\"template\""));
         Assert.That(body, Does.Contain(">\nHello, world!</textarea>"));
         Assert.That(body, Does.Contain("?cmd=history"));
         Assert.That(body, Does.Contain(
@@ -290,7 +290,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
 
         string body = await response.Content.ReadAsStringAsync();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(body, Does.Contain("name=\"content\""));
+        Assert.That(body, Does.Contain("name=\"template\""));
         Assert.That(body, Does.Contain(">\n</textarea>"));
     }
 
@@ -327,7 +327,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
     public async Task SaveWithoutATokenReturns400AndWritesNothing() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage save = await client.PostAsync("/edit/no-token", Form(("content", "hijacked")));
+        HttpResponseMessage save = await client.PostAsync("/edit/no-token", Form(("template", "hijacked")));
 
         Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
@@ -375,7 +375,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
 
         HttpResponseMessage editor = await client.GetAsync("/edit/required");
-        Assert.That(await editor.Content.ReadAsStringAsync(), Does.Contain("Content is required."));
+        Assert.That(await editor.Content.ReadAsStringAsync(), Does.Contain("A template is required."));
 
         HttpResponseMessage page = await client.GetAsync("/required");
         Assert.That(page.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));

@@ -31,7 +31,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
     public async Task AnonymousPostEditorWritesNothing() {
         using HttpClient client = CreateClient();
 
-        HttpResponseMessage response = await client.PostAsync("/edit/anonymous", Form(("content", "hijacked")));
+        HttpResponseMessage response = await client.PostAsync("/edit/anonymous", Form(("template", "hijacked")));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(await ReadPageAsync("/anonymous"), Is.Null);

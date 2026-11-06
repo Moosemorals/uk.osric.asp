@@ -23,7 +23,7 @@ using uk.osric.asp.Runtime;
 internal sealed class PageRenderer(
     IPageStore storage,
     IPageCompiler compiler,
-    PageCompilationService compilations,
+    PageImageBuilder images,
     PageMetrics metrics,
     PageBudget budget,
     PageHealth health,
@@ -64,7 +64,7 @@ internal sealed class PageRenderer(
             metrics.RecordWait(Stopwatch.GetElapsedTime(queueStart));
 
             try {
-                LoadedPage? loaded;
+                CachedPage? loaded;
                 try {
                     loaded = await LoadAsync(path, deadline.Token, cancellationToken);
                 } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
@@ -84,13 +84,13 @@ internal sealed class PageRenderer(
 
                 cache = loaded.Cache;
 
-                if (loaded.Compilation.Image is null) {
+                if (loaded.Image.Bytes is null) {
                     outcome = PageMetrics.RenderCompileError;
-                    return RenderResult.CompileFailed(loaded.Compilation.Diagnostics);
+                    return RenderResult.CompileFailed(loaded.Image.Diagnostics);
                 }
 
                 RenderResult rendered = await RunAsync(
-                    path, loaded.Compilation.Image, loaded.Compilation.Symbols, context, deadline, cancellationToken);
+                    path, loaded.Image.Bytes, loaded.Image.Symbols, context, deadline, cancellationToken);
                 outcome = rendered.Status == RenderStatus.Timeout ? PageMetrics.RenderTimeout : PageMetrics.RenderOk;
 
                 return rendered;
@@ -109,33 +109,33 @@ internal sealed class PageRenderer(
     // unservable, so they are bounded by Pages:Compile:TimeoutSeconds and get to finish and be stored
     // even when the answer has already been given up on. A page whose image arrives that late is not
     // started at all - see RunAsync - so the next request is served from the store.
-    private async Task<LoadedPage?> LoadAsync(PagePath path, CancellationToken deadline, CancellationToken cancellationToken) {
+    private async Task<CachedPage?> LoadAsync(PagePath path, CancellationToken deadline, CancellationToken cancellationToken) {
         for (int attempt = 1; attempt <= MaxCompileAttempts; attempt++) {
-            StoredPage? page = await storage.GetPageAsync(path, deadline);
+            PageTemplate? page = await storage.GetPageAsync(path, deadline);
             if (page is null) {
                 metrics.RecordCacheLookup(PageMetrics.LookupAbsent);
                 return null;
             }
 
-            string contentHash = ContentFingerprint.Of(page.Content);
-            if (page.Compilation is { } stored && stored.IsCurrent(contentHash, compiler.RuntimeId)) {
+            string templateHash = TemplateFingerprint.Of(page.Template);
+            if (page.Image is { } stored && stored.IsCurrent(templateHash, compiler.RuntimeId)) {
                 metrics.RecordCacheLookup(PageMetrics.LookupHit);
-                return new LoadedPage(stored, PageMetrics.CacheHit);
+                return new CachedPage(stored, PageMetrics.CacheHit);
             }
 
-            metrics.RecordStaleness(path, StalenessReason(page.Compilation));
+            metrics.RecordStaleness(path, StalenessReason(page.Image));
             metrics.RecordCacheLookup(PageMetrics.LookupStale);
 
-            PageCompilation compilation = compilations.Compile(path, page.Content, PageMetrics.ReasonLazy, cancellationToken, deadline);
+            PageImage image = images.Build(path, page.Template, PageMetrics.ReasonLazy, cancellationToken, deadline);
 
-            if (await storage.TrySetCompilationAsync(page.RevisionId, page.Content, compilation, cancellationToken)) {
-                StoredPage? current = await storage.GetPageAsync(path, deadline);
+            if (await storage.TrySetImageAsync(page.RevisionId, page.Template, image, cancellationToken)) {
+                PageTemplate? current = await storage.GetPageAsync(path, deadline);
                 if (current is null) {
                     return null;
                 }
 
                 if (current.RevisionId == page.RevisionId) {
-                    return new LoadedPage(compilation, PageMetrics.CacheMiss);
+                    return new CachedPage(image, PageMetrics.CacheMiss);
                 }
             }
 
@@ -145,13 +145,13 @@ internal sealed class PageRenderer(
         return null;
     }
 
-    private string StalenessReason(PageCompilation? compilation) {
-        if (compilation is null) {
+    private string StalenessReason(PageImage? image) {
+        if (image is null) {
             return PageMetrics.StaleNeverCompiled;
         }
 
-        return string.Equals(compilation.RuntimeId, compiler.RuntimeId, StringComparison.Ordinal)
-            ? PageMetrics.StaleContentChanged
+        return string.Equals(image.RuntimeId, compiler.RuntimeId, StringComparison.Ordinal)
+            ? PageMetrics.StaleTemplateChanged
             : PageMetrics.StaleRuntimeChanged;
     }
 
@@ -172,7 +172,7 @@ internal sealed class PageRenderer(
         }
 
         long loadStart = Stopwatch.GetTimestamp();
-        CompiledPage template = compiler.Load(image, symbols);
+        LoadedPage template = compiler.Load(image, symbols);
 
         metrics.RecordLoad(path, Stopwatch.GetElapsedTime(loadStart));
 
@@ -206,7 +206,7 @@ internal sealed class PageRenderer(
     private void Abandon(
         PagePath path,
         SimpleContext context,
-        CompiledPage template,
+        LoadedPage template,
         Task page,
         long invokeStart,
         bool disconnected) {
@@ -239,5 +239,5 @@ internal sealed class PageRenderer(
         }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
 
-    private sealed record LoadedPage(PageCompilation Compilation, string Cache);
+    private sealed record CachedPage(PageImage Image, string Cache);
 }

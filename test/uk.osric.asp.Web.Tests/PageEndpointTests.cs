@@ -72,7 +72,7 @@ public sealed class PageEndpointTests {
     public async Task AKeyWithADelimiterIsNotFoundAsync(string path, string requestPath) {
         DefaultHttpContext context = TestHttp.CreateContext(path, "GET", requestPath);
         FakePageStore storage = new();
-        storage[PagePath.Normalize(path).Key] = new StoredPage(PagePath.Normalize(path), "should not be served");
+        storage[PagePath.Normalize(path).Key] = new PageTemplate(PagePath.Normalize(path), "should not be served");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -87,7 +87,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "GET", "/hello.cs");
         context.Request.QueryString = new QueryString("?from=rss");
         FakePageStore storage = new();
-        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello.");
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello.");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -99,7 +99,7 @@ public sealed class PageEndpointTests {
     public async Task StoredHandlerIsCompiledAndExecutedAsync() {
         DefaultHttpContext context = CreateContext("pages/hello.cs");
         FakePageStore storage = new();
-        storage["/pages/hello.cs"] = new StoredPage(
+        storage["/pages/hello.cs"] = new PageTemplate(
             PagePath.Normalize("/pages/hello.cs"),
             "<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
@@ -115,7 +115,7 @@ public sealed class PageEndpointTests {
     public async Task SuccessfulTemplateIsRenderedAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         FakePageStore storage = new();
-        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello, <% ctx.Write(\"world\"); %>!");
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, <% ctx.Write(\"world\"); %>!");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -128,7 +128,7 @@ public sealed class PageEndpointTests {
     public async Task WriteExpressionsEscapeAndRawWriteExpressionsPreserveTheirValuesAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         FakePageStore storage = new();
-        storage["/hello.cs"] = new StoredPage(
+        storage["/hello.cs"] = new PageTemplate(
             PagePath.Normalize("/hello.cs"),
             "<p><%= \"<tag>&\" %>|<%== \"<tag>&\" %></p>");
 
@@ -142,7 +142,7 @@ public sealed class PageEndpointTests {
     public async Task PageLogsAreFiledUnderThePageCategory() {
         DefaultHttpContext context = CreateContext("hello.cs");
         FakePageStore storage = new();
-        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "<% ctx.Log(\"from the page\"); %>");
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "<% ctx.Log(\"from the page\"); %>");
         RecordingLoggerFactory logs = new();
 
         await PageEndpoint.Handle(context, CreatePages(storage), logs, Reserved, Options);
@@ -156,11 +156,11 @@ public sealed class PageEndpointTests {
     public async Task StoredCompilationIsRenderedWithoutCompilingAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         PageCompiler compiler = new();
-        PageCompileResult compiled = compiler.Compile(Generate("Hello."));
-        PageCompilation compilation = new(
-            ContentFingerprint.Of("Hello."), PageCompiler.RuntimeId, compiled.Image, compiled.Symbols, compiled.Diagnostics);
+        CompileResult compiled = compiler.Compile(Generate("Hello."));
+        PageImage compilation = new(
+            TemplateFingerprint.Of("Hello."), PageCompiler.RuntimeId, compiled.Image, compiled.Symbols, compiled.Diagnostics);
         FakePageStore storage = new();
-        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello.", compilation);
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello.", compilation);
         int compiles = _compiler.CompileCount;
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
@@ -173,7 +173,7 @@ public sealed class PageEndpointTests {
     public async Task InvalidStoredSourceReturnsCompilationErrorAsync() {
         DefaultHttpContext context = CreateContext("broken.cs");
         FakePageStore storage = new();
-        storage["/broken.cs"] = new StoredPage(PagePath.Normalize("/broken.cs"), "<% int value = ; %>");
+        storage["/broken.cs"] = new PageTemplate(PagePath.Normalize("/broken.cs"), "<% int value = ; %>");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -185,7 +185,7 @@ public sealed class PageEndpointTests {
     public async Task CompilationDiagnosticsAreHtmlEncodedAsync() {
         DefaultHttpContext context = CreateContext("broken.cs");
         FakePageStore storage = new();
-        storage["/broken.cs"] = new StoredPage(
+        storage["/broken.cs"] = new PageTemplate(
             PagePath.Normalize("/broken.cs"), "<% int value = new System.Collections.Generic.List<int>(); %>");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
@@ -225,7 +225,7 @@ public sealed class PageEndpointTests {
     public async Task StoredPageAtAReservedKeyIsNotFoundAsync() {
         DefaultHttpContext context = TestHttp.CreateContext("favicon.ico", "GET", "/favicon.ico");
         FakePageStore storage = new();
-        storage["/favicon.ico"] = new StoredPage(PagePath.Normalize("/favicon.ico"), "hijacked");
+        storage["/favicon.ico"] = new PageTemplate(PagePath.Normalize("/favicon.ico"), "hijacked");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -238,7 +238,7 @@ public sealed class PageEndpointTests {
     public async Task PageStatusAndHeadersAreAppliedAsync() {
         DefaultHttpContext context = CreateContext("status.cs");
         FakePageStore storage = new();
-        storage["/status.cs"] = new StoredPage(PagePath.Normalize("/status.cs"),
+        storage["/status.cs"] = new PageTemplate(PagePath.Normalize("/status.cs"),
             "<% ctx.SetStatus(201); ctx.SetHeader(\"X-Page\", \"yes\"); ctx.Write(\"done\"); %>");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
@@ -256,7 +256,7 @@ public sealed class PageEndpointTests {
     public async Task PageRedirectIsSentWithNoBodyAsync(string location) {
         DefaultHttpContext context = CreateContext("moved.cs");
         FakePageStore storage = new();
-        storage["/moved.cs"] = new StoredPage(PagePath.Normalize("/moved.cs"), $"<% ctx.Redirect(\"{location}\"); %>");
+        storage["/moved.cs"] = new PageTemplate(PagePath.Normalize("/moved.cs"), $"<% ctx.Redirect(\"{location}\"); %>");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -274,7 +274,7 @@ public sealed class PageEndpointTests {
         context.Request.Body = new MemoryStream(body);
 
         FakePageStore storage = new();
-        storage["/form.cs"] = new StoredPage(PagePath.Normalize("/form.cs"),
+        storage["/form.cs"] = new PageTemplate(PagePath.Normalize("/form.cs"),
             "<% ctx.Write($\"{ctx.Request.Form[\"name\"]}/{ctx.Request.Form[\"repeat\"]}\"); %>");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
@@ -286,7 +286,7 @@ public sealed class PageEndpointTests {
     public async Task HeadRequestWritesNoBodyAsync() {
         DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "HEAD", "/hello.cs");
         FakePageStore storage = new();
-        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello, world!");
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, world!");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -301,7 +301,7 @@ public sealed class PageEndpointTests {
         const string body = "caf\u00e9 \U0001F680";
         DefaultHttpContext context = TestHttp.CreateContext("hello.cs", method, "/hello.cs");
         FakePageStore storage = new();
-        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), body);
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), body);
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -313,7 +313,7 @@ public sealed class PageEndpointTests {
     [TestCase("HEAD")]
     public async Task MatchingIfNoneMatchReturnsBodylessNotModifiedAsync(string method) {
         FakePageStore storage = new();
-        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello, world!");
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, world!");
         DefaultHttpContext initial = TestHttp.CreateContext("hello.cs", method, "/hello.cs");
 
         await PageEndpoint.Handle(initial, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
@@ -333,7 +333,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "POST", "/hello.cs");
         context.Request.Headers.IfNoneMatch = "*";
         FakePageStore storage = new();
-        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello, world!");
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, world!");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -346,7 +346,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "GET", "/hello.cs");
         context.Request.Headers.IfNoneMatch = "*";
         FakePageStore storage = new();
-        storage["/hello.cs"] = new StoredPage(PagePath.Normalize("/hello.cs"), "Hello, world!");
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, world!");
 
         await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
 
@@ -374,7 +374,7 @@ public sealed class PageEndpointTests {
     public async Task APageThatOutrunsTheBudgetAnswersGatewayTimeoutAsync() {
         DefaultHttpContext context = CreateContext("slow.cs");
         FakePageStore storage = new();
-        storage["/slow.cs"] = new StoredPage(PagePath.Normalize("/slow.cs"),
+        storage["/slow.cs"] = new PageTemplate(PagePath.Normalize("/slow.cs"),
             "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(1500); while (System.DateTime.UtcNow < until) { } %>");
         RenderOptions options = new() { TimeoutSeconds = 1 };
 
@@ -391,15 +391,15 @@ public sealed class PageEndpointTests {
     public async Task APageThatWritesPastTheBodyCapFailsAsync() {
         DefaultHttpContext context = CreateContext("chatty.cs");
         FakePageStore storage = new();
-        storage["/chatty.cs"] = new StoredPage(PagePath.Normalize("/chatty.cs"), "0123456789");
+        storage["/chatty.cs"] = new PageTemplate(PagePath.Normalize("/chatty.cs"), "0123456789");
         RenderOptions options = new() { MaxBodyChars = 5 };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             PageEndpoint.Handle(context, CreatePages(storage, options), NullLoggerFactory.Instance, Reserved, options));
     }
 
-    private static GeneratedPageSource Generate(string template) {
-        TemplateParseResult parsed = TemplateSourceGenerator.Generate(template);
+    private static GeneratedSource Generate(string template) {
+        TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 
         // The assertion above proves source was generated.
@@ -409,7 +409,7 @@ public sealed class PageEndpointTests {
     private PageRenderer CreatePages(IPageStore storage, RenderOptions? options = null) {
         RenderOptions render = options ?? Options;
         PageBudget budget = new(render, new CompileOptions());
-        PageCompilationService compilations = new(_compiler, budget, _metrics, NullLogger<PageCompilationService>.Instance);
+        PageImageBuilder compilations = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageRenderer(
             storage,

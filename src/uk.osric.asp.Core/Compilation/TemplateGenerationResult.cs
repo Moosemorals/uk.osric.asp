@@ -9,7 +9,7 @@ namespace uk.osric.asp.Core.Compilation;
 /// The problems that stopped generation, already positioned in template space; empty when
 /// <paramref name="Source"/> was generated.
 /// </param>
-public sealed record TemplateParseResult(GeneratedPageSource? Source, IReadOnlyList<PageDiagnostic> Errors) {
+public sealed record TemplateGenerationResult(GeneratedSource? Source, IReadOnlyList<PageDiagnostic> Errors) {
 
     /// <summary>Whether source was generated.</summary>
     internal bool Success => Errors.Count == 0;

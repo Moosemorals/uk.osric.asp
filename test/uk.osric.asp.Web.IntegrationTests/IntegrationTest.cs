@@ -90,12 +90,12 @@ public abstract class IntegrationTest {
     }
 
     /// <summary>Saves a page through the editor, with a fresh token.</summary>
-    protected async Task<HttpResponseMessage> PostEditorAsync(HttpClient client, string path, string? content) {
+    protected async Task<HttpResponseMessage> PostEditorAsync(HttpClient client, string path, string? template) {
         string token = await GetAntiforgeryTokenAsync(client, "/edit/" + path);
         Dictionary<string, string> fields = new() { ["__RequestVerificationToken"] = token };
 
-        if (content is not null) {
-            fields["content"] = content;
+        if (template is not null) {
+            fields["template"] = template;
         }
 
         return await client.PostAsync("/edit/" + path, new FormUrlEncodedContent(fields));
@@ -105,11 +105,11 @@ public abstract class IntegrationTest {
     protected async Task SavePageAsync(string path, string content) {
         await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
         IPageStore storage = scope.ServiceProvider.GetRequiredService<IPageStore>();
-        await storage.SavePageAsync(new StoredPage(PagePath.Normalize(path), content));
+        await storage.SavePageAsync(new PageTemplate(PagePath.Normalize(path), content));
     }
 
     /// <summary>Reads a page straight from storage, bypassing routing and the editor.</summary>
-    internal async Task<StoredPage?> ReadPageAsync(string path) {
+    internal async Task<PageTemplate?> ReadPageAsync(string path) {
         await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
         IPageStore storage = scope.ServiceProvider.GetRequiredService<IPageStore>();
         return await storage.GetPageAsync(PagePath.Normalize(path));

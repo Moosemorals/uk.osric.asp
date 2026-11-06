@@ -113,12 +113,12 @@ internal sealed class AgentPageToolExecutor(
         int? requestedEnd,
         PageEditor pages,
         CancellationToken cancellationToken) {
-        StoredPage? page = await pages.GetAsync(path, cancellationToken);
+        PageTemplate? page = await pages.GetAsync(path, cancellationToken);
         if (page is null) {
             return Failure($"Page {Describe(path)} was not found.", $"Read {Describe(path)}: not found");
         }
 
-        string[] lines = ReadLines(page.Content);
+        string[] lines = ReadLines(page.Template);
         int start = requestedStart ?? 1;
         int end = requestedEnd ?? (requestedStart is null ? lines.Length : start);
         if (start < 1 || end < start || end > lines.Length) {
@@ -138,7 +138,7 @@ internal sealed class AgentPageToolExecutor(
             path = path.Key,
             revisionHash = page.Hash,
             savedAt = page.SavedAt,
-            compileStatus = CompilationStatus(page),
+            compileStatus = ImageStatus(page),
             diagnostics = Diagnostics(page),
             startLine = start,
             endLine = end,
@@ -160,7 +160,7 @@ internal sealed class AgentPageToolExecutor(
         }
 
         string expectedHash = String(arguments, "expectedRevisionHash")!;
-        StoredPage? current = await pages.GetAsync(checkedPath.Path!, cancellationToken);
+        PageTemplate? current = await pages.GetAsync(checkedPath.Path!, cancellationToken);
         if (current is null) {
             return Failure($"Page {Describe(checkedPath.Path!)} was not found. Use write_page to create it.", "Edit target not found");
         }
@@ -169,7 +169,7 @@ internal sealed class AgentPageToolExecutor(
         }
 
         AgentPageRangeEditResult edited = AgentPageRangeEditor.Replace(
-            current.Content,
+            current.Template,
             Integer(arguments, "startLine")!.Value,
             Integer(arguments, "endLine")!.Value,
             String(arguments, "replacement")!,
@@ -204,7 +204,7 @@ internal sealed class AgentPageToolExecutor(
 
         IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic> diagnostics =
             await pages.SaveAsync(checkedPath.Path!, content, cancellationToken);
-        StoredPage saved = (await pages.GetAsync(checkedPath.Path!, cancellationToken))!;
+        PageTemplate saved = (await pages.GetAsync(checkedPath.Path!, cancellationToken))!;
         return Success(new { path = checkedPath.Path!.Key, revisionHash = saved.Hash, diagnostics = DiagnosticData(diagnostics) },
             $"Wrote {Describe(checkedPath.Path)} ({diagnostics.Count} diagnostics)");
     }
@@ -244,11 +244,11 @@ internal sealed class AgentPageToolExecutor(
             if (head.IsDeleted || paths.IsProtected(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
                 continue;
             }
-            StoredPage? page = await pages.GetAsync(head.Path, cancellationToken);
+            PageTemplate? page = await pages.GetAsync(head.Path, cancellationToken);
             if (page is null) {
                 continue;
             }
-            string[] lines = ReadLines(page.Content);
+            string[] lines = ReadLines(page.Template);
             for (int index = 0; index < lines.Length && matches.Count < 100; index++) {
                 if (lines[index].Contains(query, comparison)) {
                     matches.Add(new { path = head.Path.Key, line = index + 1, text = lines[index][..Math.Min(lines[index].Length, 240)] });
@@ -303,11 +303,11 @@ internal sealed class AgentPageToolExecutor(
                 if (head.IsDeleted || paths.IsProtected(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
                     continue;
                 }
-                StoredPage? page = await pages.GetAsync(head.Path, cancellationToken);
+                PageTemplate? page = await pages.GetAsync(head.Path, cancellationToken);
                 if (page is null) {
                     continue;
                 }
-                string[] lines = ReadLines(page.Content);
+                string[] lines = ReadLines(page.Template);
                 for (int index = 0; index < lines.Length && found.Count < 100; index++) {
                     if (lines[index].Contains(query, comparison)) {
                         found.Add($"{head.Path.Key}:{index + 1}: {lines[index]}");
@@ -324,17 +324,17 @@ internal sealed class AgentPageToolExecutor(
         if (!checkedPath.Success) {
             return Failure(checkedPath.Error!, "Shell path refused");
         }
-        StoredPage? target = await pages.GetAsync(checkedPath.Path!, cancellationToken);
+        PageTemplate? target = await pages.GetAsync(checkedPath.Path!, cancellationToken);
         if (target is null) {
             return Failure($"Page {Describe(checkedPath.Path!)} was not found.", $"{command.Name} {Describe(checkedPath.Path!)}: not found");
         }
-        string[] sourceLines = ReadLines(target.Content);
+        string[] sourceLines = ReadLines(target.Template);
         string output = command.Name switch {
-            "cat" => target.Content,
+            "cat" => target.Template,
             "head" => string.Join('\n', sourceLines.Take(ParseCount(command.Arguments[1]))),
             "tail" => string.Join('\n', sourceLines.TakeLast(ParseCount(command.Arguments[1]))),
             "wc" => sourceLines.Length.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            "stat" => $"{checkedPath.Path!.Key}\n{target.Content.Length} chars\n{target.Hash}\n{target.SavedAt:O}\n{CompilationStatus(target)}",
+            "stat" => $"{checkedPath.Path!.Key}\n{target.Template.Length} chars\n{target.Hash}\n{target.SavedAt:O}\n{ImageStatus(target)}",
             _ => "",
         };
         if (output.Length > options.MaxToolResultChars) {
@@ -417,16 +417,16 @@ internal sealed class AgentPageToolExecutor(
         return [.. lines];
     }
 
-    private static string CompilationStatus(StoredPage page) => page.Compilation switch {
+    private static string ImageStatus(PageTemplate page) => page.Image switch {
         null => "Not compiled",
-        { Image: null } => "Compile failed",
+        { Bytes: null } => "Compile failed",
         { Diagnostics.Count: > 0 } => "Compiled with diagnostics",
         _ => "Compiled",
     };
 
-    private static object[] Diagnostics(StoredPage page) => page.Compilation is null
+    private static object[] Diagnostics(PageTemplate page) => page.Image is null
         ? []
-        : DiagnosticData(page.Compilation.Diagnostics);
+        : DiagnosticData(page.Image.Diagnostics);
 
     private static object[] DiagnosticData(IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic> diagnostics) => [.. diagnostics.Select(diagnostic => new {
         code = DiagnosticCode(diagnostic),

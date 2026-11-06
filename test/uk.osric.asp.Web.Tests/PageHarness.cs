@@ -29,9 +29,9 @@ internal sealed class PageHarness : IDisposable {
         Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
         Metrics = new PageMetrics();
 
-        Compilations = new PageCompilationService(Compiler, Budget, Metrics, NullLogger<PageCompilationService>.Instance);
-        Renderer = new PageRenderer(storage, Compiler, Compilations, Metrics, Budget, Health, NullLogger<PageRenderer>.Instance);
-        Editor = new PageEditor(storage, Compilations, Metrics, NullLogger<PageEditor>.Instance);
+        Images = new PageImageBuilder(Compiler, Budget, Metrics, NullLogger<PageImageBuilder>.Instance);
+        Renderer = new PageRenderer(storage, Compiler, Images, Metrics, Budget, Health, NullLogger<PageRenderer>.Instance);
+        Editor = new PageEditor(storage, Images, Metrics, NullLogger<PageEditor>.Instance);
     }
 
     public RenderOptions Options { get; }
@@ -44,7 +44,7 @@ internal sealed class PageHarness : IDisposable {
 
     public PageMetrics Metrics { get; }
 
-    public PageCompilationService Compilations { get; }
+    public PageImageBuilder Images { get; }
 
     public PageRenderer Renderer { get; }
 
@@ -54,8 +54,8 @@ internal sealed class PageHarness : IDisposable {
         return PagePath.Normalize(path);
     }
 
-    public static StoredPage Stored(FakePageStore storage, string path) {
-        StoredPage? page = storage[path];
+    public static PageTemplate Stored(FakePageStore storage, string path) {
+        PageTemplate? page = storage[path];
         Assert.That(page, Is.Not.Null, $"{path} was not stored");
 
         // The assertion above proves the page exists.

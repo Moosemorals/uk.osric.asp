@@ -26,7 +26,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task RenderPropagatesACompilerFaultAsync() {
         FakePageStore storage = new();
-        storage["/fault"] = new StoredPage(PageHarness.Key("/fault"), "Hello.");
+        storage["/fault"] = new PageTemplate(PageHarness.Key("/fault"), "Hello.");
         using PageHarness pages = new(storage, new FaultingCompiler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => pages.RenderAsync("/fault"));
@@ -44,13 +44,13 @@ public sealed class PageRendererTests {
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.That(output, Is.EqualTo("Hello."));
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(compiles));
-        Assert.That(storage.CompilationWriteCount, Is.Zero);
+        Assert.That(storage.ImageWriteCount, Is.Zero);
     }
 
     [Test]
     public async Task RenderCompilesAPageThatWasStoredWithoutOneAsync() {
         FakePageStore storage = new();
-        storage["/seeded"] = new StoredPage(PageHarness.Key("/seeded"), "Seeded.");
+        storage["/seeded"] = new PageTemplate(PageHarness.Key("/seeded"), "Seeded.");
         using PageHarness pages = new(storage);
 
         (RenderResult result, string output) = await pages.RenderAsync("/seeded");
@@ -58,30 +58,30 @@ public sealed class PageRendererTests {
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.That(output, Is.EqualTo("Seeded."));
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1));
-        Assert.That(storage.CompilationWriteCount, Is.EqualTo(1));
-        Assert.That(PageHarness.Stored(storage, "/seeded").Compilation, Is.Not.Null);
+        Assert.That(storage.ImageWriteCount, Is.EqualTo(1));
+        Assert.That(PageHarness.Stored(storage, "/seeded").Image, Is.Not.Null);
     }
 
     [Test]
     public async Task RenderRecompilesWhenTheContentChangedBehindTheCacheAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        PageCompilation stale = new(ContentFingerprint.Of("Old."), pages.Compiler.RuntimeId, [1, 2, 3], null, []);
-        storage["/edited"] = new StoredPage(PageHarness.Key("/edited"), "New.", stale);
+        PageImage stale = new(TemplateFingerprint.Of("Old."), pages.Compiler.RuntimeId, [1, 2, 3], null, []);
+        storage["/edited"] = new PageTemplate(PageHarness.Key("/edited"), "New.", stale);
 
         (RenderResult result, string output) = await pages.RenderAsync("/edited");
 
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.That(output, Is.EqualTo("New."));
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1));
-        Assert.That(PageHarness.Stored(storage, "/edited").Compilation?.ContentHash, Is.EqualTo(ContentFingerprint.Of("New.")));
+        Assert.That(PageHarness.Stored(storage, "/edited").Image?.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("New.")));
     }
 
     [Test]
     public async Task RenderRecompilesWhenTheBuildChangedAsync() {
         FakePageStore storage = new();
-        PageCompilation previousBuild = new(ContentFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], null, []);
-        storage["/hello"] = new StoredPage(PageHarness.Key("/hello"), "Hello.", previousBuild);
+        PageImage previousBuild = new(TemplateFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], null, []);
+        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "Hello.", previousBuild);
         using PageHarness pages = new(storage);
 
         (RenderResult result, string output) = await pages.RenderAsync("/hello");
@@ -89,17 +89,17 @@ public sealed class PageRendererTests {
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.That(output, Is.EqualTo("Hello."));
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1));
-        Assert.That(PageHarness.Stored(storage, "/hello").Compilation?.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
+        Assert.That(PageHarness.Stored(storage, "/hello").Image?.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
     }
 
     [Test]
     public async Task AStoredCompileErrorIsServedWithoutCompilingAgainAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        PageCompilation failed = new(ContentFingerprint.Of("<% int value = ; %>"), pages.Compiler.RuntimeId, null, null, [
+        PageImage failed = new(TemplateFingerprint.Of("<% int value = ; %>"), pages.Compiler.RuntimeId, null, null, [
             new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(1, 16), "CS1525: broken"),
         ]);
-        storage["/broken"] = new StoredPage(PageHarness.Key("/broken"), "<% int value = ; %>", failed);
+        storage["/broken"] = new PageTemplate(PageHarness.Key("/broken"), "<% int value = ; %>", failed);
 
         (RenderResult result, string _) = await pages.RenderAsync("/broken");
 
@@ -120,8 +120,8 @@ public sealed class PageRendererTests {
     [Test]
     public async Task RenderKeepsTheNewerPageWhenItChangesWhileCompilingAsync() {
         FakePageStore storage = new();
-        storage["/race"] = new StoredPage(PageHarness.Key("/race"), "first");
-        storage.ReplaceOnCompilationWrite = (path, _) => new StoredPage(path, "second");
+        storage["/race"] = new PageTemplate(PageHarness.Key("/race"), "first");
+        storage.ReplaceOnImageWrite = (path, _) => new PageTemplate(path, "second");
         using PageHarness pages = new(storage);
 
         (RenderResult result, string output) = await pages.RenderAsync("/race");
@@ -129,14 +129,14 @@ public sealed class PageRendererTests {
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.That(output, Is.EqualTo("second"));
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(2));
-        Assert.That(PageHarness.Stored(storage, "/race").Content, Is.EqualTo("second"));
+        Assert.That(PageHarness.Stored(storage, "/race").Template, Is.EqualTo("second"));
     }
 
     [Test]
     public async Task RenderDoesNotAttachACompileToANewRevisionWithTheSameSourceAsync() {
         FakePageStore storage = new();
-        storage["/same"] = new StoredPage(PageHarness.Key("/same"), "same source");
-        storage.ReplaceOnCompilationWrite = (path, _) => new StoredPage(path, "same source");
+        storage["/same"] = new PageTemplate(PageHarness.Key("/same"), "same source");
+        storage.ReplaceOnImageWrite = (path, _) => new PageTemplate(path, "same source");
         using PageHarness pages = new(storage);
 
         (RenderResult result, string output) = await pages.RenderAsync("/same");
@@ -144,14 +144,14 @@ public sealed class PageRendererTests {
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.That(output, Is.EqualTo("same source"));
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(2));
-        Assert.That(PageHarness.Stored(storage, "/same").Compilation, Is.Not.Null);
+        Assert.That(PageHarness.Stored(storage, "/same").Image, Is.Not.Null);
     }
 
     [Test]
     public async Task RenderDoesNotExecuteARevisionDeletedWhileItWasCompilingAsync() {
         FakePageStore storage = new();
-        storage["/deleted-during-compile"] = new StoredPage(PageHarness.Key("/deleted-during-compile"), "deleted source");
-        storage.DeleteOnCompilationWrite = true;
+        storage["/deleted-during-compile"] = new PageTemplate(PageHarness.Key("/deleted-during-compile"), "deleted source");
+        storage.DeleteOnImageWrite = true;
         using PageHarness pages = new(storage);
 
         (RenderResult result, string output) = await pages.RenderAsync("/deleted-during-compile");
@@ -164,7 +164,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task TemplateExceptionsPropagateAsync() {
         FakePageStore storage = new();
-        storage["/throw"] = new StoredPage(PageHarness.Key("/throw"), "<% throw new System.InvalidOperationException(\"Boom.\"); %>");
+        storage["/throw"] = new PageTemplate(PageHarness.Key("/throw"), "<% throw new System.InvalidOperationException(\"Boom.\"); %>");
         using PageHarness pages = new(storage);
 
         InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -234,7 +234,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task APageWhoseCompileOutlivesTheBudgetIsServedByTheNextRequestAsync() {
         FakePageStore storage = new();
-        storage["/cold"] = new StoredPage(PageHarness.Key("/cold"), "Hello.");
+        storage["/cold"] = new PageTemplate(PageHarness.Key("/cold"), "Hello.");
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, new SlowCompiler(new PageCompiler()), options,
@@ -245,7 +245,7 @@ public sealed class PageRendererTests {
         Assert.That(first.Status, Is.EqualTo(RenderStatus.Timeout));
         Assert.That(firstOutput, Is.Empty, "a page that has no budget left does not start");
         Assert.That(health.Abandoned, Is.Zero, "nothing ran, so no thread was lost");
-        Assert.That(PageHarness.Stored(storage, "/cold").Compilation?.Image, Is.Not.Null,
+        Assert.That(PageHarness.Stored(storage, "/cold").Image?.Bytes, Is.Not.Null,
             "the compile outlived the answer, so its image has to be kept or the page can never be served");
 
         (RenderResult second, string secondOutput) = await pages.RenderAsync("/cold");
@@ -257,7 +257,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task ARenderThatWaitsPastTheBudgetForASlotIsDroppedAsync() {
         FakePageStore storage = new();
-        storage["/hello"] = new StoredPage(PageHarness.Key("/hello"), "Hello.");
+        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "Hello.");
         RenderOptions options = new() { TimeoutSeconds = 1, Slots = 1 };
         PageBudget budget = new(options, new CompileOptions());
         using PageHarness pages = new(storage, options: options, budget: budget, health: new PageHealth(options.AbandonedLimit));
@@ -276,7 +276,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task ARenderThatSpendsItsBudgetWaitingForACompileSlotTimesOutAsync() {
         FakePageStore storage = new();
-        storage["/hello"] = new StoredPage(PageHarness.Key("/hello"), "Hello.");
+        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "Hello.");
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageBudget budget = new(options, new CompileOptions());
         PageHealth health = new(options.AbandonedLimit);
@@ -301,7 +301,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task ARenderThatSpendsItsBudgetOnTheReadTimesOutWithoutRunningThePageAsync() {
         FakePageStore storage = new() { ReadDelay = TimeSpan.FromMilliseconds(1200) };
-        storage["/hello"] = new StoredPage(PageHarness.Key("/hello"), "Hello.");
+        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "Hello.");
         RenderOptions options = new() { TimeoutSeconds = 1 };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, options: options,
@@ -321,7 +321,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task APageThatWritesPastTheBodyCapFailsAsync() {
         FakePageStore storage = new();
-        storage["/chatty"] = new StoredPage(PageHarness.Key("/chatty"), "0123456789");
+        storage["/chatty"] = new PageTemplate(PageHarness.Key("/chatty"), "0123456789");
         using PageHarness pages = new(storage, options: new RenderOptions { MaxBodyChars = 5 });
 
         InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(

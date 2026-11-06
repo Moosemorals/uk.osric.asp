@@ -196,7 +196,7 @@ public sealed class AccessibilityTests {
         MarkupReader editor = MarkupReader.Parse((await ViewAsync("editor")).Html);
 
         Assert.That(editor.Elements("label").Any(label =>
-            label.Attribute("for") == "content" && !string.IsNullOrWhiteSpace(label.Text)), Is.True);
+            label.Attribute("for") == "template" && !string.IsNullOrWhiteSpace(label.Text)), Is.True);
     }
 
     [Test]
