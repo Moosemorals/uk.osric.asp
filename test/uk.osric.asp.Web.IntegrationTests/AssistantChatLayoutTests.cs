@@ -46,14 +46,15 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
         int options = body.IndexOf("<legend>Page options</legend>", StringComparison.Ordinal);
         int compose = body.IndexOf("<legend><label for=\"assistant-message\">Your message</label></legend>", StringComparison.Ordinal);
         int transcript = body.IndexOf("<legend>Assistant messages</legend>", StringComparison.Ordinal);
+        Assert.That(transcript, Is.GreaterThanOrEqualTo(0), "the transcript fieldset is missing");
         Assert.That(options, Is.GreaterThanOrEqualTo(0), "the page options fieldset is missing");
-        Assert.That(compose, Is.GreaterThan(options), "the message fieldset must follow page options");
-        Assert.That(transcript, Is.GreaterThan(compose), "the transcript must follow the message fieldset");
+        Assert.That(compose, Is.GreaterThan(transcript), "the message fieldset must follow the transcript");
+        Assert.That(options, Is.GreaterThan(compose), "page options must follow the message fieldset");
 
         int title = body.IndexOf("<input id=\"conversation-title\"", StringComparison.Ordinal);
         int input = body.IndexOf("<textarea id=\"assistant-message\"", StringComparison.Ordinal);
-        Assert.That(title, Is.InRange(options, compose));
-        Assert.That(input, Is.InRange(compose, transcript));
+        Assert.That(title, Is.GreaterThan(options));
+        Assert.That(input, Is.InRange(compose, options));
         Assert.That(body, Does.Contain("<dt><label for=\"conversation-title\">Conversation title</label></dt>"));
         Assert.That(body, Does.Contain("<dt><label for=\"approval-mode\">Tool approval</label></dt>"));
 
@@ -79,20 +80,20 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
     }
 
     private sealed class ToolCallingClient(string arguments) : IChatCompletionClient {
-        private readonly IReadOnlyList<AssistantChatStreamEvent>[] _responses = [
+        private readonly IReadOnlyList<ChatStreamEvent>[] _responses = [
             [
-                new AssistantToolCallDelta(0, "layout-call", "read_page", arguments),
-                new AssistantFinished("tool_calls"),
+                new ToolCallDelta(0, "layout-call", "read_page", arguments),
+                new Finished("tool_calls"),
             ],
-            [new AssistantContentDelta("I read the page."), new AssistantFinished("stop")],
+            [new ContentDelta("I read the page."), new Finished("stop")],
         ];
         private int _request;
 
-        public async IAsyncEnumerable<AssistantChatStreamEvent> StreamAsync(
-            AssistantChatRequest request,
+        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
+            ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
             int index = Interlocked.Increment(ref _request) - 1;
-            foreach (AssistantChatStreamEvent @event in _responses[index]) {
+            foreach (ChatStreamEvent @event in _responses[index]) {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return @event;
                 await Task.Yield();
