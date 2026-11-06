@@ -37,7 +37,7 @@ internal static class AssistantEndpoint {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
             }
-            AssistantConversation created = await conversations.CreateAsync(owner, context.RequestAborted);
+            Conversation created = await conversations.CreateAsync(owner, context.RequestAborted);
             Redirect.SeeOther(context, $"/assistant/{created.Id}");
             return;
         }
@@ -81,22 +81,22 @@ internal static class AssistantEndpoint {
         RunRegistry registry,
         AssistantOptions options) {
         string? owner = Owner(context);
-        AssistantConversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
+        Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
             NoStore(context);
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
-        IReadOnlyList<AssistantMessage> messages = await conversations.GetMessagesAsync(id, owner!, context.RequestAborted);
-        AssistantRun? activeRun = await conversations.GetActiveRunAsync(id, owner!, context.RequestAborted);
-        AssistantRun? lastRun = activeRun ?? await conversations.GetLastRunAsync(id, owner!, context.RequestAborted);
+        IReadOnlyList<Message> messages = await conversations.GetMessagesAsync(id, owner!, context.RequestAborted);
+        Run? activeRun = await conversations.GetActiveRunAsync(id, owner!, context.RequestAborted);
+        Run? lastRun = activeRun ?? await conversations.GetLastRunAsync(id, owner!, context.RequestAborted);
         RunStream? activeStream = activeRun is null ? null : registry.Find(activeRun.Id);
         bool replaying = activeStream?.CanReplayFrom(0) == true;
         long replayFrom = replaying ? 0 : activeStream?.LastSequence ?? 0;
-        IEnumerable<AssistantMessage> visibleMessages = messages.Where(message =>
+        IEnumerable<Message> visibleMessages = messages.Where(message =>
             !replaying || message.RunId != activeRun!.Id || message.Role == "user");
-        IReadOnlyList<AssistantToolApproval> pending = conversation.ApprovalMode == ApprovalMode.RequireApproval.ToString()
+        IReadOnlyList<ToolApproval> pending = conversation.ApprovalMode == ApprovalMode.RequireApproval.ToString()
             && activeRun is not null
                 ? await conversations.GetPendingApprovalsAsync(id, owner!, context.RequestAborted)
                 : [];
@@ -118,7 +118,7 @@ internal static class AssistantEndpoint {
             """);
 
         Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
-        foreach (AssistantMessage message in visibleMessages) {
+        foreach (Message message in visibleMessages) {
             await WriteMessageAsync(context, message, calls);
         }
         await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
@@ -258,7 +258,7 @@ internal static class AssistantEndpoint {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
-        AssistantRun? active = await conversations.GetActiveRunAsync(id, owner, context.RequestAborted);
+        Run? active = await conversations.GetActiveRunAsync(id, owner, context.RequestAborted);
         if (active is null) {
             context.Response.StatusCode = StatusCodes.Status204NoContent;
             return;
@@ -283,7 +283,7 @@ internal static class AssistantEndpoint {
         }
 
         string? requestedRun = context.Request.Query["run"].FirstOrDefault();
-        AssistantRun? run = requestedRun is null
+        Run? run = requestedRun is null
             ? await conversations.GetActiveRunAsync(id, owner, context.RequestAborted)
             : await conversations.GetRunAsync(id, owner, requestedRun, context.RequestAborted);
         if (requestedRun is not null && run is null) {
@@ -326,7 +326,7 @@ internal static class AssistantEndpoint {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
-        AssistantConversation? conversation = await conversations.GetAsync(id, owner, context.RequestAborted);
+        Conversation? conversation = await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
@@ -397,7 +397,7 @@ internal static class AssistantEndpoint {
 
     public static async Task DeleteConfirmationAsync(HttpContext context, long id, IConversationStore conversations, IAntiforgery antiforgery) {
         string? owner = Owner(context);
-        AssistantConversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
+        Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
             NoStore(context);
             context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -432,7 +432,7 @@ internal static class AssistantEndpoint {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
-        AssistantRun? active = await conversations.GetActiveRunAsync(id, owner, context.RequestAborted);
+        Run? active = await conversations.GetActiveRunAsync(id, owner, context.RequestAborted);
         if (active is not null) {
             _ = registry.Stop(active.Id);
             await conversations.FailPendingApprovalsAsync(active.Id, "conversation_deleted", CancellationToken.None);
@@ -446,7 +446,7 @@ internal static class AssistantEndpoint {
 
     private static async Task WriteMessageAsync(
         HttpContext context,
-        AssistantMessage message,
+        Message message,
         IReadOnlyDictionary<string, (string Name, string Arguments)> calls) {
         if (message.Role == "user") {
             await context.Response.WriteAsync($"<article class=\"assistant-message user-message\"><h2 class=\"visually-hidden\">You</h2><pre>{Encode(message.Content)}</pre></article>");
@@ -483,14 +483,14 @@ internal static class AssistantEndpoint {
     private static async Task WritePendingApprovalsAsync(
         HttpContext context,
         IReadOnlyDictionary<string, (string Name, string Arguments)> calls,
-        IReadOnlyList<AssistantToolApproval> pending,
+        IReadOnlyList<ToolApproval> pending,
         AntiforgeryTokenSet tokens,
         long conversationId) {
         if (pending.Count == 0) {
             return;
         }
         await context.Response.WriteAsync("<section class=\"assistant-approvals\" aria-label=\"Pending tool approvals\"><h2>Approval required</h2>");
-        foreach (AssistantToolApproval approval in pending) {
+        foreach (ToolApproval approval in pending) {
             if (!calls.TryGetValue(approval.ToolCallId, out (string Name, string Arguments) call)) {
                 continue;
             }
@@ -508,7 +508,7 @@ internal static class AssistantEndpoint {
 
     // The run's own message is written by the host and is safe to show; a bare status word is not
     // an explanation, and a reader who reloads otherwise has no way to know why an answer stopped.
-    private static async Task WriteStoppedRunAsync(HttpContext context, AssistantRun? run) {
+    private static async Task WriteStoppedRunAsync(HttpContext context, Run? run) {
         if (run is null || run.ErrorMessage is null) {
             return;
         }
@@ -528,9 +528,9 @@ internal static class AssistantEndpoint {
         _ => status,
     };
 
-    private static Dictionary<string, (string Name, string Arguments)> ReadToolCalls(IEnumerable<AssistantMessage> messages) {
+    private static Dictionary<string, (string Name, string Arguments)> ReadToolCalls(IEnumerable<Message> messages) {
         Dictionary<string, (string Name, string Arguments)> calls = new(StringComparer.Ordinal);
-        foreach (AssistantMessage message in messages.Where(message => message.ToolCallsJson is not null)) {
+        foreach (Message message in messages.Where(message => message.ToolCallsJson is not null)) {
             using JsonDocument document = JsonDocument.Parse(message.ToolCallsJson!);
             foreach (JsonElement call in document.RootElement.EnumerateArray()) {
                 string? id = call.TryGetProperty("id", out JsonElement idValue) ? idValue.GetString() : null;

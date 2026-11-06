@@ -60,7 +60,7 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             ticket.HasIndex(row => row.ExpiresAt);
         });
 
-        modelBuilder.Entity<AssistantConversation>(conversation => {
+        modelBuilder.Entity<Conversation>(conversation => {
             conversation.ToTable("AssistantConversations");
             conversation.HasKey(row => row.Id);
             conversation.Property(row => row.Owner).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
@@ -69,7 +69,7 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             conversation.HasIndex(row => new { row.Owner, row.UpdatedAt }).IsDescending(false, true);
         });
 
-        modelBuilder.Entity<AssistantRun>(run => {
+        modelBuilder.Entity<Run>(run => {
             run.ToTable("AssistantRuns");
             run.HasKey(row => row.Id);
             run.Property(row => row.Id).HasMaxLength(32).UseCollation("BINARY");
@@ -78,7 +78,7 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             run.Property(row => row.ApprovalMode).HasMaxLength(32);
             run.Property(row => row.PromptVersion).HasMaxLength(100);
             run.Property(row => row.ErrorCode).HasMaxLength(100);
-            run.HasOne<AssistantConversation>()
+            run.HasOne<Conversation>()
                 .WithMany()
                 .HasForeignKey(row => row.ConversationId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -87,18 +87,18 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
                 .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_approval')");
         });
 
-        modelBuilder.Entity<AssistantMessage>(message => {
+        modelBuilder.Entity<Message>(message => {
             message.ToTable("AssistantMessages");
             message.HasKey(row => row.Id);
             message.Property(row => row.Role).HasMaxLength(16);
             message.Property(row => row.Status).HasMaxLength(16);
             message.Property(row => row.ToolCallId).UseCollation("BINARY");
             message.Property(row => row.RunId).HasMaxLength(32).UseCollation("BINARY");
-            message.HasOne<AssistantConversation>()
+            message.HasOne<Conversation>()
                 .WithMany()
                 .HasForeignKey(row => row.ConversationId)
                 .OnDelete(DeleteBehavior.Cascade);
-            message.HasOne<AssistantRun>()
+            message.HasOne<Run>()
                 .WithMany()
                 .HasForeignKey(row => row.RunId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -106,7 +106,7 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             message.HasIndex(row => new { row.ConversationId, row.RunId });
         });
 
-        modelBuilder.Entity<AssistantToolApproval>(approval => {
+        modelBuilder.Entity<ToolApproval>(approval => {
             approval.ToTable("AssistantToolApprovals");
             approval.HasKey(row => new { row.RunId, row.ToolCallId });
             approval.Property(row => row.RunId).HasMaxLength(32).UseCollation("BINARY");
@@ -114,7 +114,7 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             approval.Property(row => row.Status).HasMaxLength(16);
             approval.Property(row => row.ResolvedBy).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
             approval.Property(row => row.FailureCode).HasMaxLength(100);
-            approval.HasOne<AssistantRun>()
+            approval.HasOne<Run>()
                 .WithMany()
                 .HasForeignKey(row => row.RunId)
                 .OnDelete(DeleteBehavior.Cascade);

@@ -11,8 +11,8 @@ using uk.osric.asp.Web.Storage;
 namespace uk.osric.asp.Web.Storage.Migrations
 {
     [DbContext(typeof(StorageDbContext))]
-    [Migration("20261106005523_RenameTemplateColumns")]
-    partial class RenameTemplateColumns
+    [Migration("20261106211559_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -20,7 +20,7 @@ namespace uk.osric.asp.Web.Storage.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
-            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentConversation", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Assistant.Conversation", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -33,6 +33,9 @@ namespace uk.osric.asp.Web.Storage.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("HasGeneratedTitle")
+                        .HasColumnType("INTEGER");
 
                     b.Property<long>("NextMessageSequence")
                         .HasColumnType("INTEGER");
@@ -48,9 +51,6 @@ namespace uk.osric.asp.Web.Storage.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("TitleIsGenerated")
-                        .HasColumnType("INTEGER");
-
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -59,10 +59,10 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.HasIndex("Owner", "UpdatedAt")
                         .IsDescending(false, true);
 
-                    b.ToTable("AgentConversations", (string)null);
+                    b.ToTable("AssistantConversations", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentMessage", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Assistant.Message", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -119,10 +119,10 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.HasIndex("ConversationId", "Sequence")
                         .IsUnique();
 
-                    b.ToTable("AgentMessages", (string)null);
+                    b.ToTable("AssistantMessages", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentRun", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Assistant.Run", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(32)
@@ -186,10 +186,10 @@ namespace uk.osric.asp.Web.Storage.Migrations
                         .IsUnique()
                         .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_approval')");
 
-                    b.ToTable("AgentRuns", (string)null);
+                    b.ToTable("AssistantRuns", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentToolApproval", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Assistant.ToolApproval", b =>
                 {
                     b.Property<string>("RunId")
                         .HasMaxLength(32)
@@ -222,7 +222,7 @@ namespace uk.osric.asp.Web.Storage.Migrations
 
                     b.HasKey("RunId", "ToolCallId");
 
-                    b.ToTable("AgentToolApprovals", (string)null);
+                    b.ToTable("AssistantToolApprovals", (string)null);
                 });
 
             modelBuilder.Entity("uk.osric.asp.Web.Authentication.AuthTicket", b =>
@@ -350,33 +350,33 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentMessage", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Assistant.Message", b =>
                 {
-                    b.HasOne("uk.osric.asp.Web.Agent.AgentConversation", null)
+                    b.HasOne("uk.osric.asp.Web.Assistant.Conversation", null)
                         .WithMany()
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("uk.osric.asp.Web.Agent.AgentRun", null)
+                    b.HasOne("uk.osric.asp.Web.Assistant.Run", null)
                         .WithMany()
                         .HasForeignKey("RunId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentRun", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Assistant.Run", b =>
                 {
-                    b.HasOne("uk.osric.asp.Web.Agent.AgentConversation", null)
+                    b.HasOne("uk.osric.asp.Web.Assistant.Conversation", null)
                         .WithMany()
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("uk.osric.asp.Web.Agent.AgentToolApproval", b =>
+            modelBuilder.Entity("uk.osric.asp.Web.Assistant.ToolApproval", b =>
                 {
-                    b.HasOne("uk.osric.asp.Web.Agent.AgentRun", null)
+                    b.HasOne("uk.osric.asp.Web.Assistant.Run", null)
                         .WithMany()
                         .HasForeignKey("RunId")
                         .OnDelete(DeleteBehavior.Cascade)

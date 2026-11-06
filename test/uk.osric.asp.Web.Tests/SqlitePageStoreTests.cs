@@ -176,54 +176,6 @@ public sealed class SqlitePageStoreTests {
     }
 
     [Test]
-    public async Task MigrationPreservesCompiledFailedAndUncompiledLegacyRowsAsync() {
-        string legacyPath = Path.Combine(Path.GetTempPath(), $"legacy-storage-{Guid.NewGuid():N}.db");
-        DbContextOptions<StorageDbContext> legacyOptions = new DbContextOptionsBuilder<StorageDbContext>()
-            .UseSqlite(new SqliteConnectionStringBuilder { DataSource = legacyPath, Pooling = false }.ToString())
-            .Options;
-
-        try {
-            await using (StorageDbContext legacy = new(legacyOptions)) {
-                await legacy.Database.MigrateAsync("20261103091947_AddPageSymbols");
-                await legacy.Database.ExecuteSqlInterpolatedAsync($"""
-                    INSERT INTO "Files" ("Path", "Content", "ContentHash", "RuntimeId", "Image", "Symbols", "Diagnostics")
-                    VALUES ('/compiled', 'compiled source', 'compiled-fingerprint', 'runtime-old', {new byte[] { 1, 2, 3 }}, {new byte[] { 4, 5, 6 }}, '["warning CS0219: old"]');
-                    INSERT INTO "Files" ("Path", "Content", "ContentHash", "RuntimeId", "Image", "Symbols", "Diagnostics")
-                    VALUES ('/failed', 'failed source', 'failed-fingerprint', 'runtime-failed', NULL, NULL, '["error CS1525: old"]');
-                    INSERT INTO "Files" ("Path", "Content", "ContentHash", "RuntimeId", "Image", "Symbols", "Diagnostics")
-                    VALUES ('/uncompiled', 'plain source', NULL, NULL, NULL, NULL, NULL);
-                    """);
-                await legacy.Database.MigrateAsync();
-            }
-
-            await using StorageDbContext migrated = new(legacyOptions);
-            IPageStore store = new SqlitePageStore(migrated);
-            PageTemplate compiled = (await store.GetPageAsync(Key("/compiled")))!;
-            PageTemplate failed = (await store.GetPageAsync(Key("/failed")))!;
-            PageTemplate uncompiled = (await store.GetPageAsync(Key("/uncompiled")))!;
-            IReadOnlyList<PageHeadSummary> heads = await store.ListPagesAsync();
-
-            Assert.Multiple(() => {
-                Assert.That(compiled.Template, Is.EqualTo("compiled source"));
-                Assert.That(compiled.CreationRuntimeId, Is.EqualTo("runtime-old"));
-                Assert.That(compiled.Image?.Bytes, Is.EqualTo(new byte[] { 1, 2, 3 }));
-                Assert.That(compiled.Image?.Symbols, Is.EqualTo(new byte[] { 4, 5, 6 }));
-                Assert.That(compiled.Image?.Diagnostics.Single().Message, Is.EqualTo("warning CS0219: old"));
-                Assert.That(failed.Image?.Bytes, Is.Null);
-                Assert.That(failed.Image?.Diagnostics.Single().Message, Is.EqualTo("error CS1525: old"));
-                Assert.That(uncompiled.CreationRuntimeId, Is.EqualTo("legacy:unknown"));
-                Assert.That(uncompiled.Image, Is.Null);
-                Assert.That(compiled.Hash, Does.Match("^[0-9a-f]{64}$"));
-                Assert.That(heads, Has.Count.EqualTo(3));
-            });
-        } finally {
-            File.Delete(legacyPath);
-            File.Delete(legacyPath + "-wal");
-            File.Delete(legacyPath + "-shm");
-        }
-    }
-
-    [Test]
     public async Task HeadCannotReferenceARevisionAtAnotherPathAsync() {
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database);
@@ -498,35 +450,6 @@ public sealed class SqlitePageStoreTests {
         Assert.That(updated, Is.False);
         Assert.That(await storage.GetRevisionByHashAsync(saved.Hash), Is.Null);
         Assert.That(await storage.GetHeadAsync(Key("/late")), Is.Null);
-    }
-
-    [Test]
-    public async Task MigrationDoesNotLeaveLegacySecretsInTemporaryFreePagesAsync() {
-        const string marker = "legacy-temporary-secret-marker";
-        string temporaryCopy = _databasePath + ".temp-copy";
-        await using StorageDbContext database = new(_options);
-        await database.Database.MigrateAsync("20261103091947_AddPageSymbols");
-        await database.Database.OpenConnectionAsync();
-        await database.Database.ExecuteSqlRawAsync("PRAGMA secure_delete=OFF;");
-        await database.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO "Files" ("Path", "Content") VALUES ('/legacy-secret', {string.Concat(Enumerable.Repeat(marker, 4000))});
-            """);
-
-        await database.Database.MigrateAsync();
-        SqlitePageStore storage = new(database);
-        await storage.DeletePageAsync(Key("/legacy-secret"));
-        await storage.ScrubPageAsync(Key("/legacy-secret"));
-
-        try {
-            await using SqliteConnection copy = new(new SqliteConnectionStringBuilder { DataSource = temporaryCopy, Pooling = false }.ToString());
-            await copy.OpenAsync();
-            ((SqliteConnection)database.Database.GetDbConnection()).BackupDatabase(copy, "main", "temp");
-            await copy.CloseAsync();
-            Assert.That(Encoding.UTF8.GetString(await File.ReadAllBytesAsync(temporaryCopy)).Contains(marker, StringComparison.Ordinal), Is.False, "temporary database retained the secret");
-            Assert.That(Encoding.UTF8.GetString(await File.ReadAllBytesAsync(_databasePath)).Contains(marker, StringComparison.Ordinal), Is.False, "main database retained the secret");
-        } finally {
-            File.Delete(temporaryCopy);
-        }
     }
 
     [Test]

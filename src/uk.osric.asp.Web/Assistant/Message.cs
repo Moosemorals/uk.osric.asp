@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>One stored message of a conversation, including its tool calls and their results.</summary>
-internal sealed class AssistantMessage {
+internal sealed class Message {
     public long Id { get; set; }
     public long ConversationId { get; set; }
     public required string RunId { get; set; }

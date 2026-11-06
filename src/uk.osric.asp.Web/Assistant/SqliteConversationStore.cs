@@ -15,14 +15,14 @@ using uk.osric.asp.Web.Storage;
 /// <summary>The SQLite-backed conversation store.</summary>
 internal sealed class SqliteConversationStore(StorageDbContext database, TimeProvider clock) : IConversationStore {
 
-    public async Task<AssistantConversation> CreateAsync(string owner, CancellationToken cancellationToken = default) {
+    public async Task<Conversation> CreateAsync(string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         if (owner.Length > 64) {
             throw new ArgumentOutOfRangeException(nameof(owner));
         }
 
         DateTimeOffset now = clock.GetUtcNow();
-        AssistantConversation conversation = new() {
+        Conversation conversation = new() {
             Owner = owner,
             Title = ConversationTitle.NewConversation,
             CreatedAt = now,
@@ -37,7 +37,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
     public async Task<IReadOnlyList<ConversationListItem>> ListAsync(string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
-        return await database.Set<AssistantConversation>()
+        return await database.Set<Conversation>()
             .FromSqlInterpolated($"SELECT * FROM \"AssistantConversations\" WHERE \"Owner\" = {owner} ORDER BY \"UpdatedAt\" DESC, \"Id\" DESC")
             .AsNoTracking()
             .Select(conversation => new ConversationListItem(
@@ -45,17 +45,17 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
                 conversation.Title,
                 conversation.ApprovalMode,
                 conversation.UpdatedAt,
-                database.Set<AssistantRun>().Where(run => run.ConversationId == conversation.Id
+                database.Set<Run>().Where(run => run.ConversationId == conversation.Id
                         && (run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval"))
                     .Select(run => run.Id)
                     .FirstOrDefault()))
             .ToArrayAsync(cancellationToken);
     }
 
-    public Task<AssistantConversation?> GetAsync(long id, string owner, CancellationToken cancellationToken = default) {
+    public Task<Conversation?> GetAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
-        return database.Set<AssistantConversation>().AsNoTracking()
+        return database.Set<Conversation>().AsNoTracking()
             .SingleOrDefaultAsync(conversation => conversation.Id == id && conversation.Owner == owner, cancellationToken);
     }
 
@@ -67,11 +67,11 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
             return false;
         }
 
-        int updated = await database.Set<AssistantConversation>()
+        int updated = await database.Set<Conversation>()
             .Where(conversation => conversation.Id == id && conversation.Owner == owner)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(conversation => conversation.Title, normalized)
-                .SetProperty(conversation => conversation.TitleIsGenerated, false)
+                .SetProperty(conversation => conversation.HasGeneratedTitle, false)
                 .SetProperty(conversation => conversation.UpdatedAt, clock.GetUtcNow()), cancellationToken);
         return updated > 0;
     }
@@ -86,7 +86,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
             return false;
         }
 
-        int updated = await database.Set<AssistantConversation>()
+        int updated = await database.Set<Conversation>()
             .Where(conversation => conversation.Id == id && conversation.Owner == owner)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(conversation => conversation.ApprovalMode, mode.ToString())
@@ -97,7 +97,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
     public async Task<bool> DeleteAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
-        int deleted = await database.Set<AssistantConversation>()
+        int deleted = await database.Set<Conversation>()
             .Where(conversation => conversation.Id == id && conversation.Owner == owner)
             .ExecuteDeleteAsync(cancellationToken);
         return deleted > 0;
@@ -124,7 +124,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
             UPDATE "AssistantConversations"
             SET "NextMessageSequence" = "NextMessageSequence" + 1,
                 "UpdatedAt" = $now,
-                    "Title" = CASE WHEN "TitleIsGenerated" = 1 AND "Title" = $defaultTitle AND "NextMessageSequence" = 1 THEN $title ELSE "Title" END
+                    "Title" = CASE WHEN "HasGeneratedTitle" = 1 AND "Title" = $defaultTitle AND "NextMessageSequence" = 1 THEN $title ELSE "Title" END
             WHERE "Id" = $id AND "Owner" = $owner
             RETURNING "NextMessageSequence" - 1, "ApprovalMode";
             """;
@@ -144,7 +144,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
         string approvalMode = reader.GetString(1);
         await reader.DisposeAsync();
 
-        AssistantRun run = new() {
+        Run run = new() {
             Id = runId,
             ConversationId = id,
             Status = "queued",
@@ -153,7 +153,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
             PromptVersion = promptVersion,
             CreatedAt = now,
         };
-        AssistantMessage userMessage = new() {
+        Message userMessage = new() {
             ConversationId = id,
             RunId = runId,
             Sequence = sequence,
@@ -206,7 +206,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
             return null;
         }
 
-        AssistantMessage message = new() {
+        Message message = new() {
             ConversationId = conversationId,
             RunId = runId,
             Sequence = Convert.ToInt64(value, CultureInfo.InvariantCulture),
@@ -225,39 +225,39 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
         return message.Sequence;
     }
 
-    public async Task<IReadOnlyList<AssistantMessage>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<Message>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
-        bool owned = await database.Set<AssistantConversation>().AnyAsync(
+        bool owned = await database.Set<Conversation>().AnyAsync(
             conversation => conversation.Id == id && conversation.Owner == owner,
             cancellationToken);
         if (!owned) {
             return [];
         }
 
-        return await database.Set<AssistantMessage>().AsNoTracking()
+        return await database.Set<Message>().AsNoTracking()
             .Where(message => message.ConversationId == id)
             .OrderBy(message => message.Sequence)
             .ToArrayAsync(cancellationToken);
     }
 
-    public async Task<AssistantRun?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default) {
+    public async Task<Run?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
-        bool owned = await database.Set<AssistantConversation>().AnyAsync(
+        bool owned = await database.Set<Conversation>().AnyAsync(
             conversation => conversation.Id == id && conversation.Owner == owner,
             cancellationToken);
         return owned
-            ? await database.Set<AssistantRun>().AsNoTracking()
+            ? await database.Set<Run>().AsNoTracking()
                 .Where(run => run.ConversationId == id
                 && (run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval"))
                 .SingleOrDefaultAsync(cancellationToken)
             : null;
     }
 
-    public async Task<AssistantRun?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default) {
+    public async Task<Run?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
-        bool owned = await database.Set<AssistantConversation>().AnyAsync(
+        bool owned = await database.Set<Conversation>().AnyAsync(
             conversation => conversation.Id == id && conversation.Owner == owner,
             cancellationToken);
         if (!owned) {
@@ -266,7 +266,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
 
         // SQLite cannot order by a DateTimeOffset, and a conversation has a handful of runs, so the
         // newest is picked here rather than in the query.
-        IReadOnlyList<AssistantRun> runs = await database.Set<AssistantRun>().AsNoTracking()
+        IReadOnlyList<Run> runs = await database.Set<Run>().AsNoTracking()
             .Where(run => run.ConversationId == id)
             .ToArrayAsync(cancellationToken);
         return runs
@@ -275,14 +275,14 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
             .FirstOrDefault();
     }
 
-    public async Task<AssistantRun?> GetRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default) {
+    public async Task<Run?> GetRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
-        bool owned = await database.Set<AssistantConversation>().AnyAsync(
+        bool owned = await database.Set<Conversation>().AnyAsync(
             conversation => conversation.Id == conversationId && conversation.Owner == owner,
             cancellationToken);
         return owned
-            ? await database.Set<AssistantRun>().AsNoTracking()
+            ? await database.Set<Run>().AsNoTracking()
                 .SingleOrDefaultAsync(run => run.ConversationId == conversationId && run.Id == runId, cancellationToken)
             : null;
     }
@@ -296,7 +296,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         ArgumentException.ThrowIfNullOrWhiteSpace(status);
         DateTimeOffset now = clock.GetUtcNow();
-        long? conversationId = await database.Set<AssistantRun>()
+        long? conversationId = await database.Set<Run>()
             .Where(run => run.Id == runId)
             .Select(run => (long?)run.ConversationId)
             .SingleOrDefaultAsync(cancellationToken);
@@ -304,7 +304,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
             return false;
         }
 
-        int updated = await database.Set<AssistantRun>()
+        int updated = await database.Set<Run>()
             .Where(run => run.Id == runId)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(run => run.Status, status)
@@ -313,7 +313,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
                 .SetProperty(run => run.StartedAt, run => run.StartedAt ?? (status == "running" ? now : null))
                 .SetProperty(run => run.CompletedAt, status == "queued" || status == "running" || status == "awaiting_approval" ? null : now), cancellationToken);
         if (updated > 0) {
-            await database.Set<AssistantConversation>()
+            await database.Set<Conversation>()
             .Where(conversation => conversation.Id == conversationId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(conversation => conversation.UpdatedAt, now), cancellationToken);
         }
@@ -323,7 +323,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
     public async Task<bool> CreateApprovalAsync(string runId, string toolCallId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         ArgumentException.ThrowIfNullOrWhiteSpace(toolCallId);
-        AssistantToolApproval approval = new() {
+        ToolApproval approval = new() {
             RunId = runId,
             ToolCallId = toolCallId,
             Status = "pending",
@@ -371,11 +371,11 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
             return decision == "approve" ? ApprovalResolutionResult.Approved : ApprovalResolutionResult.Denied;
         }
 
-        string? existing = await database.Set<AssistantToolApproval>().AsNoTracking()
+        string? existing = await database.Set<ToolApproval>().AsNoTracking()
             .Where(approval => approval.RunId == runId && approval.ToolCallId == toolCallId
-                && database.Set<AssistantRun>().Any(run => run.Id == approval.RunId
+                && database.Set<Run>().Any(run => run.Id == approval.RunId
                     && run.ConversationId == conversationId
-                    && database.Set<AssistantConversation>().Any(conversation => conversation.Id == run.ConversationId
+                    && database.Set<Conversation>().Any(conversation => conversation.Id == run.ConversationId
                         && conversation.Owner == owner)))
             .Select(approval => approval.Status)
             .SingleOrDefaultAsync(cancellationToken);
@@ -388,21 +388,21 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
         return ApprovalResolutionResult.Conflict;
     }
 
-    public async Task<IReadOnlyList<AssistantToolApproval>> GetPendingApprovalsAsync(
+    public async Task<IReadOnlyList<ToolApproval>> GetPendingApprovalsAsync(
         long conversationId,
         string owner,
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
-        string[] runIds = await database.Set<AssistantRun>().AsNoTracking()
+        string[] runIds = await database.Set<Run>().AsNoTracking()
             .Where(run => run.ConversationId == conversationId
-                && database.Set<AssistantConversation>().Any(conversation => conversation.Id == conversationId && conversation.Owner == owner))
+                && database.Set<Conversation>().Any(conversation => conversation.Id == conversationId && conversation.Owner == owner))
             .Select(run => run.Id)
             .ToArrayAsync(cancellationToken);
         if (runIds.Length == 0) {
             return [];
         }
 
-        return await database.Set<AssistantToolApproval>().AsNoTracking()
+        return await database.Set<ToolApproval>().AsNoTracking()
             .Where(approval => runIds.Contains(approval.RunId) && approval.Status == "pending")
             .ToArrayAsync(cancellationToken);
     }
@@ -411,7 +411,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         ArgumentException.ThrowIfNullOrWhiteSpace(failureCode);
         DateTimeOffset now = clock.GetUtcNow();
-        return database.Set<AssistantToolApproval>()
+        return database.Set<ToolApproval>()
             .Where(approval => approval.RunId == runId && approval.Status == "pending")
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(approval => approval.Status, "failed")
@@ -427,7 +427,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         ArgumentOutOfRangeException.ThrowIfNegative(toolCallCount);
 
-        IQueryable<AssistantRun> run = database.Set<AssistantRun>().Where(item => item.Id == runId);
+        IQueryable<Run> run = database.Set<Run>().Where(item => item.Id == runId);
         int updated = usage is null
             ? await run.ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.StepCount, item => item.StepCount + 1)
@@ -441,23 +441,23 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
     }
 
     public async Task<int> RecoverInterruptedRunsAsync(CancellationToken cancellationToken = default) {
-        AssistantRun[] interrupted = await database.Set<AssistantRun>().AsNoTracking()
+        Run[] interrupted = await database.Set<Run>().AsNoTracking()
             .Where(run => run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval")
             .ToArrayAsync(cancellationToken);
 
-        foreach (AssistantRun run in interrupted) {
+        foreach (Run run in interrupted) {
             await SetRunStatusAsync(run.Id, "interrupted", "restart", "The host restarted before the run completed.", cancellationToken);
             await FailPendingApprovalsAsync(run.Id, "restart", cancellationToken);
 
-            AssistantMessage[] assistantCalls = await database.Set<AssistantMessage>().AsNoTracking()
+            Message[] assistantCalls = await database.Set<Message>().AsNoTracking()
                 .Where(message => message.RunId == run.Id && message.Role == "assistant" && message.ToolCallsJson != null)
                 .ToArrayAsync(cancellationToken);
-            HashSet<string> answered = await database.Set<AssistantMessage>().AsNoTracking()
+            HashSet<string> answered = await database.Set<Message>().AsNoTracking()
                 .Where(message => message.RunId == run.Id && message.Role == "tool" && message.ToolCallId != null)
                 .Select(message => message.ToolCallId!)
                 .ToHashSetAsync(cancellationToken);
 
-            foreach (AssistantMessage assistant in assistantCalls) {
+            foreach (Message assistant in assistantCalls) {
                 using JsonDocument document = JsonDocument.Parse(assistant.ToolCallsJson!);
                 foreach (JsonElement call in document.RootElement.EnumerateArray()) {
                     string? id = call.TryGetProperty("id", out JsonElement idValue) ? idValue.GetString() : null;

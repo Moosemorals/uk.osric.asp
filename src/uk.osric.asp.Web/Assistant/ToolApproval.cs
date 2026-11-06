@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>A stored decision on one tool call that awaited approval.</summary>
-internal sealed class AssistantToolApproval {
+internal sealed class ToolApproval {
     public required string RunId { get; set; }
     public required string ToolCallId { get; set; }
     public required string Status { get; set; }

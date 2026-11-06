@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>One stored run of a conversation: its status, model, usage and any error.</summary>
-internal sealed class AssistantRun {
+internal sealed class Run {
     public required string Id { get; set; }
     public long ConversationId { get; set; }
     public required string Status { get; set; }

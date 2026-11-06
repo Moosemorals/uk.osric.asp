@@ -38,7 +38,7 @@ internal sealed class RunProcessor(
         string? activeToolName = null;
 
         try {
-            AssistantRun? run = await StoreAsync(store => store.GetActiveRunAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
+            Run? run = await StoreAsync(store => store.GetActiveRunAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
             if (run is null || run.Id != queued.RunId) {
                 await FailAsync(queued, stream, "run_missing", "The run is no longer active.", partial, step, CancellationToken.None);
                 return;
@@ -55,7 +55,7 @@ internal sealed class RunProcessor(
 
             int toolCallCount = 0;
             for (step = 1; step <= options.MaxSteps; step++) {
-                IReadOnlyList<AssistantMessage> transcript = await StoreAsync(
+                IReadOnlyList<Message> transcript = await StoreAsync(
                     store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
                 List<ChatMessage> messages = [new ChatMessage("system", PageAuthorPrompt.Build())];
                 messages.AddRange(transcript.Select(ToChatMessage));
@@ -238,7 +238,7 @@ internal sealed class RunProcessor(
             await FailAsync(queued, stream, "internal_error", "The run failed unexpectedly.", partial, step, CancellationToken.None);
         } finally {
             try {
-                AssistantRun? finalRun = await StoreAsync(store => store.GetRunAsync(
+                Run? finalRun = await StoreAsync(store => store.GetRunAsync(
                     queued.ConversationId, queued.Owner, queued.RunId, CancellationToken.None));
                 metrics.RecordRun(
                     finalRun?.Status ?? "unknown",
@@ -401,7 +401,7 @@ internal sealed class RunProcessor(
         return await action(scope.ServiceProvider.GetRequiredService<IConversationStore>());
     }
 
-    private static ChatMessage ToChatMessage(AssistantMessage message) => new(
+    private static ChatMessage ToChatMessage(Message message) => new(
         message.Role,
         message.Content,
         message.ToolCallsJson,

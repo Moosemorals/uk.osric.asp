@@ -206,7 +206,7 @@ internal static class ShellViews {
         DefaultHttpContext context = AuthenticatedContext("/assistant/1");
         ShellAssistantConversationStore conversations = new(withReasoning
             ? [
-                new AssistantMessage {
+                new Message {
                     ConversationId = 1,
                     RunId = "run-1",
                     Sequence = 1,
@@ -216,7 +216,7 @@ internal static class ShellViews {
                     ToolCallsJson = """[{"id":"call-1","type":"function","function":{"name":"read_page","arguments":"{\"path\":\"/blog\"}"}}]""",
                     CreatedAt = DateTimeOffset.UtcNow,
                 },
-                new AssistantMessage {
+                new Message {
                     ConversationId = 1,
                     RunId = "run-1",
                     Sequence = 2,

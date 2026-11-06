@@ -7,19 +7,19 @@ using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
 
 internal sealed class ShellAssistantConversationStore(
-    IReadOnlyList<AssistantMessage>? messages = null,
-    AssistantRun? lastRun = null) : IConversationStore {
-    private static AssistantConversation Conversation => new() {
+    IReadOnlyList<Message>? messages = null,
+    Run? lastRun = null) : IConversationStore {
+    private static Conversation Conversation => new() {
         Id = 1,
         Owner = "owner",
         Title = "Test conversation",
-        TitleIsGenerated = false,
+        HasGeneratedTitle = false,
         ApprovalMode = ApprovalMode.RequireApproval.ToString(),
         CreatedAt = DateTimeOffset.UtcNow,
         UpdatedAt = DateTimeOffset.UtcNow,
     };
 
-    public Task<AssistantConversation> CreateAsync(string owner, CancellationToken cancellationToken = default) =>
+    public Task<Conversation> CreateAsync(string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult(Conversation);
 
     public Task<IReadOnlyList<ConversationListItem>> ListAsync(string owner, CancellationToken cancellationToken = default) =>
@@ -27,8 +27,8 @@ internal sealed class ShellAssistantConversationStore(
             new(1, "Test conversation", ApprovalMode.RequireApproval.ToString(), DateTimeOffset.UtcNow, null),
         ]);
 
-    public Task<AssistantConversation?> GetAsync(long id, string owner, CancellationToken cancellationToken = default) =>
-        Task.FromResult<AssistantConversation?>(id == 1 && owner == "owner" ? Conversation : null);
+    public Task<Conversation?> GetAsync(long id, string owner, CancellationToken cancellationToken = default) =>
+        Task.FromResult<Conversation?>(id == 1 && owner == "owner" ? Conversation : null);
 
     public Task<bool> RenameAsync(long id, string owner, string title, CancellationToken cancellationToken = default) =>
         Task.FromResult(id == 1 && owner == "owner");
@@ -45,17 +45,17 @@ internal sealed class ShellAssistantConversationStore(
     public Task<long?> AppendMessageAsync(long conversationId, string runId, MessageInput message, CancellationToken cancellationToken = default) =>
         Task.FromResult<long?>(1);
 
-    public Task<IReadOnlyList<AssistantMessage>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default) =>
+    public Task<IReadOnlyList<Message>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult(messages ?? []);
 
-    public Task<AssistantRun?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default) =>
-        Task.FromResult<AssistantRun?>(null);
+    public Task<Run?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default) =>
+        Task.FromResult<Run?>(null);
 
-    public Task<AssistantRun?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default) =>
+    public Task<Run?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult(lastRun);
 
-    public Task<AssistantRun?> GetRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default) =>
-        Task.FromResult<AssistantRun?>(null);
+    public Task<Run?> GetRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<Run?>(null);
 
     public Task<bool> SetRunStatusAsync(string runId, string status, string? errorCode = null, string? errorMessage = null, CancellationToken cancellationToken = default) =>
         Task.FromResult(true);
@@ -66,8 +66,8 @@ internal sealed class ShellAssistantConversationStore(
     public Task<ApprovalResolutionResult> ResolveApprovalAsync(long conversationId, string owner, string runId, string toolCallId, string decision, CancellationToken cancellationToken = default) =>
         Task.FromResult(ApprovalResolutionResult.Approved);
 
-    public Task<IReadOnlyList<AssistantToolApproval>> GetPendingApprovalsAsync(long conversationId, string owner, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<AssistantToolApproval>>([]);
+    public Task<IReadOnlyList<ToolApproval>> GetPendingApprovalsAsync(long conversationId, string owner, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ToolApproval>>([]);
 
     public Task<int> FailPendingApprovalsAsync(string runId, string failureCode, CancellationToken cancellationToken = default) =>
         Task.FromResult(0);

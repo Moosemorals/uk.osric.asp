@@ -4,11 +4,11 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>A stored conversation: its owner, title and approval mode.</summary>
-internal sealed class AssistantConversation {
+internal sealed class Conversation {
     public long Id { get; set; }
     public required string Owner { get; set; }
     public required string Title { get; set; }
-    public bool TitleIsGenerated { get; set; } = true;
+    public bool HasGeneratedTitle { get; set; } = true;
     public string ApprovalMode { get; set; } = "AlwaysApprove";
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
