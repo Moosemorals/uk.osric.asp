@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Semantic HTML and accessibility across the shell
 
-Implementation plan for BUG-16, now closed and recorded in [the jobs list](../jobs/README.md) —
+Implementation plan for BUG-16, now closed and recorded in [the jobs list](../../jobs/README.md) —
 audit every server-rendered view for the semantics it claims, replace generic wrappers where an
 element already means the right thing, and make the parts of accessibility that can be asserted into
 tests rather than a habit. The markup is also where the shell's duplication is worst, so the audit
@@ -14,10 +14,31 @@ antiforgery field, one URL builder.
 
 ## Status
 
-Not started. Written on 2026-11-04 against `trunk` at `d3d602b`, where `make test` is green at 218
-core, 68 runtime, 432 web and 84 integration tests. [BUG-13, BUG-15, BUG-14 and the editor's line
-gutter](../jobs/README.md#closed) have landed, so the editor markup this plan changes is the current
-one.
+**Implemented, and archived on 2026-11-06.** Written on 2026-11-04 against `trunk` at `d3d602b`;
+steps 1–6 are `7d69d1e` and `33f640e`, step 7's walk is recorded under
+[Verification](#verification), and step 8 closed BUG-16 in
+[the jobs list](../../jobs/README.md#closed). `make test` is green at 263 core, 68 runtime, 561 web
+and 106 integration tests, `make format-check` and `make license-check` are clean, and `make audit`
+reports "no vulnerable or deprecated packages".
+
+Four later pieces of work changed the shell this plan draws. Each was decided on its own terms, and
+they are listed here so that a reader does not take a sentence below for the current code:
+
+- **DEC-115** (`c8317f0`) made every form's fields a `dl` of `dt`/`dd` pairs in a two-column grid,
+  with a shared rule to keep it that way, so a label is no longer a bare `<label for>` in a form.
+- **DEC-116** (`695f4c0`) links `/layout.css` **first**, then `/site.css` and the view's own sheet,
+  reversing D7's order and the stale-seed risk that order was chosen to avoid; the gutter's colour
+  moved into `editor.css` with it, since `/layout.css` no longer gets the last word.
+- **DEC-121** (`7701085`) removed the skip link: `main` is the body's only element, so the link
+  targeted the element immediately after it and passed nothing. The `main` of D1 stands; the link
+  waits for the chrome it would skip.
+- **DEC-120** (`c099c67`) added an opt-in browser suite, so "no browser test" here means "none in
+  the shell's own suites". The page assistant's views also joined the shell after BUG-16 closed, and
+  `AccessibilityTests` covers them too.
+
+The decisions D1–D14 are kept as they were argued. Those four are the substantial corrections; the
+smaller drift — a name that followed the pipeline (DEC-114, so the editor's field is `template` and
+not `content`), views that did not exist yet — is visible in the code and not repeated here.
 
 ## Goal and constraints
 
@@ -41,7 +62,9 @@ one.
 ## What the shell renders today
 
 Everything a visitor sees from the site itself is a C# string. Pages written by the owner are
-served verbatim and get no layout, so this audit is about the shell's own fourteen views.
+served verbatim and get no layout, so this audit is about the shell's own fourteen views — the ones
+that existed on 2026-11-04; the page assistant's views and `/admin/seeds` joined later and answer to
+the same rules.
 
 | View | Producer | Today | What is wrong |
 | --- | --- | --- | --- |
@@ -340,7 +363,8 @@ Steps 1–6 are `7d69d1e` and `33f640e`. Two details differ from the sequence ab
 
 Automated, in `make test`:
 
-- `AccessibilityTests` — the ten shared rules over all fourteen views, plus the per-view assertions.
+- `AccessibilityTests` — the eleven shared rules over all nineteen views the shell renders, plus the
+  per-view assertions.
 - `PageLayoutTests` — gutter, nav rendering and encoding, the diagnostics list and its links.
 - `PageAssetSeederTests`, `PageAssetTests`, `StatusPageTests` — `/layout.css` is seeded and served.
 - `EditorEndpointTests`, `ErrorEndpointTests`, `StatusEndpointTests`, `LoginEndpointTests` — the
@@ -348,7 +372,8 @@ Automated, in `make test`:
 - `SecurityHeaderTests` unchanged: nothing here adds inline script or style.
 
 `make format-check` is clean, `make audit` reports "no vulnerable or deprecated packages", and
-`make test` is green at Core 218, Runtime 68, Web 455, Integration 84.
+`make test` is green at Core 263, Runtime 68, Web 561, Integration 106 — checked on 2026-11-06, so
+these are today's counts rather than the 218/68/455/84 the work closed on.
 
 ### The walk
 
@@ -390,9 +415,40 @@ so the block changing from `pre` to `ul` does not reach it.
 ### Left for a person with a browser
 
 The announcements themselves (VoiceOver or NVDA reading order, the `role="alert"` on a failed sign
-in, the gutter numbers being skipped), the visible focus ring and the skip link appearing on focus,
-and 200% text-only zoom with a real 320px render — the editor's `100dvh` and the status charts in
-particular. The CSS above says both should hold; neither has actually been seen.
+in, the gutter numbers being skipped), the visible focus ring, and 200% text-only zoom with a real
+320px render — the editor's `100dvh` and the status charts in particular. The CSS above says both
+should hold; this was the list of things nobody had seen.
+
+#### Browser pass, 2026-11-06
+
+The parts of that list a browser can answer without a screen reader were walked on a throwaway
+database, driven in the VS Code integrated browser (Chromium) at `127.0.0.1:5199`. What it showed:
+
+- **The accessibility tree.** Sign in and its failure, the listing, the editor clean and with
+  diagnostics, the generated source, the history table, the compile failure: one `main`, one `h1`,
+  `nav` names "Admin navigation" and "Editor navigation", the editor's field announced as
+  "Page template", the five history columns as column headers, the diagnostics as a list whose item
+  is `line 1, column 12: error CS0029: …` and whose link points at `#L1`. The failed sign-in is an
+  `alert`, both fields carry `aria-invalid="true"` and describe it, and focus stays on the document.
+- **The gutter.** Absent from an aria snapshot of `main` while the spans are in the DOM with
+  `aria-hidden="true"`, which is the decision holding. (The tool's page snapshot does list them; it
+  does not apply `aria-hidden`, so the tree has to be read from the element, not the page summary.)
+- **Focus.** Nothing sets `outline: none`: links take the browser's own ring, `outline: auto`, from
+  the keyboard, and `.source:focus-visible` gives the documented `solid 2px rgb(0, 95, 163)` when
+  the generated source is reached by `Tab` — a block that is 991px wide inside a 96px box and so
+  genuinely needs the focus that makes it scrollable.
+- **Contrast, measured in the browser rather than computed from the sheet:** the gutter's `#595959`
+  on `#f5f5f5` is 6.42:1.
+- **Reflow.** At 213 CSS px — the narrowest the embedded browser would go, so narrower than the
+  320px requirement — `/edit` and `/edit/site.css` keep the document from scrolling sideways: the
+  listing wraps to three-line rows and the editor's textarea shrinks to 106px and scrolls its own
+  content. The history table does not, at 1110px, and that is the known follow-up above.
+- **The skip link.** None, as DEC-121 decided, and no positive `tabindex` anywhere.
+- **`/status` was not walked.** Its charts need Prometheus at `localhost:9090`, which this run did
+  not have, so the chart half of the earlier table still rests on the markup and the sheets.
+
+Still unseen, and still needing a person: what a screen reader actually announces, 200% text-only
+zoom, and a chart's `<title>`/`<desc>` read aloud.
 
 ## Files touched
 
@@ -460,7 +516,7 @@ Not touched: `PageAssetSeeder` picks the new seed up from its existing directory
 ## Not in this phase
 
 - axe-core, pa11y, or any browser-driven accessibility run. It belongs with the Playwright suite in
-  [IDEA-001](../jobs/IDEA-001.md) and CI in [OPS-03](../jobs/OPS-03.md).
+  [IDEA-001](../../jobs/IDEA-001.md) and CI in [OPS-03](../../jobs/OPS-03.md).
 - Wrapping *page* content in the site layout. Pages own their markup and a layout would be a product
   change, not a semantics fix.
 - `<section aria-labelledby>` on each `/status` panel. Sixteen named regions is not navigation.

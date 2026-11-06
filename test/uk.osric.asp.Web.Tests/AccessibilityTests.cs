@@ -270,8 +270,7 @@ public sealed class AccessibilityTests {
         }
     }
 
-    // Rendered once per view per run: ten rules over fourteen documents would otherwise be a hundred
-    // and forty renders of the same markup.
+    // Rendered once per view per run: every rule re-renders the same documents otherwise.
     private static Task<ShellView> ViewAsync(string name) => Rendered.GetOrAdd(name, ShellViews.RenderAsync);
 
     private static string? NameOf(MarkupReader document, MarkupElement element) {
