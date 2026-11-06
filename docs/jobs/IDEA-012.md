@@ -13,6 +13,11 @@ SPDX-License-Identifier: MIT
 
 ## Status
 
+Planned 2026-11-06 in [the asynchronous page contract](../plans/async-page-contract.md), which is the
+implementation contract from here on: it fixes the generated signature, the policy rule for `Task`,
+the error-page mapping, the version bumps, and the revisions
+[fetch and storage](../plans/page-fetch-and-storage.md) must take if the idea is accepted.
+
 Open, 2026-11-06. The recommendation is **now and all the way**: make `IHandler` asynchronous
 (`HandleAsync` returning `Task`) and make every I/O member on `IContext` asynchronous, before the
 fetch and storage plan's Phase 1 starts. This file deliberately does not change that plan:

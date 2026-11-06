@@ -35,7 +35,7 @@ every status below was checked against the code on 2026-11-06.
 | [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive — must include page state once storage exists |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-011](IDEA-011.md) | — | M | Pages cannot opt into authentication |
-| [IDEA-012](IDEA-012.md) | — | M | A page cannot await its I/O — recommended before fetch and storage lands |
+| [IDEA-012](IDEA-012.md) | — | M | A page cannot await its I/O — planned in [the async page contract](../plans/async-page-contract.md), before fetch and storage |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -49,7 +49,9 @@ possible, and later makes per-user state possible; storage itself stays page-sco
 
 IDEA-012 is the async question that fetch and storage deliberately answered "no" to (plan D3 and
 D6). It is recorded separately so the plan is not disturbed: it argues for an async handler and an
-async page contract before Phase 1, and if accepted, the plan's D3/D6 and Phase 1 are revised first.
+async page contract before Phase 1, and on acceptance the plan's D3/D6 and Phase 1 are revised first.
+It is now planned in [the async page contract](../plans/async-page-contract.md), which makes the
+async handler its own change and lists the fetch and storage revisions that acceptance entails.
 Doing it after the sync members ship would be a second breaking contract and policy change.
 
 ## A rough order
@@ -63,9 +65,11 @@ self-contained comes first, because these are the ones that never get scheduled 
    PageLayout adoption remain [IDEA-010](IDEA-010.md).
 2. **OPS-03, CI automation** — `make check` and `make ci` already exist; what is missing is
    something that runs one of them without being asked.
-3. **IDEA-012, async all the way** — decide before fetch and storage Phase 1. It is the cheapest
-   moment: nothing calls the new capabilities yet, so there is no page-author migration, and the
-   signature change rides the same policy bump and recompile. See [the idea](IDEA-012.md).
+3. **IDEA-012, async all the way** — planned in
+   [the async page contract](../plans/async-page-contract.md); ship it before fetch and storage
+   Phase 1. It is the cheapest moment: nothing calls the new capabilities yet, so there is no
+   page-author migration, and the signature change rides the same policy bump and recompile. See
+   [the idea](IDEA-012.md).
 4. **IDEA-002 + IDEA-003, fetch and page storage** — planned together in
    [fetch and storage](../plans/page-fetch-and-storage.md). Storage is the smaller independent
    slice; fetch follows on the same context plumbing. Both are allow-listed or bounded, and both
