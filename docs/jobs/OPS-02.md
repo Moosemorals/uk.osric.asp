@@ -49,7 +49,7 @@ route) and `StorageHealthCheckTests` (unit: healthy/unhealthy from `CanConnectAs
   the quadlet probes `http://127.0.0.1:8080/heath` every 10 s and podman restarts the container after
   three failures (`HealthOnFailure=restart`); see
   [deploy/README.md](../../deploy/README.md#resource-limits-and-restarts).
-- **Monitoring:** done by the [metrics and status dashboard](../plans/metrics-and-status-dashboard.md):
+- **Monitoring:** done by the [metrics and status dashboard](../plans/archive/metrics-and-status-dashboard.md):
   Prometheus scrapes `/metrics` and the owner-only `/status` draws the history.
 - **Alerting on the signal:** still open — a timer that curls `/heath` and notifies on 503 — see
   OPS-05.

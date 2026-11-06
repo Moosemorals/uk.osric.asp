@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # The page SDK, and the names that go with it
 
-Implementation plan for IDEA-004 (closed by this work; the [job index](../jobs/README.md) records it), plus the structural tidy-up that goes with it:
+Implementation plan for IDEA-004 (closed by this work; the [job index](../../jobs/README.md) records it), plus the structural tidy-up that goes with it:
 vertical slices instead of a flat namespace per project, and names that say whether a thing is a
 template (what the author edits) or a page (what the compiler produces).
 
@@ -50,7 +50,7 @@ anything in `Core`, because `Core` is no longer what a page compiles against.
 | `UserFacingException` | the only exception whose message a page may show |
 
 `PageResponse` is not *reachable* from page code — a page never names it — but it is part of the page
-contract and costs a tiny record with no dependencies. The [AOT spike](../spikes/aot-page-binary-spike.md)
+contract and costs a tiny record with no dependencies. The [AOT spike](../../spikes/aot-page-binary-spike.md)
 independently found this exact five-type closure when it measured a "Mini" driver, which is good
 evidence that the line is in the right place.
 

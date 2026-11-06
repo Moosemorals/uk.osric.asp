@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Page execution budget
 
-Implementation plan for ARCH-03. [SEC-03](../jobs/SEC-03.md) — the process
+Implementation plan for ARCH-03. [SEC-03](../../jobs/SEC-03.md) — the process
 boundary — is **not** part of this: pages keep running in the site's process, and the safety net for
 the cases a budget cannot handle is the supervisor restarting an unhealthy container.
 
@@ -14,7 +14,7 @@ decision, and SEC-03 records what that leaves.
 
 An earlier draft proposed a supervised pool of render worker processes. It was dropped as more
 machinery than the problem deserves, and the per-page-binary alternative was measured and rejected
-for cost ([the spike](../spikes/aot-page-binary-spike.md)). What is left is the smallest thing that bounds the
+for cost ([the spike](../../spikes/aot-page-binary-spike.md)). What is left is the smallest thing that bounds the
 damage: a deadline, a concurrency limit, a log line, a metric, and a health check that tells podman
 to restart the container when a page has stolen a thread for good.
 
@@ -87,9 +87,9 @@ before any of the code lands.
 
 *Superseded in part, 2026-11-02: the quadlet now passes `--memory-swap=768m` as well, and `--cpus=0.9`
 rather than `--cpus=1`, because the host gained a 2 GiB swap file that the app must not use
-([DEC-83](../decisions.md), [memory and swap](../../deploy/README.md#memory-and-swap)). The values
+([DEC-83](../../decisions.md), [memory and swap](../../../deploy/README.md#memory-and-swap)). The values
 changed again when the host became a 4 vCPU / 8 GB CAX21 — the current caps are in
-[DEC-86](../decisions.md) and the quadlet. The reasoning below is what applied before either change.*
+[DEC-86](../../decisions.md) and the quadlet. The reasoning below is what applied before either change.*
 
 `deploy/uk.osric.asp.container` gains, in `[Container]`:
 
@@ -258,7 +258,7 @@ health endpoint that guesses is worse than one that reports a fact.
 ## Phase 5 — not built
 
 The rest of SEC-03 stays unwritten: a renderer in its own container, or a process with `--network=none`
-and its own user. When the author model changes, start at [the spike record](../spikes/aot-page-binary-spike.md)
+and its own user. When the author model changes, start at [the spike record](../../spikes/aot-page-binary-spike.md)
 rather than at estimates.
 
 ## Sequencing

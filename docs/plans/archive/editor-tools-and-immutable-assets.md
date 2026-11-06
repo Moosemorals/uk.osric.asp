@@ -8,9 +8,9 @@ SPDX-License-Identifier: MIT
 Implementation plan for ARCH-06, ARCH-10 and ARCH-11, covering the completed editor listing,
 deletion and generated-source work plus the retained-revision storage foundation for future
 immutable asset URLs.
-The history storage and browsing view also deliver part of [ARCH-07](../jobs/ARCH-07.md); revision
+The history storage and browsing view also deliver part of [ARCH-07](../../jobs/ARCH-07.md); revision
 restore remains later work. Asset serving and PageLayout adoption belong to
-[IDEA-010](../jobs/IDEA-010.md).
+[IDEA-010](../../jobs/IDEA-010.md).
 
 ## Status
 
@@ -219,7 +219,7 @@ scope; old revisions are not deleted automatically.
 
 ### 7. Asset execution and layout changes come later
 
-[IDEA-010](../jobs/IDEA-010.md) will add something like `/asset/{hash}`: an indexed lookup of a
+[IDEA-010](../../jobs/IDEA-010.md) will add something like `/asset/{hash}`: an indexed lookup of a
 retained revision followed by normal page execution. It will decide runtime-id mismatch handling,
 which pages can promise immutable output, what page code sees as its path, and whether a tombstone
 also withdraws historical asset URLs. A revision hash fixes code, not necessarily its output.

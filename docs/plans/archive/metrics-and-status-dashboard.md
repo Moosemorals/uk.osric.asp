@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Metrics, Prometheus and a status dashboard
 
-Implementation plan for the monitoring half of [OPS-02](../jobs/OPS-02.md): export the instruments
+Implementation plan for the monitoring half of [OPS-02](../../jobs/OPS-02.md): export the instruments
 `PageMetrics` already records, run Prometheus beside the app, and render a status page whose charts
 are our own SVG drawn from pure functions in `Core`. Metrics only — no traces, no logs, no OTLP.
 
@@ -51,7 +51,7 @@ depend on these names, so they join the contract.
 after three failures, and the report's `pages` check turns unhealthy once too many renders have been
 abandoned. That is detection and restart, not observation — nothing keeps history, so a problem that
 recovers leaves no trace, and "was it slow this morning?" has no answer. This plan supplies that
-history; alerting stays with [OPS-05](../jobs/OPS-05.md).
+history; alerting stays with [OPS-05](../../jobs/OPS-05.md).
 
 ## Decisions
 

@@ -21,7 +21,7 @@ responses to be cached immutably; PageLayout can then link to those URLs.
 ## Sketch
 
 1. Depend on the retained rows, stable revision hashes and unique hash index in the
-   [editor tools and retained revisions plan](../plans/editor-tools-and-immutable-assets.md).
+   [editor tools and retained revisions plan](../plans/archive/editor-tools-and-immutable-assets.md).
    That plan builds storage and lookup, not asset serving or layout wiring.
 2. Add something like `/asset/{hash}` which looks up the exact revision through the index and
    executes it through the normal bounded page runtime. Reuse its stored compiled assembly when

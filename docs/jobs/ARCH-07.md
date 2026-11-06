@@ -20,7 +20,7 @@ The site's content is code, which is exactly the content most likely to need a r
 
 ## Fix outline
 
-The [editor tools and retained revisions plan](../plans/editor-tools-and-immutable-assets.md)
+The [editor tools and retained revisions plan](../plans/archive/editor-tools-and-immutable-assets.md)
 delivered the storage foundation together with ARCH-06, ARCH-10 and ARCH-11:
 
 1. Every save appends a row with source, optional compilation/debug data and a unique revision hash

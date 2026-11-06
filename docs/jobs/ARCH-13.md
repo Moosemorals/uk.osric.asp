@@ -21,7 +21,7 @@ guarantees:
 - `SetStatus`, `SetContentType`, `SetHeader` and `Redirect` are applied *after* the handler returns,
   so order inside the page does not matter;
 - a render that exceeds its budget can be answered `504` with nothing sent, which is the only
-  "abort" the [execution budget](../plans/page-execution-budget.md) has.
+  "abort" the [execution budget](../plans/archive/page-execution-budget.md) has.
 
 The cost is that a page which is slow to produce its body cannot send anything early. Every body is
 held in memory until it is complete, and there is no way to write a page that starts answering while

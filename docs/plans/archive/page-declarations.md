@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Declarations inside a page
 
-Implementation plan for the first phase of [IDEA-005](../jobs/IDEA-005.md): a page may declare
+Implementation plan for the first phase of [IDEA-005](../../jobs/IDEA-005.md): a page may declare
 `using` directives and types of its own, and use them from its code blocks. The job's second
 question — types shared *between* pages — is deliberately not here. It needs a dependency order and
 an invalidation story of its own, and is easier to plan once this phase has been written against
@@ -187,7 +187,7 @@ invalidates every stored image.
 
 `PageRenderer` loads an image per request, so a `static` field in a page-declared type lives for one
 request. That is a property to document, not a feature to build on: structure now, persistence is
-[IDEA-003](../jobs/IDEA-003.md).
+[IDEA-003](../../jobs/IDEA-003.md).
 
 ## Implementation sequence
 
@@ -263,7 +263,7 @@ In `Runtime`, the handler lookup change in `CompiledPage`, then the cases in `Pa
 - `docs/decisions.md`: add a decision for "declarations are `<%! %>`, hoisted in template order" and
   move `DEC-36` to **Superseded**, as that file's own rule requires.
 - `docs/jobs/IDEA-005.md`: a `## Status` section recording that phase 1 is done and phase 2 is open,
-  in the style of [SEC-03](../jobs/SEC-03.md).
+  in the style of [SEC-03](../../jobs/SEC-03.md).
 - Fill this plan's status with the test counts after `make check`.
 
 ## Edge cases, and what happens
@@ -321,7 +321,7 @@ editor endpoint.
 ## Not in this phase
 
 - Types shared between pages: a library page compiled into its dependents, a shared assembly in the
-  `PageLoadContext`, or an expanded SDK all remain open in [IDEA-005](../jobs/IDEA-005.md).
+  `PageLoadContext`, or an expanded SDK all remain open in [IDEA-005](../../jobs/IDEA-005.md).
 - Moving `PageLayout` into a page. That needs shared types, and is the point of phase 2.
 - Editor syntax highlighting for `<%!`.
 - Page persistence and state; static fields are per loaded image, as in D9.

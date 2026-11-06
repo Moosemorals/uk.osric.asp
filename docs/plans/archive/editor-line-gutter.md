@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # The editor's line gutter, linked diagnostics and its script
 
-Implementation plan for [IDEA-001](../jobs/IDEA-001.md) steps 2 and 4 — a server-rendered line
+Implementation plan for [IDEA-001](../../jobs/IDEA-001.md) steps 2 and 4 — a server-rendered line
 gutter, each diagnostic anchored to its line, and the first script on the site with the policy that
 goes with it. Three things ride along because they touch the same markup: the editor fills the
 viewport, the caret survives a save, and the two inline `<pre style>` attributes go.
@@ -589,7 +589,7 @@ Hand checks until the browser suite exists:
   described above; it belongs with CI (OPS-03) rather than with this job.
 - **HSTS settings** — `app.UseHsts()` runs with its defaults (30 days, no `includeSubDomains`).
   Raising it commits every subdomain of the domain, so it is a deploy decision; see
-  [deploy/README.md](../../deploy/README.md).
+  [deploy/README.md](../../../deploy/README.md).
 - **Ace** (IDEA-001 steps 1 and 3): this page is the fallback it enhances, and the annotation payload
   reuses `PageDiagnostic.Position` with `Line - 1`.
 - **Per-page policies**: the middleware's set-if-absent rule is the hook; nothing needs it yet.

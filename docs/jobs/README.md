@@ -17,8 +17,9 @@ first effort there.
 
 The defect and operation jobs were raised by the architecture review and the code-health scan of
 2026-10-30; BUG-13 came out of the BUG-06 fix, ARCH-11 came out of the BUG-05/BUG-13 planning, and
-BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added on 2026-11-01, and
-every status below was checked against the code on 2026-11-06.
+BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added on 2026-11-01, OPS-06
+and IDEA-013 came out of the naming-consistency planning, and every status below was checked against
+the code on 2026-11-06.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -29,6 +30,7 @@ every status below was checked against the code on 2026-11-06.
 | [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
+| [OPS-06](OPS-06.md) | Low | M | Half of what the site measures, the dashboard never shows |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter and linked diagnostics |
 | [IDEA-002](IDEA-002.md) | — | M | A page cannot call an outbound HTTP API — planned in [fetch and storage](../plans/page-fetch-and-storage.md) |
 | [IDEA-003](IDEA-003.md) | — | M | A page has nowhere to keep state — planned in [fetch and storage](../plans/page-fetch-and-storage.md) |
@@ -37,6 +39,7 @@ every status below was checked against the code on 2026-11-06.
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-011](IDEA-011.md) | — | M | Pages cannot opt into authentication |
 | [IDEA-012](IDEA-012.md) | — | M | A page cannot await its I/O — planned in [the async page contract](../plans/async-page-contract.md), before fetch and storage |
+| [IDEA-013](IDEA-013.md) | — | M | There is no glossary, so the site's own words are guesswork |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -93,15 +96,15 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
-| ARCH-06 | The authenticated `/edit` listing shows live pages and tombstones, offers new-page navigation, and avoids loading revision bodies for the listing. See [the implementation plan](../plans/editor-tools-and-immutable-assets.md) |
-| ARCH-10 | Delete tombstones a page while retaining its revisions; saving recreates it in the same history. Explicit scrub removes the path's revisions with bounded SQLite secure-delete/WAL cleanup and clearly documented limitations. Startup seeding respects tombstones. See [the implementation plan](../plans/editor-tools-and-immutable-assets.md) and [deployment guidance](../../deploy/README.md#storage-and-migrations) |
-| ARCH-11 | The authenticated editor generates C# from the saved template without compiling, rendering or saving it; output is encoded and parse errors show diagnostics. See [the implementation plan](../plans/editor-tools-and-immutable-assets.md) |
-| ARCH-12 | `<%= %>` writes an escaped value and `<%== %>` a raw one; the tokenizer carries `Write`/`WriteRaw`, the generated expression keeps its template position, and an empty expression is `TEMPLATE002`. See [the implementation plan](../plans/template-value-output.md) |
-| IDEA-004 | The page contract moved to its own reference-free assembly, `uk.osric.asp.Sdk`. `Core` is host support again, the policy allows the SDK namespace and nothing else, the load context refuses `Core`, and `RuntimeId` carries both module version ids. See [the plan](../plans/page-sdk-split.md) |
-| IDEA-006 | `/site.css` is a seeded page rather than a static file, so the site's look is edited like any other page; `wwwroot` is empty, `UseStaticFiles` is gone, and the page owns its content type and validator. See [the non-HTML pages plan](../plans/non-html-pages.md) |
-| IDEA-007 | `/rocket.svg` is a seeded page served as `image/svg+xml`, and the document shell links it as the icon. See [the non-HTML pages plan](../plans/non-html-pages.md) |
-| IDEA-008 | Implemented as the multi-turn authenticated page-authoring agent. It is disabled by default, uses a configured OpenAI-compatible provider and bounded page-store tools, and its approval defaults and provider data flow are recorded in DEC-111. See [the plan](../plans/ai-page-assistant.md) |
-| ARCH-03 | Renders have a deadline, a slot count and a body cap, compiles have their own slot and deadline, an abandoned render is logged and counted, and `/heath` reports it so podman restarts a wedged container. See [the plan](../plans/page-execution-budget.md). SEC-03 (the process boundary) is deliberately still open |
+| ARCH-06 | The authenticated `/edit` listing shows live pages and tombstones, offers new-page navigation, and avoids loading revision bodies for the listing. See [the implementation plan](../plans/archive/editor-tools-and-immutable-assets.md) |
+| ARCH-10 | Delete tombstones a page while retaining its revisions; saving recreates it in the same history. Explicit scrub removes the path's revisions with bounded SQLite secure-delete/WAL cleanup and clearly documented limitations. Startup seeding respects tombstones. See [the implementation plan](../plans/archive/editor-tools-and-immutable-assets.md) and [deployment guidance](../../deploy/README.md#storage-and-migrations) |
+| ARCH-11 | The authenticated editor generates C# from the saved template without compiling, rendering or saving it; output is encoded and parse errors show diagnostics. See [the implementation plan](../plans/archive/editor-tools-and-immutable-assets.md) |
+| ARCH-12 | `<%= %>` writes an escaped value and `<%== %>` a raw one; the tokenizer carries `Write`/`WriteRaw`, the generated expression keeps its template position, and an empty expression is `TEMPLATE002`. See [the implementation plan](../plans/archive/template-value-output.md) |
+| IDEA-004 | The page contract moved to its own reference-free assembly, `uk.osric.asp.Sdk`. `Core` is host support again, the policy allows the SDK namespace and nothing else, the load context refuses `Core`, and `RuntimeId` carries both module version ids. See [the plan](../plans/archive/page-sdk-split.md) |
+| IDEA-006 | `/site.css` is a seeded page rather than a static file, so the site's look is edited like any other page; `wwwroot` is empty, `UseStaticFiles` is gone, and the page owns its content type and validator. See [the non-HTML pages plan](../plans/archive/non-html-pages.md) |
+| IDEA-007 | `/rocket.svg` is a seeded page served as `image/svg+xml`, and the document shell links it as the icon. See [the non-HTML pages plan](../plans/archive/non-html-pages.md) |
+| IDEA-008 | Implemented as the multi-turn authenticated page-authoring agent. It is disabled by default, uses a configured OpenAI-compatible provider and bounded page-store tools, and its approval defaults and provider data flow are recorded in DEC-111. See [the plan](../plans/archive/ai-page-assistant.md) |
+| ARCH-03 | Renders have a deadline, a slot count and a body cap, compiles have their own slot and deadline, an abandoned render is logged and counted, and `/heath` reports it so podman restarts a wedged container. See [the plan](../plans/archive/page-execution-budget.md). SEC-03 (the process boundary) is deliberately still open |
 | ARCH-02 | Pages are a restricted runtime: `IContext` carries a plain `PageRequest` snapshot and asks for `SetStatus`/`SetContentType`/`SetHeader`/`Redirect`, all applied after the buffered handler returns. `SimpleContext` is the only implementation, headers are allow-listed so a page cannot clobber the site's cookies, pages run only for `GET`/`POST`/`HEAD`, and a body over 1 MiB is refused. Documented in `docs/architecture.md` |
 | ARCH-04 | `CompiledTemplate.Invoke` unwraps the reflection wrapper with `ExceptionDispatchInfo`, so the shell sees the page's own exception and no longer knows about `TargetInvocationException`. The `NoInlining` attributes were removed with a note on what they would have been protecting |
 | ARCH-05 | `PagePath` normalises every key in `Core` (lowercase, NFC, no dot segments, no trailing slash), the shell redirects to the canonical URL with 308 and stores only canonical keys, and `Pages:ReservedPaths` keeps page keys off the site's own routes. Storage tests use canonical keys |
@@ -120,10 +123,10 @@ Resolved jobs; the files were deleted and their history is in git.
 | STYLE-01 | `EditorEndpoint` validates through a `SaveAsync` helper instead of `goto` |
 | STYLE-02 | `IStorage.ListFilesAsync` returns `IReadOnlyList<string>`. The query was later removed as unused when listing pages became ARCH-06 |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
-| SEC-01 | The editor requires a local account. Accounts live in the `Users` table and are created only by the `users` command; `POST`/`GET /edit/**` require the `Editor` policy. Passwords are PBKDF2 hashes, the cookie slides for 30 days and is persistent, and a security stamp revokes it on a password change or account removal. See [the plan](../plans/editor-authentication.md) |
+| SEC-01 | The editor requires a local account. Accounts live in the `Users` table and are created only by the `users` command; `POST`/`GET /edit/**` require the `Editor` policy. Passwords are PBKDF2 hashes, the cookie slides for 30 days and is persistent, and a security stamp revokes it on a password change or account removal. See [the plan](../plans/archive/editor-authentication.md) |
 | SEC-02 | Login, logout and editor POSTs validate an antiforgery token and answer `400` before reading the form or storing anything. The editor's flash message moved from a cookie to server-side session state, and saves answer `303` |
 | STYLE-04 | Exception tests assert with `await Assert.ThrowsAsync`/`Assert.CatchAsync` instead of `Assert.That(async ...)`; the convention is recorded in `docs/testing.md` |
-| BUG-05 | Compile diagnostics carry a `TemplatePosition` mapped from `#line` directives, so the editor shows the line and column the author typed. Generated-code errors with no mapped author error are compiler faults: they throw instead of becoming page diagnostics, and the host answers `500`. See [the plan](../plans/compiler-diagnostics.md) |
+| BUG-05 | Compile diagnostics carry a `TemplatePosition` mapped from `#line` directives, so the editor shows the line and column the author typed. Generated-code errors with no mapped author error are compiler faults: they throw instead of becoming page diagnostics, and the host answers `500`. See [the plan](../plans/archive/compiler-diagnostics.md) |
 | BUG-13 | `PageDiagnostic` carries severity, `CompileResult.Success` is derived from errors, and warning-only pages store an image, render, and report "Saved with warnings." Warnings are stored, carried through `PageCompilation` and styled separately in the editor |
 | STYLE-03 | `Token` and `TokenType` moved to their own files; `Token` is now a `readonly record struct` carrying a `TemplatePosition` |
 | BUG-12 | `Web` no longer references the Roslyn Workspaces packages, and the publish output loses `Microsoft.CodeAnalysis.Workspaces*` plus the MSBuild `BuildHost-*` folders. EF Core Design still pulls them in transitively, where their exact `Microsoft.CodeAnalysis.Common` dependency pins that package to 5.0.0 and conflicts with the 5.9.0 `Runtime` compiles against, so `Directory.Packages.props` enables central transitive pinning and pins both Workspaces packages to 5.9.0 |

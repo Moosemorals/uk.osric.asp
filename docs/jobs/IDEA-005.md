@@ -51,11 +51,11 @@ Two questions, and they are separable — settle the first before the second.
    `ContentFingerprint` invalidates a page's stored image. Decide before shipping anything shared.
 5. Start with (1) alone — it makes a single long page bearable and is testable in `Core` with no
    storage change at all. Treat (2) as its own job once (1) has been written with real pages. Phase
-   (1) is planned in [page declarations](../plans/page-declarations.md).
+   (1) is planned in [page declarations](../plans/archive/page-declarations.md).
 
 ## Status
 
-Phase 1 is done, by [page declarations](../plans/page-declarations.md) and DEC-92: a page declares
+Phase 1 is done, by [page declarations](../plans/archive/page-declarations.md) and DEC-92: a page declares
 `using` directives and types in `<%! %>` blocks, uses them from its `<% %>` blocks, and saves and
 serves like any other page. No storage, schema or `RuntimeId` decision moved — the generator lives
 in `Core`, whose module version id was already in the id — and the API policy applies to a declared

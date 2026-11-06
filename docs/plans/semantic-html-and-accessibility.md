@@ -247,7 +247,7 @@ the audit is asking for, and if `/layout.css` is ever missing the text simply be
 degrades better than an attribute nobody can see.
 
 The gutter stays `aria-hidden="true"` and stays out of the accessibility tree; that decision was
-made and argued in [the line-gutter plan](editor-line-gutter.md#why-the-gutter-is-scripted) and this
+made and argued in [the line-gutter plan](archive/editor-line-gutter.md#why-the-gutter-is-scripted) and this
 audit agrees with it.
 
 ### D11 — The listing stays a list, says which page a link belongs to, and looks aligned
