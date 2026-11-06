@@ -124,6 +124,11 @@ and applies them.
   reasoning, credentials, and provider error bodies are not logged. The default provider is DeepSeek;
   compatible services and local Ollama can be selected by configuration. Restart the app after
   changing the environment file.
+  **Upgrading from `Agent`:** the file and its keys were renamed when the feature was, so `make deploy`
+  seeds a new, empty `assistant.env` beside the old `agent.env` and the assistant comes up disabled.
+  Move the file and rename each key (`Agent__Enabled` → `Assistant__Enabled`, and so on) rather than
+  copying the contents; the old file is ignored from that release on. The storage tables are renamed
+  by a migration on first start, which keeps every conversation.
 - **Assistant streaming through Caddy:** `/assistant/*/events` is excluded from compression and the
   reverse proxy flushes events immediately. Verify through the proxy with a real queued conversation
   using `curl -N`, not only against the Kestrel port. A run continues if its browser is closed; the
