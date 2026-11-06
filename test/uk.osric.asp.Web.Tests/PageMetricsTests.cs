@@ -105,7 +105,7 @@ public sealed class PageMetricsTests {
         IReadOnlyList<MetricCapture.Measurement> renders = capture.For("page.render.duration", "/throw");
         Assert.That(renders, Has.Count.EqualTo(1));
         Assert.That(renders[0].HasTag("outcome", "error"), Is.True);
-        Assert.That(capture.Count("page.handler.invoke.duration", "outcome", "error"), Is.EqualTo(1));
+        Assert.That(capture.Count("page.invoke.duration", "outcome", "error"), Is.EqualTo(1));
     }
 
     [Test]

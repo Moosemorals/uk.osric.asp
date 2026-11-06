@@ -17,7 +17,7 @@ using uk.osric.asp.Runtime;
 /// <see cref="RenderStatus.Timeout"/>.
 /// </para>
 /// <para>
-/// Records <c>page.render.*</c>, <c>page.handler.*</c> and <c>page.cache.*</c>.
+/// Records <c>page.render.*</c>, <c>page.load.*</c>, <c>page.invoke.*</c> and <c>page.cache.*</c>.
 /// </para>
 /// </remarks>
 internal sealed class PageRenderer(

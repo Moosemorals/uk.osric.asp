@@ -15,7 +15,7 @@ using uk.osric.asp.Core.Pages;
 internal sealed class PageMetrics : IDisposable {
 
     /// <summary>The meter every instrument belongs to.</summary>
-    public const string MeterName = "uk.osric.asp";
+    public const string MeterName = "uk.osric.asp.Pages";
 
     /// <summary>Buckets for the duration instruments, in seconds.</summary>
     /// <remarks>
@@ -96,9 +96,9 @@ internal sealed class PageMetrics : IDisposable {
         _compileDuration = _meter.CreateHistogram<double>(
             "page.compile.duration", "s", "Time Roslyn spends compiling one page.");
         _loadDuration = _meter.CreateHistogram<double>(
-            "page.handler.load.duration", "s", "Time to load a stored image into an assembly load context.");
+            "page.load.duration", "s", "Time to load a stored image into an assembly load context.");
         _invokeDuration = _meter.CreateHistogram<double>(
-            "page.handler.invoke.duration", "s", "Time the page's own code spends running.");
+            "page.invoke.duration", "s", "Time the page's own code spends running.");
         _saveDuration = _meter.CreateHistogram<double>(
             "page.save.duration", "s", "Time to compile and persist an edited page.");
         _renderAbandoned = _meter.CreateCounter<long>(

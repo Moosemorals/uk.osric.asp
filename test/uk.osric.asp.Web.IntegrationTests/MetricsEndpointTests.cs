@@ -68,6 +68,31 @@ public sealed class MetricsEndpointTests : IntegrationTest {
     }
 
     [Test]
+    public async Task TheLoadAndInvokeHistogramsCarryOurBucketBoundaries() {
+        await SavePageAsync("/bucketed-load", "Hello.");
+        using HttpClient client = CreateClient();
+        await client.GetAsync("/bucketed-load");
+
+        using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(10));
+        string body;
+        do {
+            body = await client.GetStringAsync("/metrics", deadline.Token);
+            if (body.Contains("page_load_duration_seconds_bucket", StringComparison.Ordinal)
+                && body.Contains("page_invoke_duration_seconds_bucket", StringComparison.Ordinal)) {
+                break;
+            }
+            await Task.Delay(TimeSpan.FromMilliseconds(25), deadline.Token);
+        } while (!deadline.IsCancellationRequested);
+
+        Assert.Multiple(() => {
+            Assert.That(BucketsOf(body, "page_load_duration_seconds_bucket"), Does.Contain("0.0005"));
+            Assert.That(BucketsOf(body, "page_invoke_duration_seconds_bucket"), Does.Contain("0.0005"));
+            Assert.That(BucketsOf(body, "page_load_duration_seconds_bucket"), Does.Not.Contain("7500"));
+            Assert.That(BucketsOf(body, "page_invoke_duration_seconds_bucket"), Does.Not.Contain("7500"));
+        });
+    }
+
+    [Test]
     public async Task MetricsRouteShadowsAPageStoredAtTheSameKey() {
         await SavePageAsync("/measured", "Hello.");
         await SavePageAsync("/metrics", "<p>not the scrape endpoint</p>");
@@ -83,4 +108,9 @@ public sealed class MetricsEndpointTests : IntegrationTest {
         Assert.That(body, Does.Contain("page_render_duration_seconds_bucket"));
         Assert.That(body, Does.Not.Contain("not the scrape endpoint"));
     }
+
+    private static IEnumerable<string> BucketsOf(string exposition, string series) =>
+        exposition.Split('\n')
+            .Where(line => line.StartsWith(series, StringComparison.Ordinal))
+            .Select(line => line[(line.IndexOf("le=\"", StringComparison.Ordinal) + 4)..].Split('"')[0]);
 }
