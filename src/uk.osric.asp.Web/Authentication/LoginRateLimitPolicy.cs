@@ -12,8 +12,18 @@ internal static class LoginRateLimitPolicy {
     /// <summary>The policy name used by routing and the limiter registration.</summary>
     public const string Name = "login";
 
+    // The count is defined as a shift so it cannot stop being a power of two: a literal could be
+    // edited to something the mask below no longer describes, silently shrinking the bucket range.
+    private const int BucketBits = 10;
+
     /// <summary>How many independent counters client addresses are folded into.</summary>
-    public const int Buckets = 1024;
+    /// <remarks>
+    /// A power of two, so <see cref="BucketMask"/> can mask where a modulo would divide. 1024
+    /// buckets bound the limiter's dictionary.
+    /// </remarks>
+    public const int Buckets = 1 << BucketBits;
+
+    private const uint BucketMask = Buckets - 1;
 
     // FNV-1a. Any stable hash does, but not string.GetHashCode, which is randomised per process.
     private const uint FnvOffsetBasis = 2166136261;
@@ -37,6 +47,6 @@ internal static class LoginRateLimitPolicy {
             hash = (hash ^ octet) * FnvPrime;
         }
 
-        return (hash % Buckets).ToString(CultureInfo.InvariantCulture);
+        return (hash & BucketMask).ToString(CultureInfo.InvariantCulture);
     }
 }
