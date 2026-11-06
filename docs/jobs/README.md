@@ -38,7 +38,6 @@ the code on 2026-11-06.
 | [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive — must include page state once storage exists |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-011](IDEA-011.md) | — | M | Pages cannot opt into authentication |
-| [IDEA-012](IDEA-012.md) | — | M | A page cannot await its I/O — planned in [the async page contract](../plans/async-page-contract.md), before fetch and storage |
 | [IDEA-013](IDEA-013.md) | — | M | There is no glossary, so the site's own words are guesswork |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
@@ -51,13 +50,6 @@ is the implementation contract.
 IDEA-011 is deliberately separate from that work. It is the auth hook that makes a private page
 possible, and later makes per-user state possible; storage itself stays page-scoped and shared.
 
-IDEA-012 is the async question that fetch and storage deliberately answered "no" to (plan D3 and
-D6). It is recorded separately so the plan is not disturbed: it argues for an async handler and an
-async page contract before Phase 1, and on acceptance the plan's D3/D6 and Phase 1 are revised first.
-It is now planned in [the async page contract](../plans/async-page-contract.md), which makes the
-async handler its own change and lists the fetch and storage revisions that acceptance entails.
-Doing it after the sync members ship would be a second breaking contract and policy change.
-
 ## A rough order
 
 Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and
@@ -69,26 +61,21 @@ self-contained comes first, because these are the ones that never get scheduled 
    PageLayout adoption remain [IDEA-010](IDEA-010.md).
 2. **OPS-03, CI automation** — `make check` and `make ci` already exist; what is missing is
    something that runs one of them without being asked.
-3. **IDEA-012, async all the way** — planned in
-   [the async page contract](../plans/async-page-contract.md); ship it before fetch and storage
-   Phase 1. It is the cheapest moment: nothing calls the new capabilities yet, so there is no
-   page-author migration, and the signature change rides the same policy bump and recompile. See
-   [the idea](IDEA-012.md).
-4. **IDEA-002 + IDEA-003, fetch and page storage** — planned together in
+3. **IDEA-002 + IDEA-003, fetch and page storage** — planned together in
    [fetch and storage](../plans/page-fetch-and-storage.md). Storage is the smaller independent
    slice; fetch follows on the same context plumbing. Both are allow-listed or bounded, and both
    are testable without a browser.
-5. **IDEA-005, shared page types** — declarations inside one page are done; sharing them between
+4. **IDEA-005, shared page types** — declarations inside one page are done; sharing them between
    pages is the remaining question now that the page SDK split has an answer.
-6. **IDEA-001, a proper editor** — the line gutter, linked diagnostics and caret persistence are
+5. **IDEA-001, a proper editor** — the line gutter, linked diagnostics and caret persistence are
    done; syntax highlighting or adopting a third-party editor is what is left.
-7. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
-8. **IDEA-011, page authentication** — a page can opt into the existing sign-in, still with one
+6. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
+7. **IDEA-011, page authentication** — a page can opt into the existing sign-in, still with one
    actual user and no roles. It is the hook that makes private pages and, later, per-user state
    possible. It changes DEC-02, so it needs its own plan; it is not part of fetch/storage.
-9. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
+8. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
    and a rule, once there is something worth being woken for.
-10. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
+9. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 
 ## Closed
 
@@ -103,6 +90,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | IDEA-004 | The page contract moved to its own reference-free assembly, `uk.osric.asp.Sdk`. `Core` is host support again, the policy allows the SDK namespace and nothing else, the load context refuses `Core`, and `RuntimeId` carries both module version ids. See [the plan](../plans/archive/page-sdk-split.md) |
 | IDEA-006 | `/site.css` is a seeded page rather than a static file, so the site's look is edited like any other page; `wwwroot` is empty, `UseStaticFiles` is gone, and the page owns its content type and validator. See [the non-HTML pages plan](../plans/archive/non-html-pages.md) |
 | IDEA-007 | `/rocket.svg` is a seeded page served as `image/svg+xml`, and the document shell links it as the icon. See [the non-HTML pages plan](../plans/archive/non-html-pages.md) |
+| IDEA-012 | The page handler is asynchronous: `IHandler.HandleAsync` returns `Task`, the generated handler is always `async`, and `System.Threading.Tasks.Task` is admitted to the page policy with its starting and blocking members denied by name (DEC-123, DEC-124). See [the plan](../plans/archive/async-page-contract.md) |
 | IDEA-008 | Implemented as the multi-turn authenticated page-authoring agent. It is disabled by default, uses a configured OpenAI-compatible provider and bounded page-store tools, and its approval defaults and provider data flow are recorded in DEC-111. See [the plan](../plans/archive/ai-page-assistant.md) |
 | ARCH-03 | Renders have a deadline, a slot count and a body cap, compiles have their own slot and deadline, an abandoned render is logged and counted, and `/heath` reports it so podman restarts a wedged container. See [the plan](../plans/archive/page-execution-budget.md). SEC-03 (the process boundary) is deliberately still open |
 | ARCH-02 | Pages are a restricted runtime: `IContext` carries a plain `PageRequest` snapshot and asks for `SetStatus`/`SetContentType`/`SetHeader`/`Redirect`, all applied after the buffered handler returns. `SimpleContext` is the only implementation, headers are allow-listed so a page cannot clobber the site's cookies, pages run only for `GET`/`POST`/`HEAD`, and a body over 1 MiB is refused. Documented in `docs/architecture.md` |

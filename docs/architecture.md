@@ -42,7 +42,7 @@ A template is text, `<% %>` code blocks, `<%! %>` declaration blocks, and expres
 `<%== expression %>` uses `ctx.WriteRaw` (unencoded). Expressions must be strings; convert other
 values explicitly, such as with `.ToString()`. The generator emits the corresponding call, trimming
 expression edges and removing at most one trailing semicolon. Declarations are hoisted above
-`GeneratedPage.Handle` in template order, so a page's `using` directives and types are visible to
+`GeneratedPage.HandleAsync` in template order, so a page's `using` directives and types are visible to
 its whole body. Declarations are compile-time only: they write no output and are never conditional,
 even inside an `if` in the template. Template order is also the using order, so a `using` written
 after a type is `CS1529` on the line that wrote it.
@@ -122,6 +122,11 @@ touches is a plain record in `Sdk`. `IContext` is the whole surface — `Request
 form, headers, cookies), `Path`, `Aborted`, `Log`/`LogWarning`/`LogError`, `Write`/`WriteRaw`,
 `SetStatus`, `SetContentType`, `SetHeader` and `Redirect`.
 
+The handler is asynchronous: `IHandler.HandleAsync` returns a `Task`, the generator always emits an
+`async` method, and `await` is therefore an ordinary expression in a code block and inside a write
+expression. Any member `IContext` gains that does I/O returns a `Task` and takes no cancellation
+token — the context owns `Aborted` and the render's deadline and links them per call (DEC-123).
+
 A page's log entries are filed under the single `uk.osric.asp.Pages` category, with the page's key on
 a `Path` scope property, so one page can be filtered or levelled without touching another. That
 category is operator-facing — filters, alerts and log queries are written against it. It is static
@@ -133,8 +138,8 @@ is where a page's logging enters the shell, so `Core` never names a logging type
 
 Two rules keep the response safe:
 
-- The body is buffered. Status, content type and headers are applied after `Handle` returns, so a
-  page that throws sends the error page rather than half a document.
+- The body is buffered. Status, content type and headers are applied after `HandleAsync` completes,
+  so a page that throws sends the error page rather than half a document.
 - Headers are bounded by an allow-list in `SimpleContext`: `Cache-Control`, `Content-Language`,
   `ETag`, `Expires`, `Vary` and any `X-` name. `Set-Cookie`, `Location`, `Content-Type` and the
   framing headers are refused, so a page cannot clobber the editor's authentication, antiforgery or
@@ -266,6 +271,11 @@ Stored pages are C#, so the surface they may touch is constrained twice.
   should not need an entry of its own. Each entry is checked against the symbol the page actually
   resolved. It is data plus a pure function, so the list is readable and the diagnostic names the
   API to add. `System.Object` is deliberately absent: allowing it would allow `GetType()`.
+- `System.Threading.Tasks.Task` is admitted by *type*, and ten of its members are denied by name —
+  `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`
+  and `Yield` — because each starts work the render deadline cannot stop or turns an `await` back
+  into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`,
+  `Parallel` and `ValueTask` are `PAGE001` without being named (DEC-124).
 - `PageApiChecker` in `Runtime` walks the generated syntax tree, projects Roslyn symbols onto
   `ApiReference` values, rejects `stackalloc`, `dynamic`, pointers, function pointers and `unsafe`,
   and enforces the shape rule: the generated `GeneratedPage`, last, plus the page's own type
@@ -318,9 +328,12 @@ waits for it against one deadline that covers both queueing and running:
   thread. A request that waits past the deadline is shed: it answers `504` immediately without ever
   running the page.
 - `Pages:Render:TimeoutSeconds` is the whole budget. When it expires the site answers `504`, calls
-  `SimpleContext.Abandon` so the still-running page cannot write any more, and gives up on the thread.
-  The abandoned thread is a known loss: it is counted, logged with the page's path and the elapsed
-  time, and recorded on `page.render.abandoned`. A request that spends the budget before the page
+  `SimpleContext.Abandon` so the still-running page cannot write any more, and gives up on it. A
+  render that never returns cannot be reclaimed: it is counted, logged with the page's path and the
+  elapsed time, and recorded on `page.render.abandoned`. A page that is *waiting* on an `await`
+  returns its thread to the pool while it waits, so abandonment costs a task rather than a thread;
+  when the deadline fires its next `await` throws and it unwinds. A page that blocks synchronously is
+  unchanged, and is escaped only by abandonment and the container's restart. A request that spends the budget before the page
   starts — waiting on storage, or waiting for a compile slot — answers `504` the same way, but
   nothing is abandoned because nothing ran.
 - Compiling has its own slot and deadline (`Pages:Compile:Slots`, `Pages:Compile:TimeoutSeconds`).

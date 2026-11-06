@@ -17,7 +17,7 @@ Proposed 2026-11-06. Not implemented. IDEA-002 and IDEA-003 stay open until the 
 this document is the implementation contract and the job files keep the original idea. See
 [Folding the jobs](#folding-the-jobs) for the index changes.
 
-Revised 2026-11-06 against [the async page contract](async-page-contract.md): the handler is
+Revised 2026-11-06 against [the async page contract](../archive/async-page-contract.md): the handler is
 `Task HandleAsync(IContext)`, so both capabilities are `Task`-returning at the page surface and the
 synchronous members this plan originally described are never written. The `out`-parameter read is
 replaced by `PageValue<T>`, `PolicyVersion` moves `2` → `3` rather than `1` → `2`, and Phase 1
@@ -344,7 +344,7 @@ The alternatives were considered and rejected:
   beside the render's.
 
 A synchronous page surface was rejected before this plan was written; the argument and the decision
-are recorded in [the async page contract](async-page-contract.md), which ships first. Pages are
+are recorded in [the async page contract](../archive/async-page-contract.md), which ships first. Pages are
 templates, so the generated signature is not written by hand, and the surface was new — nothing
 existing had to change to gain `await`.
 
@@ -658,7 +658,7 @@ information. Neither logs the URL query, request headers, response headers or bo
 - `PageRenderer.RenderAsync` calls `context.AttachDeadline(deadline.Token)` before `RunAsync`, so a
   page's storage and fetch calls are cancelled with the render rather than only with the request.
   `RunAsync` owns the deadline's lifetime from that point — see [D8 of the async page
-  contract](async-page-contract.md#d8--the-deadlines-token-must-outlive-an-abandoned-page) — and
+  contract](../archive/async-page-contract.md#d8--the-deadlines-token-must-outlive-an-abandoned-page) — and
   disposes it when the page finished, or inside the abandon continuation when it did not. That is
   what keeps the token alive for as long as an abandoned page's continuation might still register on
   it.
@@ -704,7 +704,7 @@ On implementation, update:
 
 - `docs/architecture.md`: the page contract list, a storage section, an outbound fetch section,
   the page API policy note, the source storage note, and the instrumentation table.
-- `docs/decisions.md`: add DEC-120 onwards for the page-scope/JSON contract, the `PageState`
+- `docs/decisions.md`: add DEC-125 onwards for the page-scope/JSON contract, the `PageState`
   lifecycle, the asynchronous deadline-bound design, the default-off allow-listed fetch, the
   failure-as-value shape, and the `System.Text.Json` widening.
 - `deploy/README.md`: the database now carries page state, so backups include it; the fetch

@@ -5,19 +5,21 @@ SPDX-License-Identifier: MIT
 
 # The asynchronous page contract
 
-Implementation plan for [IDEA-012 — a page cannot await its I/O](../jobs/IDEA-012.md). The idea
-recorded an argument, not a decision; this document is the decision set, the shape of the generated
-code, the exact edits in every project, and the revisions
-[fetch and storage](page-fetch-and-storage.md) must take if it is accepted.
+Implementation plan for IDEA-012 — a page cannot await its I/O. The idea recorded an argument, not a
+decision; this document is the decision set, the shape of the generated code, the exact edits in every
+project, and the revisions [fetch and storage](../page-fetch-and-storage.md) must take if it is
+accepted.
 
 ## Status
 
-Proposed 2026-11-06. Not implemented. IDEA-012 stays open until the phases below ship. Accepting it
-also accepts [What fetch and storage must change](#what-fetch-and-storage-must-change): those edits
-land in that plan before its Phase 1 starts, and the synchronous members it describes at D3 and D6
-are never written.
+Implemented 2026-11-06, in five commits from `b3e9715`. Every phase below shipped; IDEA-012 is in the
+closed table in [the job index](../../jobs/README.md#closed), and the revisions in
+[What fetch and storage must change](#what-fetch-and-storage-must-change) landed in
+[fetch and storage](../page-fetch-and-storage.md) before its Phase 1 started, so the synchronous
+members it described are never written.
 
-The repository is clean on `trunk` at `b3e9715`, and `make check` is green. Start from there.
+The decisions are DEC-123 (the asynchronous contract and its tokenless members) and DEC-124 (the
+`Task` admission and the member-level denial, amending DEC-35).
 
 ## The short version
 
@@ -143,7 +145,7 @@ written, which is the outcome the idea asks for.
 The alternative — folding this into fetch and storage Phase 1 — buys one deploy instead of two, and
 one lazy recompile instead of two. It costs a bigger change to review, and it parks a contract
 decision behind the largest piece of unimplemented work in the backlog. Pages recompile lazily on
-their next request after any deploy (see [deployment](../../deploy/README.md#storage-and-migrations)),
+their next request after any deploy (see [deployment](../../../deploy/README.md#storage-and-migrations)),
 so the second recompile is the same work, not extra work. Not worth it.
 
 ### D2 — `Task`, admitted as a type, not the namespace
@@ -423,7 +425,7 @@ convention applied to a surface where the caller has nothing better to pass than
 already holds.
 
 This is a deliberate exception to the convention, so both the SDK doc comments and
-[DEC-118](../decisions.md) say so in as many words.
+[DEC-123](../../decisions.md) say so in as many words.
 
 ## Runtime
 
@@ -543,9 +545,9 @@ Three details of that emit are load-bearing and unchanged from today:
 | `docs/architecture.md` — page contract | `Handle` → `HandleAsync` where the return is described; the sentence "status, content type and headers are applied after `Handle` returns"; the `IContext` member list keeps `Aborted` and gains one line that the handler is asynchronous and `await` is available |
 | `docs/architecture.md` — page execution budget | "the thread it is using is lost" → the render; the handler "runs on a worker" gains "and may suspend, returning its thread while it waits" |
 | `docs/architecture.md` — page API policy | the policy paragraph names the `Task` admission and the member denial |
-| `docs/decisions.md` | DEC-118 (async contract, tokenless members) and DEC-119 (member-level denial, amends DEC-35); DEC-31's "after `Handle` returns" becomes `HandleAsync`; two lines under "Open policy questions" |
-| `docs/jobs/IDEA-012.md` | `## Status` points here |
-| `docs/jobs/README.md` | the IDEA-012 row links here; item 3 of the rough order points here |
+| `docs/decisions.md` | DEC-123 (async contract, tokenless members) and DEC-124 (member-level denial, amends DEC-35); DEC-31's "after `Handle` returns" becomes `HandleAsync`; two lines under "Open policy questions" |
+| `docs/jobs/IDEA-012.md` | deleted into git history; its row moved to the closed table |
+| `docs/jobs/README.md` | the IDEA-012 row moved to the closed table, and the rough order dropped its step |
 | `docs/plans/page-fetch-and-storage.md` | only on acceptance, and only as listed below |
 | `deploy/README.md`, `README.md`, `CONTRIBUTING.md` | no change |
 
@@ -553,12 +555,12 @@ Proposed entries for `docs/decisions.md`:
 
 | ID | Decision | Recorded in |
 | --- | --- | --- |
-| DEC-118 | The page handler is asynchronous: `IHandler.HandleAsync` returns `Task`, the generated handler is always `async`, and the I/O members `IContext` gains are `Task`-returning and take no cancellation token — the context owns `Aborted` and the render deadline and links them per call. A synchronous twin is never added. | [async page contract](plans/async-page-contract.md) |
-| DEC-119 | `System.Threading.Tasks.Task` is admitted to the page API policy as a type, and ten of its members are denied by name — `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`, `Yield` — because each starts work the render deadline cannot stop or turns an `await` back into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`, `Parallel` and `ValueTask` remain `PAGE001`. | [async page contract](plans/async-page-contract.md), amends DEC-35 |
+| DEC-123 | The page handler is asynchronous: `IHandler.HandleAsync` returns `Task`, the generated handler is always `async`, and the I/O members `IContext` gains are `Task`-returning and take no cancellation token — the context owns `Aborted` and the render deadline and links them per call. A synchronous twin is never added. | [async page contract](async-page-contract.md) |
+| DEC-124 | `System.Threading.Tasks.Task` is admitted to the page API policy as a type, and ten of its members are denied by name — `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`, `Yield` — because each starts work the render deadline cannot stop or turns an `await` back into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`, `Parallel` and `ValueTask` remain `PAGE001`. | [async page contract](async-page-contract.md), amends DEC-35 |
 
 ## What fetch and storage must change
 
-These are the revisions to [page-fetch-and-storage.md](page-fetch-and-storage.md). They are part of
+These are the revisions to [page-fetch-and-storage.md](../page-fetch-and-storage.md). They are part of
 accepting this plan, and land before that plan's Phase 1 starts.
 
 ### The short version, item 4
@@ -770,10 +772,9 @@ file carries its SPDX header; `make license-check` is part of the gate.
 
 ## Folding the jobs
 
-- [IDEA-012](../jobs/IDEA-012.md) gains a `## Status` section pointing at this plan; its idea and
-  sketch stay as the original context.
-- `docs/jobs/README.md` links the IDEA-012 row to this plan, and item 3 of the rough order becomes
-  "plan and ship the async page contract before fetch and storage Phase 1" rather than "decide
-  before Phase 1".
-- [IDEA-002](../jobs/IDEA-002.md) and [IDEA-003](../jobs/IDEA-003.md) are untouched here. Their plan
+- IDEA-012 is closed: it moved to the closed table in [the job index](../../jobs/README.md#closed) and
+  its file was deleted into git history, following the IDEA-004 and ARCH-10 convention.
+- The rough order in `docs/jobs/README.md` no longer carries the async step, because it shipped;
+  fetch and storage is next.
+- [IDEA-002](../../jobs/IDEA-002.md) and [IDEA-003](../../jobs/IDEA-003.md) are untouched here. Their plan
   changes shape, not scope, and their job files already defer to it.
