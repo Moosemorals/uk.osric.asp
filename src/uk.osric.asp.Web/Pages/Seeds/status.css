@@ -1,3 +1,4 @@
+/* <% ctx.SetContentType("text/css; charset=utf-8"); ctx.SetHeader("Cache-Control", "no-cache"); %> */
 /* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
 /* SPDX-License-Identifier: MIT */
 
@@ -99,4 +100,3 @@
 .heat-3 { fill: #3b82f6; }
 .heat-4 { fill: #1d4ed8; }
 .heat-5 { fill: #1e3a8a; }
-<% ctx.SetContentType("text/css; charset=utf-8"); ctx.SetHeader("Cache-Control", "no-cache"); %>

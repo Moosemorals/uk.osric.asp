@@ -1,3 +1,4 @@
+// <% ctx.SetContentType("text/javascript; charset=utf-8"); ctx.SetHeader("Cache-Control", "no-cache"); %>
 /* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
 /* SPDX-License-Identifier: MIT */
 
@@ -323,4 +324,3 @@ if (root) {
         connect(root.dataset.activeRun, Number.parseInt(root.dataset.replayFrom ?? '0', 10));
     }
 }
-// <% ctx.SetContentType("text/javascript; charset=utf-8"); ctx.SetHeader("Cache-Control", "no-cache"); %>
