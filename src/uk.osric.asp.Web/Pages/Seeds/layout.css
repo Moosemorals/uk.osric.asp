@@ -19,21 +19,6 @@
     border: 0;
 }
 
-/* The first thing in the tab order, so a keyboard reader can pass the navigation. */
-.skip-link {
-    position: absolute;
-    left: 0;
-    top: 0;
-    transform: translateY(-200%);
-    padding: 0.5rem 1rem;
-    background: #fff;
-    color: #005fa3;
-}
-
-.skip-link:focus {
-    transform: translateY(0);
-}
-
 /* Markers removed by the rule below, so the role stays on the element to keep the semantics. */
 ul.diagnostics {
     list-style: none;

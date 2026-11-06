@@ -49,18 +49,15 @@ public sealed class ShellDocumentTests {
     }
 
     [Test]
-    public async Task ASkipLinkLeadsTheDocumentToTheMainLandmarkAsync() {
+    public async Task TheBodyOpensOnTheOnlyMainLandmarkAsync() {
         MarkupReader document = MarkupReader.Parse(await RenderAsync());
 
-        MarkupElement main = document.Elements("main").Single();
         MarkupElement body = document.Elements("body").Single();
-        MarkupElement first = body.Children[0];
+        MarkupElement main = document.Elements("main").Single();
 
         Assert.That(main.Attribute("id"), Is.EqualTo("main"));
-        Assert.That(first.Name, Is.EqualTo("a"));
-        Assert.That(first.HasClass("skip-link"), Is.True);
-        Assert.That(first.Attribute("href"), Is.EqualTo("#main"));
-        Assert.That(first.Text.Trim(), Is.Not.Empty);
+        Assert.That(body.Children, Has.Count.EqualTo(1));
+        Assert.That(body.Children[0].Name, Is.EqualTo("main"));
     }
 
     [Test]
@@ -99,7 +96,7 @@ public sealed class ShellDocumentTests {
 
         Assert.That(main.Children.Single().Name, Is.EqualTo("h1"));
         Assert.That(main.Children.Single().Text.Trim(), Is.EqualTo("Body"));
-        Assert.That(document.Elements("body").Single().Children, Has.Count.EqualTo(2));
+        Assert.That(document.Elements("body").Single().Children, Has.Count.EqualTo(1));
     }
 
     private static async Task<string> RenderAsync(

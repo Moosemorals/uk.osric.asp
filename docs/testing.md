@@ -56,8 +56,8 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   for every image and every `svg role="img"`. `MarkupReader` is a hand-written reader rather than a parser dependency,
   which is sound only because this repository encodes every value at the boundary — and is why it has
   to fail loudly when it meets something it does not expect. `ShellDocumentTests` covers the document
-  itself: the language, the title, the sheet order, the status, the cache header and the skip link
-  before `main`. **What a string cannot show** — the accessibility tree, tab order, focus visibility,
+  itself: the language, the title, the sheet order, the status, the cache header, and that `main` is
+  the body's only element. **What a string cannot show** — the accessibility tree, tab order, focus visibility,
   zoom and reflow, contrast, and how a chart is read aloud — is a written hand pass (DEC-110), with its
   findings recorded beside the plan.
 - **The execution budget** is tested in `Web.Tests` (`PageRendererTests` for the render deadline, the

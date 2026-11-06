@@ -5,10 +5,10 @@ namespace uk.osric.asp.Web.Html;
 
 using System.Net;
 
-/// <summary>Writes the document shell every non-page view shares: head, skip link and the open <c>main</c> landmark.</summary>
+/// <summary>Writes the document shell every non-page view shares: the head and the open <c>main</c> landmark.</summary>
 internal static class ShellDocument {
 
-    /// <summary>Starts a shell document: the head, the skip link and the open <c>main</c> landmark.</summary>
+    /// <summary>Starts a shell document: the head and the open <c>main</c> landmark.</summary>
     /// <param name="context">The response being written.</param>
     /// <param name="title">The document title, encoded here.</param>
     /// <param name="statusCode">The response status.</param>
@@ -16,10 +16,12 @@ internal static class ShellDocument {
     /// <param name="bodyClass">A class for <c>body</c>, when the view styles the document box.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <remarks>
-    /// One place owns the document, so a view cannot forget the landmark or the skip link, and
-    /// <c>#main</c> always exists. <c>/layout.css</c> is linked first: it carries the document's
-    /// shape, and <c>/site.css</c> and the view's own sheet come after it so a view can override a
-    /// structural rule without a more specific selector.
+    /// One place owns the document, so a view cannot forget the landmark, and <c>#main</c> always
+    /// exists. Nothing precedes it in the body, which is why there is no skip link: with no banner
+    /// or site navigation to pass, the link would target the element immediately after it
+    /// (DEC-121). <c>/layout.css</c> is linked first: it carries the document's shape, and
+    /// <c>/site.css</c> and the view's own sheet come after it so a view can override a structural
+    /// rule without a more specific selector.
     /// </remarks>
     public static Task BeginAsync(
         HttpContext context,
@@ -52,7 +54,6 @@ internal static class ShellDocument {
                 <link rel="icon" href="/rocket.svg" type="image/svg+xml">
             </head>
             <body{(bodyClass is null ? "" : $" class=\"{WebUtility.HtmlEncode(bodyClass)}\"")}>
-            <a class="skip-link" href="#main">Skip to main content</a>
             <main id="main">
             """, cancellationToken);
     }

@@ -158,16 +158,17 @@ Everything the site itself serves — the editor, the listing, sign-in, status, 
 the confirmations — is one document shape, written by `Html/ShellDocument.cs`. `BeginAsync` sets the
 content type, the status and `Cache-Control: no-store` (unless the response already carries a header,
 which is how a view that mints an antiforgery token keeps the framework's `no-cache, no-store`),
-writes the head (the title, `/layout.css`, `/site.css`, the
-view's own sheet where it has one, then the icon), writes the skip link and opens
-`<main id="main">`; `EndAsync` closes the landmark and the document. A view writes its own body
-content and nothing else, so the title, the landmark, the skip link and the sheet order cannot drift
-apart from one view to the next.
+writes the head (the title, `/layout.css`, `/site.css`, the view's own sheet where it has one, then
+the icon) and opens `<main id="main">`; `EndAsync` closes the landmark and the document. A view
+writes its own body content and nothing else, so the title, the landmark and the sheet order cannot
+drift apart from one view to the next.
 
-- The skip link is the first thing in the document and targets `#main`, which is the only `main` on
-  the page — one landmark per document, and the one thing a keyboard reader can jump to.
+- `main` is the body's only element, so there is no skip link: with nothing before it to pass, the
+  link would target the element immediately after it. It comes back with the site navigation it
+  would skip, and that navigation has to account for stored pages, so it is a product decision
+  rather than markup (DEC-121).
 - `/layout.css` is a seeded page and is linked **first** (DEC-116). It holds the document's shape —
-  the skip link, the visually hidden utility, the listing and the form grid. `site.css` owns look and
+  the visually hidden utility, the listing and the form grid. `site.css` owns look and
   comes next, and the view's own sheet is last, so either can override a structural rule without a
   more specific selector. The owner restores a stale seeded sheet from `/admin`.
 - `PageLayout` keeps the fragments: `Gutter`, `Diagnostics` (a `ul` with `role="list"`, DEC-108) and
