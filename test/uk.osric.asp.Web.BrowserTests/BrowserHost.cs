@@ -66,9 +66,15 @@ internal sealed class BrowserHost : IAsyncDisposable {
 
         BrowserHost started = await StartAsync(new BrowserHostSettings());
         lock (s_gate) {
-            s_shared ??= started;
-            return s_shared;
+            if (s_shared is null) {
+                s_shared = started;
+                return s_shared;
+            }
         }
+
+        // Another caller won the race; this one's process would otherwise run on unowned.
+        await started.DisposeAsync();
+        return s_shared;
     }
 
     /// <summary>Stops the shared host, which the suite owns.</summary>
