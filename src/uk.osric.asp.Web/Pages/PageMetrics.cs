@@ -69,6 +69,33 @@ internal sealed class PageMetrics : IDisposable {
     public const string ReasonSave = "save";
     public const string ReasonLazy = "lazy";
 
+    /// <summary>The fetch completed with a 2xx.</summary>
+    public const string FetchOk = "ok";
+
+    /// <summary>The remote server answered 4xx or 5xx.</summary>
+    public const string FetchHttpError = "http-error";
+
+    /// <summary>The host is not on the operator's allow-list.</summary>
+    public const string FetchNotAllowed = "not-allowed";
+
+    /// <summary>The per-fetch timeout or the render's deadline fired.</summary>
+    public const string FetchTimeout = "timeout";
+
+    /// <summary>DNS, connect, TLS or protocol failure.</summary>
+    public const string FetchNetwork = "network";
+
+    /// <summary>The URL, method, body or a header was not acceptable.</summary>
+    public const string FetchInvalid = "invalid";
+
+    /// <summary>The render had already made as many requests as it may.</summary>
+    public const string FetchLimit = "limit";
+
+    /// <summary>The redirect limit was reached.</summary>
+    public const string FetchRedirectLimit = "redirect-limit";
+
+    /// <summary>The visitor left, or the render was abandoned.</summary>
+    public const string FetchAborted = "aborted";
+
     public const string StaleNeverCompiled = "never-compiled";
     public const string StaleTemplateChanged = "template-changed";
     public const string StaleRuntimeChanged = "runtime-changed";
@@ -84,6 +111,7 @@ internal sealed class PageMetrics : IDisposable {
     private readonly Counter<long> _cacheLookups;
     private readonly Counter<long> _staleness;
     private readonly Histogram<long> _imageSize;
+    private readonly Histogram<double> _fetchDuration;
     private StorageSizes? _storage;
 
     public PageMetrics() {
@@ -109,6 +137,8 @@ internal sealed class PageMetrics : IDisposable {
             "page.cache.staleness", null, "Why a stored compiled image was not reused.");
         _imageSize = _meter.CreateHistogram<long>(
             "page.image.size", "By", "Size of an emitted page assembly.");
+        _fetchDuration = _meter.CreateHistogram<double>(
+            "page.fetch.duration", "s", "Time one outbound fetch took, including its redirects.");
         _meter.CreateObservableGauge<long>("page.storage.payload.size",
             () => ObserveStorage(value => value.Payload), "By",
             "Logical PageRevisions TEXT bytes and image/symbol blob bytes, plus PageState key and value bytes; excludes indexes and SQLite overhead.");
@@ -207,6 +237,19 @@ internal sealed class PageMetrics : IDisposable {
         };
 
         _staleness.Add(1, tags);
+    }
+
+    /// <summary>Records one outbound fetch.</summary>
+    /// <param name="path">The page that made it.</param>
+    /// <param name="outcome">One of the <c>Fetch*</c> values.</param>
+    /// <param name="duration">How long it took, including any redirect hops.</param>
+    public void RecordFetch(PagePath path, string outcome, TimeSpan duration) {
+        TagList tags = new() {
+            { "page.path", path.Key },
+            { "outcome", outcome },
+        };
+
+        _fetchDuration.Record(duration.TotalSeconds, tags);
     }
 
     public void RecordImageSize(PagePath path, int bytes) {

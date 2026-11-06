@@ -20,12 +20,24 @@ public sealed class PageEndpointTests {
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
     private static readonly RenderOptions Options = new();
     private static readonly PageStorageOptions StorageOptions = new();
+    private static readonly PageFetchOptions FetchOptions = new();
     private readonly RecordingCompiler _compiler = new(new PageCompiler());
     private readonly PageMetrics _metrics = new();
 
     [TearDown]
     public void StopMetrics() {
         _metrics.Dispose();
+    }
+
+    private PageEnvironment EndpointEnvironment(RenderOptions? render = null) {
+        return new PageEnvironment(
+            Reserved,
+            render ?? Options,
+            StorageOptions,
+            FetchOptions,
+            new FakePageStateStore(),
+            new FakePageFetcher(),
+            _metrics);
     }
 
     [TestCase(null, "/", "/")]
@@ -36,7 +48,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext(path, "GET", requestPath);
         FakePageStore storage = new();
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/plain; charset=utf-8"));
@@ -57,7 +69,7 @@ public sealed class PageEndpointTests {
         context.Request.QueryString = new QueryString(query);
         FakePageStore storage = new();
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(308));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(expectedLocation));
@@ -75,7 +87,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage[PagePath.Normalize(path).Key] = new PageTemplate(PagePath.Normalize(path), "should not be served");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
         Assert.That(context.Response.Headers.Location, Is.Empty);
@@ -90,7 +102,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello.");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(storage.LastReadPath?.Key, Is.EqualTo("/hello.cs"));
@@ -105,7 +117,7 @@ public sealed class PageEndpointTests {
             "<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
         InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher()));
+            PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment()));
 
         Assert.That(failure?.Message, Is.EqualTo("Template executed."));
         Assert.That(storage.LastReadPath?.Key, Is.EqualTo("/pages/hello.cs"));
@@ -118,7 +130,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, <% ctx.Write(\"world\"); %>!");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
@@ -133,7 +145,7 @@ public sealed class PageEndpointTests {
             PagePath.Normalize("/hello.cs"),
             "<p><%= \"<tag>&\" %>|<%== \"<tag>&\" %></p>");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("<p>&lt;tag&gt;&amp;|<tag>&</p>"));
@@ -146,7 +158,7 @@ public sealed class PageEndpointTests {
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "<% ctx.Log(\"from the page\"); %>");
         RecordingLoggerFactory logs = new();
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), logs, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), logs, EndpointEnvironment());
 
         Assert.That(logs.Entries, Has.Count.EqualTo(1));
         Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages"));
@@ -162,7 +174,7 @@ public sealed class PageEndpointTests {
         foreach (string path in new[] { "one", "two", "three", "four.cs" }) {
             DefaultHttpContext context = TestHttp.CreateContext(path, "GET", "/" + path);
 
-            await PageEndpoint.HandleAsync(context, CreatePages(storage), logs, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+            await PageEndpoint.HandleAsync(context, CreatePages(storage), logs, EndpointEnvironment());
         }
 
         Assert.That(logs.Categories, Is.All.EqualTo("uk.osric.asp.Pages"));
@@ -179,7 +191,7 @@ public sealed class PageEndpointTests {
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello.", compilation);
         int compiles = _compiler.CompileCount;
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("Hello."));
         Assert.That(_compiler.CompileCount, Is.EqualTo(compiles));
@@ -191,7 +203,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/broken.cs"] = new PageTemplate(PagePath.Normalize("/broken.cs"), "<% int value = ; %>");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(500));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("Handler failed to compile.").And.Contain("error CS"));
@@ -204,7 +216,7 @@ public sealed class PageEndpointTests {
         storage["/broken.cs"] = new PageTemplate(
             PagePath.Normalize("/broken.cs"), "<% int value = new System.Collections.Generic.List<int>(); %>");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(500));
@@ -218,7 +230,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new() { Failure = new InvalidOperationException("Storage unavailable.") };
 
         InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher()));
+            PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment()));
 
         Assert.That(thrown?.Message, Is.EqualTo("Storage unavailable."));
     }
@@ -232,7 +244,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
 
         await Assert.CatchAsync<OperationCanceledException>(() =>
-            PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher()));
+            PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment()));
 
         Assert.That(storage.ReadCount, Is.Zero);
     }
@@ -243,7 +255,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/favicon.ico"] = new PageTemplate(PagePath.Normalize("/favicon.ico"), "hijacked");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("/favicon.ico not found."));
@@ -257,7 +269,7 @@ public sealed class PageEndpointTests {
         storage["/status.cs"] = new PageTemplate(PagePath.Normalize("/status.cs"),
             "<% ctx.SetStatus(201); ctx.SetHeader(\"X-Page\", \"yes\"); ctx.Write(\"done\"); %>");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(201));
         Assert.That(context.Response.Headers["X-Page"].ToString(), Is.EqualTo("yes"));
@@ -274,7 +286,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/moved.cs"] = new PageTemplate(PagePath.Normalize("/moved.cs"), $"<% ctx.Redirect(\"{location}\"); %>");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(302));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(location));
@@ -293,7 +305,7 @@ public sealed class PageEndpointTests {
         storage["/form.cs"] = new PageTemplate(PagePath.Normalize("/form.cs"),
             "<% ctx.Write($\"{ctx.Request.Form[\"name\"]}/{ctx.Request.Form[\"repeat\"]}\"); %>");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("Osric/first"));
     }
@@ -304,7 +316,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, world!");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentLength, Is.EqualTo(Encoding.UTF8.GetByteCount("Hello, world!")));
@@ -319,7 +331,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), body);
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.ContentLength, Is.EqualTo(Encoding.UTF8.GetByteCount(body)));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo(method == "HEAD" ? string.Empty : body));
@@ -332,12 +344,12 @@ public sealed class PageEndpointTests {
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, world!");
         DefaultHttpContext initial = TestHttp.CreateContext("hello.cs", method, "/hello.cs");
 
-        await PageEndpoint.HandleAsync(initial, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(initial, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         DefaultHttpContext conditional = TestHttp.CreateContext("hello.cs", method, "/hello.cs");
         conditional.Request.Headers.IfNoneMatch = initial.Response.Headers.ETag;
 
-        await PageEndpoint.HandleAsync(conditional, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(conditional, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(conditional.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
         Assert.That(conditional.Response.Headers.ETag, Is.EqualTo(initial.Response.Headers.ETag));
@@ -351,7 +363,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, world!");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("Hello, world!"));
@@ -364,7 +376,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, world!");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
@@ -376,7 +388,7 @@ public sealed class PageEndpointTests {
         context.Request.ContentLength = 2 * 1024 * 1024;
         FakePageStore storage = new();
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(413));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("too large"));
@@ -395,7 +407,7 @@ public sealed class PageEndpointTests {
         RenderOptions options = new() { TimeoutSeconds = 1 };
 
         long start = Stopwatch.GetTimestamp();
-        await PageEndpoint.HandleAsync(context, CreatePages(storage, options), NullLoggerFactory.Instance, Reserved, options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage, options), NullLoggerFactory.Instance, EndpointEnvironment(options));
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(504));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/plain; charset=utf-8"));
@@ -411,7 +423,7 @@ public sealed class PageEndpointTests {
         RenderOptions options = new() { MaxBodyChars = 5 };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            PageEndpoint.HandleAsync(context, CreatePages(storage, options), NullLoggerFactory.Instance, Reserved, options, StorageOptions, new FakePageStateStore(), new FakePageFetcher()));
+            PageEndpoint.HandleAsync(context, CreatePages(storage, options), NullLoggerFactory.Instance, EndpointEnvironment(options)));
     }
 
     [Test]
@@ -420,7 +432,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello.");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(413));
     }
@@ -432,7 +444,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello.");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(400));
     }
@@ -444,7 +456,7 @@ public sealed class PageEndpointTests {
         storage["/hello.cs"] = new PageTemplate(
             PagePath.Normalize("/hello.cs"), "<% ctx.Write(ctx.Request.Form[\"field\"]); %>");
 
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options, StorageOptions, new FakePageStateStore(), new FakePageFetcher());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("hello"));

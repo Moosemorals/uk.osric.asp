@@ -192,11 +192,14 @@ internal static class ShellViews {
             context,
             pages.Renderer,
             NullLoggerFactory.Instance,
-            Reserved,
-            new RenderOptions(),
-            new PageStorageOptions(),
-            new FakePageStateStore(),
-            new FakePageFetcher());
+            new PageEnvironment(
+                Reserved,
+                new RenderOptions(),
+                new PageStorageOptions(),
+                new PageFetchOptions(),
+                new FakePageStateStore(),
+                new FakePageFetcher(),
+                new PageMetrics()));
 
         return await TestHttp.ReadBodyAsync(context);
     }

@@ -219,6 +219,10 @@ public sealed class SimpleContextTests {
         Assert.That(logs.Entries[0].Message, Is.EqualTo("broken"));
     }
 
+    // One metrics instance per context would leak meters, so the context tests share one and never
+    // assert on it.
+    private static readonly PageMetrics s_metrics = new();
+
     // A page-level store over an empty one, which is what the endpoint builds for a page.
     private static PageStorageScope StorageFor(string path) {
         return new PageStorageScope(
@@ -233,7 +237,9 @@ public sealed class SimpleContextTests {
             CancellationToken.None,
             output,
             StorageFor("/page"),
-            DisabledPageFetcher.Instance);
+            new FakePageFetcher(),
+            new PageFetchOptions(),
+            s_metrics);
     }
 
     private static SimpleContext CreateContext(string path, out RecordingLoggerFactory logs) {
@@ -244,6 +250,8 @@ public sealed class SimpleContextTests {
             CancellationToken.None,
             new StringWriter(),
             StorageFor("/page"),
-            DisabledPageFetcher.Instance);
+            new FakePageFetcher(),
+            new PageFetchOptions(),
+            s_metrics);
     }
 }

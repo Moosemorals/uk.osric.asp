@@ -10,6 +10,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
+using System.Net;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
@@ -97,7 +98,24 @@ internal class Program {
         builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton(PageStorageOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
-        builder.Services.AddSingleton<IPageFetcher, DisabledPageFetcher>();
+        builder.Services.AddSingleton(PageFetchOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddHttpClient(PageFetcher.ClientName)
+            .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
+                UseCookies = false,
+                AllowAutoRedirect = false,
+                AutomaticDecompression = DecompressionMethods.All,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            });
+        builder.Services.AddSingleton<IPageFetcher, PageFetcher>();
+        builder.Services.AddSingleton<PageEnvironment>(services => new PageEnvironment(
+            services.GetRequiredService<ReservedPaths>(),
+            services.GetRequiredService<RenderOptions>(),
+            services.GetRequiredService<PageStorageOptions>(),
+            services.GetRequiredService<PageFetchOptions>(),
+            services.GetRequiredService<IPageStateStore>(),
+            services.GetRequiredService<IPageFetcher>(),
+            services.GetRequiredService<PageMetrics>()));
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         builder.Services.AddScoped<IPageStore, SqlitePageStore>();
@@ -159,6 +177,7 @@ internal class Program {
             .AddView("page.load.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.invoke.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.fetch.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.image.size", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.ImageBuckets })
             .AddView("assistant.run.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("assistant.provider.first_token.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })

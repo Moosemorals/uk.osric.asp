@@ -14,10 +14,17 @@ internal interface IPageFetcher {
     /// <summary>Makes one bounded outbound request.</summary>
     /// <param name="request">The page's request.</param>
     /// <param name="pagePath">The page's key, for the metric and log tags.</param>
-    /// <param name="cancellationToken">Already combines the request's abort token and the render deadline.</param>
+    /// <param name="aborted">Cancelled when the visitor went away.</param>
+    /// <param name="deadline">Cancelled when the render's budget ran out.</param>
     /// <returns>The response; a failure is reported in the value, not thrown.</returns>
+    /// <remarks>
+    /// The two tokens travel separately rather than linked, because a refusal has to say which one
+    /// fired: the visitor leaving is <see cref="PageFetchFailure.Aborted"/>, and the render running
+    /// out of budget is <see cref="PageFetchFailure.Timeout"/>.
+    /// </remarks>
     Task<PageFetchResponse> FetchAsync(
         PageFetchRequest request,
         string pagePath,
-        CancellationToken cancellationToken);
+        CancellationToken aborted,
+        CancellationToken deadline);
 }

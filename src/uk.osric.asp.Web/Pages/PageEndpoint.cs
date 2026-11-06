@@ -25,11 +25,7 @@ internal sealed class PageEndpoint() {
         HttpContext context,
         PageRenderer pages,
         ILoggerFactory loggerFactory,
-        ReservedPaths reserved,
-        RenderOptions renderOptions,
-        PageStorageOptions storageOptions,
-        IPageStateStore stateStore,
-        IPageFetcher fetcher) {
+        PageEnvironment environment) {
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
 
@@ -49,7 +45,7 @@ internal sealed class PageEndpoint() {
 
         // A page that appeared by another route - a direct database write, an import - must not be
         // half-served for a key the site's own routing already answers for.
-        if (reserved.IsReserved(path)) {
+        if (environment.Reserved.IsReserved(path)) {
             await NotFound.WriteAsync(context, path);
             return;
         }
@@ -79,15 +75,21 @@ internal sealed class PageEndpoint() {
 
         // A HEAD request runs the page to produce the representation and its validators, so its state
         // is readable but never written.
-        PageStorageScope storage = new(path, stateStore, storageOptions, writable: !HttpMethods.IsHead(context.Request.Method));
+        PageStorageScope storage = new(
+            path,
+            environment.StateStore,
+            environment.Storage,
+            writable: !HttpMethods.IsHead(context.Request.Method));
         SimpleContext page = new(
             loggerFactory,
             snapshot,
             context.RequestAborted,
             output,
             storage,
-            fetcher,
-            renderOptions.MaxBodyChars);
+            environment.Fetcher,
+            environment.Fetch,
+            environment.Metrics,
+            environment.Render.MaxBodyChars);
 
         RenderResult result = await pages.RenderAsync(path, page, context.RequestAborted);
 

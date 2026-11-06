@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Pages;
 
 using System.Net;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Http;
 
@@ -43,8 +44,10 @@ internal sealed class SimpleContext : IContext {
     private readonly IRenderBoundPageStorage? _boundStorage;
     private readonly Lock _body = new();
     private readonly IPageFetcher _fetcher;
+    private readonly PageFetchOptions _fetchOptions;
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger _logger;
+    private readonly PageMetrics _metrics;
     private readonly int _maxBodyChars;
     private readonly PageRequest _request;
     private readonly IPageStorage _storage;
@@ -60,6 +63,7 @@ internal sealed class SimpleContext : IContext {
     private string _contentType = PageResponse.Default.ContentType;
     private string? _location;
     private int _status = PageResponse.Default.Status;
+    private int _fetches;
     private int _written;
 
     /// <summary>Creates the context a page runs against.</summary>
@@ -69,6 +73,8 @@ internal sealed class SimpleContext : IContext {
     /// <param name="writer">The buffer the body is written to.</param>
     /// <param name="storage">The page's own key/value store.</param>
     /// <param name="fetcher">Where an outbound fetch goes.</param>
+    /// <param name="fetchOptions">How many requests this render may make.</param>
+    /// <param name="metrics">Where a refusal this context makes is recorded.</param>
     /// <param name="maxBodyChars">How much body the page may write before it is refused.</param>
     public SimpleContext(
         ILoggerFactory loggerFactory,
@@ -77,12 +83,16 @@ internal sealed class SimpleContext : IContext {
         TextWriter writer,
         IPageStorage storage,
         IPageFetcher fetcher,
+        PageFetchOptions fetchOptions,
+        PageMetrics metrics,
         int maxBodyChars = RenderOptions.DefaultMaxBodyChars) {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(fetcher);
+        ArgumentNullException.ThrowIfNull(fetchOptions);
+        ArgumentNullException.ThrowIfNull(metrics);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxBodyChars, 1);
 
         // The path is canonical here: PageEndpoint redirects anything else before building a context.
@@ -91,6 +101,8 @@ internal sealed class SimpleContext : IContext {
         _request = request;
         Aborted = aborted;
         _fetcher = fetcher;
+        _fetchOptions = fetchOptions;
+        _metrics = metrics;
         _storage = storage;
         _boundStorage = storage as IRenderBoundPageStorage;
         _writer = writer;
@@ -236,7 +248,31 @@ internal sealed class SimpleContext : IContext {
             throw new InvalidOperationException($"The render of {Path} was abandoned; it cannot fetch.");
         }
 
-        return _fetcher.FetchAsync(request, Path, Cancellation());
+        // A HEAD runs to produce the representation and its validators, so a POST would mutate a
+        // remote system once per validator.
+        if (request.Method == PageFetchMethod.Post && IsHead) {
+            return RefuseFetch(PageMetrics.FetchInvalid, "a POST during a HEAD request");
+        }
+
+        if (_fetches >= _fetchOptions.MaxRequestsPerRender) {
+            return RefuseFetch(PageMetrics.FetchLimit, $"more than {_fetchOptions.MaxRequestsPerRender} requests");
+        }
+
+        _fetches++;
+
+        return _fetcher.FetchAsync(request, Path, Aborted, Deadline());
+    }
+
+    private Task<PageFetchResponse> RefuseFetch(string outcome, string why) {
+        _metrics.RecordFetch(PagePath.Normalize(Path), outcome, TimeSpan.Zero);
+        _logger.LogWarning("Page {Path} was refused a fetch for {Reason}", Path, why);
+
+        return Task.FromResult(new PageFetchResponse(
+            0,
+            new Dictionary<string, string>(),
+            string.Empty,
+            outcome == PageMetrics.FetchLimit ? PageFetchFailure.TooManyRequests : PageFetchFailure.InvalidRequest,
+            false));
     }
 
     /// <inheritdoc/>
@@ -251,13 +287,11 @@ internal sealed class SimpleContext : IContext {
         _location = location;
     }
 
-    // The request's abort token and the render's deadline, linked per call rather than passed in by
-    // the page: DEC-123 keeps every I/O member on IContext tokenless.
-    private CancellationToken Cancellation() {
-        return _deadline.CanBeCanceled
-            ? CancellationTokenSource.CreateLinkedTokenSource(Aborted, _deadline).Token
-            : Aborted;
-    }
+    // The render's deadline, passed to the fetcher separately from the abort token so a refusal can
+    // say which one fired. DEC-123 keeps every I/O member on IContext tokenless.
+    private CancellationToken Deadline() => _deadline;
+
+    private bool IsHead => string.Equals(_request.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsAllowed(string name) {
         // The X- wildcard would otherwise reach the shell's own X-Content-Type-Options and friends,

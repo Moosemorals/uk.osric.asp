@@ -20,15 +20,19 @@ internal sealed class FakePageFetcher(Func<PageFetchRequest, PageFetchResponse>?
 
     public string? LastPagePath { get; private set; }
 
-    public CancellationToken LastCancellationToken { get; private set; }
+    public CancellationToken LastAborted { get; private set; }
+
+    public CancellationToken LastDeadline { get; private set; }
 
     public Task<PageFetchResponse> FetchAsync(
         PageFetchRequest request,
         string pagePath,
-        CancellationToken cancellationToken) {
+        CancellationToken aborted,
+        CancellationToken deadline) {
         Requests.Add(request);
         LastPagePath = pagePath;
-        LastCancellationToken = cancellationToken;
+        LastAborted = aborted;
+        LastDeadline = deadline;
 
         return Task.FromResult(_answer(request));
     }

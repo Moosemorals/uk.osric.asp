@@ -27,10 +27,12 @@ internal sealed class PageHarness : IDisposable {
         FakePageStateStore? state = null,
         FakePageFetcher? fetch = null,
         PageStorageOptions? storageOptions = null,
-        ILogger<PageRenderer>? rendererLogger = null) {
+        ILogger<PageRenderer>? rendererLogger = null,
+        PageFetchOptions? fetchOptions = null) {
         State = state ?? new FakePageStateStore();
         Fetch = fetch ?? new FakePageFetcher();
         StorageOptions = storageOptions ?? new PageStorageOptions();
+        FetchOptions = fetchOptions ?? new PageFetchOptions();
         Options = options ?? new RenderOptions();
         Budget = budget ?? new PageBudget(Options, new CompileOptions());
         Health = health ?? new PageHealth(Options.AbandonedLimit);
@@ -58,6 +60,8 @@ internal sealed class PageHarness : IDisposable {
     public FakePageFetcher Fetch { get; }
 
     public PageStorageOptions StorageOptions { get; }
+
+    public PageFetchOptions FetchOptions { get; }
 
     public PageBudget Budget { get; }
 
@@ -92,11 +96,13 @@ internal sealed class PageHarness : IDisposable {
         PagePath key = Key(path);
         SimpleContext context = new(
             NullLoggerFactory.Instance,
-            TestHttp.Request(key.Key),
+            TestHttp.Request(key.Key, isHead ? "HEAD" : "GET"),
             CancellationToken.None,
             new StringWriter(),
             new PageStorageScope(key, State, StorageOptions, writable: !isHead),
             Fetch,
+            FetchOptions,
+            Metrics,
             maxBodyChars);
 
         RenderResult result = await Renderer.RenderAsync(key, context, CancellationToken.None);
