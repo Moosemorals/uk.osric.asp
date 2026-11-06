@@ -401,7 +401,10 @@ message is a pure `Core` helper and is tested independently.
 - Body: `model`, `messages`, `stream: true`, `tools`, `tool_choice: "auto"`, `temperature`,
   `max_tokens`. `stream_options.include_usage` is requested when `Assistant:IncludeUsage` is true.
 - `HttpClient.Timeout = Timeout.InfiniteTimeSpan`; a per-request linked cancellation token carries
-  `Assistant:RequestTimeoutSeconds`. `HttpCompletionOption.ResponseHeadersRead` is mandatory.
+  `Assistant:RequestTimeoutSeconds`, which is a **silence** deadline rather than a total one: it is
+  re-armed for every event the provider sends, so a model that reasons for minutes is not cut off,
+  and only a stalled stream ends with `provider_timeout`. `Assistant:RunTimeoutSeconds` remains the
+  hard ceiling for the whole run. `HttpCompletionOption.ResponseHeadersRead` is mandatory.
 - The API key is added per request, never on a shared default header, so it cannot be captured by
   client-wide logging or a redirect.
 
@@ -944,7 +947,7 @@ Add an `Assistant` section to `appsettings.json` with defaults and **no key**:
 | `MaxActiveRuns` | `2` | Runs executing at once |
 | `MaxQueuedRuns` | `8` | Bounded queue depth; over it is `429` |
 | `RunTimeoutSeconds` | `600` | Whole run |
-| `RequestTimeoutSeconds` | `300` | One provider request |
+| `RequestTimeoutSeconds` | `300` | Silence allowed inside one provider request |
 | `ToolTimeoutSeconds` | `30` | One tool call; page compiles also obey the compile budget |
 | `MaxProviderRetries` | `1` | Retries before the first delta, 429/5xx only |
 | `MaxMessageChars` | `16384` | User message |

@@ -225,10 +225,16 @@ if (root) {
             const data = JSON.parse(event.data);
             statusLine.textContent = data.message;
         });
-        for (const terminal of ['run.completed', 'run.failed', 'run.cancelled']) {
-            source.addEventListener(terminal, () => {
+        source.addEventListener('run.completed', () => {
+            source.close();
+            statusLine.textContent = 'Response complete';
+            location.reload();
+        });
+        for (const [terminal, message] of [['run.failed', 'The run stopped'], ['run.cancelled', 'The run was stopped']]) {
+            source.addEventListener(terminal, event => {
+                const data = JSON.parse(event.data);
                 source.close();
-                statusLine.textContent = 'Response complete';
+                statusLine.textContent = data.message ? `${message}: ${data.message}` : message;
                 location.reload();
             });
         }

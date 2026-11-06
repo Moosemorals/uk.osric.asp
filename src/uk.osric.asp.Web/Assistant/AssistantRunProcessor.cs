@@ -138,7 +138,10 @@ internal sealed class AssistantRunProcessor(
                 }
 
                 if (response.ToolCalls.Count == 0) {
-                    await PersistAssistantAsync(queued, stream, step, response, "complete", includeToolCalls: false, runTimeout.Token);
+                    // A message that stopped at the token limit is stored as truncated, so the reason
+                    // survives the reload that the warning in the status line does not.
+                    string status = response.FinishReason == "length" ? "truncated" : "complete";
+                    await PersistAssistantAsync(queued, stream, step, response, status, includeToolCalls: false, runTimeout.Token);
                     partial = null;
                     await CompleteAsync(queued, stream, step, response);
                     return;

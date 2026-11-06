@@ -254,6 +254,27 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
             : null;
     }
 
+    public async Task<AssistantRun?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+
+        bool owned = await database.Set<AssistantConversation>().AnyAsync(
+            conversation => conversation.Id == id && conversation.Owner == owner,
+            cancellationToken);
+        if (!owned) {
+            return null;
+        }
+
+        // SQLite cannot order by a DateTimeOffset, and a conversation has a handful of runs, so the
+        // newest is picked here rather than in the query.
+        IReadOnlyList<AssistantRun> runs = await database.Set<AssistantRun>().AsNoTracking()
+            .Where(run => run.ConversationId == id)
+            .ToArrayAsync(cancellationToken);
+        return runs
+            .OrderByDescending(run => run.CreatedAt)
+            .ThenByDescending(run => run.Id, StringComparer.Ordinal)
+            .FirstOrDefault();
+    }
+
     public async Task<AssistantRun?> GetRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);

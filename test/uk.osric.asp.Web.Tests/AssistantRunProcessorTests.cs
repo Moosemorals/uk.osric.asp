@@ -87,6 +87,42 @@ public sealed class AssistantRunProcessorTests {
     }
 
     [Test]
+    public async Task AMessageStoppedAtTheTokenLimitIsStoredAsTruncatedAsync() {
+        ScriptedClient client = new([
+            new AssistantContentDelta("Half an ans"),
+            new AssistantFinished("length"),
+        ]);
+        (AssistantConversation conversation, AssistantRunStartResult started, _, AssistantRunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new AssistantQueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IAssistantConversationStore store = scope.ServiceProvider.GetRequiredService<IAssistantConversationStore>();
+        IReadOnlyList<AssistantMessage> messages = await store.GetMessagesAsync(conversation.Id, "owner");
+        Assert.That(messages[^1].Status, Is.EqualTo("truncated"));
+    }
+
+    [Test]
+    public async Task AProviderThatStopsSendingFailsTheRunWithItsOwnCodeAsync() {
+        ScriptedClient client = new([new AssistantContentDelta("Starting")],
+            new AssistantProviderException("provider_timeout", "The provider stopped sending before the answer was complete."));
+        (AssistantConversation conversation, AssistantRunStartResult started, _, AssistantRunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new AssistantQueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IAssistantConversationStore store = scope.ServiceProvider.GetRequiredService<IAssistantConversationStore>();
+        AssistantRun? run = await store.GetLastRunAsync(conversation.Id, "owner");
+        Assert.Multiple(() => {
+            Assert.That(run?.Status, Is.EqualTo("failed"));
+            Assert.That(run?.ErrorCode, Is.EqualTo("provider_timeout"));
+            Assert.That(run?.ErrorMessage, Does.Contain("stopped sending"));
+        });
+    }
+
+    [Test]
     public async Task AToolNameTheProviderInventedBecomesOneMetricLabelAsync() {
         ScriptedClient client = new([
             new AssistantToolCallDelta(0, "call-1", "make_up_a_tool", "{}"),

@@ -93,6 +93,7 @@ internal static class AssistantEndpoint {
 
         IReadOnlyList<AssistantMessage> messages = await conversations.GetMessagesAsync(id, owner!, context.RequestAborted);
         AssistantRun? activeRun = await conversations.GetActiveRunAsync(id, owner!, context.RequestAborted);
+        AssistantRun? lastRun = activeRun ?? await conversations.GetLastRunAsync(id, owner!, context.RequestAborted);
         AssistantRunStream? activeStream = activeRun is null ? null : registry.Find(activeRun.Id);
         bool replaying = activeStream?.CanReplayFrom(0) == true;
         long replayFrom = replaying ? 0 : activeStream?.LastSequence ?? 0;
@@ -159,6 +160,7 @@ internal static class AssistantEndpoint {
             await WriteMessageAsync(context, message, calls);
         }
         await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
+        await WriteStoppedRunAsync(context, lastRun);
         await context.Response.WriteAsync($"""
                     </section>
                 </fieldset>
@@ -460,7 +462,7 @@ internal static class AssistantEndpoint {
                 await context.Response.WriteAsync($"<pre class=\"assistant-content\">{Encode(message.Content)}</pre>");
             }
             if (message.Status != "complete") {
-                await context.Response.WriteAsync($"<p>{Encode(message.Status)}</p>");
+                await context.Response.WriteAsync($"<p class=\"assistant-incomplete\">{Encode(Describe(message.Status))}</p>");
             }
             await context.Response.WriteAsync("</article>");
             return;
@@ -504,6 +506,28 @@ internal static class AssistantEndpoint {
         }
         await context.Response.WriteAsync("</section>");
     }
+
+    // The run's own message is written by the host and is safe to show; a bare status word is not
+    // an explanation, and a reader who reloads otherwise has no way to know why an answer stopped.
+    private static async Task WriteStoppedRunAsync(HttpContext context, AssistantRun? run) {
+        if (run is null || run.ErrorMessage is null) {
+            return;
+        }
+        if (run.Status is not ("failed" or "interrupted")) {
+            return;
+        }
+
+        // The message is a sentence this host wrote, never provider text, so it is quoted whole.
+        await context.Response.WriteAsync($"<p class=\"assistant-run-error\">{Encode(run.ErrorMessage)}</p>");
+    }
+
+    private static string Describe(string status) => status switch {
+        "truncated" => "This answer reached the provider's token limit, so it is incomplete.",
+        "failed" => "This answer stopped before it finished.",
+        "cancelled" => "This answer was stopped.",
+        "interrupted" => "The host restarted before this answer finished.",
+        _ => status,
+    };
 
     private static Dictionary<string, (string Name, string Arguments)> ReadToolCalls(IEnumerable<AssistantMessage> messages) {
         Dictionary<string, (string Name, string Arguments)> calls = new(StringComparer.Ordinal);

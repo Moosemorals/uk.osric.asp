@@ -22,6 +22,7 @@ every status below was checked against the code on 2026-11-06.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
+| [BUG-17](BUG-17.md) | Medium | M | A long think loses the answer, and the page cannot say why |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore action |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |

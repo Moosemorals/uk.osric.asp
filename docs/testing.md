@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 Work test-first. Write the failing test, make it pass, then refactor — the refactor step is where the
 core stays pure and the shell stays thin.
 
-## The four suites
+## The five suites
 
 | Project | Tool | Scope | Speed |
 | --- | --- | --- | --- |
@@ -16,6 +16,7 @@ core stays pure and the shell stays thin.
 | `test/uk.osric.asp.Runtime.Tests` | NUnit | The page compiler: emit, load and run | Milliseconds to seconds |
 | `test/uk.osric.asp.Web.Tests` | NUnit | The endpoints and storage of the web shell | Milliseconds to seconds |
 | `test/uk.osric.asp.Web.IntegrationTests` | NUnit + `WebApplicationFactory` | The composed pipeline: routing, middleware, error handling, startup | Seconds |
+| `test/uk.osric.asp.Web.BrowserTests` | NUnit + Playwright | The real host driven in Firefox: the shell pages and the assistant | Seconds to a minute |
 
 - **Core tests** cover one rule at a time and exercise `Core` directly. `Sdk` has no suite of its
 own: it is five declarations with documentation and no behaviour, and what depends on it is asserted
@@ -103,18 +104,47 @@ Every test is an NUnit test. Assert the behaviour, not the method, and keep one 
 ```bash
 make check             # the gate: formatting, licences, package audit, all four suites, Release publish
 make ci                # the same from `make clean`, plus "the build wrote no tracked file"
-make test              # all four suites; no browser needed for the assertions they make
+make test              # the four suites that need no browser
 make test-core         # core tests only
 make test-runtime      # runtime tests only
 make test-web          # web tests only
 make test-integration  # the composed pipeline only, against a throwaway database
+make browsers          # download the Firefox build the browser suite drives, once
+make test-browser      # the real host in Firefox, with a scripted provider
+make test-browser-live # the tests that call the configured provider and cost tokens
 ```
 
-**No browser needed** covers what the suites assert, not everything the editor does. Alignment of the
-gutter numbers with the text rows, the native resize handle, the caret coming back after a save and a
-clean console under the policy are browser behaviour: the modules are seeded pages, and no assertion
-here can prove them. They are checked by hand against [the plan](plans/editor-line-gutter.md#verification)
-until the Playwright suite that plan describes gets its own job and make target.
+**No browser needed** covers what the four suites assert, not everything the site does. Alignment of
+the gutter numbers with the text rows, the native resize handle, the caret coming back after a save, a
+clean console under the policy and an answer that arrives one delta at a time are browser behaviour:
+the modules are seeded pages, and no assertion in those suites can prove them.
+
+## The browser suite
+
+`test/uk.osric.asp.Web.BrowserTests` is opt-in and out of `make check`, for the same reason
+`image-check` is: it needs a downloaded browser, it takes about a minute, and a suite that can flake is
+a suite people stop running. It references neither the app nor the test doubles the other suites use.
+Instead it starts the built app as a child process on a loopback port, with a throwaway SQLite file and
+a scripted provider, and drives the pages it serves with Playwright and Firefox — the browser the site
+is read in.
+
+- `BrowserHost` starts the app, reads the port it bound, waits for `/heath` and seeds one account
+  through the real `users` command. It runs the host as `Staging`: not `Production`, so the auth and
+  antiforgery cookies are accepted over plain HTTP, and not `Development`, so a failure is answered by
+  the error page the public site would show.
+- `StubProvider` is a local, OpenAI-compatible server that streams server-sent events on request. A
+  test scripts it: words per delta, a delay between them, a tool call, a token-limit finish, or a stall
+  long enough to outlive a deadline. It records the request bodies, so a test can also assert what the
+  server sent.
+- `BrowserTest` gives each test its own context, page and script, and fails it on any console error or
+  page error the browser reported while it ran — which is how the seeded icon was found rendering as a
+  black silhouette under the page content security policy.
+- Fixtures that need different assistant limits start their own `BrowserHost`; the shared one signs in
+  once and every test starts from that browser state, so a suite run does not spend the sign-in
+  throttle's allowance on itself.
+- The `[Explicit]` fixtures talk to the configured provider instead: they need `deploy/deepseek.token`
+  or `ASSISTANT_LIVE_TOKEN`, run only under `make test-browser-live`, and are the only tests here that
+  can show what a model does when it thinks for a while.
 
 ## The gate
 
@@ -150,6 +180,9 @@ its `TestAssembly.cs`:
   process, including the page meter another fixture is recording into. `MetricsEndpointTests` reads
   the same process-wide meter through the exporter, but asserts that a series is present rather than
   what it counts, so it is safe beside other fixtures.
+- `Web.BrowserTests` runs every test one at a time. Each test owns a browser page, but they share one
+  host, one database and one assistant queue, and the tests that measure streaming cannot do that
+  beside another test's compile.
 - `PageRendererTests`, `PageImageBuilderTests` and the one budget test in `PageEndpointTests` are
   `[NonParallelizable]`, for the same reason fixtures are the unit of parallelism: a page that
   outruns its budget cannot be stopped, so it keeps a core busy while the deadline continuation

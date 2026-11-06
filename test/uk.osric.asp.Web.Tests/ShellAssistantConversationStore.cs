@@ -7,7 +7,9 @@ using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Storage;
 
-internal sealed class ShellAssistantConversationStore(IReadOnlyList<AssistantMessage>? messages = null) : IAssistantConversationStore {
+internal sealed class ShellAssistantConversationStore(
+    IReadOnlyList<AssistantMessage>? messages = null,
+    AssistantRun? lastRun = null) : IAssistantConversationStore {
     private static AssistantConversation Conversation => new() {
         Id = 1,
         Owner = "owner",
@@ -49,6 +51,9 @@ internal sealed class ShellAssistantConversationStore(IReadOnlyList<AssistantMes
 
     public Task<AssistantRun?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult<AssistantRun?>(null);
+
+    public Task<AssistantRun?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default) =>
+        Task.FromResult(lastRun);
 
     public Task<AssistantRun?> GetRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default) =>
         Task.FromResult<AssistantRun?>(null);

@@ -21,26 +21,58 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         AssistantChatRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(request);
-        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(options.RequestTimeoutSeconds));
+        // A step that keeps thinking is healthy however long it takes: the deadline is silence, not
+        // duration. It is re-armed for every event the provider sends, so only a stalled stream ends.
+        using CancellationTokenSource silence = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        TimeSpan allowed = TimeSpan.FromSeconds(options.RequestTimeoutSeconds);
+        silence.CancelAfter(allowed);
 
-        using HttpResponseMessage response = await SendWithRetriesAsync(request, timeout.Token);
-        if (!response.IsSuccessStatusCode) {
-            throw ProviderError(response.StatusCode);
+        HttpResponseMessage response;
+        Stream body;
+        try {
+            response = await SendWithRetriesAsync(request, silence.Token);
+            if (!response.IsSuccessStatusCode) {
+                response.Dispose();
+                throw ProviderError(response.StatusCode);
+            }
+            body = await response.Content.ReadAsStreamAsync(silence.Token);
+        } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+            throw ProviderStopped();
         }
 
-        await using Stream body = await response.Content.ReadAsStreamAsync(timeout.Token);
-        await foreach (SseItem<string> item in SseParser.Create(body).EnumerateAsync(timeout.Token)) {
-            if (item.Data == "[DONE]") {
-                yield break;
-            }
+        using (response) {
+            await using (body) {
+                await using IAsyncEnumerator<SseItem<string>> items = SseParser.Create(body)
+                    .EnumerateAsync(silence.Token)
+                    .GetAsyncEnumerator(silence.Token);
+                while (true) {
+                    bool moved;
+                    try {
+                        moved = await items.MoveNextAsync();
+                    } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+                        throw ProviderStopped();
+                    }
+                    if (!moved) {
+                        yield break;
+                    }
 
-            IReadOnlyList<AssistantChatStreamEvent> events = ParsePayload(item.Data, request.ReasoningField);
-            foreach (AssistantChatStreamEvent @event in events) {
-                yield return @event;
+                    silence.CancelAfter(allowed);
+                    if (items.Current.Data == "[DONE]") {
+                        yield break;
+                    }
+
+                    IReadOnlyList<AssistantChatStreamEvent> events = ParsePayload(items.Current.Data, request.ReasoningField);
+                    foreach (AssistantChatStreamEvent @event in events) {
+                        yield return @event;
+                    }
+                }
             }
         }
     }
+
+    private static AssistantProviderException ProviderStopped() => new(
+        "provider_timeout",
+        "The provider stopped sending before the answer was complete.");
 
     private async Task<HttpResponseMessage> SendWithRetriesAsync(AssistantChatRequest request, CancellationToken cancellationToken) {
         Uri endpoint = new(options.BaseUrl.TrimEnd('/') + "/" + options.ChatCompletionsPath.TrimStart('/'));
@@ -128,11 +160,22 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         using (document) {
             JsonElement root = document.RootElement;
             List<AssistantChatStreamEvent> events = [];
+            if (root.ValueKind != JsonValueKind.Object) {
+                throw Invalid();
+            }
             if (root.TryGetProperty("choices", out JsonElement choices)
                 && choices.ValueKind == JsonValueKind.Array
                 && choices.GetArrayLength() > 0) {
                 JsonElement choice = choices[0];
+                if (choice.ValueKind != JsonValueKind.Object) {
+                    throw Invalid();
+                }
                 if (choice.TryGetProperty("delta", out JsonElement delta)) {
+                    // A delta that is not an object would make every property read throw; report the
+                    // provider's shape instead of failing the run as an internal error.
+                    if (delta.ValueKind != JsonValueKind.Object) {
+                        throw Invalid();
+                    }
                     if (delta.TryGetProperty("content", out JsonElement content) && content.ValueKind == JsonValueKind.String) {
                         events.Add(new AssistantContentDelta(content.GetString()!));
                     }
@@ -143,6 +186,9 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
                     }
                     if (delta.TryGetProperty("tool_calls", out JsonElement toolCalls) && toolCalls.ValueKind == JsonValueKind.Array) {
                         foreach (JsonElement toolCall in toolCalls.EnumerateArray()) {
+                            if (toolCall.ValueKind != JsonValueKind.Object) {
+                                throw Invalid();
+                            }
                             int index = toolCall.TryGetProperty("index", out JsonElement indexValue)
                                 && indexValue.TryGetInt32(out int parsedIndex) ? parsedIndex : 0;
                             string? id = StringProperty(toolCall, "id");
@@ -169,6 +215,9 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
             return events;
         }
     }
+
+    private static AssistantProviderException Invalid() =>
+        new("provider_invalid_response", "The provider returned an invalid streaming response.");
 
     private static IEnumerable<string> ReasoningFields(string configured) {
         HashSet<string> fields = new(StringComparer.Ordinal) { "reasoning_content", "reasoning", configured };

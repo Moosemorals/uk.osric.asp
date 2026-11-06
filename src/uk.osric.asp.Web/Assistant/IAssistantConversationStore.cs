@@ -17,6 +17,7 @@ internal interface IAssistantConversationStore {
     Task<long?> AppendMessageAsync(long conversationId, string runId, AssistantMessageInput message, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AssistantMessage>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default);
     Task<AssistantRun?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default);
+    Task<AssistantRun?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default);
     Task<AssistantRun?> GetRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default);
     Task<bool> SetRunStatusAsync(string runId, string status, string? errorCode = null, string? errorMessage = null, CancellationToken cancellationToken = default);
     Task<bool> CreateApprovalAsync(string runId, string toolCallId, CancellationToken cancellationToken = default);

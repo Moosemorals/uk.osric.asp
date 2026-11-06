@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using NUnit.Framework;
+using System.IO.Pipelines;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -106,6 +107,38 @@ public sealed class AssistantProviderClientTests {
         Assert.That(exception.Message, Does.Not.Contain("private provider details"));
     }
 
+    [Test]
+    public async Task AStreamThatKeepsSendingOutlivesTheRequestTimeoutAsync() {
+        using HttpClient client = Client(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new TimedContent(
+                ("data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"think \"}}]}\n\n", 600),
+                ("data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"think \"}}]}\n\n", 600),
+                ("data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"think \"}}]}\n\n", 600),
+                ("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"done\"}}]}\n\n", 600),
+                ("data: [DONE]\n\n", 0)),
+        }));
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = 1 });
+
+        List<AssistantChatStreamEvent> events = await CollectAsync(provider);
+
+        Assert.That(events.OfType<AssistantContentDelta>().Select(delta => delta.Text), Is.EqualTo(["done"]));
+    }
+
+    [Test]
+    public async Task AStreamThatStopsSendingFailsWithASafeTimeoutAsync() {
+        using HttpClient client = Client(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new TimedContent(("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"starting\"}}]}\n\n", 4000)),
+        }));
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = 1 });
+
+        AssistantProviderException exception = (await Assert.ThrowsAsync<AssistantProviderException>(async () => await CollectAsync(provider)))!;
+
+        Assert.Multiple(() => {
+            Assert.That(exception.Code, Is.EqualTo("provider_timeout"));
+            Assert.That(exception.Message, Does.Contain("stopped sending"));
+        });
+    }
+
     private static HttpClient Client(Func<HttpRequestMessage, Task<HttpResponseMessage>> send) =>
         new(new RecordingHandler((request, _) => send(request))) { Timeout = Timeout.InfiniteTimeSpan };
 
@@ -123,6 +156,38 @@ public sealed class AssistantProviderClientTests {
             events.Add(@event);
         }
         return events;
+    }
+
+    // A response body that trickles out over time, which is how a real provider streams: the default
+    // HttpContent machinery buffers a response before handing out its stream, which would flatten it.
+    private sealed class TimedContent(params (string Text, int DelayMilliseconds)[] parts) : HttpContent {
+        private readonly Pipe _pipe = new();
+
+        protected override Task<Stream> CreateContentReadStreamAsync() {
+            _ = WriteAsync();
+            return Task.FromResult(_pipe.Reader.AsStream());
+        }
+
+        protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken) =>
+            CreateContentReadStreamAsync();
+
+        protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context) =>
+            throw new NotSupportedException("The timed content is only read as a stream.");
+
+        protected override bool TryComputeLength(out long length) {
+            length = 0;
+            return false;
+        }
+
+        private async Task WriteAsync() {
+            foreach ((string text, int delayMilliseconds) in parts) {
+                if (delayMilliseconds > 0) {
+                    await Task.Delay(delayMilliseconds);
+                }
+                await _pipe.Writer.WriteAsync(Encoding.UTF8.GetBytes(text));
+            }
+            await _pipe.Writer.CompleteAsync();
+        }
     }
 
     private sealed class RecordingHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send)

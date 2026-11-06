@@ -178,7 +178,7 @@ apart from one view to the next.
   would be a product change rather than a semantics fix.
 
 Every one of these views is rendered once by `ShellViews` and checked against the shared accessibility
-rules — see [testing](testing.md#the-four-suites-and-the-planned-fifth) — with what a string cannot
+rules — see [testing](testing.md#the-five-suites) — with what a string cannot
 prove left to a recorded hand pass (DEC-110).
 
 ## AI page assistant
@@ -203,10 +203,15 @@ filesystem, git, package, or outbound-network tool. The per-conversation approva
 `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on each flagged mutation.
 Unresolved, stale, stopped, or restarted approvals never execute.
 
-The feature bounds run duration, request duration, concurrency, queue depth, steps, tool calls,
-arguments, page size, results, context and event replay. Provider content and reasoning are never
-logged; reasoning is display-only and is omitted from subsequent provider requests. Assistant metrics use
-only low-cardinality model, tool, outcome, and token-kind tags.
+The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
+results, context and event replay, and bounds each provider request by silence rather than by duration:
+the deadline is re-armed for every event the provider sends, so a model that reasons for minutes is not
+cut off, while a stalled stream ends the step with `provider_timeout`. A run that stops leaves its
+reason in the transcript, and a message that stops at the provider's output limit is stored as
+`truncated`, because the reload after a terminal event is when a bare status word used to be all a
+reader had. Provider content and reasoning are never logged; reasoning is display-only and is omitted
+from subsequent provider requests. Assistant metrics use only low-cardinality model, tool, outcome,
+and token-kind tags.
 
 ## Authentication and the editor
 
