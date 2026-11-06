@@ -48,46 +48,79 @@ internal class Program {
             Directory.CreateDirectory(Path.GetDirectoryName(connection.DataSource)
                 ?? throw new InvalidOperationException("The storage database must have a parent directory."));
         }
+        bool agentEnabled = builder.Configuration.GetValue<bool>("Agent:Enabled");
 
+        // Configuration: the database, its options, and the proxy trust the host depends on.
         builder.Services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
-        builder.Services.AddSingleton<IValidateOptions<AgentOptions>, AgentOptionsValidator>();
+
         builder.Services.AddOptions<AgentOptions>()
             .Bind(builder.Configuration.GetSection("Agent"))
             .ValidateOnStart();
-        if (builder.Configuration.GetValue<bool>("Agent:Enabled")) {
+        builder.Services.AddSingleton<IValidateOptions<AgentOptions>, AgentOptionsValidator>();
+
+        builder.Services.Configure<ForwardedHeadersOptions>(options => {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+            // Caddy terminates TLS on the host loopback and is the only peer that can reach the port
+            // (the quadlet publishes 127.0.0.1:8080), so any peer may describe the original request.
+            // The loopback-only defaults do not survive podman's user-space networking, so the publish
+            // is what bounds this trust, not an address list.
+            options.KnownProxies.Clear();
+            options.KnownIPNetworks.Clear();
+        });
+
+        builder.Services.AddHostedService<PageStorageSampler>();
+
+        builder.Services.AddSingleton(CompileOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(services => new PageHealth(
+            services.GetRequiredService<RenderOptions>().AbandonedLimit));
+        builder.Services.AddSingleton(new ReservedPaths(
+            builder.Configuration.GetSection("Pages:ReservedPaths").Get<string[]>()));
+        builder.Services.AddSingleton(TimeProvider.System);
+
+        builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
+        builder.Services.AddSingleton<IPasswordService, PasswordService>();
+        builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
+        builder.Services.AddSingleton<PageBudget>();
+        builder.Services.AddSingleton<PageMetrics>();
+        builder.Services.AddSingleton<PageStorageRefresh>();
+        builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
+
+        builder.Services.AddScoped<IAgentConversationStore, SqliteAgentConversationStore>();
+        builder.Services.AddScoped<IPageStore, SqlitePageStore>();
+        builder.Services.AddScoped<IUserStore, SqliteUserStore>();
+        builder.Services.AddScoped<PageEditor>();
+        builder.Services.AddScoped<PageRenderer>();
+        builder.Services.AddScoped<TemplateCompiler>();
+
+        if (agentEnabled) {
+            builder.Services.AddHostedService<AgentRunWorker>();
+            builder.Services.AddHostedService<AgentRunJournalCleanupService>();
+
             builder.Services.AddSingleton(services => services.GetRequiredService<IOptions<AgentOptions>>().Value);
-            builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
-                client.Timeout = Timeout.InfiniteTimeSpan;
-            }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-            builder.Services.AddSingleton<AgentPaths>();
             builder.Services.AddSingleton<AgentMetrics>();
             builder.Services.AddSingleton<AgentPageToolExecutor>();
+            builder.Services.AddSingleton<AgentPaths>();
             builder.Services.AddSingleton<AgentRunQueue>();
             builder.Services.AddSingleton<AgentRunRegistry>();
             builder.Services.AddSingleton<AgentToolApprovalCoordinator>();
+
             builder.Services.AddScoped<AgentRunProcessor>();
-            builder.Services.AddHostedService<AgentRunWorker>();
-            builder.Services.AddHostedService<AgentRunJournalCleanupService>();
+
+            builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
+                client.Timeout = Timeout.InfiniteTimeSpan;
+            }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+
         }
+
+        builder.Services.AddEditorAuthentication(builder.Environment);
+
         builder.Services.AddHealthChecks()
             .AddCheck<StorageHealthCheck>("storage")
             .AddCheck<AbandonedRenderHealthCheck>("pages");
-        builder.Services.AddScoped<IPageStore, SqlitePageStore>();
-        builder.Services.AddScoped<IUserStore, SqliteUserStore>();
-        builder.Services.AddScoped<IAgentConversationStore, SqliteAgentConversationStore>();
-        builder.Services.AddSingleton<IPasswordService, PasswordService>();
-        builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
-        builder.Services.AddScoped<TemplateCompiler>();
-        builder.Services.AddScoped<PageRenderer>();
-        builder.Services.AddScoped<PageEditor>();
-        builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
-        builder.Services.AddSingleton<PageMetrics>();
-        builder.Services.AddSingleton<PageStorageRefresh>();
-        builder.Services.AddHostedService<PageStorageSampler>();
+
         builder.Services.AddSingleton(services => MetricsOptions.FromConfiguration(
             builder.Configuration,
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Metrics")));
-        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<IMetricsSource>(services => {
             MetricsOptions options = services.GetRequiredService<MetricsOptions>();
             // The per-query deadline belongs to the source: one slow query must not hold the page.
@@ -97,9 +130,10 @@ internal class Program {
             });
         });
         builder.Services.AddSingleton<MetricsDashboard>();
+
         // Metrics only: registering no instrumentation package means no tracer or logger provider.
         // The exporter serves /metrics on this listener; Caddy refuses that path publicly.
-        _ = builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics
+        builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics
             .AddMeter(PageMetrics.MeterName)
             .AddMeter(AgentMetrics.MeterName)
             .AddMeter("Microsoft.AspNetCore.Hosting")
@@ -119,29 +153,12 @@ internal class Program {
             .AddView("agent.run.steps", new ExplicitBucketHistogramConfiguration { Boundaries = AgentMetrics.StepBuckets })
             .AddView("agent.run.tool_calls", new ExplicitBucketHistogramConfiguration { Boundaries = AgentMetrics.ToolCallBuckets })
             .AddPrometheusExporter());
-        builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
-        builder.Services.AddSingleton(CompileOptions.FromConfiguration(builder.Configuration));
-        builder.Services.AddSingleton<PageBudget>();
-        builder.Services.AddSingleton(services => new PageHealth(
-            services.GetRequiredService<RenderOptions>().AbandonedLimit));
-        builder.Services.AddSingleton(new ReservedPaths(
-            builder.Configuration.GetSection("Pages:ReservedPaths").Get<string[]>()));
-        builder.Services.AddEditorAuthentication(builder.Environment);
-        builder.Services.Configure<ForwardedHeadersOptions>(options => {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
-            // Caddy terminates TLS on the host loopback and is the only peer that can reach the port
-            // (the quadlet publishes 127.0.0.1:8080), so any peer may describe the original request.
-            // The loopback-only defaults do not survive podman's user-space networking, so the publish
-            // is what bounds this trust, not an address list.
-            options.KnownProxies.Clear();
-            options.KnownIPNetworks.Clear();
-        });
 
         WebApplication app = builder.Build();
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
-            if (builder.Configuration.GetValue<bool>("Agent:Enabled")) {
+            if (agentEnabled) {
                 IAgentConversationStore agentConversations = scope.ServiceProvider.GetRequiredService<IAgentConversationStore>();
                 await agentConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
             }
@@ -179,6 +196,8 @@ internal class Program {
 
         app.UseSession();
 
+        // Order matters: routing first, so the limiter and identity read endpoint metadata, then
+        // authorization, then the antiforgery check that guards the safe verbs.
         app.UseRouting();
         app.UseRateLimiter();
         app.UseAuthentication();
@@ -187,16 +206,19 @@ internal class Program {
 
         app.MapGet("/status", StatusEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
+
         RouteGroupBuilder admin = app.MapGroup("/admin")
             .RequireAuthorization(EditorPolicy.Name);
         admin.MapGet("/restore", AdminRestoreEndpoint.GetAsync);
         admin.MapPost("/restore", AdminRestoreEndpoint.PostAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+
         app.MapGet("/edit/{**path}", EditorEndpoint.Handler)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/edit/{**path}", EditorEndpoint.Handler)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+
         app.MapGet("/login", LoginEndpoint.GetAsync).AllowAnonymous();
         app.MapPost("/login", LoginEndpoint.PostAsync)
             .AllowAnonymous()
@@ -204,12 +226,12 @@ internal class Program {
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         app.MapPost("/logout", LoginEndpoint.LogoutAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        // The health route is mapped before the page catch-all, so a page stored under /heath can
-        // never shadow it; /heath is also in Pages:ReservedPaths.
+
         app.MapHealthChecks("/heath", new HealthCheckOptions {
             ResponseWriter = HealthReportWriter.WriteAsync,
         });
-        if (builder.Configuration.GetValue<bool>("Agent:Enabled")) {
+
+        if (agentEnabled) {
             app.MapGet("/assistant", AssistantEndpoint.ListAsync)
                 .RequireAuthorization(EditorPolicy.Name);
             app.MapPost("/assistant", AssistantEndpoint.ListAsync)
