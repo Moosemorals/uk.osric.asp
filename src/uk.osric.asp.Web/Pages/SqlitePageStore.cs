@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Web.Storage;
+namespace uk.osric.asp.Web.Pages;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +11,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Storage;
 
 internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefresh? storageRefresh = null) : IPageStore {
 

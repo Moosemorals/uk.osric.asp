@@ -81,7 +81,8 @@ and the logs quote them:
 | Deciding when to compile, store and run a page | `Web`, in `TemplateCompiler`, `PageRenderer` and `PageEditor` |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
-| Source storage, `IPageStore`, EF Core context and migrations | `Web`, under `Storage` for implementation |
+| Source storage: the EF Core context, its entities and migrations | `Web`, under `Storage` |
+| The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteAgentConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
 | The page contract: `IContext`, `PageRequest`, `PageResponse`, `IHandler`, `UserFacingException` | `Sdk`, as plain values a compiled page binds against |
