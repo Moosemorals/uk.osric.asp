@@ -13,9 +13,10 @@ using uk.osric.asp.Sdk;
 /// handler has returned and a page that throws leaves nothing half-sent.
 /// </para>
 /// <para>
-/// This is the only type a page's logging goes through, and every entry it writes is filed
-/// under <c>uk.osric.asp.Pages.{path}</c>, so a page can be filtered or levelled on its own. The
-/// category format is operator-facing: changing it breaks configured filters and log queries.
+/// This is the only type a page's logging goes through. Every entry is filed under the one
+/// <c>uk.osric.asp.Pages</c> category with the page's key on a <c>Path</c> scope property, so a page
+/// can be filtered or levelled on its own. That category is operator-facing: changing it breaks
+/// configured filters and log queries.
 /// </para>
 /// </remarks>
 internal sealed class SimpleContext : IContext {
@@ -32,7 +33,11 @@ internal sealed class SimpleContext : IContext {
 
     private const string CustomHeaderPrefix = "X-";
 
-    private const string PageCategoryPrefix = "uk.osric.asp.Pages.";
+    // One category for every page, with the page's key on a scope. It cannot be a category per path:
+    // ILoggerFactory caches a logger for each distinct category for the life of the process and
+    // never evicts one, so the key would have to come from the request — and a not-found request
+    // picks its own URL.
+    private const string PageCategory = "uk.osric.asp.Pages";
 
     private readonly Lock _body = new();
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
@@ -48,7 +53,7 @@ internal sealed class SimpleContext : IContext {
     private int _written;
 
     /// <summary>Creates the context a page runs against.</summary>
-    /// <param name="loggerFactory">Creates the logger named for the page.</param>
+    /// <param name="loggerFactory">Creates the one logger every page writes through.</param>
     /// <param name="request">The request snapshot.</param>
     /// <param name="aborted">The token from the request being served.</param>
     /// <param name="writer">The buffer the body is written to.</param>
@@ -65,7 +70,7 @@ internal sealed class SimpleContext : IContext {
         ArgumentOutOfRangeException.ThrowIfLessThan(maxBodyChars, 1);
 
         // The path is canonical here: PageEndpoint redirects anything else before building a context.
-        _logger = loggerFactory.CreateLogger(PageCategoryPrefix + request.Path);
+        _logger = loggerFactory.CreateLogger(PageCategory);
         _maxBodyChars = maxBodyChars;
         _request = request;
         Aborted = aborted;
@@ -106,21 +111,21 @@ internal sealed class SimpleContext : IContext {
     public void Log(string message) {
         ArgumentNullException.ThrowIfNull(message);
 
-        _logger.LogInformation("{Message}", message);
+        LogAt(LogLevel.Information, message);
     }
 
     /// <inheritdoc/>
     public void LogWarning(string message) {
         ArgumentNullException.ThrowIfNull(message);
 
-        _logger.LogWarning("{Message}", message);
+        LogAt(LogLevel.Warning, message);
     }
 
     /// <inheritdoc/>
     public void LogError(string message) {
         ArgumentNullException.ThrowIfNull(message);
 
-        _logger.LogError("{Message}", message);
+        LogAt(LogLevel.Error, message);
     }
 
     /// <inheritdoc/>
@@ -128,6 +133,18 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public void WriteRaw(string message) => WriteBody(message);
+
+    // The page's identity belongs on the scope, not the category: see PageCategory.
+    private void LogAt(LogLevel level, string message) {
+        // Checked first so a filtered level costs what it did through LogInformation and friends,
+        // rather than a scope the provider will never see.
+        if (!_logger.IsEnabled(level)) {
+            return;
+        }
+
+        using IDisposable? scope = _logger.BeginScope("Page {Path}", Path);
+        _logger.Log(level, "{Message}", message);
+    }
 
     // The buffer is shared with a page thread that may still be running after the render was
     // abandoned, so every write and the read that shapes the response happen under one lock.

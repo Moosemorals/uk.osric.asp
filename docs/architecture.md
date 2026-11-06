@@ -122,9 +122,13 @@ touches is a plain record in `Sdk`. `IContext` is the whole surface — `Request
 form, headers, cookies), `Path`, `Aborted`, `Log`/`LogWarning`/`LogError`, `Write`/`WriteRaw`,
 `SetStatus`, `SetContentType`, `SetHeader` and `Redirect`.
 
-A page's log entries are filed under `uk.osric.asp.Pages.<path>`, the category `SimpleContext`
-derives from the page's key, so one page can be filtered or levelled without touching another. That
-format is operator-facing — filters, alerts and log queries are written against it. `SimpleContext`
+A page's log entries are filed under the single `uk.osric.asp.Pages` category, with the page's key on
+a `Path` scope property, so one page can be filtered or levelled without touching another. That
+category is operator-facing — filters, alerts and log queries are written against it. It is static
+rather than per path because `ILoggerFactory` caches a logger for each distinct category for the life
+of the process and never evicts one: a not-found request chooses its own URL, so a category per path
+would let an anonymous client grow that cache one unique path at a time. `appsettings.json` turns on
+`IncludeScopes` for the console formatter so the path still shows in the log line. `SimpleContext`
 is where a page's logging enters the shell, so `Core` never names a logging type.
 
 Two rules keep the response safe:

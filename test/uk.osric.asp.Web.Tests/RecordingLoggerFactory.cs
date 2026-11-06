@@ -5,16 +5,22 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Logging;
 
-/// <summary>Captures log entries so a test can assert the category, the level and the message.</summary>
+/// <summary>Captures log entries so a test can assert the category, the level, the message and the scope.</summary>
 internal sealed class RecordingLoggerFactory : ILoggerFactory {
 
     private readonly List<Entry> _entries = [];
+    private readonly List<string> _categories = [];
 
     /// <summary>Everything written through a logger this factory created, in order.</summary>
     public IReadOnlyList<Entry> Entries => _entries;
 
+    /// <summary>Every distinct category a logger was asked for, in order, including repeats.</summary>
+    public IReadOnlyList<string> Categories => _categories;
+
     public ILogger CreateLogger(string categoryName) {
         ArgumentException.ThrowIfNullOrWhiteSpace(categoryName);
+
+        _categories.Add(categoryName);
 
         return new RecordingLogger(categoryName, _entries);
     }
@@ -29,12 +35,29 @@ internal sealed class RecordingLoggerFactory : ILoggerFactory {
     /// <param name="Category">The category the entry was filed under.</param>
     /// <param name="Level">The level it was written at.</param>
     /// <param name="Message">The formatted message.</param>
-    internal sealed record Entry(string Category, LogLevel Level, string Message);
+    /// <param name="Scope">The scope properties open when the entry was written.</param>
+    internal sealed record Entry(
+        string Category,
+        LogLevel Level,
+        string Message,
+        IReadOnlyDictionary<string, object?> Scope);
 
     private sealed class RecordingLogger(string category, List<Entry> entries) : ILogger {
 
+        private readonly Dictionary<string, object?> _scope = new(StringComparer.OrdinalIgnoreCase);
+
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull {
-            return null;
+            ArgumentNullException.ThrowIfNull(state);
+
+            Dictionary<string, object?> outer = new(_scope, StringComparer.OrdinalIgnoreCase);
+
+            if (state is IEnumerable<KeyValuePair<string, object?>> values) {
+                foreach (KeyValuePair<string, object?> value in values) {
+                    _scope[value.Key] = value.Value;
+                }
+            }
+
+            return new Scope(this, outer);
         }
 
         public bool IsEnabled(LogLevel logLevel) {
@@ -45,7 +68,22 @@ internal sealed class RecordingLoggerFactory : ILoggerFactory {
             Func<TState, Exception?, string> formatter) {
             ArgumentNullException.ThrowIfNull(formatter);
 
-            entries.Add(new Entry(category, logLevel, formatter(state, exception)));
+            entries.Add(new Entry(
+                category,
+                logLevel,
+                formatter(state, exception),
+                new Dictionary<string, object?>(_scope, StringComparer.OrdinalIgnoreCase)));
+        }
+
+        private sealed class Scope(RecordingLogger logger, Dictionary<string, object?> outer) : IDisposable {
+
+            public void Dispose() {
+                logger._scope.Clear();
+
+                foreach (KeyValuePair<string, object?> value in outer) {
+                    logger._scope[value.Key] = value.Value;
+                }
+            }
         }
     }
 }

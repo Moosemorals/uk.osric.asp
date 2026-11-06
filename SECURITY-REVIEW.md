@@ -33,7 +33,7 @@ compromise.
 | # | Severity | Location | Issue | Confidence |
 |---|---|---|---|---|
 | 1 | Medium | `src/uk.osric.asp.Web/Authentication/AuthenticationExtensions.cs:149` | Global login throttle is a single bucket; ten unauthenticated requests a minute lock the owner out indefinitely. | 9/10 |
-| 2 | Medium | `src/uk.osric.asp.Web/Pages/SimpleContext.cs:68` | Logger category derived from the raw request path; the logger cache never evicts, so unique URLs leak memory permanently. | 8/10 |
+| 2 | Medium | ~~`src/uk.osric.asp.Web/Pages/SimpleContext.cs:68`~~ | Logger category derived from the raw request path; the logger cache never evicts, so unique URLs leak memory permanently. **Fixed** — see below. | 8/10 |
 | 3 | Low | `src/uk.osric.asp.Web/Pages/SimpleContext.cs:193` | The `X-` header wildcard collides with the shell's own `X-` security headers, so page code can blank them. | 9/10 |
 | 4 | Low | `src/uk.osric.asp.Web/Pages/PageEndpoint.cs:54` | The 1 MB form cap only reads `ContentLength`, so a chunked POST is buffered up to Kestrel's default instead. | 9/10 |
 | 5 | Low | `src/uk.osric.asp.Web/Health/HealthReportWriter.cs:32` | Anonymous `/heath` serialises exception messages and `Data` from every health check. | 7/10 |
@@ -54,23 +54,37 @@ boundary for very little gain. The cheaper fix is outside the app — a `rate_li
 per client address in [`deploy/Caddyfile`](./deploy/Caddyfile), where the real peer address is
 still visible. Caddy is already the only rootful unit and already the TLS terminator.
 
-### 2. Logger cache grows without bound from anonymous URLs — Medium
+### 2. Logger cache grows without bound from anonymous URLs — Medium — *fixed*
 
-`SimpleContext` builds its logger as `PageCategoryPrefix + request.Path` using the caller-supplied
+`SimpleContext` built its logger as `PageCategoryPrefix + request.Path` using the caller-supplied
 path, and `PageEndpoint.Handle` constructs a context for every canonical, non-reserved URL
 (`PageEndpoint.cs:60`) *before* the page lookup — so `GET /<random>` from an anonymous client
-creates a cache entry even though no page exists.
+created a cache entry even though no page exists.
 
 `LoggerFactory` keeps a `MessageLogger` per distinct category for the life of the process with no
 eviction. Measured on .NET 10: 200,000 distinct categories retained 44 MB, with all 200,000 still
 resident afterwards — about 221 bytes each. Reaching roughly 1 GB in the 2 GB container therefore
 needs on the order of 4.5 million unique URLs. That is a slow burn rather than a one-shot kill, but
-it never recovers, so the process survives only until it is restarted.
+it never recovers, so the process survived only until it was restarted.
 
-The metrics path already solves this correctly by bucketing unknown pages under `(not-found)`. The
-minimal fix is to log under `path.Key`, or a fixed `uk.osric.asp.Pages.not-found` category, once the
-path is known not to be a page. Note the doc comment on `SimpleContext` describes the category
-format as operator-facing, so changing it should be a deliberate, documented change.
+Fixed by making the category static — every page logs under `uk.osric.asp.Pages`, and the page's
+key moved to a `Path` scope property on each entry:
+
+```csharp
+_logger = loggerFactory.CreateLogger(PageCategory);
+
+private void LogAt(LogLevel level, string message) {
+    using IDisposable? scope = _logger.BeginScope("Page {Path}", Path);
+    _logger.Log(level, "{Message}", message);
+}
+```
+
+The cache now holds exactly one category however many URLs are requested. The scope keeps the page
+filterable — Serilog surfaces it as a `Path` property, so the same per-page alerting still works —
+while making the operator-facing category a constant and removing the request path from anything
+that is cached. `TheCategoryDoesNotVaryWithThePath` in `SimpleContextTests` pins the property.
+Recorded as DEC-24 in [the decisions](./docs/decisions.md) and updated in
+[the architecture](./docs/architecture.md#page-contract); `IContext`'s doc comment says the same.
 
 ### 3. Page code can blank the shell's `X-` security headers — Low
 

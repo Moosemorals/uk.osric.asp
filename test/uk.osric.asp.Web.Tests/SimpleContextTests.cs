@@ -116,14 +116,34 @@ public sealed class SimpleContextTests {
     }
 
     [Test]
-    public void LogIsFiledUnderThePageCategory() {
+    public void LogIsFiledUnderTheSharedPageCategory() {
         SimpleContext context = CreateContext("/about", out RecordingLoggerFactory logs);
 
         context.Log("hello");
 
         Assert.That(logs.Entries, Has.Count.EqualTo(1));
-        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./about"));
+        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages"));
         Assert.That(logs.Entries[0].Level, Is.EqualTo(LogLevel.Information));
+    }
+
+    [Test]
+    public void LogPutsThePagePathOnTheScope() {
+        SimpleContext context = CreateContext("/about", out RecordingLoggerFactory logs);
+
+        context.Log("hello");
+
+        Assert.That(logs.Entries[0].Scope["Path"], Is.EqualTo("/about"));
+    }
+
+    [Test]
+    public void TheCategoryDoesNotVaryWithThePath() {
+        SimpleContext first = CreateContext("/one", out RecordingLoggerFactory firstLogs);
+        SimpleContext second = CreateContext("/two", out RecordingLoggerFactory secondLogs);
+
+        first.Log("hello");
+        second.Log("hello");
+
+        Assert.That(firstLogs.Entries[0].Category, Is.EqualTo(secondLogs.Entries[0].Category));
     }
 
     [Test]
@@ -136,21 +156,21 @@ public sealed class SimpleContextTests {
     }
 
     [Test]
-    public void RootPageLogsUnderTheRootCategory() {
+    public void RootPagePutsTheRootOnTheScope() {
         SimpleContext context = CreateContext("/", out RecordingLoggerFactory logs);
 
         context.Log("hello");
 
-        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./"));
+        Assert.That(logs.Entries[0].Scope["Path"], Is.EqualTo("/"));
     }
 
     [Test]
-    public void NestedPageKeepsItsSegmentsInTheCategory() {
+    public void NestedPageKeepsItsSegmentsOnTheScope() {
         SimpleContext context = CreateContext("/a/b", out RecordingLoggerFactory logs);
 
         context.Log("hello");
 
-        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./a/b"));
+        Assert.That(logs.Entries[0].Scope["Path"], Is.EqualTo("/a/b"));
     }
 
     [Test]
@@ -159,7 +179,8 @@ public sealed class SimpleContextTests {
 
         context.LogWarning("careful");
 
-        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./about"));
+        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages"));
+        Assert.That(logs.Entries[0].Scope["Path"], Is.EqualTo("/about"));
         Assert.That(logs.Entries[0].Level, Is.EqualTo(LogLevel.Warning));
         Assert.That(logs.Entries[0].Message, Is.EqualTo("careful"));
     }
@@ -170,7 +191,8 @@ public sealed class SimpleContextTests {
 
         context.LogError("broken");
 
-        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./about"));
+        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages"));
+        Assert.That(logs.Entries[0].Scope["Path"], Is.EqualTo("/about"));
         Assert.That(logs.Entries[0].Level, Is.EqualTo(LogLevel.Error));
         Assert.That(logs.Entries[0].Message, Is.EqualTo("broken"));
     }

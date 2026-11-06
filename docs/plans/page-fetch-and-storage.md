@@ -424,8 +424,8 @@ These are deliberate limits, not omissions:
 - Storage writes request a `PageStorageRefresh`; `PageStorageSampler` includes `PageState` in the
   `page.storage.payload.size` gauge, and the gauge description says so.
 - No log line contains a full URL with its query, a request header, a response body or a stored
-  value. The page category `uk.osric.asp.Pages.<path>` is used for page-level refusals; the host is
-  named, not the URL.
+  value. The page category `uk.osric.asp.Pages`, with the page's key on a `Path` scope, is used for
+  page-level refusals; the host is named, not the URL.
 - A fetch refusal is a warning because it is usually a missing allow-list entry. A transport
   failure is information; a page that polls a flaky API should not fill the journal with warnings.
 

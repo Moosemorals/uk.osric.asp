@@ -139,7 +139,7 @@ public sealed class PageEndpointTests {
     }
 
     [Test]
-    public async Task PageLogsAreFiledUnderThePageCategory() {
+    public async Task PageLogsAreFiledUnderTheSharedPageCategoryAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "<% ctx.Log(\"from the page\"); %>");
@@ -148,8 +148,23 @@ public sealed class PageEndpointTests {
         await PageEndpoint.Handle(context, CreatePages(storage), logs, Reserved, Options);
 
         Assert.That(logs.Entries, Has.Count.EqualTo(1));
-        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages./hello.cs"));
+        Assert.That(logs.Entries[0].Category, Is.EqualTo("uk.osric.asp.Pages"));
+        Assert.That(logs.Entries[0].Scope["Path"], Is.EqualTo("/hello.cs"));
         Assert.That(logs.Entries[0].Message, Is.EqualTo("from the page"));
+    }
+
+    [Test]
+    public async Task UnknownPathsAllShareOneLoggerCategoryAsync() {
+        FakePageStore storage = new();
+        RecordingLoggerFactory logs = new();
+
+        foreach (string path in new[] { "one", "two", "three", "four.cs" }) {
+            DefaultHttpContext context = TestHttp.CreateContext(path, "GET", "/" + path);
+
+            await PageEndpoint.Handle(context, CreatePages(storage), logs, Reserved, Options);
+        }
+
+        Assert.That(logs.Categories, Is.All.EqualTo("uk.osric.asp.Pages"));
     }
 
     [Test]

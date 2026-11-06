@@ -109,7 +109,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-03 | The 404 response sets `text/plain; charset=utf-8` |
 | BUG-04 | Compilation diagnostics are HTML-encoded and wrapped in `<pre>` |
 | BUG-06 | A template that does not parse is a value, not an exception: `TemplateTokenizer.Tokenize` returns `TokenizeResult` and `TemplateSourceGenerator.GenerateTemplateSource` returns `TemplateParseResult`, whose `TEMPLATE001` message names the line and column of the unclosed `<%`. `PageService` stores it as a compile failure, so the editor shows it inline and the page answers "Handler failed to compile." instead of the generic error page |
-| BUG-09 | A page's log entries are filed under `uk.osric.asp.Pages.<path>`, the category `SimpleContext` creates from the page's key, so a page can be filtered or levelled on its own. The message template no longer prefixes the path, `MainEndpoint` hands over `ILoggerFactory`, and `IContext` gained `LogWarning`/`LogError` |
+| BUG-09 | A page's log entries are filed under `uk.osric.asp.Pages` with the page's key on a `Path` scope, so a page can be filtered or levelled on its own. The message template does not prefix the path, `MainEndpoint` hands over `ILoggerFactory`, and `IContext` gained `LogWarning`/`LogError` |
 | BUG-10 | `make format-check` passes |
 | BUG-11 | Stale `*.feature.cs` deleted; Reqnroll 3 generates in memory |
 | STYLE-01 | `EditorEndpoint` validates through a `SaveAsync` helper instead of `goto` |

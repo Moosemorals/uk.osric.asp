@@ -30,8 +30,8 @@ public interface IContext {
     /// <summary>Logs a message at information level.</summary>
     /// <param name="message">The message to log.</param>
     /// <remarks>
-    /// Entries are filed under a category the shell derives from <see cref="Path"/>, so a page's
-    /// lines can be filtered or levelled without touching another page's.
+    /// Entries are filed under a category shared by every page, with <see cref="Path"/> on a scope,
+    /// so a page's lines can be filtered or levelled without touching another page's.
     /// </remarks>
     public void Log(string message);
 
