@@ -9,7 +9,7 @@ Reviewed 2026-11-05, after the cookie moved from a data-protected ticket in the 
 random key with the framework's protected ticket in `AuthTickets`. The review read the changed
 code against the .NET 10 `CookieAuthenticationHandler` source and the deployment in `deploy/`.
 Conclusion: no critical, high or medium finding; two narrow key-lifecycle races, both fixed, and
-four accepted risks.
+four accepted risks. Risk 5 was later fixed, as recorded in the table.
 
 ## The scheme under review
 
@@ -30,7 +30,7 @@ four accepted risks.
 | 2 | Low | A sliding renewal deferred to response start could run after a sign-out deleted the row; `Protect` then inserted a fresh row and handed the requester a live key, so a stolen cookie could outlive a logout landing in that window. | Fixed: an unmarked `Protect` whose row is missing (or was updated by another account) returns the dead key instead of inserting, so the next request fails to unprotect and the browser is asked to sign in. |
 | 3 | Low | `OnSigningOut` read `Request.Cookies` rather than the cookie manager, so a chunked cookie would not have its row deleted. Unreachable with a 22-character key. | Fixed: deletion uses `CookieManager.GetRequestCookie`. |
 | 4 | Low | If the sign-out delete threw, the exception escaped before the handler deleted the browser cookie. | Fixed: the delete is logged and swallowed so the cookie is still removed; a warning records that the row survives until expiry. |
-| 5 | Low | Ten unauthenticated `POST /login` a minute exhaust the single global rate-limit bucket; the limiter runs before antiforgery validation. | Accepted: denial of service only, and per-IP partitioning needs `X-Forwarded-For` trust that would widen the proxy boundary. Rate-limit at Caddy instead. |
+| 5 | Low | Ten unauthenticated `POST /login` a minute exhaust the single global rate-limit bucket; the limiter runs before antiforgery validation. | Fixed: the limiter partitions on a bounded bucket of `Connection.RemoteIpAddress`, filled from Caddy's `X-Forwarded-For` (Caddy replaces client values and the publish is loopback only), so an address can only exhaust its own counter. |
 | 6 | Low | `AuthTickets` holds live bearer keys; database read access is session takeover, and restoring an old database plus the key-ring volume revives old sessions. | Accepted: inherent to server-side sessions. Mitigate operationally with file permissions, restricted backups and treating restore as session revival. |
 | 7 | Low | The hourly sweep had no exception handling, so a SQLite error stopped the host (`BackgroundServiceExceptionBehavior.StopHost`). | Fixed: the sweep logs and retries on the next tick. |
 | 8 | Low | A generated key collision fails the insert rather than retrying. | Accepted: about 2^-128 per insert, and it fails closed. |

@@ -375,8 +375,10 @@ reachable from the internet.
 
 Caddy terminates TLS, so without help the app sees a plain-HTTP request arriving from the loopback
 proxy: `Request.IsHttps` is false and `UseHsts` emits nothing. It therefore calls `UseForwardedHeaders`
-for `X-Forwarded-Proto` and `X-Forwarded-Host`, which Caddy sets by default, and trusts those headers
-from any peer.
+for `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-For`, which Caddy sets by default, and
+trusts those headers from any peer. Caddy replaces these headers rather than passing a client's own
+values through, and the middleware reads the rightmost entry, so none of the three can be chosen by
+the request.
 
 That is safe only because of the topology. The quadlet publishes the port on `127.0.0.1` alone, so
 nothing off the machine can reach the app, and the only client that can send those headers is the local
@@ -388,6 +390,8 @@ What it changes:
 - HSTS works: `UseHsts` only sends `Strict-Transport-Security` for requests it believes are HTTPS.
 - `Request.Scheme`, `Request.Host` and `Request.IsHttps` describe the browser's request, so cookies,
   absolute URLs and redirects derived from them are correct.
+- `Connection.RemoteIpAddress` is the browser's address, which is what the sign-in throttle counts
+  against, so one client spending its attempts cannot deny sign-in to anyone else.
 - Caddy redirects HTTP to HTTPS itself; the app deliberately has no `UseHttpsRedirection`, which behind
   a proxy is a redirect loop waiting to happen.
 

@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using System.Net;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Http;
 
 /// <summary>The only <see cref="IContext"/> a page ever runs against.</summary>
 /// <remarks>
@@ -183,6 +184,7 @@ internal sealed class SimpleContext : IContext {
     /// <inheritdoc/>
     public void SetHeader(string name, string value) {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
         if (!IsAllowed(name)) {
             throw new ArgumentException($"{name} is set by the site, not by a page.", nameof(name));
@@ -208,6 +210,12 @@ internal sealed class SimpleContext : IContext {
     }
 
     private static bool IsAllowed(string name) {
+        // The X- wildcard would otherwise reach the shell's own X-Content-Type-Options and friends,
+        // and a page clearing one silently weakens the response it is served in.
+        if (SecurityHeaders.IsOwned(name)) {
+            return false;
+        }
+
         return s_allowedHeaders.Contains(name)
             || name.StartsWith(CustomHeaderPrefix, StringComparison.OrdinalIgnoreCase);
     }

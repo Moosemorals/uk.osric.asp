@@ -413,6 +413,42 @@ public sealed class PageEndpointTests {
             PageEndpoint.Handle(context, CreatePages(storage, options), NullLoggerFactory.Instance, Reserved, options));
     }
 
+    [Test]
+    public async Task AChunkedFormPastTheCapIsRejectedAsync() {
+        DefaultHttpContext context = ChunkedForm("field=" + new string('a', 2 * 1024 * 1024));
+        FakePageStore storage = new();
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello.");
+
+        await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(413));
+    }
+
+    [Test]
+    public async Task AFormTheParserRefusesIsABadRequestAsync() {
+        // A field name past the parser's own 2048 character limit, which it signals by throwing.
+        DefaultHttpContext context = ChunkedForm(new string('k', 4096) + "=value");
+        FakePageStore storage = new();
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello.");
+
+        await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+    }
+
+    [Test]
+    public async Task AChunkedFormUnderTheCapIsServedAsync() {
+        DefaultHttpContext context = ChunkedForm("field=hello");
+        FakePageStore storage = new();
+        storage["/hello.cs"] = new PageTemplate(
+            PagePath.Normalize("/hello.cs"), "<% ctx.Write(ctx.Request.Form[\"field\"]); %>");
+
+        await PageEndpoint.Handle(context, CreatePages(storage), NullLoggerFactory.Instance, Reserved, Options);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("hello"));
+    }
+
     private static GeneratedSource Generate(string template) {
         TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
@@ -438,5 +474,13 @@ public sealed class PageEndpointTests {
 
     private static DefaultHttpContext CreateContext(string? path) {
         return TestHttp.CreateContext(path, "GET", PagePath.Normalize(path).Key);
+    }
+
+    // No ContentLength, which is what a chunked request looks like to the endpoint.
+    private static DefaultHttpContext ChunkedForm(string body) {
+        DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "POST", "/hello.cs");
+        context.Request.ContentType = "application/x-www-form-urlencoded";
+        context.Request.Body = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(body));
+        return context;
     }
 }

@@ -151,8 +151,11 @@ internal static class AuthenticationExtensions {
                     .GetRequiredService<IOptions<LoginRateLimitOptions>>()
                     .Value;
 
+                // Per client, so one address spending its attempts cannot deny sign-in to the
+                // owner. Caddy writes X-Forwarded-For and the publish is loopback only, so the
+                // address here is the browser's rather than the proxy's.
                 return RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: LoginRateLimitPolicy.Name,
+                    partitionKey: LoginRateLimitPolicy.PartitionFor(context.Connection.RemoteIpAddress),
                     factory: _ => new FixedWindowRateLimiterOptions {
                         PermitLimit = limit.PermitLimit,
                         Window = limit.Window,

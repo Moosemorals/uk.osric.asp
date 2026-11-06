@@ -52,6 +52,27 @@ public sealed class SimpleContextTests {
         Assert.That(context.ToResponse().Headers, Is.Empty);
     }
 
+    [TestCase("X-Content-Type-Options")]
+    [TestCase("x-content-type-options")]
+    [TestCase("X-Frame-Options")]
+    [TestCase("X-XSS-Protection")]
+    public void TheShellsOwnXHeadersAreRefusedThroughTheWildcard(string name) {
+        SimpleContext context = CreateContext(out _);
+
+        Assert.That(() => context.SetHeader(name, ""), Throws.ArgumentException);
+        Assert.That(() => context.SetHeader(name, "value"), Throws.ArgumentException);
+        Assert.That(context.ToResponse().Headers, Is.Empty);
+    }
+
+    [TestCase("")]
+    [TestCase("   ")]
+    public void EmptyHeaderValuesAreRefused(string value) {
+        SimpleContext context = CreateContext(out _);
+
+        Assert.That(() => context.SetHeader("X-Page", value), Throws.ArgumentException);
+        Assert.That(context.ToResponse().Headers, Is.Empty);
+    }
+
     [TestCase("value\r\nSet-Cookie: stolen=yes")]
     [TestCase("value\n")]
     public void HeaderValuesWithLineBreaksAreRefused(string value) {

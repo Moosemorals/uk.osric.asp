@@ -24,35 +24,52 @@ execution, read or write another account's data, or bypass authentication. The r
 default deny, `System.Object` and `System.Type` are unnameable so reflection has no entry point, the
 reference set is trimmed, and the load context refuses both our assemblies and `Microsoft.*`.
 
-The findings that remain are availability problems, which is the right answer for this threat model:
-the strongest attacks available to an automated client are lockouts and slow memory growth, not
-compromise.
+The findings were availability problems, which is the right answer for this threat model: the
+strongest attacks available to an automated client were lockouts and slow memory growth, not
+compromise. All five have since been fixed; each section below records the fix.
 
 ## Findings
 
 | # | Severity | Location | Issue | Confidence |
 |---|---|---|---|---|
-| 1 | Medium | `src/uk.osric.asp.Web/Authentication/AuthenticationExtensions.cs:149` | Global login throttle is a single bucket; ten unauthenticated requests a minute lock the owner out indefinitely. | 9/10 |
+| 1 | Medium | ~~`src/uk.osric.asp.Web/Authentication/AuthenticationExtensions.cs:149`~~ | Global login throttle is a single bucket; ten unauthenticated requests a minute lock the owner out indefinitely. **Fixed** — see below. | 9/10 |
 | 2 | Medium | ~~`src/uk.osric.asp.Web/Pages/SimpleContext.cs:68`~~ | Logger category derived from the raw request path; the logger cache never evicts, so unique URLs leak memory permanently. **Fixed** — see below. | 8/10 |
-| 3 | Low | `src/uk.osric.asp.Web/Pages/SimpleContext.cs:193` | The `X-` header wildcard collides with the shell's own `X-` security headers, so page code can blank them. | 9/10 |
-| 4 | Low | `src/uk.osric.asp.Web/Pages/PageEndpoint.cs:54` | The 1 MB form cap only reads `ContentLength`, so a chunked POST is buffered up to Kestrel's default instead. | 9/10 |
-| 5 | Low | `src/uk.osric.asp.Web/Health/HealthReportWriter.cs:32` | Anonymous `/heath` serialises exception messages and `Data` from every health check. | 7/10 |
+| 3 | Low | ~~`src/uk.osric.asp.Web/Pages/SimpleContext.cs:193`~~ | The `X-` header wildcard collides with the shell's own `X-` security headers, so page code can blank them. **Fixed** — see below. | 9/10 |
+| 4 | Low | ~~`src/uk.osric.asp.Web/Pages/PageEndpoint.cs:54`~~ | The 1 MB form cap only reads `ContentLength`, so a chunked POST is buffered up to Kestrel's default instead. **Fixed** — see below. | 9/10 |
+| 5 | Low | ~~`src/uk.osric.asp.Web/Health/HealthReportWriter.cs:32`~~ | Anonymous `/heath` serialises exception messages and `Data` from every health check. **Fixed** — see below. | 7/10 |
 
-### 1. Login throttle denies the owner any sign-in — Medium
+### 1. Login throttle denies the owner any sign-in — Medium — *fixed*
 
-`AddPolicy` partitions a fixed-window limiter on the constant `LoginRateLimitPolicy.Name`, so the
-whole site shares one bucket of ten permits a minute. Because `UseRateLimiter()` (`Program.cs:202`)
+`AddPolicy` partitioned a fixed-window limiter on the constant `LoginRateLimitPolicy.Name`, so the
+whole site shared one bucket of ten permits a minute. Because `UseRateLimiter()` (`Program.cs:202`)
 runs before `UseAntiforgery()` (`Program.cs:205`), the requests that exhaust it need no antiforgery
-token: ten bare `POST /login` a minute from one client hold the bucket permanently empty and the
-owner cannot authenticate at all.
+token: ten bare `POST /login` a minute from one client held the bucket permanently empty and the
+owner could not authenticate at all.
 
 Denial of service only — no credential is exposed and no session changes hands.
 
-This is already recorded as accepted risk 5 in [the auth cookie review](./docs/security/auth-cookie-review.md),
-whose reasoning stands: partitioning on `X-Forwarded-For` in the app would widen the proxy trust
-boundary for very little gain. The cheaper fix is outside the app — a `rate_limit` on `/login`
-per client address in [`deploy/Caddyfile`](./deploy/Caddyfile), where the real peer address is
-still visible. Caddy is already the only rootful unit and already the TLS terminator.
+This was recorded as accepted risk 5 in [the auth cookie review](./docs/security/auth-cookie-review.md),
+whose reasoning was that per-client partitioning needs `X-Forwarded-For` trust. That reasoning was
+half right and half wrong. Wrong: the proxy boundary was already widened for `X-Forwarded-Proto` and
+`X-Forwarded-Host`, and the loopback-only publish is what bounds it, so `X-Forwarded-For` costs
+nothing extra — Caddy replaces client-supplied `X-Forwarded-*` rather than passing them through.
+Right: the fix needs care, because `PartitionedRateLimiter` never releases a partition — measured
+with 50,000 distinct keys, all 50,000 were still resident minutes later — so keying on the raw
+address would have been the same unbounded-growth bug as finding 2.
+
+Fixed by enabling `XForwardedFor` and partitioning on a bucket of the client address:
+
+```csharp
+options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ...;
+...
+partitionKey: LoginRateLimitPolicy.PartitionFor(context.Connection.RemoteIpAddress),
+```
+
+`PartitionFor` folds the address into one of 1024 FNV-1a buckets, which bounds the limiter's
+dictionary at a known size; two clients share a counter occasionally, which is the price of the
+bound. A `rate_limit` in Caddy would have been the other option, but it is not a core directive in
+Caddy 2.11 and would mean shipping a custom image for one rule.
+`OneClientExhaustingItsBucketDoesNotLockOutAnotherAsync` proves the property against the real host.
 
 ### 2. Logger cache grows without bound from anonymous URLs — Medium — *fixed*
 
@@ -86,7 +103,7 @@ that is cached. `TheCategoryDoesNotVaryWithThePath` in `SimpleContextTests` pins
 Recorded as DEC-24 in [the decisions](./docs/decisions.md) and updated in
 [the architecture](./docs/architecture.md#page-contract); `IContext`'s doc comment says the same.
 
-### 3. Page code can blank the shell's `X-` security headers — Low
+### 3. Page code can blank the shell's `X-` security headers — Low — *fixed*
 
 `s_allowedHeaders` deliberately permits a small set plus any name beginning with `X-`, so pages can
 add their own `X-` headers. But the shell's own defaults are `X-Content-Type-Options`,
@@ -101,10 +118,11 @@ still blocks framing, which confines the practical impact to sniffing on clients
 declared type. The actor must already be able to author a page, so this is a footgun for a trusted
 editor rather than an escalation.
 
-Fix: exclude the shell's header names from the `X-` branch, or move pages onto a distinct prefix
-such as `X-Page-`, and reject empty values early.
+Fixed by asking the shell whether it owns the name before the wildcard is applied, so the reserved
+set cannot drift from the headers actually written, and by rejecting an empty value at `SetHeader`.
+`TheShellsOwnXHeadersAreRefusedThroughTheWildcard` and `EmptyHeaderValuesAreRefused` pin both.
 
-### 4. The form size cap is bypassable — Low
+### 4. The form size cap is bypassable — Low — *fixed*
 
 `MaxFormBytes` is checked against `Request.ContentLength` (`PageEndpoint.cs:54`). A chunked request
 has no `ContentLength`, so it passes, and `PageRequestSnapshot` (`PageRequestSnapshot.cs:24`) then
@@ -112,22 +130,27 @@ buffers `Request.Form` — synchronously on the request thread — up to Kestrel
 limit. The comment above the constant states the intent: the body is buffered, so an oversize form
 should be refused rather than held in memory.
 
-Fix: also enforce the cap when `ContentLength` is null, and read the form with the async API so a
-slow upload does not occupy a thread pool thread.
+Fixed by reading a chunked form's body here, bounded, and handing it back as a seekable stream for
+the form to parse — the buffering the snapshot did anyway, one cap's worth smaller, and independent
+of the server. The first attempt used Kestrel's `IHttpMaxRequestBodySizeFeature`, which is the
+tidiest production answer but is not enforced by the test host, so it could not be verified; the
+explicit read is. `AChunkedFormPastTheCapIsRejected` covers both the unit and the real host.
 
-### 5. Anonymous health endpoint can disclose check detail — Low
+### 5. Anonymous health endpoint can disclose check detail — Low — *fixed*
 
-`/heath` is anonymous by design and `HealthReportWriter` serialises `Exception?.Message` and `Data`
-for every entry. Both current checks return fixed strings, so nothing leaks today; the risk is that
-a future check which puts a path or a connection string in `Data` publishes it to anyone. Worth
-either restricting the detail to authenticated callers or documenting the constraint on the writer.
+`/heath` is anonymous by design and `HealthReportWriter` serialised `Exception?.Message` and `Data`
+for every entry. Both current checks returned fixed strings, so nothing leaked; the risk was that a
+future check which puts a path or a connection string in `Data` publishes it to anyone.
+
+Fixed by making the detail depend on who is asking: the status, check names, descriptions and
+durations stay public, because the container health check needs them, and the exception message and
+`Data` are written only for a signed-in caller.
 
 ## Known risks, unchanged
 
-Neither of these is new; both are already reasoned about and accepted in
+Both are already reasoned about and accepted in
 [the auth cookie review](./docs/security/auth-cookie-review.md):
 
-- Accepted risk 5 — the login throttle above.
 - Accepted risk 9 — `AgentConversation.ApprovalMode` defaults to `AlwaysApprove`, so model-driven
   page writes execute without approval. The agent is off by default and owner scoped. Defaulting new
   conversations to `RequireApproval` remains cheap defence in depth.
@@ -183,10 +206,14 @@ cannot regress.
 - Caddy `encode` applies to token-bearing HTML on `/login` and `/edit/*`. That is the BREACH
   precondition; it needs a size oracle to matter, and excluding those paths from compression is a
   one-line change.
-- `SetContentType` accepts unvalidated text and `SetHeader` accepts empty values; Kestrel rejects a
-  CR/LF at write time, so the worst case is a 500, but validating early gives a better diagnostic.
+- `SetContentType` accepts unvalidated text; Kestrel rejects a CR/LF at write time, so the worst case
+  is a 500, but validating early gives a better diagnostic.
 - The app container is not read-only, and Caddy runs rootful with host networking. Both are
   reasonable under rootless podman; they are the remaining container-hardening steps.
+
+Also fixed while working on finding 4, because it sits in the same request path: a form the parser
+refuses (a key or value past `FormOptions`' limits) threw `InvalidDataException` and surfaced as a
+500. An anonymous client can trigger that with one request, so it is now a 400.
 
 ## Repeating this review
 

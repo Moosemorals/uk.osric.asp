@@ -26,10 +26,19 @@ internal static class HealthReportWriter {
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
         }
 
+        // The endpoint is anonymous, and a check's Exception or Data can carry a path or a
+        // connection string, so who is asking decides how much of the report they get.
+        bool detailed = context.User.Identity?.IsAuthenticated == true;
+
         List<CheckResult> checks = [];
         foreach ((string name, HealthReportEntry entry) in report.Entries) {
-            checks.Add(new CheckResult(name, entry.Status.ToString(), entry.Description,
-                entry.Duration.TotalMilliseconds, entry.Exception?.Message, entry.Data));
+            checks.Add(new CheckResult(
+                name,
+                entry.Status.ToString(),
+                entry.Description,
+                entry.Duration.TotalMilliseconds,
+                detailed ? entry.Exception?.Message : null,
+                detailed ? entry.Data : null));
         }
 
         HealthPayload payload = new(report.Status.ToString(), report.TotalDuration.TotalMilliseconds, checks);

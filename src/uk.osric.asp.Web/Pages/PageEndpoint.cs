@@ -56,10 +56,26 @@ internal sealed class PageEndpoint() {
             return;
         }
 
+        // A chunked POST has no ContentLength to check, so its body is read here instead.
+        if (context.Request.ContentLength is null && !await TryBufferFormAsync(context)) {
+            await WriteTooLargeAsync(context, path);
+            return;
+        }
+
+        PageRequest snapshot;
+        try {
+            snapshot = PageRequestSnapshot.Create(context.Request);
+        } catch (InvalidDataException) {
+            // The form parser refuses a key or value past its limit. That is the client's fault, so
+            // it is a 400 rather than the error page.
+            await WriteBadRequestAsync(context, path);
+            return;
+        }
+
         StringWriter output = new();
         SimpleContext page = new(
             loggerFactory,
-            PageRequestSnapshot.Create(context.Request),
+            snapshot,
             context.RequestAborted,
             output,
             options.MaxBodyChars);
@@ -140,9 +156,40 @@ internal sealed class PageEndpoint() {
         await context.Response.WriteAsync($"{path} is taking too long.");
     }
 
+    private static async Task WriteBadRequestAsync(HttpContext context, PagePath path) {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        context.Response.ContentType = "text/plain; charset=utf-8";
+        await context.Response.WriteAsync($"{path} rejected: the form could not be read.");
+    }
+
     private static async Task WriteTooLargeAsync(HttpContext context, PagePath path) {
         context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
         context.Response.ContentType = "text/plain; charset=utf-8";
         await context.Response.WriteAsync($"{path} rejected: the request body is too large.");
+    }
+
+    // The header check above cannot see a chunked body, so read it here instead: bounded, then
+    // handed back as a seekable stream for the form to parse. The snapshot buffers the body anyway;
+    // this just makes that buffer the cap's size rather than the server's.
+    private static async Task<bool> TryBufferFormAsync(HttpContext context) {
+        if (!context.Request.HasFormContentType) {
+            return true;
+        }
+
+        MemoryStream buffer = new();
+        byte[] chunk = new byte[16 * 1024];
+
+        while (buffer.Length <= MaxFormBytes) {
+            int read = await context.Request.Body.ReadAsync(chunk, context.RequestAborted);
+            if (read == 0) {
+                buffer.Position = 0;
+                context.Request.Body = buffer;
+                return true;
+            }
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        return false;
     }
 }

@@ -55,6 +55,29 @@ internal static class SecurityHeaders {
         context.Response.Headers[ContentSecurityPolicy] = WithScripts;
     }
 
+    /// <summary>Whether the shell writes this header itself, so a page may not set it.</summary>
+    /// <remarks>
+    /// <c>SimpleContext</c> lets a page set any <c>X-</c> name, which includes several of these;
+    /// without this a page could blank its own <c>nosniff</c>.
+    /// </remarks>
+    /// <param name="name">The header name to test.</param>
+    /// <returns>True when the shell owns the header.</returns>
+    public static bool IsOwned(string name) {
+        ArgumentNullException.ThrowIfNull(name);
+
+        if (name.Equals(ContentSecurityPolicy, StringComparison.OrdinalIgnoreCase)) {
+            return true;
+        }
+
+        foreach ((string owned, _) in Headers) {
+            if (owned.Equals(name, StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static void WriteIfAbsent(HttpContext context, string name, string value) {
         if (!context.Response.Headers.ContainsKey(name)) {
             context.Response.Headers[name] = value;

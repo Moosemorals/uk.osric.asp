@@ -59,11 +59,15 @@ internal class Program {
         builder.Services.AddSingleton<IValidateOptions<AgentOptions>, AgentOptionsValidator>();
 
         builder.Services.Configure<ForwardedHeadersOptions>(options => {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
+                | ForwardedHeaders.XForwardedProto
+                | ForwardedHeaders.XForwardedHost;
             // Caddy terminates TLS on the host loopback and is the only peer that can reach the port
             // (the quadlet publishes 127.0.0.1:8080), so any peer may describe the original request.
             // The loopback-only defaults do not survive podman's user-space networking, so the publish
-            // is what bounds this trust, not an address list.
+            // is what bounds this trust, not an address list. Caddy replaces client-supplied
+            // X-Forwarded-* rather than passing them through, and the middleware reads the rightmost
+            // entry, so the address is the browser's and cannot be chosen by the request.
             options.KnownProxies.Clear();
             options.KnownIPNetworks.Clear();
         });

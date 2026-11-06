@@ -516,8 +516,8 @@ None blocking. Two choices worth recording:
 
 - **Accounts are the owner list.** Adding a second account is a deliberate grant of editor access,
   not a bug. If that changes, the CLI or the policy needs a single-owner rule.
-- **The rate limiter is global.** If the site ever sits behind a proxy that forwards the client
-  address, partition by `X-Forwarded-For` instead; today every request is `127.0.0.1` and a global
-  window is honest.
+- **The rate limiter is per client.** It partitions on a bucket of `Connection.RemoteIpAddress`,
+  which the forwarded-headers middleware fills from Caddy's `X-Forwarded-For`. Bucketing keeps the
+  limiter's per-key dictionary bounded, since it never releases a key.
 - **The long-term window is 30 days of inactivity.** It is one constant in the cookie options; if
   the trade-off changes, move it there rather than adding a second expiry path.

@@ -237,9 +237,10 @@ path. It can restore a deleted seeded page without discarding its earlier revisi
   `/login`, `/logout`, `/heath` and `/metrics` are the other routes outside the page catch-all, and
   every one of them is a reserved page key.
 - Sign-in is throttled by a fixed window of ten attempts a minute (`LoginRateLimitOptions`), and a
-  request over the limit is answered `429` before any password is hashed. The window is one global
-  partition on purpose: behind Caddy every request arrives from the loopback, so a per-address
-  partition would be one bucket with more moving parts.
+  request over the limit is answered `429` before any password is hashed. The window is per client
+  address, taken from the `X-Forwarded-For` Caddy writes, so one address spending its attempts
+  cannot deny sign-in to anyone else. The address is folded into one of 1024 buckets, because the
+  limiter never releases a partition and the address is otherwise unbounded (DEC-118).
 - Login, logout and editor POSTs validate an antiforgery token. A rejected request is answered
   `400` before it reads the form or touches storage. The editor's save message lives in the session,
   not in a cookie, and a successful save answers `303` so the browser follows with a `GET`.
