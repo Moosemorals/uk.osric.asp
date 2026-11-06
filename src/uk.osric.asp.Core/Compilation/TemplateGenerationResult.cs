@@ -12,5 +12,5 @@ namespace uk.osric.asp.Core.Compilation;
 public sealed record TemplateGenerationResult(GeneratedSource? Source, IReadOnlyList<PageDiagnostic> Errors) {
 
     /// <summary>Whether source was generated.</summary>
-    internal bool Success => Errors.Count == 0;
+    internal bool IsSuccess => Errors.Count == 0;
 }

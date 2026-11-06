@@ -26,10 +26,10 @@ public sealed record ContextTrimResult(
     string? Error) {
 
     /// <summary>Whether older conversation messages were omitted.</summary>
-    public bool WasTrimmed => DroppedMessages > 0;
+    public bool IsTrimmed => DroppedMessages > 0;
 
     /// <summary>A display-safe note to include when the request omitted earlier turns.</summary>
-    public string? TrimmingNote => WasTrimmed
+    public string? TrimmingNote => IsTrimmed
         ? "Earlier conversation history was omitted to fit the context budget."
         : null;
 }

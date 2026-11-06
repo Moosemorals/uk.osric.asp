@@ -64,7 +64,7 @@ internal sealed class RunProcessor(
                     await FailAsync(queued, stream, "context_too_long", trimmed.Error, partial, step, runTimeout.Token);
                     return;
                 }
-                if (trimmed.WasTrimmed) {
+                if (trimmed.IsTrimmed) {
                     stream.Publish("run.warning", new {
                         code = "context_trimmed",
                         message = trimmed.TrimmingNote,
@@ -178,7 +178,7 @@ internal sealed class RunProcessor(
                     }
 
                     toolCallCount++;
-                    metrics.RecordTool(definition, result.Success, Stopwatch.GetElapsedTime(toolStart));
+                    metrics.RecordTool(definition, result.IsSuccess, Stopwatch.GetElapsedTime(toolStart));
                     await StoreAsync(store => store.AppendMessageAsync(
                         queued.ConversationId,
                         queued.RunId,
@@ -189,7 +189,7 @@ internal sealed class RunProcessor(
                         toolCallId = call.Id,
                         name = call.Name,
                         arguments = call.Arguments,
-                        ok = result.Success,
+                        ok = result.IsSuccess,
                         summary = result.Summary,
                         content = result.Content,
                         durationMs = (long)Stopwatch.GetElapsedTime(toolStart).TotalMilliseconds,

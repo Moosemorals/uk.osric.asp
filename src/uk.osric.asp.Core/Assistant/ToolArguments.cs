@@ -27,7 +27,7 @@ public sealed record ToolArgumentSchema(string Name, ToolArgumentType Type, bool
 /// <param name="Error">A safe validation failure, or null when valid.</param>
 public sealed record ToolArgumentsResult(IReadOnlyDictionary<string, JsonElement> Values, string? Error) {
     /// <summary>Whether the argument object passed validation.</summary>
-    public bool Success => Error is null;
+    public bool IsSuccess => Error is null;
 }
 
 /// <summary>Validates strict, bounded JSON objects used as tool arguments.</summary>

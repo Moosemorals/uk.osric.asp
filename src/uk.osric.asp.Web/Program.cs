@@ -222,9 +222,9 @@ internal class Program {
         admin.MapPost("/restore", RestoreEndpoint.PostAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
-        app.MapGet("/edit/{**path}", EditorEndpoint.Handler)
+        app.MapGet("/edit/{**path}", EditorEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
-        app.MapPost("/edit/{**path}", EditorEndpoint.Handler)
+        app.MapPost("/edit/{**path}", EditorEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
@@ -276,7 +276,7 @@ internal class Program {
         app.MapPrometheusScrapingEndpoint("/metrics");
         // Pages run for the safe verbs only; anything else is answered 405 by routing rather than
         // by page code that never expected it.
-        app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.Handle);
+        app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.HandleAsync);
 
         await app.RunAsync();
     }

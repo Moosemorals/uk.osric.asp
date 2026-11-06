@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 
 /// <summary>A validated page path, or why the assistant may not use the one it asked for.</summary>
 internal sealed record PathValidationResult(PagePath? Path, string? Error) {
-    public bool Success => Error is null;
+    public bool IsSuccess => Error is null;
 }
 
 /// <summary>The rule for which pages the assistant may read and write.</summary>

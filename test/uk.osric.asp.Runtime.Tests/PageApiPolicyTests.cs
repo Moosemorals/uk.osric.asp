@@ -22,7 +22,7 @@ public sealed class PageApiPolicyTests {
     public void BannedCodeIsRejectedWithoutAnImage(string template, string api) {
         CompileResult result = Compile(template);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Image, Is.Null);
         // NUnit types the Matches predicate's item as nullable, so check it before reading it.
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -36,7 +36,7 @@ public sealed class PageApiPolicyTests {
     public void DeclaringMembersIsRejected(string template) {
         CompileResult result = Compile(template);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message.StartsWith("PAGE002:", StringComparison.Ordinal)));
@@ -57,7 +57,7 @@ public sealed class PageApiPolicyTests {
 
         CompileResult result = Compile(template);
 
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
     [TestCase("<%! int value = 1; %>")]
@@ -66,7 +66,7 @@ public sealed class PageApiPolicyTests {
     public void AStatementInADeclarationBlockIsRejected(string template) {
         CompileResult result = Compile(template);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message.StartsWith("PAGE002:", StringComparison.Ordinal)
@@ -77,7 +77,7 @@ public sealed class PageApiPolicyTests {
     public void ANamespaceInADeclarationBlockIsRejected() {
         CompileResult result = Compile("<%! namespace Page { class Amount { } } %>");
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message == "PAGE002: a page may not declare a namespace."
@@ -88,7 +88,7 @@ public sealed class PageApiPolicyTests {
     public void APageMayNotDeclareGeneratedPage() {
         CompileResult result = Compile("<%! class GeneratedPage { } %>");
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message == "PAGE002: a page may not declare its own GeneratedPage."));
@@ -98,7 +98,7 @@ public sealed class PageApiPolicyTests {
     public void AnAssemblyAttributeIsRejected() {
         CompileResult result = Compile("<%![assembly: System.Reflection.AssemblyTitle(\"page\")]%>");
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message == "PAGE002: a page may not add assembly attributes."));
@@ -116,7 +116,7 @@ public sealed class PageApiPolicyTests {
 
         CompileResult result = Compile(template);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Image, Is.Null);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
@@ -138,7 +138,7 @@ public sealed class PageApiPolicyTests {
 
         CompileResult result = Compile(template);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message.Contains("System.IO.File.ReadAllText", StringComparison.Ordinal)
@@ -173,14 +173,14 @@ public sealed class PageApiPolicyTests {
 
         CompileResult result = Compile(template);
 
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
     [Test]
     public void ADeclarationBlockThatOnlyImportsANamespaceCompiles() {
         CompileResult result = Compile("<%! using System.Globalization; %>");
 
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
     [Test]
@@ -213,7 +213,7 @@ public sealed class PageApiPolicyTests {
 
         CompileResult result = Compile(template);
 
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
     [Test]
@@ -240,7 +240,7 @@ public sealed class PageApiPolicyTests {
 
     private static GeneratedSource Generate(string template) {
         TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
-        Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
+        Assert.That(parsed.IsSuccess, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 
         // The assertion above proves source was generated.
         return parsed.Source!;

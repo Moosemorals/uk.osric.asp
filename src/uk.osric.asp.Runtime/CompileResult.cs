@@ -16,6 +16,6 @@ using uk.osric.asp.Core.Compilation;
 public sealed record CompileResult(byte[]? Image, byte[]? Symbols, IReadOnlyList<PageDiagnostic> Diagnostics) {
 
     /// <summary>Whether the page can run; warnings do not stop it.</summary>
-    public bool Success =>
+    public bool IsSuccess =>
         Diagnostics.All(diagnostic => diagnostic.Severity != PageDiagnosticSeverity.Error);
 }

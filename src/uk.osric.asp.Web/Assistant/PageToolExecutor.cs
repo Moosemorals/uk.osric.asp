@@ -12,7 +12,7 @@ using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>What one tool call produced, as the model receives it.</summary>
-internal sealed record ToolExecutionResult(bool Success, string Content, string Summary);
+internal sealed record ToolExecutionResult(bool IsSuccess, string Content, string Summary);
 
 /// <summary>Runs the page tools the model asks for: read, write, list and delete.</summary>
 internal sealed class PageToolExecutor(
@@ -53,7 +53,7 @@ internal sealed class PageToolExecutor(
         }
 
         ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, schema, options.MaxToolArgumentChars);
-        if (!parsed.Success) {
+        if (!parsed.IsSuccess) {
             return Failure(parsed.Error!, $"Invalid arguments for {name}");
         }
 
@@ -101,7 +101,7 @@ internal sealed class PageToolExecutor(
         PageEditor pages,
         CancellationToken cancellationToken) {
         PathValidationResult checkedPath = paths.Validate(String(arguments, "path"), write: false);
-        if (!checkedPath.Success) {
+        if (!checkedPath.IsSuccess) {
             return Failure(checkedPath.Error!, "Read refused");
         }
         return await ReadPageAtAsync(checkedPath.Path!, Integer(arguments, "startLine"), Integer(arguments, "endLine"), pages, cancellationToken);
@@ -155,7 +155,7 @@ internal sealed class PageToolExecutor(
         CancellationToken cancellationToken) {
         string pathText = String(arguments, "path")!;
         PathValidationResult checkedPath = paths.Validate(pathText, write: true);
-        if (!checkedPath.Success) {
+        if (!checkedPath.IsSuccess) {
             return Failure(checkedPath.Error!, "Edit refused");
         }
 
@@ -174,7 +174,7 @@ internal sealed class PageToolExecutor(
             Integer(arguments, "endLine")!.Value,
             String(arguments, "replacement")!,
             options.MaxPageChars);
-        if (!edited.Success) {
+        if (!edited.IsSuccess) {
             return Failure(edited.Error!, $"Edit {Describe(checkedPath.Path!)}: rejected");
         }
 
@@ -193,7 +193,7 @@ internal sealed class PageToolExecutor(
         PageEditor pages,
         CancellationToken cancellationToken) {
         PathValidationResult checkedPath = paths.Validate(String(arguments, "path"), write: true);
-        if (!checkedPath.Success) {
+        if (!checkedPath.IsSuccess) {
             return Failure(checkedPath.Error!, "Write refused");
         }
 
@@ -214,7 +214,7 @@ internal sealed class PageToolExecutor(
         PageEditor pages,
         CancellationToken cancellationToken) {
         PathValidationResult checkedPath = paths.Validate(String(arguments, "path"), write: true);
-        if (!checkedPath.Success) {
+        if (!checkedPath.IsSuccess) {
             return Failure(checkedPath.Error!, "Delete refused");
         }
 
@@ -321,7 +321,7 @@ internal sealed class PageToolExecutor(
         }
 
         PathValidationResult checkedPath = paths.Validate(pathText, write: false);
-        if (!checkedPath.Success) {
+        if (!checkedPath.IsSuccess) {
             return Failure(checkedPath.Error!, "Shell path refused");
         }
         PageTemplate? target = await pages.GetAsync(checkedPath.Path!, cancellationToken);

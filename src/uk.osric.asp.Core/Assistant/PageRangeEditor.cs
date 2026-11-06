@@ -8,7 +8,7 @@ namespace uk.osric.asp.Core.Assistant;
 /// <param name="Error">A safe validation error, or null when replacement succeeded.</param>
 public sealed record PageRangeEditResult(string? Content, string? Error) {
     /// <summary>Whether the replacement is valid.</summary>
-    public bool Success => Error is null;
+    public bool IsSuccess => Error is null;
 }
 
 /// <summary>Replaces inclusive physical lines of stored template source without changing surrounding bytes.</summary>

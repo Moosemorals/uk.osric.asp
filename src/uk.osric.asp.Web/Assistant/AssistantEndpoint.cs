@@ -33,7 +33,7 @@ internal static class AssistantEndpoint {
 
         if (context.Request.Method == "POST") {
             NoStore(context);
-            if (!PostIsValid(context)) {
+            if (!IsPostValid(context)) {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
             }
@@ -179,7 +179,7 @@ internal static class AssistantEndpoint {
         RunRegistry registry,
         AssistantOptions options) {
         NoStore(context);
-        if (!PostIsValid(context)) {
+        if (!IsPostValid(context)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
@@ -249,7 +249,7 @@ internal static class AssistantEndpoint {
         IConversationStore conversations,
         RunRegistry registry) {
         NoStore(context);
-        if (!PostIsValid(context)) {
+        if (!IsPostValid(context)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
@@ -317,7 +317,7 @@ internal static class AssistantEndpoint {
 
     public static async Task OptionsAsync(HttpContext context, long id, IConversationStore conversations) {
         NoStore(context);
-        if (!PostIsValid(context)) {
+        if (!IsPostValid(context)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
@@ -371,7 +371,7 @@ internal static class AssistantEndpoint {
         IConversationStore conversations,
         ToolApprovalCoordinator coordinator) {
         NoStore(context);
-        if (!PostIsValid(context)) {
+        if (!IsPostValid(context)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
@@ -423,7 +423,7 @@ internal static class AssistantEndpoint {
         IConversationStore conversations,
         RunRegistry registry) {
         NoStore(context);
-        if (!PostIsValid(context)) {
+        if (!IsPostValid(context)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
@@ -589,7 +589,7 @@ internal static class AssistantEndpoint {
 
     private static string? Owner(HttpContext context) => context.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-    private static bool PostIsValid(HttpContext context) =>
+    private static bool IsPostValid(HttpContext context) =>
         context.Features.Get<IAntiforgeryValidationFeature>() is not { IsValid: false };
 
     private static void NoStore(HttpContext context) => context.Response.Headers.CacheControl = "no-store";

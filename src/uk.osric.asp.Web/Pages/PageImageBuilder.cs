@@ -92,7 +92,7 @@ internal sealed class PageImageBuilder(
                     budget.CompileSlots.Release();
                 }
 
-                if (!result.Success) {
+                if (!result.IsSuccess) {
                     logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, generatedSource);
                 }
             }
@@ -101,13 +101,13 @@ internal sealed class PageImageBuilder(
         }
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
-        metrics.RecordCompile(path, result.Success, reason, duration);
+        metrics.RecordCompile(path, result.IsSuccess, reason, duration);
         if (result.Image is { } image) {
             metrics.RecordImageSize(path, image.Length);
         }
 
         logger.LogDebug("Compiled {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
-            result.Success ? "ok" : "error");
+            result.IsSuccess ? "ok" : "error");
 
         return new PageImage(TemplateFingerprint.Of(template), compiler.RuntimeId, result.Image, result.Symbols, result.Diagnostics);
     }

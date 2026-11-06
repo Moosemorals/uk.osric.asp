@@ -26,7 +26,7 @@ public static class TemplateSourceGenerator {
         ArgumentNullException.ThrowIfNull(template);
 
         TokenizeResult tokenized = TemplateTokenizer.Tokenize(template);
-        if (!tokenized.Success) {
+        if (!tokenized.IsSuccess) {
             return new TemplateGenerationResult(null, tokenized.Errors);
         }
 

@@ -185,7 +185,7 @@ public sealed class TemplateTokenizerTests {
     public void UnterminatedCodeBlockIsReportedAtItsOpeningDelimiter(string input, int line, int column) {
         TokenizeResult result = TemplateTokenizer.Tokenize(input);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
                 "TEMPLATE001: unterminated code block; the '<%' has no matching '%>'."),
@@ -200,7 +200,7 @@ public sealed class TemplateTokenizerTests {
     public void AnUnterminatedDeclarationBlockIsReportedAtItsOpeningDelimiter(string input, int line, int column) {
         TokenizeResult result = TemplateTokenizer.Tokenize(input);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
                 "TEMPLATE001: unterminated declaration block; the '<%!' has no matching '%>'."),
@@ -218,7 +218,7 @@ public sealed class TemplateTokenizerTests {
         TokenizeResult result = TemplateTokenizer.Tokenize(input);
         string kind = opener == "<%==" ? "raw-write" : "write";
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
                 $"TEMPLATE001: unterminated {kind} block; the '{opener}' has no matching '%>'."),

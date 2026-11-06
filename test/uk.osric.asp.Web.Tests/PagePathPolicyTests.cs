@@ -27,11 +27,11 @@ public sealed class PagePathPolicyTests {
     public void WritablePrefixAllowsOnlyItsPathAndDescendants() {
         PagePathPolicy paths = CreatePaths("/blog");
 
-        Assert.That(paths.Validate("/blog", write: true).Success, Is.True);
-        Assert.That(paths.Validate("/blog/post", write: true).Success, Is.True);
+        Assert.That(paths.Validate("/blog", write: true).IsSuccess, Is.True);
+        Assert.That(paths.Validate("/blog/post", write: true).IsSuccess, Is.True);
         Assert.That(paths.Validate("/blogger/post", write: true).Error, Does.Contain("WritablePathPrefix"));
-        Assert.That(paths.Validate("/public", write: true).Success, Is.False);
-        Assert.That(paths.Validate("/public", write: false).Success, Is.True);
+        Assert.That(paths.Validate("/public", write: true).IsSuccess, Is.False);
+        Assert.That(paths.Validate("/public", write: false).IsSuccess, Is.True);
     }
 
     private static PagePathPolicy CreatePaths(string writablePrefix = "") => new(

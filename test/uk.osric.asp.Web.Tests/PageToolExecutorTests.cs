@@ -32,7 +32,7 @@ public sealed class PageToolExecutorTests {
 
         ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, CancellationToken.None);
 
-        Assert.That(result.Success, Is.True, result.Content);
+        Assert.That(result.IsSuccess, Is.True, result.Content);
         Assert.That(storage["/notes"]?.Template, Is.EqualTo("first\r\nchanged\r\nthird"));
         using JsonDocument document = JsonDocument.Parse(result.Content);
         Assert.That(document.RootElement.GetProperty("data").GetProperty("revisionHash").GetString(), Is.Not.EqualTo(original.Hash));
@@ -51,7 +51,7 @@ public sealed class PageToolExecutorTests {
             "{\"path\":\"/notes\",\"startLine\":1,\"endLine\":1,\"expectedRevisionHash\":\"stale\",\"replacement\":\"changed\"}",
             CancellationToken.None);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("changed since read_page"));
         Assert.That(storage.WriteCount, Is.Zero);
         Assert.That(storage["/notes"]?.Template, Is.EqualTo("original"));
@@ -67,7 +67,7 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "read_page", "{\"path\":\"/editor.js\"}", CancellationToken.None);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(storage.ReadCount, Is.Zero);
     }
 
@@ -81,7 +81,7 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "write_page", "{\"path\":\"/new\",\"content\":\"<% int value = ; %>\"}", CancellationToken.None);
 
-        Assert.That(result.Success, Is.True);
+        Assert.That(result.IsSuccess, Is.True);
         Assert.That(storage["/new"]?.Template, Is.EqualTo("<% int value = ; %>"));
         using JsonDocument document = JsonDocument.Parse(result.Content);
         Assert.That(document.RootElement.GetProperty("data").GetProperty("revisionHash").GetString(), Is.Not.Empty);
@@ -99,7 +99,7 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "delete_page", "{\"path\":\"/notes\"}", CancellationToken.None);
 
-        Assert.That(result.Success, Is.True);
+        Assert.That(result.IsSuccess, Is.True);
         Assert.That(await storage.GetPageAsync(PageHarness.Key("/notes")), Is.Null);
         Assert.That((await storage.ListRevisionsAsync(PageHarness.Key("/notes"))).Count, Is.EqualTo(1));
         Assert.That((await storage.GetHeadAsync(PageHarness.Key("/notes")))?.IsDeleted, Is.True);

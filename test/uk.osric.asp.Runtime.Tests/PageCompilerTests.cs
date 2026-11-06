@@ -51,7 +51,7 @@ public sealed class PageCompilerTests {
     public void InvalidSourceReportsDiagnosticsWithoutAnImage() {
         CompileResult result = Compile("<% int value = ; %>");
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Is.Not.Empty);
         Assert.That(result.Image, Is.Null);
         // NUnit types the Matches predicate's item as nullable, so check it before reading it.
@@ -106,7 +106,7 @@ public sealed class PageCompilerTests {
     public void AWarningOnlyPageSucceedsAndEmitsAnImage() {
         CompileResult result = Compile("<% int unused = 1; %>");
 
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
         Assert.That(result.Symbols, Is.Not.Null.And.Not.Empty);
         Assert.That(result.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
@@ -119,7 +119,7 @@ public sealed class PageCompilerTests {
     public void AWarningDoesNotHideAnError() {
         CompileResult result = Compile("<% int unused = 1; int value = \"text\"; %>");
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Severity == PageDiagnosticSeverity.Error));
@@ -133,7 +133,7 @@ public sealed class PageCompilerTests {
     public void AnUnclosedBlockIsReportedAtTheEndOfTheTemplate() {
         CompileResult result = Compile("<% if (true) { %>");
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message.Contains("CS1513", StringComparison.Ordinal)
@@ -181,7 +181,7 @@ public sealed class PageCompilerTests {
 
         CompileResult result = Compiler.Compile(new GeneratedSource(source));
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message.Contains("CS1525", StringComparison.Ordinal)
@@ -192,7 +192,7 @@ public sealed class PageCompilerTests {
     public void AUsingBlockAfterATypeBlockIsReportedInTemplateSpace() {
         CompileResult result = Compile("<%! class Amount { } %>\n<%! using System.Globalization; %>");
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message.Contains("CS1529", StringComparison.Ordinal)
@@ -210,7 +210,7 @@ public sealed class PageCompilerTests {
             %>
             """);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message.Contains("CS0029", StringComparison.Ordinal)
@@ -274,7 +274,7 @@ public sealed class PageCompilerTests {
     public void ValidSourceEmitsAnImage() {
         CompileResult result = Compile("Hello.");
 
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
     }
 
@@ -327,7 +327,7 @@ public sealed class PageCompilerTests {
 
     private static GeneratedSource Generate(string template) {
         TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
-        Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
+        Assert.That(parsed.IsSuccess, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 
         // The assertion above proves source was generated.
         return parsed.Source!;
@@ -335,7 +335,7 @@ public sealed class PageCompilerTests {
 
     private static LoadedPage Load(string template) {
         CompileResult result = Compile(template);
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
 
         // The assertion above proves the image exists when compilation succeeded.
         return Compiler.Load(result.Image!, result.Symbols);

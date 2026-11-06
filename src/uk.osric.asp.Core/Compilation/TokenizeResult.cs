@@ -17,5 +17,5 @@ namespace uk.osric.asp.Core.Compilation;
 internal sealed record TokenizeResult(IReadOnlyList<Token> Tokens, IReadOnlyList<PageDiagnostic> Errors) {
 
     /// <summary>Whether the whole template was tokenized.</summary>
-    public bool Success => Errors.Count == 0;
+    public bool IsSuccess => Errors.Count == 0;
 }

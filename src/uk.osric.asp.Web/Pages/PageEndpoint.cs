@@ -21,7 +21,7 @@ internal sealed class PageEndpoint() {
     // this is rejected rather than held in memory.
     private const long MaxFormBytes = 1024 * 1024;
 
-    public static async Task Handle(
+    public static async Task HandleAsync(
         HttpContext context,
         PageRenderer pages,
         ILoggerFactory loggerFactory,

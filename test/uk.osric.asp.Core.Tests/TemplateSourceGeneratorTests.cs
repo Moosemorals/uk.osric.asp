@@ -98,7 +98,7 @@ public sealed class TemplateSourceGeneratorTests {
         int column) {
         TemplateGenerationResult result = TemplateSourceGenerator.Generate(template);
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Source, Is.Null);
         Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
@@ -191,7 +191,7 @@ public sealed class TemplateSourceGeneratorTests {
     public void AnUnterminatedDeclarationBlockProducesNoSourceAndOneError() {
         TemplateGenerationResult result = TemplateSourceGenerator.Generate("before<%! class Amount {");
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Source, Is.Null);
         Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(1, 7),
@@ -203,7 +203,7 @@ public sealed class TemplateSourceGeneratorTests {
     public void AnUnterminatedCodeBlockProducesNoSourceAndOneError() {
         TemplateGenerationResult result = TemplateSourceGenerator.Generate("before<% if (true) {");
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Source, Is.Null);
         Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(1, 7),
@@ -253,7 +253,7 @@ public sealed class TemplateSourceGeneratorTests {
 
     private static string Generate(string template) {
         TemplateGenerationResult result = TemplateSourceGenerator.Generate(template);
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Errors));
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Errors));
 
         // The assertion above proves source was generated.
         return result.Source!.Text;
@@ -263,7 +263,7 @@ public sealed class TemplateSourceGeneratorTests {
     public void AParsedTemplateReportsNoErrors() {
         TemplateGenerationResult result = TemplateSourceGenerator.Generate("Hello");
 
-        Assert.That(result.Success, Is.True);
+        Assert.That(result.IsSuccess, Is.True);
         Assert.That(result.Errors, Is.Empty);
     }
 }

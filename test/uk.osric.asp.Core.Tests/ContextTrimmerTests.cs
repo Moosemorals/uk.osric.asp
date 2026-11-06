@@ -21,7 +21,7 @@ public sealed class ContextTrimmerTests {
         ContextTrimResult result = ContextTrimmer.Trim(messages, 20);
 
         Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["prompt", "latest"]));
-        Assert.That(result.WasTrimmed, Is.True);
+        Assert.That(result.IsTrimmed, Is.True);
     }
 
     [Test]

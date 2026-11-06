@@ -21,7 +21,7 @@ internal sealed class EditorEndpoint {
 
     internal const string MessageKey = "editor.message";
 
-    public static async Task Handler(HttpContext context, PageEditor pages, ReservedPaths reserved, IAntiforgery antiforgery) {
+    public static async Task HandleAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, IAntiforgery antiforgery) {
         if (context.Request.Method == "POST" && context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
             NoStore(context);
             context.Response.StatusCode = StatusCodes.Status400BadRequest;

@@ -24,7 +24,7 @@ public sealed class PageScopeTests {
     public void ShellTypesAreNotReferenced(string template) {
         CompileResult result = Compiler.Compile(Generate(template));
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         // CS0234 rather than CS0246: the assembly is absent, so its namespace is unknown too.
         // NUnit types the Matches predicate's item as nullable, so check it before reading it.
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -40,7 +40,7 @@ public sealed class PageScopeTests {
         CompileResult result = Compiler.Compile(
             Generate("<% Microsoft.CodeAnalysis.CSharp.CSharpCompilation compilation = null; %>"));
 
-        Assert.That(result.Success, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
                 && diagnostic.Message.Contains("CS02", StringComparison.Ordinal)));
@@ -54,12 +54,12 @@ public sealed class PageScopeTests {
         CompileResult result = Compiler.Compile(
             Generate("<% IContext page = ctx; page.Write(page.Path); %>"));
 
-        Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
     private static GeneratedSource Generate(string template) {
         TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
-        Assert.That(parsed.Success, Is.True, string.Join(Environment.NewLine, parsed.Errors));
+        Assert.That(parsed.IsSuccess, Is.True, string.Join(Environment.NewLine, parsed.Errors));
 
         // The assertion above proves source was generated.
         return parsed.Source!;
