@@ -28,6 +28,7 @@ CORE_TESTS := test/uk.osric.asp.Core.Tests/uk.osric.asp.Core.Tests.csproj
 RUNTIME_TESTS := test/uk.osric.asp.Runtime.Tests/uk.osric.asp.Runtime.Tests.csproj
 WEB_TESTS := test/uk.osric.asp.Web.Tests/uk.osric.asp.Web.Tests.csproj
 INTEGRATION_TESTS := test/uk.osric.asp.Web.IntegrationTests/uk.osric.asp.Web.IntegrationTests.csproj
+BROWSER_TESTS := test/uk.osric.asp.Web.BrowserTests/uk.osric.asp.Web.BrowserTests.csproj
 
 # ---- Container image and deployment --------------------------------------------------------------
 #
@@ -135,6 +136,8 @@ help:
 		'test-runtime       Run the NUnit runtime tests only.' \
 		'test-web           Run the NUnit web shell and storage tests only.' \
 		'test-integration   Run the composed pipeline tests against a throwaway database.' \
+		'test-browser       Drive the real host in Firefox with Playwright (needs a browser download).' \
+		'test-browser-live  The browser tests that call the configured model provider, which cost tokens.' \
 		'migration          Add a storage migration with NAME=... (restores local dotnet-ef).' \
 		'user-add           Create a local account with ACCOUNT=... (prompts for a password).' \
 		'user-passwd        Change an account password with ACCOUNT=...' \
@@ -152,6 +155,7 @@ help:
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
 		'license-check      Fail if the tree is not REUSE compliant (needs the reuse tool).' \
+		'browsers           Install the Firefox build the browser suite drives.' \
 		'clean              Delete the artifacts folder.' \
 		'help               Show this list.'
 
@@ -215,6 +219,24 @@ test-web: build
 # than the other suites, which is why it has its own target rather than living in the unit tests.
 test-integration: build
 	$(DOTNET) test $(INTEGRATION_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
+
+# A browser engine is an external dependency with its own download, so this suite is opt-in and out
+# of `check`: a suite that takes a minute and can flake is a suite people stop running. `make
+# browsers` installs Firefox once; the tests launch the built app themselves on a loopback port.
+test-browser: build
+	$(DOTNET) test $(BROWSER_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
+
+# The live tests are [Explicit]: they need deploy/deepseek.token (or ASSISTANT_LIVE_TOKEN) and spend
+# real tokens against the configured provider.
+test-browser-live: build
+	$(DOTNET) test $(BROWSER_TESTS) -c $(CONFIGURATION) --no-build --filter "FullyQualifiedName~AssistantLive" $(TEST_ARGS)
+
+# Playwright ships its own Node, and this downloads the single browser the suite drives. The path is
+# the copy the package puts beside the test assembly, so it is the version the tests will use.
+BROWSER_TESTS_BIN := $(ARTIFACTS)/bin/uk.osric.asp.Web.BrowserTests/$(shell echo $(CONFIGURATION) | tr 'A-Z' 'a-z')
+
+browsers: build
+	pwsh -NoProfile -File $(BROWSER_TESTS_BIN)/playwright.ps1 install firefox
 
 migration:
 	@test -n "$(strip $(NAME))" || { echo "usage: make migration NAME=MigrationName"; exit 1; }

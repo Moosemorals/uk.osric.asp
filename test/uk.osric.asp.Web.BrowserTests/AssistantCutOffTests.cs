@@ -1,0 +1,76 @@
+// SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+// SPDX-License-Identifier: MIT
+
+namespace uk.osric.asp.Web.BrowserTests;
+
+using Microsoft.Playwright;
+using NUnit.Framework;
+using System.Text.RegularExpressions;
+
+/// <summary>
+/// What happens when a model thinks for a long time. A step that keeps streaming has to be allowed to
+/// finish however long it takes; a step that goes silent has to stop, and the page has to say so.
+/// </summary>
+[TestFixture]
+internal sealed class AssistantCutOffTests : BrowserTest {
+
+    private BrowserHost _host = null!;
+
+    protected override BrowserHost Host => _host;
+
+    [OneTimeSetUp]
+    public async Task StartHostAsync() =>
+        _host = await BrowserHost.StartAsync(new BrowserHostSettings {
+            RequestTimeoutSeconds = 3,
+            RunTimeoutSeconds = 120,
+            HeartbeatSeconds = 1,
+        });
+
+    [OneTimeTearDown]
+    public async Task StopHostAsync() => await _host.DisposeAsync();
+
+    [Test]
+    public async Task AThinkThatKeepsStreamingIsNotCutOffByTheStepDeadlineAsync() {
+        string answer = "The reef is older than the rainforest.";
+        await SignInAsync();
+        await NewConversationAsync();
+        Provider.Script(StubResponse.Thinking(string.Join(' ', Enumerable.Repeat("thinking", 30)), answer, TimeSpan.FromMilliseconds(300)));
+
+        await SendAsync("Think for a long time before answering");
+        await Assertions.Expect(Page.Locator("#assistant-transcript"))
+            .ToContainTextAsync(answer, new() { Timeout = 60_000 });
+    }
+
+    [Test]
+    public async Task AStepThatGoesSilentStopsAndTheTranscriptSaysWhyAsync() {
+        await SignInAsync();
+        await NewConversationAsync();
+        Provider.Script(new StubResponse {
+            Chunks = [
+                new StubChunk(Content: "The answer starts "),
+                new StubChunk(Content: "and then nothing ", Delay: TimeSpan.FromSeconds(10)),
+            ],
+        });
+
+        await SendAsync("Start an answer, then go quiet");
+        await Assertions.Expect(Page.Locator(".assistant-run-error"))
+            .ToContainTextAsync("stopped sending", new() { Timeout = 60_000 });
+
+        string transcript = await Page.Locator("#assistant-transcript").InnerTextAsync();
+        Assert.That(transcript, Does.Contain("The answer starts"), "the partial answer is kept");
+    }
+
+    /// <summary>Opens a new conversation and returns its id.</summary>
+    private async Task<long> NewConversationAsync() {
+        await Page.GotoAsync("assistant");
+        await Page.ClickAsync("text=New conversation");
+        await Page.WaitForURLAsync(new Regex(@"/assistant/\d+$"));
+        return long.Parse(Page.Url.Split('/')[^1], System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Types a message and lets the page's script post it, which starts the run.</summary>
+    private async Task SendAsync(string message) {
+        await Page.FillAsync("#assistant-message", message);
+        await Page.ClickAsync("#assistant-message-form button[type=submit]");
+    }
+}
