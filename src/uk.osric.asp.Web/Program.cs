@@ -89,7 +89,7 @@ internal class Program {
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
 
-        builder.Services.AddScoped<IAssistantConversationStore, SqliteAssistantConversationStore>();
+        builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         builder.Services.AddScoped<IPageStore, SqlitePageStore>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
         builder.Services.AddScoped<PageEditor>();
@@ -97,18 +97,18 @@ internal class Program {
         builder.Services.AddScoped<PageImageBuilder>();
 
         if (assistantEnabled) {
-            builder.Services.AddHostedService<AssistantRunWorker>();
-            builder.Services.AddHostedService<AssistantRunJournalCleanupService>();
+            builder.Services.AddHostedService<RunWorker>();
+            builder.Services.AddHostedService<RunJournalCleanupService>();
 
             builder.Services.AddSingleton(services => services.GetRequiredService<IOptions<AssistantOptions>>().Value);
             builder.Services.AddSingleton<AssistantMetrics>();
-            builder.Services.AddSingleton<AssistantPageToolExecutor>();
-            builder.Services.AddSingleton<AssistantPaths>();
-            builder.Services.AddSingleton<AssistantRunQueue>();
-            builder.Services.AddSingleton<AssistantRunRegistry>();
-            builder.Services.AddSingleton<AssistantToolApprovalCoordinator>();
+            builder.Services.AddSingleton<PageToolExecutor>();
+            builder.Services.AddSingleton<PagePathPolicy>();
+            builder.Services.AddSingleton<RunQueue>();
+            builder.Services.AddSingleton<RunRegistry>();
+            builder.Services.AddSingleton<ToolApprovalCoordinator>();
 
-            builder.Services.AddScoped<AssistantRunProcessor>();
+            builder.Services.AddScoped<RunProcessor>();
 
             builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
                 client.Timeout = Timeout.InfiniteTimeSpan;
@@ -163,7 +163,7 @@ internal class Program {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
             if (assistantEnabled) {
-                IAssistantConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IAssistantConversationStore>();
+                IConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IConversationStore>();
                 await assistantConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
             }
             IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();

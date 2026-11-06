@@ -9,12 +9,12 @@ using System.Text.Json;
 using System.Threading.Channels;
 
 /// <summary>One run's journal of events and its live subscribers.</summary>
-internal sealed class AssistantRunStream(string runId, AssistantOptions options, TimeProvider clock) {
+internal sealed class RunStream(string runId, AssistantOptions options, TimeProvider clock) {
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly object _gate = new();
-    private readonly Queue<AssistantEvent> _journal = new();
-    private readonly HashSet<Channel<AssistantEvent>> _subscribers = [];
+    private readonly Queue<RunEvent> _journal = new();
+    private readonly HashSet<Channel<RunEvent>> _subscribers = [];
     private readonly AssistantOptions _options = options;
     private readonly TimeProvider _clock = clock;
     private readonly CancellationTokenSource _stop = new();
@@ -34,7 +34,7 @@ internal sealed class AssistantRunStream(string runId, AssistantOptions options,
     }
     public bool IsExpired(DateTimeOffset now) { lock (_gate) { return _expiresAt is { } expiry && expiry <= now; } }
 
-    public AssistantEvent Publish(string type, object data) {
+    public RunEvent Publish(string type, object data) {
         ArgumentException.ThrowIfNullOrWhiteSpace(type);
         ArgumentNullException.ThrowIfNull(data);
         string json = JsonSerializer.Serialize(data, s_jsonOptions);
@@ -43,16 +43,16 @@ internal sealed class AssistantRunStream(string runId, AssistantOptions options,
                 throw new InvalidOperationException("The run stream is complete.");
             }
 
-            AssistantEvent @event = new(RunId, ++_sequence, type, json);
+            RunEvent @event = new(RunId, ++_sequence, type, json);
             int bytes = Encoding.UTF8.GetByteCount(json) + Encoding.UTF8.GetByteCount(type) + RunId.Length + 24;
             _journal.Enqueue(@event);
             _journalBytes += bytes;
             while (_journal.Count > _options.JournalMaxEvents || _journalBytes > _options.JournalMaxBytes) {
-                AssistantEvent removed = _journal.Dequeue();
+                RunEvent removed = _journal.Dequeue();
                 _journalBytes -= EventBytes(removed);
             }
 
-            foreach (Channel<AssistantEvent> subscriber in _subscribers.ToArray()) {
+            foreach (Channel<RunEvent> subscriber in _subscribers.ToArray()) {
                 if (!subscriber.Writer.TryWrite(@event)) {
                     ResetSlowSubscriber(subscriber);
                 }
@@ -77,17 +77,17 @@ internal sealed class AssistantRunStream(string runId, AssistantOptions options,
             }
             _completed = true;
             _expiresAt = _clock.GetUtcNow().AddMinutes(_options.JournalTtlMinutes);
-            foreach (Channel<AssistantEvent> subscriber in _subscribers) {
+            foreach (Channel<RunEvent> subscriber in _subscribers) {
                 subscriber.Writer.TryComplete();
             }
             _subscribers.Clear();
         }
     }
 
-    public async IAsyncEnumerable<AssistantEvent> ReadAfterAsync(
+    public async IAsyncEnumerable<RunEvent> ReadAfterAsync(
         long after,
         [EnumeratorCancellation] CancellationToken cancellationToken) {
-        Channel<AssistantEvent> subscriber = Channel.CreateBounded<AssistantEvent>(new BoundedChannelOptions(_options.JournalMaxEvents) {
+        Channel<RunEvent> subscriber = Channel.CreateBounded<RunEvent>(new BoundedChannelOptions(_options.JournalMaxEvents) {
             FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,
             SingleWriter = false,
@@ -99,7 +99,7 @@ internal sealed class AssistantRunStream(string runId, AssistantOptions options,
                 subscriber.Writer.TryWrite(ResetEvent("requested sequence is not retained"));
                 subscriber.Writer.TryComplete();
             } else {
-                foreach (AssistantEvent @event in _journal.Where(item => item.Sequence > after)) {
+                foreach (RunEvent @event in _journal.Where(item => item.Sequence > after)) {
                     subscriber.Writer.TryWrite(@event);
                 }
                 if (_completed) {
@@ -111,7 +111,7 @@ internal sealed class AssistantRunStream(string runId, AssistantOptions options,
         }
 
         try {
-            await foreach (AssistantEvent @event in subscriber.Reader.ReadAllAsync(cancellationToken)) {
+            await foreach (RunEvent @event in subscriber.Reader.ReadAllAsync(cancellationToken)) {
                 yield return @event;
             }
         } finally {
@@ -121,19 +121,19 @@ internal sealed class AssistantRunStream(string runId, AssistantOptions options,
         }
     }
 
-    private void ResetSlowSubscriber(Channel<AssistantEvent> subscriber) {
+    private void ResetSlowSubscriber(Channel<RunEvent> subscriber) {
         _subscribers.Remove(subscriber);
         while (subscriber.Reader.TryRead(out _)) { }
         subscriber.Writer.TryWrite(ResetEvent("subscriber could not keep up"));
         subscriber.Writer.TryComplete();
     }
 
-    private AssistantEvent ResetEvent(string reason) => new(
+    private RunEvent ResetEvent(string reason) => new(
         RunId,
         _sequence,
         "stream.reset",
         JsonSerializer.Serialize(new { reason }, s_jsonOptions));
 
-    private static int EventBytes(AssistantEvent @event) =>
+    private static int EventBytes(RunEvent @event) =>
         Encoding.UTF8.GetByteCount(@event.DataJson) + Encoding.UTF8.GetByteCount(@event.Type) + @event.RunId.Length + 24;
 }

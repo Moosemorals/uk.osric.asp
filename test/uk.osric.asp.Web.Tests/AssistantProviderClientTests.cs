@@ -86,7 +86,7 @@ public sealed class AssistantProviderClientTests {
         using HttpClient client = Client(_ => Task.FromResult(Response(HttpStatusCode.OK, "data: {not-json}\n\n")));
         OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false });
 
-        AssistantProviderException exception = (await Assert.ThrowsAsync<AssistantProviderException>(async () => await CollectAsync(provider)))!;
+        ProviderException exception = (await Assert.ThrowsAsync<ProviderException>(async () => await CollectAsync(provider)))!;
 
         Assert.That(exception.Code, Is.EqualTo("provider_invalid_response"));
         Assert.That(exception.Message, Does.Not.Contain("not-json"));
@@ -100,7 +100,7 @@ public sealed class AssistantProviderClientTests {
         }));
         OpenAiChatCompletionClient provider = new(client, new AssistantOptions { ApiKey = ApiKey });
 
-        AssistantProviderException exception = (await Assert.ThrowsAsync<AssistantProviderException>(async () => await CollectAsync(provider)))!;
+        ProviderException exception = (await Assert.ThrowsAsync<ProviderException>(async () => await CollectAsync(provider)))!;
 
         Assert.That(exception.Code, Is.EqualTo("provider_unauthorised"));
         Assert.That(exception.Message, Does.Not.Contain(ApiKey));
@@ -131,7 +131,7 @@ public sealed class AssistantProviderClientTests {
         }));
         OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = 1 });
 
-        AssistantProviderException exception = (await Assert.ThrowsAsync<AssistantProviderException>(async () => await CollectAsync(provider)))!;
+        ProviderException exception = (await Assert.ThrowsAsync<ProviderException>(async () => await CollectAsync(provider)))!;
 
         Assert.Multiple(() => {
             Assert.That(exception.Code, Is.EqualTo("provider_timeout"));

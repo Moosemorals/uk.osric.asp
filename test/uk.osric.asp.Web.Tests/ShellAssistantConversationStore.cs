@@ -8,7 +8,7 @@ using uk.osric.asp.Web.Assistant;
 
 internal sealed class ShellAssistantConversationStore(
     IReadOnlyList<AssistantMessage>? messages = null,
-    AssistantRun? lastRun = null) : IAssistantConversationStore {
+    AssistantRun? lastRun = null) : IConversationStore {
     private static AssistantConversation Conversation => new() {
         Id = 1,
         Owner = "owner",
@@ -22,8 +22,8 @@ internal sealed class ShellAssistantConversationStore(
     public Task<AssistantConversation> CreateAsync(string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult(Conversation);
 
-    public Task<IReadOnlyList<AssistantConversationListItem>> ListAsync(string owner, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<AssistantConversationListItem>>([
+    public Task<IReadOnlyList<ConversationListItem>> ListAsync(string owner, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ConversationListItem>>([
             new(1, "Test conversation", ApprovalMode.RequireApproval.ToString(), DateTimeOffset.UtcNow, null),
         ]);
 
@@ -39,10 +39,10 @@ internal sealed class ShellAssistantConversationStore(
     public Task<bool> DeleteAsync(long id, string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult(id == 1 && owner == "owner");
 
-    public Task<AssistantRunStartResult> StartRunAsync(long id, string owner, string content, string model, string promptVersion, CancellationToken cancellationToken = default) =>
-        Task.FromResult(new AssistantRunStartResult(AssistantRunStartStatus.Started, "run-1", 1));
+    public Task<RunStartResult> StartRunAsync(long id, string owner, string content, string model, string promptVersion, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new RunStartResult(RunStartStatus.Started, "run-1", 1));
 
-    public Task<long?> AppendMessageAsync(long conversationId, string runId, AssistantMessageInput message, CancellationToken cancellationToken = default) =>
+    public Task<long?> AppendMessageAsync(long conversationId, string runId, MessageInput message, CancellationToken cancellationToken = default) =>
         Task.FromResult<long?>(1);
 
     public Task<IReadOnlyList<AssistantMessage>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default) =>
@@ -63,8 +63,8 @@ internal sealed class ShellAssistantConversationStore(
     public Task<bool> CreateApprovalAsync(string runId, string toolCallId, CancellationToken cancellationToken = default) =>
         Task.FromResult(true);
 
-    public Task<AssistantApprovalResolutionResult> ResolveApprovalAsync(long conversationId, string owner, string runId, string toolCallId, string decision, CancellationToken cancellationToken = default) =>
-        Task.FromResult(AssistantApprovalResolutionResult.Approved);
+    public Task<ApprovalResolutionResult> ResolveApprovalAsync(long conversationId, string owner, string runId, string toolCallId, string decision, CancellationToken cancellationToken = default) =>
+        Task.FromResult(ApprovalResolutionResult.Approved);
 
     public Task<IReadOnlyList<AssistantToolApproval>> GetPendingApprovalsAsync(long conversationId, string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<AssistantToolApproval>>([]);

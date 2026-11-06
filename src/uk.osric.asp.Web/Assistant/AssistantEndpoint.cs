@@ -21,7 +21,7 @@ internal static class AssistantEndpoint {
 
     public static async Task ListAsync(
         HttpContext context,
-        IAssistantConversationStore conversations,
+        IConversationStore conversations,
         IAntiforgery antiforgery,
         IOptions<AssistantOptions> options) {
         string? owner = Owner(context);
@@ -42,7 +42,7 @@ internal static class AssistantEndpoint {
             return;
         }
 
-        IReadOnlyList<AssistantConversationListItem> items = await conversations.ListAsync(owner, context.RequestAborted);
+        IReadOnlyList<ConversationListItem> items = await conversations.ListAsync(owner, context.RequestAborted);
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         await ShellDocument.BeginAsync(context, "Assistant", stylesheet: "/assistant.css");
         await context.Response.WriteAsync("<h1>Assistant</h1>");
@@ -60,7 +60,7 @@ internal static class AssistantEndpoint {
             await context.Response.WriteAsync("<p>No conversations yet.</p>");
         } else {
             await context.Response.WriteAsync("<ul class=\"assistant-conversations\">");
-            foreach (AssistantConversationListItem item in items) {
+            foreach (ConversationListItem item in items) {
                 string active = item.ActiveRunId is null ? "" : " <span>Active</span>";
                 await context.Response.WriteAsync(
                     $"<li><a href=\"/assistant/{item.Id}\">{Encode(item.Title)}</a> <time>{Encode(item.UpdatedAt.ToString("u"))}</time>{active}</li>");
@@ -76,9 +76,9 @@ internal static class AssistantEndpoint {
     public static async Task ConversationAsync(
         HttpContext context,
         long id,
-        IAssistantConversationStore conversations,
+        IConversationStore conversations,
         IAntiforgery antiforgery,
-        AssistantRunRegistry registry,
+        RunRegistry registry,
         AssistantOptions options) {
         string? owner = Owner(context);
         AssistantConversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
@@ -91,7 +91,7 @@ internal static class AssistantEndpoint {
         IReadOnlyList<AssistantMessage> messages = await conversations.GetMessagesAsync(id, owner!, context.RequestAborted);
         AssistantRun? activeRun = await conversations.GetActiveRunAsync(id, owner!, context.RequestAborted);
         AssistantRun? lastRun = activeRun ?? await conversations.GetLastRunAsync(id, owner!, context.RequestAborted);
-        AssistantRunStream? activeStream = activeRun is null ? null : registry.Find(activeRun.Id);
+        RunStream? activeStream = activeRun is null ? null : registry.Find(activeRun.Id);
         bool replaying = activeStream?.CanReplayFrom(0) == true;
         long replayFrom = replaying ? 0 : activeStream?.LastSequence ?? 0;
         IEnumerable<AssistantMessage> visibleMessages = messages.Where(message =>
@@ -174,9 +174,9 @@ internal static class AssistantEndpoint {
     public static async Task MessagesAsync(
         HttpContext context,
         long id,
-        IAssistantConversationStore conversations,
-        AssistantRunQueue queue,
-        AssistantRunRegistry registry,
+        IConversationStore conversations,
+        RunQueue queue,
+        RunRegistry registry,
         AssistantOptions options) {
         NoStore(context);
         if (!PostIsValid(context)) {
@@ -207,10 +207,10 @@ internal static class AssistantEndpoint {
 
         bool reservationConsumed = false;
         try {
-            AssistantRunStartResult started = await conversations.StartRunAsync(
+            RunStartResult started = await conversations.StartRunAsync(
                 id, owner, contentValues[0]!, options.Model, PageAuthorPrompt.Version, context.RequestAborted);
-            if (started.Status != AssistantRunStartStatus.Started || started.RunId is null) {
-                context.Response.StatusCode = started.Status == AssistantRunStartStatus.NotFound
+            if (started.Status != RunStartStatus.Started || started.RunId is null) {
+                context.Response.StatusCode = started.Status == RunStartStatus.NotFound
                     ? StatusCodes.Status404NotFound
                     : StatusCodes.Status409Conflict;
                 return;
@@ -221,7 +221,7 @@ internal static class AssistantEndpoint {
                 context.Response.StatusCode = StatusCodes.Status409Conflict;
                 return;
             }
-            if (!queue.TryEnqueueReserved(new AssistantQueuedRun(id, started.RunId, owner))) {
+            if (!queue.TryEnqueueReserved(new QueuedRun(id, started.RunId, owner))) {
                 await conversations.SetRunStatusAsync(started.RunId, "failed", "queue_full", "The run queue is full.", CancellationToken.None);
                 registry.Complete(started.RunId, id);
                 context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -246,8 +246,8 @@ internal static class AssistantEndpoint {
     public static async Task StopAsync(
         HttpContext context,
         long id,
-        IAssistantConversationStore conversations,
-        AssistantRunRegistry registry) {
+        IConversationStore conversations,
+        RunRegistry registry) {
         NoStore(context);
         if (!PostIsValid(context)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -272,8 +272,8 @@ internal static class AssistantEndpoint {
     public static async Task<IResult> EventsAsync(
         HttpContext context,
         long id,
-        IAssistantConversationStore conversations,
-        AssistantRunRegistry registry,
+        IConversationStore conversations,
+        RunRegistry registry,
         AssistantOptions options) {
         NoStore(context);
         context.Response.Headers["X-Accel-Buffering"] = "no";
@@ -293,7 +293,7 @@ internal static class AssistantEndpoint {
             return TypedResults.ServerSentEvents(IdleEventsAsync(id));
         }
 
-        AssistantRunStream? stream = registry.Find(run.Id);
+        RunStream? stream = registry.Find(run.Id);
         if (stream is null) {
             return TypedResults.ServerSentEvents(IdleEventsAsync(id));
         }
@@ -315,7 +315,7 @@ internal static class AssistantEndpoint {
         return TypedResults.ServerSentEvents(ReadEventsAsync(stream, after, reset, options.HeartbeatSeconds, context.RequestAborted));
     }
 
-    public static async Task OptionsAsync(HttpContext context, long id, IAssistantConversationStore conversations) {
+    public static async Task OptionsAsync(HttpContext context, long id, IConversationStore conversations) {
         NoStore(context);
         if (!PostIsValid(context)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -368,8 +368,8 @@ internal static class AssistantEndpoint {
         long id,
         string runId,
         string toolCallId,
-        IAssistantConversationStore conversations,
-        AssistantToolApprovalCoordinator coordinator) {
+        IConversationStore conversations,
+        ToolApprovalCoordinator coordinator) {
         NoStore(context);
         if (!PostIsValid(context)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -383,19 +383,19 @@ internal static class AssistantEndpoint {
             return;
         }
 
-        AssistantApprovalResolutionResult result = await conversations.ResolveApprovalAsync(
+        ApprovalResolutionResult result = await conversations.ResolveApprovalAsync(
             id, owner, runId, toolCallId, decision[0]!, context.RequestAborted);
-        if (result is AssistantApprovalResolutionResult.Approved or AssistantApprovalResolutionResult.Denied) {
+        if (result is ApprovalResolutionResult.Approved or ApprovalResolutionResult.Denied) {
             _ = coordinator.Signal(runId, toolCallId, result);
             context.Response.StatusCode = StatusCodes.Status204NoContent;
         } else {
-            context.Response.StatusCode = result == AssistantApprovalResolutionResult.NotFound
+            context.Response.StatusCode = result == ApprovalResolutionResult.NotFound
                 ? StatusCodes.Status404NotFound
                 : StatusCodes.Status409Conflict;
         }
     }
 
-    public static async Task DeleteConfirmationAsync(HttpContext context, long id, IAssistantConversationStore conversations, IAntiforgery antiforgery) {
+    public static async Task DeleteConfirmationAsync(HttpContext context, long id, IConversationStore conversations, IAntiforgery antiforgery) {
         string? owner = Owner(context);
         AssistantConversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
@@ -420,8 +420,8 @@ internal static class AssistantEndpoint {
     public static async Task DeleteAsync(
         HttpContext context,
         long id,
-        IAssistantConversationStore conversations,
-        AssistantRunRegistry registry) {
+        IConversationStore conversations,
+        RunRegistry registry) {
         NoStore(context);
         if (!PostIsValid(context)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -494,7 +494,7 @@ internal static class AssistantEndpoint {
             if (!calls.TryGetValue(approval.ToolCallId, out (string Name, string Arguments) call)) {
                 continue;
             }
-            ToolDefinition? definition = AssistantPageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
+            ToolDefinition? definition = PageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
             string description = definition?.Description ?? "Review this tool call.";
             string action = $"/assistant/{conversationId}/runs/{Encode(approval.RunId)}/tool-calls/{Encode(approval.ToolCallId)}/approval";
             await context.Response.WriteAsync($"<article><h3>{Encode(MessageText.Sanitize(call.Name))}</h3><p>{Encode(description)}</p><pre>{Encode(call.Arguments)}</pre>");
@@ -546,7 +546,7 @@ internal static class AssistantEndpoint {
     }
 
     private static async IAsyncEnumerable<SseItem<string>> ReadEventsAsync(
-        AssistantRunStream stream,
+        RunStream stream,
         long after,
         bool reset,
         int heartbeatSeconds,
@@ -555,7 +555,7 @@ internal static class AssistantEndpoint {
             yield return new SseItem<string>(JsonSerializer.Serialize(new { reason = "event id belongs to a different run" }, s_jsonOptions), "stream.reset");
             yield break;
         }
-        await using IAsyncEnumerator<AssistantEvent> events = stream.ReadAfterAsync(after, cancellationToken).GetAsyncEnumerator(cancellationToken);
+        await using IAsyncEnumerator<RunEvent> events = stream.ReadAfterAsync(after, cancellationToken).GetAsyncEnumerator(cancellationToken);
         using PeriodicTimer heartbeat = new(TimeSpan.FromSeconds(heartbeatSeconds));
         Task<bool> nextEvent = events.MoveNextAsync().AsTask();
         Task<bool> nextHeartbeat = heartbeat.WaitForNextTickAsync(cancellationToken).AsTask();
@@ -573,7 +573,7 @@ internal static class AssistantEndpoint {
             if (!await nextEvent) {
                 yield break;
             }
-            AssistantEvent @event = events.Current;
+            RunEvent @event = events.Current;
             yield return new SseItem<string>(@event.DataJson, @event.Type) { EventId = @event.EventId };
             nextEvent = events.MoveNextAsync().AsTask();
         }

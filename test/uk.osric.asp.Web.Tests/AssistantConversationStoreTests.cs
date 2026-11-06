@@ -36,7 +36,7 @@ public sealed class AssistantConversationStoreTests {
     [Test]
     public async Task NewConversationUsesGeneratedTitleAndAlwaysApproveAsync() {
         await using StorageDbContext database = new(_options);
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
 
         AssistantConversation created = await conversations.CreateAsync("owner");
 
@@ -51,7 +51,7 @@ public sealed class AssistantConversationStoreTests {
     [Test]
     public async Task ConversationReadsAndListsAreScopedToTheOwnerAsync() {
         await using StorageDbContext database = new(_options);
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
         AssistantConversation first = await conversations.CreateAsync("owner");
         AssistantConversation other = await conversations.CreateAsync("other");
 
@@ -62,7 +62,7 @@ public sealed class AssistantConversationStoreTests {
     [Test]
     public async Task RenameAndApprovalModeUpdateOnlyTheOwnedConversationAsync() {
         await using StorageDbContext database = new(_options);
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
         AssistantConversation conversation = await conversations.CreateAsync("owner");
 
         Assert.That(await conversations.RenameAsync(conversation.Id, "owner", "My pages"), Is.True);
@@ -80,7 +80,7 @@ public sealed class AssistantConversationStoreTests {
     [Test]
     public async Task DeletingConversationCascadesThroughMessagesRunsAndApprovalsAsync() {
         await using StorageDbContext database = new(_options);
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
         AssistantConversation conversation = await conversations.CreateAsync("owner");
         string runId = Guid.NewGuid().ToString("N");
         database.Add(new AssistantRun {
@@ -121,14 +121,14 @@ public sealed class AssistantConversationStoreTests {
     [Test]
     public async Task StartingRunStoresTheUserMessageAndApprovalSnapshotInOneTransactionAsync() {
         await using StorageDbContext database = new(_options);
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
         AssistantConversation conversation = await conversations.CreateAsync("owner");
         await conversations.SetApprovalModeAsync(conversation.Id, "owner", ApprovalMode.RequireApproval);
 
-        AssistantRunStartResult started = await conversations.StartRunAsync(
+        RunStartResult started = await conversations.StartRunAsync(
             conversation.Id, "owner", "Build a page", "model", "prompt-v1");
 
-        Assert.That(started.Status, Is.EqualTo(AssistantRunStartStatus.Started));
+        Assert.That(started.Status, Is.EqualTo(RunStartStatus.Started));
         Assert.That(started.UserMessageSequence, Is.EqualTo(1));
         Assert.That(started.RunId, Is.Not.Null);
         AssistantRun run = (await conversations.GetActiveRunAsync(conversation.Id, "owner"))!;
@@ -144,28 +144,28 @@ public sealed class AssistantConversationStoreTests {
     [Test]
     public async Task OnlyTheFirstUserMessageGeneratesTheConversationTitleAsync() {
         await using StorageDbContext database = new(_options);
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
         AssistantConversation conversation = await conversations.CreateAsync("owner");
-        AssistantRunStartResult first = await conversations.StartRunAsync(conversation.Id, "owner", "First request", "model", "prompt-v1");
+        RunStartResult first = await conversations.StartRunAsync(conversation.Id, "owner", "First request", "model", "prompt-v1");
         await conversations.SetRunStatusAsync(first.RunId!, "completed");
-        AssistantRunStartResult second = await conversations.StartRunAsync(conversation.Id, "owner", "Another request", "model", "prompt-v1");
+        RunStartResult second = await conversations.StartRunAsync(conversation.Id, "owner", "Another request", "model", "prompt-v1");
 
-        Assert.That(second.Status, Is.EqualTo(AssistantRunStartStatus.Started));
+        Assert.That(second.Status, Is.EqualTo(RunStartStatus.Started));
         Assert.That((await conversations.GetAsync(conversation.Id, "owner"))?.Title, Is.EqualTo("First request"));
     }
 
     [Test]
     public async Task SecondActiveRunIsRejectedWithoutAllocatingAnotherMessageSequenceAsync() {
         await using StorageDbContext database = new(_options);
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
         AssistantConversation conversation = await conversations.CreateAsync("owner");
         await conversations.StartRunAsync(conversation.Id, "owner", "first", "model", "prompt-v1");
 
-        AssistantRunStartResult second = await conversations.StartRunAsync(
+        RunStartResult second = await conversations.StartRunAsync(
             conversation.Id, "owner", "second", "model", "prompt-v1");
 
         AssistantConversation saved = (await conversations.GetAsync(conversation.Id, "owner"))!;
-        Assert.That(second.Status, Is.EqualTo(AssistantRunStartStatus.AlreadyActive));
+        Assert.That(second.Status, Is.EqualTo(RunStartStatus.AlreadyActive));
         Assert.That(saved.NextMessageSequence, Is.EqualTo(2));
         Assert.That((await conversations.GetMessagesAsync(conversation.Id, "owner")).Select(message => message.Content), Is.EqualTo(["first"]));
     }
@@ -176,7 +176,7 @@ public sealed class AssistantConversationStoreTests {
         string runId;
         await using (StorageDbContext database = new(_options)) {
             AssistantConversation conversation = await NewStore(database).CreateAsync("owner");
-            AssistantRunStartResult start = await NewStore(database).StartRunAsync(
+            RunStartResult start = await NewStore(database).StartRunAsync(
                 conversation.Id, "owner", "first", "model", "prompt-v1");
             conversationId = conversation.Id;
             runId = start.RunId!;
@@ -188,7 +188,7 @@ public sealed class AssistantConversationStoreTests {
             await using StorageDbContext database = new(_options);
             await gate.Task;
             return await NewStore(database).AppendMessageAsync(
-                conversationId, runId, new AssistantMessageInput("assistant", $"reply-{index}"));
+                conversationId, runId, new MessageInput("assistant", $"reply-{index}"));
         })];
         gate.SetResult();
 
@@ -203,31 +203,31 @@ public sealed class AssistantConversationStoreTests {
     [Test]
     public async Task ApprovalResolvesOnlyWhilePendingForTheOwnedActiveRunAsync() {
         await using StorageDbContext database = new(_options);
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
         AssistantConversation conversation = await conversations.CreateAsync("owner");
-        AssistantRunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
         await conversations.SetRunStatusAsync(start.RunId!, "awaiting_approval");
         Assert.That(await conversations.CreateApprovalAsync(start.RunId!, "call-1"), Is.True);
 
-        AssistantApprovalResolutionResult approved = await conversations.ResolveApprovalAsync(
+        ApprovalResolutionResult approved = await conversations.ResolveApprovalAsync(
             conversation.Id, "owner", start.RunId!, "call-1", "approve");
-        AssistantApprovalResolutionResult repeated = await conversations.ResolveApprovalAsync(
+        ApprovalResolutionResult repeated = await conversations.ResolveApprovalAsync(
             conversation.Id, "owner", start.RunId!, "call-1", "approve");
-        AssistantApprovalResolutionResult conflicting = await conversations.ResolveApprovalAsync(
+        ApprovalResolutionResult conflicting = await conversations.ResolveApprovalAsync(
             conversation.Id, "owner", start.RunId!, "call-1", "deny");
 
-        Assert.That(approved, Is.EqualTo(AssistantApprovalResolutionResult.Approved));
-        Assert.That(repeated, Is.EqualTo(AssistantApprovalResolutionResult.Approved));
-        Assert.That(conflicting, Is.EqualTo(AssistantApprovalResolutionResult.Conflict));
+        Assert.That(approved, Is.EqualTo(ApprovalResolutionResult.Approved));
+        Assert.That(repeated, Is.EqualTo(ApprovalResolutionResult.Approved));
+        Assert.That(conflicting, Is.EqualTo(ApprovalResolutionResult.Conflict));
         Assert.That(await conversations.GetPendingApprovalsAsync(conversation.Id, "owner"), Is.Empty);
     }
 
     [Test]
     public async Task StoppingRunFailsPendingApprovalsWithoutExecutingThemAsync() {
         await using StorageDbContext database = new(_options);
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
         AssistantConversation conversation = await conversations.CreateAsync("owner");
-        AssistantRunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
         await conversations.SetRunStatusAsync(start.RunId!, "awaiting_approval");
         await conversations.CreateApprovalAsync(start.RunId!, "call-1");
 
@@ -237,18 +237,18 @@ public sealed class AssistantConversationStoreTests {
         Assert.That(approval.Status, Is.EqualTo("failed"));
         Assert.That(approval.FailureCode, Is.EqualTo("stop"));
         Assert.That(await conversations.ResolveApprovalAsync(conversation.Id, "owner", start.RunId!, "call-1", "approve"),
-            Is.EqualTo(AssistantApprovalResolutionResult.Conflict));
+            Is.EqualTo(ApprovalResolutionResult.Conflict));
     }
 
     [Test]
     public async Task StartupRecoveryInterruptsRunsAndRepairsDanglingToolCallsAsync() {
         await using StorageDbContext database = new(_options);
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
         AssistantConversation conversation = await conversations.CreateAsync("owner");
-        AssistantRunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
         string toolCalls = "[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"write_page\",\"arguments\":\"{}\"}},{\"id\":\"call-2\",\"type\":\"function\",\"function\":{\"name\":\"delete_page\",\"arguments\":\"{}\"}}]";
-        await conversations.AppendMessageAsync(conversation.Id, start.RunId!, new AssistantMessageInput("assistant", "", ToolCallsJson: toolCalls));
-        await conversations.AppendMessageAsync(conversation.Id, start.RunId!, new AssistantMessageInput("tool", "done", ToolCallId: "call-1", ToolName: "write_page"));
+        await conversations.AppendMessageAsync(conversation.Id, start.RunId!, new MessageInput("assistant", "", ToolCallsJson: toolCalls));
+        await conversations.AppendMessageAsync(conversation.Id, start.RunId!, new MessageInput("tool", "done", ToolCallId: "call-1", ToolName: "write_page"));
         await conversations.SetRunStatusAsync(start.RunId!, "awaiting_approval");
         await conversations.CreateApprovalAsync(start.RunId!, "call-2");
 
@@ -286,7 +286,7 @@ public sealed class AssistantConversationStoreTests {
 
         await database.Database.MigrateAsync();
 
-        IAssistantConversationStore conversations = NewStore(database);
+        IConversationStore conversations = NewStore(database);
         AssistantConversation? conversation = await conversations.GetAsync(1, "owner");
         IReadOnlyList<AssistantMessage> messages = await conversations.GetMessagesAsync(1, "owner");
         AssistantRun? run = await conversations.GetRunAsync(1, "owner", "run1");
@@ -299,6 +299,6 @@ public sealed class AssistantConversationStoreTests {
         });
     }
 
-    private static IAssistantConversationStore NewStore(StorageDbContext database) =>
-        new SqliteAssistantConversationStore(database, TimeProvider.System);
+    private static IConversationStore NewStore(StorageDbContext database) =>
+        new SqliteConversationStore(database, TimeProvider.System);
 }

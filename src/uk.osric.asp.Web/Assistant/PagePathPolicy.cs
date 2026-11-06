@@ -8,17 +8,17 @@ using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>A validated page path, or why the assistant may not use the one it asked for.</summary>
-internal sealed record AssistantPathResult(PagePath? Path, string? Error) {
+internal sealed record PathValidationResult(PagePath? Path, string? Error) {
     public bool Success => Error is null;
 }
 
 /// <summary>The rule for which pages the assistant may read and write.</summary>
-internal sealed class AssistantPaths {
+internal sealed class PagePathPolicy {
     private readonly ReservedPaths _reserved;
     private readonly HashSet<string> _protectedPaths;
     private readonly PagePath? _writablePrefix;
 
-    public AssistantPaths(ReservedPaths reserved, AssistantOptions options) {
+    public PagePathPolicy(ReservedPaths reserved, AssistantOptions options) {
         ArgumentNullException.ThrowIfNull(reserved);
         ArgumentNullException.ThrowIfNull(options);
         _reserved = reserved;
@@ -32,7 +32,7 @@ internal sealed class AssistantPaths {
             : PagePath.Normalize(options.WritablePathPrefix);
     }
 
-    public AssistantPathResult Validate(string? pathText, bool write) {
+    public PathValidationResult Validate(string? pathText, bool write) {
         if (string.IsNullOrWhiteSpace(pathText)) {
             return Invalid("A page path is required.");
         }
@@ -48,7 +48,7 @@ internal sealed class AssistantPaths {
             return Invalid("The path is outside Assistant:WritablePathPrefix.");
         }
 
-        return new AssistantPathResult(path, null);
+        return new PathValidationResult(path, null);
     }
 
     public bool IsProtected(PagePath path) {
@@ -61,5 +61,5 @@ internal sealed class AssistantPaths {
         || prefix.Key == "/"
         || path.Key.StartsWith(prefix.Key + "/", StringComparison.Ordinal);
 
-    private static AssistantPathResult Invalid(string error) => new(null, error);
+    private static PathValidationResult Invalid(string error) => new(null, error);
 }

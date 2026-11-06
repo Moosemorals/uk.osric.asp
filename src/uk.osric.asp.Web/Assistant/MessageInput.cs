@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>A message to append to a conversation.</summary>
-internal sealed record AssistantMessageInput(
+internal sealed record MessageInput(
     string Role,
     string Content,
     string? Reasoning = null,

@@ -4,9 +4,9 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>Drops expired run journals on a timer.</summary>
-internal sealed class AssistantRunJournalCleanupService(
-    AssistantRunRegistry registry,
-    ILogger<AssistantRunJournalCleanupService> logger) : BackgroundService {
+internal sealed class RunJournalCleanupService(
+    RunRegistry registry,
+    ILogger<RunJournalCleanupService> logger) : BackgroundService {
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
         using PeriodicTimer timer = new(TimeSpan.FromMinutes(1));

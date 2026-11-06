@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>One row of the conversation list, with the run still in progress.</summary>
-internal sealed record AssistantConversationListItem(
+internal sealed record ConversationListItem(
     long Id,
     string Title,
     string ApprovalMode,

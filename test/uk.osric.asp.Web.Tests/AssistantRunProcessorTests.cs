@@ -42,7 +42,7 @@ public sealed class AssistantRunProcessorTests {
         ServiceCollection services = new();
         services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
         services.AddSingleton(TimeProvider.System);
-        services.AddScoped<IAssistantConversationStore, SqliteAssistantConversationStore>();
+        services.AddScoped<IConversationStore, SqliteConversationStore>();
         services.AddScoped(_ => _pages.Editor);
         _services = services.BuildServiceProvider();
     }
@@ -64,16 +64,16 @@ public sealed class AssistantRunProcessorTests {
             new ContentDelta("there."),
             new Finished("stop"),
         ]);
-        (AssistantConversation conversation, AssistantRunStartResult started, AssistantRunStream stream, AssistantRunProcessor processor) =
+        (AssistantConversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
             await StartRunAsync(client);
 
-        await processor.RunAsync(new AssistantQueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
 
         await using AsyncServiceScope scope = _services!.CreateAsyncScope();
-        IAssistantConversationStore store = scope.ServiceProvider.GetRequiredService<IAssistantConversationStore>();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
         AssistantRun run = await scope.ServiceProvider.GetRequiredService<StorageDbContext>().Set<AssistantRun>().SingleAsync();
         IReadOnlyList<AssistantMessage> messages = await store.GetMessagesAsync(conversation.Id, "owner");
-        AssistantEvent[] events = await CollectAsync(stream);
+        RunEvent[] events = await CollectAsync(stream);
 
         Assert.Multiple(() => {
             Assert.That(run.Status, Is.EqualTo("completed"));
@@ -92,13 +92,13 @@ public sealed class AssistantRunProcessorTests {
             new ContentDelta("Half an ans"),
             new Finished("length"),
         ]);
-        (AssistantConversation conversation, AssistantRunStartResult started, _, AssistantRunProcessor processor) =
+        (AssistantConversation conversation, RunStartResult started, _, RunProcessor processor) =
             await StartRunAsync(client);
 
-        await processor.RunAsync(new AssistantQueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
 
         await using AsyncServiceScope scope = _services!.CreateAsyncScope();
-        IAssistantConversationStore store = scope.ServiceProvider.GetRequiredService<IAssistantConversationStore>();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
         IReadOnlyList<AssistantMessage> messages = await store.GetMessagesAsync(conversation.Id, "owner");
         Assert.That(messages[^1].Status, Is.EqualTo("truncated"));
     }
@@ -106,14 +106,14 @@ public sealed class AssistantRunProcessorTests {
     [Test]
     public async Task AProviderThatStopsSendingFailsTheRunWithItsOwnCodeAsync() {
         ScriptedClient client = new([new ContentDelta("Starting")],
-            new AssistantProviderException("provider_timeout", "The provider stopped sending before the answer was complete."));
-        (AssistantConversation conversation, AssistantRunStartResult started, _, AssistantRunProcessor processor) =
+            new ProviderException("provider_timeout", "The provider stopped sending before the answer was complete."));
+        (AssistantConversation conversation, RunStartResult started, _, RunProcessor processor) =
             await StartRunAsync(client);
 
-        await processor.RunAsync(new AssistantQueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
 
         await using AsyncServiceScope scope = _services!.CreateAsyncScope();
-        IAssistantConversationStore store = scope.ServiceProvider.GetRequiredService<IAssistantConversationStore>();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
         AssistantRun? run = await store.GetLastRunAsync(conversation.Id, "owner");
         Assert.Multiple(() => {
             Assert.That(run?.Status, Is.EqualTo("failed"));
@@ -129,10 +129,10 @@ public sealed class AssistantRunProcessorTests {
             new Finished("tool_calls"),
         ]);
         using MetricCapture capture = MetricCapture.Start(AssistantMetrics.MeterName);
-        (AssistantConversation conversation, AssistantRunStartResult started, AssistantRunStream stream, AssistantRunProcessor processor) =
+        (AssistantConversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
             await StartRunAsync(client);
 
-        await processor.RunAsync(new AssistantQueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(capture.Count("assistant.tool.duration", "tool", "make_up_a_tool"), Is.Zero);
@@ -144,17 +144,17 @@ public sealed class AssistantRunProcessorTests {
     public async Task ProviderFailurePersistsPartialAssistantTextAndSafeFailureAsync() {
         ScriptedClient client = new([
             new ContentDelta("Partial answer"),
-        ], new AssistantProviderException("provider_unreachable", "The configured provider could not be reached."));
-        (AssistantConversation conversation, AssistantRunStartResult started, AssistantRunStream stream, AssistantRunProcessor processor) =
+        ], new ProviderException("provider_unreachable", "The configured provider could not be reached."));
+        (AssistantConversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
             await StartRunAsync(client);
 
-        await processor.RunAsync(new AssistantQueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
 
         await using AsyncServiceScope scope = _services!.CreateAsyncScope();
         StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
         AssistantRun run = await database.Set<AssistantRun>().SingleAsync();
         AssistantMessage assistant = await database.Set<AssistantMessage>().SingleAsync(message => message.Role == "assistant");
-        AssistantEvent[] events = await CollectAsync(stream);
+        RunEvent[] events = await CollectAsync(stream);
 
         Assert.Multiple(() => {
             Assert.That(run.Status, Is.EqualTo("failed"));
@@ -165,32 +165,32 @@ public sealed class AssistantRunProcessorTests {
         });
     }
 
-    private async Task<(AssistantConversation Conversation, AssistantRunStartResult Started, AssistantRunStream Stream, AssistantRunProcessor Processor)> StartRunAsync(
+    private async Task<(AssistantConversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunAsync(
         IChatCompletionClient client) {
         ServiceProvider services = _services!;
         await using AsyncServiceScope scope = services.CreateAsyncScope();
-        IAssistantConversationStore store = scope.ServiceProvider.GetRequiredService<IAssistantConversationStore>();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
         AssistantConversation conversation = await store.CreateAsync("owner");
-        AssistantRunStartResult started = await store.StartRunAsync(conversation.Id, "owner", "Say hello", "test-model", PageAuthorPrompt.Version);
-        AssistantRunRegistry registry = new(_options, TimeProvider.System);
-        Assert.That(registry.TryStart(started.RunId!, conversation.Id, out AssistantRunStream? stream), Is.True);
-        AssistantPaths paths = new(new ReservedPaths(ReservedPaths.Default), _options);
-        AssistantPageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, _options);
-        AssistantRunProcessor processor = new(
+        RunStartResult started = await store.StartRunAsync(conversation.Id, "owner", "Say hello", "test-model", PageAuthorPrompt.Version);
+        RunRegistry registry = new(_options, TimeProvider.System);
+        Assert.That(registry.TryStart(started.RunId!, conversation.Id, out RunStream? stream), Is.True);
+        PagePathPolicy paths = new(new ReservedPaths(ReservedPaths.Default), _options);
+        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, _options);
+        RunProcessor processor = new(
             services.GetRequiredService<IServiceScopeFactory>(),
             client,
             tools,
             registry,
-            new AssistantToolApprovalCoordinator(),
+            new ToolApprovalCoordinator(),
             new AssistantMetrics(),
             _options,
-            NullLogger<AssistantRunProcessor>.Instance);
+            NullLogger<RunProcessor>.Instance);
         return (conversation, started, stream!, processor);
     }
 
-    private static async Task<AssistantEvent[]> CollectAsync(AssistantRunStream stream) {
-        List<AssistantEvent> events = [];
-        await foreach (AssistantEvent @event in stream.ReadAfterAsync(0, CancellationToken.None)) {
+    private static async Task<RunEvent[]> CollectAsync(RunStream stream) {
+        List<RunEvent> events = [];
+        await foreach (RunEvent @event in stream.ReadAfterAsync(0, CancellationToken.None)) {
             events.Add(@event);
         }
         return [.. events];

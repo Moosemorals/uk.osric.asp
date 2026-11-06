@@ -7,18 +7,18 @@ using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
 /// <summary>A run waiting for a worker.</summary>
-internal sealed record AssistantQueuedRun(long ConversationId, string RunId, string Owner);
+internal sealed record QueuedRun(long ConversationId, string RunId, string Owner);
 
 /// <summary>The bounded queue of runs waiting for a worker.</summary>
-internal sealed class AssistantRunQueue {
-    private readonly Channel<AssistantQueuedRun> _queue;
+internal sealed class RunQueue {
+    private readonly Channel<QueuedRun> _queue;
     private readonly int _capacity;
     private int _reserved;
 
-    public AssistantRunQueue(AssistantOptions options) {
+    public RunQueue(AssistantOptions options) {
         ArgumentNullException.ThrowIfNull(options);
         _capacity = options.MaxQueuedRuns;
-        _queue = Channel.CreateBounded<AssistantQueuedRun>(new BoundedChannelOptions(options.MaxQueuedRuns) {
+        _queue = Channel.CreateBounded<QueuedRun>(new BoundedChannelOptions(options.MaxQueuedRuns) {
             FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,
             SingleWriter = false,
@@ -39,9 +39,9 @@ internal sealed class AssistantRunQueue {
 
     public void ReleaseReservation() => Interlocked.Decrement(ref _reserved);
 
-    public bool TryEnqueueReserved(AssistantQueuedRun run) => _queue.Writer.TryWrite(run);
+    public bool TryEnqueueReserved(QueuedRun run) => _queue.Writer.TryWrite(run);
 
-    public bool TryEnqueue(AssistantQueuedRun run) {
+    public bool TryEnqueue(QueuedRun run) {
         if (!TryReserve()) {
             return false;
         }
@@ -52,8 +52,8 @@ internal sealed class AssistantRunQueue {
         return false;
     }
 
-    public async IAsyncEnumerable<AssistantQueuedRun> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken) {
-        await foreach (AssistantQueuedRun run in _queue.Reader.ReadAllAsync(cancellationToken)) {
+    public async IAsyncEnumerable<QueuedRun> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken) {
+        await foreach (QueuedRun run in _queue.Reader.ReadAllAsync(cancellationToken)) {
             ReleaseReservation();
             yield return run;
         }

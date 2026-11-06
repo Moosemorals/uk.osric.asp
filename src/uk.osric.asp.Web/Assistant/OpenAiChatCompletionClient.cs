@@ -70,7 +70,7 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         }
     }
 
-    private static AssistantProviderException ProviderStopped() => new(
+    private static ProviderException ProviderStopped() => new(
         "provider_timeout",
         "The provider stopped sending before the answer was complete.");
 
@@ -89,7 +89,7 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
             try {
                 response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             } catch (HttpRequestException exception) {
-                throw new AssistantProviderException("provider_unreachable", "The configured provider could not be reached.", exception);
+                throw new ProviderException("provider_unreachable", "The configured provider could not be reached.", exception);
             }
 
             if (!IsRetryable(response.StatusCode) || attempt >= options.MaxProviderRetries) {
@@ -154,7 +154,7 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         try {
             document = JsonDocument.Parse(data);
         } catch (JsonException exception) {
-            throw new AssistantProviderException("provider_invalid_response", "The provider returned an invalid streaming response.", exception);
+            throw new ProviderException("provider_invalid_response", "The provider returned an invalid streaming response.", exception);
         }
 
         using (document) {
@@ -216,7 +216,7 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         }
     }
 
-    private static AssistantProviderException Invalid() =>
+    private static ProviderException Invalid() =>
         new("provider_invalid_response", "The provider returned an invalid streaming response.");
 
     private static IEnumerable<string> ReasoningFields(string configured) {
@@ -251,11 +251,11 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         return TimeSpan.FromMilliseconds(backoff + Random.Shared.Next(0, 200));
     }
 
-    private static AssistantProviderException ProviderError(HttpStatusCode status) => status switch {
+    private static ProviderException ProviderError(HttpStatusCode status) => status switch {
         HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden =>
-            new AssistantProviderException("provider_unauthorised", "The configured provider rejected the request."),
+            new ProviderException("provider_unauthorised", "The configured provider rejected the request."),
         HttpStatusCode.TooManyRequests =>
-            new AssistantProviderException("provider_rate_limited", "The configured provider is rate limiting requests."),
-        _ => new AssistantProviderException("provider_error", "The configured provider could not complete the request."),
+            new ProviderException("provider_rate_limited", "The configured provider is rate limiting requests."),
+        _ => new ProviderException("provider_error", "The configured provider could not complete the request."),
     };
 }

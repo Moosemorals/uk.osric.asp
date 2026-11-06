@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>A provider failure that carries a message safe to show and a stable code for metrics.</summary>
-internal sealed class AssistantProviderException(string code, string safeMessage, Exception? innerException = null)
+internal sealed class ProviderException(string code, string safeMessage, Exception? innerException = null)
     : Exception(safeMessage, innerException) {
     public string Code { get; } = code;
 }

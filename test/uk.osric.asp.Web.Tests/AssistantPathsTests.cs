@@ -12,7 +12,7 @@ public sealed class AssistantPathsTests {
 
     [Test]
     public void NormalizesBeforeCheckingReservedAndProtectedPaths() {
-        AssistantPaths paths = CreatePaths();
+        PagePathPolicy paths = CreatePaths();
 
         Assert.That(paths.Validate("/BLOG/../assistant/1", write: false).Error, Does.Contain("protected"));
         Assert.That(paths.Validate("/editor.js", write: false).Error, Does.Contain("protected"));
@@ -25,7 +25,7 @@ public sealed class AssistantPathsTests {
 
     [Test]
     public void WritablePrefixAllowsOnlyItsPathAndDescendants() {
-        AssistantPaths paths = CreatePaths("/blog");
+        PagePathPolicy paths = CreatePaths("/blog");
 
         Assert.That(paths.Validate("/blog", write: true).Success, Is.True);
         Assert.That(paths.Validate("/blog/post", write: true).Success, Is.True);
@@ -34,7 +34,7 @@ public sealed class AssistantPathsTests {
         Assert.That(paths.Validate("/public", write: false).Success, Is.True);
     }
 
-    private static AssistantPaths CreatePaths(string writablePrefix = "") => new(
+    private static PagePathPolicy CreatePaths(string writablePrefix = "") => new(
         new ReservedPaths(ReservedPaths.Default),
         new AssistantOptions { ProtectedPaths = ["/editor.js"], WritablePathPrefix = writablePrefix });
 }

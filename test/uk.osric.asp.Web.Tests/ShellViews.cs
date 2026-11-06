@@ -229,7 +229,7 @@ internal static class ShellViews {
             ]
             : []);
         await AssistantEndpoint.ConversationAsync(context, 1, conversations, new TestAntiforgery(),
-            new AssistantRunRegistry(new AssistantOptions(), TimeProvider.System), new AssistantOptions());
+            new RunRegistry(new AssistantOptions(), TimeProvider.System), new AssistantOptions());
         return await TestHttp.ReadBodyAsync(context);
     }
 

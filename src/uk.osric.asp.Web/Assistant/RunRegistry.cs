@@ -4,12 +4,12 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>The live run journals, by run id and by conversation.</summary>
-internal sealed class AssistantRunRegistry(AssistantOptions options, TimeProvider clock) {
+internal sealed class RunRegistry(AssistantOptions options, TimeProvider clock) {
     private readonly object _gate = new();
-    private readonly Dictionary<string, AssistantRunStream> _runs = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, RunStream> _runs = new(StringComparer.Ordinal);
     private readonly Dictionary<long, string> _activeByConversation = [];
 
-    public bool TryStart(string runId, long conversationId, out AssistantRunStream? stream) {
+    public bool TryStart(string runId, long conversationId, out RunStream? stream) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         lock (_gate) {
             if (_activeByConversation.ContainsKey(conversationId) || _runs.ContainsKey(runId)) {
@@ -17,16 +17,16 @@ internal sealed class AssistantRunRegistry(AssistantOptions options, TimeProvide
                 return false;
             }
 
-            stream = new AssistantRunStream(runId, options, clock);
+            stream = new RunStream(runId, options, clock);
             _runs.Add(runId, stream);
             _activeByConversation.Add(conversationId, runId);
             return true;
         }
     }
 
-    public AssistantRunStream? Find(string runId) {
+    public RunStream? Find(string runId) {
         lock (_gate) {
-            if (!_runs.TryGetValue(runId, out AssistantRunStream? stream)) {
+            if (!_runs.TryGetValue(runId, out RunStream? stream)) {
                 return null;
             }
             if (stream.IsExpired(clock.GetUtcNow())) {
@@ -47,7 +47,7 @@ internal sealed class AssistantRunRegistry(AssistantOptions options, TimeProvide
 
     public void Complete(string runId, long conversationId) {
         lock (_gate) {
-            if (_runs.TryGetValue(runId, out AssistantRunStream? stream)) {
+            if (_runs.TryGetValue(runId, out RunStream? stream)) {
                 stream.Complete();
             }
             if (_activeByConversation.GetValueOrDefault(conversationId) == runId) {

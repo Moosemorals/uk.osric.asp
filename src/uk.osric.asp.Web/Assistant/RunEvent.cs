@@ -4,6 +4,6 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>One journaled event of a run, as the assistant page replays it.</summary>
-internal sealed record AssistantEvent(string RunId, long Sequence, string Type, string DataJson) {
+internal sealed record RunEvent(string RunId, long Sequence, string Type, string DataJson) {
     public string EventId => $"{RunId}:{Sequence}";
 }

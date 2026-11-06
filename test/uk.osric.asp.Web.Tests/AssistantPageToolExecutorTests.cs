@@ -21,7 +21,7 @@ public sealed class AssistantPageToolExecutorTests {
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        AssistantPageToolExecutor tools = CreateTools(services);
+        PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
             startLine = 2,
@@ -30,7 +30,7 @@ public sealed class AssistantPageToolExecutorTests {
             replacement = "changed",
         });
 
-        AssistantToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, CancellationToken.None);
 
         Assert.That(result.Success, Is.True, result.Content);
         Assert.That(storage["/notes"]?.Template, Is.EqualTo("first\r\nchanged\r\nthird"));
@@ -44,9 +44,9 @@ public sealed class AssistantPageToolExecutorTests {
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "original");
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        AssistantPageToolExecutor tools = CreateTools(services);
+        PageToolExecutor tools = CreateTools(services);
 
-        AssistantToolExecutionResult result = await tools.ExecuteAsync(
+        ToolExecutionResult result = await tools.ExecuteAsync(
             "edit_page",
             "{\"path\":\"/notes\",\"startLine\":1,\"endLine\":1,\"expectedRevisionHash\":\"stale\",\"replacement\":\"changed\"}",
             CancellationToken.None);
@@ -62,9 +62,9 @@ public sealed class AssistantPageToolExecutorTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        AssistantPageToolExecutor tools = CreateTools(services);
+        PageToolExecutor tools = CreateTools(services);
 
-        AssistantToolExecutionResult result = await tools.ExecuteAsync(
+        ToolExecutionResult result = await tools.ExecuteAsync(
             "read_page", "{\"path\":\"/editor.js\"}", CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
@@ -76,9 +76,9 @@ public sealed class AssistantPageToolExecutorTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        AssistantPageToolExecutor tools = CreateTools(services);
+        PageToolExecutor tools = CreateTools(services);
 
-        AssistantToolExecutionResult result = await tools.ExecuteAsync(
+        ToolExecutionResult result = await tools.ExecuteAsync(
             "write_page", "{\"path\":\"/new\",\"content\":\"<% int value = ; %>\"}", CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
@@ -94,9 +94,9 @@ public sealed class AssistantPageToolExecutorTests {
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "source");
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        AssistantPageToolExecutor tools = CreateTools(services);
+        PageToolExecutor tools = CreateTools(services);
 
-        AssistantToolExecutionResult result = await tools.ExecuteAsync(
+        ToolExecutionResult result = await tools.ExecuteAsync(
             "delete_page", "{\"path\":\"/notes\"}", CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
@@ -112,9 +112,9 @@ public sealed class AssistantPageToolExecutorTests {
             "<h1>Title</h1>\r\n<%\r\nif (true) {\r\n%>\r\n<%= \"value\" %>\r\n<% } %>");
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        AssistantPageToolExecutor tools = CreateTools(services);
+        PageToolExecutor tools = CreateTools(services);
 
-        AssistantToolExecutionResult result = await tools.ExecuteAsync(
+        ToolExecutionResult result = await tools.ExecuteAsync(
             "read_page", "{\"path\":\"/template\",\"startLine\":5,\"endLine\":5}", CancellationToken.None);
 
         using JsonDocument document = JsonDocument.Parse(result.Content);
@@ -126,8 +126,8 @@ public sealed class AssistantPageToolExecutorTests {
     private static ServiceProvider Services(PageEditor editor) =>
         new ServiceCollection().AddScoped(_ => editor).BuildServiceProvider();
 
-    private static AssistantPageToolExecutor CreateTools(ServiceProvider services) => new(
+    private static PageToolExecutor CreateTools(ServiceProvider services) => new(
         services.GetRequiredService<IServiceScopeFactory>(),
-        new AssistantPaths(new ReservedPaths(ReservedPaths.Default), new AssistantOptions { ProtectedPaths = ["/editor.js"] }),
+        new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions { ProtectedPaths = ["/editor.js"] }),
         new AssistantOptions { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 });
 }

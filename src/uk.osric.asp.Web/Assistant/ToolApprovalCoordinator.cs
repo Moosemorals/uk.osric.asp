@@ -6,16 +6,16 @@ namespace uk.osric.asp.Web.Assistant;
 using System.Collections.Concurrent;
 
 /// <summary>Pairs a run waiting on an approval with the decision the browser submits.</summary>
-internal sealed class AssistantToolApprovalCoordinator {
-    private readonly ConcurrentDictionary<(string RunId, string ToolCallId), TaskCompletionSource<AssistantApprovalResolutionResult>> _pending = [];
+internal sealed class ToolApprovalCoordinator {
+    private readonly ConcurrentDictionary<(string RunId, string ToolCallId), TaskCompletionSource<ApprovalResolutionResult>> _pending = [];
 
-    public async Task<AssistantApprovalResolutionResult> WaitAsync(
+    public async Task<ApprovalResolutionResult> WaitAsync(
         string runId,
         string toolCallId,
         CancellationToken cancellationToken) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         ArgumentException.ThrowIfNullOrWhiteSpace(toolCallId);
-        TaskCompletionSource<AssistantApprovalResolutionResult> signal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<ApprovalResolutionResult> signal = new(TaskCreationOptions.RunContinuationsAsynchronously);
         (string RunId, string ToolCallId) key = (runId, toolCallId);
         if (!_pending.TryAdd(key, signal)) {
             throw new InvalidOperationException("An approval wait already exists for this tool call.");
@@ -28,12 +28,12 @@ internal sealed class AssistantToolApprovalCoordinator {
         }
     }
 
-    public bool Signal(string runId, string toolCallId, AssistantApprovalResolutionResult decision) {
-        if (decision is not (AssistantApprovalResolutionResult.Approved or AssistantApprovalResolutionResult.Denied)) {
+    public bool Signal(string runId, string toolCallId, ApprovalResolutionResult decision) {
+        if (decision is not (ApprovalResolutionResult.Approved or ApprovalResolutionResult.Denied)) {
             return false;
         }
 
-        return _pending.TryGetValue((runId, toolCallId), out TaskCompletionSource<AssistantApprovalResolutionResult>? signal)
+        return _pending.TryGetValue((runId, toolCallId), out TaskCompletionSource<ApprovalResolutionResult>? signal)
             && signal.TrySetResult(decision);
     }
 }

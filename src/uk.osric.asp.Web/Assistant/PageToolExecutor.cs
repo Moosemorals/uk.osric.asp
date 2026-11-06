@@ -12,12 +12,12 @@ using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>What one tool call produced, as the model receives it.</summary>
-internal sealed record AssistantToolExecutionResult(bool Success, string Content, string Summary);
+internal sealed record ToolExecutionResult(bool Success, string Content, string Summary);
 
 /// <summary>Runs the page tools the model asks for: read, write, list and delete.</summary>
-internal sealed class AssistantPageToolExecutor(
+internal sealed class PageToolExecutor(
     IServiceScopeFactory scopeFactory,
-    AssistantPaths paths,
+    PagePathPolicy paths,
     AssistantOptions options) {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
@@ -43,7 +43,7 @@ internal sealed class AssistantPageToolExecutor(
         Definition("shell", "Run a read-only virtual-shell command over stored pages.", [new("command", "string", true)], false),
     ];
 
-    public async Task<AssistantToolExecutionResult> ExecuteAsync(
+    public async Task<ToolExecutionResult> ExecuteAsync(
         string name,
         string argumentsJson,
         CancellationToken cancellationToken) {
@@ -71,7 +71,7 @@ internal sealed class AssistantPageToolExecutor(
         };
     }
 
-    private async Task<AssistantToolExecutionResult> ListPagesAsync(
+    private async Task<ToolExecutionResult> ListPagesAsync(
         IReadOnlyDictionary<string, JsonElement> arguments,
         PageEditor pages,
         CancellationToken cancellationToken) {
@@ -96,18 +96,18 @@ internal sealed class AssistantPageToolExecutor(
         return Success(data, $"Listed {Math.Min(matching.Length, 500)} pages");
     }
 
-    private async Task<AssistantToolExecutionResult> ReadPageAsync(
+    private async Task<ToolExecutionResult> ReadPageAsync(
         IReadOnlyDictionary<string, JsonElement> arguments,
         PageEditor pages,
         CancellationToken cancellationToken) {
-        AssistantPathResult checkedPath = paths.Validate(String(arguments, "path"), write: false);
+        PathValidationResult checkedPath = paths.Validate(String(arguments, "path"), write: false);
         if (!checkedPath.Success) {
             return Failure(checkedPath.Error!, "Read refused");
         }
         return await ReadPageAtAsync(checkedPath.Path!, Integer(arguments, "startLine"), Integer(arguments, "endLine"), pages, cancellationToken);
     }
 
-    private async Task<AssistantToolExecutionResult> ReadPageAtAsync(
+    private async Task<ToolExecutionResult> ReadPageAtAsync(
         PagePath path,
         int? requestedStart,
         int? requestedEnd,
@@ -149,12 +149,12 @@ internal sealed class AssistantPageToolExecutor(
         return Success(data, $"Read {Describe(path)}");
     }
 
-    private async Task<AssistantToolExecutionResult> EditPageAsync(
+    private async Task<ToolExecutionResult> EditPageAsync(
         IReadOnlyDictionary<string, JsonElement> arguments,
         PageEditor pages,
         CancellationToken cancellationToken) {
         string pathText = String(arguments, "path")!;
-        AssistantPathResult checkedPath = paths.Validate(pathText, write: true);
+        PathValidationResult checkedPath = paths.Validate(pathText, write: true);
         if (!checkedPath.Success) {
             return Failure(checkedPath.Error!, "Edit refused");
         }
@@ -188,11 +188,11 @@ internal sealed class AssistantPageToolExecutor(
             $"Edited {Describe(checkedPath.Path)} ({saved.Diagnostics.Count} diagnostics)");
     }
 
-    private async Task<AssistantToolExecutionResult> WritePageAsync(
+    private async Task<ToolExecutionResult> WritePageAsync(
         IReadOnlyDictionary<string, JsonElement> arguments,
         PageEditor pages,
         CancellationToken cancellationToken) {
-        AssistantPathResult checkedPath = paths.Validate(String(arguments, "path"), write: true);
+        PathValidationResult checkedPath = paths.Validate(String(arguments, "path"), write: true);
         if (!checkedPath.Success) {
             return Failure(checkedPath.Error!, "Write refused");
         }
@@ -209,11 +209,11 @@ internal sealed class AssistantPageToolExecutor(
             $"Wrote {Describe(checkedPath.Path)} ({diagnostics.Count} diagnostics)");
     }
 
-    private async Task<AssistantToolExecutionResult> DeletePageAsync(
+    private async Task<ToolExecutionResult> DeletePageAsync(
         IReadOnlyDictionary<string, JsonElement> arguments,
         PageEditor pages,
         CancellationToken cancellationToken) {
-        AssistantPathResult checkedPath = paths.Validate(String(arguments, "path"), write: true);
+        PathValidationResult checkedPath = paths.Validate(String(arguments, "path"), write: true);
         if (!checkedPath.Success) {
             return Failure(checkedPath.Error!, "Delete refused");
         }
@@ -223,7 +223,7 @@ internal sealed class AssistantPageToolExecutor(
             deleted ? $"Deleted {Describe(checkedPath.Path)}" : $"Delete {Describe(checkedPath.Path)}: not live");
     }
 
-    private async Task<AssistantToolExecutionResult> SearchPagesAsync(
+    private async Task<ToolExecutionResult> SearchPagesAsync(
         IReadOnlyDictionary<string, JsonElement> arguments,
         PageEditor pages,
         CancellationToken cancellationToken) {
@@ -262,7 +262,7 @@ internal sealed class AssistantPageToolExecutor(
         return Success(new { query, matches, truncated = matches.Count == 100 }, $"Found {matches.Count} matches");
     }
 
-    private async Task<AssistantToolExecutionResult> ShellAsync(
+    private async Task<ToolExecutionResult> ShellAsync(
         IReadOnlyDictionary<string, JsonElement> arguments,
         PageEditor pages,
         CancellationToken cancellationToken) {
@@ -320,7 +320,7 @@ internal sealed class AssistantPageToolExecutor(
             return Success(new { output = string.Join('\n', found) }, $"grep {MessageText.Sanitize(query)}");
         }
 
-        AssistantPathResult checkedPath = paths.Validate(pathText, write: false);
+        PathValidationResult checkedPath = paths.Validate(pathText, write: false);
         if (!checkedPath.Success) {
             return Failure(checkedPath.Error!, "Shell path refused");
         }
@@ -343,15 +343,15 @@ internal sealed class AssistantPageToolExecutor(
         return Success(new { output }, $"{command.Name} {Describe(checkedPath.Path!)}");
     }
 
-    private AssistantToolExecutionResult Success(object data, string summary) => Bounded(new { ok = true, data, error = (string?)null }, summary);
+    private ToolExecutionResult Success(object data, string summary) => Bounded(new { ok = true, data, error = (string?)null }, summary);
 
-    private AssistantToolExecutionResult Failure(string error, string summary) => Bounded(new { ok = false, data = (object?)null, error }, summary, success: false);
+    private ToolExecutionResult Failure(string error, string summary) => Bounded(new { ok = false, data = (object?)null, error }, summary, success: false);
 
-    private AssistantToolExecutionResult Bounded(object envelope, string summary, bool success = true) {
+    private ToolExecutionResult Bounded(object envelope, string summary, bool success = true) {
         string json = JsonSerializer.Serialize(envelope, s_jsonOptions);
         return json.Length <= options.MaxToolResultChars
-            ? new AssistantToolExecutionResult(success, json, summary)
-            : new AssistantToolExecutionResult(false,
+            ? new ToolExecutionResult(success, json, summary)
+            : new ToolExecutionResult(false,
                 "{\"ok\":false,\"data\":null,\"error\":\"Tool result exceeds the configured size limit.\"}",
                 "Tool result too large");
     }

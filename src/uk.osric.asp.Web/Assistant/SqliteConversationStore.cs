@@ -13,7 +13,7 @@ using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>The SQLite-backed conversation store.</summary>
-internal sealed class SqliteAssistantConversationStore(StorageDbContext database, TimeProvider clock) : IAssistantConversationStore {
+internal sealed class SqliteConversationStore(StorageDbContext database, TimeProvider clock) : IConversationStore {
 
     public async Task<AssistantConversation> CreateAsync(string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
@@ -34,13 +34,13 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
         return conversation;
     }
 
-    public async Task<IReadOnlyList<AssistantConversationListItem>> ListAsync(string owner, CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<ConversationListItem>> ListAsync(string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
         return await database.Set<AssistantConversation>()
             .FromSqlInterpolated($"SELECT * FROM \"AssistantConversations\" WHERE \"Owner\" = {owner} ORDER BY \"UpdatedAt\" DESC, \"Id\" DESC")
             .AsNoTracking()
-            .Select(conversation => new AssistantConversationListItem(
+            .Select(conversation => new ConversationListItem(
                 conversation.Id,
                 conversation.Title,
                 conversation.ApprovalMode,
@@ -103,7 +103,7 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
         return deleted > 0;
     }
 
-    public async Task<AssistantRunStartResult> StartRunAsync(
+    public async Task<RunStartResult> StartRunAsync(
         long id,
         string owner,
         string content,
@@ -137,7 +137,7 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
         await using DbDataReader reader = await update.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken)) {
             await transaction.RollbackAsync(cancellationToken);
-            return new AssistantRunStartResult(AssistantRunStartStatus.NotFound, null, null);
+            return new RunStartResult(RunStartStatus.NotFound, null, null);
         }
 
         long sequence = reader.GetInt64(0);
@@ -171,16 +171,16 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
             await transaction.RollbackAsync(cancellationToken);
             database.Entry(run).State = EntityState.Detached;
             database.Entry(userMessage).State = EntityState.Detached;
-            return new AssistantRunStartResult(AssistantRunStartStatus.AlreadyActive, null, null);
+            return new RunStartResult(RunStartStatus.AlreadyActive, null, null);
         }
 
-        return new AssistantRunStartResult(AssistantRunStartStatus.Started, runId, sequence);
+        return new RunStartResult(RunStartStatus.Started, runId, sequence);
     }
 
     public async Task<long?> AppendMessageAsync(
         long conversationId,
         string runId,
-        AssistantMessageInput input,
+        MessageInput input,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
@@ -339,7 +339,7 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
         }
     }
 
-    public async Task<AssistantApprovalResolutionResult> ResolveApprovalAsync(
+    public async Task<ApprovalResolutionResult> ResolveApprovalAsync(
         long conversationId,
         string owner,
         string runId,
@@ -350,7 +350,7 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         ArgumentException.ThrowIfNullOrWhiteSpace(toolCallId);
         if (decision is not ("approve" or "deny")) {
-            return AssistantApprovalResolutionResult.Conflict;
+            return ApprovalResolutionResult.Conflict;
         }
 
         string status = decision == "approve" ? "approved" : "denied";
@@ -368,7 +368,7 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
                             AND conversation."Owner" = {owner})
                 """, cancellationToken);
         if (updated > 0) {
-            return decision == "approve" ? AssistantApprovalResolutionResult.Approved : AssistantApprovalResolutionResult.Denied;
+            return decision == "approve" ? ApprovalResolutionResult.Approved : ApprovalResolutionResult.Denied;
         }
 
         string? existing = await database.Set<AssistantToolApproval>().AsNoTracking()
@@ -380,12 +380,12 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
             .Select(approval => approval.Status)
             .SingleOrDefaultAsync(cancellationToken);
         if (existing is null) {
-            return AssistantApprovalResolutionResult.NotFound;
+            return ApprovalResolutionResult.NotFound;
         }
         if (existing == status) {
-            return decision == "approve" ? AssistantApprovalResolutionResult.Approved : AssistantApprovalResolutionResult.Denied;
+            return decision == "approve" ? ApprovalResolutionResult.Approved : ApprovalResolutionResult.Denied;
         }
-        return AssistantApprovalResolutionResult.Conflict;
+        return ApprovalResolutionResult.Conflict;
     }
 
     public async Task<IReadOnlyList<AssistantToolApproval>> GetPendingApprovalsAsync(
@@ -472,7 +472,7 @@ internal sealed class SqliteAssistantConversationStore(StorageDbContext database
                     await AppendMessageAsync(
                         run.ConversationId,
                         run.Id,
-                        new AssistantMessageInput(
+                        new MessageInput(
                             "tool",
                             "{\"ok\":false,\"data\":null,\"error\":\"The host restarted before this tool call completed; it was not executed.\"}",
                             ToolCallId: toolCallId,

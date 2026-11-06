@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>How an approval a run was waiting on was resolved.</summary>
-internal enum AssistantApprovalResolutionResult {
+internal enum ApprovalResolutionResult {
     Approved,
     Denied,
     NotFound,

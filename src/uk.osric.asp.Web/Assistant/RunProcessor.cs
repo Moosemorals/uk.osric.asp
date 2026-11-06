@@ -10,21 +10,21 @@ using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Text;
 
 /// <summary>Runs one queued assistant run to completion, streaming its events and executing its tools.</summary>
-internal sealed class AssistantRunProcessor(
+internal sealed class RunProcessor(
     IServiceScopeFactory scopeFactory,
     IChatCompletionClient client,
-    AssistantPageToolExecutor tools,
-    AssistantRunRegistry registry,
-    AssistantToolApprovalCoordinator approvals,
+    PageToolExecutor tools,
+    RunRegistry registry,
+    ToolApprovalCoordinator approvals,
     AssistantMetrics metrics,
     AssistantOptions options,
-    ILogger<AssistantRunProcessor> logger) {
+    ILogger<RunProcessor> logger) {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task RunAsync(AssistantQueuedRun queued, CancellationToken hostStopping) {
+    public async Task RunAsync(QueuedRun queued, CancellationToken hostStopping) {
         long runStart = Stopwatch.GetTimestamp();
-        AssistantRunStream? stream = registry.Find(queued.RunId);
+        RunStream? stream = registry.Find(queued.RunId);
         if (stream is null) {
             await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "interrupted", "missing_journal", "The run could not be resumed."));
             return;
@@ -76,7 +76,7 @@ internal sealed class AssistantRunProcessor(
                 ChatRequest request = new(
                     run.Model,
                     trimmed.Messages,
-                    AssistantPageToolExecutor.Definitions,
+                    PageToolExecutor.Definitions,
                     options.Temperature,
                     options.MaxOutputTokens,
                     options.ReasoningField,
@@ -101,7 +101,7 @@ internal sealed class AssistantRunProcessor(
                                 break;
                         }
                     }
-                } catch (AssistantProviderException exception) {
+                } catch (ProviderException exception) {
                     providerOutcome = exception.Code;
                     throw;
                 } catch (OperationCanceledException) {
@@ -109,10 +109,10 @@ internal sealed class AssistantRunProcessor(
                     throw;
                 } catch (HttpRequestException exception) {
                     providerOutcome = "provider_unreachable";
-                    throw new AssistantProviderException(providerOutcome, "The configured provider could not be reached.", exception);
+                    throw new ProviderException(providerOutcome, "The configured provider could not be reached.", exception);
                 } catch (IOException exception) {
                     providerOutcome = "provider_unreachable";
-                    throw new AssistantProviderException(providerOutcome, "The configured provider could not be reached.", exception);
+                    throw new ProviderException(providerOutcome, "The configured provider could not be reached.", exception);
                 } finally {
                     metrics.RecordProviderRequest(run.Model, providerOutcome, Stopwatch.GetElapsedTime(providerStart));
                 }
@@ -154,8 +154,8 @@ internal sealed class AssistantRunProcessor(
                     callsThisStep++;
                     activeToolCallId = call.Id;
                     activeToolName = call.Name;
-                    AssistantToolExecutionResult result;
-                    ToolDefinition? definition = AssistantPageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
+                    ToolExecutionResult result;
+                    ToolDefinition? definition = PageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
                     bool requiresApproval = run.ApprovalMode == ApprovalMode.RequireApproval.ToString()
                         && definition?.NeedsApproval == true;
                     stream.Publish("tool.started", new {
@@ -182,7 +182,7 @@ internal sealed class AssistantRunProcessor(
                     await StoreAsync(store => store.AppendMessageAsync(
                         queued.ConversationId,
                         queued.RunId,
-                        new AssistantMessageInput("tool", result.Content, ToolCallId: call.Id, ToolName: call.Name),
+                        new MessageInput("tool", result.Content, ToolCallId: call.Id, ToolName: call.Name),
                         runTimeout.Token));
                     stream.Publish("tool.finished", new {
                         step,
@@ -200,7 +200,7 @@ internal sealed class AssistantRunProcessor(
             }
 
             await FailAsync(queued, stream, "max_steps", "The assistant used too many steps.", null, step - 1, runTimeout.Token);
-        } catch (AssistantProviderException exception) {
+        } catch (ProviderException exception) {
             logger.LogWarning("Assistant provider request for run {RunId} failed with {ErrorCode}", queued.RunId, exception.Code);
             await FailAsync(queued, stream, exception.Code, exception.Message, partial, step, CancellationToken.None);
         } catch (OperationCanceledException) {
@@ -221,7 +221,7 @@ internal sealed class AssistantRunProcessor(
                 await StoreAsync(store => store.AppendMessageAsync(
                     queued.ConversationId,
                     queued.RunId,
-                    new AssistantMessageInput("tool", ToolFailure(message, MessageText.Sanitize(activeToolName ?? "tool")).Content,
+                    new MessageInput("tool", ToolFailure(message, MessageText.Sanitize(activeToolName ?? "tool")).Content,
                         ToolCallId: activeToolCallId, ToolName: activeToolName),
                     CancellationToken.None));
             }
@@ -256,15 +256,15 @@ internal sealed class AssistantRunProcessor(
         }
     }
 
-    private async Task<AssistantToolExecutionResult> ResolveApprovalAsync(
-        AssistantQueuedRun queued,
-        AssistantRunStream stream,
+    private async Task<ToolExecutionResult> ResolveApprovalAsync(
+        QueuedRun queued,
+        RunStream stream,
         int step,
         PreparedToolCall call,
         ToolDefinition definition,
         CancellationToken cancellationToken) {
         using CancellationTokenSource waiterCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        Task<AssistantApprovalResolutionResult> wait = approvals.WaitAsync(queued.RunId, call.Id, waiterCancellation.Token);
+        Task<ApprovalResolutionResult> wait = approvals.WaitAsync(queued.RunId, call.Id, waiterCancellation.Token);
         bool created = await StoreAsync(store => store.CreateApprovalAsync(queued.RunId, call.Id, cancellationToken));
         if (!created) {
             waiterCancellation.Cancel();
@@ -286,10 +286,10 @@ internal sealed class AssistantRunProcessor(
         });
 
         try {
-            AssistantApprovalResolutionResult decision = await wait;
+            ApprovalResolutionResult decision = await wait;
             await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "running", cancellationToken: cancellationToken));
-            stream.Publish("approval.resolved", new { step, toolCallId = call.Id, decision = decision == AssistantApprovalResolutionResult.Approved ? "approved" : "denied" });
-            return decision == AssistantApprovalResolutionResult.Approved
+            stream.Publish("approval.resolved", new { step, toolCallId = call.Id, decision = decision == ApprovalResolutionResult.Approved ? "approved" : "denied" });
+            return decision == ApprovalResolutionResult.Approved
                 ? await ExecuteToolAsync(call, stream, step, cancellationToken)
                 : ToolFailure("The owner denied this tool call.", $"{call.DisplayName}: denied");
         } catch (OperationCanceledException) {
@@ -297,9 +297,9 @@ internal sealed class AssistantRunProcessor(
         }
     }
 
-    private async Task<AssistantToolExecutionResult> ExecuteToolAsync(
+    private async Task<ToolExecutionResult> ExecuteToolAsync(
         PreparedToolCall call,
-        AssistantRunStream stream,
+        RunStream stream,
         int step,
         CancellationToken cancellationToken) {
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -317,8 +317,8 @@ internal sealed class AssistantRunProcessor(
     }
 
     private async Task PersistAssistantAsync(
-        AssistantQueuedRun queued,
-        AssistantRunStream stream,
+        QueuedRun queued,
+        RunStream stream,
         int step,
         ChatResponse response,
         string status,
@@ -327,7 +327,7 @@ internal sealed class AssistantRunProcessor(
         long? sequence = await StoreAsync(store => store.AppendMessageAsync(
             queued.ConversationId,
             queued.RunId,
-            new AssistantMessageInput("assistant", response.Content, response.Reasoning,
+            new MessageInput("assistant", response.Content, response.Reasoning,
                 includeToolCalls ? SerializeToolCalls(response.ToolCalls) : null, Status: status),
             cancellationToken));
         if (sequence is { } messageSequence) {
@@ -336,8 +336,8 @@ internal sealed class AssistantRunProcessor(
     }
 
     private async Task PersistAssistantCallsAsync(
-        AssistantQueuedRun queued,
-        AssistantRunStream stream,
+        QueuedRun queued,
+        RunStream stream,
         int step,
         ChatResponse response,
         IReadOnlyList<PreparedToolCall> calls,
@@ -345,7 +345,7 @@ internal sealed class AssistantRunProcessor(
         long? sequence = await StoreAsync(store => store.AppendMessageAsync(
             queued.ConversationId,
             queued.RunId,
-            new AssistantMessageInput("assistant", response.Content, response.Reasoning, SerializePreparedToolCalls(calls)),
+            new MessageInput("assistant", response.Content, response.Reasoning, SerializePreparedToolCalls(calls)),
             cancellationToken));
         if (sequence is { } messageSequence) {
             stream.Publish("message.completed", new { step, messageId = messageSequence, status = "complete", finishReason = response.FinishReason });
@@ -353,8 +353,8 @@ internal sealed class AssistantRunProcessor(
     }
 
     private async Task PersistPartialAsync(
-        AssistantQueuedRun queued,
-        AssistantRunStream stream,
+        QueuedRun queued,
+        RunStream stream,
         int step,
         ChatStreamAccumulator? accumulator,
         string status,
@@ -370,8 +370,8 @@ internal sealed class AssistantRunProcessor(
     }
 
     private async Task FailAsync(
-        AssistantQueuedRun queued,
-        AssistantRunStream stream,
+        QueuedRun queued,
+        RunStream stream,
         string code,
         string message,
         ChatStreamAccumulator? partial,
@@ -384,8 +384,8 @@ internal sealed class AssistantRunProcessor(
     }
 
     private async Task CompleteAsync(
-        AssistantQueuedRun queued,
-        AssistantRunStream stream,
+        QueuedRun queued,
+        RunStream stream,
         int steps,
         ChatResponse response) {
         await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "completed"));
@@ -396,9 +396,9 @@ internal sealed class AssistantRunProcessor(
         });
     }
 
-    private async Task<T> StoreAsync<T>(Func<IAssistantConversationStore, Task<T>> action) {
+    private async Task<T> StoreAsync<T>(Func<IConversationStore, Task<T>> action) {
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
-        return await action(scope.ServiceProvider.GetRequiredService<IAssistantConversationStore>());
+        return await action(scope.ServiceProvider.GetRequiredService<IConversationStore>());
     }
 
     private static ChatMessage ToChatMessage(AssistantMessage message) => new(
@@ -423,7 +423,7 @@ internal sealed class AssistantRunProcessor(
             function = new { name = call.Name, arguments = call.Arguments },
         }), s_jsonOptions);
 
-    private static AssistantToolExecutionResult ToolFailure(string error, string summary) => new(
+    private static ToolExecutionResult ToolFailure(string error, string summary) => new(
         false,
         JsonSerializer.Serialize(new { ok = false, data = (object?)null, error }, s_jsonOptions),
         summary);
