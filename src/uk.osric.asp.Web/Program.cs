@@ -209,6 +209,11 @@ internal class Program {
 
         RouteGroupBuilder admin = app.MapGroup("/admin")
             .RequireAuthorization(EditorPolicy.Name);
+        admin.MapGet("", AdminSeedsEndpoint.ListAsync);
+        admin.MapPost("/seeds/restore", AdminSeedsEndpoint.RestoreAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        admin.MapPost("/seeds/restore-all", AdminSeedsEndpoint.RestoreAllAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         admin.MapGet("/restore", AdminRestoreEndpoint.GetAsync);
         admin.MapPost("/restore", AdminRestoreEndpoint.PostAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));

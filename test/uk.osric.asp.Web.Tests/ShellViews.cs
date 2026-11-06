@@ -37,6 +37,7 @@ internal static class ShellViews {
         "login",
         "login-failed",
         "listing",
+        "admin-seeds",
         "editor",
         "editor-with-diagnostics",
         "history",
@@ -60,6 +61,7 @@ internal static class ShellViews {
         "login" => RenderAsync(name, LoginAsync),
         "login-failed" => RenderAsync(name, FailedLoginAsync),
         "listing" => RenderAsync(name, ListingAsync),
+        "admin-seeds" => RenderAsync(name, AdminSeedsAsync),
         "editor" => RenderAsync(name, () => EditorAsync(NewStore(), path: "/page")),
         "editor-with-diagnostics" => RenderAsync(name, EditorWithDiagnosticsAsync),
         "history" => RenderAsync(name, () => EditorAsync(NewStore(), "/page", "cmd=history")),
@@ -114,6 +116,17 @@ internal static class ShellViews {
         await storage.DeletePageAsync(PageHarness.Key("/notes"));
 
         return await EditorAsync(storage, path: null);
+    }
+
+    private static async Task<string> AdminSeedsAsync() {
+        FakePageStore storage = new();
+        storage["/assistant.css"] = new PageTemplate(PageHarness.Key("/assistant.css"), "/* edited */");
+        using PageHarness pages = new(storage);
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
+
+        await AdminSeedsEndpoint.ListAsync(context, pages.Editor, new TestAntiforgery());
+
+        return await TestHttp.ReadBodyAsync(context);
     }
 
     private static Task<string> RevisionAsync() {

@@ -13,6 +13,11 @@ public sealed class PageAssetSeederTests {
     private static readonly string[] SeedPaths = ["/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/layout.css", "/rocket.svg", "/site.css", "/status.css"];
 
     [Test]
+    public void SeedPathsAreTheShippedFiles() {
+        Assert.That(PageAssetSeeder.SeedPaths().Select(path => path.Key), Is.EquivalentTo(SeedPaths));
+    }
+
+    [Test]
     public async Task MissingAssetsAreSeededWithoutCompiledImagesAsync() {
         FakePageStore storage = new();
 

@@ -29,6 +29,11 @@ internal static class PageAssetSeeder {
         return seed is null ? null : await File.ReadAllTextAsync(seed, cancellationToken);
     }
 
+    /// <summary>The page keys of the assets bundled with this release, in seeding order.</summary>
+    public static IReadOnlyList<PagePath> SeedPaths() {
+        return [.. SeedFiles().Select(seed => PagePath.Normalize("/" + Path.GetFileName(seed)))];
+    }
+
     private static string[] SeedFiles() {
         string[] seeds = Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
         Array.Sort(seeds, StringComparer.Ordinal);
