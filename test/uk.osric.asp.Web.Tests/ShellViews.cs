@@ -188,7 +188,15 @@ internal static class ShellViews {
         storage["/broken"] = new PageTemplate(PageHarness.Key("/broken"), BrokenSource, Broken(pages.Compiler.RuntimeId));
         DefaultHttpContext context = TestHttp.CreateContext("broken", "GET", "/broken");
 
-        await PageEndpoint.HandleAsync(context, pages.Renderer, NullLoggerFactory.Instance, Reserved, new RenderOptions());
+        await PageEndpoint.HandleAsync(
+            context,
+            pages.Renderer,
+            NullLoggerFactory.Instance,
+            Reserved,
+            new RenderOptions(),
+            new PageStorageOptions(),
+            new FakePageStateStore(),
+            new FakePageFetcher());
 
         return await TestHttp.ReadBodyAsync(context);
     }

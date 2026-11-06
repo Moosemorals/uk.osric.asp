@@ -40,6 +40,7 @@ internal sealed class SimpleContext : IContext {
     // picks its own URL.
     private const string PageCategory = "uk.osric.asp.Pages";
 
+    private readonly IRenderBoundPageStorage? _boundStorage;
     private readonly Lock _body = new();
     private readonly IPageFetcher _fetcher;
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
@@ -53,7 +54,9 @@ internal sealed class SimpleContext : IContext {
     // the reader needs, and the value it carries is immutable.
     private CancellationToken _deadline;
 
-    private bool _abandoned;
+    // Read from the page's task and written by the abandoning thread, which no longer share one, so
+    // the flag is volatile rather than merely lock-protected.
+    private volatile bool _abandoned;
     private string _contentType = PageResponse.Default.ContentType;
     private string? _location;
     private int _status = PageResponse.Default.Status;
@@ -89,6 +92,7 @@ internal sealed class SimpleContext : IContext {
         Aborted = aborted;
         _fetcher = fetcher;
         _storage = storage;
+        _boundStorage = storage as IRenderBoundPageStorage;
         _writer = writer;
         _deadline = CancellationToken.None;
     }
@@ -119,6 +123,7 @@ internal sealed class SimpleContext : IContext {
     /// <param name="deadline">The deadline's token; it outlives this context's use of it.</param>
     public void AttachDeadline(CancellationToken deadline) {
         _deadline = deadline;
+        _boundStorage?.AttachDeadline(deadline);
     }
 
     /// <summary>Stops the page writing, once its render has been given up on.</summary>
@@ -130,6 +135,8 @@ internal sealed class SimpleContext : IContext {
         lock (_body) {
             _abandoned = true;
         }
+
+        _boundStorage?.Abandon();
     }
 
     /// <inheritdoc/>
@@ -224,6 +231,10 @@ internal sealed class SimpleContext : IContext {
     /// <inheritdoc/>
     public Task<PageFetchResponse> FetchAsync(PageFetchRequest request) {
         ArgumentNullException.ThrowIfNull(request);
+
+        if (_abandoned) {
+            throw new InvalidOperationException($"The render of {Path} was abandoned; it cannot fetch.");
+        }
 
         return _fetcher.FetchAsync(request, Path, Cancellation());
     }

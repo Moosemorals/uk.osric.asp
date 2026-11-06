@@ -52,6 +52,12 @@ internal sealed class PageRenderer(
         // an abandoned page's continuation can still register on the token. See RunAsync.
         CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(budget.RenderOptions.Timeout);
+
+        // The page's own storage and fetch calls are cancelled with the render, not only with the
+        // request. Attaching here, rather than inside RunAsync, keeps the token live for the whole
+        // render even on the paths that never start the page.
+        context.AttachDeadline(deadline.Token);
+
         bool handedToRun = false;
 
         try {

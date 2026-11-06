@@ -51,7 +51,14 @@ internal class Program {
         bool assistantEnabled = builder.Configuration.GetValue<bool>("Assistant:Enabled");
 
         // Configuration: the database, its options, and the proxy trust the host depends on.
-        builder.Services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
+        // The scoped context is what the stores on the request inject; the factory is what lets a
+        // page's storage call own its context and outlive the request scope safely. The options are
+        // singletons because the factory is: a singleton cannot consume a scoped dependency.
+        builder.Services.AddDbContext<StorageDbContext>(
+            options => options.UseSqlite(connection.ToString()),
+            contextLifetime: ServiceLifetime.Scoped,
+            optionsLifetime: ServiceLifetime.Singleton);
+        builder.Services.AddDbContextFactory<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
 
         builder.Services.AddOptions<AssistantOptions>()
             .Bind(builder.Configuration.GetSection("Assistant"))
@@ -88,6 +95,9 @@ internal class Program {
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(PageStorageOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
+        builder.Services.AddSingleton<IPageFetcher, DisabledPageFetcher>();
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         builder.Services.AddScoped<IPageStore, SqlitePageStore>();

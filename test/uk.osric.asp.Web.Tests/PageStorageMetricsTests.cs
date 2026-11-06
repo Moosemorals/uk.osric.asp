@@ -17,7 +17,7 @@ using uk.osric.asp.Web.Storage;
 [NonParallelizable]
 public sealed class PageStorageMetricsTests {
     [Test]
-    public async Task PayloadCountsUtf8TextAndBlobsAcrossEveryRetainedRevisionAsync() {
+    public async Task PayloadCountsUtf8TextAndBlobsAcrossRevisionsAndPageStateAsync() {
         await using SqliteConnection connection = new("Data Source=:memory:");
         await connection.OpenAsync();
         await using SqliteCommand command = connection.CreateCommand();
@@ -27,12 +27,16 @@ public sealed class PageStorageMetricsTests {
                 RuntimeId TEXT, Diagnostics TEXT, Image BLOB, Symbols BLOB);
             INSERT INTO PageRevisions VALUES ('r', '/p', 'h', 'date', char(233), 'c', 'ch', 'rt', '[]', zeroblob(10), zeroblob(5));
             INSERT INTO PageRevisions VALUES ('s', '/p', 'i', 'date', '', 'c', NULL, NULL, NULL, NULL, NULL);
+            CREATE TABLE PageState (PagePath TEXT, Key TEXT, Value TEXT, UpdatedAt TEXT);
+            INSERT INTO PageState VALUES ('p', 'k', 'v', 'date');
             """;
         await command.ExecuteNonQueryAsync();
 
         (long payload, long allocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
 
-        Assert.That(payload, Is.EqualTo(41));
+        // 41 bytes of revisions plus 7 of page state: one byte each for the path, key and value, and
+        // four for the timestamp.
+        Assert.That(payload, Is.EqualTo(48));
         Assert.That(allocated, Is.GreaterThan(payload));
     }
 

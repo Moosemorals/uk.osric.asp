@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Core.Pages;
@@ -22,7 +23,14 @@ internal sealed class PageHarness : IDisposable {
         IPageCompiler? compiler = null,
         RenderOptions? options = null,
         PageBudget? budget = null,
-        PageHealth? health = null) {
+        PageHealth? health = null,
+        FakePageStateStore? state = null,
+        FakePageFetcher? fetch = null,
+        PageStorageOptions? storageOptions = null,
+        ILogger<PageRenderer>? rendererLogger = null) {
+        State = state ?? new FakePageStateStore();
+        Fetch = fetch ?? new FakePageFetcher();
+        StorageOptions = storageOptions ?? new PageStorageOptions();
         Options = options ?? new RenderOptions();
         Budget = budget ?? new PageBudget(Options, new CompileOptions());
         Health = health ?? new PageHealth(Options.AbandonedLimit);
@@ -30,11 +38,26 @@ internal sealed class PageHarness : IDisposable {
         Metrics = new PageMetrics();
 
         Images = new PageImageBuilder(Compiler, Budget, Metrics, NullLogger<PageImageBuilder>.Instance);
-        Renderer = new PageRenderer(storage, Compiler, Images, Metrics, Budget, Health, NullLogger<PageRenderer>.Instance);
+        Renderer = new PageRenderer(
+            storage,
+            Compiler,
+            Images,
+            Metrics,
+            Budget,
+            Health,
+            rendererLogger ?? NullLogger<PageRenderer>.Instance);
         Editor = new PageEditor(storage, Images, Metrics, NullLogger<PageEditor>.Instance);
     }
 
     public RenderOptions Options { get; }
+
+    /// <summary>The page state every render in this harness shares.</summary>
+    public FakePageStateStore State { get; }
+
+    /// <summary>Where every fetch in this harness goes.</summary>
+    public FakePageFetcher Fetch { get; }
+
+    public PageStorageOptions StorageOptions { get; }
 
     public PageBudget Budget { get; }
 
@@ -64,15 +87,16 @@ internal sealed class PageHarness : IDisposable {
 
     public async Task<(RenderResult Result, string Output)> RenderAsync(
         string path,
-        int maxBodyChars = RenderOptions.DefaultMaxBodyChars) {
+        int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
+        bool isHead = false) {
         PagePath key = Key(path);
         SimpleContext context = new(
             NullLoggerFactory.Instance,
             TestHttp.Request(key.Key),
             CancellationToken.None,
             new StringWriter(),
-            EmptyPageStorage.Instance,
-            DisabledPageFetcher.Instance,
+            new PageStorageScope(key, State, StorageOptions, writable: !isHead),
+            Fetch,
             maxBodyChars);
 
         RenderResult result = await Renderer.RenderAsync(key, context, CancellationToken.None);

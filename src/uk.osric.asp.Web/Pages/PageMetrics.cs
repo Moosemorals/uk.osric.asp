@@ -111,7 +111,7 @@ internal sealed class PageMetrics : IDisposable {
             "page.image.size", "By", "Size of an emitted page assembly.");
         _meter.CreateObservableGauge<long>("page.storage.payload.size",
             () => ObserveStorage(value => value.Payload), "By",
-            "Logical PageRevisions TEXT bytes and image/symbol blob bytes; excludes indexes and SQLite overhead.");
+            "Logical PageRevisions TEXT bytes and image/symbol blob bytes, plus PageState key and value bytes; excludes indexes and SQLite overhead.");
         _meter.CreateObservableGauge<long>("page.storage.database.size",
             () => ObserveStorage(value => value.Database), "By",
             "Whole SQLite database page_count times page_size, including indexes and freelist; excludes separate WAL.");

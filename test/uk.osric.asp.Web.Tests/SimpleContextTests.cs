@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 
@@ -218,6 +219,12 @@ public sealed class SimpleContextTests {
         Assert.That(logs.Entries[0].Message, Is.EqualTo("broken"));
     }
 
+    // A page-level store over an empty one, which is what the endpoint builds for a page.
+    private static PageStorageScope StorageFor(string path) {
+        return new PageStorageScope(
+            PagePath.Normalize(path), new FakePageStateStore(), new PageStorageOptions(), writable: true);
+    }
+
     private static SimpleContext CreateContext(out StringWriter output) {
         output = new StringWriter();
         return new SimpleContext(
@@ -225,7 +232,7 @@ public sealed class SimpleContextTests {
             TestHttp.Request("/page"),
             CancellationToken.None,
             output,
-            EmptyPageStorage.Instance,
+            StorageFor("/page"),
             DisabledPageFetcher.Instance);
     }
 
@@ -236,7 +243,7 @@ public sealed class SimpleContextTests {
             TestHttp.Request(path),
             CancellationToken.None,
             new StringWriter(),
-            EmptyPageStorage.Instance,
+            StorageFor("/page"),
             DisabledPageFetcher.Instance);
     }
 }

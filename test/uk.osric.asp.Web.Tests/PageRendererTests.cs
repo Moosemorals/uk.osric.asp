@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using System.Diagnostics;
 using uk.osric.asp.Core.Compilation;
@@ -223,6 +224,43 @@ public sealed class PageRendererTests {
         // late writes went nowhere.
         await Task.Delay(600);
         Assert.That(output, Is.EqualTo("before"));
+    }
+
+    [Test]
+    public async Task AnAbandonedPageWaitingOnStorageIsCancelledAndReleasedAsync() {
+        FakePageStore storage = new();
+        RenderOptions options = new() { TimeoutSeconds = 1 };
+        PageHealth health = new(options.AbandonedLimit);
+        FakePageStateStore state = new() { ReadDelay = TimeSpan.FromSeconds(30) };
+        state.LivePages.Add("/waiting");
+        RecordingLoggerFactory logs = new();
+        using PageHarness pages = new(
+            storage,
+            options: options,
+            budget: new PageBudget(options, new CompileOptions()),
+            health: health,
+            state: state,
+            rendererLogger: logs.CreateLogger<PageRenderer>());
+        await pages.StoreCompiledAsync("/waiting",
+            "<% ctx.Write((await ctx.Storage.TryGetValueAsync<int>(\"visits\")).Found.ToString()); %>");
+
+        long start = Stopwatch.GetTimestamp();
+        (RenderResult result, string _) = await pages.RenderAsync("/waiting");
+
+        Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
+        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1.4)),
+            "the answer must not wait for the page to stop waiting");
+
+        // A page suspended in an await unwinds as soon as the deadline fires, so its render is
+        // released almost immediately rather than when a network call gives up.
+        Stopwatch wait = Stopwatch.StartNew();
+        while (health.Abandoned > 0 && wait.Elapsed < TimeSpan.FromSeconds(2)) {
+            await Task.Delay(20);
+        }
+
+        Assert.That(health.Abandoned, Is.Zero, "a cancelled render releases its health count promptly");
+        Assert.That(logs.Entries.Where(entry => entry.Level == LogLevel.Error), Is.Empty,
+            "the page was cancelled, not faulted");
     }
 
     [Test]

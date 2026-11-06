@@ -46,6 +46,13 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<PageStateEntry>(state => {
+            state.ToTable("PageState");
+            state.HasKey(row => new { row.PagePath, row.Key });
+            state.Property(row => row.PagePath).UseCollation("BINARY");
+            state.Property(row => row.Key).UseCollation("BINARY");
+        });
+
         modelBuilder.Entity<LocalUser>().ToTable("Users");
         modelBuilder.Entity<LocalUser>().HasKey(user => user.UserName);
         modelBuilder.Entity<LocalUser>().Property(user => user.UserName).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");

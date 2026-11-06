@@ -108,6 +108,15 @@ public abstract class IntegrationTest {
         await storage.SavePageAsync(new PageTemplate(PagePath.Normalize(path), content));
     }
 
+    /// <summary>Runs a callback against the host's services, for a fixture that needs one directly.</summary>
+    /// <typeparam name="T">What the callback returns.</typeparam>
+    /// <param name="work">The work, given a scope and its provider.</param>
+    internal async Task<T> WithServicesAsync<T>(Func<IServiceProvider, Task<T>> work) {
+        await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
+
+        return await work(scope.ServiceProvider);
+    }
+
     /// <summary>Reads a page straight from storage, bypassing routing and the editor.</summary>
     internal async Task<PageTemplate?> ReadPageAsync(string path) {
         await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();

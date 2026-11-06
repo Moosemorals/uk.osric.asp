@@ -207,11 +207,29 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
     }
 
     public async Task<bool> DeletePageAsync(PagePath path, CancellationToken cancellationToken = default) {
-        int updated = await database.Set<PageHead>()
-            .Where(head => head.Path == path.Key && !head.IsDeleted)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(head => head.IsDeleted, true), cancellationToken);
+        bool deleted;
+        await using (IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken)) {
+            int updated = await database.Set<PageHead>()
+                .Where(head => head.Path == path.Key && !head.IsDeleted)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(head => head.IsDeleted, true), cancellationToken);
 
-        return updated > 0;
+            // State is live data, not history: a new page saved at the same path must not inherit the
+            // state of the page that was deleted before it.
+            if (updated > 0) {
+                await database.Set<PageStateEntry>()
+                    .Where(row => row.PagePath == path.Key)
+                    .ExecuteDeleteAsync(cancellationToken);
+            }
+
+            deleted = updated > 0;
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        if (deleted) {
+            storageRefresh?.Request();
+        }
+
+        return deleted;
     }
 
     public async Task<bool> ScrubPageAsync(PagePath path, CancellationToken cancellationToken = default) {
@@ -225,6 +243,11 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                     .Where(head => head.Path == path.Key && head.IsDeleted)
                     .ExecuteDeleteAsync(cancellationToken);
                 if (deletedHeads > 0) {
+                    // Only when a tombstoned head was actually removed, so a database written by an
+                    // older build cannot leave orphaned rows behind.
+                    await database.Set<PageStateEntry>()
+                        .Where(row => row.PagePath == path.Key)
+                        .ExecuteDeleteAsync(cancellationToken);
                     await database.Set<PageRevision>()
                         .Where(revision => revision.Path == path.Key)
                         .ExecuteDeleteAsync(cancellationToken);

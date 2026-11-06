@@ -26,7 +26,10 @@ internal sealed class PageEndpoint() {
         PageRenderer pages,
         ILoggerFactory loggerFactory,
         ReservedPaths reserved,
-        RenderOptions options) {
+        RenderOptions renderOptions,
+        PageStorageOptions storageOptions,
+        IPageStateStore stateStore,
+        IPageFetcher fetcher) {
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
 
@@ -73,14 +76,18 @@ internal sealed class PageEndpoint() {
         }
 
         StringWriter output = new();
+
+        // A HEAD request runs the page to produce the representation and its validators, so its state
+        // is readable but never written.
+        PageStorageScope storage = new(path, stateStore, storageOptions, writable: !HttpMethods.IsHead(context.Request.Method));
         SimpleContext page = new(
             loggerFactory,
             snapshot,
             context.RequestAborted,
             output,
-            EmptyPageStorage.Instance,
-            DisabledPageFetcher.Instance,
-            options.MaxBodyChars);
+            storage,
+            fetcher,
+            renderOptions.MaxBodyChars);
 
         RenderResult result = await pages.RenderAsync(path, page, context.RequestAborted);
 

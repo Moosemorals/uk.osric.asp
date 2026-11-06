@@ -322,6 +322,28 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("PageRevisions", (string)null);
                 });
 
+            modelBuilder.Entity("uk.osric.asp.Web.Pages.PageStateEntry", b =>
+                {
+                    b.Property<string>("PagePath")
+                        .HasColumnType("TEXT")
+                        .UseCollation("BINARY");
+
+                    b.Property<string>("Key")
+                        .HasColumnType("TEXT")
+                        .UseCollation("BINARY");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("PagePath", "Key");
+
+                    b.ToTable("PageState", (string)null);
+                });
+
             modelBuilder.Entity("uk.osric.asp.Web.Users.LocalUser", b =>
                 {
                     b.Property<string>("UserName")
