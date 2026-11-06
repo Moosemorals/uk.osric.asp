@@ -174,6 +174,20 @@ public sealed class PageRendererTests {
     }
 
     [Test]
+    public async Task APageThatThrowsAfterAnAwaitIsAPageFaultNotATimeoutAsync() {
+        FakePageStore storage = new();
+        storage["/throw"] = new PageTemplate(
+            PageHarness.Key("/throw"),
+            "<% await System.Threading.Tasks.Task.CompletedTask; throw new System.InvalidOperationException(\"Boom after await.\"); %>");
+        using PageHarness pages = new(storage);
+
+        InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => pages.RenderAsync("/throw"));
+
+        Assert.That(thrown?.Message, Is.EqualTo("Boom after await."));
+    }
+
+    [Test]
     public async Task APageThatOutrunsTheBudgetIsAbandonedAsync() {
         FakePageStore storage = new();
         RenderOptions options = new() { TimeoutSeconds = 1 };
@@ -244,7 +258,7 @@ public sealed class PageRendererTests {
 
         Assert.That(first.Status, Is.EqualTo(RenderStatus.Timeout));
         Assert.That(firstOutput, Is.Empty, "a page that has no budget left does not start");
-        Assert.That(health.Abandoned, Is.Zero, "nothing ran, so no thread was lost");
+        Assert.That(health.Abandoned, Is.Zero, "nothing ran, so no render was abandoned");
         Assert.That(PageHarness.Stored(storage, "/cold").Image?.Bytes, Is.Not.Null,
             "the compile outlived the answer, so its image has to be kept or the page can never be served");
 
@@ -295,7 +309,7 @@ public sealed class PageRendererTests {
             budget.CompileSlots.Release();
         }
 
-        Assert.That(health.Abandoned, Is.Zero, "no thread was lost, so the site is not counted as unhealthy");
+        Assert.That(health.Abandoned, Is.Zero, "no render was abandoned, so the site is not counted as unhealthy");
     }
 
     [Test]
@@ -314,7 +328,7 @@ public sealed class PageRendererTests {
         Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromMilliseconds(1200)),
             "the answer comes when the budget is spent, not when the slow read finishes");
         Assert.That(output, Is.Empty);
-        Assert.That(health.Abandoned, Is.Zero, "the page never ran, so no thread was lost");
+        Assert.That(health.Abandoned, Is.Zero, "the page never ran, so no render was abandoned");
         Assert.That(pages.Compiler.CompileCount, Is.Zero, "a read that ran out of budget is not followed by a compile");
     }
 

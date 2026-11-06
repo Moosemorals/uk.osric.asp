@@ -152,7 +152,7 @@ internal sealed class PageMetrics : IDisposable {
         _renderWait.Record(duration.TotalSeconds);
     }
 
-    /// <summary>Records a render that was given up on; the thread it was using is lost.</summary>
+    /// <summary>Records a render that was given up on; it may still be running.</summary>
     /// <param name="path">The page that outran its budget.</param>
     public void RecordAbandoned(PagePath path) {
         TagList tags = new() { { "page.path", path.Key } };

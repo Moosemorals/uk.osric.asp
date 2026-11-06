@@ -280,6 +280,21 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
+    public async Task APageThatDropsATaskStillRendersItsBody() {
+        TestContext context = await CompileAndRun("""
+            <%!
+            static class Helper {
+                public static global::System.Threading.Tasks.Task Work()
+                    => global::System.Threading.Tasks.Task.CompletedTask;
+            }
+            %>
+            <% _ = Helper.Work(); %>rendered
+            """);
+
+        Assert.That(context.Output, Does.Contain("rendered"));
+    }
+
+    [Test]
     public async Task OneImageCanBeLoadedAndInvokedMoreThanOnce() {
         using LoadedPage template = Load("Hello, <% ctx.Write(\"world\"); %>!");
         TestContext first = new();

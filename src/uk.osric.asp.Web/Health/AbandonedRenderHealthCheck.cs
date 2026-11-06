@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.Health;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using uk.osric.asp.Web.Pages;
 
-/// <summary>Reports unhealthy once pages have wedged too many threads for too long.</summary>
+/// <summary>Reports unhealthy once pages have wedged too many renders for too long.</summary>
 /// <remarks>
 /// A page that never returns cannot be interrupted, so the process that owns it has to die. This is
 /// how the site asks for that: the podman health check probes <c>/heath</c>, and three failures

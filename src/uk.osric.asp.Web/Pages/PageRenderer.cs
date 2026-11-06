@@ -13,8 +13,13 @@ using uk.osric.asp.Runtime;
 /// <para>
 /// The render budget covers queueing and running, because a visitor waits for both. A page that
 /// outruns it cannot be stopped, so the answer is given up on instead: the context is abandoned, the
-/// thread is counted against the site's health, and the response is a
+/// render is counted against the site's health, and the response is a
 /// <see cref="RenderStatus.Timeout"/>.
+/// </para>
+/// <para>
+/// The handler is asynchronous, so a page that is waiting returns its thread to the pool and unwinds
+/// at its next <c>await</c> when the deadline fires. A page that blocks synchronously is unchanged:
+/// only abandonment and the container's restart escape it.
 /// </para>
 /// <para>
 /// Records <c>page.render.*</c>, <c>page.load.*</c>, <c>page.invoke.*</c> and <c>page.cache.*</c>.
@@ -43,8 +48,11 @@ internal sealed class PageRenderer(
         string outcome = PageMetrics.RenderError;
         string cache = PageMetrics.CacheNone;
 
-        using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // Not `using`: RunAsync takes ownership of the deadline from the moment it is called, so that
+        // an abandoned page's continuation can still register on the token. See RunAsync.
+        CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(budget.RenderOptions.Timeout);
+        bool handedToRun = false;
 
         try {
             long queueStart = Stopwatch.GetTimestamp();
@@ -89,6 +97,7 @@ internal sealed class PageRenderer(
                     return RenderResult.CompileFailed(loaded.Image.Diagnostics);
                 }
 
+                handedToRun = true;
                 RenderResult rendered = await RunAsync(
                     path, loaded.Image.Bytes, loaded.Image.Symbols, context, deadline, cancellationToken);
                 outcome = rendered.Status == RenderStatus.Timeout ? PageMetrics.RenderTimeout : PageMetrics.RenderOk;
@@ -98,6 +107,12 @@ internal sealed class PageRenderer(
                 budget.RenderSlots.Release();
             }
         } finally {
+            if (!handedToRun) {
+                // Every path that never reaches RunAsync keeps the deadline: a dropped queue wait, a
+                // read that spent the budget, a missing page, a compile error or a throw.
+                deadline.Dispose();
+            }
+
             // Reaching here by exception leaves the outcome as `error`, which is what a dashboard
             // should see: the page was neither served nor reported as a compile failure.
             metrics.RecordRender(path, outcome, cache, Stopwatch.GetElapsedTime(start));
@@ -155,6 +170,10 @@ internal sealed class PageRenderer(
             : PageMetrics.StaleRuntimeChanged;
     }
 
+    // RunAsync owns the deadline from here on. An abandoned page can reach an await after this method
+    // has returned, and registering on a disposed token would throw ObjectDisposedException inside the
+    // page instead of cancelling it - so the source is disposed when the page finished here, or by the
+    // abandon continuation when it did not.
     private async Task<RenderResult> RunAsync(
         PagePath path,
         byte[] image,
@@ -163,44 +182,65 @@ internal sealed class PageRenderer(
         CancellationTokenSource deadline,
         CancellationToken cancellationToken) {
 
-        // A page that arrived compiled in time can still have spent the budget on the way here - a
-        // lazy compile is bounded by the compile options, not by the render's budget - and starting it
-        // now would race it against an already-cancelled delay and answer either way. The image is
-        // stored by then, so the next request renders it.
-        if (deadline.IsCancellationRequested) {
-            return RenderResult.TimedOut;
-        }
+        bool handedToAbandon = false;
 
-        long loadStart = Stopwatch.GetTimestamp();
-        LoadedPage template = compiler.Load(image, symbols);
+        try {
+            // A page that arrived compiled in time can still have spent the budget on the way here - a
+            // lazy compile is bounded by the compile options, not by the render's budget - and starting
+            // it now would race it against an already-cancelled delay and answer either way. The image
+            // is stored by then, so the next request renders it.
+            if (deadline.IsCancellationRequested) {
+                return RenderResult.TimedOut;
+            }
 
-        metrics.RecordLoad(path, Stopwatch.GetElapsedTime(loadStart));
+            long loadStart = Stopwatch.GetTimestamp();
+            LoadedPage template = compiler.Load(image, symbols);
 
-        long invokeStart = Stopwatch.GetTimestamp();
+            metrics.RecordLoad(path, Stopwatch.GetElapsedTime(loadStart));
 
-        // The page runs off the request's thread so the wait can be bounded. If it outlives the
-        // budget the task is abandoned rather than cancelled: nothing can stop arbitrary C#, and an
-        // abandoned thread is honest about it instead of pretending the page stopped.
-        Task page = Task.Run(() => template.InvokeAsync(context), CancellationToken.None);
-        Task expiry = Task.Delay(Timeout.InfiniteTimeSpan, deadline.Token);
+            long invokeStart = Stopwatch.GetTimestamp();
 
-        if (await Task.WhenAny(page, expiry) == page) {
-            try {
-                await page;
-                metrics.RecordInvoke(path, true, Stopwatch.GetElapsedTime(invokeStart));
+            // The page runs off the request's thread so the wait can be bounded. If it outlives the
+            // budget the task is abandoned rather than cancelled: nothing can stop arbitrary C#, and
+            // an abandoned render is honest about it instead of pretending the page stopped. An async
+            // page that is waiting hands its thread back while it waits, so an abandoned render costs
+            // a task rather than a thread.
+            Task page = Task.Run(() => template.InvokeAsync(context), CancellationToken.None);
+            Task expiry = Task.Delay(Timeout.InfiniteTimeSpan, deadline.Token);
 
-                return RenderResult.Rendered;
-            } catch {
-                metrics.RecordInvoke(path, false, Stopwatch.GetElapsedTime(invokeStart));
-                throw;
-            } finally {
+            if (await Task.WhenAny(page, expiry) == page) {
+                try {
+                    await page;
+                    metrics.RecordInvoke(path, true, Stopwatch.GetElapsedTime(invokeStart));
+
+                    return RenderResult.Rendered;
+                } catch {
+                    metrics.RecordInvoke(path, false, Stopwatch.GetElapsedTime(invokeStart));
+                    throw;
+                } finally {
+                    template.Dispose();
+                }
+            }
+
+            if (page.IsCanceled
+                && (deadline.IsCancellationRequested || cancellationToken.IsCancellationRequested)) {
+                // The page stopped because we asked it to: the answer was already given, or the
+                // visitor left. That is not a page fault, so it is not counted as one.
                 template.Dispose();
+                metrics.RecordInvoke(path, false, Stopwatch.GetElapsedTime(invokeStart));
+
+                return RenderResult.TimedOut;
+            }
+
+            handedToAbandon = true;
+            Abandon(path, context, template, page, deadline, invokeStart, cancellationToken.IsCancellationRequested);
+
+            return RenderResult.TimedOut;
+        } finally {
+            if (!handedToAbandon) {
+                deadline.Dispose();
             }
         }
-
-        Abandon(path, context, template, page, invokeStart, cancellationToken.IsCancellationRequested);
-
-        return RenderResult.TimedOut;
     }
 
     private void Abandon(
@@ -208,6 +248,7 @@ internal sealed class PageRenderer(
         SimpleContext context,
         LoadedPage template,
         Task page,
+        CancellationTokenSource deadline,
         long invokeStart,
         bool disconnected) {
 
@@ -231,6 +272,7 @@ internal sealed class PageRenderer(
         // returns late does not leave the site asking to be restarted.
         _ = page.ContinueWith(finished => {
             template.Dispose();
+            deadline.Dispose();
             health.Release();
 
             if (finished.Exception is { } failure) {

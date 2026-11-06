@@ -99,7 +99,7 @@ internal sealed class SimpleContext : IContext {
 
     /// <summary>Stops the page writing, once its render has been given up on.</summary>
     /// <remarks>
-    /// The page's thread cannot be stopped, so this is what keeps it from filling the buffer — or
+    /// The page cannot be stopped, so this is what keeps it from filling the buffer — or
     /// racing the response — after the site has answered without it.
     /// </remarks>
     public void Abandon() {
@@ -147,7 +147,7 @@ internal sealed class SimpleContext : IContext {
         _logger.Log(level, "{Message}", message);
     }
 
-    // The buffer is shared with a page thread that may still be running after the render was
+    // The buffer is shared with a page task that may still be running after the render was
     // abandoned, so every write and the read that shapes the response happen under one lock.
     private void WriteBody(string text) {
         lock (_body) {
