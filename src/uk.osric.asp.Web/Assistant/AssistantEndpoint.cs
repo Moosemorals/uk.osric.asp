@@ -111,6 +111,35 @@ internal static class AssistantEndpoint {
 
         await context.Response.WriteAsync($"""
             <div class="assistant-chat" id="assistant-chat" data-conversation-id="{id}" data-active-run="{Encode(activeRun?.Id ?? "")}" data-replay-from="{replayFrom}">
+                <p id="assistant-status" role="status" aria-live="polite"></p>
+                <fieldset>
+                    <legend>Assistant messages</legend>
+                    <section id="assistant-transcript" aria-label="Conversation">
+            """);
+
+        Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
+        foreach (AssistantMessage message in visibleMessages) {
+            await WriteMessageAsync(context, message, calls);
+        }
+        await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
+        await WriteStoppedRunAsync(context, lastRun);
+        await context.Response.WriteAsync($"""
+                    </section>
+                </fieldset>
+
+                <fieldset class="assistant-compose">
+                    <legend><label for="assistant-message">Your message</label></legend>
+                    <form id="assistant-message-form" method="post" action="/assistant/{id}/messages">
+                        {AntiforgeryField.Hidden(tokens)}
+                        <textarea id="assistant-message" name="content" rows="5" maxlength="{options.MaxMessageChars}" required></textarea>
+                        <p class="assistant-char-count" aria-hidden="true"><span id="assistant-char-count">0</span> / {options.MaxMessageChars}</p>
+                        <button type="submit">Send</button>
+                    </form>
+                    <form id="assistant-stop-form" method="post" action="/assistant/{id}/stop"{(activeRun is null ? " hidden" : "")}>
+                        {AntiforgeryField.Hidden(tokens)}
+                        <button type="submit">Stop</button>
+                    </form>
+                </fieldset>
 
                 <fieldset>
                     <legend>Page options</legend>
@@ -133,34 +162,7 @@ internal static class AssistantEndpoint {
                         </div>
                     </form>
                 </fieldset>
-                <fieldset class="assistant-compose">
-                    <legend><label for="assistant-message">Your message</label></legend>
-                    <form id="assistant-message-form" method="post" action="/assistant/{id}/messages">
-                        {AntiforgeryField.Hidden(tokens)}
-                        <textarea id="assistant-message" name="content" rows="5" maxlength="{options.MaxMessageChars}" required></textarea>
-                        <p class="assistant-char-count" aria-hidden="true"><span id="assistant-char-count">0</span> / {options.MaxMessageChars}</p>
-                        <button type="submit">Send</button>
-                    </form>
-                    <form id="assistant-stop-form" method="post" action="/assistant/{id}/stop"{(activeRun is null ? " hidden" : "")}>
-                        {AntiforgeryField.Hidden(tokens)}
-                        <button type="submit">Stop</button>
-                    </form>
-                </fieldset>
-                <p id="assistant-status" role="status" aria-live="polite"></p>
-                <fieldset>
-                    <legend>Assistant messages</legend>
-                    <section id="assistant-transcript" aria-label="Conversation">
-            """);
 
-        Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
-        foreach (AssistantMessage message in visibleMessages) {
-            await WriteMessageAsync(context, message, calls);
-        }
-        await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
-        await WriteStoppedRunAsync(context, lastRun);
-        await context.Response.WriteAsync($"""
-                    </section>
-                </fieldset>
                 <p><a href="/assistant/{id}/delete">Delete conversation</a></p>
                 <noscript><p>JavaScript is disabled. Your message will still start a run; refresh this page to see the response.</p></noscript>
             </div>
