@@ -22,10 +22,11 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
         using HttpClient client = await CreateSignedInClientAsync();
         string gatedConversation = await CreateConversationAsync(client);
         string modeToken = await GetAntiforgeryTokenAsync(client, gatedConversation);
-        using HttpResponseMessage mode = await client.PostAsync(gatedConversation + "/approval-mode", Form(
+        using HttpResponseMessage mode = await client.PostAsync(gatedConversation + "/options", Form(
             ("__RequestVerificationToken", modeToken),
+            ("title", ConversationTitle.NewConversation),
             ("mode", "RequireApproval")));
-        Assert.That(mode.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(mode.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
         string messageToken = await GetAntiforgeryTokenAsync(client, gatedConversation);
         using HttpResponseMessage started = await client.PostAsync(gatedConversation + "/messages", Form(

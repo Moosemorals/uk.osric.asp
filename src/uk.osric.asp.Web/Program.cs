@@ -250,10 +250,7 @@ internal class Program {
             app.MapPost("/assistant/{id:long}/runs/{runId}/tool-calls/{toolCallId}/approval", AssistantEndpoint.ApprovalAsync)
                 .RequireAuthorization(EditorPolicy.Name)
                 .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapPost("/assistant/{id:long}/approval-mode", AssistantEndpoint.ApprovalModeAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapPost("/assistant/{id:long}/rename", AssistantEndpoint.RenameAsync)
+            app.MapPost("/assistant/{id:long}/options", AssistantEndpoint.OptionsAsync)
                 .RequireAuthorization(EditorPolicy.Name)
                 .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
             app.MapGet("/assistant/{id:long}/delete", AssistantEndpoint.DeleteConfirmationAsync)

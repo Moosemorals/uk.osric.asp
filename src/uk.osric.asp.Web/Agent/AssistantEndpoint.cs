@@ -113,23 +113,45 @@ internal static class AssistantEndpoint {
 
         await context.Response.WriteAsync($"""
             <div class="assistant-chat" id="assistant-chat" data-conversation-id="{id}" data-active-run="{Encode(activeRun?.Id ?? "")}" data-replay-from="{replayFrom}">
-                <form method="post" action="/assistant/{id}/rename" class="assistant-rename">
-                    {AntiforgeryField.Hidden(tokens)}
-                    <label for="conversation-title">Conversation title</label>
-                    <input id="conversation-title" name="title" maxlength="200" value="{Encode(conversation.Title)}" required>
-                    <button type="submit">Rename</button>
-                </form>
-                <form method="post" action="/assistant/{id}/approval-mode" class="assistant-approval-mode">
-                    {AntiforgeryField.Hidden(tokens)}
-                    <label for="approval-mode">Tool approval</label>
-                    <select id="approval-mode" name="mode">
-                        <option value="AlwaysApprove"{Selected(conversation.ApprovalMode == "AlwaysApprove")}>Always approve</option>
-                        <option value="RequireApproval"{Selected(conversation.ApprovalMode == "RequireApproval")}>Require approval</option>
-                    </select>
-                    <button type="submit">Update</button>
-                </form>
+
+                <fieldset>
+                    <legend>Page options</legend>
+                    <form id="assistant-options-form" method="post" action="/assistant/{id}/options" class="assistant-options form">
+                        {AntiforgeryField.Hidden(tokens)}
+                        <dl>
+                            <dt><label for="conversation-title">Conversation title</label></dt>
+                            <dd><input id="conversation-title" name="title" maxlength="200" value="{Encode(conversation.Title)}" required></dd>
+                            <dt><label for="approval-mode">Tool approval</label></dt>
+                            <dd>
+                                <select id="approval-mode" name="mode">
+                                    <option value="AlwaysApprove"{Selected(conversation.ApprovalMode == "AlwaysApprove")}>Always approve</option>
+                                    <option value="RequireApproval"{Selected(conversation.ApprovalMode == "RequireApproval")}>Require approval</option>
+                                </select>
+                            </dd>
+                        </dl>
+                        <div class="assistant-option-actions form-actions">
+                            <button type="submit">Save</button>
+                            <p id="assistant-options-status" role="status" aria-live="polite"></p>
+                        </div>
+                    </form>
+                </fieldset>
+                <fieldset class="assistant-compose">
+                    <legend><label for="assistant-message">Your message</label></legend>
+                    <form id="assistant-message-form" method="post" action="/assistant/{id}/messages">
+                        {AntiforgeryField.Hidden(tokens)}
+                        <textarea id="assistant-message" name="content" rows="5" maxlength="{options.MaxMessageChars}" required></textarea>
+                        <p class="assistant-char-count" aria-hidden="true"><span id="assistant-char-count">0</span> / {options.MaxMessageChars}</p>
+                        <button type="submit">Send</button>
+                    </form>
+                    <form id="assistant-stop-form" method="post" action="/assistant/{id}/stop"{(activeRun is null ? " hidden" : "")}>
+                        {AntiforgeryField.Hidden(tokens)}
+                        <button type="submit">Stop</button>
+                    </form>
+                </fieldset>
                 <p id="assistant-status" role="status" aria-live="polite"></p>
-                <section id="assistant-transcript" aria-label="Conversation">
+                <fieldset>
+                    <legend>Assistant messages</legend>
+                    <section id="assistant-transcript" aria-label="Conversation">
             """);
 
         Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
@@ -137,21 +159,11 @@ internal static class AssistantEndpoint {
             await WriteMessageAsync(context, message, calls);
         }
         await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
-        await context.Response.WriteAsync("</section>");
         await context.Response.WriteAsync($"""
-            <form id="assistant-message-form" method="post" action="/assistant/{id}/messages">
-                {AntiforgeryField.Hidden(tokens)}
-                <label for="assistant-message">Message</label>
-                <textarea id="assistant-message" name="content" rows="5" maxlength="{options.MaxMessageChars}" required></textarea>
-                <p class="assistant-char-count" aria-hidden="true"><span id="assistant-char-count">0</span> / {options.MaxMessageChars}</p>
-                <button type="submit">Send</button>
-            </form>
-            <form id="assistant-stop-form" method="post" action="/assistant/{id}/stop"{(activeRun is null ? " hidden" : "")}>
-                {AntiforgeryField.Hidden(tokens)}
-                <button type="submit">Stop</button>
-            </form>
-            <p><a href="/assistant/{id}/delete">Delete conversation</a></p>
-            <noscript><p>JavaScript is disabled. Your message will still start a run; refresh this page to see the response.</p></noscript>
+                    </section>
+                </fieldset>
+                <p><a href="/assistant/{id}/delete">Delete conversation</a></p>
+                <noscript><p>JavaScript is disabled. Your message will still start a run; refresh this page to see the response.</p></noscript>
             </div>
             <script type="module" src="/assistant.js"></script>
             """);
@@ -302,46 +314,52 @@ internal static class AssistantEndpoint {
         return TypedResults.ServerSentEvents(ReadEventsAsync(stream, after, reset, options.HeartbeatSeconds, context.RequestAborted));
     }
 
-    public static async Task RenameAsync(HttpContext context, long id, IAgentConversationStore conversations, IAntiforgery antiforgery) {
+    public static async Task OptionsAsync(HttpContext context, long id, IAgentConversationStore conversations) {
         NoStore(context);
         if (!PostIsValid(context)) {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
         string? owner = Owner(context);
-        if (owner is null || !context.Request.HasFormContentType
-            || !context.Request.Form.TryGetValue("title", out Microsoft.Extensions.Primitives.StringValues title)
-            || title.Count != 1 || string.IsNullOrWhiteSpace(title[0]) || title[0]!.Length > 200) {
-            context.Response.StatusCode = owner is null ? StatusCodes.Status404NotFound : StatusCodes.Status400BadRequest;
-            return;
-        }
-        if (!await conversations.RenameAsync(id, owner, title[0]!, context.RequestAborted)) {
+        if (owner is null) {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
-        Redirect.SeeOther(context, $"/assistant/{id}");
-    }
-
-    public static async Task ApprovalModeAsync(HttpContext context, long id, IAgentConversationStore conversations) {
-        NoStore(context);
-        if (!PostIsValid(context)) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        AgentConversation? conversation = await conversations.GetAsync(id, owner, context.RequestAborted);
+        if (conversation is null) {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
-        string? owner = Owner(context);
-        if (owner is null || !context.Request.HasFormContentType
+        if (!context.Request.HasFormContentType
+            || !context.Request.Form.TryGetValue("title", out Microsoft.Extensions.Primitives.StringValues title)
+            || title.Count != 1 || string.IsNullOrWhiteSpace(title[0]) || title[0]!.Length > ConversationTitle.MaximumLength
             || !context.Request.Form.TryGetValue("mode", out Microsoft.Extensions.Primitives.StringValues mode)
             || mode.Count != 1
             || !Enum.TryParse(mode[0], ignoreCase: false, out AgentApprovalMode approvalMode)
             || !Enum.IsDefined(approvalMode)) {
-            context.Response.StatusCode = owner is null ? StatusCodes.Status404NotFound : StatusCodes.Status400BadRequest;
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
-        if (!await conversations.SetApprovalModeAsync(id, owner, approvalMode, context.RequestAborted)) {
+
+        // An unchanged title keeps its generated flag, so saving a mode on its own does not stop the
+        // conversation taking its title from the first message.
+        string trimmed = title[0]!.Trim();
+        if (!string.Equals(trimmed, conversation.Title, StringComparison.Ordinal)
+            && !await conversations.RenameAsync(id, owner, trimmed, context.RequestAborted)) {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
-        Redirect.SeeOther(context, $"/assistant/{id}");
+        if (conversation.ApprovalMode != approvalMode.ToString()
+            && !await conversations.SetApprovalModeAsync(id, owner, approvalMode, context.RequestAborted)) {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+        // A page submit reloads the conversation; the script posts the same form and gets no body.
+        if (context.Request.Headers.Accept.Any(value => value?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true)) {
+            Redirect.SeeOther(context, $"/assistant/{id}");
+            return;
+        }
+        context.Response.StatusCode = StatusCodes.Status204NoContent;
     }
 
     public static async Task ApprovalAsync(

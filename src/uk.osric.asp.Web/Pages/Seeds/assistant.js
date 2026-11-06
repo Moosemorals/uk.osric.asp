@@ -6,6 +6,9 @@ if (root) {
     const conversationId = root.dataset.conversationId;
     const transcript = document.getElementById('assistant-transcript');
     const statusLine = document.getElementById('assistant-status');
+    const optionsForm = document.getElementById('assistant-options-form');
+    const optionsStatus = document.getElementById('assistant-options-status');
+    const titleInput = document.getElementById('conversation-title');
     const messageForm = document.getElementById('assistant-message-form');
     const stopForm = document.getElementById('assistant-stop-form');
     const input = document.getElementById('assistant-message');
@@ -251,6 +254,35 @@ if (root) {
 
     input.addEventListener('input', () => {
         count.textContent = String(input.value.length);
+    });
+
+    // The form still submits as a page for a reader without JavaScript; here it posts and stays.
+    optionsForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = optionsForm.querySelector('button[type="submit"]');
+        button.disabled = true;
+        try {
+            const response = await fetch(optionsForm.action, { method: 'POST', body: new FormData(optionsForm) });
+            if (!response.ok) {
+                optionsStatus.textContent = response.status === 404
+                    ? 'This conversation no longer exists.'
+                    : 'The page options could not be saved.';
+                return;
+            }
+            const title = titleInput.value.trim();
+            if (title) {
+                const heading = document.querySelector('main h1');
+                if (heading) {
+                    heading.textContent = title;
+                }
+                document.title = title;
+            }
+            optionsStatus.textContent = 'Page options saved';
+        } catch {
+            optionsStatus.textContent = 'The page options could not be saved.';
+        } finally {
+            button.disabled = false;
+        }
     });
 
     messageForm.addEventListener('submit', async event => {

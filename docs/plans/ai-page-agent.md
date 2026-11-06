@@ -269,8 +269,7 @@ antiforgery before reading the form or touching storage.
 | `GET` | `/assistant/{id:long}/events` | SSE stream for the active or named run |
 | `POST` | `/assistant/{id:long}/stop` | Cancel the active or queued run |
 | `POST` | `/assistant/{id:long}/runs/{runId}/tool-calls/{toolCallId}/approval` | Approve or deny one pending tool call |
-| `POST` | `/assistant/{id:long}/approval-mode` | Change this conversation's approval mode; applies to the next run |
-| `POST` | `/assistant/{id:long}/rename` | Change the title, `303` back |
+| `POST` | `/assistant/{id:long}/options` | Change the title and approval mode together; `303` back for a page, `204` for the script |
 | `GET` | `/assistant/{id:long}/delete` | Delete confirmation |
 | `POST` | `/assistant/{id:long}/delete` | Delete the conversation, `303` to `/assistant` |
 
@@ -297,9 +296,12 @@ for it rather than serving a page.
 `POST /assistant/{id}/stop` accepts a form token only; it is idempotent. With no active run it
 returns `204` rather than failing. Stop also fails any unresolved approval before returning.
 
-`POST /assistant/{id}/approval-mode` accepts a form token and `mode=AlwaysApprove|RequireApproval`.
-It is owner-scoped; the new mode is shown on the conversation and applies to the next run, not the
-active one.
+`POST /assistant/{id}/options` accepts a form token, `title` and `mode=AlwaysApprove|RequireApproval`.
+It is owner-scoped: a title that has not changed keeps `TitleIsGenerated`, so saving a mode on its
+own leaves the conversation free to take its title from the first message, and the new mode is shown
+on the conversation and applies to the next run, not the active one. A page submit (an `Accept`
+containing `text/html`) is redirected `303` back to the conversation; anything else, such as the
+script's `fetch`, gets `204`.
 
 The tool-call approval route accepts a form token and `decision=approve|deny`. It verifies the
 conversation owner, active run and pending state in one conditional update; otherwise it returns a
@@ -728,21 +730,29 @@ like the editor's, but the views themselves cannot be edited through a page writ
 
 ### `/assistant/{id}` — chat
 
-- The conversation title (rename form), approval-mode selector (`AlwaysApprove` or
-  `RequireApproval`), a delete confirmation link, and a link back to the list.
-- An ordered list of messages:
+- A "Page options" fieldset holds one form with the conversation title and the approval-mode
+  selector (`AlwaysApprove` or `RequireApproval`), so the two controls that configure the
+  conversation are read and saved together. The form posts to `/assistant/{id}/options` as a page
+  for a reader without JavaScript; `assistant.js` intercepts the submit, posts with `fetch` and
+  reports the result in the fieldset's status line, renaming the `h1` and `document.title` in place.
+- A "Your message" fieldset holds the labelled `<textarea>`, a send button, a stop button (shown
+  only while active), a hidden antiforgery field and a live character count. It sits directly under
+  page options, above the transcript, because it is the thing the owner came to use.
+- An "Assistant messages" fieldset holds the transcript, an ordered list of messages:
   - user text, HTML-encoded;
   - assistant content, HTML-encoded, `white-space: pre-wrap`; no Markdown and no raw HTML;
   - reasoning in `<details><summary>Thinking</summary><pre>…</pre></details>`, open while
     streaming and collapsed when the message is complete;
-  - tool activity as a compact list (`Read /blog`, `Wrote /blog`), not as chat bubbles.
+  - every tool call in its own `<details>`: the summary is the tool name plus the arguments cut to
+    `MessageText.MaximumLength` (32 text elements), and the body holds the complete arguments and
+    the tool's response.
+- The live status line sits between "Your message" and "Assistant messages", and is hidden while it
+  has nothing to say.
 - Pending flagged tool calls in `RequireApproval` mode show the registered description, tool name
   and complete arguments, with separate approve and deny POST forms. Render pending decisions from
   SQLite on refresh; hide approval controls in `AlwaysApprove` mode. Encode arguments as text.
-- The form: a labelled `<textarea>`, a send button, a stop button (shown only while active), a
-  hidden antiforgery field and a live character count.
-- `<noscript>`: the form still posts and the run still starts; the page says to refresh to see the
-  reply, because streaming needs JavaScript.
+- A delete confirmation link, and a `<noscript>` note: the form still posts and the run still
+  starts; the page says to refresh to see the reply, because streaming needs JavaScript.
 - `data-conversation-id`, `data-active-run` and `data-replay-from` on the container. `replay-from`
   is `0` when the active run's messages were skipped, and the last journal sequence when they were
   rendered because the journal has been truncated.
@@ -755,13 +765,18 @@ like the editor's, but the views themselves cannot be edited through a page writ
   `connect-src 'self'`, no inline script and no inline style.
 - On submit: `fetch` a `FormData` containing the antiforgery token; on `202`, append the user
   bubble, disable the form, show the stop button and open the stream for the returned `runId`.
+- Page options: intercept the submit and `fetch` the same form. `204` means saved, so the status
+  line reports it and the `h1`/`document.title` follow the new title without a reload; a `404` or a
+  network failure is reported in the fieldset instead.
 - On page load with `data-active-run`: open the stream for that run with `after=data-replay-from`
   and let the journal replay from there.
 - Event handling:
   - `message.started` creates an assistant bubble for that step;
   - `reasoning.delta` appends to that bubble's `<pre>` and keeps it open;
   - `content.delta` appends to that bubble's content and sets `aria-busy="true"`;
-  - `tool.started` / `tool.finished` add or update a one-line tool activity entry;
+  - `tool.started` / `tool.finished` add or replace the tool call's `<details>`, whose summary is
+    the tool name plus the arguments truncated to 32 text elements and whose body holds the
+    arguments and the response;
   - `approval.required` renders the full tool call and adds approve/deny controls;
   - `approval.resolved` removes the controls and updates the activity state;
   - `run.warning` adds a visible note;
@@ -784,9 +799,12 @@ like the editor's, but the views themselves cannot be edited through a page writ
   responding", "Using read_page", "Response complete".
 - Reasoning is a `<details>` with a real summary; it starts open while streaming so the owner can
   watch it, and can be collapsed at any time.
-- Tool activity is a definition list or list with names and outcomes, not an unlabelled `<div>`;
-  approval actions have accessible names and report their pending/resolved state through the status
-  line.
+- A tool call is a `<details>` whose `<summary>` carries the tool name and the truncated arguments,
+  so the transcript reads as a short line per call and the full call and result are one activation
+  away; approval actions have accessible names and report their pending/resolved state through the
+  status line.
+- The fieldsets group the page options, the message box and the transcript; each save reports
+  through its own `role="status"` line, so no feedback depends on a focus change.
 - The new views join `ShellViews` and `AccessibilityTests`: one `main`, one `h1`, no skipped heading,
   labelled controls, named navs, encoded values and no inline style.
 - The CSS is in `/assistant.css`, seeded like the other assets, with contrast checked by hand.
@@ -801,7 +819,7 @@ like the editor's, but the views themselves cannot be edited through a page writ
   token the editor form uses; no new header convention is needed.
 - `GET /events` is safe and has no side effects. There is no CORS; only the same origin can read it.
 - The conversation id is not an authorisation token: the owner filter runs on every load, append,
-  stop, rename, delete and approval decision. A run id is resolved through its conversation, so it
+  stop, options, delete and approval decision. A run id is resolved through its conversation, so it
   cannot be used to read another conversation's stream or approve another owner's tool call.
 
 ### Rendering and transport
@@ -1063,7 +1081,7 @@ compiled in `Web.Tests` because the prompt and `TemplateCompiler` are Web types.
 - `AgentRunWorkerTests` also cover per-run mode snapshots, `NeedsApproval` filtering, one-at-a-time
   requests with full call details, approval resuming execution, denial becoming a tool result, and
   fail-closed timeout/stop/restart/race behavior.
-- `AgentEndpointTests`: auth/401 for SSE, antiforgery, 202/400/404/409/429, rename/delete, disabled
+- `AgentEndpointTests`: auth/401 for SSE, antiforgery, 202/204/400/404/409/429, options/delete, disabled
   feature 404, `Cache-Control`, SSE content type and event framing, `Last-Event-ID`.
 - Approval endpoint tests cover owner checks, antiforgery, pending-only decisions, conflicts and
   changing the conversation mode for the next run.
@@ -1071,7 +1089,7 @@ compiled in `Web.Tests` because the prompt and `TemplateCompiler` are Web types.
   recorded; every example in the prompt compiles through the real `TemplateCompiler` with no
   diagnostics.
 - `ShellViews`/`AccessibilityTests`: add the assistant list, chat (empty, with reasoning, with tool
-  activity, active run), rename and delete confirmation views.
+  activity, active run), options and delete confirmation views.
 
 ### `Web.IntegrationTests`
 

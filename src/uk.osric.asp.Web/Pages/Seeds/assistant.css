@@ -13,36 +13,39 @@
     gap: 1rem;
 }
 
-.assistant-chat form {
-    margin-block: 0.5rem;
+.assistant-chat fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 0.5rem 0.75rem 0.75rem;
+    border: 1px solid var(--assistant-rule);
 }
 
-.assistant-rename,
-.assistant-approval-mode {
-    display: flex;
-    align-items: end;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding-block: 0.5rem;
-    border-bottom: 1px solid var(--assistant-rule);
-}
-
-.assistant-rename label,
-.assistant-approval-mode label,
-#assistant-message-form label {
-    flex-basis: 100%;
+.assistant-chat legend {
+    padding-inline: 0.25rem;
     font-weight: 600;
 }
 
-.assistant-rename input {
-    flex: 1 1 16rem;
+.assistant-chat form {
+    margin: 0;
+}
+
+.assistant-options dt {
+    font-weight: 600;
+}
+
+.assistant-option-actions p {
+    margin: 0;
+    font-weight: 600;
+}
+
+.assistant-option-actions p:empty {
+    display: none;
 }
 
 #assistant-transcript {
     display: grid;
     gap: 0.75rem;
     min-width: 0;
-    padding-block: 0.5rem;
 }
 
 .assistant-message {
@@ -130,19 +133,19 @@
 }
 
 #assistant-status {
-    min-height: 1.5em;
     margin: 0;
     font-weight: 600;
 }
 
+#assistant-status:empty {
+    display: none;
+}
+
 @media (max-width: 38rem) {
     .assistant-message,
-    .assistant-approval {
+    .assistant-approval,
+    .assistant-tool {
         padding: 0.6rem;
-    }
-
-    .assistant-rename input {
-        flex-basis: 100%;
     }
 }
 /* <% ctx.SetContentType("text/css; charset=utf-8"); ctx.SetHeader("Cache-Control", "no-cache"); %> */
