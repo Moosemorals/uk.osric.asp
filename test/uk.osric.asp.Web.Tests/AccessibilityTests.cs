@@ -142,6 +142,30 @@ public sealed class AccessibilityTests {
     }
 
     [Test]
+    public async Task FormFieldsUseTheLabelAndControlColumnsAsync() {
+        await ForEachViewAsync((view, document) => {
+            foreach (MarkupElement form in document.Elements("form").Where(form => form.HasClass("form"))) {
+                foreach (MarkupElement control in form.Descendants().Where(IsDataControl)) {
+                    bool isTextarea = control.Name == "textarea";
+                    Assert.That(
+                        isTextarea ? control.IsInside("fieldset") : control.IsInside("dd"),
+                        Is.True,
+                        $"{view.Name}: {control.Name} '{control.Attribute("name")}' is not in {(isTextarea ? "a fieldset" : "a dd")}");
+                }
+
+                foreach (MarkupElement label in form.Descendants().Where(element => element.Name == "label")) {
+                    Assert.That(label.IsInside("dt") || label.IsInside("legend"), Is.True,
+                        $"{view.Name}: a form label is outside a dt or a legend");
+                }
+            }
+        });
+    }
+
+    private static bool IsDataControl(MarkupElement element) =>
+        (element.Name == "input" && element.Attribute("type") != "hidden")
+        || element.Name is "select" or "textarea";
+
+    [Test]
     public async Task NoRoleRepeatsTheElementsOwnRoleAsync() {
         await ForEachViewAsync((view, document) => {
             foreach (MarkupElement element in document.Root.Descendants()) {

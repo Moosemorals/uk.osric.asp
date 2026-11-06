@@ -143,12 +143,17 @@ internal static class LoginEndpoint {
         }
 
         await context.Response.WriteAsync($"""
-            <form method="post" action="/login">
+            <form method="post" action="/login" class="form">
                 {AntiforgeryField.Hidden(tokens)}
                 <input type="hidden" name="returnUrl" value="{WebUtility.HtmlEncode(returnUrl ?? string.Empty)}">
-                <p><label>Username <input name="username" autocomplete="username" value="{WebUtility.HtmlEncode(userName ?? string.Empty)}"{invalid}></label></p>
-                <p><label>Password <input type="password" name="password" autocomplete="current-password"{invalid}></label></p>
-                <p><label><input type="checkbox" name="{RememberMeField}"{(rememberMe ? " checked" : "")}> Keep me signed in</label></p>
+                <dl>
+                    <dt><label for="username">Username</label></dt>
+                    <dd><input id="username" name="username" autocomplete="username" value="{WebUtility.HtmlEncode(userName ?? string.Empty)}"{invalid}></dd>
+                    <dt><label for="password">Password</label></dt>
+                    <dd><input id="password" type="password" name="password" autocomplete="current-password"{invalid}></dd>
+                    <dt><label for="{RememberMeField}">Keep me signed in</label></dt>
+                    <dd><input id="{RememberMeField}" type="checkbox" name="{RememberMeField}"{(rememberMe ? " checked" : "")}></dd>
+                </dl>
                 <button type="submit">Sign in</button>
             </form>
             """);

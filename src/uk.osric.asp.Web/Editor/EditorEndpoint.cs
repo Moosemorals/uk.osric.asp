@@ -120,9 +120,12 @@ internal sealed class EditorEndpoint {
         await context.Response.WriteAsync("<h1>Pages</h1>");
         await WriteMessageAsync(context);
         await context.Response.WriteAsync($"""
-            <form method="post" action="/edit?cmd=new">
+            <form method="post" action="/edit?cmd=new" class="form">
                 {AntiforgeryField.Hidden(tokens)}
-                <label>New page path <input name="path" required></label>
+                <dl>
+                    <dt><label for="new-page-path">New page path</label></dt>
+                    <dd><input id="new-page-path" name="path" required></dd>
+                </dl>
                 <button type="submit">Create or open</button>
             </form>
             <h2>Live pages</h2>
@@ -319,9 +322,12 @@ internal sealed class EditorEndpoint {
             <p>Scrubbing does not revoke already-running page code or remove browser/CDN copies, exported archives, database backups, or filesystem snapshots. Rotate exposed secrets and clean those copies separately. It cannot promise forensic erasure from SSDs or external copies.</p>
             """);
         await context.Response.WriteAsync($"""
-            <form method="post" action="{WebUtility.HtmlEncode(PageUrls.EditorCommand(path, "scrub"))}">
+            <form method="post" action="{WebUtility.HtmlEncode(PageUrls.EditorCommand(path, "scrub"))}" class="form">
                 {AntiforgeryField.Hidden(tokens)}
-                <label>Type {WebUtility.HtmlEncode(path.Key)} to confirm <input name="confirmation" required></label>
+                <dl>
+                    <dt><label for="confirmation">Type {WebUtility.HtmlEncode(path.Key)} to confirm</label></dt>
+                    <dd><input id="confirmation" name="confirmation" required></dd>
+                </dl>
                 <button type="submit">Permanently scrub</button>
             </form>
             {PageLayout.Nav("Confirmation navigation", [new(PageUrls.Editor(path), "Cancel")], "editor-menu")}

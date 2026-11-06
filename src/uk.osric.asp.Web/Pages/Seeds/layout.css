@@ -83,4 +83,91 @@ body.editor-page > main {
     gap: 0.5rem;
     min-height: 0;
 }
+
+/* A form's fields are a description list: the label is a dt and the control is its dd. The label
+   column takes the widest label's width up to 40% of the form, then wraps; the control takes the
+   rest. The cap keeps one long label from squeezing the control to nothing. */
+form.form {
+    display: grid;
+    grid-template-columns: fit-content(40%) minmax(0, 1fr);
+    gap: 0.5rem 1rem;
+    align-items: start;
+}
+
+/* Each list shares the form's column tracks, so a form split by a textarea's fieldset still lines
+   up its labels. */
+form.form > dl {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    gap: inherit;
+    margin: 0;
+}
+
+form.form dt {
+    overflow-wrap: anywhere;
+}
+
+form.form dd {
+    min-width: 0;
+    margin: 0;
+}
+
+form.form dd > input:not([type="checkbox"]):not([type="radio"]),
+form.form dd > select,
+form.form dd > textarea {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+/* A textarea spans both columns: its fieldset is the wide row and its legend carries the label. */
+form.form > fieldset {
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+form.form > fieldset > legend {
+    padding: 0;
+    font-weight: 600;
+}
+
+form.form > fieldset > textarea {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+form.form > button {
+    grid-column: 2;
+    justify-self: start;
+}
+
+form.form > .form-actions {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+}
+
+/* Browsers without subgrid put the dt and dd directly in the form's tracks. */
+@supports not (grid-template-columns: subgrid) {
+    form.form > dl {
+        display: contents;
+    }
+}
+
+/* One column: the label sits above its control, which still fills the width. */
+@media (max-width: 30rem) {
+    form.form {
+        grid-template-columns: 1fr;
+    }
+
+    form.form > button,
+    form.form > .form-actions {
+        grid-column: 1;
+    }
+}
 <% ctx.SetContentType("text/css; charset=utf-8"); ctx.SetHeader("Cache-Control", "no-cache"); %>

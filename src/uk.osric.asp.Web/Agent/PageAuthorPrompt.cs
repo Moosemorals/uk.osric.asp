@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v1";
+    public const string Version = "page-author-v2";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -21,7 +21,7 @@ internal static class PageAuthorPrompt {
                 ctx.Write(name);
                 ctx.Write("</p>");
             } %>
-            <form method="post"><label>Name <input name="name"></label><button>Send</button></form>
+            <form method="post" class="form"><dl><dt><label for="name">Name</label></dt><dd><input id="name" name="name"></dd></dl><button>Send</button></form>
             """),
         ("declaration-and-loop", """
             <%! public sealed class Item { public string Name { get; init; } = ""; } %>
@@ -44,6 +44,10 @@ internal static class PageAuthorPrompt {
         generated handler. The handler is synchronous and its response is
         buffered. The variable `ctx` implements `IContext`.
         
+        Forms use `<form class="form">` with one `<dl>` holding
+        `<dt><label for="id">…</label></dt>` and `<dd>` around the control. A
+        textarea goes in a `<fieldset>` whose `<legend>` contains its label.
+
         ## IContext contract
         {{ContractSection()}} `Request` is a `PageRequest`: its `Query`, `Form`,
         `Headers`, and `Cookies` are read-only dictionaries of strings.
