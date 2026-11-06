@@ -80,4 +80,19 @@ public interface IContext {
     /// </param>
     /// <param name="status">The redirect status; 302 by default.</param>
     public void Redirect(string location, int status = 302);
+
+    /// <summary>This page's key/value store.</summary>
+    /// <remarks>
+    /// The handle is bound to this page, so it cannot name another page's state. Every visitor
+    /// shares it, and a write is last-write-wins.
+    /// </remarks>
+    public IPageStorage Storage { get; }
+
+    /// <summary>Makes a bounded outbound HTTP request.</summary>
+    /// <param name="request">The request to make.</param>
+    /// <returns>
+    /// The response. A failure is reported in <see cref="PageFetchResponse.Failure"/> rather than
+    /// thrown, so a page can fall back without a <c>try</c>.
+    /// </returns>
+    public Task<PageFetchResponse> FetchAsync(PageFetchRequest request);
 }

@@ -41,11 +41,17 @@ internal sealed class SimpleContext : IContext {
     private const string PageCategory = "uk.osric.asp.Pages";
 
     private readonly Lock _body = new();
+    private readonly IPageFetcher _fetcher;
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger _logger;
     private readonly int _maxBodyChars;
     private readonly PageRequest _request;
+    private readonly IPageStorage _storage;
     private readonly TextWriter _writer;
+
+    // Written once by AttachDeadline, before the page task starts: creating that task is the barrier
+    // the reader needs, and the value it carries is immutable.
+    private CancellationToken _deadline;
 
     private bool _abandoned;
     private string _contentType = PageResponse.Default.ContentType;
@@ -58,16 +64,22 @@ internal sealed class SimpleContext : IContext {
     /// <param name="request">The request snapshot.</param>
     /// <param name="aborted">The token from the request being served.</param>
     /// <param name="writer">The buffer the body is written to.</param>
+    /// <param name="storage">The page's own key/value store.</param>
+    /// <param name="fetcher">Where an outbound fetch goes.</param>
     /// <param name="maxBodyChars">How much body the page may write before it is refused.</param>
     public SimpleContext(
         ILoggerFactory loggerFactory,
         PageRequest request,
         CancellationToken aborted,
         TextWriter writer,
+        IPageStorage storage,
+        IPageFetcher fetcher,
         int maxBodyChars = RenderOptions.DefaultMaxBodyChars) {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(storage);
+        ArgumentNullException.ThrowIfNull(fetcher);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxBodyChars, 1);
 
         // The path is canonical here: PageEndpoint redirects anything else before building a context.
@@ -75,7 +87,10 @@ internal sealed class SimpleContext : IContext {
         _maxBodyChars = maxBodyChars;
         _request = request;
         Aborted = aborted;
+        _fetcher = fetcher;
+        _storage = storage;
         _writer = writer;
+        _deadline = CancellationToken.None;
     }
 
     /// <inheritdoc/>
@@ -87,6 +102,9 @@ internal sealed class SimpleContext : IContext {
     /// <inheritdoc/>
     public CancellationToken Aborted { get; }
 
+    /// <inheritdoc/>
+    public IPageStorage Storage => _storage;
+
     /// <summary>What the page asked the response to be.</summary>
     public PageResponse ToResponse() => new(_status, _contentType, _headers, _location);
 
@@ -95,6 +113,12 @@ internal sealed class SimpleContext : IContext {
         lock (_body) {
             return _writer.ToString() ?? string.Empty;
         }
+    }
+
+    /// <summary>Gives the page the render's deadline, so its I/O is cancelled with the render.</summary>
+    /// <param name="deadline">The deadline's token; it outlives this context's use of it.</param>
+    public void AttachDeadline(CancellationToken deadline) {
+        _deadline = deadline;
     }
 
     /// <summary>Stops the page writing, once its render has been given up on.</summary>
@@ -198,6 +222,13 @@ internal sealed class SimpleContext : IContext {
     }
 
     /// <inheritdoc/>
+    public Task<PageFetchResponse> FetchAsync(PageFetchRequest request) {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return _fetcher.FetchAsync(request, Path, Cancellation());
+    }
+
+    /// <inheritdoc/>
     public void Redirect(string location, int status = 302) {
         ArgumentException.ThrowIfNullOrWhiteSpace(location);
 
@@ -207,6 +238,14 @@ internal sealed class SimpleContext : IContext {
 
         SetStatus(status);
         _location = location;
+    }
+
+    // The request's abort token and the render's deadline, linked per call rather than passed in by
+    // the page: DEC-123 keeps every I/O member on IContext tokenless.
+    private CancellationToken Cancellation() {
+        return _deadline.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(Aborted, _deadline).Token
+            : Aborted;
     }
 
     private static bool IsAllowed(string name) {

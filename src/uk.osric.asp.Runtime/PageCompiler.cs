@@ -19,7 +19,7 @@ public sealed class PageCompiler : IPageCompiler {
 
     // Bump this whenever PageApiPolicy changes. The policy is applied when a page compiles, so an
     // image built under different rules would otherwise keep being served without ever being rechecked.
-    private const int PolicyVersion = 2;
+    private const int PolicyVersion = 3;
 
     private readonly MetadataReference[] _references;
 

@@ -19,7 +19,8 @@ using System.Collections.Frozen;
 /// <c>System.Reflection</c>, <c>System.Linq.Expressions</c>, <c>System.Threading</c> beyond the
 /// cancellation token, <c>System.Runtime.InteropServices</c>, <c>System.Runtime.Loader</c>,
 /// <c>System.Runtime.CompilerServices</c>, <c>System.Text.RegularExpressions</c>, and anything in
-/// <c>Microsoft.*</c> or our own shell assemblies.
+/// <c>Microsoft.*</c> or our own shell assemblies. <c>System.Net</c> stays out on purpose:
+/// <c>IContext.FetchAsync</c> is the page's only egress.
 /// </para>
 /// <para>
 /// <c>System.Threading.Tasks</c> is admitted as a type rather than as a namespace: exactly
@@ -67,6 +68,13 @@ public static class PageApiPolicy {
         "System.String",
         "System.StringComparison",
         "System.StringSplitOptions",
+        "System.Text.Json.JsonDocument",
+        "System.Text.Json.JsonElement",
+        "System.Text.Json.JsonException",
+        "System.Text.Json.JsonSerializer",
+        "System.Text.Json.JsonSerializerDefaults",
+        "System.Text.Json.JsonSerializerOptions",
+        "System.Text.Json.JsonValueKind",
         "System.Text.StringBuilder",
         "System.Threading.CancellationToken",
         "System.Threading.Tasks.Task",

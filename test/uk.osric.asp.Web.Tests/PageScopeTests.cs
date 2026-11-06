@@ -84,6 +84,26 @@ public sealed class PageScopeTests {
         Assert.That(output, Does.Contain("|awaited"));
     }
 
+    [Test]
+    public void TheStorageAndFetchContractCompiles() {
+        string template = """
+            <%
+                PageValue<int> stored = await ctx.Storage.TryGetValueAsync<int>("visits");
+                int visits = stored.Found ? stored.Value : 0;
+                await ctx.Storage.SetAsync("visits", visits + 1);
+                await ctx.Storage.DeleteAsync("gone");
+                ctx.Write(System.String.Join(",", await ctx.Storage.KeysAsync()));
+
+                PageFetchResponse response = await ctx.FetchAsync(new PageFetchRequest("https://example.com/"));
+                ctx.Write(response.Succeeded ? response.Body : response.Failure.ToString());
+            %>
+            """;
+
+        CompileResult result = Compiler.Compile(Generate(template));
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
     private static GeneratedSource Generate(string template) {
         TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.IsSuccess, Is.True, string.Join(Environment.NewLine, parsed.Errors));

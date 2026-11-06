@@ -78,6 +78,8 @@ internal sealed class PageEndpoint() {
             snapshot,
             context.RequestAborted,
             output,
+            EmptyPageStorage.Instance,
+            DisabledPageFetcher.Instance,
             options.MaxBodyChars);
 
         RenderResult result = await pages.RenderAsync(path, page, context.RequestAborted);

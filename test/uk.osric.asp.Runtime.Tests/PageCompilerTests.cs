@@ -327,7 +327,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void RuntimeIdStartsWithTheFormatAndPolicyVersions() {
-        Assert.That(PageCompiler.RuntimeId, Does.StartWith("5:2:"));
+        Assert.That(PageCompiler.RuntimeId, Does.StartWith("5:3:"));
     }
 
     [Test]
@@ -401,5 +401,34 @@ public sealed class PageCompilerTests {
         public void SetHeader(string name, string value) { }
 
         public void Redirect(string location, int status = 302) { }
+
+        public uk.osric.asp.Sdk.IPageStorage Storage { get; } = new NoStorage();
+
+        public Task<uk.osric.asp.Sdk.PageFetchResponse> FetchAsync(uk.osric.asp.Sdk.PageFetchRequest request) {
+            return Task.FromResult(new uk.osric.asp.Sdk.PageFetchResponse(
+                0,
+                new Dictionary<string, string>(),
+                string.Empty,
+                uk.osric.asp.Sdk.PageFetchFailure.NotAllowed,
+                false));
+        }
+
+        private sealed class NoStorage : uk.osric.asp.Sdk.IPageStorage {
+            public Task<uk.osric.asp.Sdk.PageValue<T>> TryGetValueAsync<T>(string key) {
+                return Task.FromResult(new uk.osric.asp.Sdk.PageValue<T>(false, default));
+            }
+
+            public Task SetAsync<T>(string key, T value) {
+                throw new InvalidOperationException("The test context has no storage.");
+            }
+
+            public Task<bool> DeleteAsync(string key) {
+                throw new InvalidOperationException("The test context has no storage.");
+            }
+
+            public Task<IReadOnlyList<string>> KeysAsync() {
+                return Task.FromResult<IReadOnlyList<string>>([]);
+            }
+        }
     }
 }

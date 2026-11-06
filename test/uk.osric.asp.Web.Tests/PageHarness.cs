@@ -71,6 +71,8 @@ internal sealed class PageHarness : IDisposable {
             TestHttp.Request(key.Key),
             CancellationToken.None,
             new StringWriter(),
+            EmptyPageStorage.Instance,
+            DisabledPageFetcher.Instance,
             maxBodyChars);
 
         RenderResult result = await Renderer.RenderAsync(key, context, CancellationToken.None);

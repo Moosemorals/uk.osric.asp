@@ -220,11 +220,23 @@ public sealed class SimpleContextTests {
 
     private static SimpleContext CreateContext(out StringWriter output) {
         output = new StringWriter();
-        return new SimpleContext(NullLoggerFactory.Instance, TestHttp.Request("/page"), CancellationToken.None, output);
+        return new SimpleContext(
+            NullLoggerFactory.Instance,
+            TestHttp.Request("/page"),
+            CancellationToken.None,
+            output,
+            EmptyPageStorage.Instance,
+            DisabledPageFetcher.Instance);
     }
 
     private static SimpleContext CreateContext(string path, out RecordingLoggerFactory logs) {
         logs = new RecordingLoggerFactory();
-        return new SimpleContext(logs, TestHttp.Request(path), CancellationToken.None, new StringWriter());
+        return new SimpleContext(
+            logs,
+            TestHttp.Request(path),
+            CancellationToken.None,
+            new StringWriter(),
+            EmptyPageStorage.Instance,
+            DisabledPageFetcher.Instance);
     }
 }

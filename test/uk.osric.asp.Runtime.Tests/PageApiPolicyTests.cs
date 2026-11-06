@@ -351,6 +351,42 @@ public sealed class PageApiPolicyTests {
                 && diagnostic.Position is { Line: 5, Column: > 0 }));
     }
 
+    [Test]
+    public void AFetchedJsonBodyCanBeParsed() {
+        string template = """
+            <%
+                System.Text.Json.JsonDocument document =
+                    System.Text.Json.JsonDocument.Parse("{\"value\": 1}");
+                ctx.Write(document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object ? "object" : "other");
+                ctx.Write(System.Text.Json.JsonSerializer.Serialize(new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
+            %>
+            """;
+
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public void AJsonSerializerAttributeIsStillRejected() {
+        CompileResult result = Compile("<% [System.Text.Json.Serialization.JsonPropertyName(\"value\")] string text; ctx.Write(text); %>");
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("System.Text.Json.Serialization.JsonPropertyName", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void HttpClientIsStillRejected() {
+        CompileResult result = Compile("<% System.Net.Http.HttpClient client = new(); %>");
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("System.Net.Http.HttpClient", StringComparison.Ordinal)));
+    }
+
     private static CompileResult Compile(string template) {
         return Compiler.Compile(Generate(template));
     }
