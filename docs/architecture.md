@@ -154,18 +154,18 @@ Everything the site itself serves — the editor, the listing, sign-in, status, 
 the confirmations — is one document shape, written by `Html/ShellDocument.cs`. `BeginAsync` sets the
 content type, the status and `Cache-Control: no-store` (unless the response already carries a header,
 which is how a view that mints an antiforgery token keeps the framework's `no-cache, no-store`),
-writes the head (the title, `/site.css`, the
-view's own sheet where it has one, then `/layout.css`, then the icon), writes the skip link and opens
+writes the head (the title, `/layout.css`, `/site.css`, the
+view's own sheet where it has one, then the icon), writes the skip link and opens
 `<main id="main">`; `EndAsync` closes the landmark and the document. A view writes its own body
 content and nothing else, so the title, the landmark, the skip link and the sheet order cannot drift
 apart from one view to the next.
 
 - The skip link is the first thing in the document and targets `#main`, which is the only `main` on
   the page — one landmark per document, and the one thing a keyboard reader can jump to.
-- `/layout.css` is a seeded page and is linked **last** (DEC-109). Seeded pages are never overwritten,
-  so a new sheet is how a rule the markup needs reaches an installation that has been running since
-  before it existed, and being last it also beats a stale copy of `/editor.css` on that installation.
-  `site.css` owns look and `/layout.css` owns layout.
+- `/layout.css` is a seeded page and is linked **first** (DEC-116). It holds the document's shape —
+  the skip link, the visually hidden utility, the listing and the form grid. `site.css` owns look and
+  comes next, and the view's own sheet is last, so either can override a structural rule without a
+  more specific selector. The owner restores a stale seeded sheet from `/admin`.
 - `PageLayout` keeps the fragments: `Gutter`, `Diagnostics` (a `ul` with `role="list"`, DEC-108) and
   `Nav`. `Html/` keeps `NavLink`, `DiagnosticLine`, `AntiforgeryField` and `PageUrls` beside it, so a
   named nav, an antiforgery field and an editor URL are each built once rather than concatenated at

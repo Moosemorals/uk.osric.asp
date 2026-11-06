@@ -53,7 +53,8 @@ body.editor-page {
         text-align: right;
         white-space: nowrap;
         user-select: none;
-        color: #767676;
+        /* Dark enough to pass AA on the gutter's own background. */
+        color: #595959;
         background: #f5f5f5;
         border-right: 1px solid #ddd;
     }

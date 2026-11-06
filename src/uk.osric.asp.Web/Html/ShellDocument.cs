@@ -12,13 +12,14 @@ internal static class ShellDocument {
     /// <param name="context">The response being written.</param>
     /// <param name="title">The document title, encoded here.</param>
     /// <param name="statusCode">The response status.</param>
-    /// <param name="stylesheet">A sheet the view needs, after <c>/site.css</c> and before <c>/layout.css</c>.</param>
+    /// <param name="stylesheet">A sheet the view needs, after <c>/layout.css</c> and <c>/site.css</c>.</param>
     /// <param name="bodyClass">A class for <c>body</c>, when the view styles the document box.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <remarks>
     /// One place owns the document, so a view cannot forget the landmark or the skip link, and
-    /// <c>#main</c> always exists. <c>/layout.css</c> is linked last so it can correct a copy of a
-    /// seeded sheet that an existing installation still holds: seeds are never overwritten.
+    /// <c>#main</c> always exists. <c>/layout.css</c> is linked first: it carries the document's
+    /// shape, and <c>/site.css</c> and the view's own sheet come after it so a view can override a
+    /// structural rule without a more specific selector.
     /// </remarks>
     public static Task BeginAsync(
         HttpContext context,
@@ -45,9 +46,9 @@ internal static class ShellDocument {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>{WebUtility.HtmlEncode(title)}</title>
+                <link rel="stylesheet" href="/layout.css">
                 <link rel="stylesheet" href="/site.css">
                 {(stylesheet is null ? "" : $"<link rel=\"stylesheet\" href=\"{WebUtility.HtmlEncode(stylesheet)}\">")}
-                <link rel="stylesheet" href="/layout.css">
                 <link rel="icon" href="/rocket.svg" type="image/svg+xml">
             </head>
             <body{(bodyClass is null ? "" : $" class=\"{WebUtility.HtmlEncode(bodyClass)}\"")}>

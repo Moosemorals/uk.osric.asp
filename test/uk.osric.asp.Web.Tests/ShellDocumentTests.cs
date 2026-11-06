@@ -20,13 +20,13 @@ public sealed class ShellDocumentTests {
     }
 
     [Test]
-    public async Task SheetsAreLinkedSiteThenViewThenLayoutAsync() {
+    public async Task SheetsAreLinkedLayoutThenSiteThenViewAsync() {
         string[] sheets = [.. MarkupReader.Parse(await RenderAsync(stylesheet: "/editor.css"))
             .Elements("link")
             .Where(link => string.Equals(link.Attribute("rel"), "stylesheet", StringComparison.Ordinal))
             .Select(link => link.Attribute("href")!)];
 
-        string[] expected = ["/site.css", "/editor.css", "/layout.css"];
+        string[] expected = ["/layout.css", "/site.css", "/editor.css"];
         Assert.That(sheets, Is.EqualTo(expected));
     }
 
@@ -37,7 +37,7 @@ public sealed class ShellDocumentTests {
             .Where(link => string.Equals(link.Attribute("rel"), "stylesheet", StringComparison.Ordinal))
             .Select(link => link.Attribute("href")!)];
 
-        string[] expected = ["/site.css", "/layout.css"];
+        string[] expected = ["/layout.css", "/site.css"];
         Assert.That(sheets, Is.EqualTo(expected));
     }
 

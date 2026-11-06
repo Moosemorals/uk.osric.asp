@@ -2,9 +2,8 @@
 /* SPDX-License-Identifier: MIT */
 
 /* The rules the shell markup needs, kept apart from site.css: they describe the shape of the
-   document rather than how the site looks, and a new seeded page reaches an installation that has
-   already been running, where an edit to a seeded page would not. Linked last, so it can correct a
-   copy of another seeded sheet that is still on disk. */
+   document rather than how the site looks. Linked first, so site.css and a view's own sheet can
+   override a structural rule; the form rules below are the shape every shell form relies on. */
 
 /* Read by a screen reader, invisible on screen, and still read when there is no sheet at all. */
 .visually-hidden {
@@ -67,11 +66,6 @@ ul.diagnostics {
 .pages > li > :first-child {
     flex: 0 0 16ch;
     overflow-wrap: anywhere;
-}
-
-/* The numbers are read by sighted users, so they are darkened to pass AA on their own background. */
-.editor .gutter > span {
-    color: #595959;
 }
 
 /* The document's children used to be the body's; the landmark that now wraps them is a flex column

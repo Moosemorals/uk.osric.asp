@@ -27,8 +27,10 @@ public sealed class StatusPageTests : IntegrationTest {
 
         Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/status.css\">"));
         Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/layout.css\">"));
-        Assert.That(status.IndexOf("/status.css", StringComparison.Ordinal),
-            Is.LessThan(status.IndexOf("/layout.css", StringComparison.Ordinal)), "layout.css is linked last");
+        Assert.That(status.IndexOf("/layout.css", StringComparison.Ordinal),
+            Is.LessThan(status.IndexOf("/site.css", StringComparison.Ordinal)), "layout.css is linked first");
+        Assert.That(status.IndexOf("/site.css", StringComparison.Ordinal),
+            Is.LessThan(status.IndexOf("/status.css", StringComparison.Ordinal)), "the view's sheet follows the shared ones");
         Assert.That(stylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(stylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
         Assert.That(stylesheet.Headers.CacheControl?.NoCache, Is.True);
