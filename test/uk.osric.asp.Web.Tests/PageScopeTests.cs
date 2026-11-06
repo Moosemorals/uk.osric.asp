@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Tests;
 using NUnit.Framework;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>Proves the compiler's reference set keeps the shell out of reach.</summary>
 /// <remarks>
@@ -55,6 +56,32 @@ public sealed class PageScopeTests {
             Generate("<% IContext page = ctx; page.Write(page.Path); %>"));
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public async Task AwaitedPageCodeRendersItsValue() {
+        string template = """
+            <%!
+            using System.Threading.Tasks;
+
+            static class Slow {
+                public static async Task<string> ValueAsync() {
+                    await Task.CompletedTask;
+                    return "awaited";
+                }
+            }
+            %>
+            <% ctx.Write(await Slow.ValueAsync()); %>|<%= await Slow.ValueAsync() %>
+            """;
+
+        using PageHarness harness = new(new FakePageStore());
+        await harness.StoreCompiledAsync("/awaited", template);
+
+        (RenderResult result, string output) = await harness.RenderAsync("/awaited");
+
+        Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
+        Assert.That(output, Does.Contain("awaited"));
+        Assert.That(output, Does.Contain("|awaited"));
     }
 
     private static GeneratedSource Generate(string template) {

@@ -47,12 +47,17 @@ internal static class ErrorEndpoint {
 
     private static string EditorDetails(Exception exception, string path) {
         StackFrame[] frames = new StackTrace(exception, fNeedFileInfo: true).GetFrames() ?? [];
+        // Async frames can repeat a line - a resumption point and the throwing statement can sit on
+        // the same template line - so the projection keeps one entry per line.
         DiagnosticLine[] locations = [.. frames
             .Where(frame => string.Equals(frame.GetFileName(), "page", StringComparison.Ordinal))
-            .Select(frame => (Method: frame.GetMethod()?.Name, Line: frame.GetFileLineNumber()))
+            .Select(frame => (Method: frame.GetMethod(), Line: frame.GetFileLineNumber()))
             .Where(location => location.Line > 0)
+            .DistinctBy(location => location.Line)
             .Select(location => {
-                string method = location.Method == "Handle" ? "Handle(IContext ctx)" : "page code";
+                string method = DeclaredInHandler(location.Method)
+                    ? "HandleAsync(IContext ctx)"
+                    : "page code";
                 return new DiagnosticLine($"at {method} in {path}:line {location.Line}", null, null);
             })];
         string locationList = locations.Length > 0
@@ -66,5 +71,19 @@ internal static class ErrorEndpoint {
                     {locationList}
                 </section>
         """;
+    }
+
+    // The handler's frame is the async state machine's MoveNext, so the method name is no use and the
+    // state machine type is compiler output. Walking the declaring-type chain finds the handler for
+    // the state machine, its lambdas and its local functions alike, and stops at the page's own
+    // top-level types - which are exactly the ones that are not the entry point.
+    private static bool DeclaredInHandler(System.Reflection.MethodBase? method) {
+        for (Type? type = method?.DeclaringType; type is not null; type = type.DeclaringType) {
+            if (string.Equals(type.Name, "GeneratedPage", StringComparison.Ordinal)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -15,11 +15,11 @@ public sealed class PageCompiler : IPageCompiler {
     // Bump this when a change outside the SDK and Core invalidates stored images: the compiler
     // options, the reference set, or how a compiled handler is invoked. The SDK's module version id
     // covers the page contract; Core's covers the generated source and its diagnostics.
-    private const string FormatVersion = "4";
+    private const string FormatVersion = "5";
 
-    // Bump this whenever PageApiPolicy tightens. The policy is applied when a page compiles, so an
-    // image built under looser rules would otherwise keep being served without ever being rechecked.
-    private const int PolicyVersion = 1;
+    // Bump this whenever PageApiPolicy changes. The policy is applied when a page compiles, so an
+    // image built under different rules would otherwise keep being served without ever being rechecked.
+    private const int PolicyVersion = 2;
 
     private readonly MetadataReference[] _references;
 

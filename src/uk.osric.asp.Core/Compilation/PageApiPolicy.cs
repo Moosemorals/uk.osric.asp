@@ -21,6 +21,14 @@ using System.Collections.Frozen;
 /// <c>System.Runtime.CompilerServices</c>, <c>System.Text.RegularExpressions</c>, and anything in
 /// <c>Microsoft.*</c> or our own shell assemblies.
 /// </para>
+/// <para>
+/// <c>System.Threading.Tasks</c> is admitted as a type rather than as a namespace: exactly
+/// <see cref="System.Threading.Tasks.Task"/> is allowed, so a page can write and await a task, and
+/// <c>TaskCompletionSource</c>, <c>TaskScheduler</c>, <c>Parallel</c> and <c>ValueTask</c> stay
+/// denied without being named. Ten of <c>Task</c>'s own members are denied by name in
+/// <c>s_deniedApis</c>, because each starts work the render deadline cannot stop or turns an
+/// <c>await</c> back into a blocked thread.
+/// </para>
 /// </remarks>
 public static class PageApiPolicy {
 
@@ -61,11 +69,27 @@ public static class PageApiPolicy {
         "System.StringSplitOptions",
         "System.Text.StringBuilder",
         "System.Threading.CancellationToken",
+        "System.Threading.Tasks.Task",
         "System.TimeSpan",
         "System.UInt16",
         "System.UInt32",
         "System.UInt64",
         "System.Uri",
+    }.ToFrozenSet(StringComparer.Ordinal);
+
+    // Admitted by type, denied by member: Task is the page's shape for waiting, not a way to start
+    // work beside the render or to turn an await back into a blocked thread.
+    private static readonly FrozenSet<string> s_deniedApis = new[] {
+        "System.Threading.Tasks.Task.Run",
+        "System.Threading.Tasks.Task.Factory",
+        "System.Threading.Tasks.Task.ContinueWith",
+        "System.Threading.Tasks.Task.Wait",
+        "System.Threading.Tasks.Task.WaitAll",
+        "System.Threading.Tasks.Task.WaitAny",
+        "System.Threading.Tasks.Task.Result",
+        "System.Threading.Tasks.Task.GetAwaiter",
+        "System.Threading.Tasks.Task.Delay",
+        "System.Threading.Tasks.Task.Yield",
     }.ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>Reports every reference the policy does not allow.</summary>
@@ -93,7 +117,7 @@ public static class PageApiPolicy {
             diagnostics.Add(new PageDiagnostic(
                 PageDiagnosticSeverity.Error,
                 reference.Position,
-                $"PAGE001: pages may not use {name}."));
+                Message(name)));
         }
 
         return diagnostics;
@@ -105,7 +129,21 @@ public static class PageApiPolicy {
             : $"{reference.Namespace}.{reference.Type}.{reference.Member}";
     }
 
+    private static string Message(string name) {
+        // Two reasons, one sentence, because both come to the same thing: the render's deadline is the
+        // site's only bound, and every denied member is a way round it.
+        return s_deniedApis.Contains(name)
+            ? $"PAGE001: pages may not use {name}; it starts or blocks work the render cannot stop."
+            : $"PAGE001: pages may not use {name}.";
+    }
+
     private static bool IsAllowed(ApiReference reference) {
+        // Member-level denial comes first: Task is admitted as a type, so the type check below would
+        // otherwise let its whole surface through.
+        if (s_deniedApis.Contains(Describe(reference))) {
+            return false;
+        }
+
         if (string.Equals(reference.Namespace, SdkNamespace, StringComparison.Ordinal)) {
             return true;
         }

@@ -45,7 +45,7 @@ public sealed class LoadedPage : IDisposable {
             _handler = assembly.GetType(HandlerTypeName)
                 ?? throw new InvalidOperationException("No handler found in the assembly.");
 
-            _handle = _handler.GetMethod("Handle")
+            _handle = _handler.GetMethod("HandleAsync")
                 ?? throw new InvalidOperationException("No handle method found in the handler.");
         } catch {
             _context.Unload();
@@ -55,17 +55,31 @@ public sealed class LoadedPage : IDisposable {
 
     /// <summary>Runs the page against a request context.</summary>
     /// <param name="context">The context the page writes to.</param>
+    /// <returns>A task that completes when the page has finished.</returns>
     /// <exception cref="System.Exception">Whatever the page threw, unwrapped.</exception>
-    public void Invoke(IContext context) {
+    public async Task InvokeAsync(IContext context) {
         ArgumentNullException.ThrowIfNull(context);
 
+        object? result;
         try {
-            _handle.Invoke(Activator.CreateInstance(_handler), [context]);
+            result = _handle.Invoke(Activator.CreateInstance(_handler), [context]);
         } catch (TargetInvocationException ex) when (ex.InnerException is not null) {
             // The runtime owns the reflection, so it owns the reflection's wrapper: callers get the
-            // exception the page threw, with the page's own stack rather than a nested one.
+            // exception the page threw, with the page's own stack rather than a nested one. An async
+            // method hands its exception to the task instead, so this is now nearly unreachable - it
+            // stays as the guard that keeps the wrapper out of the shell's catch blocks.
             ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
         }
+
+        if (result is not Task page) {
+            throw new InvalidOperationException(
+                "The page handler did not return a task. This is a compiler fault, not a page error.");
+        }
+
+        // Awaiting the page's own task is what rethrows its exception with its own stack, stitched
+        // from the portable PDB: no ExceptionDispatchInfo, no AggregateException, no nested frame.
+        await page;
     }
 
     /// <summary>Marks the load context for unloading.</summary>

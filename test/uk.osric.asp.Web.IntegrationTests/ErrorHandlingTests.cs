@@ -37,16 +37,16 @@ public sealed class ErrorHandlingTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
         Assert.That(body, Does.Contain("InvalidOperationException").And.Contain("Boom."));
-        Assert.That(body, Does.Contain("at Handle(IContext ctx) in /throw:line 3"));
+        Assert.That(body, Does.Contain("at HandleAsync(IContext ctx) in /throw:line 3"));
         Assert.That(body, Does.Contain("href=\"/edit/throw\""));
         Assert.That(body, Does.Not.Contain("/throw:3:4"));
-        Assert.That(body, Does.Not.Contain("GeneratedPage.Handle"));
+        Assert.That(body, Does.Not.Contain("GeneratedPage."), "no state-machine or handler name should leak");
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
         Assert.That(CompileCount, Is.EqualTo(compileCount + 1));
 
         HttpResponseMessage cachedResponse = await client.GetAsync("/throw");
         string cachedBody = await cachedResponse.Content.ReadAsStringAsync();
-        Assert.That(cachedBody, Does.Contain("at Handle(IContext ctx) in /throw:line 3"));
+        Assert.That(cachedBody, Does.Contain("at HandleAsync(IContext ctx) in /throw:line 3"));
         Assert.That(CompileCount, Is.EqualTo(compileCount + 1), "the stored image and symbols should be reused together");
     }
 

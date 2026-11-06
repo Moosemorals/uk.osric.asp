@@ -16,33 +16,33 @@ public sealed class PageCompilerTests {
     private static readonly PageCompiler Compiler = new();
 
     [Test]
-    public void EmptyTemplateCompilesAndProducesNoOutput() {
-        TestContext context = CompileAndRun("");
+    public async Task EmptyTemplateCompilesAndProducesNoOutput() {
+        TestContext context = await CompileAndRun("");
 
         Assert.That(context.Output, Is.Empty);
     }
 
     [Test]
-    public void TextWithQuotesSlashesAndNewlinesIsPreserved() {
+    public async Task TextWithQuotesSlashesAndNewlinesIsPreserved() {
         string template = "Quote: \"Hello\"\\path\r\n" + "Triple quote: \"\"\"";
 
-        TestContext context = CompileAndRun(template);
+        TestContext context = await CompileAndRun(template);
 
         Assert.That(context.Output, Is.EqualTo(template));
     }
 
     [Test]
-    public void LiteralTextWithHtmlMetacharactersIsPreserved() {
+    public async Task LiteralTextWithHtmlMetacharactersIsPreserved() {
         const string template = "<svg title=\"A & B > C\"></svg>";
 
-        TestContext context = CompileAndRun(template);
+        TestContext context = await CompileAndRun(template);
 
         Assert.That(context.Output, Is.EqualTo(template));
     }
 
     [Test]
-    public void CodeBlocksExecuteBetweenText() {
-        TestContext context = CompileAndRun("before<% ctx.Write(\"middle\"); %>after");
+    public async Task CodeBlocksExecuteBetweenText() {
+        TestContext context = await CompileAndRun("before<% ctx.Write(\"middle\"); %>after");
 
         Assert.That(context.Output, Is.EqualTo("beforemiddleafter"));
     }
@@ -143,9 +143,9 @@ public sealed class PageCompilerTests {
     [Test]
     public void AGeneratedSourceFaultThrowsInsteadOfReturningADiagnostic() {
         const string source = """
-            using uk.osric.asp.Core;
-            public class GeneratedPage : IHandler {
-            public void Handle(IContext ctx) {
+            using uk.osric.asp.Sdk;
+            public class GeneratedPage : uk.osric.asp.Sdk.IHandler {
+            public async global::System.Threading.Tasks.Task HandleAsync(uk.osric.asp.Sdk.IContext ctx) {
             int value = ;
             }}
             """;
@@ -156,9 +156,9 @@ public sealed class PageCompilerTests {
     [Test]
     public void AGeneratedSourcePolicyViolationThrowsInsteadOfReturningADiagnostic() {
         const string source = """
-            using uk.osric.asp.Core;
-            public class GeneratedPage : IHandler {
-            public void Handle(IContext ctx) {
+            using uk.osric.asp.Sdk;
+            public class GeneratedPage : uk.osric.asp.Sdk.IHandler {
+            public async global::System.Threading.Tasks.Task HandleAsync(uk.osric.asp.Sdk.IContext ctx) {
             System.IO.File.ReadAllText("page.txt");
             }}
             """;
@@ -169,9 +169,9 @@ public sealed class PageCompilerTests {
     [Test]
     public void AMappedErrorSuppressesAnUnmappedCascade() {
         const string source = """
-            using uk.osric.asp.Core;
-            public class GeneratedPage : IHandler {
-            public void Handle(IContext ctx) {
+            using uk.osric.asp.Sdk;
+            public class GeneratedPage : uk.osric.asp.Sdk.IHandler {
+            public async global::System.Threading.Tasks.Task HandleAsync(uk.osric.asp.Sdk.IContext ctx) {
             #line 1 "page"
             int value = ;
             #line default
@@ -218,8 +218,8 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
-    public void APageDeclaredTypeIsUsableFromPageCode() {
-        TestContext context = CompileAndRun("""
+    public async Task APageDeclaredTypeIsUsableFromPageCode() {
+        TestContext context = await CompileAndRun("""
             <%!
             sealed class Amount {
                 public static string Format(decimal value) => value.ToString("N2", System.Globalization.CultureInfo.InvariantCulture);
@@ -232,8 +232,8 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
-    public void APageDeclaredTypeIsUsableFromMoreThanOneBlock() {
-        TestContext context = CompileAndRun("""
+    public async Task APageDeclaredTypeIsUsableFromMoreThanOneBlock() {
+        TestContext context = await CompileAndRun("""
             <%!static class Greeting { public static string For(string who) => "Hello, " + who; }%>
             <% ctx.Write(Greeting.For("world")); %><% ctx.Write(Greeting.For("again")); %>
             """);
@@ -242,11 +242,12 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
-    public void APageDeclaredHandlerIsNotTheEntryPoint() {
-        TestContext context = CompileAndRun("""
+    public async Task APageDeclaredHandlerIsNotTheEntryPoint() {
+        TestContext context = await CompileAndRun("""
             <%!
             sealed class Decoy : uk.osric.asp.Sdk.IHandler {
-                public void Handle(uk.osric.asp.Sdk.IContext ctx) => ctx.Write("decoy");
+                public global::System.Threading.Tasks.Task HandleAsync(uk.osric.asp.Sdk.IContext ctx)
+                    => global::System.Threading.Tasks.Task.CompletedTask;
             }
             %>
             real
@@ -263,7 +264,7 @@ public sealed class PageCompilerTests {
                 public static string Read() => System.IO.File.ReadAllText("page.txt");
             }
             public class GeneratedPage : uk.osric.asp.Sdk.IHandler {
-            public void Handle(uk.osric.asp.Sdk.IContext ctx) {
+            public async global::System.Threading.Tasks.Task HandleAsync(uk.osric.asp.Sdk.IContext ctx) {
             }}
             """;
 
@@ -279,26 +280,29 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
-    public void OneImageCanBeLoadedAndInvokedMoreThanOnce() {
+    public async Task OneImageCanBeLoadedAndInvokedMoreThanOnce() {
         using LoadedPage template = Load("Hello, <% ctx.Write(\"world\"); %>!");
         TestContext first = new();
         TestContext second = new();
 
-        template.Invoke(first);
-        template.Invoke(second);
+        await template.InvokeAsync(first);
+        await template.InvokeAsync(second);
 
         Assert.That(first.Output, Is.EqualTo("Hello, world!"));
         Assert.That(second.Output, Is.EqualTo("Hello, world!"));
     }
 
     [Test]
-    public void TemplateExceptionsSurfaceUnwrapped() {
+    public async Task TemplateExceptionsSurfaceUnwrapped() {
         using LoadedPage template = Load("line one\nline two\n<% throw new System.InvalidOperationException(\"Template executed.\"); %>");
 
-        InvalidOperationException? failure = Assert.Throws<InvalidOperationException>(() => template.Invoke(new TestContext()));
+        InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await template.InvokeAsync(new TestContext()));
 
         Assert.That(failure?.Message, Is.EqualTo("Template executed."));
-        Assert.That(failure?.StackTrace, Does.Contain("GeneratedPage.Handle"));
+        // The runtime resolves the state machine's MoveNext back to the async method when the portable
+        // PDB carries the stepping information, so the frame is named for the handler.
+        Assert.That(failure?.StackTrace, Does.Contain("GeneratedPage.HandleAsync"));
         StackFrame? templateFrame = new StackTrace(failure, true).GetFrames()
             ?.SingleOrDefault(frame => frame.GetFileName() == "page");
         Assert.That(templateFrame, Is.Not.Null);
@@ -308,7 +312,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void RuntimeIdStartsWithTheFormatAndPolicyVersions() {
-        Assert.That(PageCompiler.RuntimeId, Does.StartWith("4:1:"));
+        Assert.That(PageCompiler.RuntimeId, Does.StartWith("5:2:"));
     }
 
     [Test]
@@ -341,10 +345,10 @@ public sealed class PageCompilerTests {
         return Compiler.Load(result.Image!, result.Symbols);
     }
 
-    private static TestContext CompileAndRun(string template) {
+    private static async Task<TestContext> CompileAndRun(string template) {
         using LoadedPage page = Load(template);
         TestContext context = new();
-        page.Invoke(context);
+        await page.InvokeAsync(context);
         return context;
     }
 

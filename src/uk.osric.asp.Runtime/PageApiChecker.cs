@@ -17,7 +17,7 @@ using uk.osric.asp.Core.Compilation;
 internal static class PageApiChecker {
 
     private const string HandlerTypeName = "GeneratedPage";
-    private const string HandlerMethodName = "Handle";
+    private const string HandlerMethodName = "HandleAsync";
 
     private const string ShapeMessage =
         "PAGE002: page code must stay inside a code block; a declaration block may only declare types.";

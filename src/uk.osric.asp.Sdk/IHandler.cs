@@ -7,5 +7,11 @@ namespace uk.osric.asp.Sdk;
 public interface IHandler {
     /// <summary>Runs the page against the request context.</summary>
     /// <param name="context">The context the page reads and writes through.</param>
-    public void Handle(IContext context);
+    /// <returns>A task that completes when the page has finished.</returns>
+    /// <remarks>
+    /// The host awaits the returned task; the response is shaped from the context once it completes.
+    /// A page must not start work it does not await, because nothing else in the render waits for it
+    /// and the answer may already have been given when it finishes.
+    /// </remarks>
+    public Task HandleAsync(IContext context);
 }

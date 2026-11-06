@@ -181,7 +181,7 @@ internal sealed class PageRenderer(
         // The page runs off the request's thread so the wait can be bounded. If it outlives the
         // budget the task is abandoned rather than cancelled: nothing can stop arbitrary C#, and an
         // abandoned thread is honest about it instead of pretending the page stopped.
-        Task page = Task.Run(() => template.Invoke(context), CancellationToken.None);
+        Task page = Task.Run(() => template.InvokeAsync(context), CancellationToken.None);
         Task expiry = Task.Delay(Timeout.InfiniteTimeSpan, deadline.Token);
 
         if (await Task.WhenAny(page, expiry) == page) {

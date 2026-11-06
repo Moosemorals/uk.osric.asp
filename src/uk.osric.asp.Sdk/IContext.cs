@@ -11,9 +11,15 @@ namespace uk.osric.asp.Sdk;
 /// ASP.NET type.
 /// </para>
 /// <para>
-/// Status, content type and headers are applied after <see cref="IHandler.Handle"/> returns. The body
-/// is buffered until then, so a page that throws produces a clean error response rather than half a
-/// document.
+/// Status, content type and headers are applied after <see cref="IHandler.HandleAsync"/> completes. The
+/// body is buffered until then, so a page that throws produces a clean error response rather than
+/// half a document.
+/// </para>
+/// <para>
+/// The handler is asynchronous, so <c>await</c> is an ordinary expression in a code block and inside
+/// a write expression. Every member that does I/O returns a <see cref="Task"/> and takes no
+/// cancellation token: the context owns <see cref="Aborted"/> and the render's deadline, and an
+/// implementation links them per call.
 /// </para>
 /// </remarks>
 public interface IContext {

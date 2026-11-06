@@ -234,6 +234,123 @@ public sealed class PageApiPolicyTests {
                 && diagnostic.Message.Contains("dynamic", StringComparison.Ordinal)));
     }
 
+    [TestCase("<% System.Threading.Tasks.Task.Run(() => { }); %>", "Task.Run")]
+    [TestCase("<% _ = System.Threading.Tasks.Task.Factory; %>", "Task.Factory")]
+    [TestCase("<% _ = System.Threading.Tasks.Task.CompletedTask.ContinueWith(task => { }); %>", "Task.ContinueWith")]
+    [TestCase("<% System.Threading.Tasks.Task.CompletedTask.Wait(); %>", "Task.Wait")]
+    [TestCase("<% System.Threading.Tasks.Task.WaitAll(System.Threading.Tasks.Task.CompletedTask); %>", "Task.WaitAll")]
+    [TestCase("<% System.Threading.Tasks.Task.WaitAny(System.Threading.Tasks.Task.CompletedTask); %>", "Task.WaitAny")]
+    [TestCase("<% _ = System.Threading.Tasks.Task.FromResult(1).Result; %>", "Task.Result")]
+    [TestCase("<% _ = System.Threading.Tasks.Task.CompletedTask.GetAwaiter(); %>", "Task.GetAwaiter")]
+    [TestCase("<% await System.Threading.Tasks.Task.Delay(1); %>", "Task.Delay")]
+    [TestCase("<% await System.Threading.Tasks.Task.Yield(); %>", "Task.Yield")]
+    public void ADeniedTaskMemberIsRejectedAtItsTemplatePosition(string template, string api) {
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Image, Is.Null);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains(api, StringComparison.Ordinal)
+                && diagnostic.Message.Contains("the render cannot stop", StringComparison.Ordinal)
+                && diagnostic.Position is { Line: 1, Column: > 0 }));
+    }
+
+    [Test]
+    public void AnAllowedTaskMemberCompiles() {
+        string template = """
+            <%
+                await System.Threading.Tasks.Task.CompletedTask;
+                await System.Threading.Tasks.Task.WhenAll(System.Threading.Tasks.Task.CompletedTask);
+                await System.Threading.Tasks.Task.WhenAny(System.Threading.Tasks.Task.CompletedTask);
+                await System.Threading.Tasks.Task.FromResult(1);
+            %>
+            """;
+
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public void APageDeclaredAsyncHelperCompilesAndIsAwaited() {
+        string template = """
+            <%!
+            class Helper {
+                public static async System.Threading.Tasks.Task<string> GetAsync() {
+                    await System.Threading.Tasks.Task.CompletedTask;
+                    return "value";
+                }
+            }
+            %>
+            <% ctx.Write(await Helper.GetAsync()); %>
+            """;
+
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [TestCase("<% System.Threading.Tasks.TaskScheduler.Current; %>", "System.Threading.Tasks.TaskScheduler")]
+    [TestCase("<% _ = new System.Threading.Tasks.TaskCompletionSource<int>(); %>", "System.Threading.Tasks.TaskCompletionSource")]
+    [TestCase("<% _ = new System.Threading.Tasks.ValueTask(); %>", "System.Threading.Tasks.ValueTask")]
+    public void ATaskNeighbourOutsideTheAllowedTypeIsRejected(string template, string api) {
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains(api, StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void SleepingAThreadIsStillRejected() {
+        CompileResult result = Compile("<% System.Threading.Thread.Sleep(1); %>");
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("System.Threading.Thread.Sleep", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void AUsingTasksDirectiveDoesNotBypassThePolicy() {
+        string template = """
+            <%!
+            using System.Threading.Tasks;
+
+            class Helper {
+                public static Task Done() => Task.CompletedTask;
+            }
+            %>
+            """;
+
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public void AUsingTasksDirectiveStillRejectsWhatTheNamespaceWouldHandAPage() {
+        string template = """
+            <%!
+            using System.Threading.Tasks;
+
+            class Helper {
+                public static Task Done() => new TaskCompletionSource<int>().Task;
+            }
+            %>
+            """;
+
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("System.Threading.Tasks.TaskCompletionSource", StringComparison.Ordinal)
+                && diagnostic.Position is { Line: 5, Column: > 0 }));
+    }
+
     private static CompileResult Compile(string template) {
         return Compiler.Compile(Generate(template));
     }
