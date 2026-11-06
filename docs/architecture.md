@@ -83,7 +83,7 @@ and the logs quote them:
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
 | Source storage: the EF Core context and its migrations | `Web`, under `Storage` |
 | A table's EF entity | `Web`, with the vertical that owns it (`Users`, `Authentication`, `Pages`, `Assistant`) |
-| The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteAssistantConversationStore` | `Web`, beside the interface it implements |
+| The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
 | The page contract: `IContext`, `PageRequest`, `PageResponse`, `IHandler`, `UserFacingException` | `Sdk`, as plain values a compiled page binds against |
@@ -438,7 +438,7 @@ a loaded handler (`IPageCompiler`, `LoadedPage`); it never sees a page.
 
 ## Instrumentation
 
-`PageMetrics` owns a `Meter` named `uk.osric.asp` and records:
+`PageMetrics` owns a `Meter` named `uk.osric.asp.Pages` and records:
 
 | Instrument | Type | Unit | Tags |
 | --- | --- | --- | --- |
@@ -446,8 +446,8 @@ a loaded handler (`IPageCompiler`, `LoadedPage`); it never sees a page.
 | `page.render.wait` | histogram | s | — time spent waiting for a render slot; site-wide, not per page |
 | `page.render.abandoned` | counter | — | `page.path` — renders given up on at the deadline |
 | `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`) |
-| `page.handler.load.duration` | histogram | s | `page.path` |
-| `page.handler.invoke.duration` | histogram | s | `page.path`, `outcome` |
+| `page.load.duration` | histogram | s | `page.path` |
+| `page.invoke.duration` | histogram | s | `page.path`, `outcome` |
 | `page.save.duration` | histogram | s | `page.path`, `outcome` |
 | `page.image.size` | histogram | By | `page.path` |
 | `page.storage.payload.size` | observable gauge | By | — logical UTF-8 bytes for every revision text column plus image/symbol blobs; excludes indexes and SQLite overhead |
@@ -466,7 +466,7 @@ add a request-duration metric of our own. On a cache miss `page.compile.duration
 `page.render.duration`; never add the two together. `page.path` is bounded by the number of stored
 pages, which is small — if that ever stops being true, drop the tag and keep the path in logs.
 Recording costs nothing until an exporter listens, so the instruments are always on. For a quick
-look while the site runs: `dotnet-counters monitor --counters uk.osric.asp <pid>`.
+look while the site runs: `dotnet-counters monitor --counters uk.osric.asp.Pages <pid>`.
 
 The bundled SQLite build does not provide `dbstat`, so exact allocated bytes for an individual table
 and its indexes/overflow pages are not available without adding a dependency. The payload gauge is

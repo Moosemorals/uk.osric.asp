@@ -10,7 +10,7 @@ to be worth more than the prefix. This plan applies it to the verticals that rew
 it does not apply, and carries the same idea down to members so that a reader six months cold can
 predict a name instead of grepping for it.
 
-**Status:** proposed, not started.
+**Status:** implemented, in eight commits — see [DEC-122](../decisions.md#build-test-and-house-style).
 
 ## The short version
 
@@ -435,7 +435,7 @@ migration**.
    calls and four `HasOne<T>` calls. The `ToTable(...)` strings do not move.
 3. Rename `TitleIsGenerated` to `HasGeneratedTitle`, and the same string in the raw `UPDATE
    "AssistantConversations"` statement in
-   [SqliteAssistantConversationStore.cs](../../src/uk.osric.asp.Web/Assistant/SqliteAssistantConversationStore.cs).
+   [SqliteConversationStore.cs](../../src/uk.osric.asp.Web/Assistant/SqliteConversationStore.cs).
 4. `make migration NAME=InitialCreate`, which produces one migration whose `Up` is a plain
    `CreateTable` for every table and whose snapshot matches the model exactly.
 5. `make test-integration`, which applies migrations to a fresh database and exercises the real host.

@@ -11,6 +11,10 @@ SPDX-License-Identifier: MIT
 | Area | Assistant, provider client, conversation page |
 | Location | `src/uk.osric.asp.Web/Assistant/OpenAiChatCompletionClient.cs`, `AssistantRunProcessor.cs`, `AssistantEndpoint.cs`, `Pages/Seeds/assistant.js` |
 
+The file and suite names predate DEC-122: `AssistantRunProcessor.cs` is now `RunProcessor.cs`, and
+`AssistantRunProcessorTests` is now `RunProcessorTests`. The mapping in
+[naming consistency](../plans/naming-consistency.md#the-mapping) is the translation.
+
 ## Problem
 
 A conversation worked for a few turns and then, whenever the model needed to think for a while, the

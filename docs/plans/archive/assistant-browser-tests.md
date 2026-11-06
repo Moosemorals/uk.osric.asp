@@ -9,6 +9,10 @@ A Playwright suite for the shell pages and the assistant, written to answer one 
 an answer stop mid-sentence when the model thinks for a while — and kept because it found three
 defects the four NUnit suites could not.
 
+**Type names predate DEC-122.** Where this names `AssistantRunStream` or `AssistantConversation`, the
+types are now `RunStream` and `Conversation`. The mapping in
+[naming consistency](../naming-consistency.md#the-mapping) is the translation.
+
 ## Shape
 
 `test/uk.osric.asp.Web.BrowserTests`: NUnit and `Microsoft.Playwright.NUnit`, pinned in

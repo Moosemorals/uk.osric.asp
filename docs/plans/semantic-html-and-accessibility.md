@@ -55,7 +55,7 @@ served verbatim and get no layout, so this audit is about the shell's own fourte
 | error | `ErrorEndpoint.HandleAsync` | `main`, `h1`, `p`, `section`+`h2`, `pre.diagnostics` | hand-builds the diagnostics block that `PageLayout` already renders |
 | page compile failure | `PageEndpoint.WriteCompileErrorAsync` | a `pre` in a bare body | no `main`, no `h1`, title "Main - Error" |
 | status | `StatusEndpoint.HandleAsync` | `h1`, `nav.status-nav`, `section.panel`+`h2`, `svg`, `ul.chart-legend` | no `main`; the nav is unnamed; the legend is `list-style: none` with no `role="list"` |
-| restore bundled version | `AdminRestoreEndpoint.WriteConfirmationAsync` | `h1`, `p`, `pre.source`, form, `nav` | no `main`; focusable scroll |
+| restore bundled version | `RestoreEndpoint.WriteConfirmationAsync` | `h1`, `p`, `pre.source`, form, `nav` | no `main`; focusable scroll |
 
 The duplication that goes with it: the document preamble is opened by `BeginHtmlAsync` in eight
 places and closed by `PageLayout.Footer()` in thirteen; the antiforgery hidden input is written out
@@ -416,7 +416,7 @@ Changed:
 - `Html/PageLayout.cs` — `Nav`, `NavLink`, the unified `Diagnostics`; `Header`/`Footer` move to
   `ShellDocument`.
 - `Editor/EditorEndpoint.cs` — the largest change: eight preambles, seven navs, one label, one list.
-- `Authentication/LoginEndpoint.cs`, `Errors/ErrorEndpoint.cs`, `Admin/AdminRestoreEndpoint.cs`,
+- `Authentication/LoginEndpoint.cs`, `Errors/ErrorEndpoint.cs`, `Admin/RestoreEndpoint.cs`,
   `Metrics/StatusEndpoint.cs`, `Pages/PageEndpoint.cs` — the document shell, the nav, the label.
 - `test/uk.osric.asp.Web.Tests/{PageLayoutTests,EditorEndpointTests,StatusEndpointTests,PageAssetSeederTests}.cs`
 - `test/uk.osric.asp.Web.IntegrationTests/{StatusPageTests,PageAssetTests}.cs`

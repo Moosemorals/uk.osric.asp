@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Severity | Low |
 | Area | Operations, observability |
-| Location | `src/uk.osric.asp.Web/Metrics/MetricsDashboard.cs`, `Pages/PageMetrics.cs`, `Assistant/AssistantMetrics.cs` |
+| Location | `src/uk.osric.asp.Web/Metrics/Dashboard.cs`, `Pages/PageMetrics.cs`, `Assistant/AssistantMetrics.cs` |
 
 ## Problem
 
@@ -18,15 +18,15 @@ heatmap, and between them they reach ten of those twenty.
 
 | Meter | Instrument | Shown |
 | --- | --- | --- |
-| `uk.osric.asp` | `page.render.duration` | yes — four panels |
+| `uk.osric.asp.Pages` | `page.render.duration` | yes — four panels |
 | | `page.render.wait` | yes |
 | | `page.compile.duration` | yes |
 | | `page.render.abandoned` | yes |
 | | `page.cache.lookups` | yes |
 | | `page.cache.staleness` | yes |
 | | `page.image.size` | yes, mean only |
-| | `page.handler.load.duration` | **no** |
-| | `page.handler.invoke.duration` | **no** |
+| | `page.load.duration` | **no** |
+| | `page.invoke.duration` | **no** |
 | | `page.save.duration` | **no** |
 | | `page.storage.payload.size` | **no** |
 | | `page.storage.database.size` | **no** |
@@ -51,7 +51,7 @@ count in a 512 MB Prometheus, and code that has to be kept working. The awkward 
 either end — a metric kept "just in case" is one nobody has checked.
 
 The reverse failure matters too. A panel whose PromQL names a metric that no longer exists renders as
-an empty chart, not an error, so drift is silent. `MetricsDashboardTests` pins one query out of about
+an empty chart, not an error, so drift is silent. `DashboardTests` pins one query out of about
 twenty (`page_cache_lookups_total`, as a fake's predicate) and no test ties the instrument names the
 app registers to the metric families the panels ask for.
 

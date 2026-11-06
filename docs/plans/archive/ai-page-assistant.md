@@ -12,6 +12,11 @@ surface into a multi-turn assistant that can read, create, change and delete pag
 approvals, recovery and accessibility. The Caddy-through-proxy `curl -N` check and browser/screen-reader
 hand pass remain deployment checks.
 
+**Type names predate DEC-122.** This was written against the code as it stood, so it says
+`AssistantRun`, `AssistantEvent` and `AssistantPaths` where the types are now `Run`, `RunEvent` and
+`PagePathPolicy`. The mapping in [naming consistency](../naming-consistency.md#the-mapping) is the
+translation; the prose is left as it was, because rewriting it would misrepresent what was built.
+
 ## Read this first
 
 The plan makes eleven decisions. These are the ones worth disagreeing with before any code is

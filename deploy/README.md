@@ -317,6 +317,27 @@ EF 10 reads the evaluated MSBuild output paths, including `artifacts/obj/uk.osri
 with the model change. `make test` includes the Web storage and integration tests as well as the core
 and runtime tests.
 
+### One-off: the squashed migration
+
+The migration history was squashed into a single `InitialCreate` for DEC-122, which renamed the
+assistant's EF entities. `__EFMigrationsHistory` in an existing `uk.osric.asp-storage` volume does not
+know about `InitialCreate`, so startup finds tables it did not create and the app fails. This is a
+one-off, for one deployment, and it costs two volumes and one account:
+
+```bash
+systemctl --user stop uk.osric.asp.service
+podman volume rm uk.osric.asp-storage prometheus-data
+# deploy the release, then recreate the owner account
+make remote-user-add HOST=deploy@<server-ip> ACCOUNT=osric
+```
+
+`uk.osric.asp-storage` goes because the schema no longer replays from the old history, and it takes
+the owner account with it — hence the `remote-user-add` afterwards. `prometheus-data` goes because
+DEC-122 also renamed the page meter to `uk.osric.asp.Pages` and two instruments to
+`page.load.duration` and `page.invoke.duration`: with 30 days of retention, the old and new series
+would otherwise sit side by side for a month and any panel that sums without filtering by name would
+count both. Nothing in either volume is worth keeping.
+
 ### Backups
 
 Run storage maintenance as `deploy`. Either stop `uk.osric.asp.service` with `systemctl --user stop`

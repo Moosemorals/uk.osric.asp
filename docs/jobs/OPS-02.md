@@ -31,7 +31,7 @@ hand-rolled route, so the checks and the report plumbing stay in the framework.
   one of two checks; `AbandonedRenderHealthCheck` is the other, so a page that has wedged threads
   reports unhealthy too. More checks (disk, the compiler) can be added without touching the
   endpoint.
-- **Report:** `HealthReportWriter` emits detailed JSON — overall `status`, `totalDurationMs`, and one
+- **Report:** `ReportWriter` emits detailed JSON — overall `status`, `totalDurationMs`, and one
   entry per check with `name`, `status`, `description`, `durationMs`, `error` and `data`. The response
   is 200 when healthy and 503 otherwise, so an orchestrator or curl can read the difference.
 - **Protection:** `/heath` is in `Pages:ReservedPaths` (both `ReservedPaths.Default` and
