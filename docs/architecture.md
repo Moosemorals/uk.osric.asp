@@ -152,7 +152,9 @@ in `Pages:ReservedPaths`, refused by the editor and never served.
 
 Everything the site itself serves — the editor, the listing, sign-in, status, the error branches and
 the confirmations — is one document shape, written by `Html/ShellDocument.cs`. `BeginAsync` sets the
-content type, the status and `Cache-Control: no-store`, writes the head (the title, `/site.css`, the
+content type, the status and `Cache-Control: no-store` (unless the response already carries a header,
+which is how a view that mints an antiforgery token keeps the framework's `no-cache, no-store`),
+writes the head (the title, `/site.css`, the
 view's own sheet where it has one, then `/layout.css`, then the icon), writes the skip link and opens
 `<main id="main">`; `EndAsync` closes the landmark and the document. A view writes its own body
 content and nothing else, so the title, the landmark, the skip link and the sheet order cannot drift

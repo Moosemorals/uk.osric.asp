@@ -50,6 +50,10 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
         Assert.That(body, Does.Contain("name=\"password\""));
         Assert.That(body, Does.Contain("name=\"rememberMe\" checked"));
         Assert.That(body, Does.Contain("name=\"__RequestVerificationToken\""));
+        // The antiforgery system owns these, so it does not have to override anything.
+        Assert.That(response.Headers.CacheControl?.NoCache, Is.True);
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(response.Headers.Pragma.ToString(), Is.EqualTo("no-cache"));
     }
 
     [Test]

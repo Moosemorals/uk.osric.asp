@@ -36,7 +36,9 @@ public sealed class LoginEndpointTests {
         Assert.That(body, Does.Contain("name=\"rememberMe\" checked"));
         Assert.That(body, Does.Contain("name=\"__RequestVerificationToken\""));
         Assert.That(body, Does.Contain("value=\"request-token\""));
-        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        // The antiforgery system owns the cache headers on a view that carries its field.
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-cache, no-store"));
+        Assert.That(context.Response.Headers.Pragma.ToString(), Is.EqualTo("no-cache"));
     }
 
     [Test]

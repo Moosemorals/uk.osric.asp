@@ -14,6 +14,7 @@ internal static class NotFound {
     public static Task WriteAsync(HttpContext context, PagePath path) {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         context.Response.ContentType = "text/plain; charset=utf-8";
+        context.Response.Headers.CacheControl = "no-store";
         return context.Response.WriteAsync($"{path} not found.", context.RequestAborted);
     }
 }

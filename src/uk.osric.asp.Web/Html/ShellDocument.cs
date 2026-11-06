@@ -32,7 +32,11 @@ internal static class ShellDocument {
 
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.StatusCode = statusCode;
-        context.Response.Headers.CacheControl = "no-store";
+        // A view that mints an antiforgery token already carries the framework's no-cache, no-store;
+        // this weaker value would replace it, and setting one first makes the framework log a warning.
+        if (context.Response.Headers.CacheControl.Count == 0) {
+            context.Response.Headers.CacheControl = "no-store";
+        }
 
         return context.Response.WriteAsync($"""
             <!DOCTYPE html>

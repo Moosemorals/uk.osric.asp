@@ -75,6 +75,18 @@ public sealed class ShellDocumentTests {
     }
 
     [Test]
+    public async Task AViewWithAntiforgeryKeepsTheFrameworkCachePolicyAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext(null);
+        context.Response.Headers.CacheControl = "no-cache, no-store";
+        context.Response.Headers.Pragma = "no-cache";
+
+        await ShellDocument.BeginAsync(context, "Editor");
+
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-cache, no-store"));
+        Assert.That(context.Response.Headers.Pragma.ToString(), Is.EqualTo("no-cache"));
+    }
+
+    [Test]
     public async Task TheEndClosesTheLandmarkAroundWhatTheViewWroteAsync() {
         DefaultHttpContext context = TestHttp.CreateContext(null);
 

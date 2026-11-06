@@ -22,14 +22,14 @@ internal sealed class EditorEndpoint {
     internal const string MessageKey = "editor.message";
 
     public static async Task Handler(HttpContext context, PageEditor pages, ReservedPaths reserved, IAntiforgery antiforgery) {
-        context.Response.Headers.CacheControl = "no-store";
-
         if (context.Request.Method == "POST" && context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
+            NoStore(context);
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
 
         if (context.Request.Method is not ("GET" or "POST") || !TryGetCommand(context, out string? command)) {
+            NoStore(context);
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
@@ -51,6 +51,7 @@ internal sealed class EditorEndpoint {
         }
 
         if (bareEditorPath && (context.Request.Method == "POST" || command is not null)) {
+            NoStore(context);
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
@@ -68,6 +69,7 @@ internal sealed class EditorEndpoint {
         }
 
         if (!string.Equals(context.Request.Path.Value, "/edit" + path.Key, StringComparison.Ordinal)) {
+            NoStore(context);
             Redirect.Permanent(context, editorUrl + context.Request.QueryString.ToUriComponent());
             return;
         }
@@ -102,6 +104,7 @@ internal sealed class EditorEndpoint {
                 await WriteEditorAsync(context, pages, antiforgery, assistantEnabled, path);
                 return;
             default:
+                NoStore(context);
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
         }
@@ -171,6 +174,7 @@ internal sealed class EditorEndpoint {
     }
 
     private static Task NewPageAsync(HttpContext context, ReservedPaths reserved) {
+        NoStore(context);
         if (!context.Request.HasFormContentType
             || !context.Request.Form.TryGetValue("path", out StringValues value)
             || value.Count != 1
@@ -328,11 +332,12 @@ internal sealed class EditorEndpoint {
     private static async Task WriteScrubRequiresDeletedPageAsync(HttpContext context) {
         context.Response.StatusCode = StatusCodes.Status409Conflict;
         context.Response.ContentType = "text/plain; charset=utf-8";
-        context.Response.Headers.CacheControl = "no-store";
+        NoStore(context);
         await context.Response.WriteAsync("Delete the page before scrubbing its history.");
     }
 
     private static async Task PostCommandAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, PagePath path, string? command) {
+        NoStore(context);
         if (command is null) {
             context.Session.SetString(MessageKey, await SaveAsync(context, pages, reserved, path));
             Redirect.SeeOther(context, PageUrls.Editor(path));
@@ -406,6 +411,8 @@ internal sealed class EditorEndpoint {
             await ShellDocument.EndAsync(context);
         }
     }
+
+    private static void NoStore(HttpContext context) => context.Response.Headers.CacheControl = "no-store";
 
     private static async Task WriteMessageAsync(HttpContext context) {
         string? message = context.Session.GetString(MessageKey);

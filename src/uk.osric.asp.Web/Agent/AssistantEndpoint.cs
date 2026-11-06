@@ -27,14 +27,15 @@ internal static class AssistantEndpoint {
         IAgentConversationStore conversations,
         IAntiforgery antiforgery,
         IOptions<AgentOptions> options) {
-        NoStore(context);
         string? owner = Owner(context);
         if (owner is null) {
+            NoStore(context);
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
         if (context.Request.Method == "POST") {
+            NoStore(context);
             if (!PostIsValid(context)) {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
@@ -82,10 +83,10 @@ internal static class AssistantEndpoint {
         IAntiforgery antiforgery,
         AgentRunRegistry registry,
         AgentOptions options) {
-        NoStore(context);
         string? owner = Owner(context);
         AgentConversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
+            NoStore(context);
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
@@ -375,10 +376,10 @@ internal static class AssistantEndpoint {
     }
 
     public static async Task DeleteConfirmationAsync(HttpContext context, long id, IAgentConversationStore conversations, IAntiforgery antiforgery) {
-        NoStore(context);
         string? owner = Owner(context);
         AgentConversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
+            NoStore(context);
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }

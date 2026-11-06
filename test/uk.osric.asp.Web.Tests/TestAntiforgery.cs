@@ -13,6 +13,10 @@ internal sealed class TestAntiforgery : IAntiforgery {
 
     public AntiforgeryTokenSet GetAndStoreTokens(HttpContext context) {
         TokenRequests++;
+        // Mirrors DefaultAntiforgery: a response that mints a token is never cached, and the
+        // framework owns both headers.
+        context.Response.Headers.CacheControl = "no-cache, no-store";
+        context.Response.Headers.Pragma = "no-cache";
         return Tokens;
     }
 

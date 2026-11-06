@@ -16,8 +16,8 @@ using uk.osric.asp.Web.Pages;
 internal static class AdminRestoreEndpoint {
 
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
-        context.Response.Headers.CacheControl = "no-store";
         if (!TryGetPath(context.Request.Query["path"], out PagePath path)) {
+            context.Response.Headers.CacheControl = "no-store";
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }

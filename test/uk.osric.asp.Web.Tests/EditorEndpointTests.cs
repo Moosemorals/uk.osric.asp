@@ -127,7 +127,8 @@ public sealed class EditorEndpointTests {
 
         await EditorEndpoint.Handler(context, CreatePages(new FakePageStore()), Reserved, _antiforgery);
 
-        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        // The antiforgery system owns the cache headers on a view that carries its field.
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-cache, no-store"));
     }
 
     [TestCase("?cmd=")]
@@ -176,7 +177,7 @@ public sealed class EditorEndpointTests {
         Assert.That(body, Does.Not.Contain("href=\"/gone\""));
         Assert.That(storage.ReadCount, Is.Zero);
         Assert.That(storage.WriteCount, Is.Zero);
-        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-cache, no-store"));
     }
 
     [Test]

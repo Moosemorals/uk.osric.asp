@@ -20,8 +20,8 @@ internal static class LoginEndpoint {
 
     /// <summary>Renders the sign-in form, or sends an authenticated visitor back to the editor.</summary>
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
-        context.Response.Headers.CacheControl = "no-store";
         if (context.User.Identity?.IsAuthenticated == true) {
+            NoStore(context);
             Redirect.SeeOther(context, LocalRedirect.Safe(context.Request.Query["returnUrl"].ToString()));
             return;
         }
@@ -43,8 +43,8 @@ internal static class LoginEndpoint {
         IAntiforgery antiforgery,
         IAuthenticationService authentication) {
 
-        context.Response.Headers.CacheControl = "no-store";
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false } || !context.Request.HasFormContentType) {
+            NoStore(context);
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
@@ -73,6 +73,7 @@ internal static class LoginEndpoint {
 
             if (result != PasswordVerificationResult.Failed) {
                 await SignInAsync(context, user, rememberMe, authentication);
+                NoStore(context);
                 Redirect.SeeOther(context, LocalRedirect.Safe(returnUrl));
                 return;
             }
@@ -96,6 +97,8 @@ internal static class LoginEndpoint {
 
         Redirect.SeeOther(context, "/");
     }
+
+    private static void NoStore(HttpContext context) => context.Response.Headers.CacheControl = "no-store";
 
     private static async Task SignInAsync(
         HttpContext context,
