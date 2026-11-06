@@ -37,9 +37,15 @@ BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added o
 | [IDEA-008](IDEA-008.md) | — | L | Writing pages by hand is the only way to write pages (implemented; see [plan](../plans/ai-page-agent.md)) |
 | [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
+| [IDEA-012](IDEA-012.md) | — | M | A page cannot await its I/O — recommended before fetch and storage lands |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
+
+IDEA-012 is the async question that fetch and storage deliberately answered "no" to (plan D3 and
+D6). It is recorded separately so the plan is not disturbed: it argues for an async handler and an
+async page contract before Phase 1, and if accepted, the plan's D3/D6 and Phase 1 are revised first.
+Doing it after the sync members ship would be a second breaking contract and policy change.
 
 ## A rough order
 
@@ -58,17 +64,20 @@ self-contained comes first, because these are the ones that never get scheduled 
    run without being asked.
 4. **ARCH-12** — the write shorthand. A small language change, a large effect on how a page reads;
    see the [implementation plan](../plans/template-value-output.md).
-5. **IDEA-002, fetch** — the biggest single improvement to what a page can do. Allow-listed, bounded
+5. **IDEA-012, async all the way** — decide before fetch and storage Phase 1. It is the cheapest
+   moment: nothing calls the new capabilities yet, so there is no page-author migration, and the
+   signature change rides the same policy bump and recompile. See [the idea](IDEA-012.md).
+6. **IDEA-002, fetch** — the biggest single improvement to what a page can do. Allow-listed, bounded
    and testable; take it before persistence, which has more open questions and less immediate payoff.
-6. **IDEA-003, persistence.** Useful sooner than most, and the answer to what a page may keep.
-7. **ARCH-07, history restore** — restore a selected revision as a new save.
-8. **IDEA-005, page types** — with the page SDK split done, the shared-code question has a real
+7. **IDEA-003, persistence.** Useful sooner than most, and the answer to what a page may keep.
+8. **ARCH-07, history restore** — restore a selected revision as a new save.
+9. **IDEA-005, page types** — with the page SDK split done, the shared-code question has a real
    answer.
-9. **IDEA-001, a proper editor** — a better authoring surface for the pages the site already has.
-10. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
-11. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
+10. **IDEA-001, a proper editor** — a better authoring surface for the pages the site already has.
+11. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
+12. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
     and a rule, once there is something worth being woken for.
-12. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
+13. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 
 ## Closed
 
