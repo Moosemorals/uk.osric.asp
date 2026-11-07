@@ -38,7 +38,6 @@ is not part of that flow.
 | [OPS-06](OPS-06.md) | Low | M | Half of what the site measures, the dashboard never shows |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter and linked diagnostics |
 | [IDEA-005](IDEA-005.md) | — | L | Pages cannot share types between them |
-| [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive — must carry page state now that storage exists |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-013](IDEA-013.md) | — | M | There is no glossary, so the site's own words are guesswork |
 | [IDEA-014](IDEA-014.md) | — | M | A page cannot keep per-visitor state, so a form cannot redirect and say why |
@@ -95,6 +94,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | IDEA-007 | `/rocket.svg` is a seeded page served as `image/svg+xml`, and the document shell links it as the icon. See [the non-HTML pages plan](../plans/archive/non-html-pages.md) |
 | IDEA-002 | A page can call an outbound HTTP API through `IContext.FetchAsync`: off until an operator lists a host, `GET`/`POST` only, redirects re-checked at every hop, and every failure a value rather than an exception (DEC-128, DEC-129). See [the plan](../plans/archive/page-fetch-and-storage.md) |
 | IDEA-003 | A page keeps state through `IContext.Storage`, a key/value store bound to the page's own key and held in a `PageState` table, with JSON values and per-page caps enforced in the write statement (DEC-125, DEC-126, DEC-127). See [the plan](../plans/archive/page-fetch-and-storage.md) |
+| IDEA-009 | Pages leave and return as a SQLite archive: source and state in `Pages` and `PageState`, export behind `/admin/export`, and an import that validates every row, compiles nothing into storage, then commits the whole batch in one transaction (DEC-139). See [the plan](../plans/archive/page-import-export.md) |
 | IDEA-012 | The page handler is asynchronous: `IHandler.HandleAsync` returns `Task`, the generated handler is always `async`, and `System.Threading.Tasks.Task` is admitted to the page policy with its starting and blocking members denied by name (DEC-123, DEC-124). See [the plan](../plans/archive/async-page-contract.md) |
 | IDEA-008 | Implemented as the multi-turn authenticated page-authoring agent. It is disabled by default, uses a configured OpenAI-compatible provider and bounded page-store tools, and its approval defaults and provider data flow are recorded in DEC-111. See [the plan](../plans/archive/ai-page-assistant.md) |
 | ARCH-03 | Renders have a deadline, a slot count and a body cap, compiles have their own slot and deadline, an abandoned render is logged and counted, and `/heath` reports it so podman restarts a wedged container. See [the plan](../plans/archive/page-execution-budget.md). SEC-03 (the process boundary) is deliberately still open |

@@ -509,6 +509,36 @@ archives, backups or filesystem snapshots. Rotate exposed secrets and clean exte
 separately. Runtime-change cleanup of obsolete images and symbols is future work; source and
 revision identity are retained unless explicitly scrubbed.
 
+### Import and export
+
+A site's pages can leave it and come back. `/admin/export` lists every live page that is addressable
+and not reserved, and a `POST` returns a `.sqlite` file as a download; `/admin/import` takes that
+same file back behind the `Editor` policy. The archive is a SQLite database — `Pages(Path, Source)`
+and `PageState(PagePath, Key, Value)`, identified by `PRAGMA application_id` and `user_version` —
+built in memory with `sqlite3_serialize` and read by deserializing an upload read-only with
+`sqlite3_deserialize`, so neither direction needs a temporary file (DEC-139).
+
+The archive carries source and state and nothing else: revision history, tombstones, users and
+configuration belong to the site that made them, and shipping hashes and runtime ids across sites
+would import code nobody built. Import is additive — pages absent from the archive are untouched and
+nothing is deleted — and it never invents a storage path: each approved page becomes a revision
+through the same factory an editor save uses, so an overwrite is an ordinary new revision and the old
+source stays in history.
+
+Validation treats the file as hostile and is all or nothing: the schema must be exactly the two
+tables and their columns, every path must already be canonical, addressable and unreserved, every
+value must be text that decodes as strict UTF-8, every state key and value must pass the storage caps
+the store enforces, and one bad row rejects the whole archive before anything is staged. Problems are
+collected up to ten so the error page can list several at once, but each is independently fatal.
+
+An approved archive is compiled one page at a time with nothing written, then committed in one SQLite
+transaction: revisions, then heads, then state. A page that does not compile — or a compiler fault —
+is stored with its diagnostics or with no image, exactly as a save would store it, and the rest of the
+batch still commits. A batch whose merged state would exceed a page's caps is refused before any row
+is written, and a failed write or a crash rolls the whole transaction back, so readers see the old
+pages until the commit and the whole new set afterwards. There is no undo: the batch either commits
+or does not, and the way back is another import.
+
 Built-in page templates live in `src/uk.osric.asp.Web/Pages/Seeds`, included as content in build and
 publish output. Each file is a complete page template, including its response content type and cache
 headers; its filename becomes the page path. `/site.css` holds the site's look, `/layout.css` the

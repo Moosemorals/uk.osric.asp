@@ -68,7 +68,7 @@ If it is ever built, these decisions come first.
 
 ## Relationship to other work
 
-[The import and export plan](../plans/page-import-export.md) keeps import additive on purpose. The
+[The import and export plan](../plans/archive/page-import-export.md) keeps import additive on purpose. The
 deployment guide's backup story is the volume, not the archive: see
 [deploy/README.md](../../deploy/README.md#backups). If this ever ships, it should point at that story
 rather than compete with it.

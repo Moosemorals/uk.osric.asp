@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Import and export: the page archive
 
-[IDEA-009](../jobs/IDEA-009.md) has been open since page storage landed: pages cannot leave the site,
+IDEA-009 had been open since page storage landed: pages cannot leave the site,
 and a page that carries state — a guestbook, a counter — has no way back in. This plan settles the
 archive format, the two views, and what an import is allowed to do to stored pages.
 
@@ -15,7 +15,7 @@ names, so there is no traversal, no duplicate-name trick and no `__MACOSX` noise
 The SQLite provider already underneath `Microsoft.Data.Sqlite` can serialize an in-memory database to
 bytes and deserialize an uploaded one back, so neither direction needs a temporary file.
 
-**Status:** planned.
+**Status:** implemented (DEC-139).
 
 ## The short version
 
@@ -46,7 +46,7 @@ bytes and deserialize an uploaded one back, so neither direction needs a tempora
 | Thing | In the archive? | Why |
 | --- | --- | --- |
 | Page source | Yes | The point of the feature. |
-| `PageState` keys and values | Yes | [IDEA-009](../jobs/IDEA-009.md) requires it; a page archive that loses a guestbook is not a round trip. |
+| `PageState` keys and values | Yes | IDEA-009 requires it; a page archive that loses a guestbook is not a round trip. |
 | Revision history | No | The import is a save, so the receiving site grows its own history. Shipping hashes and runtime ids across sites would import code nobody built. |
 | Tombstones (deleted pages) | No | A deleted page is not part of the site. Import never deletes anything, and a tombstoned page comes back only when its key is in the archive and chosen. |
 | Users, tickets, conversations, config | No | Different jobs, different threat models. |
@@ -477,7 +477,7 @@ No migration. State rows, revisions and heads already exist and import writes th
 
 ## Tests
 
-The suites follow [testing](../testing.md): the reader, writer, endpoints and staging in
+The suites follow [testing](../../testing.md): the reader, writer, endpoints and staging in
 `Web.Tests`, and the composed flow in `Web.IntegrationTests`. There is no `Core.Tests` work: the
 archive is a SQLite file, so the pure rules it exercises are the page-path and state rules that
 already have tests.
@@ -571,7 +571,7 @@ already have tests.
 
 `ShellViews` gains `admin-import`, `admin-import-failed`, `admin-import-review`,
 `admin-import-progress` and `admin-export`, so the eleven shared rules cover them;
-[testing](../testing.md) says "seventeen shell views" and moves to twenty-two.
+[testing](../../testing.md) said "seventeen shell views" and moved to twenty-two;
 
 ## Documentation and decisions
 
@@ -623,6 +623,6 @@ Phases 3 and 4 can be built in either order; 5 and 6 depend on both.
 - **Nuke and import.** Deleting every page the archive does not mention, with its history, as part of
   the import. It is technically a `DELETE` in the same transaction, but it turns a safe additive
   operation into an irreversible one and still does not make the archive a backup. Recorded as
-  [IDEA-020](../jobs/IDEA-020.md).
+  [IDEA-020](../../jobs/IDEA-020.md).
 - **A zip format.** It was the first shape, but SQLite already answers every requirement and removes
   the entry-name class of validation. A zip reader would be a second parser to keep.

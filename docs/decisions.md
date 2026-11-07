@@ -109,6 +109,12 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | DEC-93 | Every response carries one security-header set, written by middleware when the response starts and only where the header is still absent; the editor and assistant views widen `Content-Security-Policy` from `script-src 'none'` to `script-src 'self'` for their own modules. `style-src 'self'` carries no `'unsafe-inline'`, so a page cannot use an inline `style=` attribute or a `<style>` block either, and a page that wants a script is a policy change rather than a header it may set. | [editor-line-gutter](plans/archive/editor-line-gutter.md#7-one-middleware-sets-the-security-headers-only-the-editor-allows-script) |
 | DEC-138 | A stored page may ask for `script-src 'self'` with `IContext.AllowScripts()`, because the page knows whether it loads a script; the header stays shell-owned and the permission is carried on `PageResponse` and applied only to a successful buffered render, never to a redirect or an error. Inline scripts and event-handler attributes stay blocked, so the script is a same-origin external file. | [architecture](architecture.md#authentication-and-the-editor), amends DEC-93 |
 
+## Page archives
+
+| ID | Decision | Recorded in |
+| --- | --- | --- |
+| DEC-139 | A page archive is a SQLite database, not a zip: `Pages(Path, Source)` and `PageState(PagePath, Key, Value)` identified by `PRAGMA application_id = 0x756F6173` and `user_version = 1`, built in memory and serialized with `sqlite3_serialize`, and read by deserializing an upload read-only with `query_only` and `trusted_schema = OFF` before any query. It carries source and state only — history, tombstones, users and configuration stay with the site that made it. Import is additive and all or nothing: every row is validated before anything is staged, the approved batch is compiled one page at a time with nothing written, then every page, head and state key is written in one transaction, so a compile failure is a stored revision with diagnostics and a crash or failed write leaves nothing applied. `/admin` is reserved again, and export and import sit behind the editor policy. | [import and export](plans/archive/page-import-export.md) |
+
 ## Editor authentication
 
 | ID | Decision | Recorded in |

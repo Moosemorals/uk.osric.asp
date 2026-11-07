@@ -36,7 +36,7 @@ its revisions. No images, no symbols, no writes — writing is IDEA-016 and IDEA
 5. The I/O is async, tokenless and cancelled with the render, as `FetchAsync` is: `SimpleContext`
    already holds the deadline from `AttachDeadline`, and the store call must be linked to it rather
    than to the request alone (DEC-123).
-6. Decide the competing road. [Import and export](../plans/page-import-export.md) reads and writes
+6. Decide the competing road. [Import and export](../plans/archive/page-import-export.md) reads and writes
    the same store from the shell behind the `Editor` policy; two routes to one authority is a
    decision, not an accident. Either the shell keeps the authority and pages get only the read a
    view needs, or pages get the read and those views move.

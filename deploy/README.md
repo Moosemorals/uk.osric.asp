@@ -144,8 +144,13 @@ and applies them.
   keeps it. The caps live under `Pages:Storage` (`Pages__Storage__MaxValueBytes`, and so on).
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
-  covers `/assistant`, `/edit`, `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics` and
-  `/status`. Change it only when the route table changes.
+  covers `/admin`, `/assistant`, `/edit`, `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics`
+  and `/status`. Change it only when the route table changes.
+- **Import and export:** `/admin/export` and `/admin/import` move pages between sites as a `.sqlite`
+  archive of source and state. The caps live under `Pages:Archive` (`Pages__Archive__MaxUploadBytes`,
+  `MaxPages`, `MaxCompiledBytes`, `StageTtlMinutes`, `MaxStagedImports`); a reviewed archive is held
+  in memory only and expires, so raising `MaxUploadBytes` is the answer for a site whose export is
+  larger than 16 MiB.
 - **Health:** `ssh deploy@<server-ip> curl -s http://127.0.0.1:8080/heath` returns detailed JSON —
   200 when the app can reach its database and no page renders have been abandoned, 503 otherwise. The
   same probe runs inside the container as podman's health check, so a failing check restarts it; see
