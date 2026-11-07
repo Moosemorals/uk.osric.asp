@@ -44,6 +44,18 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
             .Select(row => new PageHeadSummary(PagePath.Normalize(row.Path), row.IsDeleted))];
     }
 
+    public async Task<string?> GetSourceAsync(PagePath path, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(path);
+
+        return await database.Set<PageHead>().AsNoTracking()
+            .Where(head => head.Path == path.Key && !head.IsDeleted)
+            .Join(database.Set<PageRevision>().AsNoTracking(),
+                head => new { head.RevisionId, head.Path },
+                row => new { row.RevisionId, row.Path },
+                (_, row) => row.Template)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<PageHeadSummary?> GetHeadAsync(PagePath path, CancellationToken cancellationToken = default) {
         PageHead? head = await database.Set<PageHead>().AsNoTracking()
             .SingleOrDefaultAsync(row => row.Path == path.Key, cancellationToken);

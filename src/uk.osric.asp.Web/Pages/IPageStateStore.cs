@@ -40,4 +40,10 @@ internal interface IPageStateStore {
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The keys, in ordinal order.</returns>
     Task<IReadOnlyList<string>> ListKeysAsync(PagePath path, CancellationToken cancellationToken = default);
+
+    /// <summary>Reads every key and value a page holds.</summary>
+    /// <param name="path">The page whose state is read.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The values, in ordinal key order; empty when the page has no state.</returns>
+    Task<IReadOnlyList<PageStateValue>> GetValuesAsync(PagePath path, CancellationToken cancellationToken = default);
 }

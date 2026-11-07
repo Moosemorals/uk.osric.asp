@@ -96,6 +96,21 @@ internal sealed class SqlitePageStateStore(
         return keys;
     }
 
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<PageStateValue>> GetValuesAsync(PagePath path, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(path);
+
+        await using StorageDbContext database = Open();
+        var rows = await database.Set<PageStateEntry>().AsNoTracking()
+            .Where(row => row.PagePath == path.Key)
+            .Select(row => new { row.Key, row.Value })
+            .ToArrayAsync(cancellationToken);
+
+        return [.. rows
+            .OrderBy(row => row.Key, StringComparer.Ordinal)
+            .Select(row => new PageStateValue(row.Key, row.Value))];
+    }
+
     // The failed statement already decided the outcome, so this only names the rule. A re-read can
     // disagree with the write if another request changed the page in between; the message is
     // diagnostic, the statement is the authority.

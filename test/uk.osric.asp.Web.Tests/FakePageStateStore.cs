@@ -85,6 +85,19 @@ internal sealed class FakePageStateStore(PageStorageOptions? options = null) : I
         return result;
     }
 
+    public async Task<IReadOnlyList<PageStateValue>> GetValuesAsync(PagePath path, CancellationToken cancellationToken = default) {
+        LastCancellationToken = cancellationToken;
+        await Task.Yield();
+
+        if (!_pages.TryGetValue(path.Key, out Dictionary<string, string>? keys)) {
+            return [];
+        }
+
+        return [.. keys
+            .OrderBy(row => row.Key, StringComparer.Ordinal)
+            .Select(row => new PageStateValue(row.Key, row.Value))];
+    }
+
     /// <summary>Puts a value in without the caps, as a direct database write would.</summary>
     public void Seed(string pagePath, string key, string value) {
         if (!_pages.TryGetValue(pagePath, out Dictionary<string, string>? keys)) {

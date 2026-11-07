@@ -60,6 +60,13 @@ internal sealed class FakePageStore : IPageStore {
         return _heads.GetValueOrDefault(path.Key) ? null : _pages.GetValueOrDefault(path.Key);
     }
 
+    public Task<string?> GetSourceAsync(PagePath path, CancellationToken cancellationToken = default) {
+        Check(cancellationToken);
+        ReadCount++;
+        LastReadPath = path;
+        return Task.FromResult(_heads.GetValueOrDefault(path.Key) ? null : _pages.GetValueOrDefault(path.Key)?.Template);
+    }
+
     public Task<IReadOnlyList<PageHeadSummary>> ListPagesAsync(CancellationToken cancellationToken = default) {
         Check(cancellationToken);
         IReadOnlyList<PageHeadSummary> result = [.. _heads

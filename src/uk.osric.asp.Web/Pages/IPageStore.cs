@@ -16,6 +16,16 @@ internal interface IPageStore {
 
     Task<IReadOnlyList<PageHeadSummary>> ListPagesAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Reads a live page's template text only, without the image stored beside it.</summary>
+    /// <param name="path">The canonical key to read.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The stored template, or <see langword="null"/> when no live page has that key.</returns>
+    /// <remarks>
+    /// An export needs source and nothing else, and loading a page's assembly into memory to copy
+    /// its text out of it would be wasted work.
+    /// </remarks>
+    Task<string?> GetSourceAsync(PagePath path, CancellationToken cancellationToken = default);
+
     Task<PageHeadSummary?> GetHeadAsync(PagePath path, CancellationToken cancellationToken = default);
 
     Task<PageTemplate?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default);
