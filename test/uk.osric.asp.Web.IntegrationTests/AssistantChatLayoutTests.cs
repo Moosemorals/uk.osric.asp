@@ -84,13 +84,13 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
 
         Assert.That(body, Does.Contain("<dt>Message</dt>"));
         Assert.That(body, Does.Contain("<span id=\"assistant-budget-message\">0</span> / 16,384 characters</span>"));
-        Assert.That(body, Does.Contain(" / 120,000 characters</span>"), "the context budget is missing");
+        Assert.That(body, Does.Contain(" / 500,000 characters</span>"), "the context budget is missing");
         Assert.That(body, Does.Contain(" / 512 steps</span>"), "the step budget is missing");
         Assert.That(body, Does.Contain(" / 1,024 calls</span>"), "the tool-call budget is missing");
         Assert.That(body, Does.Contain(" / 32,768 tokens</span>"), "the output budget is missing");
 
         // The system prompt alone is already spent, and the run's own steps are counted from the store.
-        Assert.That(body, Does.Match("<meter aria-hidden=\"true\" min=\"0\" max=\"120000\" value=\"[1-9][0-9]*\""));
+        Assert.That(body, Does.Match("<meter aria-hidden=\"true\" min=\"0\" max=\"500000\" value=\"[1-9][0-9]*\""));
         Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span>2</span> / 512 steps</span>"),
             "the answered run took two steps: the tool call and the answer");
         Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span>1</span> / 1,024 calls</span>"));
