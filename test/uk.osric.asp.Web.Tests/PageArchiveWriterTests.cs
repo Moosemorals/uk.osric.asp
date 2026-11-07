@@ -19,14 +19,14 @@ public sealed class PageArchiveWriterTests {
             new PageArchiveEntry(Key("/"), "Home", [new("counter", "null")]),
         ]);
 
-        using OpenArchive archive = new(bytes);
+        PageArchiveReadResult result = Reader().Read(bytes);
 
-        Assert.That(TestArchive.Scalar(archive.Connection, """SELECT "Source" FROM "Pages" WHERE "Path" = '/about'"""),
-            Is.EqualTo("About"));
-        Assert.That(TestArchive.Scalar(archive.Connection, """SELECT "Value" FROM "PageState" WHERE "PagePath" = '/about' AND "Key" = 'visits'"""),
-            Is.EqualTo("3"));
-        Assert.That(TestArchive.Scalar(archive.Connection, """SELECT "Value" FROM "PageState" WHERE "PagePath" = '/' AND "Key" = 'counter'"""),
-            Is.EqualTo("null"));
+        Assert.That(result.Problems, Is.Empty);
+        Assert.That(result.Pages.Select(page => page.Path.Key), Is.EqualTo(new List<string> { "/", "/about" }));
+        Assert.That(result.Pages[0].Source, Is.EqualTo("Home"));
+        Assert.That(result.Pages[0].State, Is.EqualTo(new List<PageStateValue> { new("counter", "null") }));
+        Assert.That(result.Pages[1].Source, Is.EqualTo("About"));
+        Assert.That(result.Pages[1].State, Is.EqualTo(new List<PageStateValue> { new("visits", "3") }));
     }
 
     [Test]
@@ -60,6 +60,9 @@ public sealed class PageArchiveWriterTests {
 
         Assert.That(command.ExecuteScalar(), Is.EqualTo("Hello."));
     }
+
+    private static PageArchiveReader Reader() =>
+        new(new ArchiveOptions(), new PageStorageOptions(), new ReservedPaths(ReservedPaths.Default));
 
     private static PagePath Key(string path) => PagePath.Normalize(path);
 }

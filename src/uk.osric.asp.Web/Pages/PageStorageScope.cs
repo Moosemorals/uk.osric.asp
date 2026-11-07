@@ -86,20 +86,7 @@ internal sealed class PageStorageScope(
         return store.ListKeysAsync(path, Cancellation());
     }
 
-    private void ValidateKey(string key) {
-        ArgumentException.ThrowIfNullOrEmpty(key);
-
-        if (key.Length > options.MaxKeyChars) {
-            throw new ArgumentException(
-                $"A key may be at most {options.MaxKeyChars} characters.", nameof(key));
-        }
-
-        foreach (char character in key) {
-            if (char.IsControl(character)) {
-                throw new ArgumentException("A key may not contain a control character.", nameof(key));
-            }
-        }
-    }
+    private void ValidateKey(string key) => PageStateKey.Validate(key, options.MaxKeyChars);
 
     // HEAD runs the page to produce the representation and its validators, so a write would count a
     // HEAD as a real visit - or mutate a remote system - once per validator.

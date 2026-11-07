@@ -21,7 +21,7 @@ internal sealed class ReservedPaths {
 
     /// <summary>The keys reserved when none are configured.</summary>
     public static IReadOnlyList<string> Default { get; } =
-        ["/assistant", "/edit", "/favicon.ico", "/heath", "/login", "/logout", "/metrics", "/status"];
+        ["/admin", "/assistant", "/edit", "/favicon.ico", "/heath", "/login", "/logout", "/metrics", "/status"];
 
     private readonly IReadOnlyList<string> _prefixes;
 
