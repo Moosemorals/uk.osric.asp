@@ -86,7 +86,7 @@ and the logs quote them:
 | The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
-| The page contract: `IContext`, `PageRequest`, `PageResponse`, `IHandler`, `UserFacingException`, `IPageStorage`/`PageValue<T>`, `PageFetchRequest`/`PageFetchResponse`/`PageFetchMethod`/`PageFetchFailure` | `Sdk`, as plain values a compiled page binds against |
+| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageStorage`/`PageValue<T>`, `PageFetchRequest`/`PageFetchResponse`/`PageFetchMethod`/`PageFetchFailure` | `Sdk`, as plain values a compiled page binds against |
 | The page policy: `PageApiPolicy`, `ApiReference` | `Core.Compilation`, as a pure rule over strings |
 | The Roslyn walk that applies the page policy | `Runtime` |
 | The template language and its diagnostics | `Core.Compilation` |
@@ -119,8 +119,8 @@ the EF tools discover internal migrations and an internal `StorageDbContext` wit
 
 A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it
 touches is a plain record in `Sdk`. `IContext` is the whole surface — `Request` (method, path, query,
-form, headers, cookies), `Path`, `Aborted`, `Log`/`LogWarning`/`LogError`, `Write`/`WriteRaw`,
-`SetStatus`, `SetContentType`, `SetHeader` and `Redirect`.
+form, headers, cookies), `Path`, `User`, `Aborted`, `Log`/`LogWarning`/`LogError`, `Write`/`WriteRaw`,
+`SetStatus`, `SetContentType`, `SetHeader`, `Redirect`, `RedirectToLogin` and `AntiforgeryField`.
 
 The handler is asynchronous: `IHandler.HandleAsync` returns a `Task`, the generator always emits an
 `async` method, and `await` is therefore an ordinary expression in a code block and inside a write
@@ -161,6 +161,13 @@ body; `HEAD` retains the representation length, while `304` has no body or lengt
 honor `If-None-Match` with a bodyless `304`; the page still runs to produce the representation, so
 this is HTTP revalidation rather than an execution cache. The host writes the validator after page
 headers, so a page cannot preserve a stale one after an edit.
+
+A response rendered for a signed-in visitor is the exception: it is sent `Cache-Control: no-store`
+and without an `ETag`, and every page redirect is `no-store` too. The identity is known before the
+page runs and the body is already per-request, so the risk being closed is a shared cache or a
+conditional request turning one owner's render into another visitor's answer. The page's own headers
+are copied first and `Cache-Control` is then overridden for that response, so a page cannot weaken
+it. Public pages keep their strong validator and their revalidation.
 
 Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
 over 1 MiB is refused with 413 before it is read. A page that outruns its execution budget is answered
@@ -260,7 +267,8 @@ and token-kind tags.
 
 ## Authentication and the editor
 
-The editor is behind a sign-in; pages stay public. A seeded page restores from its row on `/edit`:
+The editor is behind a sign-in; pages stay public unless the page's
+own code checks `ctx.User` (see "Page authentication" below). A seeded page restores from its row on `/edit`:
 the button saves the bundled source through the ordinary revision path, so a deleted seeded page
 comes back without discarding its earlier revisions.
 
@@ -292,14 +300,46 @@ comes back without discarding its earlier revisions.
   cannot deny sign-in to anyone else. The address is folded into one of 1024 buckets, because the
   limiter never releases a partition and the address is otherwise unbounded (DEC-118).
 - Login, logout and editor POSTs validate an antiforgery token. A rejected request is answered
-  `400` before it reads the form or touches storage. The editor's save message lives in the session,
-  not in a cookie, and a successful save answers `303` so the browser follows with a `GET`.
+  `400` before it reads the form or touches storage. Pages are not endpoints with metadata, so
+  `PageEndpoint` checks an authenticated page `POST` itself, before the page runs. The editor's save
+  message lives in the session, not in a cookie, and a successful save answers `303` so the browser
+  follows with a `GET`.
 - The data-protection key ring is persisted on a volume. That is what lets the 30-day cookie and
   in-flight antiforgery tokens survive a redeploy.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
   starts (DEC-93). The editor view is the only one that widens the policy to `script-src 'self'`, for
   the `/editor.js` module that keeps its line gutter true; every other response forbids scripts
   outright. `/editor.css` and `/editor.js` are seeded pages like `/site.css`, so they stay editable.
+
+### Page authentication
+
+The sign-in the editor already has is available to a page, as ordinary page code rather than a
+directive, a metadata column or a route policy. A page is public unless it guards itself:
+
+```html
+<% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+```
+
+- `ctx.User` is a `PageUser?` carrying only the account name, mapped by `PageEndpoint` from the
+  principal `UseAuthentication` has already validated. An authenticated identity without a
+  `NameIdentifier` maps to `null`, so a half-built principal fails closed. A page cannot forge the
+  identity with a header, a cookie or a form field: it exists only as the shell's value.
+- `ctx.RedirectToLogin()` sends the visitor to `/login?returnUrl=` followed by this page's canonical
+  key and **raw** query, built by `LoginRedirect` rather than from the collapsed query dictionary, so
+  `/search?q=a&q=b` returns with both values. The status is `302` for `GET`/`HEAD` and `303` for
+  `POST`, so a submitted form is not replayed. `LocalRedirect` still decides where a `returnUrl` may
+  point, so this cannot become an open redirect. A fragment cannot be preserved: the browser never
+  sends one.
+- The endpoint validates `IsRequestValidAsync` for an authenticated `POST` before the page runs, and
+  answers `400` with `no-store` when the pair is missing or stale. This is deliberately not opt-in:
+  the sign-in cookie is exactly what turns a cross-site post into an action by the owner. An
+  anonymous `POST` is unchanged, because it has no cookie-backed identity to forge.
+- `ctx.AntiforgeryField` is the hidden input the page writes with `<%==`, built by the same
+  `AntiforgeryField.Hidden` the shell's own forms use. It is generated once per render under the
+  body lock, and returns an empty string after the render is abandoned, which fails closed.
+
+A page's guard is not a security boundary against its author: page code still runs in-process with
+the site's identity (DEC-40). Authentication decides who may reach the guard, not what a page may do.
 
 ## Page API policy
 

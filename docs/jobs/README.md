@@ -37,14 +37,10 @@ the code on 2026-11-06.
 | [IDEA-005](IDEA-005.md) | — | L | Pages cannot share types between them |
 | [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive — must carry page state now that storage exists |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
-| [IDEA-011](IDEA-011.md) | — | M | Pages cannot opt into authentication |
 | [IDEA-013](IDEA-013.md) | — | M | There is no glossary, so the site's own words are guesswork |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
-
-IDEA-011 is the auth hook that makes a private page possible, and later makes per-user state
-possible; storage itself stays page-scoped and shared.
 
 ## A rough order
 
@@ -62,13 +58,9 @@ self-contained comes first, because these are the ones that never get scheduled 
 4. **IDEA-001, a proper editor** — the line gutter, linked diagnostics and caret persistence are
    done; syntax highlighting or adopting a third-party editor is what is left.
 5. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
-6. **IDEA-011, page authentication** — a page can opt into the existing sign-in, still with one
-   actual user and no roles. It is the hook that makes private pages and, later, per-user state
-   possible. It changes DEC-02; [its plan](../plans/page-authentication.md) is written and waiting
-   to be worked.
-7. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
+6. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
    and a rule, once there is something worth being woken for.
-8. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
+7. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 
 ## Closed
 
@@ -80,6 +72,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | ARCH-10 | Delete tombstones a page while retaining its revisions; saving recreates it in the same history. Explicit scrub removes the path's revisions with bounded SQLite secure-delete/WAL cleanup and clearly documented limitations. Startup seeding respects tombstones. See [the implementation plan](../plans/archive/editor-tools-and-immutable-assets.md) and [deployment guidance](../../deploy/README.md#storage-and-migrations) |
 | ARCH-11 | The authenticated editor generates C# from the saved template without compiling, rendering or saving it; output is encoded and parse errors show diagnostics. See [the implementation plan](../plans/archive/editor-tools-and-immutable-assets.md) |
 | ARCH-12 | `<%= %>` writes an escaped value and `<%== %>` a raw one; the tokenizer carries `Write`/`WriteRaw`, the generated expression keeps its template position, and an empty expression is `TEMPLATE002`. See [the implementation plan](../plans/archive/template-value-output.md) |
+| IDEA-011 | Pages opt into the existing sign-in with `ctx.User` and `ctx.RedirectToLogin()`. A signed-out visitor returns to the canonical path and raw query; an authenticated `POST` carries `ctx.AntiforgeryField` and is checked by the host before the page runs; an authenticated response is `no-store` with no validator. See [the implementation plan](../plans/archive/page-authentication.md) |
 | IDEA-004 | The page contract moved to its own reference-free assembly, `uk.osric.asp.Sdk`. `Core` is host support again, the policy allows the SDK namespace and nothing else, the load context refuses `Core`, and `RuntimeId` carries both module version ids. See [the plan](../plans/archive/page-sdk-split.md) |
 | IDEA-006 | `/site.css` is a seeded page rather than a static file, so the site's look is edited like any other page; `wwwroot` is empty, `UseStaticFiles` is gone, and the page owns its content type and validator. See [the non-HTML pages plan](../plans/archive/non-html-pages.md) |
 | IDEA-007 | `/rocket.svg` is a seeded page served as `image/svg+xml`, and the document shell links it as the icon. See [the non-HTML pages plan](../plans/archive/non-html-pages.md) |

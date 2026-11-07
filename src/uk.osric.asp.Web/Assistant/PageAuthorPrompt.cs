@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v3";
+    public const string Version = "page-author-v4";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -35,6 +35,16 @@ internal static class PageAuthorPrompt {
                int visits = (stored.Found ? stored.Value : 0) + 1;
                await ctx.Storage.SetAsync("visits", visits); %>
             <p>Visited <%= visits.ToString() %> times.</p>
+            """),
+        ("private-page", """
+            <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+            <h1>Draft</h1>
+            <p>Signed in as <%= user.Name %>.</p>
+            <form method="post" class="form">
+                <%== ctx.AntiforgeryField %>
+                <dl><dt><label for="note">Note</label></dt><dd><input id="note" name="note"></dd></dl>
+                <button>Save</button>
+            </form>
             """),
         ("json-fetch", """
             <% PageFetchResponse response = await ctx.FetchAsync(new PageFetchRequest("https://api.example.com/status"));
@@ -75,6 +85,23 @@ internal static class PageAuthorPrompt {
         cannot set cookies, Location, content type through a header, or framing
         headers.
         
+        ## Page authentication
+        Pages are public unless the page's own code checks `ctx.User`. Add the
+        guard when the owner asks for a private page, a draft, or something
+        only they should see; do not add it to every page by default.
+        `ctx.User` is a `PageUser?` carrying only `Name`, and it is null for
+        an anonymous visitor. Put the guard at the top of the page:
+
+        `<% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>`
+
+        `RedirectToLogin()` uses the shell's own sign-in form and returns to
+        this page's path and query afterwards; the `return;` is what stops
+        the rest of the handler. Every form an authenticated visitor can
+        submit must carry `<%== ctx.AntiforgeryField %>` written raw, because
+        the host refuses an authenticated `POST` without that pair. Never
+        write a sign-in form, handle a password or read the auth cookie:
+        `/login` and `/logout` already exist and are reserved paths.
+
         ## Page storage
         `ctx.Storage` is this page's own key/value store, shared by every
         visitor and last-write-wins per key; a page cannot reach another page's

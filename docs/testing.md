@@ -35,7 +35,12 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   The page-cache tests swap in a counting compiler wrapped around the real one, so "a second request
   does not compile" is asserted rather than inferred.
   `PageScopeTests` lives here because it names the shell's own types — and `Core`'s — to prove the
-  trimmed reference set cannot resolve them.
+  trimmed reference set cannot resolve them. `PageEndpointTests` proves the page authentication
+  rules through the endpoint: a guarded anonymous visit is redirected with the canonical path and
+  raw query, an authenticated `POST` without a valid antiforgery pair is refused before the page
+  runs, and an authenticated response is `no-store` with no validator. `LoginRedirectTests` pins the
+  `returnUrl` it builds, and `SimpleContextTests` the guard's status per method, the one-token-per-
+  render rule and the empty field an abandoned render gets.
 - **The assistant** is covered at the same boundaries: `Core.Tests` checks transcript trimming,
   stream accumulation, strict tool arguments, virtual-shell parsing, title generation and authored
   template-source line edits. `Web.Tests` uses migrated SQLite files for conversations, sequence
@@ -78,7 +83,10 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   migrations, DI wiring and the fact that a page is compiled once. Editor integration coverage
   distinguishes `/edit` from the `/edit/` root editor, checks command authorization and antiforgery,
   restores a deleted seed from the page list, and confirms deleted seeded assets remain tombstoned
-  across restarts. The suites reference `Web` and
+  across restarts. `PageAuthenticationTests` runs the whole private-page round
+  trip: a guarded page saved through the editor, the redirect to `/login` with its query, signing in
+  back to that page, its form with and without `ctx.AntiforgeryField`, sign-out and a password change
+  making an existing cookie anonymous, and an external `returnUrl` still falling back to the editor. The suites reference `Web` and
   `Runtime`, start the real application through `WebApplicationFactory<Program>`, and use a
   throwaway SQLite file per fixture that is deleted with it. The host runs as `Production`, so
   failures are answered by the error page rather than the developer exception page, and the client

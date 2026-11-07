@@ -69,8 +69,12 @@ they had.
 - `OnValidatePrincipal` fails closed: a missing user, or a storage error surfaced through the
   authentication wrapper, is an authentication failure, not an acceptance.
 - `SameSite=Lax` is safe because every mutating endpoint uses
-  `RequireAntiforgeryTokenAttribute(true)` and checks `IAntiforgeryValidationFeature`; the
-  antiforgery and session cookies are `Strict`.
+  `RequireAntiforgeryTokenAttribute(true)` and checks `IAntiforgeryValidationFeature`, and a stored
+  page is not an endpoint with metadata: `PageEndpoint` validates an authenticated page `POST`
+  itself, before the page runs (DEC-135). The antiforgery and session cookies are `Strict`.
+- Page authentication adds no cookie, key or secret. The new surface is cacheability and request
+  forgery: an authenticated page response is `no-store` without an `ETag` (DEC-136), and an
+  anonymous page response is unchanged. A page still sees only the shell-supplied `PageUser`.
 - `/metrics` is loopback-only and Caddy answers 404 for it; `/heath` is public but returns fixed
   strings. Reserved paths keep stored pages from shadowing either.
 
@@ -82,3 +86,6 @@ they had.
 keeps it, a revoked key cannot be renewed back to life) and
 `test/uk.osric.asp.Web.IntegrationTests/EditorAuthenticationTests.cs` (the cookie is a short key,
 signing in again replaces it, sign-out deletes the row, stamp rotation and account removal revoke).
+Page responses are covered by `PageEndpointTests` and `PageAuthenticationTests`, which assert the
+authenticated `no-store`, the missing validator, the refused unverified `POST` and the sign-in
+round trip back to a guarded page.

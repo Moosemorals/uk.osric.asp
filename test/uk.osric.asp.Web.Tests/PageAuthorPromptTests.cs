@@ -87,6 +87,25 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void TheAuthenticationSectionTeachesTheGuard() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Page authentication"));
+            Assert.That(prompt, Does.Contain("ctx.User is not { } user"));
+            Assert.That(prompt, Does.Contain("ctx.RedirectToLogin()"));
+            Assert.That(prompt, Does.Contain("ctx.AntiforgeryField"));
+            Assert.That(prompt, Does.Contain("public unless the page's own code checks"));
+            Assert.That(prompt, Does.Contain("write a sign-in form"));
+        });
+    }
+
+    [Test]
+    public void ThePrivatePageExampleIsPresent() {
+        Assert.That(PageAuthorPrompt.Examples.Select(example => example.Name), Does.Contain("private-page"));
+    }
+
+    [Test]
     public void PromptVersionIsStableAndPresentInThePrompt() {
         Assert.That(PageAuthorPrompt.Build(), Does.Contain(PageAuthorPrompt.Version));
     }

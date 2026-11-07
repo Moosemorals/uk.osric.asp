@@ -41,6 +41,7 @@ internal sealed class SimpleContext : IContext {
     // picks its own URL.
     private const string PageCategory = "uk.osric.asp.Pages";
 
+    private readonly Func<string>? _antiforgeryFactory;
     private readonly IRenderBoundPageStorage? _boundStorage;
     private readonly Lock _body = new();
     private readonly IPageFetcher _fetcher;
@@ -53,7 +54,6 @@ internal sealed class SimpleContext : IContext {
     private readonly PageRequest _request;
     private readonly IPageStorage _storage;
     private readonly TextWriter _writer;
-    private readonly Func<string>? _antiforgeryFactory;
 
     // Written once, under the body lock, so two reads in one render hand out one token: the token and
     // its cookie are a pair, and minting a second would leave the first unverifiable.
