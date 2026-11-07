@@ -275,11 +275,11 @@ internal sealed class PageToolExecutor(
         StringComparison comparison = Boolean(arguments, "caseSensitive")
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
-        List<object> matches = [.. (await FindMatchesAsync(pages, prefix, query, comparison,
+        (List<object> matches, bool truncated) = await FindMatchesAsync<object>(pages, prefix, query, comparison,
             (head, line, text) => new { path = head.Path.Key, line, text = text[..Math.Min(text.Length, 240)] },
-            cancellationToken)).Select(match => (object)match)];
+            cancellationToken);
 
-        return Success(new { query, matches, truncated = matches.Count == MatchLimit }, $"Found {matches.Count} matches");
+        return Success(new { query, matches, truncated }, $"Found {matches.Count} matches");
     }
 
     private async Task<ToolExecutionResult> ShellAsync(
@@ -320,7 +320,7 @@ internal sealed class PageToolExecutor(
             int queryIndex = command.Arguments[0] == "-i" ? 1 : 0;
             string query = command.Arguments[queryIndex];
             StringComparison comparison = command.Arguments[0] == "-i" ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            List<string> found = await FindMatchesAsync(pages, prefix, query, comparison,
+            (List<string> found, _) = await FindMatchesAsync<string>(pages, prefix, query, comparison,
                 (head, line, text) => $"{head.Path.Key}:{line}: {text}",
                 cancellationToken);
 
@@ -344,8 +344,11 @@ internal sealed class PageToolExecutor(
             "stat" => $"{checkedPath.Path!.Key}\n{target.Template.Length} chars\n{target.Hash}\n{target.SavedAt:O}\n{ImageStatus(target)}",
             _ => "",
         };
-        if (output.Length > options.MaxToolResultChars) {
-            output = output[..options.MaxToolResultChars] + "\n[truncated]";
+        // Half the budget, because the output still has to fit back inside the JSON envelope with
+        // room for escaping; the same rule read_page uses.
+        int budget = options.MaxToolResultChars / 2;
+        if (output.Length > budget) {
+            output = output[..budget] + "\n[truncated]";
         }
         return Success(new { output }, $"{command.Name} {Describe(checkedPath.Path!)}");
     }
@@ -364,8 +367,9 @@ internal sealed class PageToolExecutor(
     }
 
     // Both search_pages and the shell's grep walk the same live pages under the same rules, so the
-    // scan lives here once and the caller decides what a match becomes.
-    private async Task<List<T>> FindMatchesAsync<T>(
+    // scan lives here once and the caller decides what a match becomes. It looks one match past the
+    // limit so the caller can say whether anything was left behind rather than guessing from the count.
+    private async Task<(List<T> Matches, bool Truncated)> FindMatchesAsync<T>(
         PageEditor pages,
         PagePath? prefix,
         string query,
@@ -385,18 +389,18 @@ internal sealed class PageToolExecutor(
             }
 
             string[] lines = ReadLines(page.Template);
-            for (int index = 0; index < lines.Length && matches.Count < MatchLimit; index++) {
-                if (lines[index].Contains(query, comparison)) {
-                    matches.Add(project(head, index + 1, lines[index]));
+            for (int index = 0; index < lines.Length; index++) {
+                if (!lines[index].Contains(query, comparison)) {
+                    continue;
                 }
-            }
-
-            if (matches.Count == MatchLimit) {
-                break;
+                if (matches.Count == MatchLimit) {
+                    return (matches, true);
+                }
+                matches.Add(project(head, index + 1, lines[index]));
             }
         }
 
-        return matches;
+        return (matches, false);
     }
 
     private static string ParametersJson(IReadOnlyList<ToolArgumentSchema> arguments) {

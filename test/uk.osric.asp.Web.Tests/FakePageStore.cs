@@ -20,6 +20,12 @@ internal sealed class FakePageStore : IPageStore {
     /// </summary>
     public Func<PagePath, string, PageTemplate?>? ReplaceOnImageWrite { get; set; }
 
+    /// <summary>
+    /// Lets a test simulate a save that lands between a caller reading a page and its conditional
+    /// write: the replacement is stored, so the write is refused. Runs once.
+    /// </summary>
+    public Func<PagePath, PageTemplate?>? ReplaceOnConditionalSave { get; set; }
+
     public bool DeleteOnImageWrite { get; set; }
 
     public int ReadCount { get; private set; }
@@ -130,6 +136,13 @@ internal sealed class FakePageStore : IPageStore {
         ArgumentNullException.ThrowIfNull(page);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
         Check(cancellationToken);
+
+        if (ReplaceOnConditionalSave?.Invoke(page.Path) is { } raced) {
+            ReplaceOnConditionalSave = null;
+            _pages[page.Path.Key] = raced;
+            _heads[page.Path.Key] = false;
+            _revisions[raced.Hash] = raced;
+        }
 
         if (_heads.GetValueOrDefault(page.Path.Key)
             || !string.Equals(_pages.GetValueOrDefault(page.Path.Key)?.Hash, expectedHash, StringComparison.Ordinal)) {
