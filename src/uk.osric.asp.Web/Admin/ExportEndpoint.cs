@@ -30,6 +30,9 @@ internal sealed class ExportEndpoint {
         PageHeadSummary[] reachable = [.. heads
             .Where(head => IsExportable(head, reserved))
             .OrderBy(head => head.Path.Key, StringComparer.Ordinal)];
+        HashSet<string> seeds = new(PageAssetSeeder.SeedPaths().Select(seed => seed.Key), StringComparer.Ordinal);
+        PageHeadSummary[] ownPages = [.. reachable.Where(head => !seeds.Contains(head.Path.Key))];
+        PageHeadSummary[] seededPages = [.. reachable.Where(head => seeds.Contains(head.Path.Key))];
 
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         SecurityHeaders.AllowScripts(context);
@@ -52,17 +55,12 @@ internal sealed class ExportEndpoint {
                         <button type="button" id="select-all">All</button>
                         <button type="button" id="select-none">None</button>
                     </p>
-                    <ul class="admin-pages" role="list">
                 """);
 
-            for (int index = 0; index < reachable.Length; index++) {
-                string id = "include-" + index.ToString(CultureInfo.InvariantCulture);
-                string key = WebUtility.HtmlEncode(reachable[index].Path.Key);
-                await context.Response.WriteAsync($"""<li><input type="checkbox" id="{id}" name="include" value="{key}" checked><label for="{id}">{key}</label></li>""");
-            }
+            int index = await WriteGroupAsync(context, ownPages, "Live pages", firstIndex: 0);
+            index = await WriteGroupAsync(context, seededPages, "Seeded pages", index);
 
             await context.Response.WriteAsync("""
-                    </ul>
                     <button type="submit">Export selected pages</button>
                 </form>
                 <script type="module" src="/admin.js"></script>
@@ -70,6 +68,26 @@ internal sealed class ExportEndpoint {
         }
 
         await ShellDocument.EndAsync(context);
+    }
+
+    // A group renders under its own heading only when it has pages, so a site without seeds has no
+    // empty heading. The index keeps every checkbox id in the form distinct.
+    private static async Task<int> WriteGroupAsync(HttpContext context, IReadOnlyList<PageHeadSummary> heads, string heading, int firstIndex) {
+        if (heads.Count == 0) {
+            return firstIndex;
+        }
+
+        await context.Response.WriteAsync($"<h2>{heading}</h2><ul class=\"admin-pages\" role=\"list\">");
+        int index = firstIndex;
+        foreach (PageHeadSummary head in heads) {
+            string id = "include-" + index.ToString(CultureInfo.InvariantCulture);
+            string key = WebUtility.HtmlEncode(head.Path.Key);
+            await context.Response.WriteAsync($"""<li><input type="checkbox" id="{id}" name="include" value="{key}" checked><label for="{id}">{key}</label></li>""");
+            index++;
+        }
+
+        await context.Response.WriteAsync("</ul>");
+        return index;
     }
 
     /// <summary>Builds the archive from the ticked pages and writes it as a download.</summary>

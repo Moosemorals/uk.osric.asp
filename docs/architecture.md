@@ -552,9 +552,10 @@ headers; its filename becomes the page path. `/site.css` holds the site's look, 
 rules the document shell's markup needs (see "The document shell"), while `/status.css` holds
 dashboard styles and is linked only by `/status`. Editing a seed file changes the initial content for
 a never-created page, not an existing database page. The authenticated restore action applies the
-bundled source to an existing or tombstoned page as a new revision. `/edit` lists every page, and a
-seeded row carries a restore button that is disabled while the live template matches its seed and
-stays enabled for a deleted seed; a page that already matches its seed is left alone.
+bundled source to an existing or tombstoned page as a new revision. `/edit` lists every page, with the
+seeded ones under their own heading below the owner's; a seeded row carries a restore button that is
+disabled while the live template matches its seed and stays enabled for a deleted seed; a page that
+already matches its seed is left alone.
 
 ## Compiled pages
 

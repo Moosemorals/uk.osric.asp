@@ -34,6 +34,30 @@ public sealed class ExportEndpointTests {
     }
 
     [Test]
+    public async Task TheListGroupsSeededPagesUnderTheirOwnHeadingAsync() {
+        FakePageStore store = NewStore();
+        store["/editor.css"] = new PageTemplate(Key("/editor.css"), "/* a seed */");
+
+        string body = await ListAsync(store);
+
+        int live = body.IndexOf("<h2>Live pages</h2>", StringComparison.Ordinal);
+        int page = body.IndexOf("value=\"/about\"", StringComparison.Ordinal);
+        int seeded = body.IndexOf("<h2>Seeded pages</h2>", StringComparison.Ordinal);
+        int seed = body.IndexOf("value=\"/editor.css\"", StringComparison.Ordinal);
+        Assert.That(live, Is.GreaterThanOrEqualTo(0));
+        Assert.That(page, Is.GreaterThan(live));
+        Assert.That(seeded, Is.GreaterThan(page));
+        Assert.That(seed, Is.GreaterThan(seeded));
+    }
+
+    [Test]
+    public async Task TheListLeavesOutAnEmptySeededHeadingAsync() {
+        string body = await ListAsync(NewStore());
+
+        Assert.That(body, Does.Not.Contain("<h2>Seeded pages</h2>"));
+    }
+
+    [Test]
     public async Task TheListLoadsItsScriptAsAModuleAsync() {
         string body = await ListAsync(NewStore());
 

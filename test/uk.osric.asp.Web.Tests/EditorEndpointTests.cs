@@ -181,6 +181,37 @@ public sealed class EditorEndpointTests {
     }
 
     [Test]
+    public async Task ListingGroupsSeededPagesUnderTheirOwnHeadingAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+        FakePageStore storage = new();
+        storage["/page"] = new PageTemplate(PagePath.Normalize("/page"), "not loaded");
+        storage["/editor.css"] = new PageTemplate(PagePath.Normalize("/editor.css"), "not loaded");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        int live = body.IndexOf("<h2>Live pages</h2>", StringComparison.Ordinal);
+        int page = body.IndexOf("<li><a href=\"/page\">", StringComparison.Ordinal);
+        int seeded = body.IndexOf("<h2>Seeded pages</h2>", StringComparison.Ordinal);
+        int seed = body.IndexOf("<li><a href=\"/editor.css\">", StringComparison.Ordinal);
+        Assert.That(live, Is.GreaterThanOrEqualTo(0));
+        Assert.That(page, Is.GreaterThan(live));
+        Assert.That(seeded, Is.GreaterThan(page));
+        Assert.That(seed, Is.GreaterThan(seeded));
+    }
+
+    [Test]
+    public async Task ListingSaysWhenNeitherLiveNorSeededPagesExistAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<h2>Live pages</h2><p>No live pages.</p>"));
+        Assert.That(body, Does.Contain("<h2>Seeded pages</h2><p>No seeded pages.</p>"));
+    }
+
+    [Test]
     public async Task ListingOffersSeedRestoreDisabledOnlyWhereThePageMatchesAsync() {
         PagePath edited = PagePath.Normalize("/assistant.css");
         PagePath matching = PagePath.Normalize("/editor.css");

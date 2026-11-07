@@ -145,6 +145,8 @@ internal sealed class EditorEndpoint {
         PageHeadSummary[] deleted = [.. heads.Where(head => head.IsDeleted).OrderBy(head => head.Path.Key, StringComparer.Ordinal)];
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         HashSet<string> seeds = new(PageAssetSeeder.SeedPaths().Select(seed => seed.Key), StringComparer.Ordinal);
+        PageHeadSummary[] ownPages = [.. live.Where(head => !seeds.Contains(head.Path.Key))];
+        PageHeadSummary[] seededPages = [.. live.Where(head => seeds.Contains(head.Path.Key))];
 
         await ShellDocument.BeginAsync(context, "Pages");
         await context.Response.WriteAsync("<h1>Pages</h1>");
@@ -162,24 +164,10 @@ internal sealed class EditorEndpoint {
             <h2>Live pages</h2>
             """);
 
-        if (live.Length == 0) {
-            await context.Response.WriteAsync("<p>No live pages.</p>");
-        } else {
-            await context.Response.WriteAsync("<ul class=\"pages\" role=\"list\">");
-            foreach (PageHeadSummary head in live) {
-                if (!await WriteUnavailableAsync(context, head, reserved)) {
-                    continue;
-                }
+        await WriteLivePagesAsync(context, ownPages, "No live pages.", pages, seeds, tokens, reserved);
 
-                string key = KeyOf(head);
-                string editorUrl = WebUtility.HtmlEncode(PageUrls.Editor(head.Path));
-                string historyUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "history"));
-                string deleteUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "delete"));
-                string restore = await RestoreFormAsync(pages, head.Path, seeds, tokens, context.RequestAborted);
-                await context.Response.WriteAsync($"<li><a href=\"{WebUtility.HtmlEncode(PageUrls.Page(head.Path))}\">{key}</a> <a href=\"{editorUrl}\" aria-label=\"Edit {key}\">Edit</a> <a href=\"{historyUrl}\" aria-label=\"History of {key}\">History</a> <a href=\"{deleteUrl}\" aria-label=\"Delete {key}\">Delete</a> {restore}</li>");
-            }
-            await context.Response.WriteAsync("</ul>");
-        }
+        await context.Response.WriteAsync("<h2>Seeded pages</h2>");
+        await WriteLivePagesAsync(context, seededPages, "No seeded pages.", pages, seeds, tokens, reserved);
 
         await context.Response.WriteAsync("<h2>Deleted pages</h2>");
         if (deleted.Length == 0) {
@@ -202,6 +190,37 @@ internal sealed class EditorEndpoint {
         }
 
         await ShellDocument.EndAsync(context);
+    }
+
+    // The owner's pages and the bundled seeds are both live; only the heading and the empty state
+    // differ between them.
+    private static async Task WriteLivePagesAsync(
+        HttpContext context,
+        IReadOnlyList<PageHeadSummary> heads,
+        string empty,
+        PageEditor pages,
+        IReadOnlySet<string> seeds,
+        AntiforgeryTokenSet tokens,
+        ReservedPaths reserved) {
+        if (heads.Count == 0) {
+            await context.Response.WriteAsync($"<p>{empty}</p>");
+            return;
+        }
+
+        await context.Response.WriteAsync("<ul class=\"pages\" role=\"list\">");
+        foreach (PageHeadSummary head in heads) {
+            if (!await WriteUnavailableAsync(context, head, reserved)) {
+                continue;
+            }
+
+            string key = KeyOf(head);
+            string editorUrl = WebUtility.HtmlEncode(PageUrls.Editor(head.Path));
+            string historyUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "history"));
+            string deleteUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "delete"));
+            string restore = await RestoreFormAsync(pages, head.Path, seeds, tokens, context.RequestAborted);
+            await context.Response.WriteAsync($"<li><a href=\"{WebUtility.HtmlEncode(PageUrls.Page(head.Path))}\">{key}</a> <a href=\"{editorUrl}\" aria-label=\"Edit {key}\">Edit</a> <a href=\"{historyUrl}\" aria-label=\"History of {key}\">History</a> <a href=\"{deleteUrl}\" aria-label=\"Delete {key}\">Delete</a> {restore}</li>");
+        }
+        await context.Response.WriteAsync("</ul>");
     }
 
     // A key the site's routes already answer for is not a page the editor can offer, and both the
