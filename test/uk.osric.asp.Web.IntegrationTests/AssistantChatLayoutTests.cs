@@ -72,6 +72,31 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
         Assert.That(response.Groups["text"].Value, Does.Contain("&quot;ok&quot;"));
     }
 
+    [Test]
+    public async Task AToolOnlyStepLeavesNoBlankAssistantRowAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        string conversation = await CreateConversationAsync(client);
+
+        string messageToken = await GetAntiforgeryTokenAsync(client, conversation);
+        using HttpResponseMessage started = await client.PostAsync(conversation + "/messages", Form(
+            ("__RequestVerificationToken", messageToken),
+            ("content", "Look at a page")));
+        Assert.That(started.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+        using JsonDocument run = JsonDocument.Parse(await started.Content.ReadAsStringAsync());
+        string runId = run.RootElement.GetProperty("runId").GetString()!;
+
+        using HttpResponseMessage events = await client.GetAsync(
+            $"{conversation}/events?run={Uri.EscapeDataString(runId)}&after=0");
+        await events.Content.ReadAsStringAsync();
+
+        using HttpResponseMessage reloaded = await client.GetAsync(conversation);
+        string body = await reloaded.Content.ReadAsStringAsync();
+
+        Assert.That(body, Does.Contain("I read the page."));
+        Assert.That(body, Does.Not.Contain("<article class=\"assistant-message\"><h2 class=\"visually-hidden\">Assistant</h2></article>"),
+            "a step that only calls a tool must not render an empty assistant row");
+    }
+
     private static async Task<string> CreateConversationAsync(HttpClient client) {
         string token = await GetAntiforgeryTokenAsync(client, "/assistant");
         using HttpResponseMessage created = await client.PostAsync("/assistant", Form(("__RequestVerificationToken", token)));
@@ -80,20 +105,16 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
     }
 
     private sealed class ToolCallingClient(string arguments) : IChatCompletionClient {
-        private readonly IReadOnlyList<ChatStreamEvent>[] _responses = [
-            [
-                new ToolCallDelta(0, "layout-call", "read_page", arguments),
-                new Finished("tool_calls"),
-            ],
-            [new ContentDelta("I read the page."), new Finished("stop")],
-        ];
         private int _request;
 
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
             ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
-            int index = Interlocked.Increment(ref _request) - 1;
-            foreach (ChatStreamEvent @event in _responses[index]) {
+            // The fixture's host is shared, so requests alternate tool call, answer, tool call, answer.
+            IReadOnlyList<ChatStreamEvent> events = Interlocked.Increment(ref _request) % 2 == 1
+                ? [new ToolCallDelta(0, "layout-call", "read_page", arguments), new Finished("tool_calls")]
+                : [new ContentDelta("I read the page."), new Finished("stop")];
+            foreach (ChatStreamEvent @event in events) {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return @event;
                 await Task.Yield();

@@ -74,9 +74,17 @@ if (root) {
         const content = document.createElement('pre');
         content.className = 'assistant-content';
         article.append(heading, reasoning, content);
-        transcript.append(article);
-        messages.set(step, { article, reasoning, reasoningBody, content });
+        // A step can start and then only call tools; it stays out of the transcript until it has text.
+        messages.set(step, { article, reasoning, reasoningBody, content, attached: false });
         return messages.get(step);
+    }
+
+    function attachMessage(message) {
+        if (!message.attached) {
+            message.attached = true;
+            transcript.append(message.article);
+        }
+        return message;
     }
 
     function element(tag, className, text) {
@@ -187,16 +195,22 @@ if (root) {
         });
         source.addEventListener('reasoning.delta', event => {
             const data = JSON.parse(event.data);
-            const message = messages.get(data.step) ?? beginMessage(data.step);
+            if (!data.text) {
+                return;
+            }
             const wasNear = nearBottom();
+            const message = attachMessage(messages.get(data.step) ?? beginMessage(data.step));
             message.reasoningBody.textContent += data.text;
             keepNearBottom(wasNear);
             reconnectFailures = 0;
         });
         source.addEventListener('content.delta', event => {
             const data = JSON.parse(event.data);
-            const message = messages.get(data.step) ?? beginMessage(data.step);
+            if (!data.text) {
+                return;
+            }
             const wasNear = nearBottom();
+            const message = attachMessage(messages.get(data.step) ?? beginMessage(data.step));
             message.content.textContent += data.text;
             keepNearBottom(wasNear);
             reconnectFailures = 0;

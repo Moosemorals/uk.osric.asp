@@ -519,6 +519,11 @@ internal static class AssistantEndpoint {
             return;
         }
         if (message.Role == "assistant") {
+            // A step that only calls tools has nothing to show, but its message row still carries
+            // the call arguments the tool details need.
+            if (string.IsNullOrEmpty(message.Content) && string.IsNullOrEmpty(message.Reasoning) && message.Status == "complete") {
+                return;
+            }
             await context.Response.WriteAsync("<article class=\"assistant-message\"><h2 class=\"visually-hidden\">Assistant</h2>");
             if (!string.IsNullOrEmpty(message.Reasoning)) {
                 await context.Response.WriteAsync($"<details class=\"assistant-reasoning\"><summary>Thinking</summary><pre>{Encode(message.Reasoning)}</pre></details>");

@@ -85,6 +85,21 @@ internal sealed class AssistantChatTests : BrowserTest {
         await Assertions.Expect(Page.Locator("#assistant-transcript")).ToContainTextAsync("This answer was stopped.", new() { Timeout = 30_000 });
     }
 
+    [Test]
+    public async Task AToolOnlyStepLeavesNoBlankRowWhileTheAnswerStreamsAsync() {
+        await NewConversationAsync();
+        Provider.Script(
+            StubResponse.Tool("blank-row-call", "read_page", """{"path":"/"}"""),
+            new StubResponse { Delay = TimeSpan.FromSeconds(3), Chunks = StubResponse.Words("I read the page.", TimeSpan.Zero).Chunks });
+
+        await SendAsync("Read the home page");
+        await Assertions.Expect(Page.Locator("details.assistant-tool")).ToBeVisibleAsync(new() { Timeout = 30_000 });
+
+        int blankRows = await Page.Locator("article.assistant-message:not(.user-message)").EvaluateAllAsync<int>(
+            "nodes => nodes.filter(node => !Array.from(node.querySelectorAll('pre')).some(pre => pre.textContent.trim())).length");
+        Assert.That(blankRows, Is.Zero, "a step that only calls a tool must not add a blank row");
+    }
+
     /// <summary>Opens a new conversation and returns its id.</summary>
     private async Task<long> NewConversationAsync() {
         await Page.GotoAsync("assistant");
