@@ -64,7 +64,8 @@ self-contained comes first, because these are the ones that never get scheduled 
 5. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
 6. **IDEA-011, page authentication** — a page can opt into the existing sign-in, still with one
    actual user and no roles. It is the hook that makes private pages and, later, per-user state
-   possible. It changes DEC-02, so it needs its own plan.
+   possible. It changes DEC-02; [its plan](../plans/page-authentication.md) is written and waiting
+   to be worked.
 7. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
    and a rule, once there is something worth being woken for.
 8. **SEC-03** — the process boundary, only if page authors ever stop being the owner.

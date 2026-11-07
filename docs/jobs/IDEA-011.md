@@ -11,6 +11,13 @@ SPDX-License-Identifier: MIT
 | Area | Web, Sdk, security, product |
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Pages/PageEndpoint.cs`, `src/uk.osric.asp.Web/Authentication/` |
 
+**Plan:** [Page authentication](../plans/page-authentication.md). The plan chooses the imperative
+guard — `ctx.User` plus `ctx.RedirectToLogin()` — over the directive or metadata column this sketch
+recommends, because the host cannot enforce a page's privacy without first running it and a flag adds
+a parser/schema/editor/assistant surface for the same two statements. The rest of the sketch stands:
+one local-account model, a validated local return target, CSRF on private-page `POST`s, and no roles
+or per-user storage.
+
 ## Idea
 
 [DEC-02](../decisions.md#page-contract-and-threat-model) makes every page public; only the editor
@@ -43,9 +50,10 @@ private page possible now and per-user state possible later.
      change, but the page runs before the check, so an anonymous request executes page code and only
      then redirects; it is also easy to forget.
 
-   Recommendation: the declarative template directive or the metadata column. Prefer the directive
-   unless the editor needs to show or filter private pages, in which case the column earns its
-   keep.
+   Recommendation: **superseded by [the plan](../plans/page-authentication.md)**, which chooses the
+   context call. The worry that the page runs before the check is smaller than it looks: the guard is
+   the first author statement, and the body is buffered, so a redirect discards anything written
+   before it. No parser, schema, editor control or agent-tool concept is needed.
 
 2. **Enforcement.** For an anonymous request to a protected page:
 
@@ -70,23 +78,28 @@ private page possible now and per-user state possible later.
      auth-required pages. Page forms include it; the host validates it.
    - Leave it to the page author with a documented helper. Smaller, but unsafe by default.
 
-   Recommendation: the host validates the token on `POST`s to auth-required pages and exposes the
-   field through `IContext`, because "opt into authentication" should not quietly opt out of CSRF.
+   Recommendation: the host validates the token and exposes the field through `IContext`, because
+   "opt into authentication" should not quietly opt out of CSRF. Because the host does not know a
+   page is private until it runs, [the plan](../plans/page-authentication.md) checks every `POST`
+   whose principal is authenticated, not a page flag that does not exist.
 
-5. **Return target.** The login redirect must preserve the query and fragment, and `returnUrl` must
-   be validated to a local target (the existing `LocalRedirect`/return-target code) so a protected
-   page cannot become an open redirect.
+5. **Return target.** The login redirect must preserve the query and `returnUrl` must be validated to
+   a local target (the existing `LocalRedirect`/return-target code) so a protected page cannot become
+   an open redirect. The fragment cannot be preserved: the browser never sends `#...` to the server.
+   [The plan](../plans/page-authentication.md) records that correction and preserves the raw query
+   rather than `ctx.Request.Query`, which collapses repeated names.
 
-6. **Logout.** `/logout` already exists; the page links to it. No new endpoint.
+6. **Logout.** `/logout` already exists, but it is `POST`-only and validates antiforgery. The page
+   posts a small form carrying `ctx.AntiforgeryField`; a bare link would fail. No new endpoint.
 
-7. **Storage stays as it is.** [IDEA-003](IDEA-003.md) is page-scoped and shared; authentication does
-   not change that. Per-user keys are a later extension — `PagePath, UserName, Key`, or a separate
-   table — and need their own migration and a decision about what happens to shared keys. Not this
-   idea.
+7. **Storage stays as it is.** [Page storage](../plans/archive/page-fetch-and-storage.md) is
+   page-scoped and shared; authentication does not change that. Per-user keys are a later
+   extension — `PagePath, UserName, Key`, or a separate table — and need their own migration and a
+   decision about what happens to shared keys. Not this idea.
 
-8. **Compilation and policy.** The opt-in is metadata; it grants page code nothing. `IContext.User`
-   is an SDK type, so the page policy already allows it. No `System.Security` or ASP.NET types reach
-   page code; only the plain value.
+8. **Compilation and policy.** The opt-in is ordinary page code; it grants the page nothing it did
+   not already have. `IContext.User` is an SDK type, so the page policy already allows it. No
+   `System.Security` or ASP.NET types reach page code; only the plain value.
 
 9. **Tests.** An anonymous `GET` to a protected page redirects with a validated `returnUrl`; a
    signed-in `GET` renders and sees the name; an unprotected page stays public; a protected `POST`
