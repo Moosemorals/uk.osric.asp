@@ -1,0 +1,63 @@
+/* <% ctx.SetContentType("text/css; charset=utf-8"); ctx.SetHeader("Cache-Control", "no-cache"); %> */
+/* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
+/* SPDX-License-Identifier: MIT */
+
+.admin-pages {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.admin-pages li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+/* The key is the row's identity, so it takes the space and the tag sits at the end. */
+.admin-pages label {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.admin-pages .tag {
+    margin-left: auto;
+    padding: 0 0.4rem;
+    border: 1px solid #ccc;
+    font-size: 0.85rem;
+    color: #444;
+    white-space: nowrap;
+}
+
+.admin-pages .size {
+    font-size: 0.85rem;
+    color: #595959;
+    white-space: nowrap;
+}
+
+.admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+}
+
+/* The drop zone is decoration around a real file input: without a script it is the input alone. */
+.dropzone {
+    padding: 1rem;
+    border: 2px dashed #bbb;
+    text-align: center;
+}
+
+.dropzone.is-dragging {
+    border-color: #005ea5;
+    background: #eef4fa;
+}
+
+.drop-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.9rem;
+    color: #595959;
+}

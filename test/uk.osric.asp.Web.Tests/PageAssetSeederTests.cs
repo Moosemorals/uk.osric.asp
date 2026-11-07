@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/layout.css", "/rocket.svg", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/layout.css", "/rocket.svg", "/site.css", "/status.css"];
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {

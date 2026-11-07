@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using System.Net;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
@@ -269,6 +270,12 @@ internal class Program {
         app.MapGet("/edit/{**path}", EditorEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/edit/{**path}", EditorEndpoint.HandleAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+
+        app.MapGet("/admin/export", ExportEndpoint.ListAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/admin/export", ExportEndpoint.DownloadAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 

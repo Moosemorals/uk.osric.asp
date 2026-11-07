@@ -148,6 +148,10 @@ internal sealed class EditorEndpoint {
         await ShellDocument.BeginAsync(context, "Pages");
         await context.Response.WriteAsync("<h1>Pages</h1>");
         await WriteMessageAsync(context);
+        await context.Response.WriteAsync(PageLayout.Nav("Page administration", [
+            new("/admin/import", "Import pages"),
+            new("/admin/export", "Export pages"),
+        ], "editor-menu"));
         await context.Response.WriteAsync($"""
             <form method="post" action="/edit?cmd=new" class="form">
                 {AntiforgeryField.Hidden(tokens)}
