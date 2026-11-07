@@ -14,6 +14,11 @@ internal static class ShellDocument {
     /// <param name="statusCode">The response status.</param>
     /// <param name="stylesheet">A sheet the view needs, after <c>/layout.css</c> and <c>/site.css</c>.</param>
     /// <param name="bodyClass">A class for <c>body</c>, when the view styles the document box.</param>
+    /// <param name="head">
+    /// Raw markup written into <c>head</c> after the stylesheets, for a document that describes
+    /// itself — a progress page's refresh is the only user. It is the caller's markup, not a value
+    /// from a request, so nothing here needs encoding.
+    /// </param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <remarks>
     /// One place owns the document, so a view cannot forget the landmark, and <c>#main</c> always
@@ -29,6 +34,7 @@ internal static class ShellDocument {
         int statusCode = StatusCodes.Status200OK,
         string? stylesheet = null,
         string? bodyClass = null,
+        string? head = null,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(title);
@@ -52,6 +58,7 @@ internal static class ShellDocument {
                 <link rel="stylesheet" href="/site.css">
                 {(stylesheet is null ? "" : $"<link rel=\"stylesheet\" href=\"{WebUtility.HtmlEncode(stylesheet)}\">")}
                 <link rel="icon" href="/rocket.svg" type="image/svg+xml">
+                {head}
             </head>
             <body{(bodyClass is null ? "" : $" class=\"{WebUtility.HtmlEncode(bodyClass)}\"")}>
             <main id="main">

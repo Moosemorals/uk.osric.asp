@@ -69,6 +69,18 @@ internal sealed class PageMetrics : IDisposable {
     public const string ReasonSave = "save";
     public const string ReasonLazy = "lazy";
 
+    /// <summary>The page was compiled as part of an import batch.</summary>
+    public const string ReasonImport = "import";
+
+    /// <summary>Every selected page of the batch was stored.</summary>
+    public const string ImportCommitted = "committed";
+
+    /// <summary>The batch was refused or its write failed; nothing was stored.</summary>
+    public const string ImportFailed = "failed";
+
+    /// <summary>The batch stopped before it wrote anything.</summary>
+    public const string ImportAborted = "aborted";
+
     /// <summary>The fetch completed with a 2xx.</summary>
     public const string FetchOk = "ok";
 
@@ -112,6 +124,7 @@ internal sealed class PageMetrics : IDisposable {
     private readonly Counter<long> _staleness;
     private readonly Histogram<long> _imageSize;
     private readonly Histogram<double> _fetchDuration;
+    private readonly Histogram<double> _importDuration;
     private StorageSizes? _storage;
 
     public PageMetrics() {
@@ -139,6 +152,8 @@ internal sealed class PageMetrics : IDisposable {
             "page.image.size", "By", "Size of an emitted page assembly.");
         _fetchDuration = _meter.CreateHistogram<double>(
             "page.fetch.duration", "s", "Time one outbound fetch took, including its redirects.");
+        _importDuration = _meter.CreateHistogram<double>(
+            "page.import.duration", "s", "Time to compile and commit one imported archive.");
         _meter.CreateObservableGauge<long>("page.storage.payload.size",
             () => ObserveStorage(value => value.Payload), "By",
             "Logical PageRevisions TEXT bytes and image/symbol blob bytes, plus PageState key and value bytes; excludes indexes and SQLite overhead.");
@@ -250,6 +265,19 @@ internal sealed class PageMetrics : IDisposable {
         };
 
         _fetchDuration.Record(duration.TotalSeconds, tags);
+    }
+
+    /// <summary>Records one import batch.</summary>
+    /// <param name="outcome">One of <see cref="ImportCommitted"/>, <see cref="ImportFailed"/> or <see cref="ImportAborted"/>.</param>
+    /// <param name="duration">How long compiling and committing the batch took.</param>
+    /// <remarks>
+    /// The batch is one operation, so this carries no per-page timing: it is the archive's work as
+    /// a whole that an operator watches.
+    /// </remarks>
+    public void RecordImport(string outcome, TimeSpan duration) {
+        TagList tags = new() { { "outcome", outcome } };
+
+        _importDuration.Record(duration.TotalSeconds, tags);
     }
 
     public void RecordImageSize(PagePath path, int bytes) {

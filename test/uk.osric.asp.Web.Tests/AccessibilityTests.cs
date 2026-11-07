@@ -293,7 +293,8 @@ public sealed class AccessibilityTests {
     private static bool KeepsItsSemanticsDespiteTheSheet(MarkupElement element) =>
         element.Name == "ul"
         && element.Attribute("role") == "list"
-        && (element.HasClass("diagnostics") || element.HasClass("chart-legend") || element.HasClass("pages"));
+        && (element.HasClass("diagnostics") || element.HasClass("chart-legend")
+            || element.HasClass("pages") || element.HasClass("admin-pages"));
 
     private static bool IsFocusable(MarkupElement element) => element.Name switch {
         "a" => element.HasAttribute("href"),

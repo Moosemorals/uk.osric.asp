@@ -186,6 +186,164 @@ internal sealed class ImportEndpoint {
         await ShellDocument.EndAsync(context);
     }
 
+    /// <summary>Approves the ticked pages and hands the batch to the worker.</summary>
+    /// <param name="context">The request being answered.</param>
+    /// <param name="stages">The staged archives.</param>
+    /// <param name="queue">The import queue.</param>
+    /// <param name="reserved">The keys the site's own routes answer for.</param>
+    public static async Task ApproveAsync(HttpContext context, ImportStageStore stages, ImportQueue queue, ReservedPaths reserved) {
+        ImportStage? stage = stages.Get(RouteId(context));
+        if (stage is null) {
+            await WriteExpiredAsync(context);
+            return;
+        }
+
+        if (stage.IsRunning) {
+            await WriteAlreadyRunningAsync(context, stage.Id);
+            return;
+        }
+
+        if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
+            await WriteBadSelectionAsync(context, stage.Id, "The form could not be verified.");
+            return;
+        }
+
+        if (!context.Request.HasFormContentType) {
+            await WriteBadSelectionAsync(context, stage.Id, "The approval carried no form.");
+            return;
+        }
+
+        IFormCollection form;
+        try {
+            form = await context.Request.ReadFormAsync(context.RequestAborted);
+        } catch (InvalidDataException) {
+            await WriteBadSelectionAsync(context, stage.Id, "The approval form could not be read.");
+            return;
+        }
+
+        HashSet<string> offered = new(stage.Pages.Select(page => page.Path.Key), StringComparer.Ordinal);
+        List<PagePath> selected = [];
+        foreach (string? value in form[IncludeField]) {
+            if (value is null || !offered.Contains(value)) {
+                // The review offered a fixed set; a value from outside it is a stale or crafted form.
+                await WriteBadSelectionAsync(context, stage.Id, "The approval named a page the review did not offer.");
+                return;
+            }
+
+            PagePath path = PagePath.Normalize(value);
+            if (!path.IsAddressable || reserved.IsReserved(path)) {
+                await WriteBadSelectionAsync(context, stage.Id, $"{MessageText.Sanitize(path.Key)} cannot be imported.");
+                return;
+            }
+
+            selected.Add(path);
+        }
+
+        if (selected.Count == 0) {
+            await WriteBadSelectionAsync(context, stage.Id, "Nothing was ticked, so nothing was imported.");
+            return;
+        }
+
+        if (!queue.TryReserve()) {
+            await WriteQueueFullAsync(context, stage.Id);
+            return;
+        }
+
+        if (!stage.TryApprove([.. selected.OrderBy(path => path.Key, StringComparer.Ordinal)])) {
+            queue.ReleaseReservation();
+            await WriteAlreadyRunningAsync(context, stage.Id);
+            return;
+        }
+
+        if (!queue.TryEnqueueReserved(stage.Id)) {
+            queue.ReleaseReservation();
+            stage.Unqueue();
+            await WriteQueueFullAsync(context, stage.Id);
+            return;
+        }
+
+        Redirect.SeeOther(context, ProgressUrl(stage.Id));
+    }
+
+    /// <summary>Renders the batch's progress and results, refreshing while it runs.</summary>
+    /// <param name="context">The request being answered.</param>
+    /// <param name="stages">The staged archives.</param>
+    public static async Task ProgressAsync(HttpContext context, ImportStageStore stages) {
+        ImportStage? stage = stages.Get(RouteId(context));
+        if (stage is null) {
+            await WriteExpiredAsync(context);
+            return;
+        }
+
+        ImportStageSnapshot snapshot = stage.Snapshot();
+        bool running = snapshot.Status is ImportBatchStatus.Queued or ImportBatchStatus.Compiling or ImportBatchStatus.Saving;
+
+        await ShellDocument.BeginAsync(
+            context,
+            "Import progress",
+            stylesheet: "/admin.css",
+            head: running ? """<meta http-equiv="refresh" content="2">""" : null);
+        await context.Response.WriteAsync("<h1>Import progress</h1>");
+        await context.Response.WriteAsync(AdminNavigation.Nav("import"));
+        await context.Response.WriteAsync($"<p id=\"import-status\">{WebUtility.HtmlEncode(Summary(snapshot))}</p>");
+
+        if (snapshot.Results.Count > 0) {
+            await context.Response.WriteAsync("<ul class=\"admin-pages\" role=\"list\">");
+            foreach (ImportPageResult result in snapshot.Results) {
+                string key = WebUtility.HtmlEncode(result.Path.Key);
+                string editor = WebUtility.HtmlEncode(PageUrls.Editor(result.Path));
+                await context.Response.WriteAsync($"""
+                    <li><a href="{editor}">{key}</a> <span class="tag">{WebUtility.HtmlEncode(Describe(result.Status))}</span></li>
+                    """);
+
+                if (result.Diagnostics.Count > 0) {
+                    await context.Response.WriteAsync(PageLayout.Diagnostics(DiagnosticLine.From(result.Diagnostics)));
+                }
+            }
+            await context.Response.WriteAsync("</ul>");
+        }
+
+        if (snapshot.Refused.Count > 0) {
+            await context.Response.WriteAsync("<p>The pages that would not fit:</p><ul>");
+            foreach (PagePath path in snapshot.Refused) {
+                await context.Response.WriteAsync($"<li>{WebUtility.HtmlEncode(path.Key)}</li>");
+            }
+            await context.Response.WriteAsync("</ul>");
+        }
+
+        if (running) {
+            await context.Response.WriteAsync($"""<p><a href="{WebUtility.HtmlEncode(ProgressUrl(stage.Id))}">Refresh now</a></p>""");
+        } else {
+            await context.Response.WriteAsync($"""
+                <p>
+                    <a href="/edit">Page list</a>
+                    <a href="{WebUtility.HtmlEncode(ReviewUrl(stage.Id))}">Back to the review</a>
+                    <a href="/admin/export">Export pages</a>
+                    <a href="/admin/import">Import another archive</a>
+                </p>
+                """);
+        }
+
+        await ShellDocument.EndAsync(context);
+    }
+
+    private static string Summary(ImportStageSnapshot snapshot) => snapshot.Status switch {
+        ImportBatchStatus.Reviewing => "This archive has not been approved for import.",
+        ImportBatchStatus.Queued => "Waiting to start…",
+        ImportBatchStatus.Compiling => $"Compiling {snapshot.Results.Count(result => result.Status != ImportPageStatus.Waiting).ToString(CultureInfo.InvariantCulture)} of {DescribeCount(snapshot.Results.Count, "page")}…",
+        ImportBatchStatus.Saving => $"Saving {DescribeCount(snapshot.Selected.Count, "page")}…",
+        ImportBatchStatus.Committed => snapshot.Message ?? "Every selected page was saved.",
+        _ => snapshot.Message ?? "The import failed, so none of the selected pages changed.",
+    };
+
+    private static string Describe(ImportPageStatus status) => status switch {
+        ImportPageStatus.Compiled => "compiled",
+        ImportPageStatus.CompiledWithWarnings => "compiled with warnings",
+        ImportPageStatus.CompiledWithErrors => "compiled with errors",
+        ImportPageStatus.CompilerFault => "compiled with a compiler fault",
+        _ => "not compiled",
+    };
+
     private static string Tag(PageHeadSummary? head) => head switch {
         null => "new",
         { IsDeleted: true } => "restore",
@@ -230,8 +388,13 @@ internal sealed class ImportEndpoint {
 
     private static string ReviewUrl(string id) => "/admin/import/" + Uri.EscapeDataString(id);
 
+    private static string ProgressUrl(string id) => ReviewUrl(id) + "/progress";
+
     private static IReadOnlyList<NavLink> ImportRemedies() =>
         [new("/admin/import", "Import pages"), new("/admin/export", "Export pages"), new("/edit", "Page list")];
+
+    private static IReadOnlyList<NavLink> ReviewRemedies(string id) =>
+        [new(ReviewUrl(id), "Back to the review"), new("/admin/import", "Import pages"), new("/edit", "Page list")];
 
     private static Task WriteExpiredAsync(HttpContext context) =>
         ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, new ErrorMessage(
@@ -247,6 +410,30 @@ internal sealed class ImportEndpoint {
             "That archive is too large",
             $"An archive may be at most {DescribeSize(options.MaxUploadBytes)}. Nothing was staged.",
             ImportRemedies()),
+            context.RequestAborted);
+
+    private static Task WriteBadSelectionAsync(HttpContext context, string id, string summary) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            "import.bad_selection",
+            "That approval could not be used",
+            summary + " Nothing was imported.",
+            ReviewRemedies(id)),
+            context.RequestAborted);
+
+    private static Task WriteAlreadyRunningAsync(HttpContext context, string id) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status409Conflict, new ErrorMessage(
+            "import.running",
+            "That import is already running",
+            "This archive has already been approved and is being imported. Its progress page shows how it is getting on.",
+            [new(ProgressUrl(id), "Import progress"), new("/edit", "Page list")]),
+            context.RequestAborted);
+
+    private static Task WriteQueueFullAsync(HttpContext context, string id) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status409Conflict, new ErrorMessage(
+            "import.queue_full",
+            "Too many imports are waiting",
+            "This site runs one import at a time and the queue is full. Wait for the running import to finish, then try again.",
+            [new(ReviewUrl(id), "Back to the review"), new("/edit", "Page list")]),
             context.RequestAborted);
 
     private static Task WriteErrorAsync(HttpContext context, int statusCode, ErrorMessage message) =>

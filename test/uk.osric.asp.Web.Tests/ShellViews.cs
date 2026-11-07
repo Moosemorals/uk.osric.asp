@@ -12,6 +12,7 @@ using System.Security.Claims;
 using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
@@ -50,6 +51,11 @@ internal static class ShellViews {
         "assistant-chat",
         "assistant-chat-reasoning",
         "assistant-delete",
+        "admin-export",
+        "admin-import",
+        "admin-import-failed",
+        "admin-import-review",
+        "admin-import-progress",
     ];
 
     /// <summary>Renders one of <see cref="Names"/>.</summary>
@@ -72,6 +78,11 @@ internal static class ShellViews {
         "assistant-chat" => RenderAsync(name, () => AssistantChatAsync(withReasoning: false)),
         "assistant-chat-reasoning" => RenderAsync(name, () => AssistantChatAsync(withReasoning: true)),
         "assistant-delete" => RenderAsync(name, AssistantDeleteAsync),
+        "admin-export" => RenderAsync(name, AdminExportAsync),
+        "admin-import" => RenderAsync(name, AdminImportAsync),
+        "admin-import-failed" => RenderAsync(name, AdminImportFailedAsync),
+        "admin-import-review" => RenderAsync(name, AdminImportReviewAsync),
+        "admin-import-progress" => RenderAsync(name, AdminImportProgressAsync),
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, "No such shell view."),
     };
 
@@ -233,6 +244,70 @@ internal static class ShellViews {
     private static async Task<string> AssistantDeleteAsync() {
         DefaultHttpContext context = AuthenticatedContext("/assistant/1/delete");
         await AssistantEndpoint.DeleteConfirmationAsync(context, 1, new ShellConversationStore(), new TestAntiforgery());
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AdminExportAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin/export");
+        FakePageStore store = new() {
+            ["/page"] = new PageTemplate(PageHarness.Key("/page"), Source),
+            ["/notes"] = new PageTemplate(PageHarness.Key("/notes"), Source),
+        };
+
+        await ExportEndpoint.ListAsync(context, store, Reserved, new TestAntiforgery());
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AdminImportAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin/import");
+
+        await ImportEndpoint.UploadFormAsync(context, new TestAntiforgery(), new ArchiveOptions());
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AdminImportFailedAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin/import");
+        context.Request.Method = "POST";
+        context.Request.ContentType = "multipart/form-data";
+
+        FormFileCollection files = [new FormFile(new MemoryStream("not a database"u8.ToArray()), 0, 15, "archive", "pages.sqlite")];
+        Dictionary<string, StringValues> noFields = new(StringComparer.Ordinal);
+        context.Request.Form = new FormCollection(noFields, files);
+
+        await ImportEndpoint.UploadAsync(
+            context,
+            new PageArchiveReader(new ArchiveOptions(), new PageStorageOptions(), Reserved),
+            new ImportStageStore(new ArchiveOptions(), new TestClock()),
+            new ArchiveOptions());
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AdminImportReviewAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin/import/0123456789abcdef0123456789abcdef");
+        context.Request.RouteValues["id"] = "0123456789abcdef0123456789abcdef";
+        ImportStageStore stages = new(new ArchiveOptions(), new TestClock());
+        stages.Create([
+            new PageArchiveEntry(PageHarness.Key("/page"), Source, [new("visits", "1")]),
+            new PageArchiveEntry(PageHarness.Key("/notes"), Source, []),
+        ]);
+
+        await ImportEndpoint.ReviewAsync(context, stages, new FakePageStore(), new TestAntiforgery());
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AdminImportProgressAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin/import/0123456789abcdef0123456789abcdef/progress");
+        context.Request.RouteValues["id"] = "0123456789abcdef0123456789abcdef";
+        ImportStageStore stages = new(new ArchiveOptions(), new TestClock());
+        ImportStage stage = stages.Create([new PageArchiveEntry(PageHarness.Key("/page"), Source, [])]);
+        stage.TryApprove([PageHarness.Key("/page")]);
+
+        await ImportEndpoint.ProgressAsync(context, stages);
+
         return await TestHttp.ReadBodyAsync(context);
     }
 

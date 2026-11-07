@@ -132,8 +132,12 @@ internal class Program {
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         builder.Services.AddScoped<IPageStore, SqlitePageStore>();
+        builder.Services.AddScoped<IPageBatchStore, SqlitePageBatchStore>();
         builder.Services.AddScoped<PageArchiveReader>();
+        builder.Services.AddScoped<ImportProcessor>();
         builder.Services.AddSingleton<ImportStageStore>();
+        builder.Services.AddSingleton<ImportQueue>();
+        builder.Services.AddHostedService<ImportWorker>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
         builder.Services.AddScoped<PageEditor>();
         builder.Services.AddScoped<PageRenderer>();
@@ -192,6 +196,7 @@ internal class Program {
             .AddView("page.load.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.invoke.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.import.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.fetch.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.image.size", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.ImageBuckets })
             .AddView("assistant.run.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
@@ -299,6 +304,11 @@ internal class Program {
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         app.MapGet("/admin/import/{id}", ImportEndpoint.ReviewAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/admin/import/{id}", ImportEndpoint.ApproveAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/admin/import/{id}/progress", ImportEndpoint.ProgressAsync)
             .RequireAuthorization(EditorPolicy.Name);
 
         app.MapGet("/login", LoginEndpoint.GetAsync).AllowAnonymous();
