@@ -30,6 +30,9 @@ public abstract class IntegrationTest {
     /// <summary>The database the host owns, so a fixture can prove it never touched a real one.</summary>
     protected string DatabasePath => _application.DatabasePath;
 
+    /// <summary>What the host logged, so a fixture can prove a line says what it has to say.</summary>
+    protected LogCapture Logs => _application.Logs;
+
     [OneTimeSetUp]
     public async Task StartApplicationAsync() {
         _application = CreateApplication();

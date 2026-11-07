@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
@@ -57,7 +58,7 @@ internal sealed class DatabaseTemplate : IDisposable {
         string path,
         string template = "Hello.") {
         await using StorageDbContext database = new(options);
-        await new SqlitePageStore(database).SavePageAsync(new PageTemplate(PagePath.Normalize(path), template));
+        await new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance).SavePageAsync(new PageTemplate(PagePath.Normalize(path), template));
     }
 
     /// <summary>Deletes a database file and the sidecars SQLite writes beside it.</summary>

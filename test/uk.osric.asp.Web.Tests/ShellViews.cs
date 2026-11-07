@@ -110,7 +110,8 @@ internal static class ShellViews {
             new FakeUserStore(),
             new FakePasswordService(),
             new TestAntiforgery(),
-            new RecordingAuthenticationService());
+            new RecordingAuthenticationService(),
+            new RecordingLoggerFactory());
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -278,9 +279,10 @@ internal static class ShellViews {
 
         await ImportEndpoint.UploadAsync(
             context,
-            new PageArchiveReader(new ArchiveOptions(), new PageStorageOptions(), Reserved),
+            new PageArchiveReader(new ArchiveOptions(), new PageStorageOptions(), Reserved, NullLogger<PageArchiveReader>.Instance),
             new ImportStageStore(new ArchiveOptions(), new TestClock()),
-            new ArchiveOptions());
+            new ArchiveOptions(),
+            NullLoggerFactory.Instance);
 
         return await TestHttp.ReadBodyAsync(context);
     }

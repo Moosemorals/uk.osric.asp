@@ -23,14 +23,18 @@ internal sealed class PrometheusSource : IMetricsSource {
     private static readonly string[] LabelKeys = ["page_path", "outcome", "result", "reason", "http_response_status_code", "le"];
 
     private readonly HttpClient _http;
+    private readonly ILogger<PrometheusSource> _logger;
     private readonly TimeSpan _queryTimeout;
 
     /// <summary>Creates a source over a client whose base address is the Prometheus origin.</summary>
     /// <param name="http">The client to send queries with.</param>
+    /// <param name="logger">Records what a failed query actually failed with.</param>
     /// <param name="queryTimeout">The per-query deadline; two seconds unless a test says otherwise.</param>
-    public PrometheusSource(HttpClient http, TimeSpan? queryTimeout = null) {
+    public PrometheusSource(HttpClient http, ILogger<PrometheusSource> logger, TimeSpan? queryTimeout = null) {
         ArgumentNullException.ThrowIfNull(http);
+        ArgumentNullException.ThrowIfNull(logger);
         _http = http;
+        _logger = logger;
         _queryTimeout = queryTimeout ?? DefaultQueryTimeout;
     }
 
@@ -64,13 +68,21 @@ internal sealed class PrometheusSource : IMetricsSource {
 
             PrometheusResponse? payload = await response.Content.ReadFromJsonAsync<PrometheusResponse>(timeout.Token);
             return ToResult(payload);
-        } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+        } catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested) {
+            // The dashboard turns any of these into a banner for the reader; the journal keeps the
+            // reason, which is the only place the difference between "slow" and "gone" is visible.
+            _logger.LogDebug(exception, "Prometheus at {Prometheus} did not answer within {TimeoutSeconds:0.#} s", Target, _queryTimeout.TotalSeconds);
             return new MetricsUnavailable(string.Create(
                 CultureInfo.InvariantCulture,
                 $"Prometheus at {Target} did not answer within {_queryTimeout.TotalSeconds:0.#} seconds."));
         } catch (HttpRequestException exception) {
+            _logger.LogDebug(exception, "Prometheus at {Prometheus} could not be reached{Resolution}", Target,
+                exception.InnerException is SocketException { SocketErrorCode: SocketError.HostNotFound or SocketError.NoData or SocketError.TryAgain }
+                    ? "; its host name does not resolve"
+                    : string.Empty);
             return new MetricsUnavailable(Unreachable(exception));
-        } catch (JsonException) {
+        } catch (JsonException exception) {
+            _logger.LogDebug(exception, "Prometheus at {Prometheus} answered with a body that is not the JSON it documents", Target);
             return new MetricsUnavailable("Prometheus returned a response this page cannot read.");
         }
     }
@@ -85,11 +97,13 @@ internal sealed class PrometheusSource : IMetricsSource {
 
     // A bad query comes back as 400 carrying {status: error, error: "..."}: the message is worth
     // far more than the status code, so read it when the body is the JSON we expect.
-    private static async Task<QueryResult> UnavailableAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
+    private async Task<QueryResult> UnavailableAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
         try {
             PrometheusResponse? payload = await response.Content.ReadFromJsonAsync<PrometheusResponse>(cancellationToken);
             return new MetricsUnavailable(payload?.Error ?? $"Prometheus answered {(int)response.StatusCode}.");
-        } catch (JsonException) {
+        } catch (JsonException exception) {
+            _logger.LogDebug(exception, "Prometheus at {Prometheus} refused a query with {StatusCode} and no readable error body",
+                Target, (int)response.StatusCode);
             return new MetricsUnavailable($"Prometheus answered {(int)response.StatusCode}.");
         }
     }

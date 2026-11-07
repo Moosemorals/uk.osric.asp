@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 using NUnit.Framework;
 using System.Text;
@@ -271,7 +272,7 @@ public sealed class ImportEndpointTests {
         Dictionary<string, StringValues> noFields = new(StringComparer.Ordinal);
         context.Request.Form = new FormCollection(noFields, files);
 
-        await ImportEndpoint.UploadAsync(context, harness.Reader, harness.Stages, harness.Options);
+        await ImportEndpoint.UploadAsync(context, harness.Reader, harness.Stages, harness.Options, NullLoggerFactory.Instance);
 
         return context;
     }
@@ -290,7 +291,7 @@ public sealed class ImportEndpointTests {
             ["include"] = included,
         });
 
-        await ImportEndpoint.ApproveAsync(context, harness.Stages, harness.Queue, harness.Reserved);
+        await ImportEndpoint.ApproveAsync(context, harness.Stages, harness.Queue, harness.Reserved, NullLoggerFactory.Instance);
 
         return context;
     }

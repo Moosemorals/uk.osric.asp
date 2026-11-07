@@ -5,8 +5,10 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
@@ -27,6 +29,8 @@ public sealed class RunProcessorTests {
     };
 
     private readonly ToolApprovalCoordinator _approvals = new();
+
+    private readonly RecordingLoggerFactory _logs = new();
 
     private string _databasePath = string.Empty;
     private ServiceProvider? _services;
@@ -53,6 +57,10 @@ public sealed class RunProcessorTests {
         ServiceCollection services = new();
         services.AddDbContext<StorageDbContext>(options => options.UseSqlite(DatabaseTemplate.ConnectionString(_databasePath)));
         services.AddSingleton(TimeProvider.System);
+        // The processor's own lines are what a failed run is diagnosed from, so the fixture keeps
+        // them: AddLogging resolves ILogger<T>, and the recorder is what the loggers write through.
+        services.AddLogging();
+        services.AddSingleton<ILoggerFactory>(_logs);
         services.AddScoped<IConversationStore, SqliteConversationStore>();
         services.AddScoped(_ => _pages.Editor);
         _services = services.BuildServiceProvider();
@@ -259,6 +267,74 @@ public sealed class RunProcessorTests {
         });
     }
 
+    [Test]
+    public async Task AProviderFailureIsLoggedWithItsExceptionAndTheModelAsync() {
+        ProviderException failure = new("provider_unreachable", "The configured provider could not be reached.",
+            new HttpRequestException("No such host is known."));
+        ScriptedClient client = new([], failure);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        RecordingLoggerFactory.Entry entry = _logs.Entries.Single(entry =>
+            entry.Level == LogLevel.Warning && entry.Message.Contains("provider request", StringComparison.Ordinal));
+
+        Assert.Multiple(() => {
+            Assert.That(entry.Exception, Is.SameAs(failure), "the line is worth nothing without the socket or TLS failure inside it");
+            Assert.That(entry.Scope["Model"], Is.EqualTo("test-model"), "the model is the fact only the processor learns");
+        });
+    }
+
+    [Test]
+    public async Task TheWorkersScopeNamesTheRunOnEveryLineTheProcessorWritesAsync() {
+        ScriptedClient client = new([new ContentDelta("Hello."), new Finished("stop")]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        // The worker owns the run's scope, so it is the worker that has to be driven for the ids to
+        // appear; the run itself is the processor the fixture already built.
+        RunQueue queue = new(_options);
+        await using ServiceProvider services = new ServiceCollection()
+            .AddLogging()
+            .AddSingleton<ILoggerFactory>(_logs)
+            .AddScoped(_ => processor)
+            .BuildServiceProvider();
+
+        RunWorker worker = new(queue, services.GetRequiredService<IServiceScopeFactory>(), _options, _logs.CreateLogger<RunWorker>());
+        await worker.StartAsync(CancellationToken.None);
+        try {
+            Assert.That(queue.TryEnqueue(new QueuedRun(conversation.Id, started.RunId!, "owner")), Is.True);
+
+            RecordingLoggerFactory.Entry finished = await WaitForEntryAsync(
+                entry => entry.Message.Contains("finished as", StringComparison.Ordinal));
+
+            Assert.Multiple(() => {
+                Assert.That(finished.Scope["RunId"], Is.EqualTo(started.RunId));
+                Assert.That(finished.Scope["ConversationId"], Is.EqualTo(conversation.Id));
+                Assert.That(finished.Scope["UserName"], Is.EqualTo("owner"));
+                Assert.That(finished.Scope["Model"], Is.EqualTo("test-model"),
+                    "the processor's own scope nests inside the worker's rather than repeating its ids");
+            });
+        } finally {
+            await worker.StopAsync(CancellationToken.None);
+        }
+    }
+
+    private async Task<RecordingLoggerFactory.Entry> WaitForEntryAsync(Func<RecordingLoggerFactory.Entry, bool> matches) {
+        for (int attempt = 0; attempt < 250; attempt++) {
+            RecordingLoggerFactory.Entry? found = _logs.Entries.LastOrDefault(matches);
+            if (found is not null) {
+                return found;
+            }
+
+            await Task.Delay(20);
+        }
+
+        Assert.Fail("The run never wrote the line the test waited for.");
+        throw new InvalidOperationException("unreachable");
+    }
+
     private static AssistantOptions RunTimeout(int seconds, int toolSeconds = 2) => new() {
         RunTimeoutSeconds = seconds,
         RequestTimeoutSeconds = 3,
@@ -303,7 +379,7 @@ public sealed class RunProcessorTests {
             _approvals,
             new AssistantMetrics(),
             options,
-            NullLogger<RunProcessor>.Instance);
+            _logs.CreateLogger<RunProcessor>());
         return (conversation, started, stream!, processor);
     }
 

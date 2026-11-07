@@ -77,7 +77,17 @@ internal sealed class ExportEndpoint {
     /// <param name="pages">The page store.</param>
     /// <param name="state">The state store.</param>
     /// <param name="reserved">The keys the site's own routes answer for.</param>
-    public static async Task DownloadAsync(HttpContext context, IPageStore pages, IPageStateStore state, ReservedPaths reserved) {
+    /// <param name="loggers">Names the archive in the journal.</param>
+    public static async Task DownloadAsync(
+        HttpContext context,
+        IPageStore pages,
+        IPageStateStore state,
+        ReservedPaths reserved,
+        ILoggerFactory loggers) {
+        ArgumentNullException.ThrowIfNull(loggers);
+
+        ILogger logger = loggers.CreateLogger(typeof(ExportEndpoint).FullName!);
+
         // The framework records a rejected token rather than short-circuiting, and reading a form it
         // rejected throws; this is the same check the editor makes before it touches a form.
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
@@ -101,7 +111,9 @@ internal sealed class ExportEndpoint {
         IFormCollection form;
         try {
             form = await context.Request.ReadFormAsync(context.RequestAborted);
-        } catch (InvalidDataException) {
+        } catch (InvalidDataException exception) {
+            // The sender's form did not parse; the answer is a 400 whatever the reason was.
+            logger.LogDebug(exception, "An export form could not be read");
             await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "export.bad_form",
                 "That form could not be read",
@@ -163,6 +175,8 @@ internal sealed class ExportEndpoint {
         byte[] archive = PageArchiveWriter.Write(entries);
         // A colon is not legal in a Windows file name, so the timestamp has none.
         string name = $"pages-export-{DateTimeOffset.UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture)}.sqlite";
+
+        logger.LogInformation("Exported {PageCount} pages as {ArchiveName} ({Bytes} bytes)", entries.Count, name, archive.Length);
 
         context.Response.ContentType = "application/vnd.sqlite3";
         context.Response.Headers.ContentDisposition = $"attachment; filename=\"{name}\"";

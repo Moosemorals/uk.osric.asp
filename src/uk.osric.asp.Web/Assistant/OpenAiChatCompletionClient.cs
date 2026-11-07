@@ -11,7 +11,10 @@ using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 
 /// <summary>Streams completions from an OpenAI-compatible chat-completions endpoint.</summary>
-internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOptions options) : IChatCompletionClient {
+internal sealed class OpenAiChatCompletionClient(
+    HttpClient client,
+    AssistantOptions options,
+    ILogger<OpenAiChatCompletionClient> logger) : IChatCompletionClient {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new() {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
@@ -32,8 +35,13 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
         try {
             response = await SendWithRetriesAsync(request, silence.Token);
             if (!response.IsSuccessStatusCode) {
+                // The status is the whole diagnosis for a rejected request - a wrong model name, a
+                // revoked key, a quota - and the body that would say more is never logged, because a
+                // provider is free to quote the prompt back in it.
+                logger.LogWarning("The provider answered {StatusCode} for model {Model}", (int)response.StatusCode, request.Model);
+                ProviderException failure = ProviderError(response.StatusCode);
                 response.Dispose();
-                throw ProviderError(response.StatusCode);
+                throw failure;
             }
             body = await response.Content.ReadAsStreamAsync(silence.Token);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
@@ -97,6 +105,8 @@ internal sealed class OpenAiChatCompletionClient(HttpClient client, AssistantOpt
             }
 
             TimeSpan delay = RetryDelay(response, attempt);
+            logger.LogDebug("The provider answered {StatusCode} on attempt {Attempt}; retrying in {DelayMs:0} ms",
+                (int)response.StatusCode, attempt + 1, delay.TotalMilliseconds);
             response.Dispose();
             await Task.Delay(delay, cancellationToken);
         }

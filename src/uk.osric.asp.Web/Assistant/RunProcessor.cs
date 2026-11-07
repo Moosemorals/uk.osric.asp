@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Text;
+using uk.osric.asp.Web.Logging;
 
 /// <summary>Runs one queued assistant run to completion, streaming its events and executing its tools.</summary>
 internal sealed class RunProcessor(
@@ -23,6 +24,13 @@ internal sealed class RunProcessor(
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task RunAsync(QueuedRun queued, CancellationToken hostStopping) {
+        // The run's ids are the worker's scope: it is open before the processor is resolved and
+        // outlives this call, so opening them again here would put two identical objects on every
+        // line. The model is the one fact only this class learns, so it opens a scope of its own -
+        // which every line below, and the provider client's, then carries.
+        LogScope modelScope = new();
+        using IDisposable? scope = logger.BeginScope(modelScope);
+
         long runStart = Stopwatch.GetTimestamp();
         RunStream? stream = registry.Find(queued.RunId);
         if (stream is null) {
@@ -66,6 +74,7 @@ internal sealed class RunProcessor(
 
             await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "running", cancellationToken: runTimeout.Token));
             stream.Publish("run.started", new { runId = queued.RunId, model = run.Model, promptVersion = run.PromptVersion });
+            modelScope.Set("Model", run.Model);
             logger.LogInformation("Assistant run {RunId} in conversation {ConversationId} started with model {Model}",
                 queued.RunId, queued.ConversationId, run.Model);
 
@@ -223,7 +232,9 @@ internal sealed class RunProcessor(
 
             await FailAsync(queued, stream, "max_steps", "The assistant used too many steps.", null, step - 1, runTimeout.Token);
         } catch (ProviderException exception) {
-            logger.LogWarning("Assistant provider request for run {RunId} failed with {ErrorCode}", queued.RunId, exception.Code);
+            // The exception, not just its code: the inner exception is the socket, TLS or parse
+            // failure that says which end of the connection was broken.
+            logger.LogWarning(exception, "Assistant provider request for run {RunId} failed with {ErrorCode}", queued.RunId, exception.Code);
             await FailAsync(queued, stream, exception.Code, exception.Message, partial, step, CancellationToken.None);
         } catch (OperationCanceledException) {
             string status = hostStopping.IsCancellationRequested ? "interrupted"
@@ -238,6 +249,18 @@ internal sealed class RunProcessor(
                 "cancelled" => "The run was stopped.",
                 _ => "The run stopped responding for longer than its configured time limit.",
             };
+
+            // A stop and a restart are the site working as told; a run that fell silent is the
+            // provider, which we cannot fix and should still hear about.
+            if (status == "interrupted") {
+                logger.LogInformation("Assistant run {RunId} was interrupted by the host stopping", queued.RunId);
+            } else if (status == "cancelled") {
+                logger.LogInformation("Assistant run {RunId} was stopped by its owner", queued.RunId);
+            } else {
+                logger.LogWarning("Assistant run {RunId} fell silent for more than {TimeoutSeconds} s and was given up on",
+                    queued.RunId, options.RunTimeoutSeconds);
+            }
+
             await PersistPartialAsync(queued, stream, step, partial, status, CancellationToken.None);
             if (activeToolCallId is not null) {
                 await StoreAsync(store => store.AppendMessageAsync(

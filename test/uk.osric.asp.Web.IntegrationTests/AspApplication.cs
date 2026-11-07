@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System.Globalization;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
@@ -45,11 +46,16 @@ internal sealed class AspApplication(
     /// <summary>Counts every compilation the host performs, so a test can prove a cache hit.</summary>
     public RecordingCompiler Compiler { get; } = new(new PageCompiler());
 
+    /// <summary>Everything the host logged, beside the JSON console the app configures for itself.</summary>
+    public LogCapture Logs { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder) {
         // Production, so the exception-handler branch is what answers a failure rather than the
         // developer exception page.
         builder.UseEnvironment(Environments.Production);
         builder.UseSetting("ConnectionStrings:Storage", $"Data Source={DatabasePath}");
+        // Applied when the host is built, which is after Program cleared the default providers.
+        builder.ConfigureLogging(logging => logging.AddProvider(Logs));
         builder.UseSetting("Pages:Render:TimeoutSeconds", renderTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
         builder.UseSetting("Assistant:Enabled", assistantEnabled.ToString(CultureInfo.InvariantCulture));
         if (assistantEnabled) {

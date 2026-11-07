@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Web.Users;
 
@@ -12,7 +13,7 @@ public sealed class PasswordServiceTests {
 
     private const string Password = "correct horse battery staple";
 
-    private readonly PasswordService _passwords = new();
+    private readonly PasswordService _passwords = new(NullLogger<PasswordService>.Instance);
 
     [Test]
     public void TheHashIsNotThePassword() {

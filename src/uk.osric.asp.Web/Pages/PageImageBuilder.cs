@@ -66,6 +66,10 @@ internal sealed class PageImageBuilder(
             }
 
             if (!queued) {
+                // The site shed the work rather than park the request: a Warning, because the page
+                // that caused it is the owner's to fix and nothing here can make the compiler faster.
+                logger.LogWarning("Compiling {Path} waited longer than {TimeoutSeconds} s for a compile slot and was given up on",
+                    path.Key, PageBudget.DescribeSeconds(budget.CompileOptions.Timeout));
                 result = new CompileResult(null, null, [
                     new PageDiagnostic(PageDiagnosticSeverity.Error, null,
                         $"PAGE003: the page waited longer than {PageBudget.DescribeSeconds(budget.CompileOptions.Timeout)} s for a compile slot."),
@@ -78,6 +82,8 @@ internal sealed class PageImageBuilder(
                         // Roslyn honours the token between operations, so this is a coarse bound: it is
                         // stored like any other page error so the editor shows it and the page is not
                         // recompiled on every request.
+                        logger.LogWarning("Compiling {Path} took longer than {TimeoutSeconds} s and was stopped",
+                            path.Key, PageBudget.DescribeSeconds(budget.CompileOptions.Timeout));
                         result = new CompileResult(null, null, [
                             new PageDiagnostic(PageDiagnosticSeverity.Error, null,
                                 $"PAGE004: the page took longer than {PageBudget.DescribeSeconds(budget.CompileOptions.Timeout)} s to compile."),

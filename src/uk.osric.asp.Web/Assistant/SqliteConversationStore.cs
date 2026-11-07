@@ -13,7 +13,10 @@ using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>The SQLite-backed conversation store.</summary>
-internal sealed class SqliteConversationStore(StorageDbContext database, TimeProvider clock) : IConversationStore {
+internal sealed class SqliteConversationStore(
+    StorageDbContext database,
+    TimeProvider clock,
+    ILogger<SqliteConversationStore> logger) : IConversationStore {
 
     public async Task<Conversation> CreateAsync(string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
@@ -168,6 +171,9 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
             await database.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         } catch (DbUpdateException exception) when (SqliteErrors.IsUniqueViolation(exception)) {
+            // The unique index on an active run is the arbiter: two sends from one page, or a retry
+            // after a slow first one, meet here and the second is told a run is already going.
+            logger.LogDebug("Conversation {ConversationId} already has an active run, so {RunId} was not started", id, runId);
             await transaction.RollbackAsync(cancellationToken);
             database.Entry(run).State = EntityState.Detached;
             database.Entry(userMessage).State = EntityState.Detached;
@@ -326,6 +332,8 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
             await database.SaveChangesAsync(cancellationToken);
             return true;
         } catch (DbUpdateException exception) when (SqliteErrors.IsUniqueViolation(exception)) {
+            // The same approval asked for twice: the first request already opened the record.
+            logger.LogDebug("Approval {ToolCallId} for run {RunId} already exists", toolCallId, runId);
             database.Entry(approval).State = EntityState.Detached;
             return false;
         }

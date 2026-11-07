@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
@@ -93,7 +94,7 @@ public sealed class SqlitePageStateStoreTests {
     public async Task AWriteToADeletedPageIsRefusedAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         await using (StorageDbContext database = new(_options)) {
-            await new SqlitePageStore(database).DeletePageAsync(Key("/page.cs"));
+            await new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance).DeletePageAsync(Key("/page.cs"));
         }
 
         await Assert.ThrowsAsync<ArgumentException>(() => Store().SetValueAsync(Key("/page.cs"), "key", "1"));
@@ -105,7 +106,7 @@ public sealed class SqlitePageStateStoreTests {
         await Store().SetValueAsync(Key("/page.cs"), "key", "1");
 
         await using (StorageDbContext database = new(_options)) {
-            await new SqlitePageStore(database).DeletePageAsync(Key("/page.cs"));
+            await new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance).DeletePageAsync(Key("/page.cs"));
         }
 
         Assert.That(await Store().ListKeysAsync(Key("/page.cs")), Is.Empty);
@@ -116,7 +117,7 @@ public sealed class SqlitePageStateStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         await Store().SetValueAsync(Key("/page.cs"), "key", "1");
         await using (StorageDbContext database = new(_options)) {
-            IPageStore pages = new SqlitePageStore(database);
+            IPageStore pages = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
             await pages.DeletePageAsync(Key("/page.cs"));
             await pages.ScrubPageAsync(Key("/page.cs"));
         }
@@ -130,7 +131,7 @@ public sealed class SqlitePageStateStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         await Store().SetValueAsync(Key("/page.cs"), "key", "1");
         await using (StorageDbContext database = new(_options)) {
-            await new SqlitePageStore(database).DeletePageAsync(Key("/page.cs"));
+            await new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance).DeletePageAsync(Key("/page.cs"));
         }
 
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");

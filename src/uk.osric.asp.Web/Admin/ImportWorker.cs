@@ -20,6 +20,9 @@ internal sealed class ImportWorker(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
         try {
             await foreach (string stageId in queue.ReadAllAsync(stoppingToken)) {
+                // The request that staged the import has been answered; the batch answers for itself.
+                using IDisposable? logScope = logger.BeginScope("Import {StageId}", stageId);
+
                 ImportStage? stage = stages.Get(stageId);
                 if (stage is null) {
                     logger.LogWarning("Import {StageId} expired before it could run", stageId);

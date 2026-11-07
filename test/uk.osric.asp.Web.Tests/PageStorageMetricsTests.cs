@@ -65,7 +65,7 @@ public sealed class PageStorageMetricsTests {
         await using AsyncServiceScope scope = services.CreateAsyncScope();
         StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
         await database.Database.EnsureCreatedAsync();
-        SqlitePageStore store = new(database);
+        SqlitePageStore store = new(database, NullLogger<SqlitePageStore>.Instance);
         await store.SavePageAsync(new PageTemplate(PagePath.Normalize("/large"), new string('x', 131072)));
         (long beforePayload, long beforeAllocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
         await store.DeletePageAsync(PagePath.Normalize("/large"));
@@ -135,7 +135,7 @@ public sealed class PageStorageMetricsTests {
         StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
         await database.Database.EnsureCreatedAsync();
         PageStorageRefresh refresh = new();
-        SqlitePageStore store = new(database, refresh);
+        SqlitePageStore store = new(database, NullLogger<SqlitePageStore>.Instance, refresh);
         await store.SavePageAsync(new PageTemplate(PagePath.Normalize("/scrub"), "payload"));
         await store.DeletePageAsync(PagePath.Normalize("/scrub"));
 

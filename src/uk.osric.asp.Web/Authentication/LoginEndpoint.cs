@@ -19,6 +19,10 @@ internal static class LoginEndpoint {
 
     private const string RememberMeField = "rememberMe";
 
+    // A static class cannot be its own logger category - ILogger<T> needs a type argument - and one
+    // category for the whole of sign-in is what the journal wants anyway: who got in, and who tried.
+    private const string Category = "uk.osric.asp.Authentication";
+
     /// <summary>Renders the sign-in form, or sends an authenticated visitor back to the editor.</summary>
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
         if (context.User.Identity?.IsAuthenticated == true) {
@@ -42,13 +46,17 @@ internal static class LoginEndpoint {
         IUserStore users,
         IPasswordService passwords,
         IAntiforgery antiforgery,
-        IAuthenticationService authentication) {
+        IAuthenticationService authentication,
+        ILoggerFactory loggers) {
+
+        ArgumentNullException.ThrowIfNull(loggers);
 
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false } || !context.Request.HasFormContentType) {
             await WriteExpiredFormAsync(context, antiforgery);
             return;
         }
 
+        ILogger logger = loggers.CreateLogger(Category);
         IFormCollection form = await context.Request.ReadFormAsync(context.RequestAborted);
         string userName = form["username"].ToString();
         string password = form["password"].ToString();
@@ -58,8 +66,9 @@ internal static class LoginEndpoint {
         LocalUser? user = null;
         try {
             user = await users.FindAsync(UserName.Normalize(userName), context.RequestAborted);
-        } catch (ArgumentException) {
+        } catch (ArgumentException exception) {
             // An unusable name takes the same path as an unknown one.
+            logger.LogDebug(exception, "A sign-in attempt named the account {AccountName}, which is not a usable name", userName);
         }
 
         if (user is null) {
@@ -72,6 +81,7 @@ internal static class LoginEndpoint {
             }
 
             if (result != PasswordVerificationResult.Failed) {
+                logger.LogInformation("Signed in {UserName}", user.UserName);
                 await SignInAsync(context, user, rememberMe, authentication);
                 SecurityHeaders.NoStore(context);
                 Redirect.SeeOther(context, LocalRedirect.Safe(returnUrl));
@@ -79,11 +89,17 @@ internal static class LoginEndpoint {
             }
         }
 
+        // Information, not Warning: nobody is broken when somebody mistypes a password, and the line
+        // is here because "who tried to get in" is worth being able to answer.
+        logger.LogInformation("Sign-in failed for {UserName}", userName);
+
         await WriteFormAsync(context, antiforgery, returnUrl, userName, rememberMe, "Invalid username or password.");
     }
 
     /// <summary>Deletes the authentication cookie.</summary>
-    public static async Task LogoutAsync(HttpContext context, IAuthenticationService authentication) {
+    public static async Task LogoutAsync(HttpContext context, IAuthenticationService authentication, ILoggerFactory loggers) {
+        ArgumentNullException.ThrowIfNull(loggers);
+
         SecurityHeaders.NoStore(context);
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
             await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
@@ -93,6 +109,10 @@ internal static class LoginEndpoint {
                 ErrorMessage.DefaultRemedies(isAuthenticated: true)));
             return;
         }
+
+        // Read before signing out: after it there is no principal left to name.
+        loggers.CreateLogger(Category).LogInformation("Signed out {UserName}",
+            context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
 
         await authentication.SignOutAsync(
             context,

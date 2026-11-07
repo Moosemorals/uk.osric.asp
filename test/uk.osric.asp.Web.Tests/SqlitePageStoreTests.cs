@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using System.Text;
 using uk.osric.asp.Core.Compilation;
@@ -46,7 +47,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task MissingPageReturnsNullAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
 
         PageTemplate? page = await storage.GetPageAsync(Key("/missing.cs"));
 
@@ -58,12 +59,12 @@ public sealed class SqlitePageStoreTests {
     [TestCase("line one\nline two: \u00e9")]
     public async Task WrittenTemplateSurvivesReopeningAsync(string template) {
         await using (StorageDbContext writer = new(_options)) {
-            IPageStore storage = new SqlitePageStore(writer);
+            IPageStore storage = new SqlitePageStore(writer, NullLogger<SqlitePageStore>.Instance);
             await storage.SavePageAsync(new PageTemplate(Key("/example.cs"), template));
         }
 
         await using StorageDbContext reader = new(_options);
-        IPageStore reopened = new SqlitePageStore(reader);
+        IPageStore reopened = new SqlitePageStore(reader, NullLogger<SqlitePageStore>.Instance);
         PageTemplate? page = await reopened.GetPageAsync(Key("/example.cs"));
 
         Assert.That(page?.Template, Is.EqualTo(template));
@@ -73,7 +74,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task SavesKeepDistinctRevisionsAndAdvanceTheHeadAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/example.cs"), "first"));
         PageTemplate first = (await storage.GetPageAsync(Key("/example.cs")))!;
 
@@ -91,7 +92,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task ConditionalSaveRejectsAStaleHashWithoutAddingARevisionAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         PagePath path = Key("/conditional");
         await storage.SavePageAsync(new PageTemplate(path, "first"));
         string expectedHash = (await storage.GetPageAsync(path))!.Hash;
@@ -106,7 +107,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task DistinctKeysAreSeparatePagesAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
 
         await storage.SavePageAsync(new PageTemplate(Key("/example.cs"), "first"));
         await storage.SavePageAsync(new PageTemplate(Key("/other.cs"), "second"));
@@ -126,7 +127,7 @@ public sealed class SqlitePageStoreTests {
             string template = $"template-{index}";
             PageImage image = new(TemplateFingerprint.Of(template), "1:build", [(byte)index], [(byte)(index + 1)], []);
             await using StorageDbContext database = new(_options);
-            IPageStore storage = new SqlitePageStore(database);
+            IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
 
             await gate.Task;
             await storage.SavePageAsync(new PageTemplate(path, template, image));
@@ -157,7 +158,7 @@ public sealed class SqlitePageStoreTests {
         await Task.WhenAll(saves);
 
         await using StorageDbContext reader = new(_options);
-        IPageStore storage = new SqlitePageStore(reader);
+        IPageStore storage = new SqlitePageStore(reader, NullLogger<SqlitePageStore>.Instance);
 
         Assert.That((await storage.GetPageAsync(Key("/first")))?.Template, Is.EqualTo("first"));
         Assert.That((await storage.GetPageAsync(Key("/second")))?.Template, Is.EqualTo("second"));
@@ -165,14 +166,14 @@ public sealed class SqlitePageStoreTests {
         async Task SaveAsync(string key, string template) {
             await using StorageDbContext database = new(_options);
             await gate.Task;
-            await new SqlitePageStore(database).SavePageAsync(new PageTemplate(Key(key), template));
+            await new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance).SavePageAsync(new PageTemplate(Key(key), template));
         }
     }
 
     [Test]
     public async Task ReapplyingMigrationsPreservesDataAsync() {
         await using (StorageDbContext writer = new(_options)) {
-            IPageStore storage = new SqlitePageStore(writer);
+            IPageStore storage = new SqlitePageStore(writer, NullLogger<SqlitePageStore>.Instance);
             await storage.SavePageAsync(new PageTemplate(Key("/example.cs"), "saved"));
         }
 
@@ -180,13 +181,13 @@ public sealed class SqlitePageStoreTests {
         await database.Database.MigrateAsync();
 
         Assert.That(await database.Database.GetAppliedMigrationsAsync(), Is.Not.Empty);
-        Assert.That((await new SqlitePageStore(database).GetPageAsync(Key("/example.cs")))?.Template, Is.EqualTo("saved"));
+        Assert.That((await new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance).GetPageAsync(Key("/example.cs")))?.Template, Is.EqualTo("saved"));
     }
 
     [Test]
     public async Task HeadCannotReferenceARevisionAtAnotherPathAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/first"), "first"));
         PageTemplate page = (await storage.GetPageAsync(Key("/first")))!;
 
@@ -201,12 +202,12 @@ public sealed class SqlitePageStoreTests {
         PageImage image = new(TemplateFingerprint.Of("Hello."), "1:build", [1, 2, 3], [4, 5, 6], []);
 
         await using (StorageDbContext writer = new(_options)) {
-            IPageStore storage = new SqlitePageStore(writer);
+            IPageStore storage = new SqlitePageStore(writer, NullLogger<SqlitePageStore>.Instance);
             await storage.SavePageAsync(new PageTemplate(Key("/hello"), "Hello.", image));
         }
 
         await using StorageDbContext reader = new(_options);
-        PageImage? actual = (await new SqlitePageStore(reader).GetPageAsync(Key("/hello")))?.Image;
+        PageImage? actual = (await new SqlitePageStore(reader, NullLogger<SqlitePageStore>.Instance).GetPageAsync(Key("/hello")))?.Image;
 
         Assert.That(actual, Is.Not.Null);
         Assert.That(actual?.TemplateHash, Is.EqualTo(image.TemplateHash));
@@ -223,7 +224,7 @@ public sealed class SqlitePageStoreTests {
             TemplateFingerprint.Of("first version"), "1:runtime", [1, 2, 3], [4, 5, 6], []));
         PageTemplate second = new(path, "second <version>");
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(first);
         await storage.SavePageAsync(second);
 
@@ -249,12 +250,12 @@ public sealed class SqlitePageStoreTests {
         ]);
 
         await using (StorageDbContext writer = new(_options)) {
-            IPageStore storage = new SqlitePageStore(writer);
+            IPageStore storage = new SqlitePageStore(writer, NullLogger<SqlitePageStore>.Instance);
             await storage.SavePageAsync(new PageTemplate(Key("/broken"), "<% broken", failure));
         }
 
         await using StorageDbContext reader = new(_options);
-        PageImage? actual = (await new SqlitePageStore(reader).GetPageAsync(Key("/broken")))?.Image;
+        PageImage? actual = (await new SqlitePageStore(reader, NullLogger<SqlitePageStore>.Instance).GetPageAsync(Key("/broken")))?.Image;
 
         Assert.That(actual?.Bytes, Is.Null);
         Assert.That(actual?.Diagnostics, Is.EqualTo(failure.Diagnostics).AsCollection);
@@ -263,7 +264,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task TrySetCompilationStoresTheResultAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/hello"), "Hello."));
         PageTemplate page = (await storage.GetPageAsync(Key("/hello")))!;
         PageImage image = new(TemplateFingerprint.Of("Hello."), "1:build", [4, 5, 6], [7, 8, 9], []);
@@ -282,7 +283,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task ACompileForAnOlderRevisionDoesNotMoveTheNewerHeadAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/raced"), "older"));
         PageTemplate older = (await storage.GetPageAsync(Key("/raced")))!;
         await storage.SavePageAsync(new PageTemplate(Key("/raced"), "newer"));
@@ -304,7 +305,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task TrySetImageRefusesWhenTheTemplateChangedAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/hello"), "newer"));
         PageTemplate savedPage = (await storage.GetPageAsync(Key("/hello")))!;
         PageImage image = new(TemplateFingerprint.Of("older"), "1:build", [1], [2], []);
@@ -320,7 +321,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task TrySetCompilationRefusesAMissingPageAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         PageImage image = new(TemplateFingerprint.Of("template"), "1:build", [1], [2], []);
 
         bool stored = await storage.TrySetImageAsync(Guid.NewGuid().ToString("N"), "template", image);
@@ -332,7 +333,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task DeleteHidesTheHeadButRetainsItsRevisionAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/deleted"), "retained"));
         PageTemplate saved = (await storage.GetPageAsync(Key("/deleted")))!;
 
@@ -348,7 +349,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task SavingAfterDeletionContinuesTheRetainedHistoryAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/recreated"), "first"));
         PageTemplate first = (await storage.GetPageAsync(Key("/recreated")))!;
         await storage.DeletePageAsync(Key("/recreated"));
@@ -365,7 +366,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task ScrubRequiresADeletedHeadAndRemovesEveryRevisionAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/scrub"), "first"));
         string firstHash = (await storage.GetPageAsync(Key("/scrub")))!.Hash;
         await storage.SavePageAsync(new PageTemplate(Key("/scrub"), "second"));
@@ -403,7 +404,7 @@ public sealed class SqlitePageStoreTests {
         }
 
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/pinned"), "reader marker"));
         await storage.DeletePageAsync(Key("/pinned"));
 
@@ -427,7 +428,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task FailedRevisionDeletionRollsBackHeadDeletionAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/rollback"), "retained secret"));
         PageTemplate saved = (await storage.GetPageAsync(Key("/rollback")))!;
         await storage.DeletePageAsync(Key("/rollback"));
@@ -446,7 +447,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task LateCompilationCannotResurrectAScrubbedRevisionAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/late"), "secret"));
         PageTemplate saved = (await storage.GetPageAsync(Key("/late")))!;
         await storage.DeletePageAsync(Key("/late"));
@@ -467,7 +468,7 @@ public sealed class SqlitePageStoreTests {
         PageImage image = new(TemplateFingerprint.Of(sourceMarker), "runtime", binaryMarker, binaryMarker, []);
 
         await using (StorageDbContext database = new(_options)) {
-            IPageStore storage = new SqlitePageStore(database);
+            IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
             await storage.SavePageAsync(new PageTemplate(Key("/secret"), sourceMarker, image));
             await storage.DeletePageAsync(Key("/secret"));
             Assert.That(await storage.ScrubPageAsync(Key("/secret")), Is.True);
@@ -484,7 +485,7 @@ public sealed class SqlitePageStoreTests {
     [Test]
     public async Task CancelledOperationsThrowAsync() {
         await using StorageDbContext database = new(_options);
-        IPageStore storage = new SqlitePageStore(database);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         CancellationToken cancelled = new(true);
         PageImage image = new("hash", "1:build", [1], [2], []);
 

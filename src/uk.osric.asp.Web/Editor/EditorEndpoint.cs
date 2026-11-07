@@ -422,6 +422,12 @@ internal sealed class EditorEndpoint {
 
         if (command == "delete") {
             bool deleted = await pages.DeleteAsync(path, context.RequestAborted);
+            ILogger<EditorEndpoint>? logger = context.RequestServices.GetService<ILogger<EditorEndpoint>>();
+            if (deleted) {
+                logger?.LogInformation("Deleted {Path}; revision history is retained", path.Key);
+            } else {
+                logger?.LogDebug("Delete of {Path} was a no-op: it was already missing", path.Key);
+            }
             context.Session.SetString(MessageKey, deleted ? $"Deleted {path.Key}; revision history is retained." : "Page was already missing.");
             Redirect.SeeOther(context, "/edit");
             return;
@@ -456,6 +462,8 @@ internal sealed class EditorEndpoint {
             context.Session.SetString(MessageKey, $"{path.Key} already matched its seed.");
         } else {
             await pages.SaveAsync(path, seed, context.RequestAborted);
+            context.RequestServices.GetService<ILogger<EditorEndpoint>>()
+                ?.LogInformation("Restored {Path} from its seed", path.Key);
             context.Session.SetString(MessageKey, $"Restored {path.Key} from its seed.");
         }
 
@@ -496,6 +504,9 @@ internal sealed class EditorEndpoint {
                 }
                 return;
             }
+
+            context.RequestServices.GetService<ILogger<EditorEndpoint>>()
+                ?.LogInformation("Scrubbed {Path} and its retained history", path.Key);
 
             context.Session.SetString(MessageKey, $"Scrubbed {path.Key} and its retained history.");
             Redirect.SeeOther(context, "/edit");
@@ -544,7 +555,11 @@ internal sealed class EditorEndpoint {
             IFormCollection form;
             try {
                 form = await context.Request.ReadFormAsync(context.RequestAborted);
-            } catch (InvalidDataException) {
+            } catch (InvalidDataException exception) {
+                // A form the parser will not read is the sender's problem, and the caller answers
+                // with a 400 either way; Debug because there is nothing here for anyone to act on.
+                context.RequestServices.GetService<ILogger<EditorEndpoint>>()
+                    ?.LogDebug(exception, "The editor form for {Path} could not be read", context.Request.Path);
                 return (false, null);
             }
 

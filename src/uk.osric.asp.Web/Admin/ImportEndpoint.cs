@@ -71,7 +71,17 @@ internal sealed class ImportEndpoint {
     /// <param name="reader">The archive reader.</param>
     /// <param name="stages">Where a validated archive is staged.</param>
     /// <param name="options">The archive options.</param>
-    public static async Task UploadAsync(HttpContext context, PageArchiveReader reader, ImportStageStore stages, ArchiveOptions options) {
+    /// <param name="loggers">Names a refused upload in the journal.</param>
+    public static async Task UploadAsync(
+        HttpContext context,
+        PageArchiveReader reader,
+        ImportStageStore stages,
+        ArchiveOptions options,
+        ILoggerFactory loggers) {
+        ArgumentNullException.ThrowIfNull(loggers);
+
+        ILogger logger = loggers.CreateLogger(typeof(ImportEndpoint).FullName!);
+
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
             await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "import.form_expired",
@@ -90,9 +100,13 @@ internal sealed class ImportEndpoint {
         try {
             form = await context.Request.ReadFormAsync(context.RequestAborted);
         } catch (BadHttpRequestException exception) when (exception.StatusCode == StatusCodes.Status413PayloadTooLarge) {
+            // The size cap did its job: the sender is told, and the reader is the only one who would
+            // want the parser's own words.
+            logger.LogDebug(exception, "An uploaded archive was larger than {MaxUploadBytes} bytes and was refused", options.MaxUploadBytes);
             await WriteTooLargeAsync(context, options);
             return;
-        } catch (InvalidDataException) {
+        } catch (InvalidDataException exception) {
+            logger.LogDebug(exception, "An uploaded archive form could not be read");
             await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "import.bad_form",
                 "That upload could not be read",
@@ -191,7 +205,15 @@ internal sealed class ImportEndpoint {
     /// <param name="stages">The staged archives.</param>
     /// <param name="queue">The import queue.</param>
     /// <param name="reserved">The keys the site's own routes answer for.</param>
-    public static async Task ApproveAsync(HttpContext context, ImportStageStore stages, ImportQueue queue, ReservedPaths reserved) {
+    /// <param name="loggers">Names a refused approval in the journal.</param>
+    public static async Task ApproveAsync(
+        HttpContext context,
+        ImportStageStore stages,
+        ImportQueue queue,
+        ReservedPaths reserved,
+        ILoggerFactory loggers) {
+        ArgumentNullException.ThrowIfNull(loggers);
+
         ImportStage? stage = stages.Get(RouteId(context));
         if (stage is null) {
             await WriteExpiredAsync(context);
@@ -216,7 +238,9 @@ internal sealed class ImportEndpoint {
         IFormCollection form;
         try {
             form = await context.Request.ReadFormAsync(context.RequestAborted);
-        } catch (InvalidDataException) {
+        } catch (InvalidDataException exception) {
+            loggers.CreateLogger(typeof(ImportEndpoint).FullName!)
+                .LogDebug(exception, "The approval form for import {StageId} could not be read", stage.Id);
             await WriteBadSelectionAsync(context, stage.Id, "The approval form could not be read.");
             return;
         }

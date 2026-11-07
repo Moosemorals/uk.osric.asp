@@ -67,9 +67,12 @@ internal sealed class PageEndpoint() {
         PageRequest snapshot;
         try {
             snapshot = PageRequestSnapshot.Create(context.Request);
-        } catch (InvalidDataException) {
+        } catch (InvalidDataException exception) {
             // The form parser refuses a key or value past its limit. That is the client's fault, so
-            // it is a 400 rather than the error page.
+            // it is a 400 rather than the error page - and Debug, because a reader's browser sending
+            // an unparseable form is not something anybody can act on.
+            loggerFactory.CreateLogger<PageEndpoint>()
+                .LogDebug(exception, "The request body for {Path} could not be read as a form", path.Key);
             await WriteBadRequestAsync(context, path);
             return;
         }

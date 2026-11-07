@@ -15,11 +15,16 @@ internal sealed class PasswordService : IPasswordService {
     private readonly PasswordHasher<LocalUser> _hasher =
         new(Options.Create(new PasswordHasherOptions { IterationCount = 600_000 }));
 
+    private readonly ILogger _logger;
+
     // Unknown users still pay for one verification, so the response time does not advertise which
     // names exist. The password is random and never leaves this object.
     private readonly LocalUser _dummy;
 
-    public PasswordService() {
+    public PasswordService(ILogger<PasswordService> logger) {
+        ArgumentNullException.ThrowIfNull(logger);
+        _logger = logger;
+
         LocalUser template = new() {
             UserName = "~dummy~",
             PasswordHash = string.Empty,
@@ -46,9 +51,14 @@ internal sealed class PasswordService : IPasswordService {
 
         try {
             return _hasher.VerifyHashedPassword(user, user.PasswordHash, password);
-        } catch (FormatException) {
+        } catch (FormatException exception) {
             // A corrupted hash cannot authenticate anyone; treat it as a failed password rather
-            // than turning every login attempt into a 500.
+            // than turning every login attempt into a 500. Warning rather than Debug because the
+            // account is now unusable and nothing else will say so.
+            _logger.LogWarning(exception,
+                "The stored password hash for {UserName} cannot be read; the account cannot sign in until its password is reset",
+                user.UserName);
+
             return PasswordVerificationResult.Failed;
         }
     }

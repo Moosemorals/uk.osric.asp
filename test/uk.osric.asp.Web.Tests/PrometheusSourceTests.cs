@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using System.Net;
 using System.Net.Sockets;
@@ -130,7 +131,7 @@ public sealed class PrometheusMetricsSourceTests {
             """));
         using HttpClient http = Client(handler);
 
-        await new PrometheusSource(http).QueryAsync("sum(rate(x[5m]))", From, To, Step, CancellationToken.None);
+        await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance).QueryAsync("sum(rate(x[5m]))", From, To, Step, CancellationToken.None);
 
         string uri = handler.Requests.Single().ToString();
         Assert.That(uri, Does.Contain("query=sum%28rate%28x%5B5m%5D%29%29"));
@@ -143,7 +144,7 @@ public sealed class PrometheusMetricsSourceTests {
     public async Task ATimeoutNamesTheTarget() {
         StubHttpMessageHandler handler = new(_ => throw new TaskCanceledException());
         using HttpClient http = Client(handler);
-        PrometheusSource source = new(http, TimeSpan.FromMilliseconds(20));
+        PrometheusSource source = new(http, NullLogger<PrometheusSource>.Instance, TimeSpan.FromMilliseconds(20));
 
         QueryResult result = await source.QueryAsync("up", From, To, Step, CancellationToken.None);
 
@@ -168,14 +169,14 @@ public sealed class PrometheusMetricsSourceTests {
     private static async Task<QueryResult> FailingAsync(Exception inner) {
         using HttpClient http = Client(new StubHttpMessageHandler(_ => throw new HttpRequestException("boom", inner)));
 
-        return await new PrometheusSource(http)
+        return await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance)
             .QueryAsync("up", From, To, Step, CancellationToken.None);
     }
 
     private static async Task<QueryResult> QueryAsync(string body, HttpStatusCode status = HttpStatusCode.OK) {
         using HttpClient http = Client(new StubHttpMessageHandler(_ => Json(body, status)));
 
-        return await new PrometheusSource(http)
+        return await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance)
             .QueryAsync("up", From, To, Step, CancellationToken.None);
     }
 

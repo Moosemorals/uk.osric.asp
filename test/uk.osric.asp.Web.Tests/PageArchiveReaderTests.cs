@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using System.Text;
 using uk.osric.asp.Web.Admin;
@@ -200,5 +201,6 @@ public sealed class PageArchiveReaderTests {
     private static PageArchiveReader Reader(ArchiveOptions? options = null, PageStorageOptions? storage = null) =>
         new(options ?? new ArchiveOptions(),
             storage ?? new PageStorageOptions(),
-            new ReservedPaths(ReservedPaths.Default));
+            new ReservedPaths(ReservedPaths.Default),
+            NullLogger<PageArchiveReader>.Instance);
 }

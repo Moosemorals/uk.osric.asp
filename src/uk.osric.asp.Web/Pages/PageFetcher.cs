@@ -236,13 +236,14 @@ internal sealed class PageFetcher(
         return buffer.ToArray();
     }
 
-    private static string Decode(HttpResponseMessage response, byte[] body) {
+    private string Decode(HttpResponseMessage response, byte[] body) {
         string? charset = response.Content.Headers.ContentType?.CharSet;
         if (!string.IsNullOrWhiteSpace(charset)) {
             try {
                 return Encoding.GetEncoding(charset.Trim('"')).GetString(body);
-            } catch (ArgumentException) {
+            } catch (ArgumentException exception) {
                 // An unknown charset is the page's problem to spot; UTF-8 is the least surprising guess.
+                logger.LogDebug(exception, "A fetched response named the unknown charset {Charset}; it was read as UTF-8", charset);
             }
         }
 

@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 using NUnit.Framework;
 using System.Globalization;
@@ -141,7 +142,7 @@ public sealed class ExportEndpointTests {
             ["include"] = included,
         });
 
-        await ExportEndpoint.DownloadAsync(context, store, _state, Reserved);
+        await ExportEndpoint.DownloadAsync(context, store, _state, Reserved, NullLoggerFactory.Instance);
 
         return context;
     }
@@ -177,7 +178,7 @@ public sealed class ExportEndpointTests {
     }
 
     private static PageArchiveReader Reader() =>
-        new(new ArchiveOptions(), new PageStorageOptions(), Reserved);
+        new(new ArchiveOptions(), new PageStorageOptions(), Reserved, NullLogger<PageArchiveReader>.Instance);
 
     private static PagePath Key(string path) => PagePath.Normalize(path);
 }

@@ -7,7 +7,9 @@ using Microsoft.EntityFrameworkCore;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>The SQLite-backed account store.</summary>
-internal sealed class SqliteUserStore(StorageDbContext database) : IUserStore {
+internal sealed class SqliteUserStore(
+    StorageDbContext database,
+    ILogger<SqliteUserStore> logger) : IUserStore {
 
     /// <inheritdoc/>
     public async Task<LocalUser?> FindAsync(string userName, CancellationToken cancellationToken = default) {
@@ -28,8 +30,17 @@ internal sealed class SqliteUserStore(StorageDbContext database) : IUserStore {
         try {
             await database.SaveChangesAsync(cancellationToken);
             return true;
-        } catch (DbUpdateException) {
-            // Two CLI invocations can pass the existence check together; the primary key is the arbiter.
+        } catch (DbUpdateException exception) {
+            // Two CLI invocations can pass the existence check together; the primary key is the
+            // arbiter, and the loser reporting "already exists" is the right answer. Any other
+            // write failure is bundled with it, so it is said out loud rather than hidden behind it.
+            if (SqliteErrors.IsUniqueViolation(exception)) {
+                logger.LogDebug("The account {UserName} was added by another writer first", user.UserName);
+            } else {
+                logger.LogWarning(exception,
+                    "The account {UserName} could not be stored; the caller is told it already exists", user.UserName);
+            }
+
             return false;
         }
     }

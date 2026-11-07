@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using System.Net;
 
@@ -10,6 +11,27 @@ using System.Net;
 public sealed class ErrorHandlingTests : IntegrationTest {
 
     private const string ThrowingPage = "<% throw new System.InvalidOperationException(\"Boom.\"); %>";
+
+    [Test]
+    public async Task AnUnhandledExceptionIsLoggedWithTheRequestScopeAsync() {
+        await SavePageAsync("/throw", ThrowingPage);
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        await client.GetAsync("/throw");
+
+        // The framework's handler writes this line from inside the request's scope, which is why the
+        // scope middleware sits ahead of the handler rather than after authentication.
+        LogCapture.Entry entry = Logs.Entries.Single(entry =>
+            entry.Level == LogLevel.Error && entry.Message.Contains("unhandled exception", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Multiple(() => {
+            Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
+            Assert.That(entry.Scope["Path"], Is.EqualTo("/throw"));
+            Assert.That(entry.Scope["Method"], Is.EqualTo("GET"));
+            Assert.That(entry.Scope["UserName"], Is.EqualTo(UserName));
+            Assert.That(entry.Scope["RequestId"], Is.Not.Empty);
+        });
+    }
 
     [Test]
     public async Task ThrowingGetIsAnsweredByTheErrorPage() {

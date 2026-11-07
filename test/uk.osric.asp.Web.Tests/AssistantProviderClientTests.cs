@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using System.IO.Pipelines;
 using System.Net;
@@ -32,7 +33,7 @@ public sealed class AssistantProviderClientTests {
 
             """;
         using HttpClient client = Client(_ => Task.FromResult(Response(HttpStatusCode.OK, payload)));
-        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false });
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
 
         List<ChatStreamEvent> events = await CollectAsync(provider);
 
@@ -52,7 +53,7 @@ public sealed class AssistantProviderClientTests {
             body = await request.Content!.ReadAsStringAsync(cancellationToken);
             return Response(HttpStatusCode.OK, "data: [DONE]\n\n");
         });
-        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false });
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
 
         await CollectAsync(provider);
 
@@ -79,7 +80,7 @@ public sealed class AssistantProviderClientTests {
             }
             return Task.FromResult(response);
         });
-        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, MaxProviderRetries = 1 });
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, MaxProviderRetries = 1 }, NullLogger<OpenAiChatCompletionClient>.Instance);
 
         await CollectAsync(provider);
 
@@ -89,7 +90,7 @@ public sealed class AssistantProviderClientTests {
     [Test]
     public async Task MalformedPayloadFailsWithASafeProviderErrorAsync() {
         using HttpClient client = Client(_ => Task.FromResult(Response(HttpStatusCode.OK, "data: {not-json}\n\n")));
-        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false });
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
 
         ProviderException exception = (await Assert.ThrowsAsync<ProviderException>(async () => await CollectAsync(provider)))!;
 
@@ -103,7 +104,7 @@ public sealed class AssistantProviderClientTests {
         using HttpClient client = Client(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized) {
             Content = new StringContent("contains private provider details"),
         }));
-        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { ApiKey = ApiKey });
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { ApiKey = ApiKey }, NullLogger<OpenAiChatCompletionClient>.Instance);
 
         ProviderException exception = (await Assert.ThrowsAsync<ProviderException>(async () => await CollectAsync(provider)))!;
 
@@ -122,7 +123,7 @@ public sealed class AssistantProviderClientTests {
                 ("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"done\"}}]}\n\n", 200),
                 ("data: [DONE]\n\n", 0)),
         }));
-        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = TimeoutSeconds });
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = TimeoutSeconds }, NullLogger<OpenAiChatCompletionClient>.Instance);
 
         List<ChatStreamEvent> events = await CollectAsync(provider);
 
@@ -138,7 +139,7 @@ public sealed class AssistantProviderClientTests {
                 (": keep-alive\n\n", 300),
                 (": keep-alive\n\n", 300)),
         }));
-        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = 1 });
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = 1 }, NullLogger<OpenAiChatCompletionClient>.Instance);
 
         ProviderException exception = (await Assert.ThrowsAsync<ProviderException>(async () => await CollectAsync(provider)))!;
 
@@ -150,7 +151,7 @@ public sealed class AssistantProviderClientTests {
         using HttpClient client = Client(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
             Content = new TimedContent(("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"starting\"}}]}\n\n", 4000)),
         }));
-        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = TimeoutSeconds });
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = TimeoutSeconds }, NullLogger<OpenAiChatCompletionClient>.Instance);
 
         ProviderException exception = (await Assert.ThrowsAsync<ProviderException>(async () => await CollectAsync(provider)))!;
 

@@ -34,7 +34,11 @@ internal sealed record PageArchiveReadResult(IReadOnlyList<PageArchiveEntry> Pag
 /// show several at once; each one is independently fatal, and nothing is skipped, renamed or repaired.
 /// </para>
 /// </remarks>
-internal sealed class PageArchiveReader(ArchiveOptions options, PageStorageOptions storage, ReservedPaths reserved) {
+internal sealed class PageArchiveReader(
+    ArchiveOptions options,
+    PageStorageOptions storage,
+    ReservedPaths reserved,
+    ILogger<PageArchiveReader> logger) {
 
     /// <summary>How many problems are reported before the scan stops.</summary>
     public const int MaxProblems = 10;
@@ -74,7 +78,10 @@ internal sealed class PageArchiveReader(ArchiveOptions options, PageStorageOptio
                 SqliteStatement.Execute(connection, "PRAGMA trusted_schema = OFF");
 
                 return Read(connection, problems);
-            } catch (SqliteException) {
+            } catch (SqliteException exception) {
+                // The upload is a file somebody else made: refusing it is the outcome, and the
+                // engine's complaint is only interesting to a developer reading the journal.
+                logger.LogDebug(exception, "An uploaded archive could not be opened as a SQLite database");
                 return Reject("That file is not a readable SQLite database.");
             } finally {
                 connection.Close();
@@ -391,11 +398,14 @@ internal sealed class PageArchiveReader(ArchiveOptions options, PageStorageOptio
         return true;
     }
 
-    private static bool TryDecode(byte[] bytes, out string text, List<string> problems, string what) {
+    private bool TryDecode(byte[] bytes, out string text, List<string> problems, string what) {
         try {
             text = s_strictUtf8.GetString(bytes);
             return true;
-        } catch (DecoderFallbackException) {
+        } catch (DecoderFallbackException exception) {
+            // Already reported as a problem on the review page; the decoder's own account of which
+            // byte it choked on is only useful to whoever is debugging the reader.
+            logger.LogDebug(exception, "An uploaded archive carries {What} that is not valid UTF-8", what);
             text = string.Empty;
             Add(problems, $"That archive has {what} that is not valid UTF-8.");
             return false;
@@ -403,11 +413,12 @@ internal sealed class PageArchiveReader(ArchiveOptions options, PageStorageOptio
     }
 
     // The page's own reads expect JSON, and the store never writes anything else.
-    private static bool IsJson(string value) {
+    private bool IsJson(string value) {
         try {
             using JsonDocument document = JsonDocument.Parse(value);
             return true;
-        } catch (JsonException) {
+        } catch (JsonException exception) {
+            logger.LogDebug(exception, "An uploaded archive carries state that is not JSON");
             return false;
         }
     }

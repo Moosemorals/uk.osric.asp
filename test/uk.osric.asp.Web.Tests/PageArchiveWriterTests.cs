@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Admin;
@@ -62,7 +63,7 @@ public sealed class PageArchiveWriterTests {
     }
 
     private static PageArchiveReader Reader() =>
-        new(new ArchiveOptions(), new PageStorageOptions(), new ReservedPaths(ReservedPaths.Default));
+        new(new ArchiveOptions(), new PageStorageOptions(), new ReservedPaths(ReservedPaths.Default), NullLogger<PageArchiveReader>.Instance);
 
     private static PagePath Key(string path) => PagePath.Normalize(path);
 }

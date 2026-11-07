@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Web.Storage;
 using uk.osric.asp.Web.Users;
@@ -43,7 +44,7 @@ public sealed class SqliteUserStoreTests {
     [Test]
     public async Task AnAddedAccountCanBeFoundAsync() {
         await using StorageDbContext database = new(_options);
-        IUserStore users = new SqliteUserStore(database);
+        IUserStore users = new SqliteUserStore(database, NullLogger<SqliteUserStore>.Instance);
 
         Assert.That(await users.TryAddAsync(User("Osric")), Is.True);
         Assert.That((await users.FindAsync("osric"))?.UserName, Is.EqualTo("osric"));
@@ -52,7 +53,7 @@ public sealed class SqliteUserStoreTests {
     [Test]
     public async Task ADuplicateNameIsRefusedAsync() {
         await using StorageDbContext database = new(_options);
-        IUserStore users = new SqliteUserStore(database);
+        IUserStore users = new SqliteUserStore(database, NullLogger<SqliteUserStore>.Instance);
         await users.TryAddAsync(User("owner"));
 
         Assert.That(await users.TryAddAsync(User("owner")), Is.False);
@@ -62,7 +63,7 @@ public sealed class SqliteUserStoreTests {
     [Test]
     public async Task MissingNamesReturnNullAsync() {
         await using StorageDbContext database = new(_options);
-        IUserStore users = new SqliteUserStore(database);
+        IUserStore users = new SqliteUserStore(database, NullLogger<SqliteUserStore>.Instance);
 
         Assert.That(await users.FindAsync("missing"), Is.Null);
     }
@@ -70,7 +71,7 @@ public sealed class SqliteUserStoreTests {
     [Test]
     public async Task UpdateHashKeepsTheStampAsync() {
         await using StorageDbContext database = new(_options);
-        IUserStore users = new SqliteUserStore(database);
+        IUserStore users = new SqliteUserStore(database, NullLogger<SqliteUserStore>.Instance);
         LocalUser original = User("owner");
         await users.TryAddAsync(original);
 
@@ -84,7 +85,7 @@ public sealed class SqliteUserStoreTests {
     [Test]
     public async Task ChangePasswordRotatesTheStampAsync() {
         await using StorageDbContext database = new(_options);
-        IUserStore users = new SqliteUserStore(database);
+        IUserStore users = new SqliteUserStore(database, NullLogger<SqliteUserStore>.Instance);
         LocalUser original = User("owner");
         await users.TryAddAsync(original);
 
@@ -98,7 +99,7 @@ public sealed class SqliteUserStoreTests {
     [Test]
     public async Task UpdateOfAMissingAccountReturnsFalseAsync() {
         await using StorageDbContext database = new(_options);
-        IUserStore users = new SqliteUserStore(database);
+        IUserStore users = new SqliteUserStore(database, NullLogger<SqliteUserStore>.Instance);
 
         Assert.That(await users.UpdateHashAsync("missing", "hash"), Is.False);
         Assert.That(await users.ChangePasswordAsync("missing", "hash", "stamp"), Is.False);
@@ -107,7 +108,7 @@ public sealed class SqliteUserStoreTests {
     [Test]
     public async Task AccountsAreListedByNameAsync() {
         await using StorageDbContext database = new(_options);
-        IUserStore users = new SqliteUserStore(database);
+        IUserStore users = new SqliteUserStore(database, NullLogger<SqliteUserStore>.Instance);
         await users.TryAddAsync(User("zed"));
         await users.TryAddAsync(User("alpha"));
 
@@ -119,7 +120,7 @@ public sealed class SqliteUserStoreTests {
     [Test]
     public async Task RemovingAnAccountReturnsWhetherItExistedAsync() {
         await using StorageDbContext database = new(_options);
-        IUserStore users = new SqliteUserStore(database);
+        IUserStore users = new SqliteUserStore(database, NullLogger<SqliteUserStore>.Instance);
         await users.TryAddAsync(User("owner"));
 
         Assert.That(await users.RemoveAsync("owner"), Is.True);

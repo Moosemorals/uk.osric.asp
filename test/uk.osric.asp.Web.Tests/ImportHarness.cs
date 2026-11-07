@@ -29,7 +29,7 @@ internal sealed class ImportHarness : IDisposable {
         Processor = new ImportProcessor(Images, Batches, Metrics, Options, NullLogger<ImportProcessor>.Instance);
         Stages = new ImportStageStore(Options, Clock);
         Queue = new ImportQueue(Options);
-        Reader = new PageArchiveReader(Options, Storage, Reserved);
+        Reader = new PageArchiveReader(Options, Storage, Reserved, NullLogger<PageArchiveReader>.Instance);
     }
 
     public ArchiveOptions Options { get; }

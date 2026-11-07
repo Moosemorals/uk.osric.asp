@@ -27,6 +27,7 @@ internal class SqlitePageBatchStore(
     StorageDbContext database,
     PageStorageOptions options,
     TimeProvider clock,
+    ILogger<SqlitePageBatchStore> logger,
     PageStorageRefresh? refresh = null) : IPageBatchStore {
 
     /// <inheritdoc/>
@@ -67,6 +68,7 @@ internal class SqlitePageBatchStore(
             } catch (DbUpdateException exception) when (attempt + 1 < SqliteErrors.RetryCount && SqliteErrors.IsUniqueViolation(exception)) {
                 // The one failure an ordinary save already retries: a revision id or hash that a
                 // concurrent write has just taken. Fresh ids for the whole batch, then try again.
+                logger.LogDebug("A concurrent write took a revision id in this batch; regenerating its ids and trying again");
                 database.ChangeTracker.Clear();
                 batch = [.. batch.Select(page => page with { Template = SqlitePageStore.RegenerateRevision(page.Template) })];
             }

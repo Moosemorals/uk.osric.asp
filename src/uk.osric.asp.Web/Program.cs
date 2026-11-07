@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using System.Net;
+using System.Text.Json;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
@@ -20,6 +21,7 @@ using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Health;
 using uk.osric.asp.Web.Http;
+using uk.osric.asp.Web.Logging;
 using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
@@ -36,6 +38,20 @@ internal class Program {
 
         // The site is behind Caddy; nothing on this hop needs to advertise the server that ran it.
         builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+
+        // The journal is the sink: podman hands the container's stdout to systemd a line at a time, so
+        // one single-line JSON object is one entry with its fields intact. The formatter is chosen
+        // here rather than in configuration because it is the shape of the output, not a deployment
+        // setting - and clearing the providers first is what stops the framework's text console from
+        // writing a second copy of every line beside it. Levels still come from appsettings.
+        // See docs/logging.md.
+        builder.Logging.ClearProviders();
+        builder.Logging.AddJsonConsole(options => {
+            options.IncludeScopes = true;
+            options.UseUtcTimestamp = true;
+            options.TimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+            options.JsonWriterOptions = new JsonWriterOptions { Indented = false };
+        });
 
         if (isUserCommand) {
             // The command's output is its result; migration chatter belongs in the log, not on stdout.
@@ -175,10 +191,12 @@ internal class Program {
         builder.Services.AddSingleton<IMetricsSource>(services => {
             MetricsOptions options = services.GetRequiredService<MetricsOptions>();
             // The per-query deadline belongs to the source: one slow query must not hold the page.
-            return new PrometheusSource(new HttpClient {
-                BaseAddress = options.PrometheusUrl,
-                Timeout = Timeout.InfiniteTimeSpan,
-            });
+            return new PrometheusSource(
+                new HttpClient {
+                    BaseAddress = options.PrometheusUrl,
+                    Timeout = Timeout.InfiniteTimeSpan,
+                },
+                services.GetRequiredService<ILogger<PrometheusSource>>());
         });
         builder.Services.AddSingleton<Dashboard>();
 
@@ -235,6 +253,10 @@ internal class Program {
         // the proxy, so HSTS emits nothing and IsHttps is always false.
         app.UseForwardedHeaders();
 
+        // Ahead of the exception handler, so the handler's own report of an unhandled exception - and
+        // the error page it renders - are written inside the request's scope.
+        app.UseRequestLogScope();
+
         // Before the exception handler, so a request that throws still gets the default header set.
         app.Use(SecurityHeaders.ApplyAsync);
 
@@ -280,6 +302,9 @@ internal class Program {
         app.UseRouting();
         app.UseRateLimiter();
         app.UseAuthentication();
+        // After authentication and routing: the account and the route's ids are the two facts the
+        // scope could not carry when it opened.
+        app.UseRequestLogSubject();
         app.UseAuthorization();
         app.UseAntiforgery();
 
@@ -360,6 +385,13 @@ internal class Program {
         // Pages run for the safe verbs only; anything else is answered 405 by routing rather than
         // by page code that never expected it.
         app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.HandleAsync);
+
+        // One line so a restart is visible without reading the framework's startup chatter, and so a
+        // host that came up with the assistant switched off says so.
+        app.Services.GetRequiredService<ILoggerFactory>()
+            .CreateLogger<Program>()
+            .LogInformation("uk.osric.asp starting in {EnvironmentName} with the assistant {AssistantState}",
+                app.Environment.EnvironmentName, assistantEnabled ? "enabled" : "disabled");
 
         await app.RunAsync();
     }

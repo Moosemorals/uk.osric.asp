@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
@@ -48,7 +49,7 @@ public sealed class SqlitePageBatchStoreTests {
         ObservingStore store = Store();
         store.OnStateWrite = async () => {
             await using StorageDbContext observer = new(_options);
-            seenDuringCommit = await new SqlitePageStore(observer).GetSourceAsync(Key("/one"));
+            seenDuringCommit = await new SqlitePageStore(observer, NullLogger<SqlitePageStore>.Instance).GetSourceAsync(Key("/one"));
         };
 
         PageBatchResult result = await store.SaveBatchAsync([
@@ -60,7 +61,7 @@ public sealed class SqlitePageBatchStoreTests {
         Assert.That(seenDuringCommit, Is.EqualTo("old one"), "a reader must see the old page until the commit");
 
         await using StorageDbContext database = new(_options);
-        IPageStore pages = new SqlitePageStore(database);
+        IPageStore pages = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         Assert.That(await pages.GetSourceAsync(Key("/one")), Is.EqualTo("new one"));
         Assert.That(await pages.GetSourceAsync(Key("/two")), Is.EqualTo("new two"));
     }
@@ -138,7 +139,7 @@ public sealed class SqlitePageBatchStoreTests {
     private sealed class ObservingStore(
         StorageDbContext database,
         PageStorageOptions options,
-        TimeProvider clock) : SqlitePageBatchStore(database, options, clock) {
+        TimeProvider clock) : SqlitePageBatchStore(database, options, clock, NullLogger<SqlitePageBatchStore>.Instance) {
 
         /// <summary>Runs once, inside the transaction, before the next state row is written.</summary>
         public Func<Task>? OnStateWrite { get; set; }

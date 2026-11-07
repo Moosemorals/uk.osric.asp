@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
@@ -277,5 +278,5 @@ public sealed class ConversationStoreTests {
     }
 
     private static IConversationStore NewStore(StorageDbContext database) =>
-        new SqliteConversationStore(database, TimeProvider.System);
+        new SqliteConversationStore(database, TimeProvider.System, NullLogger<SqliteConversationStore>.Instance);
 }

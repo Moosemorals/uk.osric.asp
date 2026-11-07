@@ -14,7 +14,10 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>The SQLite-backed page store.</summary>
-internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefresh? storageRefresh = null) : IPageStore {
+internal sealed class SqlitePageStore(
+    StorageDbContext database,
+    ILogger<SqlitePageStore> logger,
+    PageStorageRefresh? storageRefresh = null) : IPageStore {
 
     private const int CheckpointAttempts = 3;
 
@@ -139,6 +142,9 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
 
                 return;
             } catch (DbUpdateException exception) when (attempt + 1 < SqliteErrors.RetryCount && SqliteErrors.IsUniqueViolation(exception)) {
+                // Expected and retried: another writer took the revision id between the read and the
+                // write. Debug because it is the store being correct, not a failure.
+                logger.LogDebug("A concurrent write took the revision id for {Path}; saving it again", revision.Path.Key);
                 revision = RegenerateRevision(revision);
             }
         }
@@ -222,6 +228,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 await transaction.CommitAsync(cancellationToken);
                 return true;
             } catch (DbUpdateException exception) when (attempt + 1 < SqliteErrors.RetryCount && SqliteErrors.IsUniqueViolation(exception)) {
+                logger.LogDebug("A concurrent write took the revision id for {Path}; saving it again", revision.Path.Key);
                 database.Entry(row).State = EntityState.Detached;
                 string revisionId = Guid.NewGuid().ToString("N");
                 revision = revision with {
@@ -348,7 +355,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
         return await command.ExecuteScalarAsync(cancellationToken);
     }
 
-    private static PageTemplate ToPage(PageRevision revision) {
+    private PageTemplate ToPage(PageRevision revision) {
         return new PageTemplate(PagePath.Normalize(revision.Path), revision.Template, ToImage(revision)) {
             RevisionId = revision.RevisionId,
             Hash = revision.Hash,
@@ -374,7 +381,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
         };
     }
 
-    private static PageImage? ToImage(PageRevision revision) {
+    private PageImage? ToImage(PageRevision revision) {
         if (revision.RuntimeId is null) {
             return null;
         }
@@ -387,16 +394,18 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
             Deserialize(revision.Diagnostics, revision.Image is not null));
     }
 
-    private static IReadOnlyList<PageDiagnostic> Deserialize(string? json, bool hasImage) {
+    private IReadOnlyList<PageDiagnostic> Deserialize(string? json, bool hasImage) {
         if (json is null) {
             return [];
         }
 
         try {
             return JsonSerializer.Deserialize<PageDiagnostic[]>(json, s_jsonOptions) ?? [];
-        } catch (JsonException) {
+        } catch (JsonException exception) {
             // Rows written before diagnostics carried a severity stored a plain string array. The
-            // image is the only clue to what they meant: no image means they were errors.
+            // image is the only clue to what they meant: no image means they were errors. Debug
+            // rather than a warning: reading an old row is the fallback working, not a fault.
+            logger.LogDebug(exception, "A stored diagnostics column is in the pre-severity format and is being read as one");
             string[]? legacy = JsonSerializer.Deserialize<string[]>(json);
             if (legacy is null) {
                 return [];

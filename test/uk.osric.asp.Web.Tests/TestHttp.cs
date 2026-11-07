@@ -5,10 +5,18 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.DependencyInjection;
 using uk.osric.asp.Sdk;
 
 /// <summary>Request and response plumbing shared by the endpoint fixtures.</summary>
 internal static class TestHttp {
+
+    // A real DefaultHttpContext throws from RequestServices when nothing supplied one, and the shell
+    // reaches for a logger there on the paths a test only sometimes takes. Logging is the only thing
+    // an endpoint asks the request for, so a bare factory is enough.
+    private static readonly IServiceProvider s_services = new ServiceCollection()
+        .AddLogging()
+        .BuildServiceProvider();
 
     /// <summary>Builds a context whose body can be read back after the handler has run.</summary>
     /// <param name="path">The route's <c>path</c> value.</param>
@@ -21,6 +29,7 @@ internal static class TestHttp {
         context.Request.RouteValues["path"] = path;
         context.Response.Body = new MemoryStream();
         context.Features.Set<ISessionFeature>(new TestSessionFeature());
+        context.RequestServices = s_services;
         return context;
     }
 
