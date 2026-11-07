@@ -46,6 +46,20 @@ public sealed class PageRevisionHashTests {
     }
 
     [Test]
+    public void NullComponentsAreNamedInTheRejection() {
+        DateTimeOffset savedAt = new(2026, 11, 3, 9, 15, 30, TimeSpan.Zero);
+
+        Assert.Multiple(() => {
+            Assert.That(() => RevisionHash.Of(null!, "runtime", savedAt, "id"),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("source"));
+            Assert.That(() => RevisionHash.Of("source", null!, savedAt, "id"),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("creationRuntimeId"));
+            Assert.That(() => RevisionHash.Of("source", "runtime", savedAt, null!),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("revisionId"));
+        });
+    }
+
+    [Test]
     public void EquivalentUtcInstantsHaveTheSameTimestampEncoding() {
         DateTimeOffset utc = new(2026, 11, 3, 9, 15, 30, TimeSpan.Zero);
         DateTimeOffset offset = utc.ToOffset(TimeSpan.FromHours(5));

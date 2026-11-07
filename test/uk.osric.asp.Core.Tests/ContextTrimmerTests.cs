@@ -64,4 +64,94 @@ public sealed class ContextTrimmerTests {
         Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["s", "c", "d"]));
         Assert.That(result.DroppedMessages, Is.EqualTo(2));
     }
+
+    [Test]
+    public void ATightBudgetIsNotANoteUntilSomethingWasDropped() {
+        ChatMessage[] messages = [new("system", "s"), new("user", "a")];
+
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 100);
+
+        Assert.That(result.DroppedMessages, Is.Zero);
+        Assert.That(result.IsTrimmed, Is.False);
+        Assert.That(result.TrimmingNote, Is.Null);
+    }
+
+    [Test]
+    public void ADroppedTurnIsExplainedInTheNote() {
+        ChatMessage[] messages = [new("system", "s"), new("user", "a"), new("assistant", "b"), new("user", "c")];
+
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 2);
+
+        Assert.That(result.IsTrimmed, Is.True);
+        Assert.That(result.TrimmingNote, Is.Not.Null.And.Contains("omitted"));
+    }
+
+    [Test]
+    public void KeepsEveryTurnWhenTheBudgetAllows() {
+        ChatMessage[] messages = [
+            new("system", "s"),
+            new("user", "a"), new("assistant", "b"),
+        ];
+
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 100);
+
+        Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["s", "a", "b"]));
+    }
+
+    [Test]
+    public void ATranscriptWithoutASystemPromptKeepsTheNewestTurn() {
+        ChatMessage[] messages = [new("assistant", "a"), new("user", "b")];
+
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 1);
+
+        Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["b"]));
+        Assert.That(result.Error, Is.Null);
+    }
+
+    [Test]
+    public void ReportsWhenTheSystemPromptAloneIsTooLong() {
+        ChatMessage[] messages = [new("system", "prompt")];
+
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 5);
+
+        Assert.That(result.Error, Is.Not.Null);
+    }
+
+    [Test]
+    public void KeepsASystemPromptThatExactlyFillsTheBudget() {
+        ChatMessage[] messages = [new("system", "prompt")];
+
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 6);
+
+        Assert.That(result.Error, Is.Null);
+        Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["prompt"]));
+    }
+
+    [Test]
+    public void ReportsWhenTheSystemFitsButTheNewestTurnDoesNot() {
+        ChatMessage[] messages = [new("system", "s"), new("user", "too long")];
+
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 5);
+
+        Assert.That(result.Error, Is.Not.Null);
+    }
+
+    [Test]
+    public void ToolCallJsonCountsTowardsTheBudget() {
+        ChatMessage[] messages = [new("system", "s"), new("user", "a"), new("assistant", "", "0123456789")];
+
+        ContextTrimResult result = ContextTrimmer.Trim(messages, 11);
+
+        Assert.That(result.Error, Is.Not.Null, "one character over once the tool-call JSON is counted");
+    }
+
+    [Test]
+    public void ANullTranscriptIsRefused() {
+        Assert.That(() => ContextTrimmer.Trim(null!, 10), Throws.ArgumentNullException);
+    }
+
+    [Test]
+    public void ABudgetOfNothingIsRefused() {
+        Assert.That(() => ContextTrimmer.Trim([new("user", "a")], 0), Throws.TypeOf<ArgumentOutOfRangeException>());
+    }
 }

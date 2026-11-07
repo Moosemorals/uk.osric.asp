@@ -15,6 +15,7 @@ public sealed class PageRangeEditorTests {
 
         Assert.That(result.Content, Is.EqualTo("one\r\nreplacement\r\nthree"));
         Assert.That(result.Error, Is.Null);
+        Assert.That(result.IsSuccess, Is.True);
     }
 
     [Test]
@@ -42,6 +43,41 @@ public sealed class PageRangeEditorTests {
 
         Assert.That(result.Content, Is.Null);
         Assert.That(result.Error, Does.Contain("size limit"));
+        Assert.That(result.IsSuccess, Is.False);
+    }
+
+    // The replacement is 11 characters and the range is line 2 of 16 characters, so the real result
+    // is 23 characters: a budget below that must fail and one at or above it must not.
+    [TestCase(13, true)]
+    [TestCase(23, false)]
+    [TestCase(25, false)]
+    public void TheSizeLimitIsCheckedAgainstTheRealResultingLength(int maximumChars, bool rejected) {
+        PageRangeEditResult result = PageRangeEditor.Replace("one\r\ntwo\r\nthree", 2, 2, "replacement", maximumChars);
+
+        Assert.That(result.Error is not null, Is.EqualTo(rejected));
+    }
+
+    [Test]
+    public void ALoneCarriageReturnAtTheEndIsOneLineBreak() {
+        PageRangeEditResult result = PageRangeEditor.Replace("one\r", 1, 1, "x", 100);
+
+        Assert.That(result.Content, Is.EqualTo("x\r"));
+    }
+
+    [Test]
+    public void TwoLineFeedsAreTwoLineBreaks() {
+        PageRangeEditResult result = PageRangeEditor.Replace("a\n\nb", 3, 3, "c", 100);
+
+        Assert.That(result.Content, Is.EqualTo("a\n\nc"));
+    }
+
+    [Test]
+    public void MissingSourceIsRefused() {
+        Assert.Multiple(() => {
+            Assert.That(() => PageRangeEditor.Replace(null!, 1, 1, "x", 100), Throws.ArgumentNullException);
+            Assert.That(() => PageRangeEditor.Replace("one", 1, 1, null!, 100), Throws.ArgumentNullException);
+            Assert.That(() => PageRangeEditor.Replace("one", 1, 1, "x", 0), Throws.TypeOf<ArgumentOutOfRangeException>());
+        });
     }
 
     [Test]

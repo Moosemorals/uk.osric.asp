@@ -40,6 +40,6 @@ public sealed class TemplateFingerprintTests {
 
     [Test]
     public void NullContentIsRejected() {
-        Assert.That(() => TemplateFingerprint.Of(null!), Throws.ArgumentNullException);
+        Assert.That(() => TemplateFingerprint.Of(null!), Throws.ArgumentNullException.With.Property("ParamName").EqualTo("template"));
     }
 }

@@ -28,6 +28,24 @@ public sealed class ValueUnitTests {
     }
 
     [Test]
+    public void AByteRangeThatReachesAMegabyteIsDrawnInMegabytes() {
+        ChartScale scale = ValueUnit.ForBytes(1_000_000, 2_000_000);
+
+        Assert.That(scale.Unit, Is.EqualTo("megabytes"));
+        Assert.That(scale.Min, Is.EqualTo(1));
+        Assert.That(scale.Max, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void AByteRangeThatReachesAKilobyteIsDrawnInKilobytes() {
+        ChartScale scale = ValueUnit.ForBytes(1_000, 2_000);
+
+        Assert.That(scale.Unit, Is.EqualTo("kilobytes"));
+        Assert.That(scale.Min, Is.EqualTo(1));
+        Assert.That(scale.Max, Is.EqualTo(2));
+    }
+
+    [Test]
     public void AByteRangeOverAMegabyteIsDrawnInMegabytes() {
         ChartScale scale = ValueUnit.ForBytes(166_000_000, 180_000_000);
 

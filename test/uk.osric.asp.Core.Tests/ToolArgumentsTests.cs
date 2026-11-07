@@ -21,13 +21,17 @@ public sealed class ToolArgumentsTests {
             "{\"path\":\"/notes\",\"startLine\":3,\"includeDeleted\":false}", Schema, 200);
 
         Assert.That(result.Error, Is.Null);
+        Assert.That(result.IsSuccess, Is.True);
         Assert.That(result.Values["path"].GetString(), Is.EqualTo("/notes"));
         Assert.That(result.Values["startLine"].GetInt32(), Is.EqualTo(3));
     }
 
     [Test]
     public void MissingRequiredArgumentIsRejected() {
-        Assert.That(ToolArguments.Parse("{}", Schema, 200).Error, Does.Contain("path"));
+        ToolArgumentsResult result = ToolArguments.Parse("{}", Schema, 200);
+
+        Assert.That(result.Error, Does.Contain("path"));
+        Assert.That(result.IsSuccess, Is.False);
     }
 
     [Test]
@@ -43,5 +47,37 @@ public sealed class ToolArgumentsTests {
     [Test]
     public void ArgumentsOverTheConfiguredCharacterLimitAreRejectedBeforeParsing() {
         Assert.That(ToolArguments.Parse("not-json", Schema, 3).Error, Does.Contain("limit"));
+    }
+
+    [Test]
+    public void ArgumentsThatExactlyFillTheLimitAreParsed() {
+        const string json = "{\"path\":\"/a\"}";
+
+        Assert.That(ToolArguments.Parse(json, Schema, json.Length).Error, Is.Null);
+    }
+
+    [Test]
+    public void ARootThatIsNotAnObjectIsRejected() {
+        Assert.That(ToolArguments.Parse("[1]", Schema, 200).Error, Does.Contain("object"));
+    }
+
+    [Test]
+    public void ARepeatedArgumentIsRejected() {
+        Assert.That(ToolArguments.Parse("{\"path\":\"/a\",\"path\":\"/b\"}", Schema, 200).Error,
+            Does.Contain("repeated"));
+    }
+
+    [Test]
+    public void AFractionalNumberIsNotAnInteger() {
+        Assert.That(ToolArguments.Parse("{\"path\":\"/a\",\"startLine\":1.5}", Schema, 200).Error,
+            Does.Contain("integer"));
+    }
+
+    [Test]
+    public void MissingArgumentsAreRefused() {
+        Assert.That(() => ToolArguments.Parse(null!, Schema, 200), Throws.ArgumentNullException);
+        Assert.That(() => ToolArguments.Parse("{}", null!, 200),
+            Throws.ArgumentNullException.With.Property("ParamName").EqualTo("schema"));
+        Assert.That(() => ToolArguments.Parse("{}", Schema, 0), Throws.TypeOf<ArgumentOutOfRangeException>());
     }
 }

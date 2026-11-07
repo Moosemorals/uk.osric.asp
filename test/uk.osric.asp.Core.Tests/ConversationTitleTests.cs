@@ -25,6 +25,31 @@ public sealed class ConversationTitleTests {
     }
 
     [Test]
+    public void MissingTextUsesTheNewConversationTitle() {
+        Assert.That(ConversationTitle.From(null), Is.EqualTo(ConversationTitle.NewConversation));
+    }
+
+    [Test]
+    public void ALeadingLineBreakLeavesNothingOnTheFirstLine() {
+        Assert.That(ConversationTitle.From("\ndetails"), Is.EqualTo(ConversationTitle.NewConversation));
+    }
+
+    [Test]
+    public void ATitleOfExactlyTheLimitIsKeptWhole() {
+        string text = new('a', ConversationTitle.MaximumLength);
+
+        Assert.That(ConversationTitle.From(text), Is.EqualTo(text));
+    }
+
+    [Test]
+    public void AWordWithNoBoundaryIsCutAtTheLimit() {
+        string title = ConversationTitle.From(new string('x', 205));
+
+        Assert.That(title, Has.Length.EqualTo(ConversationTitle.MaximumLength));
+        Assert.That(title, Does.EndWith("\u2026"));
+    }
+
+    [Test]
     public void LongTextStopsAtTheLastWholeWordWithinTheLimit() {
         string title = ConversationTitle.From(string.Join(' ', Enumerable.Repeat("word", 60)));
 

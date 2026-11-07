@@ -118,6 +118,81 @@ public sealed class HeatmapTests {
         Assert.That(svg, Does.Contain("<svg class=\"heatmap\""));
     }
 
+    [Test]
+    public void MissingCumulativeRowsAreRejected() {
+        Assert.That(() => Heatmap.FromCumulative(null!),
+            Throws.ArgumentNullException.With.Property("ParamName").EqualTo("cumulative"));
+    }
+
+    [Test]
+    public void TicksArePlacedByTheirSecondsFromTheFirstSample() {
+        string svg = Heatmap.Render([Row("0.5", 1, 2)], TimeAxis, Size, "Duration", "seconds", "renders/s");
+
+        Assert.That(AttributeOf(svg, "05:00", "x"), Is.EqualTo(60), "the left margin");
+        Assert.That(AttributeOf(svg, "05:01", "x"), Is.EqualTo(190), "the whole plot width later");
+    }
+
+    [Test]
+    public void TheSpanFollowsTheEarliestAndLatestSamplesWhereverTheyAre() {
+        HeatmapRow outOfOrder = new("0.5", [
+            new ChartPoint(Start.AddMinutes(1), 1),
+            new ChartPoint(Start, 1),
+        ]);
+
+        string svg = Heatmap.Render([outOfOrder], TimeAxis, Size, "Duration", "seconds", "renders/s");
+
+        Assert.That(AttributeOf(svg, "05:00", "x"), Is.EqualTo(60));
+        Assert.That(AttributeOf(svg, "05:01", "x"), Is.EqualTo(190));
+    }
+
+    [Test]
+    public void TheLegendSitsUnderThePlot() {
+        string svg = Heatmap.Render([Row("0.5", 3)], TimeAxis, Size, "Duration", "seconds", "renders/s");
+
+        Assert.That(Swatches(svg).Select(swatch => swatch.Y), Is.All.EqualTo(80), "100 - 24 + 4");
+        Assert.That(AttributeOf(svg, "0", "y"), Is.EqualTo(90), "the swatch's baseline");
+        Assert.That(AttributeOf(svg, "3 renders/s", "y"), Is.EqualTo(90));
+    }
+
+    [Test]
+    public void TheLegendSwatchesStepAcrossFromTheLeftMargin() {
+        string svg = Heatmap.Render([Row("0.5", 3)], TimeAxis, Size, "Duration", "seconds", "renders/s");
+
+        Assert.That(Swatches(svg).Select(swatch => swatch.X), Is.EqualTo((double[])[72, 88, 104, 120, 136]));
+        Assert.That(Swatches(svg).Select(swatch => swatch.Width), Is.All.EqualTo(14));
+        Assert.That(AttributeOf(svg, "3 renders/s", "x"), Is.EqualTo(154), "past the last swatch, plus its gap");
+    }
+
+    [TestCase(0.0125, "0.0125")]
+    [TestCase(12.3456, "12.35")]
+    public void TheLegendLabelsTheTopOfTheRange(double max, string expected) {
+        string svg = Heatmap.Render([Row("0.5", max)], TimeAxis, Size, "Duration", "seconds", "renders/s");
+
+        Assert.That(svg, Does.Contain($">{expected} renders/s</text>"));
+    }
+
+    private static IReadOnlyList<(double X, double Y, double Width)> Swatches(string svg) =>
+        [.. svg.Split('<')
+            .Where(element => element.Contains(" legend\"", StringComparison.Ordinal))
+            .Select(element => (Attribute(element, "x"), Attribute(element, "y"), Attribute(element, "width")))];
+
+    private static double AttributeOf(string svg, string text, string attribute) {
+        string marker = ">" + text + "</text>";
+        int end = svg.IndexOf(marker, StringComparison.Ordinal);
+        Assert.That(end, Is.GreaterThanOrEqualTo(0), $"{text} is not in the markup");
+
+        return Attribute(svg[..end], attribute);
+    }
+
+    private static double Attribute(string markup, string name) {
+        string prefix = name + "=\"";
+        int start = markup.LastIndexOf(prefix, StringComparison.Ordinal) + prefix.Length;
+        Assert.That(start, Is.GreaterThanOrEqualTo(prefix.Length), $"{name} is not in the markup");
+
+        int close = markup.IndexOf('"', start);
+        return double.Parse(markup[start..close], CultureInfo.InvariantCulture);
+    }
+
     private static double LabelTop(string svg, string label) {
         string marker = "text-anchor=\"end\">" + System.Net.WebUtility.HtmlEncode(label) + "</text>";
         int end = svg.IndexOf(marker, StringComparison.Ordinal);

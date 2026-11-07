@@ -120,4 +120,54 @@ public sealed class LineChartTests {
         Assert.Throws<ArgumentNullException>(
             () => LineChart.Render(null!, TimeAxis, CountAxis, Size));
     }
+
+    [Test]
+    public void TheRangeFollowsTheEarliestAndLatestSamplesWhereverTheyAre() {
+        string svg = LineChart.Render([Series("out of order", (10, 0), (0, 1))], TimeAxis, CountAxis, Size);
+
+        Assert.That(svg, Does.Contain("<polyline class=\"series series-1\" points=\"50,30 40,10\"/>"));
+    }
+
+    [Test]
+    public void AnAxisWithoutTicksTakesItsRangeFromTheSeries() {
+        ChartAxis noTicks = new("count", []);
+
+        string svg = LineChart.Render([Series("points", (0, 2), (10, 4))], TimeAxis, noTicks, Size);
+
+        Assert.That(svg, Does.Contain("points=\"40,30 50,10\""));
+    }
+
+    [Test]
+    public void ASingleTickIsARangeOfItsOwn() {
+        ChartAxis one = new("count", [new ChartTick(5, "5")]);
+
+        string svg = LineChart.Render([Series("spread", (0, 4.8), (10, 5.2))], TimeAxis, one, Size);
+
+        Assert.That(svg, Does.Contain("points=\"40,24 50,16\""), "the tick is the middle of the range, not its edge");
+    }
+
+    [Test]
+    public void AFlatRangeAtZeroIsPaddedByOne() {
+        ChartAxis zero = new("count", [new ChartTick(0, "0")]);
+
+        string svg = LineChart.Render([Series("flat", (0, 0), (10, 0))], TimeAxis, zero, Size);
+
+        Assert.That(svg, Does.Contain("points=\"40,20 50,20\""), "the value sits halfway down a -1 to 1 range");
+    }
+
+    [Test]
+    public void AZeroToTwoAxisDrawsTheMiddleValueHalfway() {
+        ChartAxis wide = new("count", [new ChartTick(0, "0"), new ChartTick(2, "2")]);
+
+        string svg = LineChart.Render([Series("middle", (0, 1))], TimeAxis, wide, Size);
+
+        Assert.That(svg, Does.Contain("cx=\"40\" cy=\"20\""));
+    }
+
+    [Test]
+    public void ASeriesWithoutALabelLeavesTheChartNamedChart() {
+        string svg = LineChart.Render([Series("")], TimeAxis, CountAxis, Size);
+
+        Assert.That(svg, Does.Contain("<title>Chart</title>"));
+    }
 }
