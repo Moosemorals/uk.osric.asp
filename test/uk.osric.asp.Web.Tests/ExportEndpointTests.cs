@@ -33,6 +33,13 @@ public sealed class ExportEndpointTests {
     }
 
     [Test]
+    public async Task TheListLoadsItsScriptAsAModuleAsync() {
+        string body = await ListAsync(NewStore());
+
+        Assert.That(body, Does.Contain("<script type=\"module\" src=\"/admin.js\"></script>"));
+    }
+
+    [Test]
     public async Task TheListSkipsDeletedReservedAndUnaddressablePagesAsync() {
         FakePageStore store = NewStore();
         store["/edit/hidden"] = new PageTemplate(Key("/edit/hidden"), "Reserved");

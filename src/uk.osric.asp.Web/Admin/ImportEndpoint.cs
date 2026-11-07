@@ -61,7 +61,7 @@ internal sealed class ImportEndpoint {
                 </dl>
                 <button type="submit">Upload archive</button>
             </form>
-            <script src="/admin.js" defer></script>
+            <script type="module" src="/admin.js"></script>
             """);
         await ShellDocument.EndAsync(context);
     }
@@ -181,7 +181,7 @@ internal sealed class ImportEndpoint {
                     <a href="/admin/import">Cancel</a>
                 </p>
             </form>
-            <script src="/admin.js" defer></script>
+            <script type="module" src="/admin.js"></script>
             """);
         await ShellDocument.EndAsync(context);
     }

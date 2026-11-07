@@ -65,7 +65,7 @@ internal sealed class ExportEndpoint {
                     </ul>
                     <button type="submit">Export selected pages</button>
                 </form>
-                <script src="/admin.js" defer></script>
+                <script type="module" src="/admin.js"></script>
                 """);
         }
 

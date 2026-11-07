@@ -37,6 +37,15 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Is.EqualTo(ShippedSeed(path)));
     }
 
+    [TestCase("/admin.js")]
+    [TestCase("/assistant.js")]
+    [TestCase("/editor.js")]
+    public async Task ShippedScriptsAreNativeModulesAsync(string path) {
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
+
+        Assert.That(template, Does.Match(@"(?m)^(?:export|import)\b"));
+    }
+
     [TestCase("/not-a-seed")]
     [TestCase("/admin/restore")]
     public async Task UnknownAndNestedPagesHaveNoShippedSeedAsync(string path) {

@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v4";
+    public const string Version = "page-author-v5";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -75,6 +75,16 @@ internal static class PageAuthorPrompt {
         `<dt><label for="id">…</label></dt>` and `<dd>` around the control. A
         textarea goes in a `<fieldset>` whose `<legend>` contains its label.
 
+        ## Scripts
+        A page that serves JavaScript sets its own
+        `text/javascript; charset=utf-8` content type. Write the script as
+        a native ES module: use `import`/`export` rather than globals, and
+        end a side-effect-only script with `export {};`. The page that loads it
+        calls `ctx.AllowScripts()` and writes
+        `<script type="module" src="/…"></script>`; modules are deferred, so
+        the script's position in the document does not matter. Inline
+        scripts and event-handler attributes stay blocked.
+
         ## IContext contract
         {{ContractSection()}} `Request` is a `PageRequest`: its `Query`, `Form`,
         `Headers`, and `Cookies` are read-only dictionaries of strings.
@@ -87,7 +97,7 @@ internal static class PageAuthorPrompt {
         `script-src 'self'` for same-origin external scripts; inline scripts
         and event-handler attributes stay blocked, so the script must be
         another page, or a seeded asset, served with a JavaScript content type
-        and referenced by `<script src="/…">`.
+        and referenced by `<script type="module" src="/…">`.
         
         ## Page authentication
         Pages are public unless the page's own code checks `ctx.User`. Add the

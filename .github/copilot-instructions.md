@@ -43,6 +43,15 @@ when the page pipeline itself is broken. A view that ships with the site is a se
 `Pages/Seeds`, so the owner can edit it. When a missing page capability is the only thing in the way,
 add it to `docs/jobs/` as an `IDEA-` job rather than growing the shell by default.
 
+## JavaScript
+
+Seeded scripts under `Pages/Seeds` and any new JavaScript are native ES modules: no bundler, no npm,
+no transpiler. Use `import`/`export` rather than globals, and end a side-effect-only script with
+`export {};`. Load every script with `<script type="module" src="/…"></script>` — modules are already
+deferred, so no `defer` or document-position workaround is needed. A page that serves JavaScript sets
+its own `text/javascript` content type and `Cache-Control: no-cache`; a stored page that loads one
+opts in with `ctx.AllowScripts()`.
+
 ## Testing
 
 See `docs/testing.md`. Test-first: write the failing test, make it pass, then refactor. Every test is

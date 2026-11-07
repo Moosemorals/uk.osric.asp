@@ -101,6 +101,18 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void TheScriptSectionTeachesNativeModules() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Scripts"));
+            Assert.That(prompt, Does.Contain("native ES module"));
+            Assert.That(prompt, Does.Contain("export {};"));
+            Assert.That(prompt, Does.Contain("<script type=\"module\" src=\"/…\">"));
+        });
+    }
+
+    [Test]
     public void ThePrivatePageExampleIsPresent() {
         Assert.That(PageAuthorPrompt.Examples.Select(example => example.Name), Does.Contain("private-page"));
     }

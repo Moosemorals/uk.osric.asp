@@ -16,11 +16,12 @@ internal sealed class PageScriptTests : BrowserTest {
         await SavePageAsync(script, """
             <% ctx.SetContentType("text/javascript; charset=utf-8"); %>
             window.__pageScriptRan = true;
+            export {};
             """);
         await SavePageAsync(page, $"""
             <% ctx.AllowScripts(); %>
             <p>Scripted page</p>
-            <script src="{script}"></script>
+            <script type="module" src="{script}"></script>
             """);
 
         await Page.GotoAsync(page);

@@ -315,12 +315,12 @@ comes back without discarding its earlier revisions.
 - The data-protection key ring is persisted on a volume. That is what lets the 30-day cookie and
   in-flight antiforgery tokens survive a redeploy.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
-  starts (DEC-93). The editor and assistant views widen the policy to `script-src 'self'` for their
-  own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` (DEC-138); every
-  other response forbids scripts outright. The header stays shell-owned, so a page cannot set
+  starts (DEC-93). The editor, assistant and admin views widen the policy to `script-src 'self'` for
+  their own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` (DEC-138);
+  every other response forbids scripts outright. The header stays shell-owned, so a page cannot set
   `Content-Security-Policy` with `SetHeader`, and inline scripts stay blocked on every path.
-  `/editor.css`, `/editor.js` and `/assistant.js` are seeded pages like `/site.css`, so they stay
-  editable.
+  `/admin.js`, `/editor.js` and `/assistant.js` are seeded pages like `/site.css`, so they stay
+  editable; each is a native ES module loaded with `<script type="module">`.
 
 ### Page authentication
 

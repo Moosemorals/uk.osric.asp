@@ -324,3 +324,5 @@ if (root) {
         connect(root.dataset.activeRun, Number.parseInt(root.dataset.replayFrom ?? '0', 10));
     }
 }
+
+export {};

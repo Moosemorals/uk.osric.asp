@@ -55,6 +55,22 @@ public sealed class ImportEndpointTests {
     }
 
     [Test]
+    public async Task TheUploadAndReviewFormsLoadTheAdminScriptAsAModuleAsync() {
+        using ImportHarness harness = new();
+        ImportStage stage = harness.Stage(("/about", "About", []));
+        DefaultHttpContext upload = TestHttp.CreateContext(null, "GET", "/admin/import");
+
+        await ImportEndpoint.UploadFormAsync(upload, new TestAntiforgery(), harness.Options);
+        string uploadBody = await TestHttp.ReadBodyAsync(upload);
+        string reviewBody = await ReviewAsync(harness, stage.Id);
+
+        Assert.Multiple(() => {
+            Assert.That(uploadBody, Does.Contain("<script type=\"module\" src=\"/admin.js\"></script>"));
+            Assert.That(reviewBody, Does.Contain("<script type=\"module\" src=\"/admin.js\"></script>"));
+        });
+    }
+
+    [Test]
     public async Task TheReviewTagsANewPage() {
         using ImportHarness harness = new();
         ImportStage stage = harness.Stage(("/about", "About", []));
