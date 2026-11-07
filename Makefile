@@ -181,11 +181,16 @@ test: test-core test-runtime test-web test-integration
 
 # A suite that wedges should fail the gate rather than sit in it. NUnit's own timeout would not help
 # here: the budget tests burn a wall clock on purpose, so only a generous whole-run ceiling is safe.
-TEST_HANG_TIMEOUT ?= 5m
+# The ceiling is VSTest's session timeout, in milliseconds because that is how runsettings counts.
+# It is not `--blame-hang`: that reports a warning on every run that ends normally — that it wrote no
+# sequence file, which is the good outcome — and a warning nobody can act on is one everybody learns
+# to skip.
+TEST_HANG_TIMEOUT ?= 300000
 # Test results belong with everything else the build produces. Left to itself the runner creates a
-# TestResults/ folder beside each project, which puts output in the source tree.
+# TestResults/ folder beside each project, which puts output in the source tree. Everything after the
+# `--` is a runsettings property, which is the only way in from the command line.
 TEST_RESULTS := $(ARTIFACTS)/test-results
-TEST_ARGS := --results-directory $(TEST_RESULTS) --blame-hang --blame-hang-timeout $(TEST_HANG_TIMEOUT)
+TEST_ARGS := --results-directory $(TEST_RESULTS) -- RunConfiguration.TestSessionTimeout=$(TEST_HANG_TIMEOUT)
 
 # The gate. Cheap checks first, so a formatting mistake fails in seconds rather than after the suites.
 # Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no

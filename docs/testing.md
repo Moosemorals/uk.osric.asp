@@ -193,9 +193,12 @@ build the host is running. It needs podman and the pinned base image, which is w
 rather than in `check`.
 
 Warnings are errors (`Directory.Build.props`), so a project that builds locally will pass the gate;
-`make audit` fails on a vulnerable or deprecated NuGet package, and every suite runs under
-`--blame-hang-timeout 5m` so a wedged run fails instead of sitting there. The timeout is generous
-because the budget tests burn a wall clock deliberately.
+`make audit` fails on a vulnerable or deprecated NuGet package, and every suite runs under a
+five-minute session timeout (`TEST_HANG_TIMEOUT`, in milliseconds) so a wedged run fails instead of
+sitting there. The timeout is generous because the budget tests burn a wall clock deliberately. It is
+VSTest's `RunConfiguration.TestSessionTimeout` rather than `--blame-hang`, because the blame collector
+warns on every run that ends normally that it wrote no sequence file: that is the good outcome said
+as a problem, and a warning nobody can act on is one everybody learns to skip.
 
 ## Parallelism
 
