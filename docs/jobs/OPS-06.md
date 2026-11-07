@@ -76,6 +76,6 @@ app registers to the metric families the panels ask for.
 5. Keep one panel to one question. The dashboard is read cold, under pressure, by one person who has
    forgotten what it says.
 
-This job is separate from [the naming plan](../plans/naming-consistency.md), which renames a meter and
+This job is separate from [the naming plan](../plans/archive/naming-consistency.md), which renames a meter and
 two instruments while the Prometheus history is disposable. Doing that work first is easier: it moves
 the names once, before there are panels to update.

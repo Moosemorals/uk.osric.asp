@@ -10,7 +10,7 @@ to be worth more than the prefix. This plan applies it to the verticals that rew
 it does not apply, and carries the same idea down to members so that a reader six months cold can
 predict a name instead of grepping for it.
 
-**Status:** implemented, in eight commits — see [DEC-122](../decisions.md#build-test-and-house-style).
+**Status:** implemented on 2026-11-06, in eight commits — see [DEC-122](../../decisions.md#build-test-and-house-style).
 
 ## The short version
 
@@ -31,7 +31,7 @@ predict a name instead of grepping for it.
 8. Nothing else on the wire moves — table names, config keys, event names, routes, asset ids and
    Prometheus labels stay exactly as they are. Blast radius: 901 identifier occurrences in `.cs` and
    68 in `.md`, across 68 source files and 5 documents.
-9. What the dashboard *shows* is a separate job, [OPS-06](../jobs/OPS-06.md): half the instruments the
+9. What the dashboard *shows* is a separate job, [OPS-06](../../jobs/OPS-06.md): half the instruments the
    site records never reach a panel.
 
 No behaviour change is intended. Every phase ends with a green build and its suites passing; if a
@@ -143,12 +143,12 @@ and it is dropped after `Assistant:JournalTtlMinutes`; the transcript is the rec
 
 **"Turn" is none of them.** It appears only in prose, in two different senses: a "multi-turn
 conversation" (an exchange) and "the complete transcript sent to the provider each turn" (a step, in
-[ai-page-assistant.md](archive/ai-page-assistant.md#the-run-lifecycle)). One word, two units, and the
+[ai-page-assistant.md](ai-page-assistant.md#the-run-lifecycle)). One word, two units, and the
 smaller of the two already has a name in the code. That is how a reader ends up asking what the
 relationship is — and it is why `Turn` is not available as a type name below.
 
 The rest of the vocabulary — page, key, path, head, revision, template, image, runtime, slot, budget,
-staleness — is bigger than this plan and is recorded as [IDEA-013](../jobs/IDEA-013.md).
+staleness — is bigger than this plan and is recorded as [IDEA-013](../../jobs/IDEA-013.md).
 
 ## What `Run` should be called
 
@@ -303,11 +303,11 @@ Three things are wrong, and only three:
 
 The meter name is only the `otel_scope_name` label, and both call sites in `Program.cs` use
 `MeterName`, so that rename is contained. Neither renamed instrument appears in a panel today —
-which is exactly [OPS-06's](../jobs/OPS-06.md) complaint — so no PromQL moves with them.
+which is exactly [OPS-06's](../../jobs/OPS-06.md) complaint — so no PromQL moves with them.
 
 The two instrument renames are still the sharpest edge in the plan, because `AddView` matches
 instrument names **as strings**, in the views block of
-[Program.cs](../../src/uk.osric.asp.Web/Program.cs). A missed one silently falls back to the generic
+[Program.cs](../../../src/uk.osric.asp.Web/Program.cs). A missed one silently falls back to the generic
 OpenTelemetry bucket bounds instead of failing, and every histogram here supplies explicit bounds for
 a reason. That is the one place in this plan where a mistake produces a chart that looks fine and is
 wrong.
@@ -421,9 +421,9 @@ removes the hard part of renaming an EF entity — the snapshot — instead of w
 lets the metric names change without splitting every series in two.
 
 Renaming an entity changes its CLR type name inside
-[StorageDbContextModelSnapshot.cs](../../src/uk.osric.asp.Web/Storage/Migrations/StorageDbContextModelSnapshot.cs)
+[StorageDbContextModelSnapshot.cs](../../../src/uk.osric.asp.Web/Storage/Migrations/StorageDbContextModelSnapshot.cs)
 and EF compares entities *by name*, so a rename can look like one entity removed plus another added
-and scaffold `DropTable`/`CreateTable` against the same table. The [page SDK plan](archive/page-sdk-split.md#additional-changes-agreed-2026-11-03)
+and scaffold `DropTable`/`CreateTable` against the same table. The [page SDK plan](page-sdk-split.md#additional-changes-agreed-2026-11-03)
 avoided exactly this for `StoredFile` and called it "a no-op migration and a hand-edited snapshot for
 no functional gain".
 
@@ -435,24 +435,24 @@ migration**.
    calls and four `HasOne<T>` calls. The `ToTable(...)` strings do not move.
 3. Rename `TitleIsGenerated` to `HasGeneratedTitle`, and the same string in the raw `UPDATE
    "AssistantConversations"` statement in
-   [SqliteConversationStore.cs](../../src/uk.osric.asp.Web/Assistant/SqliteConversationStore.cs).
+   [SqliteConversationStore.cs](../../../src/uk.osric.asp.Web/Assistant/SqliteConversationStore.cs).
 4. `make migration NAME=InitialCreate`, which produces one migration whose `Up` is a plain
    `CreateTable` for every table and whose snapshot matches the model exactly.
 5. `make test-integration`, which applies migrations to a fresh database and exercises the real host.
 
 The cost is the loss of the migration history — `RenameAssistantTables` stops being replayable, and
-the prose in [ai-page-assistant.md](archive/ai-page-assistant.md) that describes it becomes the only record of
+the prose in [ai-page-assistant.md](ai-page-assistant.md) that describes it becomes the only record of
 that rename. With a database that has never held anything worth keeping, that is the cheaper of the
 two costs.
 
 The deployment consequence needs a line in
-[deploy/README.md](../../deploy/README.md#storage-and-migrations), and it now covers two volumes:
+[deploy/README.md](../../../deploy/README.md#storage-and-migrations), and it now covers two volumes:
 
 - **`uk.osric.asp-storage`** has to be removed once, because its `__EFMigrationsHistory` does not know
   about `InitialCreate` and startup will find tables it did not create. It also holds the owner
   account, so the sequence is: stop the app, remove the volume, deploy, then `make remote-user-add`.
 - **`prometheus-data`** has to be removed too. Retention is 30 days
-  ([prometheus.container](../../deploy/prometheus.container)), so without a reset the old and new
+  ([prometheus.container](../../../deploy/prometheus.container)), so without a reset the old and new
   names would sit side by side for a month and any panel that sums without filtering by name would
   count both. Removing the volume is one `podman volume rm` and no data that matters.
 
@@ -500,9 +500,9 @@ one row per judgement, and it is easier to argue about once the type names have 
 
 ## Documentation
 
-- [architecture.md](../architecture.md) — the "where does code go?" table names
+- [architecture.md](../../architecture.md) — the "where does code go?" table names
   `SqliteAssistantConversationStore`; it becomes `SqliteConversationStore`.
-- [decisions.md](../decisions.md) — DEC-122, recording the rule, the subsystem/domain line, and the
+- [decisions.md](../../decisions.md) — DEC-122, recording the rule, the subsystem/domain line, and the
   old→new mapping, so that someone grepping for `AssistantRun` after the change finds the answer:
 
   > **DEC-122** — A type name does not repeat its namespace, at the start, in the middle or at the
@@ -513,16 +513,17 @@ one row per judgement, and it is easier to argue about once the type names have 
   > replaced by a domain word (`RunEvent`, `TokenUsage`, `PagePathPolicy`) — never by the vertical.
   > Members follow the same idea: `Is*`/`Has*` for booleans, `Async` on every `Task`, `HandleAsync`
   > on a single-route endpoint, and no member repeating its type. See
-  > [naming consistency](plans/naming-consistency.md).
+  > [naming consistency](naming-consistency.md).
 
-  (That last link is written for `decisions.md`, which is where the row will live.)
-- [ai-page-assistant.md](archive/ai-page-assistant.md) and [assistant-browser-tests.md](archive/assistant-browser-tests.md)
-  and [BUG-17](../jobs/BUG-17.md) name types too. These describe work that is already finished, so
+  (That row lives in `decisions.md`; the link is written for that file, and here it points back at this
+  plan.)
+- [ai-page-assistant.md](ai-page-assistant.md) and [assistant-browser-tests.md](assistant-browser-tests.md)
+  and [BUG-17](../../jobs/BUG-17.md) name types too. These describe work that is already finished, so
   they get one line under their status saying the type names predate DEC-122, rather than a rewrite
   that would misrepresent what was implemented.
-- [deploy/README.md](../../deploy/README.md#storage-and-migrations) — the once-only removal of both
+- [deploy/README.md](../../../deploy/README.md#storage-and-migrations) — the once-only removal of both
   volumes and the account recreation after the squash.
-- [jobs/README.md](../jobs/README.md) — the OPS-06 and IDEA-013 rows, and the provenance sentence that
+- [jobs/README.md](../../jobs/README.md) — the OPS-06 and IDEA-013 rows, and the provenance sentence that
   says where they came from.
 
 ## Risks
@@ -532,7 +533,7 @@ one row per judgement, and it is easier to argue about once the type names have 
 | The squashed migration and an existing volume disagree | Remove `uk.osric.asp-storage` once and recreate the owner account; `make test-integration` proves a fresh database works |
 | A renamed instrument keeps its old `AddView` key | The two renames and their views are one commit; phase 6 reads the scrape rather than trusting the tests, because the fallback is silent |
 | Old and new metric names coexist for the retention window | Remove `prometheus-data` with the app volume, once, before the new version is deployed |
-| A dashboard query keeps a stale metric name after the rename | `MetricsDashboardTests` pins one query; the rest are read against the scrape in phase 6, and [OPS-06](../jobs/OPS-06.md) proposes the test that would catch it properly |
+| A dashboard query keeps a stale metric name after the rename | `MetricsDashboardTests` pins one query; the rest are read against the scrape in phase 6, and [OPS-06](../../jobs/OPS-06.md) proposes the test that would catch it properly |
 | `HasGeneratedTitle` drifts from the raw SQL copy of the column name | One phase, one commit, and `AssistantConversationStoreTests` covers the title-upgrade path |
 | `IsSuccess` touches five `public` Core types | It is a property rename in one commit; the compiler finds every call site |
 | `Message` and `ChatMessage` read alike where both appear | Only `RunProcessor` uses both, and only in `ToChatMessage(Message message)`, where the mapping is the point |

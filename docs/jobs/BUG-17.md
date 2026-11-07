@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 
 The file and suite names predate DEC-122: `AssistantRunProcessor.cs` is now `RunProcessor.cs`, and
 `AssistantRunProcessorTests` is now `RunProcessorTests`. The mapping in
-[naming consistency](../plans/naming-consistency.md#the-mapping) is the translation.
+[naming consistency](../plans/archive/naming-consistency.md#the-mapping) is the translation.
 
 ## Problem
 

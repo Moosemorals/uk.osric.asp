@@ -23,7 +23,7 @@ provider round trip in "the transcript sent to the provider each turn". The smal
 already called a *step* by `Assistant:MaxSteps`, `StepCount`, the `step` field on every event and the
 metric `assistant.run.steps`. So the docs say one word for two units, one of which the code has
 already named better. Reading that cold, there is no way to tell which is which — which is exactly
-the question that produced [the naming plan](../plans/naming-consistency.md#terms-this-plan-depends-on).
+the question that produced [the naming plan](../plans/archive/naming-consistency.md#terms-this-plan-depends-on).
 
 The pages vertical is the same, and larger: **page**, **key**, **path**, **head**, **revision**,
 **template**, **image**, **runtime id**, **slot**, **budget**, **staleness**, **tombstone**, **scrub**
@@ -66,7 +66,7 @@ wrong.
 
 ## Relationship to other work
 
-[The naming plan](../plans/naming-consistency.md) needs the assistant half of this now, because its
+[The naming plan](../plans/archive/naming-consistency.md) needs the assistant half of this now, because its
 central decision — that `Run` keeps its name — is an argument about what `Run` is not. That plan
 carries a short terms table and links here for the rest. Doing the glossary first would have made that
 plan shorter, and will make the next one shorter still.
