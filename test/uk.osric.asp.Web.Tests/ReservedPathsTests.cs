@@ -21,8 +21,6 @@ public sealed class ReservedPathsTests {
     [TestCase("/logout")]
     [TestCase("/metrics")]
     [TestCase("/status")]
-    [TestCase("/admin")]
-    [TestCase("/admin/restore")]
     [TestCase("/assistant")]
     [TestCase("/assistant/1")]
     public void DefaultKeysAreReserved(string path) {
@@ -36,6 +34,8 @@ public sealed class ReservedPathsTests {
     [TestCase("/rocket.svg")]
     [TestCase("/site.css.bak")]
     [TestCase("/hello")]
+    [TestCase("/admin")]
+    [TestCase("/admin/restore")]
     public void SimilarKeysAreNotReserved(string path) {
         Assert.That(Defaults.IsReserved(PagePath.Normalize(path)), Is.False);
     }

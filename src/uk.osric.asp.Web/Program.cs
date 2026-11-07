@@ -12,7 +12,6 @@ using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using System.Net;
 using uk.osric.asp.Runtime;
-using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
@@ -265,17 +264,6 @@ internal class Program {
 
         app.MapGet("/status", StatusEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
-
-        RouteGroupBuilder admin = app.MapGroup("/admin")
-            .RequireAuthorization(EditorPolicy.Name);
-        admin.MapGet("", SeedsEndpoint.ListAsync);
-        admin.MapPost("/seeds/restore", SeedsEndpoint.RestoreAsync)
-            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        admin.MapPost("/seeds/restore-all", SeedsEndpoint.RestoreAllAsync)
-            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        admin.MapGet("/restore", RestoreEndpoint.GetAsync);
-        admin.MapPost("/restore", RestoreEndpoint.PostAsync)
-            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
         app.MapGet("/edit/{**path}", EditorEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);

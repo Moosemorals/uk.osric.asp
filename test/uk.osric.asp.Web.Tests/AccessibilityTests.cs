@@ -253,7 +253,7 @@ public sealed class AccessibilityTests {
 
     [Test]
     public async Task ASourceBlocksCanTakeFocusAsync() {
-        string[] names = ["revision", "generated"];
+        string[] names = ["revision"];
         foreach (string name in names) {
             MarkupReader document = MarkupReader.Parse((await ViewAsync(name)).Html);
 

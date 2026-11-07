@@ -44,11 +44,11 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   scripted provider to verify disabled routing, conversation streaming, approval gating and writes.
   No suite contacts a real model provider.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
-  `ShellViews` renders all twenty shell views once each — the sign-in form and its failure, the
-  listing, the seeded-page admin, the editor clean and with diagnostics, history, a saved revision,
-  generated source, the delete confirmation, the restore confirmation, status, the error page, the
-  error page with details, a not-found page, the compile failure, and the assistant list, chat,
-  reasoning chat, and delete confirmation — and `AccessibilityTests` applies eleven shared rules to every document: one
+  `ShellViews` renders all seventeen shell views once each — the sign-in form and its failure, the
+  listing with an edited seed and a matching one so its restore buttons are swept too, the editor
+  clean and with diagnostics, history, a saved revision, the delete confirmation, status, the error
+  page, the error page with details, a not-found page, the compile failure, and the assistant list,
+  chat, reasoning chat, and delete confirmation — and `AccessibilityTests` applies eleven shared rules to every document: one
   `main`, one `h1`, no skipped heading level, a distinct name on every `nav`, `scope` on every `th`, a
   label on every control, every `form.form` field in its `dd` with its label in a `dt` (or a
   textarea's label in a fieldset legend), no role that repeats an implicit one (bar the documented
@@ -77,8 +77,8 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   content types set by middleware, startup-seeded page assets and their conditional responses,
   migrations, DI wiring and the fact that a page is compiled once. Editor integration coverage
   distinguishes `/edit` from the `/edit/` root editor, checks command authorization and antiforgery,
-  verifies generated-source inspection does not execute a page, and confirms deleted seeded assets
-  remain tombstoned across restarts. The suites reference `Web` and
+  restores a deleted seed from the page list, and confirms deleted seeded assets remain tombstoned
+  across restarts. The suites reference `Web` and
   `Runtime`, start the real application through `WebApplicationFactory<Program>`, and use a
   throwaway SQLite file per fixture that is deleted with it. The host runs as `Production`, so
   failures are answered by the error page rather than the developer exception page, and the client

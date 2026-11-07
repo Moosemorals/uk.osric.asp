@@ -186,7 +186,7 @@ drift apart from one view to the next.
 - `/layout.css` is a seeded page and is linked **first** (DEC-116). It holds the document's shape —
   the visually hidden utility, the listing and the form grid. `site.css` owns look and
   comes next, and the view's own sheet is last, so either can override a structural rule without a
-  more specific selector. The owner restores a stale seeded sheet from `/admin`.
+  more specific selector. The owner restores a stale seeded sheet from the page list.
 - `PageLayout` keeps the fragments: `Gutter`, `Diagnostics` (a `ul` with `role="list"`, DEC-108) and
   `Nav`. `Html/` keeps `NavLink`, `DiagnosticLine`, `AntiforgeryField` and `PageUrls` beside it, so a
   named nav, an antiforgery field and an editor URL are each built once rather than concatenated at
@@ -260,9 +260,9 @@ and token-kind tags.
 
 ## Authentication and the editor
 
-The editor and the `/admin` route group are behind a sign-in; pages stay public. `/admin/restore`
-shows the bundled source for an asset and, on confirmation, saves it through the ordinary revision
-path. It can restore a deleted seeded page without discarding its earlier revisions.
+The editor is behind a sign-in; pages stay public. A seeded page restores from its row on `/edit`:
+the button saves the bundled source through the ordinary revision path, so a deleted seeded page
+comes back without discarding its earlier revisions.
 
 - Accounts live in the `Users` table in the same SQLite database. There is no registration endpoint
   and no account UI: the `users` command in the Web app creates, lists, resets and removes accounts
@@ -464,9 +464,9 @@ headers; its filename becomes the page path. `/site.css` holds the site's look, 
 rules the document shell's markup needs (see "The document shell"), while `/status.css` holds
 dashboard styles and is linked only by `/status`. Editing a seed file changes the initial content for
 a never-created page, not an existing database page. The authenticated restore action applies the
-bundled source to an existing or tombstoned page as a new revision. `/admin` lists every seed with a
-per-page restore button, shown only where the page differs from its seed, and a restore-all action
-that disappears once every page matches; a page that already matches its seed is left alone.
+bundled source to an existing or tombstoned page as a new revision. `/edit` lists every page, and a
+seeded row carries a restore button that is disabled while the live template matches its seed and
+stays enabled for a deleted seed; a page that already matches its seed is left alone.
 
 ## Compiled pages
 

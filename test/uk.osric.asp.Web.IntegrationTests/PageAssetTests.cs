@@ -103,7 +103,7 @@ public sealed class PageAssetTests : IntegrationTest {
     }
 
     [Test]
-    public async Task AdminRestoreRecreatesADeletedSeedAndKeepsItsHistory() {
+    public async Task ThePageListRestoresADeletedSeedAndKeepsItsHistory() {
         using HttpClient client = await CreateSignedInClientAsync();
         await SavePageAsync("/editor.css", "/* local edit */");
         PageTemplate edited = (await ReadPageAsync("/editor.css"))!;
@@ -114,47 +114,40 @@ public sealed class PageAssetTests : IntegrationTest {
         Assert.That(deleted.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
         Assert.That(await ReadPageAsync("/editor.css"), Is.Null);
 
+        using HttpResponseMessage listing = await client.GetAsync("/edit");
+        string listingBody = await listing.Content.ReadAsStringAsync();
+        Assert.That(listingBody, Does.Contain("method=\"post\" action=\"/edit/editor.css?cmd=restore\""));
+        Assert.That(listingBody, Does.Contain("aria-label=\"Restore /editor.css from its seed\">Restore from seed</button>"));
+
         using HttpResponseMessage editor = await client.GetAsync("/edit/editor.css");
-        string editorBody = await editor.Content.ReadAsStringAsync();
-        Assert.That(editorBody, Does.Contain("Restore bundled version"));
-        Assert.That(editorBody, Does.Contain("/admin/restore?path=%2Feditor.css"));
+        Assert.That(await editor.Content.ReadAsStringAsync(), Does.Not.Contain("Restore bundled version"));
 
-        const string confirmationPath = "/admin/restore?path=%2Feditor.css";
-        string seedSource = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds", "editor.css"));
-        string restoreToken = await GetAntiforgeryTokenAsync(client, confirmationPath);
-        using HttpResponseMessage confirmation = await client.GetAsync(confirmationPath);
-        string confirmationBody = await confirmation.Content.ReadAsStringAsync();
-        Assert.That(confirmation.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(confirmationBody, Does.Contain("will replace the current page template"));
-        Assert.That(confirmationBody, Does.Contain(WebUtility.HtmlEncode(seedSource)));
-        Assert.That(confirmationBody, Does.Contain("name=\"__RequestVerificationToken\""));
-
-        using HttpResponseMessage restore = await client.PostAsync("/admin/restore", Form(
-            ("__RequestVerificationToken", restoreToken),
-            ("path", "/editor.css")));
+        string restoreToken = await GetAntiforgeryTokenAsync(client, "/edit");
+        using HttpResponseMessage restore = await client.PostAsync("/edit/editor.css?cmd=restore", Form(
+            ("__RequestVerificationToken", restoreToken)));
         PageTemplate restored = (await ReadPageAsync("/editor.css"))!;
         Assert.That(restore.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
-        Assert.That(restore.Headers.Location?.ToString(), Is.EqualTo("/edit/editor.css"));
+        Assert.That(restore.Headers.Location?.ToString(), Is.EqualTo("/edit"));
         Assert.That(restore.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That(restored.Template, Is.EqualTo(seedSource));
+        Assert.That(restored.Template, Is.EqualTo(ReadSeed("editor.css")));
         Assert.That(restored.Hash, Is.Not.EqualTo(edited.Hash));
 
         using HttpResponseMessage history = await client.GetAsync("/edit/editor.css?cmd=history");
         Assert.That(await history.Content.ReadAsStringAsync(), Does.Contain(edited.Hash));
 
-        using HttpResponseMessage restoredEditor = await client.GetAsync("/edit/editor.css");
-        Assert.That(await restoredEditor.Content.ReadAsStringAsync(), Does.Contain("Restored the bundled version."));
+        using HttpResponseMessage after = await client.GetAsync("/edit");
+        Assert.That(await after.Content.ReadAsStringAsync(), Does.Contain("Restored /editor.css from its seed."));
     }
 
     [Test]
-    public async Task AdminRestoreIsAuthenticatedAndRequiresAntiforgery() {
+    public async Task PageListRestoreIsAuthenticatedAndRequiresAntiforgery() {
         using HttpClient anonymous = CreateClient();
-        using HttpResponseMessage loginRedirect = await anonymous.GetAsync("/admin/restore?path=%2Feditor.css");
+        using HttpResponseMessage loginRedirect = await anonymous.GetAsync("/edit");
         Assert.That(loginRedirect.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(loginRedirect.Headers.Location?.AbsolutePath, Is.EqualTo("/login"));
 
         using HttpClient client = await CreateSignedInClientAsync();
-        using HttpResponseMessage missingToken = await client.PostAsync("/admin/restore", Form(("path", "/editor.css")));
+        using HttpResponseMessage missingToken = await client.PostAsync("/edit/editor.css?cmd=restore", Form());
 
         Assert.That(missingToken.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(missingToken.Headers.CacheControl?.NoStore, Is.True);
@@ -162,17 +155,21 @@ public sealed class PageAssetTests : IntegrationTest {
     }
 
     [Test]
-    public async Task AdminRestoreRejectsPagesWithoutABundledVersion() {
+    public async Task RestoreRejectsPagesWithoutABundledVersion() {
         using HttpClient client = await CreateSignedInClientAsync();
+        string token = await GetAntiforgeryTokenAsync(client, "/edit");
 
-        using HttpResponseMessage response = await client.GetAsync("/admin/restore?path=%2Fnot-a-seed");
+        using HttpResponseMessage response = await client.PostAsync("/edit/not-a-seed?cmd=restore", Form(
+            ("__RequestVerificationToken", token)));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }
 
+    private static string ReadSeed(string name) =>
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds", name));
+
     private static string RenderedSeed(string name) {
-        string template = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds", name));
+        string template = ReadSeed(name);
         string[] parts = template.Split("<%", StringSplitOptions.None);
         return parts[0] + parts[1][(parts[1].IndexOf("%>", StringComparison.Ordinal) + 2)..];
     }

@@ -144,9 +144,8 @@ and applies them.
   keeps it. The caps live under `Pages:Storage` (`Pages__Storage__MaxValueBytes`, and so on).
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
-  covers `/admin`, `/assistant`, `/edit`, `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics` and `/status`;
-  `/admin` reserves the namespace for authenticated site administration. Change it only when the
-  route table changes.
+  covers `/assistant`, `/edit`, `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics` and
+  `/status`. Change it only when the route table changes.
 - **Health:** `ssh deploy@<server-ip> curl -s http://127.0.0.1:8080/heath` returns detailed JSON —
   200 when the app can reach its database and no page renders have been abandoned, 503 otherwise. The
   same probe runs inside the container as podman's health check, so a failing check restarts it; see

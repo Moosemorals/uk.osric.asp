@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Http;
 
-using Microsoft.AspNetCore.Http;
 using uk.osric.asp.Core.Pages;
 
 /// <summary>Builds the URLs the shell links to, escaped for a URL rather than for HTML.</summary>
@@ -27,8 +26,4 @@ internal static class PageUrls {
     /// <summary>The editor URL for one saved revision of the page at <paramref name="path"/>.</summary>
     public static string EditorRevision(PagePath path, string hash) =>
         EditorCommand(path, "revision") + "&hash=" + Uri.EscapeDataString(hash);
-
-    /// <summary>The confirmation URL for restoring the bundled version of a page.</summary>
-    public static string Restore(PagePath path) =>
-        "/admin/restore" + QueryString.Create("path", path.Key).ToUriComponent();
 }

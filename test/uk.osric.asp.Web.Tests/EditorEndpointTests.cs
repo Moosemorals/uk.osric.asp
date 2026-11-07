@@ -181,6 +181,84 @@ public sealed class EditorEndpointTests {
     }
 
     [Test]
+    public async Task ListingOffersSeedRestoreDisabledOnlyWhereThePageMatchesAsync() {
+        PagePath edited = PagePath.Normalize("/assistant.css");
+        PagePath matching = PagePath.Normalize("/editor.css");
+        PagePath plain = PagePath.Normalize("/plain");
+        FakePageStore storage = new();
+        storage[edited.Key] = new PageTemplate(edited, "/* edited */");
+        storage[matching.Key] = new PageTemplate(matching, (await PageAssetSeeder.ReadSeedTemplateAsync(matching))!);
+        storage[plain.Key] = new PageTemplate(plain, "not a seed");
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<form method=\"post\" action=\"/edit/assistant.css?cmd=restore\">"));
+        Assert.That(body, Does.Contain("<button type=\"submit\" aria-label=\"Restore /assistant.css from its seed\">Restore from seed</button>"));
+        Assert.That(body, Does.Contain("<button type=\"submit\" aria-label=\"Restore /editor.css from its seed\" disabled>Restore from seed</button>"));
+        Assert.That(body, Does.Not.Contain("aria-label=\"Restore /plain from its seed\""));
+    }
+
+    [Test]
+    public async Task ListingOffersRestoreForADeletedSeedAsync() {
+        PagePath path = PagePath.Normalize("/assistant.css");
+        FakePageStore storage = new();
+        storage[path.Key] = new PageTemplate(path, "/* edited */");
+        await storage.DeletePageAsync(path);
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<form method=\"post\" action=\"/edit/assistant.css?cmd=restore\">"));
+        Assert.That(body, Does.Contain("<button type=\"submit\" aria-label=\"Restore /assistant.css from its seed\">Restore from seed</button>"));
+    }
+
+    [Test]
+    public async Task RestoreWritesTheSeedAndReturnsToTheListingAsync() {
+        PagePath path = PagePath.Normalize("/assistant.css");
+        string seed = (await PageAssetSeeder.ReadSeedTemplateAsync(path))!;
+        FakePageStore storage = new();
+        storage[path.Key] = new PageTemplate(path, "/* edited */");
+        DefaultHttpContext context = CreateRestoreContext("assistant.css");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit"));
+        Assert.That(storage[path.Key]?.Template, Is.EqualTo(seed));
+        Assert.That(Session(context).GetString(EditorEndpoint.MessageKey), Is.EqualTo("Restored /assistant.css from its seed."));
+    }
+
+    [Test]
+    public async Task RestoreLeavesASeedThatAlreadyMatchesAloneAsync() {
+        PagePath path = PagePath.Normalize("/assistant.css");
+        string seed = (await PageAssetSeeder.ReadSeedTemplateAsync(path))!;
+        FakePageStore storage = new();
+        storage[path.Key] = new PageTemplate(path, seed);
+        int writes = storage.WriteCount;
+        DefaultHttpContext context = CreateRestoreContext("assistant.css");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(storage.WriteCount, Is.EqualTo(writes));
+        Assert.That(Session(context).GetString(EditorEndpoint.MessageKey), Is.EqualTo("/assistant.css already matched its seed."));
+    }
+
+    [Test]
+    public async Task RestoreRejectsAPageThatHasNoSeedAsync() {
+        DefaultHttpContext context = CreateRestoreContext("plain");
+        FakePageStore storage = new();
+        storage["/plain"] = new PageTemplate(PagePath.Normalize("/plain"), "not a seed");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(404));
+        Assert.That(storage.WriteCount, Is.Zero);
+    }
+
+    [Test]
     public async Task NewPageNormalizesAndRedirectsWithoutSavingAsync() {
         DefaultHttpContext context = TestHttp.CreateContext(null, "POST", "/edit");
         context.Request.QueryString = new QueryString("?cmd=new");
@@ -240,7 +318,6 @@ public sealed class EditorEndpointTests {
             "<nav class=\"editor-menu\" aria-label=\"Editor navigation\">",
             "<a href=\"/edit\">Page list</a> ",
             "<a href=\"/page.cs\">View file</a> ",
-            "<a href=\"/edit/page.cs?cmd=generated\">Generated C#</a> ",
             "<a href=\"/edit/page.cs?cmd=history\">History</a> ",
             "<a href=\"/edit/page.cs?cmd=delete\">Delete</a></nav>")));
         Assert.That(body, Does.Not.Contain("?cmd=scrub"));
@@ -279,20 +356,11 @@ public sealed class EditorEndpointTests {
     }
 
     [Test]
-    public async Task GeneratedAndRevisionViewsTakeTheStylesheetWithoutTheEditorLayoutAsync() {
+    public async Task RevisionViewTakesTheStylesheetWithoutTheEditorLayoutAsync() {
         PagePath path = PagePath.Normalize("/page.cs");
         FakePageStore storage = new();
         PageTemplate page = new(path, "saved source");
         await storage.SavePageAsync(page);
-
-        DefaultHttpContext generated = CreateContext();
-        generated.Request.QueryString = new QueryString("?cmd=generated");
-        await EditorEndpoint.HandleAsync(generated, CreatePages(storage), Reserved, _antiforgery);
-
-        string generatedBody = await TestHttp.ReadBodyAsync(generated);
-        Assert.That(generatedBody, Does.Contain("<body>"));
-        Assert.That(generatedBody, Does.Contain("<link rel=\"stylesheet\" href=\"/editor.css\">"));
-        Assert.That(generatedBody, Does.Contain("<pre class=\"source\" tabindex=\"0\">"));
 
         DefaultHttpContext revision = CreateContext();
         revision.Request.QueryString = new QueryString($"?cmd=revision&hash={page.Hash}");
@@ -300,49 +368,18 @@ public sealed class EditorEndpointTests {
 
         string revisionBody = await TestHttp.ReadBodyAsync(revision);
         Assert.That(revisionBody, Does.Contain("<body>"));
+        Assert.That(revisionBody, Does.Contain("<link rel=\"stylesheet\" href=\"/editor.css\">"));
         Assert.That(revisionBody, Does.Contain("<pre class=\"source\" tabindex=\"0\">saved source</pre>"));
     }
 
     [Test]
-    public async Task GeneratedViewEncodesSourceAndDoesNotCompileOrWriteAsync() {
-        const string source = "<% ctx.Write(\"ok\"); %>";
+    public async Task GeneratedCommandIsNoLongerAnEditorCommandAsync() {
         DefaultHttpContext context = CreateContext();
         context.Request.QueryString = new QueryString("?cmd=generated");
-        FakePageStore storage = new();
-        storage["/page.cs"] = new PageTemplate(PagePath.Normalize("/page.cs"), source, new PageImage(
-            TemplateFingerprint.Of(source), "old-runtime", null, null,
-            [new PageDiagnostic(PageDiagnosticSeverity.Error, null, "stored compile failure")]));
-        int compiles = _compiler.CompileCount;
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), Reserved, _antiforgery);
 
-        string body = await TestHttp.ReadBodyAsync(context);
-        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
-        Assert.That(body, Does.Contain("Generated from the saved template by the current runtime"));
-        Assert.That(body, Does.Contain("ctx.Write(&quot;ok&quot;);"));
-        Assert.That(body, Does.Contain("#line 1 &quot;page&quot;"));
-        Assert.That(body, Does.Contain("<pre class=\"source\" tabindex=\"0\">"));
-        Assert.That(body, Does.Not.Contain(" style=\""));
-        Assert.That(body, Does.Not.Contain("stored compile failure"));
-        Assert.That(_compiler.CompileCount, Is.EqualTo(compiles));
-        Assert.That(storage.WriteCount, Is.Zero);
-        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
-    }
-
-    [Test]
-    public async Task GeneratedViewShowsTemplateDiagnosticWithoutPartialSourceAsync() {
-        DefaultHttpContext context = CreateContext();
-        context.Request.QueryString = new QueryString("?cmd=generated");
-        FakePageStore storage = new();
-        storage["/page.cs"] = new PageTemplate(PagePath.Normalize("/page.cs"), "before<% if (true) {");
-
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
-
-        string body = await TestHttp.ReadBodyAsync(context);
-        Assert.That(body, Does.Contain("TEMPLATE001"));
-        Assert.That(body, Does.Not.Contain("class GeneratedPage"));
-        Assert.That(body, Does.Not.Contain(" style=\""));
-        Assert.That(storage.WriteCount, Is.Zero);
+        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
     }
 
     [Test]
@@ -831,6 +868,13 @@ public sealed class EditorEndpointTests {
 
     private static DefaultHttpContext CreateContext(string method = "GET", string? path = "page.cs") {
         return TestHttp.CreateContext(path, method, "/edit" + PagePath.Normalize(path).Key);
+    }
+
+    private static DefaultHttpContext CreateRestoreContext(string path) {
+        DefaultHttpContext context = CreateContext(method: "POST", path);
+        context.Request.QueryString = new QueryString("?cmd=restore");
+        SetField(context, "__RequestVerificationToken", new StringValues("token"));
+        return context;
     }
 
     private static void SetTemplate(DefaultHttpContext context, StringValues template) {

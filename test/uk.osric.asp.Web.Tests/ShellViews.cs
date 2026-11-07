@@ -12,7 +12,6 @@ using System.Security.Claims;
 using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
@@ -37,14 +36,11 @@ internal static class ShellViews {
         "login",
         "login-failed",
         "listing",
-        "admin-seeds",
         "editor",
         "editor-with-diagnostics",
         "history",
         "revision",
-        "generated",
         "delete-confirmation",
-        "restore",
         "status",
         "error",
         "error-details",
@@ -62,14 +58,11 @@ internal static class ShellViews {
         "login" => RenderAsync(name, LoginAsync),
         "login-failed" => RenderAsync(name, FailedLoginAsync),
         "listing" => RenderAsync(name, ListingAsync),
-        "admin-seeds" => RenderAsync(name, AdminSeedsAsync),
         "editor" => RenderAsync(name, () => EditorAsync(NewStore(), path: "/page")),
         "editor-with-diagnostics" => RenderAsync(name, EditorWithDiagnosticsAsync),
         "history" => RenderAsync(name, () => EditorAsync(NewStore(), "/page", "cmd=history")),
         "revision" => RenderAsync(name, RevisionAsync),
-        "generated" => RenderAsync(name, () => EditorAsync(NewStore(), "/page", "cmd=generated")),
         "delete-confirmation" => RenderAsync(name, () => EditorAsync(NewStore(), "/page", "cmd=delete")),
-        "restore" => RenderAsync(name, RestoreAsync),
         "status" => RenderAsync(name, StatusAsync),
         "error" => RenderAsync(name, () => ErrorAsync(withDetails: false)),
         "error-details" => RenderAsync(name, () => ErrorAsync(withDetails: true)),
@@ -120,31 +113,11 @@ internal static class ShellViews {
         return await EditorAsync(storage, path: null);
     }
 
-    private static async Task<string> AdminSeedsAsync() {
-        FakePageStore storage = new();
-        storage["/assistant.css"] = new PageTemplate(PageHarness.Key("/assistant.css"), "/* edited */");
-        using PageHarness pages = new(storage);
-        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin");
-
-        await SeedsEndpoint.ListAsync(context, pages.Editor, new TestAntiforgery());
-
-        return await TestHttp.ReadBodyAsync(context);
-    }
-
     private static Task<string> RevisionAsync() {
         FakePageStore storage = NewStore();
         string hash = PageHarness.Stored(storage, "/page").Hash;
 
         return EditorAsync(storage, "/page", $"cmd=revision&hash={Uri.EscapeDataString(hash)}");
-    }
-
-    private static async Task<string> RestoreAsync() {
-        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/restore");
-        context.Request.QueryString = new QueryString("?path=%2Feditor.css");
-
-        await RestoreEndpoint.GetAsync(context, new TestAntiforgery());
-
-        return await TestHttp.ReadBodyAsync(context);
     }
 
     private static async Task<string> StatusAsync() {
@@ -301,10 +274,17 @@ internal static class ShellViews {
         return await TestHttp.ReadBodyAsync(context);
     }
 
+    // Two seeded rows, so the listing's restore forms are in the accessibility sweep: one edited seed
+    // and one that already matches, which renders its button disabled.
     private static FakePageStore NewStore() => new() {
         ["/page"] = new PageTemplate(PageHarness.Key("/page"), Source),
         ["/notes"] = new PageTemplate(PageHarness.Key("/notes"), Source),
+        ["/assistant.css"] = new PageTemplate(PageHarness.Key("/assistant.css"), "/* edited */"),
+        ["/editor.css"] = new PageTemplate(PageHarness.Key("/editor.css"), Seed("editor.css")),
     };
+
+    private static string Seed(string name) =>
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds", name));
 
     private const string BrokenSource = "<% int value = ; %>";
 

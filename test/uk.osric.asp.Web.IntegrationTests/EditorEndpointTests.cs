@@ -27,7 +27,6 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(editorBody, Does.Contain(">\nRoot source.</textarea>"));
     }
 
-    [TestCase("generated")]
     [TestCase("delete")]
     [TestCase("scrub")]
     public async Task CommandNamedPageKeysRemainOrdinaryEditors(string key) {
@@ -66,14 +65,14 @@ public sealed class EditorEndpointTests : IntegrationTest {
     }
 
     [Test]
-    public async Task GeneratedCommandOnRootUsesTrailingSlash() {
+    public async Task HistoryCommandOnRootUsesTrailingSlash() {
         await SavePageAsync("/", "Root template.");
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/edit/?cmd=generated");
+        HttpResponseMessage response = await client.GetAsync("/edit/?cmd=history");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("Root template."));
+        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("History for /"));
     }
 
     [Test]
@@ -90,21 +89,17 @@ public sealed class EditorEndpointTests : IntegrationTest {
     }
 
     [Test]
-    public async Task GeneratedViewDoesNotCompileOrChangeTheStoredRevision() {
-        const string source = "<% ctx.Write(\"ok\"); %>";
-        await SavePageAsync("/inspect", source);
+    public async Task GeneratedCommandIsRefusedAsync() {
+        await SavePageAsync("/inspect", "<% ctx.Write(\"ok\"); %>");
         PageTemplate before = (await ReadPageAsync("/inspect"))!;
         using HttpClient client = await CreateSignedInClientAsync();
         int compiles = CompileCount;
 
         HttpResponseMessage response = await client.GetAsync("/edit/inspect?cmd=generated");
 
-        string body = await response.Content.ReadAsStringAsync();
         PageTemplate after = (await ReadPageAsync("/inspect"))!;
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That(body, Does.Contain("ctx.Write(&quot;ok&quot;)"));
-        Assert.That(body, Does.Contain("#line 1 &quot;page&quot;"));
         Assert.That(CompileCount, Is.EqualTo(compiles));
         Assert.That(after.Hash, Is.EqualTo(before.Hash));
     }
@@ -252,10 +247,10 @@ public sealed class EditorEndpointTests : IntegrationTest {
     public async Task CanonicalRedirectPreservesEditorCommand() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/edit/Hello?cmd=generated");
+        HttpResponseMessage response = await client.GetAsync("/edit/Hello?cmd=history");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.PermanentRedirect));
-        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/edit/hello?cmd=generated"));
+        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/edit/hello?cmd=history"));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }
 
@@ -267,13 +262,12 @@ public sealed class EditorEndpointTests : IntegrationTest {
         using HttpClient client = await CreateSignedInClientAsync();
 
         HttpResponseMessage editor = await client.GetAsync("/edit" + url);
-        HttpResponseMessage listing = await client.GetAsync("/edit");
-        HttpResponseMessage generated = await client.GetAsync("/edit" + url + "?cmd=generated");
+        HttpResponseMessage history = await client.GetAsync("/edit" + url + "?cmd=history");
 
         Assert.That(editor.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await editor.Content.ReadAsStringAsync(), Does.Contain(">\nliteral path source</textarea>"));
-        Assert.That(await listing.Content.ReadAsStringAsync(), Does.Not.Contain($"href=\"/edit{url}?cmd=scrub\""));
-        Assert.That(generated.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(history.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await history.Content.ReadAsStringAsync(), Does.Contain("History for "));
     }
 
     [Test]
@@ -310,7 +304,6 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(body, Does.Contain(
             "<nav class=\"editor-menu\" aria-label=\"Editor navigation\"><a href=\"/edit\">Page list</a>"
             + " <a href=\"/hello\">View file</a>"
-            + " <a href=\"/edit/hello?cmd=generated\">Generated C#</a>"
             + " <a href=\"/edit/hello?cmd=history\">History</a>"
             + " <a href=\"/edit/hello?cmd=delete\">Delete</a></nav>"));
         Assert.That(body, Does.Contain("<button type=\"submit\" name=\"cmd\" value=\"save\">Save</button>"));

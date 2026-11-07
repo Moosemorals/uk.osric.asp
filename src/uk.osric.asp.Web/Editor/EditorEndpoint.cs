@@ -17,7 +17,7 @@ using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
-/// <summary>Serves the editor: templates, revisions, save, rename and delete.</summary>
+/// <summary>Serves the editor: templates, revisions, save, rename, delete and seed restore.</summary>
 internal sealed class EditorEndpoint {
 
     internal const string MessageKey = "editor.message";
@@ -104,9 +104,6 @@ internal sealed class EditorEndpoint {
         }
 
         switch (command) {
-            case "generated":
-                await WriteGeneratedAsync(context, pages, path);
-                return;
             case "history":
                 await WriteHistoryAsync(context, pages, path);
                 return;
@@ -146,13 +143,11 @@ internal sealed class EditorEndpoint {
         PageHeadSummary[] live = [.. heads.Where(head => !head.IsDeleted).OrderBy(head => head.Path.Key, StringComparer.Ordinal)];
         PageHeadSummary[] deleted = [.. heads.Where(head => head.IsDeleted).OrderBy(head => head.Path.Key, StringComparer.Ordinal)];
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
+        HashSet<string> seeds = new(PageAssetSeeder.SeedPaths().Select(seed => seed.Key), StringComparer.Ordinal);
 
         await ShellDocument.BeginAsync(context, "Pages");
         await context.Response.WriteAsync("<h1>Pages</h1>");
         await WriteMessageAsync(context);
-        await context.Response.WriteAsync(PageLayout.Nav("Admin navigation", [
-            new("/admin", "Seeded pages"),
-        ], "editor-menu"));
         await context.Response.WriteAsync($"""
             <form method="post" action="/edit?cmd=new" class="form">
                 {AntiforgeryField.Hidden(tokens)}
@@ -178,10 +173,10 @@ internal sealed class EditorEndpoint {
                 string path = WebUtility.HtmlEncode(head.Path.Key);
                 string name = WebUtility.HtmlEncode(head.Path.Key);
                 string editorUrl = WebUtility.HtmlEncode(PageUrls.Editor(head.Path));
-                string generatedUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "generated"));
                 string historyUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "history"));
                 string deleteUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "delete"));
-                await context.Response.WriteAsync($"<li><a href=\"{WebUtility.HtmlEncode(PageUrls.Page(head.Path))}\">{path}</a> <a href=\"{editorUrl}\" aria-label=\"Edit {name}\">Edit</a> <a href=\"{generatedUrl}\" aria-label=\"Generated C# for {name}\">Generated C#</a> <a href=\"{historyUrl}\" aria-label=\"History of {name}\">History</a> <a href=\"{deleteUrl}\" aria-label=\"Delete {name}\">Delete</a></li>");
+                string restore = await RestoreFormAsync(pages, head.Path, seeds, tokens, context.RequestAborted);
+                await context.Response.WriteAsync($"<li><a href=\"{WebUtility.HtmlEncode(PageUrls.Page(head.Path))}\">{path}</a> <a href=\"{editorUrl}\" aria-label=\"Edit {name}\">Edit</a> <a href=\"{historyUrl}\" aria-label=\"History of {name}\">History</a> <a href=\"{deleteUrl}\" aria-label=\"Delete {name}\">Delete</a> {restore}</li>");
             }
             await context.Response.WriteAsync("</ul>");
         }
@@ -202,12 +197,43 @@ internal sealed class EditorEndpoint {
                 string recreateUrl = WebUtility.HtmlEncode(PageUrls.Editor(head.Path));
                 string historyUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "history"));
                 string scrubUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "scrub"));
-                await context.Response.WriteAsync($"<li>{path} (history retained) <a href=\"{recreateUrl}\" aria-label=\"Recreate {name}\">Recreate</a> <a href=\"{historyUrl}\" aria-label=\"History of {name}\">History</a> <a href=\"{scrubUrl}\" aria-label=\"Scrub history of {name}\">Scrub history</a></li>");
+                string restore = await RestoreFormAsync(pages, head.Path, seeds, tokens, context.RequestAborted);
+                await context.Response.WriteAsync($"<li>{path} (history retained) <a href=\"{recreateUrl}\" aria-label=\"Recreate {name}\">Recreate</a> <a href=\"{historyUrl}\" aria-label=\"History of {name}\">History</a> <a href=\"{scrubUrl}\" aria-label=\"Scrub history of {name}\">Scrub history</a> {restore}</li>");
             }
             await context.Response.WriteAsync("</ul>");
         }
 
         await ShellDocument.EndAsync(context);
+    }
+
+    // A seeded row offers the restore; a page that already carries its seed offers it disabled, so
+    // the listing shows what could be restored without offering a no-op write. A tombstoned page has
+    // no live template to match, so its restore stays enabled.
+    private static async Task<string> RestoreFormAsync(
+        PageEditor pages,
+        PagePath path,
+        IReadOnlySet<string> seeds,
+        AntiforgeryTokenSet tokens,
+        CancellationToken cancellationToken) {
+        if (!seeds.Contains(path.Key)) {
+            return string.Empty;
+        }
+
+        string? seed = await PageAssetSeeder.ReadSeedTemplateAsync(path, cancellationToken);
+        if (seed is null) {
+            return string.Empty;
+        }
+
+        bool matches = await MatchesSeedAsync(pages, path, seed, cancellationToken);
+        string key = WebUtility.HtmlEncode(path.Key);
+        string action = WebUtility.HtmlEncode(PageUrls.EditorCommand(path, "restore"));
+        string disabled = matches ? " disabled" : string.Empty;
+        return $"<form method=\"post\" action=\"{action}\">{AntiforgeryField.Hidden(tokens)}<button type=\"submit\" aria-label=\"Restore {key} from its seed\"{disabled}>Restore from seed</button></form>";
+    }
+
+    private static async Task<bool> MatchesSeedAsync(PageEditor pages, PagePath path, string seed, CancellationToken cancellationToken) {
+        PageTemplate? live = await pages.GetAsync(path, cancellationToken);
+        return live is not null && string.Equals(live.Template, seed, StringComparison.Ordinal);
     }
 
     private static async Task NewPageAsync(HttpContext context, ReservedPaths reserved) {
@@ -245,7 +271,6 @@ internal sealed class EditorEndpoint {
         PageHeadSummary? head = page is null ? await pages.GetHeadAsync(path, context.RequestAborted) : null;
         bool wasDeleted = head?.IsDeleted == true;
         string template = page?.Template ?? "";
-        string? bundledTemplate = await PageAssetSeeder.ReadSeedTemplateAsync(path, context.RequestAborted);
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
 
         await ShellDocument.BeginAsync(context, "Editor", stylesheet: "/editor.css", bodyClass: "editor-page");
@@ -267,15 +292,11 @@ internal sealed class EditorEndpoint {
             menu.Add(new("/assistant", "Assistant"));
         }
         if (page is not null) {
-            menu.Add(new(PageUrls.EditorCommand(path, "generated"), "Generated C#"));
             menu.Add(new(PageUrls.EditorCommand(path, "history"), "History"));
             menu.Add(new(PageUrls.EditorCommand(path, "delete"), "Delete"));
         } else if (wasDeleted) {
             menu.Add(new(PageUrls.EditorCommand(path, "history"), "History"));
             menu.Add(new(PageUrls.EditorCommand(path, "scrub"), "Scrub retained history"));
-        }
-        if (bundledTemplate is not null) {
-            menu.Add(new(PageUrls.Restore(path), "Restore bundled version"));
         }
 
         await context.Response.WriteAsync(PageLayout.Nav("Editor navigation", menu, "editor-menu"));
@@ -298,29 +319,6 @@ internal sealed class EditorEndpoint {
             </form>
             <script type="module" src="/editor.js"></script>
             """);
-        await ShellDocument.EndAsync(context);
-    }
-
-    private static async Task WriteGeneratedAsync(HttpContext context, PageEditor pages, PagePath path) {
-        PageTemplate? page = await pages.GetAsync(path, context.RequestAborted);
-        if (page is null) {
-            await NotFound.WriteAsync(context, path);
-            return;
-        }
-
-        TemplateGenerationResult generated = TemplateSourceGenerator.Generate(page.Template);
-        await ShellDocument.BeginAsync(context, "Generated C#", stylesheet: "/editor.css");
-        await context.Response.WriteAsync($"<h1>Generated C# for {WebUtility.HtmlEncode(path.Key)}</h1>");
-        await context.Response.WriteAsync("<p>Generated from the saved template by the current runtime; unsaved edits are not included.</p>");
-        await context.Response.WriteAsync(PageLayout.Nav("Editor navigation", [
-            new(PageUrls.Editor(path), "Back to editor"),
-            new("/edit", "Page list"),
-        ], "editor-menu"));
-        if (generated.Source is { } source) {
-            await context.Response.WriteAsync($"<pre class=\"source\" tabindex=\"0\">{WebUtility.HtmlEncode(source.Text)}</pre>");
-        } else {
-            await context.Response.WriteAsync(PageLayout.Diagnostics(DiagnosticLine.From(generated.Errors)));
-        }
         await ShellDocument.EndAsync(context);
     }
 
@@ -420,11 +418,34 @@ internal sealed class EditorEndpoint {
             return;
         }
 
+        if (command == "restore") {
+            await RestoreSeedAsync(context, pages, path);
+            return;
+        }
+
         await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
             "editor.unknown_command",
             "The editor could not tell what to do",
             "That request did not name an editor action this page understands. Use one of the buttons on the editor page.",
             [new(PageUrls.Editor(path), "Back to editor")]));
+    }
+
+    private static async Task RestoreSeedAsync(HttpContext context, PageEditor pages, PagePath path) {
+        NoStore(context);
+        string? seed = await PageAssetSeeder.ReadSeedTemplateAsync(path, context.RequestAborted);
+        if (seed is null) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+
+        if (await MatchesSeedAsync(pages, path, seed, context.RequestAborted)) {
+            context.Session.SetString(MessageKey, $"{path.Key} already matched its seed.");
+        } else {
+            await pages.SaveAsync(path, seed, context.RequestAborted);
+            context.Session.SetString(MessageKey, $"Restored {path.Key} from its seed.");
+        }
+
+        Redirect.SeeOther(context, "/edit");
     }
 
     private static async Task ScrubAsync(HttpContext context, PageEditor pages, PagePath path) {
@@ -538,8 +559,8 @@ internal sealed class EditorEndpoint {
     // A command missing from a POST is a save: that is what the editor's form means, and it is what
     // a browser sends for an implicit submission (the Enter key) that names no button.
     private static bool IsAllowedCommand(string method, string? command) => method switch {
-        "GET" => command is null or "generated" or "history" or "revision" or "delete" or "scrub",
-        "POST" => command is null or "save" or "save-and-view" or "new" or "delete" or "scrub",
+        "GET" => command is null or "history" or "revision" or "delete" or "scrub",
+        "POST" => command is null or "save" or "save-and-view" or "new" or "delete" or "scrub" or "restore",
         _ => false,
     };
 

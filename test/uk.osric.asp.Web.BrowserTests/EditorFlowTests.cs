@@ -139,24 +139,15 @@ internal sealed class EditorFlowTests : BrowserTest {
     }
 
     [Test]
-    public async Task GeneratedSourceIsShownForASavedPageAsync() {
-        string path = UniquePath("generated");
-
-        await SavePageAsync(path, "<p><%= ctx.Path %></p>");
-        await Page.GotoAsync($"edit{path}?cmd=generated");
-
-        await Assertions.Expect(Page.Locator("pre.source")).ToContainTextAsync("class");
-    }
-
-    [Test]
     public async Task ARestoredSeedPageComesBackWithItsBundledSourceAsync() {
         string path = "/rocket.svg";
 
         await Page.GotoAsync($"edit{path}?cmd=delete");
         await Page.ClickAsync("button[type=submit]");
         await Page.WaitForURLAsync("**/edit");
-        await Page.GotoAsync($"admin/restore?path={Uri.EscapeDataString(path)}");
-        await Page.ClickAsync("button[type=submit]");
+
+        await Page.GetByRole(AriaRole.Button, new() { Name = $"Restore {path} from its seed", Exact = true }).ClickAsync();
+        await Assertions.Expect(Page.Locator("main")).ToContainTextAsync($"Restored {path} from its seed.");
 
         IResponse? restored = await Page.GotoAsync(path.TrimStart('/'));
         Assert.That(restored?.Status, Is.EqualTo(200).Or.EqualTo(304));
