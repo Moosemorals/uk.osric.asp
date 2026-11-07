@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 # AI page assistant
 
 Implementation plan for IDEA-008, extended from a one-shot drafting
-surface into a multi-turn assistant that can read, create, change and delete pages.
+surface into a conversational assistant that can read, create, change and delete pages.
 
 **Status:** implemented, 2026-11-05. The automated suites cover the host, provider fakes, tools,
 approvals, recovery and accessibility. The Caddy-through-proxy `curl -N` check and browser/screen-reader
@@ -77,8 +77,8 @@ transcript; a close does not affect the run. A completed run is rendered from th
 
 **Goals**
 
-- A full multi-turn conversation, with the complete transcript sent to the provider each turn
-  (subject to the context budget).
+- A full conversation with many exchanges, and the complete transcript sent to the provider at each
+  step (subject to the context budget).
 - Create, retrieve, update and delete pages from the conversation.
 - Create, retrieve, update and delete pages from the conversation, including bounded edits to a
   line range without replacing the whole page.
@@ -1050,7 +1050,7 @@ provider.
 ### `Core.Tests`
 
 - `ConversationTitleTests`: first line, word boundary, whitespace collapse, empty fallback.
-- `AssistantContextTrimmerTests`: keeps the system prompt and the newest user turn; drops whole
+- `AssistantContextTrimmerTests`: keeps the system prompt and the newest user exchange; drops whole
   assistant/tool pairs; never leaves a tool result without its call; respects the character
   budget; marks what was dropped.
 - `ChatStreamAccumulatorTests`: content, reasoning, tool-call chunks split across events, multiple
@@ -1083,7 +1083,7 @@ compiled in `Web.Tests` because the prompt and `TemplateCompiler` are Web types.
 - `AssistantProviderClientTests` with a fake `HttpMessageHandler`: a normal content stream, reasoning,
   tool call chunks, multiple choices, `[DONE]`, comments/keep-alives, malformed JSON, non-200 with
   an error body, 429 retry, no retry after the first delta, timeout, cancellation, no key in logs.
-- `AssistantRunWorkerTests` with a scripted `IChatCompletionClient`: multi-turn tool loop, max steps,
+- `AssistantRunWorkerTests` with a scripted `IChatCompletionClient`: multi-step tool loop, max steps,
   max tool calls, tool error recovery, cancellation, partial persistence, usage.
 - `AssistantRunRegistryTests`: journal order, replay after a sequence, multiple subscribers, slow
   subscriber reset, truncation, TTL, cleanup.
@@ -1147,7 +1147,7 @@ Each phase ends with `make build && make test && make format-check`; phases that
 | 0 — decisions and configuration | Record confirmed decisions; add `AssistantOptions`, conversation approval-mode default/validation, DI gating, `/assistant` reserved, decisions entry | The site builds and runs with the feature off; `make test` unchanged |
 | 1 — conversations | Conversation/run/approval entities, migration, per-conversation mode store/UI, `/assistant` list/create/rename/delete, views, accessibility | Conversation CRUD and mode selection work with no model; storage tests cover cascade, owner and pending approval state |
 | 2 — provider stream | `IChatCompletionClient`, wire DTOs, SSE parser, accumulator, error mapping, fake handler tests | A scripted provider streams content and reasoning through the client |
-| 3 — runs and SSE | Queue, worker, registry/journal, event endpoint, stop, `assistant.js`, thinking UI | A fake client drives a full multi-turn text conversation; refresh/reconnect works |
+| 3 — runs and SSE | Queue, worker, registry/journal, event endpoint, stop, `assistant.js`, thinking UI | A fake client drives a full text conversation with several exchanges; refresh/reconnect works |
 | 4 — tools | Page tools including atomic ranged `edit_page`, virtual shell, `AssistantPaths`, prompt builder, approval gate, protected/reserved rules, tool loop, diagnostics | Both approval modes work; the assistant creates, reads, range-edits, updates and tombstones pages; examples compile |
 | 5 — hardening | Context trimming, limits, retries, startup recovery, metrics, session-expiry SSE, no-JS, accessibility | The failure-mode table has a test or a written manual check |
 | 6 — deployment and docs | `EnvironmentFile`, Caddy flush/encode, memory/timeouts, `docs/architecture.md`, `docs/testing.md`, `docs/decisions.md`, `deploy/README.md`, IDEA-008 update | The gate passes; `curl -N` through Caddy works; the key is absent from the tree |
@@ -1155,7 +1155,7 @@ Each phase ends with `make build && make test && make format-check`; phases that
 ### Phase 0 details
 
 - Rewrite `docs/jobs/IDEA-008.md` from the drafting sketch to this plan's scope, or add a short
-  note that the multi-turn plan supersedes the sketch. Do not leave two competing descriptions.
+  note that this plan supersedes the sketch. Do not leave two competing descriptions.
 - Add decisions to `docs/decisions.md` for the default approval mode, approval-required mode, and provider boundary.
 - Add `/assistant` to the reserved list in code and configuration.
 - Add the disabled state to the editor navigation (no link when off).

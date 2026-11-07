@@ -134,6 +134,8 @@ the C# extension, which has a launch configuration in `.vscode/launch.json`.
 ## More detail
 
 - [Architecture](docs/architecture.md) — the core/shell split and where new code belongs.
+- [Glossary](docs/glossary.md) — the site's own words, each with the neighbouring term it is not.
+- [Logging](docs/logging.md) — what gets logged, at which level, and with which scope.
 - [Decisions](docs/decisions.md) — the policy choices behind the site, and what each one replaced.
 - [Testing](docs/testing.md) — the four suites and what each one is allowed to prove.
 - [Spikes](docs/spikes/README.md) — questions answered with measurements, and what they ruled out.

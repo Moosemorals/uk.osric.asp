@@ -7,7 +7,8 @@ SPDX-License-Identifier: MIT
 
 The choices that shape this site, in one place. Each entry is a decision, not a plan: the linked
 document is authoritative for the detail, and the entry exists so the *why* is findable without
-reading every plan.
+reading every plan. The words the entries use — page, revision, run, step and the rest — are defined
+in [the glossary](glossary.md).
 
 Most of these were settled in conversation and then recorded in a plan, a doc comment or a config
 value. Where the only record used to be a chat message or a code comment, the entry below is now the
@@ -177,6 +178,7 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | DEC-80 | Metrics are exported by OpenTelemetry's Prometheus exporter, metrics only: no traces, no logs, no OTLP, no instrumentation packages. Instrument names, tags and the bucket scales are a dashboard contract, so they live in `PageMetrics` rather than in the SDK's defaults. | [architecture](architecture.md#export-and-the-status-page), [plan](plans/archive/metrics-and-status-dashboard.md) |
 | DEC-81 | Prometheus runs rootless beside the app on a shared `uk.osric.asp` network and scrapes `app:8080`; it is never proxied. `/metrics` keeps two gates — the loopback-only publish (DEC-61) and a Caddy 404 on the public origin. `/status` is owner-only, server-rendered and JavaScript-free. | [deploy](../deploy/README.md#metrics-and-the-status-page), [plan](plans/archive/metrics-and-status-dashboard.md) |
 | DEC-82 | The base image is `dotnet/aspnet:10.0-alpine-extra`, pinned by manifest-list digest, for its `/usr/share/zoneinfo`: the status page labels its time axis in `Europe/London` and plain alpine carries no tzdata. The 38 MB it adds sits in shared base layers and is paid once. | [deploy](../deploy/README.md#image-layout-and-size), [plan](plans/archive/metrics-and-status-dashboard.md) |
+| DEC-140 | Logs go to the journal as one single-line JSON object per entry, written through `Microsoft.Extensions.Logging.Console`'s JSON formatter with scopes included: podman hands the container's stdout to systemd, so a line is an entry and a scope's fields stay queryable with `jq`. The `systemd` formatter was rejected because it flattens a scope to text, which is the one thing a line about a failed run needs. Levels are about who can fix it — `Error` is our defect, `Warning` is something outside this repository, `Information` is the rumble of things that happened, `Debug` is noise for a developer's own machine — and a scope carries the ambient ids and the signed-in account, filled in as they become known rather than left out. The provider is part of the shared framework, so it is configured rather than referenced (`NU1510`). | [logging](logging.md), [architecture](architecture.md#logging) |
 
 ## Superseded
 

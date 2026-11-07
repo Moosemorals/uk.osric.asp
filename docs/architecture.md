@@ -5,6 +5,10 @@ SPDX-License-Identifier: MIT
 
 # Architecture
 
+The words this document uses — page, key, revision, image, run, step and the rest — are defined in
+[the glossary](glossary.md), which is the record of the vocabulary. This document explains how those
+things fit together.
+
 ## Functional core, imperative shell
 
 The boundary is pure rules over values, with effects isolated in their own project where the compiler
@@ -672,6 +676,29 @@ the real host; both are included in `make test`. Schema changes are scaffolded w
 `make migration NAME=...` using the pinned local EF tool into the Web project's
 `Storage/Migrations` directory. Back up the database before deploying startup migrations; see
 [deployment storage and backup guidance](../deploy/README.md#storage-and-migrations).
+
+## Logging
+
+Metrics answer "how much"; logs answer "what happened to this one". The two are not substitutes, and
+the rule for which is which is simple: a number that is useful as a trend is an instrument, and a
+fact that is only useful in the context of one request, run or import is a log line.
+
+`Web` is the only layer that logs. `Program` configures one sink — `Microsoft.Extensions.Logging.Console`'s
+JSON formatter, scopes included, one single-line object per entry — because podman hands the
+container's stdout to systemd a line at a time (DEC-140). `Core`, `Runtime` and `Sdk` have no logger at
+all: a compile fault and a page fault are logged where they are answered, so an exception is written
+once, with its stack and its inner exception, at the boundary that handles it.
+
+Two rules carry most of the value. Every level is about *who can fix it* — `Error` is a defect in
+this repository, `Warning` is something outside it, `Information` is the rumble of things that
+happened and `Debug` is noise for a developer's own machine. And every line carries a scope: the
+request's id, method and path, then the signed-in account and any route value that ends in `id`, or
+for background work the `RunId`, `ConversationId` or `StageId` it belongs to. A scope is filled in as
+the facts become known, so the exception handler's own line about a failure names the account that
+caused it.
+
+[Logging](logging.md) has the level table, the scope keys, the exception rules and the `jq` recipes
+for reading the journal.
 
 ## Shapes
 

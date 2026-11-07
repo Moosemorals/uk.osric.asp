@@ -125,39 +125,22 @@ Two further limits, recorded so they are not mistaken for oversights:
 
 ## Terms this plan depends on
 
-The decision below turns on the difference between words the docs use loosely. In the code they are
-distinct:
+The vocabulary is defined in [the glossary](../../glossary.md): a **conversation** has many **runs**,
+a run has many **steps**, and the **transcript** is the sequence of **messages** they produce. The
+**journal** is not the transcript; it is the live view and is dropped after
+`Assistant:JournalTtlMinutes`.
 
-| Term | What it is | Where it lives |
-| --- | --- | --- |
-| Conversation | one chat thread — an owner, a title, an approval mode and a conversation-wide message counter | `AssistantConversations` |
-| Message | one transcript row, `user`, `assistant` or `tool`, numbered by `Sequence` which is unique **per conversation**, and tagged with the `RunId` that produced it | `AssistantMessages` |
-| Run | one background execution of the processor over a conversation, started by a user message: queued, running, then completed, failed, cancelled or interrupted. At most one active run per conversation | `AssistantRuns` |
-| Step | one provider round trip **inside** a run, bounded by `Assistant:MaxSteps`. A step ends with an assistant message; if that message carries tool calls, the run executes them and takes another step | no row; `StepCount`, the `step` field on every event |
-| Tool call | a call the assistant emits in a message, executed once and stored as a `tool` message | `ToolCallsJson`, `ToolCallId` |
-| Tool approval | the durable owner decision a flagged tool call waits for | `AssistantToolApprovals` |
-
-So: a conversation has many runs, a run has many steps and many tool calls, and the transcript is the
-sequence of messages they produce. The journal of events is not the transcript — it is the live view
-and it is dropped after `Assistant:JournalTtlMinutes`; the transcript is the record.
-
-**"Turn" is none of them.** It appears only in prose, in two different senses: a "multi-turn
-conversation" (an exchange) and "the complete transcript sent to the provider each turn" (a step, in
-[ai-page-assistant.md](ai-page-assistant.md#the-run-lifecycle)). One word, two units, and the
-smaller of the two already has a name in the code. That is how a reader ends up asking what the
-relationship is — and it is why `Turn` is not available as a type name below.
-
-The rest of the vocabulary — page, key, path, head, revision, template, image, runtime, slot, budget,
-staleness — is bigger than this plan and is recorded as [IDEA-013](../../jobs/IDEA-013.md).
+**"Turn" is none of them.** In prose it was used for two different units — a whole **exchange** and
+one provider round trip, which the code calls a **step**. The smaller of the two already had a name
+in the code, which is why `Turn` is not available as a type name below.
 
 ## What `Run` should be called
 
 **Keep `Run`.** The alternatives are concept changes dressed as renames.
 
-**`Turn` is taken, and taken by something smaller.** [The terms above](#terms-this-plan-depends-on)
-settle it: a turn in the prose is one provider round trip, which the code calls a *step*, and a run is
-**many** steps. Renaming the execution to `Turn` would leave `StepCount` counting the steps inside a
-turn — a contradiction rather than a rename.
+**`Turn` is taken, and taken by something smaller.** [The glossary](../../glossary.md) settles it:
+the provider round trip is a *step*, and a run is **many** steps. Renaming the execution to `Turn`
+would leave `StepCount` counting the steps inside a turn — a contradiction rather than a rename.
 
 **`Stanza` has no ground here.** Zero occurrences anywhere in the solution, and nothing in the
 codebase's vocabulary — which is chat/provider/step — points at it. It is terminology from a different
@@ -523,8 +506,8 @@ one row per judgement, and it is easier to argue about once the type names have 
   that would misrepresent what was implemented.
 - [deploy/README.md](../../../deploy/README.md#storage-and-migrations) — the once-only removal of both
   volumes and the account recreation after the squash.
-- [jobs/README.md](../../jobs/README.md) — the OPS-06 and IDEA-013 rows, and the provenance sentence that
-  says where they came from.
+- [jobs/README.md](../../jobs/README.md) — the OPS-06 row, and the provenance sentence that says
+  where it came from.
 
 ## Risks
 
@@ -553,8 +536,8 @@ one row per judgement, and it is easier to argue about once the type names have 
 - **Applying the rule to every namespace.** Measured, not argued: 41 reviews outside the assistant
   produce 7 changes and 34 stops. `Core.Charting` is a complete no-op. The subsystem/domain line is
   the reason, and it is recorded rather than left to be rediscovered.
-- **`Turn` for `Run`.** Rejected: "turn" already means one provider round trip in the plan of record,
-  and a run spans many of them.
+- **`Turn` for `Run`.** Rejected: the provider round trip is already a *step* in the glossary, and a
+  run spans many of them.
 - **`Stanza` for `Run`.** Rejected: no occurrence, no precedent, new vocabulary for no gain.
 - **Renaming `AssistantOptions` to `Options` and `AssistantMetrics` to `Metrics`.** Rejected: both
   bare nouns contend with a namespace that the same files already import.

@@ -157,7 +157,24 @@ and applies them.
   [resource limits and restarts](#resource-limits-and-restarts).
 - **Container health:** `ssh deploy@<server-ip> podman healthcheck run uk.osric.asp` forces a check,
   and `podman inspect uk.osric.asp --format '{{.State.Health.Status}}'` shows the current one.
-- **Logs:** `ssh deploy@<server-ip> journalctl --user -u uk.osric.asp.service -f`
+- **Logs:** `ssh deploy@<server-ip> journalctl --user -u uk.osric.asp.service -f`. Every entry is one
+  single-line JSON object with its scopes as fields, so `-o cat` plus `jq` reads it as records rather
+  than text:
+
+  ```bash
+  # one assistant run, start to finish
+  journalctl --user -u uk.osric.asp.service -o cat \
+    | jq -c 'select(.Scopes[]?.RunId == "<run id>")'
+
+  # everything anyone had to be told about
+  journalctl --user -u uk.osric.asp.service --since -1h -o cat \
+    | jq -c 'select(.LogLevel == "Warning" or .LogLevel == "Error")'
+  ```
+
+  Levels mean what [the logging notes](../docs/logging.md) say they mean: `Error` is a defect in the
+  app, `Warning` is something outside it (the model provider, Prometheus, SQLite), `Information` is
+  what happened. `-o cat` is deliberate — the journal's own `-o json` nests the line inside
+  `MESSAGE`.
 - **Status:** `ssh deploy@<server-ip> systemctl --user status uk.osric.asp.service`
 - **Edge:** `ssh deploy@<server-ip> sudo systemctl status caddy`
 - **Rollback:** the quadlet's `Image=` already names the commit the host is running, so going back is

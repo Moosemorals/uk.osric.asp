@@ -40,7 +40,11 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   raw query, an authenticated `POST` without a valid antiforgery pair is refused before the page
   runs, and an authenticated response is `no-store` with no validator. `LoginRedirectTests` pins the
   `returnUrl` it builds, and `SimpleContextTests` the guard's status per method, the one-token-per-
-  render rule and the empty field an abandoned render gets.
+  render rule and the empty field an abandoned render gets. The logging is asserted rather than
+  assumed: `RequestLogScopeTests` pins the request scope — the exchange, the account and the route's
+  ids — and `RunProcessorTests` proves a provider failure is logged at Warning with its exception and
+  the run's scope. `Web.IntegrationTests/ErrorHandlingTests` proves the framework's own
+  unhandled-exception line carries the request scope, which is what fixes the order of the middleware.
 - **The assistant** is covered at the same boundaries: `Core.Tests` checks transcript trimming,
   stream accumulation, strict tool arguments, virtual-shell parsing, title generation and authored
   template-source line edits. `Web.Tests` uses migrated SQLite files for conversations, sequence
