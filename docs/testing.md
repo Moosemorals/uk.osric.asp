@@ -112,6 +112,7 @@ make test-integration  # the composed pipeline only, against a throwaway databas
 make browsers          # download the Firefox build the browser suite drives, once
 make test-browser      # the real host in Firefox, with a scripted provider
 make test-browser-live # the tests that call the configured provider and cost tokens
+make mutation          # mutation-test Core: does the suite notice a change in the code?
 ```
 
 Every suite writes its results under `artifacts/test-results`, so a run leaves the working tree alone.
@@ -147,6 +148,21 @@ is read in.
 - The `[Explicit]` fixtures talk to the configured provider instead: they need `deploy/deepseek.token`
   or `ASSISTANT_LIVE_TOKEN`, run only under `make test-browser-live`, and are the only tests here that
   can show what a model does when it thinks for a while.
+
+## Mutation testing
+
+`make mutation` probes the suite rather than the code: Stryker changes `Core` on purpose — a `<` to a
+`<=`, a `+` to a `-`, a returned value to another — reruns `Core.Tests` and reports every change the
+tests did not notice. A survivor is either a gap in the suite or an equivalent mutant, so each one is
+judged from the report rather than counted as a failure.
+
+It is opt-in and out of `make check`, like the browser suite: the project is rebuilt and the suite
+rerun once per mutant, so a full run is minutes. The configuration lives beside the tests it drives
+(`test/uk.osric.asp.Core.Tests/stryker-config.json`) and ignores string mutations — a test that pins
+the exact text of an exception message is testing the wording, not the behaviour. Stryker runs from
+the test project directory; started beside the solution file it treats the whole solution as its
+scope. `dotnet-stryker` is a local tool, so a fresh checkout needs `dotnet tool restore` (the target
+does it).
 
 ## The gate
 

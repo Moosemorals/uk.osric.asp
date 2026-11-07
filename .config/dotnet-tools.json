@@ -6,6 +6,11 @@
       "version": "10.0.14",
       "commands": ["dotnet-ef"],
       "rollForward": false
+    },
+    "dotnet-stryker": {
+      "version": "5.0.0",
+      "commands": ["dotnet-stryker"],
+      "rollForward": false
     }
   }
 }

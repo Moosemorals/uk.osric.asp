@@ -115,7 +115,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check clean
+.PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -155,6 +155,7 @@ help:
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
 		'license-check      Fail if the tree is not REUSE compliant (needs the reuse tool).' \
+		'mutation           Mutation-test Core with Stryker: does the suite notice a change in the code?' \
 		'browsers           Install the Firefox build the browser suite drives.' \
 		'clean              Delete the artifacts folder.' \
 		'help               Show this list.'
@@ -437,6 +438,15 @@ format-check:
 # Needs the `reuse` tool (apt install reuse, or pipx install reuse).
 license-check:
 	reuse lint
+
+# Mutation testing rewrites the Core source and reruns the suite once per mutant, so it is minutes
+# rather than seconds and stays out of `check`. Stryker compiles the mutated project itself, which
+# is why this needs only a restore: the build stamp would compile the same projects for nothing.
+# It runs from the test project, its own recommendation: started at the solution file, Stryker takes
+# the whole solution as its scope and runs every suite for every mutant.
+mutation: $(RESTORE_STAMP)
+	$(DOTNET) tool restore
+	cd $(dir $(CORE_TESTS)) && $(DOTNET) tool run dotnet-stryker --output $(abspath $(ARTIFACTS))/stryker
 
 clean:
 	rm -rf $(ARTIFACTS)

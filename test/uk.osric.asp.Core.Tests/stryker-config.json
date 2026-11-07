@@ -1,0 +1,8 @@
+{
+  "stryker-config": {
+    "project": "uk.osric.asp.Core.csproj",
+    "test-projects": ["uk.osric.asp.Core.Tests.csproj"],
+    "ignore-mutations": ["string"],
+    "reporters": ["progress", "cleartext", "html"]
+  }
+}
