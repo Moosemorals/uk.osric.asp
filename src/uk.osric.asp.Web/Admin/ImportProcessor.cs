@@ -32,6 +32,8 @@ internal sealed class ImportProcessor(
     public async Task ProcessAsync(ImportStage stage, CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(stage);
 
+        // The stage's scope is the worker's: it is opened before the stage is looked up and outlives
+        // this call, so opening it again here would put two identical objects on every line.
         long start = Stopwatch.GetTimestamp();
         ImportStageSnapshot snapshot = stage.Snapshot();
         stage.BeginCompiling();
