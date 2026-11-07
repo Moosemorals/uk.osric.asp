@@ -114,6 +114,8 @@ make test-browser      # the real host in Firefox, with a scripted provider
 make test-browser-live # the tests that call the configured provider and cost tokens
 ```
 
+Every suite writes its results under `artifacts/test-results`, so a run leaves the working tree alone.
+
 **No browser needed** covers what the four suites assert, not everything the site does. Alignment of
 the gutter numbers with the text rows, the native resize handle, the caret coming back after a save, a
 clean console under the policy and an answer that arrives one delta at a time are browser behaviour:

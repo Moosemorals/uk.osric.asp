@@ -10,6 +10,10 @@ artifacts/
 [Bb]in/
 [Oo]bj/
 
+# Test results. The Makefile points the runner at artifacts/test-results; this catches a
+# `dotnet test` run that bypassed it.
+TestResults/
+
 # Local SQLite data and journals
 *.db
 *.db-journal

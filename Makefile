@@ -181,7 +181,10 @@ test: test-core test-runtime test-web test-integration
 # A suite that wedges should fail the gate rather than sit in it. NUnit's own timeout would not help
 # here: the budget tests burn a wall clock on purpose, so only a generous whole-run ceiling is safe.
 TEST_HANG_TIMEOUT ?= 5m
-TEST_ARGS := --blame-hang --blame-hang-timeout $(TEST_HANG_TIMEOUT)
+# Test results belong with everything else the build produces. Left to itself the runner creates a
+# TestResults/ folder beside each project, which puts output in the source tree.
+TEST_RESULTS := $(ARTIFACTS)/test-results
+TEST_ARGS := --results-directory $(TEST_RESULTS) --blame-hang --blame-hang-timeout $(TEST_HANG_TIMEOUT)
 
 # The gate. Cheap checks first, so a formatting mistake fails in seconds rather than after the suites.
 # Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no
