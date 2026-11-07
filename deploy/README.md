@@ -327,17 +327,33 @@ and runtime tests.
 
 ### One-off: the squashed migration
 
+**Done on the CAX21 on 2026-11-07.** This is kept as the record of what the DEC-122 deploy cost, and
+as the procedure if a second host ever holds a pre-squash volume; a fresh host needs none of it.
+
 The migration history was squashed into a single `InitialCreate` for DEC-122, which renamed the
 assistant's EF entities. `__EFMigrationsHistory` in an existing `uk.osric.asp-storage` volume does not
-know about `InitialCreate`, so startup finds tables it did not create and the app fails. This is a
-one-off, for one deployment, and it costs two volumes and one account:
+know about `InitialCreate`, so startup finds tables it did not create and the app fails. It costs two
+volumes and one account, and the order matters: when the release has already been deployed, the app is
+crash-looping against the old schema and both volumes are still held by running containers. The podman
+commands run on the host as `deploy`; the last line runs from the repository.
 
 ```bash
-systemctl --user stop uk.osric.asp.service
+# Stopping both units releases both volumes; the app may be in the start-limit failed state already.
+systemctl --user stop uk.osric.asp.service prometheus.service
+systemctl --user reset-failed uk.osric.asp.service prometheus.service
+# If podman still reports a volume in use, remove the stopped containers and retry the next line.
 podman volume rm uk.osric.asp-storage prometheus-data
-# deploy the release, then recreate the owner account
+
+systemctl --user start uk.osric.asp.service prometheus.service
+# The app applies InitialCreate before it serves, so wait for health before creating the account.
+until curl -fsS -o /dev/null http://127.0.0.1:8080/heath; do sleep 2; done
 make remote-user-add HOST=deploy@<server-ip> ACCOUNT=osric
 ```
+
+Only these two volumes go. `uk.osric.asp-keys` holds the data-protection keys and is not disposable;
+`caddy-data` and `caddy-config` are untouched by the schema. Once the new image is already on the host
+a redeploy is unnecessary — starting the units recreates the schema from `InitialCreate`, and
+`make deploy` would only restart the same two units after rebuilding and pushing.
 
 `uk.osric.asp-storage` goes because the schema no longer replays from the old history, and it takes
 the owner account with it — hence the `remote-user-add` afterwards. `prometheus-data` goes because
