@@ -152,7 +152,7 @@ internal sealed class PageEndpoint() {
         if (response.Location is not null) {
             // A redirect can carry the promise of a page the visitor is not yet allowed to see, so it
             // is never cached, whoever asked.
-            context.Response.Headers.CacheControl = "no-store";
+            SecurityHeaders.NoStore(context);
             Redirect.To(context, response.Status, response.Location);
             return;
         }
@@ -175,7 +175,7 @@ internal sealed class PageEndpoint() {
             // Copies first, then overrides, so a page cannot weaken it with SetHeader. A response
             // rendered for one owner must never be a shared cache's answer to another visitor, and a
             // validator would invite exactly that revalidation.
-            context.Response.Headers.CacheControl = "no-store";
+            SecurityHeaders.NoStore(context);
             context.Response.Headers.Remove("ETag");
         } else if (response.Status is >= StatusCodes.Status200OK and < StatusCodes.Status300MultipleChoices) {
             byte[] digest = SHA256.HashData(bodyBytes);
@@ -230,7 +230,7 @@ internal sealed class PageEndpoint() {
     private static Task WriteForgedRequestAsync(HttpContext context, PagePath path) {
         // The check happens before the page runs, so nothing the page might have written or stored
         // exists; no-store keeps the refusal itself out of a cache.
-        context.Response.Headers.CacheControl = "no-store";
+        SecurityHeaders.NoStore(context);
 
         return ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
             "page.form_unverified",

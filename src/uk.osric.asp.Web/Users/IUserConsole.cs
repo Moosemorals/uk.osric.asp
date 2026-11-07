@@ -6,9 +6,6 @@ namespace uk.osric.asp.Web.Users;
 /// <summary>The console operations the user command needs, so its logic can be tested.</summary>
 internal interface IUserConsole {
 
-    /// <summary>Writes a prompt and reads a line.</summary>
-    string? ReadLine(string prompt);
-
     /// <summary>Writes a prompt and reads a password without echoing it.</summary>
     string? ReadPassword(string prompt);
 

@@ -59,18 +59,4 @@ internal sealed class AssistantCutOffTests : BrowserTest {
         string transcript = await Page.Locator("#assistant-transcript").InnerTextAsync();
         Assert.That(transcript, Does.Contain("The answer starts"), "the partial answer is kept");
     }
-
-    /// <summary>Opens a new conversation and returns its id.</summary>
-    private async Task<long> NewConversationAsync() {
-        await Page.GotoAsync("assistant");
-        await Page.ClickAsync("text=New conversation");
-        await Page.WaitForURLAsync(new Regex(@"/assistant/\d+$"));
-        return long.Parse(Page.Url.Split('/')[^1], System.Globalization.CultureInfo.InvariantCulture);
-    }
-
-    /// <summary>Types a message and lets the page's script post it, which starts the run.</summary>
-    private async Task SendAsync(string message) {
-        await Page.FillAsync("#assistant-message", message);
-        await Page.ClickAsync("#assistant-message-form button[type=submit]");
-    }
 }

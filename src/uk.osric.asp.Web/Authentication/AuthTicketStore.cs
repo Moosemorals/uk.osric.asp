@@ -20,10 +20,8 @@ internal sealed class AuthTicketStore(IServiceScopeFactory scopes) {
     public AuthTicket? Find(string key) {
         ArgumentNullException.ThrowIfNull(key);
 
-        using IServiceScope scope = scopes.CreateScope();
-        StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
-        return database.Set<AuthTicket>().AsNoTracking()
-            .SingleOrDefault(row => row.Key == key);
+        return WithDatabase(database => database.Set<AuthTicket>().AsNoTracking()
+            .SingleOrDefault(row => row.Key == key));
     }
 
     /// <summary>Adds a ticket under a key that is not yet stored.</summary>
@@ -31,10 +29,10 @@ internal sealed class AuthTicketStore(IServiceScopeFactory scopes) {
     public void Add(AuthTicket ticket) {
         ArgumentNullException.ThrowIfNull(ticket);
 
-        using IServiceScope scope = scopes.CreateScope();
-        StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
-        database.Add(ticket);
-        _ = database.SaveChanges();
+        _ = WithDatabase(database => {
+            database.Add(ticket);
+            return database.SaveChanges();
+        });
     }
 
     /// <summary>Replaces the ticket stored under a key, when the key still belongs to the account.</summary>
@@ -48,15 +46,11 @@ internal sealed class AuthTicketStore(IServiceScopeFactory scopes) {
         ArgumentNullException.ThrowIfNull(userName);
         ArgumentNullException.ThrowIfNull(protectedTicket);
 
-        using IServiceScope scope = scopes.CreateScope();
-        StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
-        int updated = database.Set<AuthTicket>()
+        return WithDatabase(database => database.Set<AuthTicket>()
             .Where(row => row.Key == key && row.UserName == userName)
             .ExecuteUpdate(setters => setters
                 .SetProperty(row => row.ProtectedTicket, protectedTicket)
-                .SetProperty(row => row.ExpiresAt, expiresAt));
-
-        return updated > 0;
+                .SetProperty(row => row.ExpiresAt, expiresAt))) > 0;
     }
 
     /// <summary>Deletes the ticket stored under a key.</summary>
@@ -65,17 +59,21 @@ internal sealed class AuthTicketStore(IServiceScopeFactory scopes) {
     public bool Remove(string key) {
         ArgumentNullException.ThrowIfNull(key);
 
-        using IServiceScope scope = scopes.CreateScope();
-        StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
-        return database.Set<AuthTicket>().Where(row => row.Key == key).ExecuteDelete() > 0;
+        return WithDatabase(database => database.Set<AuthTicket>().Where(row => row.Key == key).ExecuteDelete()) > 0;
     }
 
     /// <summary>Deletes rows whose ticket has expired, which no request will ever remove again.</summary>
     /// <param name="now">The current UTC time.</param>
     /// <returns>The number of rows deleted.</returns>
-    public int RemoveExpired(DateTime now) {
+    public int RemoveExpired(DateTime now) =>
+        WithDatabase(database => database.Set<AuthTicket>().Where(row => row.ExpiresAt < now).ExecuteDelete());
+
+    // Every operation is one short statement against a local file, and the context is scoped, so each
+    // call opens a scope of its own rather than holding one for the life of the singleton.
+    private T WithDatabase<T>(Func<StorageDbContext, T> work) {
         using IServiceScope scope = scopes.CreateScope();
         StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
-        return database.Set<AuthTicket>().Where(row => row.ExpiresAt < now).ExecuteDelete();
+
+        return work(database);
     }
 }

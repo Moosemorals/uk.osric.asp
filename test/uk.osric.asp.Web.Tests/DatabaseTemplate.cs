@@ -5,6 +5,8 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>The schema a storage test starts from: migrated once, then copied for each test.</summary>
@@ -40,6 +42,24 @@ internal sealed class DatabaseTemplate : IDisposable {
         return new DbContextOptionsBuilder<StorageDbContext>().UseSqlite(ConnectionString(path)).Options;
     }
 
+    /// <summary>A factory over <paramref name="options"/>, for the stores that open their own context.</summary>
+    /// <param name="options">The options every context is built with.</param>
+    public static IDbContextFactory<StorageDbContext> Factory(DbContextOptions<StorageDbContext> options) {
+        return new ContextFactory(options);
+    }
+
+    /// <summary>Stores a page through the real store, as a fixture's starting point.</summary>
+    /// <param name="options">The options for the database the page is written to.</param>
+    /// <param name="path">The page's key.</param>
+    /// <param name="template">The template to store.</param>
+    public static async Task SavePageAsync(
+        DbContextOptions<StorageDbContext> options,
+        string path,
+        string template = "Hello.") {
+        await using StorageDbContext database = new(options);
+        await new SqlitePageStore(database).SavePageAsync(new PageTemplate(PagePath.Normalize(path), template));
+    }
+
     /// <summary>Deletes a database file and the sidecars SQLite writes beside it.</summary>
     /// <param name="path">The database file.</param>
     public static void DeleteFiles(string path) {
@@ -60,4 +80,8 @@ internal sealed class DatabaseTemplate : IDisposable {
 
     /// <inheritdoc/>
     public void Dispose() => DeleteFiles(_path);
+
+    private sealed class ContextFactory(DbContextOptions<StorageDbContext> options) : IDbContextFactory<StorageDbContext> {
+        public StorageDbContext CreateDbContext() => new(options);
+    }
 }

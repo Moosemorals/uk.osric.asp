@@ -19,7 +19,6 @@ public static class LineChart {
     private const double TopMargin = 10;
     private const double BottomMargin = 20;
     private const double PointRadius = 2;
-    private const int SeriesColours = 5;
 
     /// <summary>Renders one chart.</summary>
     /// <param name="series">The lines to draw; a null value is a gap rather than a zero.</param>
@@ -44,43 +43,43 @@ public static class LineChart {
         (double min, double max) = ValueRange(series, y);
 
         StringBuilder svg = new();
-        svg.Append("<svg class=\"chart\" viewBox=\"0 0 ").Append(Number(size.Width)).Append(' ')
-            .Append(Number(size.Height)).Append("\" role=\"img\">\n");
+        svg.Append("<svg class=\"chart\" viewBox=\"0 0 ").Append(SvgText.Number(size.Width)).Append(' ')
+            .Append(SvgText.Number(size.Height)).Append("\" role=\"img\">\n");
         svg.Append("<title>").Append(SvgText.Escape(Title(series))).Append("</title>\n");
         svg.Append("<desc>").Append(SvgText.Escape(y.Title)).Append(" over ")
             .Append(SvgText.Escape(x.Title)).Append("</desc>\n");
         // The unit belongs on the axis, not only in the description: a chart of unknown units is a
         // chart nobody can act on.
         svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 10 ")
-            .Append(Number(TopMargin + (plotHeight / 2)))
-            .Append(")\" x=\"10\" y=\"").Append(Number(TopMargin + (plotHeight / 2)))
+            .Append(SvgText.Number(TopMargin + (plotHeight / 2)))
+            .Append(")\" x=\"10\" y=\"").Append(SvgText.Number(TopMargin + (plotHeight / 2)))
             .Append("\" text-anchor=\"middle\">").Append(SvgText.Escape(y.Title)).Append("</text>\n");
 
         foreach (ChartTick tick in Order(y.Ticks)) {
             double at = ValuePosition(tick.Position, min, max, plotHeight);
-            svg.Append("<line class=\"chart-grid\" x1=\"").Append(Number(LeftMargin))
-                .Append("\" y1=\"").Append(Number(at))
-                .Append("\" x2=\"").Append(Number(LeftMargin + plotWidth))
-                .Append("\" y2=\"").Append(Number(at)).Append("\"/>\n");
-            svg.Append("<text class=\"chart-label\" x=\"").Append(Number(LeftMargin - 4))
-                .Append("\" y=\"").Append(Number(at + 4))
+            svg.Append("<line class=\"chart-grid\" x1=\"").Append(SvgText.Number(LeftMargin))
+                .Append("\" y1=\"").Append(SvgText.Number(at))
+                .Append("\" x2=\"").Append(SvgText.Number(LeftMargin + plotWidth))
+                .Append("\" y2=\"").Append(SvgText.Number(at)).Append("\"/>\n");
+            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(LeftMargin - 4))
+                .Append("\" y=\"").Append(SvgText.Number(at + 4))
                 .Append("\" text-anchor=\"end\">").Append(SvgText.Escape(tick.Label)).Append("</text>\n");
         }
 
         foreach (ChartTick tick in Order(x.Ticks)) {
             double at = LeftMargin + ((tick.Position / span) * plotWidth);
-            svg.Append("<line class=\"chart-grid\" x1=\"").Append(Number(at))
-                .Append("\" y1=\"").Append(Number(TopMargin))
-                .Append("\" x2=\"").Append(Number(at))
-                .Append("\" y2=\"").Append(Number(TopMargin + plotHeight)).Append("\"/>\n");
-            svg.Append("<text class=\"chart-label\" x=\"").Append(Number(at))
-                .Append("\" y=\"").Append(Number(size.Height - 6))
+            svg.Append("<line class=\"chart-grid\" x1=\"").Append(SvgText.Number(at))
+                .Append("\" y1=\"").Append(SvgText.Number(TopMargin))
+                .Append("\" x2=\"").Append(SvgText.Number(at))
+                .Append("\" y2=\"").Append(SvgText.Number(TopMargin + plotHeight)).Append("\"/>\n");
+            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(at))
+                .Append("\" y=\"").Append(SvgText.Number(size.Height - 6))
                 .Append("\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label)).Append("</text>\n");
         }
 
         for (int index = 0; index < series.Count; index++) {
             ChartSeries line = series[index];
-            string colour = "series-" + ((index % SeriesColours) + 1);
+            string colour = SvgText.SeriesColour(index);
             List<(double X, double Y)> run = [];
 
             foreach (ChartPoint point in line.Points) {
@@ -105,38 +104,24 @@ public static class LineChart {
         if (run.Count == 1) {
             (double x, double y) = run[0];
             svg.Append("<circle class=\"series ").Append(colour)
-                .Append("\" cx=\"").Append(Number(x))
-                .Append("\" cy=\"").Append(Number(y))
-                .Append("\" r=\"").Append(Number(PointRadius)).Append("\"/>\n");
+                .Append("\" cx=\"").Append(SvgText.Number(x))
+                .Append("\" cy=\"").Append(SvgText.Number(y))
+                .Append("\" r=\"").Append(SvgText.Number(PointRadius)).Append("\"/>\n");
             return;
         }
 
         if (run.Count > 1) {
             svg.Append("<polyline class=\"series ").Append(colour).Append("\" points=\"")
-                .Append(string.Join(' ', run.Select(point => Number(point.X) + "," + Number(point.Y))))
+                .Append(string.Join(' ', run.Select(point => SvgText.Number(point.X) + "," + SvgText.Number(point.Y))))
                 .Append("\"/>\n");
         }
     }
 
     private static (DateTimeOffset Start, double Span) TimeRange(IReadOnlyList<ChartSeries> series) {
-        bool any = false;
-        DateTimeOffset earliest = default;
-        DateTimeOffset latest = default;
+        (DateTimeOffset earliest, DateTimeOffset latest) =
+            ChartSamples.Instants(series.SelectMany(line => line.Points));
 
-        foreach (ChartSeries line in series) {
-            foreach (ChartPoint point in line.Points) {
-                if (!any) {
-                    earliest = latest = point.At;
-                    any = true;
-                    continue;
-                }
-
-                earliest = point.At < earliest ? point.At : earliest;
-                latest = point.At > latest ? point.At : latest;
-            }
-        }
-
-        return any ? (earliest, Math.Max((latest - earliest).TotalSeconds, 1)) : (DateTimeOffset.UnixEpoch, 1);
+        return (earliest, Math.Max((latest - earliest).TotalSeconds, 1));
     }
 
     private static (double Min, double Max) ValueRange(IReadOnlyList<ChartSeries> series, ChartAxis y) {
@@ -151,8 +136,7 @@ public static class LineChart {
         }
 
         if (min == max) {
-            double pad = min == 0 ? 1 : Math.Abs(min) * 0.1;
-            return (min - pad, max + pad);
+            return ChartSamples.Widen(min, max);
         }
 
         return (min, max);
@@ -189,5 +173,4 @@ public static class LineChart {
         return labels.Length == 0 ? "Chart" : string.Join(", ", labels);
     }
 
-    private static string Number(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
 }

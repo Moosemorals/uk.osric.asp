@@ -70,8 +70,8 @@ internal sealed class PageArchiveReader(ArchiveOptions options, PageStorageOptio
                 }
 
                 // Read-only and with schema-defined objects untrusted, before anything is queried.
-                Execute(connection, "PRAGMA query_only = ON");
-                Execute(connection, "PRAGMA trusted_schema = OFF");
+                SqliteStatement.Execute(connection, "PRAGMA query_only = ON");
+                SqliteStatement.Execute(connection, "PRAGMA trusted_schema = OFF");
 
                 return Read(connection, problems);
             } catch (SqliteException) {
@@ -437,12 +437,6 @@ internal sealed class PageArchiveReader(ArchiveOptions options, PageStorageOptio
         using SqliteCommand command = connection.CreateCommand();
         command.CommandText = sql;
         return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
-    }
-
-    private static void Execute(SqliteConnection connection, string sql) {
-        using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = sql;
-        command.ExecuteNonQuery();
     }
 
     private static PageArchiveReadResult Reject(string problem) => new([], [problem]);

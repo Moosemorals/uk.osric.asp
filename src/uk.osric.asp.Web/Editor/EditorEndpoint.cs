@@ -11,6 +11,7 @@ using Microsoft.Extensions.Primitives;
 using System.Net;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
@@ -24,7 +25,7 @@ internal sealed class EditorEndpoint {
 
     public static async Task HandleAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, IAntiforgery antiforgery) {
         if (context.Request.Method is not ("GET" or "POST")) {
-            await WriteErrorAsync(context, StatusCodes.Status405MethodNotAllowed, new ErrorMessage(
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status405MethodNotAllowed, new ErrorMessage(
                 "editor.method_not_allowed",
                 "Not allowed",
                 "The editor answers GET and POST only. Follow a link or use one of the editor's buttons.",
@@ -33,7 +34,7 @@ internal sealed class EditorEndpoint {
         }
 
         if (context.Request.Method == "POST" && context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "editor.form_expired",
                 "The editor form expired",
                 "The form could not be verified, so nothing was saved. Use your browser's back button to return to your text, reload the editor, then save again.",
@@ -43,7 +44,7 @@ internal sealed class EditorEndpoint {
 
         (bool commandValid, string? command) = await ReadCommandAsync(context);
         if (!commandValid || !IsAllowedCommand(context.Request.Method, command)) {
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "editor.unknown_command",
                 "The editor could not tell what to do",
                 "That request did not name an editor action this page understands. Use one of the buttons on the editor page.",
@@ -59,7 +60,7 @@ internal sealed class EditorEndpoint {
 
         if (command == "new") {
             if (context.Request.Method != "POST" || !bareEditorPath) {
-                await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                     "editor.new_page",
                     "That is not how a page is created",
                     "Creating a page posts the new-page form from the page list. Open the page list and use \"Create or open\".",
@@ -72,7 +73,7 @@ internal sealed class EditorEndpoint {
         }
 
         if (bareEditorPath && (context.Request.Method == "POST" || command is not null)) {
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "editor.needs_page",
                 "That action needs a page",
                 "The page list has no page to act on. Open the page list and choose a page, or create one with \"Create or open\".",
@@ -93,7 +94,7 @@ internal sealed class EditorEndpoint {
         }
 
         if (!string.Equals(context.Request.Path.Value, "/edit" + path.Key, StringComparison.Ordinal)) {
-            NoStore(context);
+            SecurityHeaders.NoStore(context);
             Redirect.Permanent(context, editorUrl + context.Request.QueryString.ToUriComponent());
             return;
         }
@@ -109,7 +110,7 @@ internal sealed class EditorEndpoint {
                 return;
             case "revision":
                 if (!TryGetRevisionHash(context, out string? hash)) {
-                    await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                    await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                         "editor.revision_link",
                         "That revision link is not valid",
                         "A revision link needs a 64-character SHA-256 hash. Open the page history and choose a revision from the list.",
@@ -129,7 +130,7 @@ internal sealed class EditorEndpoint {
                 await WriteEditorAsync(context, pages, antiforgery, assistantEnabled, path);
                 return;
             default:
-                await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                     "editor.unknown_command",
                     "The editor could not tell what to do",
                     "That request did not name an editor action this page understands. Use one of the buttons on the editor page.",
@@ -148,10 +149,7 @@ internal sealed class EditorEndpoint {
         await ShellDocument.BeginAsync(context, "Pages");
         await context.Response.WriteAsync("<h1>Pages</h1>");
         await WriteMessageAsync(context);
-        await context.Response.WriteAsync(PageLayout.Nav("Page administration", [
-            new("/admin/import", "Import pages"),
-            new("/admin/export", "Export pages"),
-        ], "editor-menu"));
+        await context.Response.WriteAsync(AdminNavigation.Nav("edit"));
         await context.Response.WriteAsync($"""
             <form method="post" action="/edit?cmd=new" class="form">
                 {AntiforgeryField.Hidden(tokens)}
@@ -169,18 +167,16 @@ internal sealed class EditorEndpoint {
         } else {
             await context.Response.WriteAsync("<ul class=\"pages\" role=\"list\">");
             foreach (PageHeadSummary head in live) {
-                if (!head.Path.IsAddressable || reserved.IsReserved(head.Path)) {
-                    await context.Response.WriteAsync($"<li>{WebUtility.HtmlEncode(head.Path.Key)}: unavailable</li>");
+                if (!await WriteUnavailableAsync(context, head, reserved)) {
                     continue;
                 }
 
-                string path = WebUtility.HtmlEncode(head.Path.Key);
-                string name = WebUtility.HtmlEncode(head.Path.Key);
+                string key = KeyOf(head);
                 string editorUrl = WebUtility.HtmlEncode(PageUrls.Editor(head.Path));
                 string historyUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "history"));
                 string deleteUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "delete"));
                 string restore = await RestoreFormAsync(pages, head.Path, seeds, tokens, context.RequestAborted);
-                await context.Response.WriteAsync($"<li><a href=\"{WebUtility.HtmlEncode(PageUrls.Page(head.Path))}\">{path}</a> <a href=\"{editorUrl}\" aria-label=\"Edit {name}\">Edit</a> <a href=\"{historyUrl}\" aria-label=\"History of {name}\">History</a> <a href=\"{deleteUrl}\" aria-label=\"Delete {name}\">Delete</a> {restore}</li>");
+                await context.Response.WriteAsync($"<li><a href=\"{WebUtility.HtmlEncode(PageUrls.Page(head.Path))}\">{key}</a> <a href=\"{editorUrl}\" aria-label=\"Edit {key}\">Edit</a> <a href=\"{historyUrl}\" aria-label=\"History of {key}\">History</a> <a href=\"{deleteUrl}\" aria-label=\"Delete {key}\">Delete</a> {restore}</li>");
             }
             await context.Response.WriteAsync("</ul>");
         }
@@ -191,24 +187,38 @@ internal sealed class EditorEndpoint {
         } else {
             await context.Response.WriteAsync("<ul class=\"pages\" role=\"list\">");
             foreach (PageHeadSummary head in deleted) {
-                if (!head.Path.IsAddressable || reserved.IsReserved(head.Path)) {
-                    await context.Response.WriteAsync($"<li>{WebUtility.HtmlEncode(head.Path.Key)}: unavailable</li>");
+                if (!await WriteUnavailableAsync(context, head, reserved)) {
                     continue;
                 }
 
-                string path = WebUtility.HtmlEncode(head.Path.Key);
-                string name = WebUtility.HtmlEncode(head.Path.Key);
+                string key = KeyOf(head);
                 string recreateUrl = WebUtility.HtmlEncode(PageUrls.Editor(head.Path));
                 string historyUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "history"));
                 string scrubUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "scrub"));
                 string restore = await RestoreFormAsync(pages, head.Path, seeds, tokens, context.RequestAborted);
-                await context.Response.WriteAsync($"<li>{path} (history retained) <a href=\"{recreateUrl}\" aria-label=\"Recreate {name}\">Recreate</a> <a href=\"{historyUrl}\" aria-label=\"History of {name}\">History</a> <a href=\"{scrubUrl}\" aria-label=\"Scrub history of {name}\">Scrub history</a> {restore}</li>");
+                await context.Response.WriteAsync($"<li>{key} (history retained) <a href=\"{recreateUrl}\" aria-label=\"Recreate {key}\">Recreate</a> <a href=\"{historyUrl}\" aria-label=\"History of {key}\">History</a> <a href=\"{scrubUrl}\" aria-label=\"Scrub history of {key}\">Scrub history</a> {restore}</li>");
             }
             await context.Response.WriteAsync("</ul>");
         }
 
         await ShellDocument.EndAsync(context);
     }
+
+    // A key the site's routes already answer for is not a page the editor can offer, and both the
+    // live and the deleted list have to say so the same way.
+    private static async Task<bool> WriteUnavailableAsync(
+        HttpContext context,
+        PageHeadSummary head,
+        ReservedPaths reserved) {
+        if (head.Path.IsAddressable && !reserved.IsReserved(head.Path)) {
+            return true;
+        }
+
+        await context.Response.WriteAsync($"<li>{KeyOf(head)}: unavailable</li>");
+        return false;
+    }
+
+    private static string KeyOf(PageHeadSummary head) => WebUtility.HtmlEncode(head.Path.Key);
 
     // A seeded row offers the restore; a page that already carries its seed offers it disabled, so
     // the listing shows what could be restored without offering a no-op write. A tombstoned page has
@@ -241,12 +251,12 @@ internal sealed class EditorEndpoint {
     }
 
     private static async Task NewPageAsync(HttpContext context, ReservedPaths reserved) {
-        NoStore(context);
+        SecurityHeaders.NoStore(context);
         if (!context.Request.HasFormContentType
             || !context.Request.Form.TryGetValue("path", out StringValues value)
             || value.Count != 1
             || string.IsNullOrWhiteSpace(value[0])) {
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "editor.new_page_path",
                 "A page name is required",
                 "The new-page form needs a path, for example /notes/first. Nothing was created.",
@@ -256,7 +266,7 @@ internal sealed class EditorEndpoint {
 
         PagePath path = PagePath.Normalize(value[0]);
         if (!path.IsAddressable || reserved.IsReserved(path)) {
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "editor.new_page_path",
                 "That page name cannot be used",
                 $"{path} is not a page this site can create: it is either unreadable as a path or one the site answers for itself. Nothing was created.",
@@ -380,7 +390,7 @@ internal sealed class EditorEndpoint {
     }
 
     private static Task WriteScrubRequiresDeletedPageAsync(HttpContext context, PagePath path) =>
-        WriteErrorAsync(context, StatusCodes.Status409Conflict, new ErrorMessage(
+        ErrorResponses.WriteAsync(context, StatusCodes.Status409Conflict, new ErrorMessage(
             "editor.scrub_live_page",
             "Delete the page before scrubbing its history",
             $"Scrubbing removes the retained history of a deleted page, so {path.Key} has to be deleted first. Nothing was removed.",
@@ -427,7 +437,7 @@ internal sealed class EditorEndpoint {
             return;
         }
 
-        await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+        await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
             "editor.unknown_command",
             "The editor could not tell what to do",
             "That request did not name an editor action this page understands. Use one of the buttons on the editor page.",
@@ -435,7 +445,7 @@ internal sealed class EditorEndpoint {
     }
 
     private static async Task RestoreSeedAsync(HttpContext context, PageEditor pages, PagePath path) {
-        NoStore(context);
+        SecurityHeaders.NoStore(context);
         string? seed = await PageAssetSeeder.ReadSeedTemplateAsync(path, context.RequestAborted);
         if (seed is null) {
             await NotFound.WriteAsync(context, path);
@@ -457,7 +467,7 @@ internal sealed class EditorEndpoint {
             || !context.Request.Form.TryGetValue("confirmation", out StringValues confirmation)
             || confirmation.Count != 1
             || !string.Equals(confirmation[0], path.Key, StringComparison.Ordinal)) {
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "editor.scrub_confirmation",
                 "Scrub was not confirmed",
                 $"The confirmation did not match {path.Key}, so nothing was removed. Type the page's key exactly to confirm.",
@@ -503,8 +513,6 @@ internal sealed class EditorEndpoint {
             await ShellDocument.EndAsync(context);
         }
     }
-
-    private static void NoStore(HttpContext context) => context.Response.Headers.CacheControl = "no-store";
 
     private static async Task WriteMessageAsync(HttpContext context) {
         string? message = context.Session.GetString(MessageKey);
@@ -602,9 +610,6 @@ internal sealed class EditorEndpoint {
             _ => new SaveOutcome("Saved with warnings.", Viewable: true),
         };
     }
-
-    private static Task WriteErrorAsync(HttpContext context, int statusCode, ErrorMessage message) =>
-        ErrorResponses.WriteAsync(context, statusCode, message, context.RequestAborted);
 
     private readonly record struct SaveOutcome(string Message, bool Viewable);
 

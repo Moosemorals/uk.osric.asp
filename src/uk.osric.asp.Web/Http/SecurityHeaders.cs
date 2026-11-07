@@ -55,6 +55,24 @@ internal static class SecurityHeaders {
         context.Response.Headers[ContentSecurityPolicy] = WithScripts;
     }
 
+    /// <summary>Marks the response as one no cache may keep.</summary>
+    /// <param name="context">The response to mark.</param>
+    public static void NoStore(HttpContext context) {
+        ArgumentNullException.ThrowIfNull(context);
+
+        context.Response.Headers.CacheControl = "no-store";
+    }
+
+    /// <summary>Marks the response as uncacheable, unless a view already asked for something stronger.</summary>
+    /// <param name="context">The response to mark.</param>
+    public static void NoStoreIfAbsent(HttpContext context) {
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (context.Response.Headers.CacheControl.Count == 0) {
+            NoStore(context);
+        }
+    }
+
     /// <summary>Whether the shell writes this header itself, so a page may not set it.</summary>
     /// <remarks>
     /// <c>SimpleContext</c> lets a page set any <c>X-</c> name, which includes several of these;

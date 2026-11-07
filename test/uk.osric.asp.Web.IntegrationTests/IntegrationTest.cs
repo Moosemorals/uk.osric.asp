@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using System.Net;
+using System.Text;
 using System.Text.RegularExpressions;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Authentication;
@@ -126,23 +127,7 @@ public abstract class IntegrationTest {
 
     /// <summary>Adds an account beyond the one every fixture starts with.</summary>
     protected async Task SeedAdditionalUserAsync(string userName, string password) {
-        await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
-        IUserStore users = scope.ServiceProvider.GetRequiredService<IUserStore>();
-        IPasswordService passwords = scope.ServiceProvider.GetRequiredService<IPasswordService>();
-
-        LocalUser template = new() {
-            UserName = "~template~",
-            PasswordHash = string.Empty,
-            SecurityStamp = SecurityStamp.Create(),
-            CreatedAt = DateTimeOffset.UtcNow,
-        };
-
-        _ = await users.TryAddAsync(new LocalUser {
-            UserName = userName,
-            PasswordHash = passwords.Hash(template, password),
-            SecurityStamp = template.SecurityStamp,
-            CreatedAt = template.CreatedAt,
-        });
+        _ = await AddUserAsync(userName, password);
     }
 
     /// <summary>Changes a password the way the CLI does, rotating the security stamp.</summary>
@@ -177,16 +162,46 @@ public abstract class IntegrationTest {
         return await database.Set<AuthTicket>().CountAsync();
     }
 
+    /// <summary>Creates a conversation through the assistant's own form and returns its URL.</summary>
+    /// <param name="client">A signed-in client.</param>
+    protected static async Task<string> CreateConversationAsync(HttpClient client) {
+        string token = await GetAntiforgeryTokenAsync(client, "/assistant");
+        using HttpResponseMessage created = await client.PostAsync("/assistant", Form(("__RequestVerificationToken", token)));
+        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+
+        return created.Headers.Location!.ToString();
+    }
+
+    /// <summary>Reads an event stream up to and including the end of a named event.</summary>
+    /// <param name="reader">The stream the run writes its events to.</param>
+    /// <param name="eventName">The event to read as far as.</param>
+    protected static async Task<string> ReadUntilEventAsync(StreamReader reader, string eventName) {
+        StringBuilder content = new();
+        bool found = false;
+        while (true) {
+            string? line = await reader.ReadLineAsync();
+            Assert.That(line, Is.Not.Null, $"SSE closed before {eventName}");
+            content.AppendLine(line);
+            found |= line == $"event: {eventName}";
+            if (found && line!.Length == 0) {
+                return content.ToString();
+            }
+        }
+    }
+
     /// <summary>Builds a form body from named values.</summary>
     protected static FormUrlEncodedContent Form(params (string Name, string Value)[] fields) {
         return new FormUrlEncodedContent(fields.ToDictionary(field => field.Name, field => field.Value));
     }
 
     private async Task SeedUserAsync() {
+        Assert.That(await AddUserAsync(UserName, Password), Is.True);
+    }
+
+    private async Task<bool> AddUserAsync(string userName, string password) {
         await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
         IUserStore users = scope.ServiceProvider.GetRequiredService<IUserStore>();
         IPasswordService passwords = scope.ServiceProvider.GetRequiredService<IPasswordService>();
-        string name = UserName;
 
         LocalUser template = new() {
             UserName = "~template~",
@@ -195,13 +210,11 @@ public abstract class IntegrationTest {
             CreatedAt = DateTimeOffset.UtcNow,
         };
 
-        LocalUser user = new() {
-            UserName = name,
-            PasswordHash = passwords.Hash(template, Password),
+        return await users.TryAddAsync(new LocalUser {
+            UserName = userName,
+            PasswordHash = passwords.Hash(template, password),
             SecurityStamp = template.SecurityStamp,
             CreatedAt = template.CreatedAt,
-        };
-
-        Assert.That(await users.TryAddAsync(user), Is.True);
+        });
     }
 }

@@ -88,27 +88,6 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }
 
-    private static async Task<string> CreateConversationAsync(HttpClient client) {
-        string token = await GetAntiforgeryTokenAsync(client, "/assistant");
-        using HttpResponseMessage created = await client.PostAsync("/assistant", Form(("__RequestVerificationToken", token)));
-        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
-        return created.Headers.Location!.ToString();
-    }
-
-    private static async Task<string> ReadUntilEventAsync(StreamReader reader, string eventName) {
-        StringBuilder content = new();
-        bool found = false;
-        while (true) {
-            string? line = await reader.ReadLineAsync();
-            Assert.That(line, Is.Not.Null, $"SSE closed before {eventName}");
-            content.AppendLine(line);
-            found |= line == $"event: {eventName}";
-            if (found && line!.Length == 0) {
-                return content.ToString();
-            }
-        }
-    }
-
     private sealed class PlannedClient : IChatCompletionClient {
         private readonly IReadOnlyList<ChatStreamEvent>[] _responses = [
             [

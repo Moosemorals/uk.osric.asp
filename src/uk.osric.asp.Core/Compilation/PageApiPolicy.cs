@@ -33,9 +33,6 @@ using System.Collections.Frozen;
 /// </remarks>
 public static class PageApiPolicy {
 
-    // The page contract's namespace: TemplateSourceGenerator holds the other copy of this value.
-    private const string SdkNamespace = "uk.osric.asp.Sdk";
-
     private static readonly FrozenSet<string> s_allowedNamespaces = new[] {
         "System.Collections.Generic",
         "System.Globalization",
@@ -152,7 +149,7 @@ public static class PageApiPolicy {
             return false;
         }
 
-        if (string.Equals(reference.Namespace, SdkNamespace, StringComparison.Ordinal)) {
+        if (string.Equals(reference.Namespace, TemplateSourceGenerator.SdkNamespace, StringComparison.Ordinal)) {
             return true;
         }
 

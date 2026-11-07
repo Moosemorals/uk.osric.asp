@@ -41,8 +41,8 @@ public sealed class SqlitePageBatchStoreTests {
 
     [Test]
     public async Task EveryPageIsVisibleOnlyAfterTheCommit() {
-        await SavePageAsync("/one", "old one");
-        await SavePageAsync("/two", "old two");
+        await DatabaseTemplate.SavePageAsync(_options, "/one", "old one");
+        await DatabaseTemplate.SavePageAsync(_options, "/two", "old two");
 
         string? seenDuringCommit = null;
         ObservingStore store = Store();
@@ -67,8 +67,8 @@ public sealed class SqlitePageBatchStoreTests {
 
     [Test]
     public async Task AFailedWriteRollsBackTheWholeBatch() {
-        await SavePageAsync("/one", "old one");
-        await SavePageAsync("/two", "old two");
+        await DatabaseTemplate.SavePageAsync(_options, "/one", "old one");
+        await DatabaseTemplate.SavePageAsync(_options, "/two", "old two");
         (string oneHead, string twoHead) = await HeadsAsync();
 
         ObservingStore store = Store();
@@ -89,9 +89,9 @@ public sealed class SqlitePageBatchStoreTests {
 
     [Test]
     public async Task AMergedStateOverTheCapWritesNothing() {
-        await SavePageAsync("/one", "old one");
-        await SavePageAsync("/two", "old two");
-        await new SqlitePageStateStore(new Factory(_options), new PageStorageOptions(), TimeProvider.System)
+        await DatabaseTemplate.SavePageAsync(_options, "/one", "old one");
+        await DatabaseTemplate.SavePageAsync(_options, "/two", "old two");
+        await new SqlitePageStateStore(DatabaseTemplate.Factory(_options), new PageStorageOptions(), TimeProvider.System)
             .SetValueAsync(Key("/two"), "kept", "\"kept\"");
         (string oneHead, string twoHead) = await HeadsAsync();
 
@@ -111,7 +111,7 @@ public sealed class SqlitePageBatchStoreTests {
         Assert.That(await HeadRevisionAsync(database, "/two"), Is.EqualTo(twoHead));
         Assert.That(await database.Set<PageRevision>().CountAsync(), Is.EqualTo(2));
 
-        IPageStateStore state = new SqlitePageStateStore(new Factory(_options), new PageStorageOptions(), TimeProvider.System);
+        IPageStateStore state = new SqlitePageStateStore(DatabaseTemplate.Factory(_options), new PageStorageOptions(), TimeProvider.System);
         Assert.That(await state.ListKeysAsync(Key("/two")), Is.EqualTo(new List<string> { "kept" }));
     }
 
@@ -132,16 +132,7 @@ public sealed class SqlitePageBatchStoreTests {
         return head.RevisionId;
     }
 
-    private async Task SavePageAsync(string path, string template) {
-        await using StorageDbContext database = new(_options);
-        await new SqlitePageStore(database).SavePageAsync(new PageTemplate(Key(path), template));
-    }
-
     private static PagePath Key(string path) => PagePath.Normalize(path);
-
-    private sealed class Factory(DbContextOptions<StorageDbContext> options) : IDbContextFactory<StorageDbContext> {
-        public StorageDbContext CreateDbContext() => new(options);
-    }
 
     /// <summary>A batch store that can observe or fail one page's state write.</summary>
     private sealed class ObservingStore(

@@ -9,12 +9,6 @@ using System.Text;
 internal sealed class SystemUserConsole : IUserConsole {
 
     /// <inheritdoc/>
-    public string? ReadLine(string prompt) {
-        Console.Write(prompt);
-        return Console.ReadLine();
-    }
-
-    /// <inheritdoc/>
     public string? ReadPassword(string prompt) {
         // Piped input is a script, not a person: no prompt, and one line is the whole password.
         if (Console.IsInputRedirected) {

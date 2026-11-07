@@ -22,7 +22,7 @@ internal static class LoginEndpoint {
     /// <summary>Renders the sign-in form, or sends an authenticated visitor back to the editor.</summary>
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
         if (context.User.Identity?.IsAuthenticated == true) {
-            NoStore(context);
+            SecurityHeaders.NoStore(context);
             Redirect.SeeOther(context, LocalRedirect.Safe(context.Request.Query["returnUrl"].ToString()));
             return;
         }
@@ -73,7 +73,7 @@ internal static class LoginEndpoint {
 
             if (result != PasswordVerificationResult.Failed) {
                 await SignInAsync(context, user, rememberMe, authentication);
-                NoStore(context);
+                SecurityHeaders.NoStore(context);
                 Redirect.SeeOther(context, LocalRedirect.Safe(returnUrl));
                 return;
             }
@@ -84,7 +84,7 @@ internal static class LoginEndpoint {
 
     /// <summary>Deletes the authentication cookie.</summary>
     public static async Task LogoutAsync(HttpContext context, IAuthenticationService authentication) {
-        context.Response.Headers.CacheControl = "no-store";
+        SecurityHeaders.NoStore(context);
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
             await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "auth.logout_expired",
@@ -111,7 +111,7 @@ internal static class LoginEndpoint {
     /// at them.
     /// </remarks>
     public static Task WriteExpiredFormAsync(HttpContext context, IAntiforgery antiforgery) {
-        NoStore(context);
+        SecurityHeaders.NoStore(context);
 
         return WriteFormAsync(
             context,
@@ -121,8 +121,6 @@ internal static class LoginEndpoint {
             rememberMe: true,
             error: "The sign-in form expired before it was submitted. Please sign in again.");
     }
-
-    private static void NoStore(HttpContext context) => context.Response.Headers.CacheControl = "no-store";
 
     private static async Task SignInAsync(
         HttpContext context,

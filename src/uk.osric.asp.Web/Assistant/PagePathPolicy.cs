@@ -51,6 +51,20 @@ internal sealed class PagePathPolicy {
         return new PathValidationResult(path, null);
     }
 
+    /// <summary>Validates an optional prefix, which only has to be an addressable path.</summary>
+    /// <param name="prefixText">The prefix the model asked for, or null for none.</param>
+    public PathValidationResult ValidatePrefix(string? prefixText) {
+        if (string.IsNullOrWhiteSpace(prefixText)) {
+            return new PathValidationResult(null, null);
+        }
+
+        PagePath prefix = PagePath.Normalize(prefixText);
+
+        return prefix.IsAddressable
+            ? new PathValidationResult(prefix, null)
+            : Invalid("The prefix is not an addressable page path.");
+    }
+
     public bool IsProtected(PagePath path) {
         ArgumentNullException.ThrowIfNull(path);
         return _reserved.IsReserved(path) || _protectedPaths.Contains(path.Key);

@@ -167,7 +167,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
         try {
             await database.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-        } catch (DbUpdateException exception) when (IsUniqueConstraint(exception)) {
+        } catch (DbUpdateException exception) when (SqliteErrors.IsUniqueViolation(exception)) {
             await transaction.RollbackAsync(cancellationToken);
             database.Entry(run).State = EntityState.Detached;
             database.Entry(userMessage).State = EntityState.Detached;
@@ -227,9 +227,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
 
     public async Task<IReadOnlyList<Message>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
-        bool owned = await database.Set<Conversation>().AnyAsync(
-            conversation => conversation.Id == id && conversation.Owner == owner,
-            cancellationToken);
+        bool owned = await OwnsConversationAsync(id, owner, cancellationToken);
         if (!owned) {
             return [];
         }
@@ -243,9 +241,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
     public async Task<Run?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
-        bool owned = await database.Set<Conversation>().AnyAsync(
-            conversation => conversation.Id == id && conversation.Owner == owner,
-            cancellationToken);
+        bool owned = await OwnsConversationAsync(id, owner, cancellationToken);
         return owned
             ? await database.Set<Run>().AsNoTracking()
                 .Where(run => run.ConversationId == id
@@ -257,9 +253,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
     public async Task<Run?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
-        bool owned = await database.Set<Conversation>().AnyAsync(
-            conversation => conversation.Id == id && conversation.Owner == owner,
-            cancellationToken);
+        bool owned = await OwnsConversationAsync(id, owner, cancellationToken);
         if (!owned) {
             return null;
         }
@@ -278,9 +272,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
     public async Task<Run?> GetRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
-        bool owned = await database.Set<Conversation>().AnyAsync(
-            conversation => conversation.Id == conversationId && conversation.Owner == owner,
-            cancellationToken);
+        bool owned = await OwnsConversationAsync(conversationId, owner, cancellationToken);
         return owned
             ? await database.Set<Run>().AsNoTracking()
                 .SingleOrDefaultAsync(run => run.ConversationId == conversationId && run.Id == runId, cancellationToken)
@@ -333,7 +325,7 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
         try {
             await database.SaveChangesAsync(cancellationToken);
             return true;
-        } catch (DbUpdateException exception) when (IsUniqueConstraint(exception)) {
+        } catch (DbUpdateException exception) when (SqliteErrors.IsUniqueViolation(exception)) {
             database.Entry(approval).State = EntityState.Detached;
             return false;
         }
@@ -485,6 +477,13 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
         return interrupted.Length;
     }
 
+    // Every read is scoped to the owner, so a conversation that belongs to somebody else is reported
+    // as missing rather than forbidden.
+    private Task<bool> OwnsConversationAsync(long conversationId, string owner, CancellationToken cancellationToken) =>
+        database.Set<Conversation>().AnyAsync(
+            conversation => conversation.Id == conversationId && conversation.Owner == owner,
+            cancellationToken);
+
     private static void AddParameter(DbCommand command, string name, object value) {
         DbParameter parameter = command.CreateParameter();
         parameter.ParameterName = name;
@@ -494,7 +493,4 @@ internal sealed class SqliteConversationStore(StorageDbContext database, TimePro
         };
         command.Parameters.Add(parameter);
     }
-
-    private static bool IsUniqueConstraint(DbUpdateException exception) =>
-        exception.InnerException is SqliteException { SqliteExtendedErrorCode: 1555 or 2067 };
 }

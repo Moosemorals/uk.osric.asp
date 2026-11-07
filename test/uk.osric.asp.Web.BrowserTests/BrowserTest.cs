@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
 using NUnit.Framework;
+using System.Text.RegularExpressions;
 
 /// <summary>
 /// One browser test: its own context and page, a fresh provider script, and a failing assertion for
@@ -94,6 +95,21 @@ internal abstract class BrowserTest {
     /// <summary>Asserts the editor's session message, which is where a save reports its result.</summary>
     protected async Task ExpectMessageAsync(string expected) {
         await Assertions.Expect(Page.Locator("main")).ToContainTextAsync(expected);
+    }
+
+    /// <summary>Opens a new conversation and returns its id.</summary>
+    protected async Task<long> NewConversationAsync() {
+        await Page.GotoAsync("assistant");
+        await Page.ClickAsync("text=New conversation");
+        await Page.WaitForURLAsync(new Regex(@"/assistant/\d+$"));
+
+        return long.Parse(Page.Url.Split('/')[^1], System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Types a message and lets the page's script post it, which starts the run.</summary>
+    protected async Task SendAsync(string message) {
+        await Page.FillAsync("#assistant-message", message);
+        await Page.ClickAsync("#assistant-message-form button[type=submit]");
     }
 
     /// <summary>A page path that belongs to this test alone.</summary>

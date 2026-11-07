@@ -97,13 +97,6 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
             "a step that only calls a tool must not render an empty assistant row");
     }
 
-    private static async Task<string> CreateConversationAsync(HttpClient client) {
-        string token = await GetAntiforgeryTokenAsync(client, "/assistant");
-        using HttpResponseMessage created = await client.PostAsync("/assistant", Form(("__RequestVerificationToken", token)));
-        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
-        return created.Headers.Location!.ToString();
-    }
-
     private sealed class ToolCallingClient(string arguments) : IChatCompletionClient {
         private int _request;
 

@@ -21,7 +21,8 @@ using uk.osric.asp.Sdk;
 /// </remarks>
 public sealed class LoadedPage : IDisposable {
 
-    private const string HandlerTypeName = "GeneratedPage";
+    internal const string HandlerTypeName = "GeneratedPage";
+    internal const string HandlerMethodName = "HandleAsync";
 
     private readonly AssemblyLoadContext _context;
     private readonly Type _handler;
@@ -45,7 +46,7 @@ public sealed class LoadedPage : IDisposable {
             _handler = assembly.GetType(HandlerTypeName)
                 ?? throw new InvalidOperationException("No handler found in the assembly.");
 
-            _handle = _handler.GetMethod("HandleAsync")
+            _handle = _handler.GetMethod(HandlerMethodName)
                 ?? throw new InvalidOperationException("No handle method found in the handler.");
         } catch {
             _context.Unload();

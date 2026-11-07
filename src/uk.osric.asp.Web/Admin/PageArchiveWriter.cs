@@ -32,11 +32,11 @@ internal static class PageArchiveWriter {
         using SqliteConnection connection = new("Data Source=:memory:");
         connection.Open();
 
-        Execute(connection, $"PRAGMA application_id = {PageArchiveFormat.ApplicationId.ToString(CultureInfo.InvariantCulture)}");
-        Execute(connection, $"PRAGMA user_version = {PageArchiveFormat.Version.ToString(CultureInfo.InvariantCulture)}");
-        Execute(connection, "PRAGMA encoding = 'UTF-8'");
-        Execute(connection, PageArchiveFormat.CreatePages);
-        Execute(connection, PageArchiveFormat.CreatePageState);
+        SqliteStatement.Execute(connection, $"PRAGMA application_id = {PageArchiveFormat.ApplicationId.ToString(CultureInfo.InvariantCulture)}");
+        SqliteStatement.Execute(connection, $"PRAGMA user_version = {PageArchiveFormat.Version.ToString(CultureInfo.InvariantCulture)}");
+        SqliteStatement.Execute(connection, "PRAGMA encoding = 'UTF-8'");
+        SqliteStatement.Execute(connection, PageArchiveFormat.CreatePages);
+        SqliteStatement.Execute(connection, PageArchiveFormat.CreatePageState);
 
         using (SqliteTransaction transaction = connection.BeginTransaction()) {
             using (SqliteCommand insertPage = connection.CreateCommand()) {
@@ -90,11 +90,5 @@ internal static class PageArchiveWriter {
         } finally {
             SQLitePCL.raw.sqlite3_free(buffer);
         }
-    }
-
-    private static void Execute(SqliteConnection connection, string sql) {
-        using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = sql;
-        command.ExecuteNonQuery();
     }
 }

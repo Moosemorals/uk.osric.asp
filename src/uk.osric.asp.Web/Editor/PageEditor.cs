@@ -46,10 +46,6 @@ internal sealed class PageEditor(
         return storage.GetHeadAsync(path, cancellationToken);
     }
 
-    public Task<PageTemplate?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
-        return storage.GetRevisionByHashAsync(hash, cancellationToken);
-    }
-
     public Task<IReadOnlyList<PageRevisionSummary>> ListRevisionsAsync(PagePath path, CancellationToken cancellationToken = default) {
         return storage.ListRevisionsAsync(path, cancellationToken);
     }
@@ -87,11 +83,7 @@ internal sealed class PageEditor(
 
         await storage.SavePageAsync(PageTemplate.NewRevision(path, template, image, images.RuntimeId), cancellationToken);
 
-        TimeSpan duration = Stopwatch.GetElapsedTime(start);
-        metrics.RecordSave(path, image.Bytes is not null, duration);
-        logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
-            Outcome(image));
-
+        RecordSaved(path, image, start);
         return image.Diagnostics;
     }
 
@@ -121,11 +113,15 @@ internal sealed class PageEditor(
             return new ConditionalPageSaveResult(false, null, []);
         }
 
+        RecordSaved(path, image, start);
+        return new ConditionalPageSaveResult(true, revision.Hash, image.Diagnostics);
+    }
+
+    private void RecordSaved(PagePath path, PageImage image, long start) {
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
         metrics.RecordSave(path, image.Bytes is not null, duration);
         logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
             Outcome(image));
-        return new ConditionalPageSaveResult(true, revision.Hash, image.Diagnostics);
     }
 
     private static string Outcome(PageImage image) {

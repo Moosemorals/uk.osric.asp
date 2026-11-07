@@ -37,12 +37,6 @@ internal sealed class RunRegistry(AssistantOptions options, TimeProvider clock) 
         }
     }
 
-    public string? ActiveRun(long conversationId) {
-        lock (_gate) {
-            return _activeByConversation.GetValueOrDefault(conversationId);
-        }
-    }
-
     public bool Stop(string runId) => Find(runId)?.Stop() ?? false;
 
     public void Complete(string runId, long conversationId) {

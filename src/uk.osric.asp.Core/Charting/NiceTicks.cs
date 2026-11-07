@@ -81,8 +81,7 @@ public static class NiceTicks {
         }
 
         if (min == max) {
-            double pad = min == 0 ? 1 : Math.Abs(min) * 0.1;
-            (min, max) = (min - pad, max + pad);
+            (min, max) = ChartSamples.Widen(min, max);
         }
 
         double step = NiceStep((max - min) / 5);

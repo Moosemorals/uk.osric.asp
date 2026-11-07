@@ -16,7 +16,6 @@ using uk.osric.asp.Web.Storage;
 /// <summary>The SQLite-backed page store.</summary>
 internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefresh? storageRefresh = null) : IPageStore {
 
-    private const int IdentityRetryCount = 3;
     private const int CheckpointAttempts = 3;
 
     private static readonly JsonSerializerOptions s_jsonOptions = new() {
@@ -95,7 +94,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 row.Hash,
                 row.SavedAt,
                 row.CreationRuntimeId,
-                ImageStatus(row.RuntimeId, row.HasImage, row.HasDiagnostics),
+                PageImageStatus.Describe(row.RuntimeId, row.HasImage, row.HasDiagnostics),
                 row.IsCurrent))];
     }
 
@@ -123,7 +122,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 revision.Hash,
                 revision.SavedAt,
                 revision.CreationRuntimeId,
-                ImageStatus(revision.RuntimeId, revision.HasImage, revision.HasDiagnostics),
+                PageImageStatus.Describe(revision.RuntimeId, revision.HasImage, revision.HasDiagnostics),
                 revision.Template);
     }
 
@@ -139,7 +138,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                 }
 
                 return;
-            } catch (DbUpdateException exception) when (attempt + 1 < IdentityRetryCount && IsIdentityCollision(exception)) {
+            } catch (DbUpdateException exception) when (attempt + 1 < SqliteErrors.RetryCount && SqliteErrors.IsUniqueViolation(exception)) {
                 revision = RegenerateRevision(revision);
             }
         }
@@ -222,7 +221,7 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
                     """, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 return true;
-            } catch (DbUpdateException exception) when (attempt + 1 < IdentityRetryCount && IsIdentityCollision(exception)) {
+            } catch (DbUpdateException exception) when (attempt + 1 < SqliteErrors.RetryCount && SqliteErrors.IsUniqueViolation(exception)) {
                 database.Entry(row).State = EntityState.Detached;
                 string revisionId = Guid.NewGuid().ToString("N");
                 revision = revision with {
@@ -386,24 +385,6 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
             revision.Image,
             revision.Symbols,
             Deserialize(revision.Diagnostics, revision.Image is not null));
-    }
-
-    private static bool IsIdentityCollision(DbUpdateException exception) {
-        return exception.InnerException is SqliteException {
-            SqliteExtendedErrorCode: 1555 or 2067,
-        };
-    }
-
-    private static string ImageStatus(string? runtimeId, bool hasImage, bool hasDiagnostics) {
-        if (runtimeId is null) {
-            return "Not compiled";
-        }
-
-        if (!hasImage) {
-            return "Compile failed";
-        }
-
-        return hasDiagnostics ? "Compiled with diagnostics" : "Compiled";
     }
 
     private static IReadOnlyList<PageDiagnostic> Deserialize(string? json, bool hasImage) {

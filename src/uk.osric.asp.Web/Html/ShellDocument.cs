@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Html;
 
 using System.Net;
+using uk.osric.asp.Web.Http;
 
 /// <summary>Writes the document shell every non-page view shares: the head and the open <c>main</c> landmark.</summary>
 internal static class ShellDocument {
@@ -43,9 +44,7 @@ internal static class ShellDocument {
         context.Response.StatusCode = statusCode;
         // A view that mints an antiforgery token already carries the framework's no-cache, no-store;
         // this weaker value would replace it, and setting one first makes the framework log a warning.
-        if (context.Response.Headers.CacheControl.Count == 0) {
-            context.Response.Headers.CacheControl = "no-store";
-        }
+        SecurityHeaders.NoStoreIfAbsent(context);
 
         return context.Response.WriteAsync($"""
             <!DOCTYPE html>

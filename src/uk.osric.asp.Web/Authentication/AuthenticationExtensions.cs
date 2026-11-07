@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using uk.osric.asp.Web.Errors;
+using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Users;
 
 /// <summary>Registers the editor's local-account authentication and its protections.</summary>
@@ -46,7 +47,7 @@ internal static class AuthenticationExtensions {
                 options.SlidingExpiration = true;
 
                 options.Events.OnRedirectToLogin = async context => {
-                    context.Response.Headers.CacheControl = "no-store";
+                    SecurityHeaders.NoStore(context.HttpContext);
                     if (context.Request.Path.Value?.EndsWith("/events", StringComparison.Ordinal) == true
                         && context.Request.Path.StartsWithSegments("/assistant")) {
                         // The event stream is read by a script, so its refusal is a document it can parse.
@@ -61,7 +62,7 @@ internal static class AuthenticationExtensions {
 
                 // An authorised account that is no longer valid is a page, not a redirect loop.
                 options.Events.OnRedirectToAccessDenied = async context => {
-                    context.Response.Headers.CacheControl = "no-store";
+                    SecurityHeaders.NoStore(context.HttpContext);
                     await ErrorResponses.WriteAsync(
                         context.HttpContext,
                         StatusCodes.Status403Forbidden,
@@ -148,7 +149,7 @@ internal static class AuthenticationExtensions {
         services.AddRateLimiter(options => {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = (context, _) => {
-                context.HttpContext.Response.Headers.CacheControl = "no-store";
+                SecurityHeaders.NoStore(context.HttpContext);
                 return new ValueTask(ErrorResponses.WriteAsync(
                     context.HttpContext,
                     StatusCodes.Status429TooManyRequests,

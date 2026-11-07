@@ -66,18 +66,4 @@ internal sealed class AssistantStreamTests : BrowserTest {
         IResponse? written = await Page.GotoAsync(path.TrimStart('/'));
         Assert.That(written?.Status, Is.EqualTo(200));
     }
-
-    /// <summary>Opens a new conversation and returns its id.</summary>
-    private async Task<long> NewConversationAsync() {
-        await Page.GotoAsync("assistant");
-        await Page.ClickAsync("text=New conversation");
-        await Page.WaitForURLAsync(new Regex(@"/assistant/\d+$"));
-        return long.Parse(Page.Url.Split('/')[^1], System.Globalization.CultureInfo.InvariantCulture);
-    }
-
-    /// <summary>Types a message and lets the page's script post it, which starts the run.</summary>
-    private async Task SendAsync(string message) {
-        await Page.FillAsync("#assistant-message", message);
-        await Page.ClickAsync("#assistant-message-form button[type=submit]");
-    }
 }

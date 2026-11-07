@@ -29,8 +29,6 @@ internal class SqlitePageBatchStore(
     TimeProvider clock,
     PageStorageRefresh? refresh = null) : IPageBatchStore {
 
-    private const int IdentityRetryCount = 3;
-
     /// <inheritdoc/>
     public async Task<PageBatchResult> SaveBatchAsync(IReadOnlyList<PageBatchSave> pages, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(pages);
@@ -66,7 +64,7 @@ internal class SqlitePageBatchStore(
                 await transaction.CommitAsync(cancellationToken);
                 refresh?.Request();
                 return PageBatchResult.Committed;
-            } catch (DbUpdateException exception) when (attempt + 1 < IdentityRetryCount && IsIdentityCollision(exception)) {
+            } catch (DbUpdateException exception) when (attempt + 1 < SqliteErrors.RetryCount && SqliteErrors.IsUniqueViolation(exception)) {
                 // The one failure an ordinary save already retries: a revision id or hash that a
                 // concurrent write has just taken. Fresh ids for the whole batch, then try again.
                 database.ChangeTracker.Clear();
@@ -121,11 +119,5 @@ internal class SqlitePageBatchStore(
         }
 
         return refused;
-    }
-
-    private static bool IsIdentityCollision(DbUpdateException exception) {
-        return exception.InnerException is SqliteException {
-            SqliteExtendedErrorCode: 1555 or 2067,
-        };
     }
 }

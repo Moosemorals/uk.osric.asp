@@ -66,15 +66,4 @@ internal sealed class AssistantLiveProviderTests : BrowserTest {
             Assert.That(Page.ContentAsync().Result, Does.Contain(phrase));
         });
     }
-
-    private async Task NewConversationAsync() {
-        await Page.GotoAsync("assistant");
-        await Page.ClickAsync("text=New conversation");
-        await Page.WaitForURLAsync(new Regex(@"/assistant/\d+$"));
-    }
-
-    private async Task SendAsync(string message) {
-        await Page.FillAsync("#assistant-message", message);
-        await Page.ClickAsync("#assistant-message-form button[type=submit]");
-    }
 }

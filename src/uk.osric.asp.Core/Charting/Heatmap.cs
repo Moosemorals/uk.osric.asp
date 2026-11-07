@@ -89,8 +89,8 @@ public static class Heatmap {
             throw new ArgumentOutOfRangeException(nameof(size), size, "The heatmap is too small for its labels.");
         }
 
-        DateTimeOffset earliest = Earliest(rows);
-        double span = Math.Max((Latest(rows) - earliest).TotalSeconds, 1);
+        (DateTimeOffset earliest, DateTimeOffset latest) = ChartSamples.Instants(rows.SelectMany(row => row.Points));
+        double span = Math.Max((latest - earliest).TotalSeconds, 1);
         int columns = rows.Count == 0 ? 0 : rows.Max(row => row.Points.Count);
         double max = Maximum(rows);
 
@@ -98,12 +98,12 @@ public static class Heatmap {
         double cellHeight = rows.Count == 0 ? 0 : plotHeight / rows.Count;
 
         StringBuilder svg = new();
-        svg.Append("<svg class=\"heatmap\" viewBox=\"0 0 ").Append(Number(size.Width)).Append(' ')
-            .Append(Number(size.Height)).Append("\" role=\"img\">\n");
+        svg.Append("<svg class=\"heatmap\" viewBox=\"0 0 ").Append(SvgText.Number(size.Width)).Append(' ')
+            .Append(SvgText.Number(size.Height)).Append("\" role=\"img\">\n");
         svg.Append("<title>").Append(SvgText.Escape(title)).Append("</title>\n");
         svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 12 ")
-            .Append(Number(TopMargin + (plotHeight / 2)))
-            .Append(")\" x=\"12\" y=\"").Append(Number(TopMargin + (plotHeight / 2)))
+            .Append(SvgText.Number(TopMargin + (plotHeight / 2)))
+            .Append(")\" x=\"12\" y=\"").Append(SvgText.Number(TopMargin + (plotHeight / 2)))
             .Append("\" text-anchor=\"middle\">").Append(SvgText.Escape(yTitle)).Append("</text>\n");
 
         for (int row = 0; row < rows.Count; row++) {
@@ -112,8 +112,8 @@ public static class Heatmap {
             // the bottom and +Inf at the top, which is how a latency heatmap is read.
             double top = TopMargin + ((rows.Count - 1 - row) * cellHeight);
 
-            svg.Append("<text class=\"chart-label\" x=\"").Append(Number(LeftMargin - 4))
-                .Append("\" y=\"").Append(Number(top + (cellHeight / 2) + 4))
+            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(LeftMargin - 4))
+                .Append("\" y=\"").Append(SvgText.Number(top + (cellHeight / 2) + 4))
                 .Append("\" text-anchor=\"end\">").Append(SvgText.Escape(line.Label)).Append("</text>\n");
 
             for (int column = 0; column < line.Points.Count; column++) {
@@ -123,10 +123,10 @@ public static class Heatmap {
 
                 double left = LeftMargin + (column * cellWidth);
                 svg.Append("<rect class=\"heat heat-").Append(Level(value, max))
-                    .Append("\" x=\"").Append(Number(left + CellGap))
-                    .Append("\" y=\"").Append(Number(top + CellGap))
-                    .Append("\" width=\"").Append(Number(cellWidth - (CellGap * 2)))
-                    .Append("\" height=\"").Append(Number(cellHeight - (CellGap * 2)))
+                    .Append("\" x=\"").Append(SvgText.Number(left + CellGap))
+                    .Append("\" y=\"").Append(SvgText.Number(top + CellGap))
+                    .Append("\" width=\"").Append(SvgText.Number(cellWidth - (CellGap * 2)))
+                    .Append("\" height=\"").Append(SvgText.Number(cellHeight - (CellGap * 2)))
                     .Append("\"><title>").Append(SvgText.Escape($"{line.Label} {yTitle}: {Format(value)} {valueUnit}"))
                     .Append("</title></rect>\n");
             }
@@ -134,8 +134,8 @@ public static class Heatmap {
 
         foreach (ChartTick tick in x.Ticks.OrderBy(tick => tick.Position)) {
             double at = LeftMargin + ((tick.Position / span) * plotWidth);
-            svg.Append("<text class=\"chart-label\" x=\"").Append(Number(at))
-                .Append("\" y=\"").Append(Number(TopMargin + plotHeight + 14))
+            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(at))
+                .Append("\" y=\"").Append(SvgText.Number(TopMargin + plotHeight + 14))
                 .Append("\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label)).Append("</text>\n");
         }
 
@@ -150,21 +150,21 @@ public static class Heatmap {
         double top = size.Height - LegendHeight + 4;
         double left = LeftMargin;
 
-        svg.Append("<text class=\"chart-label\" x=\"").Append(Number(left))
-            .Append("\" y=\"").Append(Number(top + SwatchHeight))
+        svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(left))
+            .Append("\" y=\"").Append(SvgText.Number(top + SwatchHeight))
             .Append("\" text-anchor=\"start\">0</text>\n");
 
         left += 12;
         for (int level = 1; level <= Levels; level++) {
-            svg.Append("<rect class=\"heat heat-").Append(level).Append(" legend\" x=\"").Append(Number(left))
-                .Append("\" y=\"").Append(Number(top))
-                .Append("\" width=\"").Append(Number(SwatchWidth))
-                .Append("\" height=\"").Append(Number(SwatchHeight)).Append("\"/>\n");
+            svg.Append("<rect class=\"heat heat-").Append(level).Append(" legend\" x=\"").Append(SvgText.Number(left))
+                .Append("\" y=\"").Append(SvgText.Number(top))
+                .Append("\" width=\"").Append(SvgText.Number(SwatchWidth))
+                .Append("\" height=\"").Append(SvgText.Number(SwatchHeight)).Append("\"/>\n");
             left += SwatchWidth + SwatchGap;
         }
 
-        svg.Append("<text class=\"chart-label\" x=\"").Append(Number(left + 2))
-            .Append("\" y=\"").Append(Number(top + SwatchHeight))
+        svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(left + 2))
+            .Append("\" y=\"").Append(SvgText.Number(top + SwatchHeight))
             .Append("\" text-anchor=\"start\">").Append(Format(max)).Append(' ').Append(SvgText.Escape(valueUnit))
             .Append("</text>\n");
     }
@@ -173,38 +173,6 @@ public static class Heatmap {
         value < 1
             ? value.ToString("0.####", CultureInfo.InvariantCulture)
             : value.ToString("0.##", CultureInfo.InvariantCulture);
-
-    private static DateTimeOffset Earliest(IReadOnlyList<HeatmapRow> rows) {
-        DateTimeOffset earliest = default;
-        bool any = false;
-
-        foreach (HeatmapRow row in rows) {
-            foreach (ChartPoint point in row.Points) {
-                if (!any || point.At < earliest) {
-                    earliest = point.At;
-                    any = true;
-                }
-            }
-        }
-
-        return earliest;
-    }
-
-    private static DateTimeOffset Latest(IReadOnlyList<HeatmapRow> rows) {
-        DateTimeOffset latest = default;
-        bool any = false;
-
-        foreach (HeatmapRow row in rows) {
-            foreach (ChartPoint point in row.Points) {
-                if (!any || point.At > latest) {
-                    latest = point.At;
-                    any = true;
-                }
-            }
-        }
-
-        return latest;
-    }
 
     private static double Maximum(IReadOnlyList<HeatmapRow> rows) {
         double max = 0;
@@ -234,5 +202,4 @@ public static class Heatmap {
             ? value
             : double.PositiveInfinity;
 
-    private static string Number(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
 }

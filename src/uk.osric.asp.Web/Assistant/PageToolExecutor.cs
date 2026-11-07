@@ -14,6 +14,17 @@ using uk.osric.asp.Web.Pages;
 /// <summary>What one tool call produced, as the model receives it.</summary>
 internal sealed record ToolExecutionResult(bool IsSuccess, string Content, string Summary);
 
+/// <summary>One tool as it is offered to the model and validated when it is called.</summary>
+/// <param name="Name">The tool's stable name.</param>
+/// <param name="Description">The provider-visible description.</param>
+/// <param name="NeedsApproval">Whether RequireApproval mode pauses before this tool runs.</param>
+/// <param name="Arguments">The complete set of accepted arguments.</param>
+internal sealed record ToolSpec(
+    string Name,
+    string Description,
+    bool NeedsApproval,
+    IReadOnlyList<ToolArgumentSchema> Arguments);
+
 /// <summary>Runs the page tools the model asks for: read, write, list and delete.</summary>
 internal sealed class PageToolExecutor(
     IServiceScopeFactory scopeFactory,
@@ -22,26 +33,49 @@ internal sealed class PageToolExecutor(
 
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
 
-    private static readonly IReadOnlyDictionary<string, ToolArgumentSchema[]> s_schemas =
-        new Dictionary<string, ToolArgumentSchema[]>(StringComparer.Ordinal) {
-            ["list_pages"] = [new("prefix", ToolArgumentType.String, false), new("includeDeleted", ToolArgumentType.Boolean, false)],
-            ["read_page"] = [new("path", ToolArgumentType.String, true), new("startLine", ToolArgumentType.Integer, false), new("endLine", ToolArgumentType.Integer, false)],
-            ["edit_page"] = [new("path", ToolArgumentType.String, true), new("startLine", ToolArgumentType.Integer, true), new("endLine", ToolArgumentType.Integer, true), new("expectedRevisionHash", ToolArgumentType.String, true), new("replacement", ToolArgumentType.String, true)],
-            ["write_page"] = [new("path", ToolArgumentType.String, true), new("content", ToolArgumentType.String, true)],
-            ["delete_page"] = [new("path", ToolArgumentType.String, true)],
-            ["search_pages"] = [new("query", ToolArgumentType.String, true), new("prefix", ToolArgumentType.String, false), new("caseSensitive", ToolArgumentType.Boolean, false)],
-            ["shell"] = [new("command", ToolArgumentType.String, true)],
-        };
+    private const int MatchLimit = 100;
 
-    public static IReadOnlyList<ToolDefinition> Definitions { get; } = [
-        Definition("list_pages", "List live page keys under an optional prefix.", [new("prefix", "string", false), new("includeDeleted", "boolean", false)], false),
-        Definition("read_page", "Read a page, its revision hash, compile status and diagnostics. Optional 1-based line numbers refer to physical lines of the stored template source.", [new("path", "string", true), new("startLine", "integer", false), new("endLine", "integer", false)], false),
-        Definition("edit_page", "Replace an inclusive range of 1-based physical template-source lines if the current revision hash still matches. Lines include literal HTML and template delimiters as authored, not generated C# or rendered HTML.", [new("path", "string", true), new("startLine", "integer", true), new("endLine", "integer", true), new("expectedRevisionHash", "string", true), new("replacement", "string", true)], true),
-        Definition("write_page", "Create or deliberately replace a complete page through the normal compile-and-save path.", [new("path", "string", true), new("content", "string", true)], true),
-        Definition("delete_page", "Tombstone a page while retaining its revisions.", [new("path", "string", true)], true),
-        Definition("search_pages", "Search live page source for a literal substring.", [new("query", "string", true), new("prefix", "string", false), new("caseSensitive", "boolean", false)], false),
-        Definition("shell", "Run a read-only virtual-shell command over stored pages.", [new("command", "string", true)], false),
+    // One table: the schema a call is validated against and the tool the model is offered are both
+    // derived from it, so an argument cannot be described to the model and refused at execution.
+    private static readonly ToolSpec[] s_tools = [
+        new("list_pages", "List live page keys under an optional prefix.", false, [
+            new("prefix", ToolArgumentType.String, false),
+            new("includeDeleted", ToolArgumentType.Boolean, false),
+        ]),
+        new("read_page", "Read a page, its revision hash, compile status and diagnostics. Optional 1-based line numbers refer to physical lines of the stored template source.", false, [
+            new("path", ToolArgumentType.String, true),
+            new("startLine", ToolArgumentType.Integer, false),
+            new("endLine", ToolArgumentType.Integer, false),
+        ]),
+        new("edit_page", "Replace an inclusive range of 1-based physical template-source lines if the current revision hash still matches. Lines include literal HTML and template delimiters as authored, not generated C# or rendered HTML.", true, [
+            new("path", ToolArgumentType.String, true),
+            new("startLine", ToolArgumentType.Integer, true),
+            new("endLine", ToolArgumentType.Integer, true),
+            new("expectedRevisionHash", ToolArgumentType.String, true),
+            new("replacement", ToolArgumentType.String, true),
+        ]),
+        new("write_page", "Create or deliberately replace a complete page through the normal compile-and-save path.", true, [
+            new("path", ToolArgumentType.String, true),
+            new("content", ToolArgumentType.String, true),
+        ]),
+        new("delete_page", "Tombstone a page while retaining its revisions.", true, [
+            new("path", ToolArgumentType.String, true),
+        ]),
+        new("search_pages", "Search live page source for a literal substring.", false, [
+            new("query", ToolArgumentType.String, true),
+            new("prefix", ToolArgumentType.String, false),
+            new("caseSensitive", ToolArgumentType.Boolean, false),
+        ]),
+        new("shell", "Run a read-only virtual-shell command over stored pages.", false, [
+            new("command", ToolArgumentType.String, true),
+        ]),
     ];
+
+    public static IReadOnlyList<ToolDefinition> Definitions { get; } =
+        [.. s_tools.Select(tool => new ToolDefinition(tool.Name, tool.Description, ParametersJson(tool.Arguments), tool.NeedsApproval))];
+
+    private static readonly IReadOnlyDictionary<string, ToolArgumentSchema[]> s_schemas =
+        s_tools.ToDictionary(tool => tool.Name, tool => tool.Arguments.ToArray(), StringComparer.Ordinal);
 
     public async Task<ToolExecutionResult> ExecuteAsync(
         string name,
@@ -231,35 +265,21 @@ internal sealed class PageToolExecutor(
         if (query.Length == 0) {
             return Failure("The search query must not be empty.", "Search query is empty");
         }
-        PagePath? prefix = OptionalPrefix(String(arguments, "prefix"), out string? prefixError);
-        if (prefixError is not null) {
-            return Failure(prefixError, "Search refused");
+        PathValidationResult checkedPrefix = paths.ValidatePrefix(String(arguments, "prefix"));
+        if (!checkedPrefix.IsSuccess) {
+            return Failure(checkedPrefix.Error!, "Search refused");
         }
+
+        PagePath? prefix = checkedPrefix.Path;
 
         StringComparison comparison = Boolean(arguments, "caseSensitive")
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
-        List<object> matches = [];
-        foreach (PageHeadSummary head in await pages.ListAsync(cancellationToken)) {
-            if (head.IsDeleted || paths.IsProtected(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
-                continue;
-            }
-            PageTemplate? page = await pages.GetAsync(head.Path, cancellationToken);
-            if (page is null) {
-                continue;
-            }
-            string[] lines = ReadLines(page.Template);
-            for (int index = 0; index < lines.Length && matches.Count < 100; index++) {
-                if (lines[index].Contains(query, comparison)) {
-                    matches.Add(new { path = head.Path.Key, line = index + 1, text = lines[index][..Math.Min(lines[index].Length, 240)] });
-                }
-            }
-            if (matches.Count == 100) {
-                break;
-            }
-        }
+        List<object> matches = [.. (await FindMatchesAsync(pages, prefix, query, comparison,
+            (head, line, text) => new { path = head.Path.Key, line, text = text[..Math.Min(text.Length, 240)] },
+            cancellationToken)).Select(match => (object)match)];
 
-        return Success(new { query, matches, truncated = matches.Count == 100 }, $"Found {matches.Count} matches");
+        return Success(new { query, matches, truncated = matches.Count == MatchLimit }, $"Found {matches.Count} matches");
     }
 
     private async Task<ToolExecutionResult> ShellAsync(
@@ -276,10 +296,12 @@ internal sealed class PageToolExecutor(
             : command.Name == "grep"
                 ? command.Arguments.Count > (command.Arguments[0] == "-i" ? 2 : 1) ? command.Arguments[^1] : null
                 : null;
-        PagePath? prefix = OptionalPrefix(prefixText, out string? prefixError);
-        if (prefixError is not null) {
-            return Failure(prefixError, "Shell command refused");
+        PathValidationResult checkedPrefix = paths.ValidatePrefix(prefixText);
+        if (!checkedPrefix.IsSuccess) {
+            return Failure(checkedPrefix.Error!, "Shell command refused");
         }
+
+        PagePath? prefix = checkedPrefix.Path;
 
         if (command.Name is "ls" or "find") {
             IReadOnlyList<PageHeadSummary> heads = await pages.ListAsync(cancellationToken);
@@ -298,25 +320,10 @@ internal sealed class PageToolExecutor(
             int queryIndex = command.Arguments[0] == "-i" ? 1 : 0;
             string query = command.Arguments[queryIndex];
             StringComparison comparison = command.Arguments[0] == "-i" ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            List<string> found = [];
-            foreach (PageHeadSummary head in await pages.ListAsync(cancellationToken)) {
-                if (head.IsDeleted || paths.IsProtected(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
-                    continue;
-                }
-                PageTemplate? page = await pages.GetAsync(head.Path, cancellationToken);
-                if (page is null) {
-                    continue;
-                }
-                string[] lines = ReadLines(page.Template);
-                for (int index = 0; index < lines.Length && found.Count < 100; index++) {
-                    if (lines[index].Contains(query, comparison)) {
-                        found.Add($"{head.Path.Key}:{index + 1}: {lines[index]}");
-                    }
-                }
-                if (found.Count == 100) {
-                    break;
-                }
-            }
+            List<string> found = await FindMatchesAsync(pages, prefix, query, comparison,
+                (head, line, text) => $"{head.Path.Key}:{line}: {text}",
+                cancellationToken);
+
             return Success(new { output = string.Join('\n', found) }, $"grep {MessageText.Sanitize(query)}");
         }
 
@@ -356,37 +363,64 @@ internal sealed class PageToolExecutor(
                 "Tool result too large");
     }
 
-    private PagePath? OptionalPrefix(string? text, out string? error) {
-        error = null;
-        if (text is null) {
-            return null;
+    // Both search_pages and the shell's grep walk the same live pages under the same rules, so the
+    // scan lives here once and the caller decides what a match becomes.
+    private async Task<List<T>> FindMatchesAsync<T>(
+        PageEditor pages,
+        PagePath? prefix,
+        string query,
+        StringComparison comparison,
+        Func<PageHeadSummary, int, string, T> project,
+        CancellationToken cancellationToken) {
+        List<T> matches = [];
+
+        foreach (PageHeadSummary head in await pages.ListAsync(cancellationToken)) {
+            if (head.IsDeleted || paths.IsProtected(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
+                continue;
+            }
+
+            PageTemplate? page = await pages.GetAsync(head.Path, cancellationToken);
+            if (page is null) {
+                continue;
+            }
+
+            string[] lines = ReadLines(page.Template);
+            for (int index = 0; index < lines.Length && matches.Count < MatchLimit; index++) {
+                if (lines[index].Contains(query, comparison)) {
+                    matches.Add(project(head, index + 1, lines[index]));
+                }
+            }
+
+            if (matches.Count == MatchLimit) {
+                break;
+            }
         }
-        PagePath prefix = PagePath.Normalize(text);
-        if (!prefix.IsAddressable) {
-            error = "The prefix is not an addressable page path.";
-            return null;
-        }
-        return prefix;
+
+        return matches;
     }
 
-    private static ToolDefinition Definition(
-        string name,
-        string description,
-        (string Name, string Type, bool Required)[] properties,
-        bool needsApproval) {
-        Dictionary<string, object> propertySchemas = new(StringComparer.Ordinal);
-        foreach ((string propertyName, string type, _) in properties) {
-            propertySchemas[propertyName] = new { type };
+    private static string ParametersJson(IReadOnlyList<ToolArgumentSchema> arguments) {
+        Dictionary<string, object> properties = new(StringComparer.Ordinal);
+        foreach (ToolArgumentSchema argument in arguments) {
+            properties[argument.Name] = new { type = JsonTypeOf(argument.Type) };
         }
-        string[] required = [.. properties.Where(property => property.Required).Select(property => property.Name)];
-        string parameters = JsonSerializer.Serialize(new {
+
+        string[] required = [.. arguments.Where(argument => argument.Required).Select(argument => argument.Name)];
+
+        return JsonSerializer.Serialize(new {
             type = "object",
-            properties = propertySchemas,
+            properties,
             required,
             additionalProperties = false,
         }, s_jsonOptions);
-        return new ToolDefinition(name, description, parameters, needsApproval);
     }
+
+    private static string JsonTypeOf(ToolArgumentType type) => type switch {
+        ToolArgumentType.String => "string",
+        ToolArgumentType.Integer => "integer",
+        ToolArgumentType.Boolean => "boolean",
+        _ => "string",
+    };
 
     private static string? String(IReadOnlyDictionary<string, JsonElement> values, string name) =>
         values.TryGetValue(name, out JsonElement value) ? value.GetString() : null;
@@ -417,12 +451,10 @@ internal sealed class PageToolExecutor(
         return [.. lines];
     }
 
-    private static string ImageStatus(PageTemplate page) => page.Image switch {
-        null => "Not compiled",
-        { Bytes: null } => "Compile failed",
-        { Diagnostics.Count: > 0 } => "Compiled with diagnostics",
-        _ => "Compiled",
-    };
+    private static string ImageStatus(PageTemplate page) => PageImageStatus.Describe(
+        page.Image?.RuntimeId,
+        page.Image?.Bytes is not null,
+        page.Image?.Diagnostics.Count > 0);
 
     private static object[] Diagnostics(PageTemplate page) => page.Image is null
         ? []

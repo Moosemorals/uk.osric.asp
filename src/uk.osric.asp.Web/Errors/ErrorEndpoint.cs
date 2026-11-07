@@ -37,22 +37,22 @@ internal static class ErrorEndpoint {
             return;
         }
 
-        string message = userFacingException?.Message ?? "An unexpected error occurred. Please try again.";
         string path = pathFeature?.Path ?? context.Request.Path.Value ?? "/";
-
-        await ShellDocument.BeginAsync(context, "Error", StatusCodes.Status500InternalServerError);
-        await context.Response.WriteAsync("<h1>Something went wrong</h1>");
-        await context.Response.WriteAsync($"<p>{WebUtility.HtmlEncode(message)}</p>");
-        if (showDetails) {
-            await context.Response.WriteAsync(EditorDetails(exception!, path));
-        }
-        await context.Response.WriteAsync($"<p class=\"error-code\">Error code: <code>{WebUtility.HtmlEncode(unexpected.Code)}</code></p>");
-        await context.Response.WriteAsync($"<p>Reference: {WebUtility.HtmlEncode(context.TraceIdentifier)}</p>");
+        List<NavLink> remedies = [];
         if (isAuthenticated) {
-            await context.Response.WriteAsync($"<p><a href=\"{WebUtility.HtmlEncode(PageUrls.Editor(PagePath.Normalize(path)))}\">Edit this page</a></p>");
+            remedies.Add(new(PageUrls.Editor(PagePath.Normalize(path)), "Edit this page"));
         }
-        await context.Response.WriteAsync("<p><a href=\"/\">Return to the home page</a></p>");
-        await ShellDocument.EndAsync(context);
+        remedies.Add(new("/", "Return to the home page"));
+
+        ErrorMessage message = new(
+            unexpected.Code,
+            "Something went wrong",
+            userFacingException?.Message ?? "An unexpected error occurred. Please try again.",
+            remedies);
+
+        string? details = showDetails ? EditorDetails(exception!, path) : null;
+        await ErrorResponses.WriteHtmlAsync(
+            context, StatusCodes.Status500InternalServerError, message, details, context.RequestAborted);
     }
 
     private static string EditorDetails(Exception exception, string path) {

@@ -99,18 +99,4 @@ internal sealed class AssistantChatTests : BrowserTest {
             "nodes => nodes.filter(node => !Array.from(node.querySelectorAll('pre')).some(pre => pre.textContent.trim())).length");
         Assert.That(blankRows, Is.Zero, "a step that only calls a tool must not add a blank row");
     }
-
-    /// <summary>Opens a new conversation and returns its id.</summary>
-    private async Task<long> NewConversationAsync() {
-        await Page.GotoAsync("assistant");
-        await Page.ClickAsync("text=New conversation");
-        await Page.WaitForURLAsync(new Regex(@"/assistant/\d+$"));
-        return long.Parse(Page.Url.Split('/')[^1], System.Globalization.CultureInfo.InvariantCulture);
-    }
-
-    /// <summary>Types a message and lets the page's script post it, which starts the run.</summary>
-    private async Task SendAsync(string message) {
-        await Page.FillAsync("#assistant-message", message);
-        await Page.ClickAsync("#assistant-message-form button[type=submit]");
-    }
 }

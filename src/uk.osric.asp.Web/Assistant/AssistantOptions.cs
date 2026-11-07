@@ -8,7 +8,6 @@ using Microsoft.Extensions.Options;
 /// <summary>The assistant's configuration: provider, model, limits and the enabled switch.</summary>
 internal sealed class AssistantOptions {
     public bool Enabled { get; init; }
-    public string Provider { get; init; } = "deepseek";
     public string BaseUrl { get; init; } = "https://api.deepseek.com";
     public string ChatCompletionsPath { get; init; } = "/chat/completions";
     public string Model { get; init; } = "deepseek-flash";

@@ -87,11 +87,4 @@ public sealed class AssistantOptionsTests : IntegrationTest {
             Assert.That(body, Does.Contain("<option value=\"AlwaysApprove\" selected>"));
         });
     }
-
-    private static async Task<string> CreateConversationAsync(HttpClient client) {
-        string token = await GetAntiforgeryTokenAsync(client, "/assistant");
-        using HttpResponseMessage created = await client.PostAsync("/assistant", Form(("__RequestVerificationToken", token)));
-        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
-        return created.Headers.Location!.ToString();
-    }
 }

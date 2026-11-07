@@ -16,8 +16,7 @@ using uk.osric.asp.Core.Compilation;
 /// </remarks>
 internal static class PageApiChecker {
 
-    private const string HandlerTypeName = "GeneratedPage";
-    private const string HandlerMethodName = "HandleAsync";
+
 
     private const string ShapeMessage =
         "PAGE002: page code must stay inside a code block; a declaration block may only declare types.";
@@ -114,16 +113,16 @@ internal static class PageApiChecker {
             return [Error(unit, ShapeMessage)];
         }
 
-        if (!string.Equals(handler.Identifier.ValueText, HandlerTypeName, StringComparison.Ordinal)
+        if (!string.Equals(handler.Identifier.ValueText, LoadedPage.HandlerTypeName, StringComparison.Ordinal)
             || handler.Members is not [MethodDeclarationSyntax method]
-            || !string.Equals(method.Identifier.ValueText, HandlerMethodName, StringComparison.Ordinal)) {
+            || !string.Equals(method.Identifier.ValueText, LoadedPage.HandlerMethodName, StringComparison.Ordinal)) {
             return [Error(handler, ShapeMessage)];
         }
 
         for (int index = 0; index < unit.Members.Count - 1; index++) {
             MemberDeclarationSyntax declaration = unit.Members[index];
             if (declaration is BaseTypeDeclarationSyntax type
-                && string.Equals(type.Identifier.ValueText, HandlerTypeName, StringComparison.Ordinal)) {
+                && string.Equals(type.Identifier.ValueText, LoadedPage.HandlerTypeName, StringComparison.Ordinal)) {
                 diagnostics.Add(Error(type, HandlerNameMessage));
             } else if (declaration is not (BaseTypeDeclarationSyntax or DelegateDeclarationSyntax)) {
                 diagnostics.Add(Error(declaration, ShapeMessage));

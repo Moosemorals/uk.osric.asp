@@ -4,12 +4,12 @@
 namespace uk.osric.asp.Web.Metrics;
 
 using System.Net;
+using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Web.Html;
+using uk.osric.asp.Web.Http;
 
 /// <summary>The owner-only dashboard: queries Prometheus and draws the result as SVG.</summary>
 internal static class StatusEndpoint {
-
-    private const int SeriesColours = 5;
 
     public static async Task HandleAsync(
         HttpContext context,
@@ -20,7 +20,7 @@ internal static class StatusEndpoint {
         StatusPage page = await dashboard.GetAsync(duration, cancellationToken);
 
         context.Response.ContentType = "text/html; charset=utf-8";
-        context.Response.Headers.CacheControl = "no-store";
+        SecurityHeaders.NoStore(context);
 
         await ShellDocument.BeginAsync(context, "Status", stylesheet: "/status.css", cancellationToken: cancellationToken);
         await context.Response.WriteAsync("<h1>Status</h1>", cancellationToken: cancellationToken);
@@ -61,7 +61,7 @@ internal static class StatusEndpoint {
         await context.Response.WriteAsync("<ul class=\"chart-legend\" role=\"list\">");
 
         for (int index = 0; index < labels.Count; index++) {
-            string colour = "series-" + ((index % SeriesColours) + 1);
+            string colour = SvgText.SeriesColour(index);
             await context.Response.WriteAsync(
                 $"<li><span class=\"swatch {colour}\"></span>{WebUtility.HtmlEncode(labels[index])}</li>");
         }

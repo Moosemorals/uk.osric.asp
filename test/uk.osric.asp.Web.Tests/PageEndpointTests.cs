@@ -226,7 +226,7 @@ public sealed class PageEndpointTests {
     public async Task StoredCompilationIsRenderedWithoutCompilingAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         PageCompiler compiler = new();
-        CompileResult compiled = compiler.Compile(Generate("Hello."));
+        CompileResult compiled = compiler.Compile(TestTemplates.Generate("Hello."));
         PageImage compilation = new(
             TemplateFingerprint.Of("Hello."), PageCompiler.RuntimeId, compiled.Image, compiled.Symbols, compiled.Diagnostics);
         FakePageStore storage = new();
@@ -656,13 +656,6 @@ public sealed class PageEndpointTests {
         return context;
     }
 
-    private static GeneratedSource Generate(string template) {
-        TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
-        Assert.That(parsed.IsSuccess, Is.True, string.Join(Environment.NewLine, parsed.Errors));
-
-        // The assertion above proves source was generated.
-        return parsed.Source!;
-    }
 
     private PageRenderer CreatePages(IPageStore storage, RenderOptions? options = null) {
         RenderOptions render = options ?? Options;

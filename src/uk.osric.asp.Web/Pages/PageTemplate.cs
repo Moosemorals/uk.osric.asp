@@ -14,17 +14,32 @@ using uk.osric.asp.Core.Pages;
 /// </param>
 internal sealed record PageTemplate {
 
-    public PageTemplate(PagePath Path, string Template, PageImage? Image = null) {
-        ArgumentNullException.ThrowIfNull(Path);
-        ArgumentNullException.ThrowIfNull(Template);
+    public PageTemplate(PagePath Path, string Template, PageImage? Image = null)
+        : this(Path, Template, Image,
+            Guid.NewGuid().ToString("N"),
+            Image?.RuntimeId ?? "legacy:unknown",
+            DateTimeOffset.UtcNow) {
+    }
 
-        this.Path = Path;
-        this.Template = Template;
-        this.Image = Image;
-        RevisionId = Guid.NewGuid().ToString("N");
-        CreationRuntimeId = Image?.RuntimeId ?? "legacy:unknown";
-        SavedAt = DateTimeOffset.UtcNow;
-        Hash = RevisionHash.Of(Template, CreationRuntimeId, SavedAt, RevisionId);
+    private PageTemplate(
+        PagePath path,
+        string template,
+        PageImage? image,
+        string revisionId,
+        string creationRuntimeId,
+        DateTimeOffset savedAt) {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(revisionId);
+        ArgumentNullException.ThrowIfNull(creationRuntimeId);
+
+        Path = path;
+        Template = template;
+        Image = image;
+        RevisionId = revisionId;
+        CreationRuntimeId = creationRuntimeId;
+        SavedAt = savedAt;
+        Hash = RevisionHash.Of(template, creationRuntimeId, savedAt, revisionId);
     }
 
     public PagePath Path { get; init; }
@@ -51,18 +66,7 @@ internal sealed record PageTemplate {
     /// revisions here, so the two paths cannot produce a row shaped differently.
     /// </returns>
     public static PageTemplate NewRevision(PagePath path, string source, PageImage? image, string runtimeId) {
-        ArgumentNullException.ThrowIfNull(path);
-        ArgumentNullException.ThrowIfNull(source);
-        ArgumentNullException.ThrowIfNull(runtimeId);
-
-        string revisionId = Guid.NewGuid().ToString("N");
-        DateTimeOffset savedAt = DateTimeOffset.UtcNow;
-
-        return new PageTemplate(path, source, image) {
-            RevisionId = revisionId,
-            CreationRuntimeId = runtimeId,
-            SavedAt = savedAt,
-            Hash = RevisionHash.Of(source, runtimeId, savedAt, revisionId),
-        };
+        return new PageTemplate(
+            path, source, image, Guid.NewGuid().ToString("N"), runtimeId, DateTimeOffset.UtcNow);
     }
 }

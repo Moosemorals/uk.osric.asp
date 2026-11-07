@@ -142,10 +142,7 @@ internal sealed class PageFetcher(
 
         return Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed)
             && parsed is not null
-            && (string.Equals(parsed.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal)
-                || string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal))
-            && parsed.UserInfo.Length == 0
-            && string.IsNullOrEmpty(parsed.Fragment)
+            && IsFetchable(parsed)
             && (uri = parsed) is not null;
     }
 

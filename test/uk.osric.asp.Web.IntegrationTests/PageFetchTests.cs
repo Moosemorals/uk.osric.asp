@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.IntegrationTests;
 
 using NUnit.Framework;
-using System.Net;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 

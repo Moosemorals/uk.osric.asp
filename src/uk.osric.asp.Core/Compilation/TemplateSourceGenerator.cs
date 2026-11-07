@@ -11,9 +11,8 @@ public static class TemplateSourceGenerator {
     private const string TemplateName = "page";
 
     // The page contract's namespace, as text: Core references nothing, so it cannot name the SDK at
-    // compile time. PageApiPolicy holds the other copy of this value; PageScopeTests fails if the two
-    // drift apart.
-    private const string SdkNamespace = "uk.osric.asp.Sdk";
+    // compile time. PageApiPolicy reads this one rather than keeping a second copy.
+    internal const string SdkNamespace = "uk.osric.asp.Sdk";
 
     // Fully qualified on purpose: a prelude `using System.Threading.Tasks;` would put the whole
     // namespace, and every type in it, in scope for page code.

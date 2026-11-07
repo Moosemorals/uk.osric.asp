@@ -43,7 +43,7 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task AValueSurvivesReopeningTheDatabaseAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
 
         await Store().SetValueAsync(Key("/page.cs"), "visits", "3");
 
@@ -52,14 +52,14 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task AMissingKeyReadsAsNullAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
 
         Assert.That(await Store().GetValueAsync(Key("/page.cs"), "absent"), Is.Null);
     }
 
     [Test]
     public async Task KeysComeBackInOrdinalOrderAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         IPageStateStore store = Store();
         await store.SetValueAsync(Key("/page.cs"), "b", "1");
         await store.SetValueAsync(Key("/page.cs"), "A", "1");
@@ -70,7 +70,7 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task DeleteReportsWhetherTheKeyExistedAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         IPageStateStore store = Store();
         await store.SetValueAsync(Key("/page.cs"), "key", "1");
 
@@ -80,8 +80,8 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task PagesAreIsolatedAsync() {
-        await SavePageAsync("/first.cs");
-        await SavePageAsync("/second.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/first.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/second.cs");
         IPageStateStore store = Store();
         await store.SetValueAsync(Key("/first.cs"), "shared", "one");
 
@@ -91,7 +91,7 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task AWriteToADeletedPageIsRefusedAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         await using (StorageDbContext database = new(_options)) {
             await new SqlitePageStore(database).DeletePageAsync(Key("/page.cs"));
         }
@@ -101,7 +101,7 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task DeletingAPageClearsItsStateAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         await Store().SetValueAsync(Key("/page.cs"), "key", "1");
 
         await using (StorageDbContext database = new(_options)) {
@@ -113,7 +113,7 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task ScrubClearsTheStateOfATombstoneAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         await Store().SetValueAsync(Key("/page.cs"), "key", "1");
         await using (StorageDbContext database = new(_options)) {
             IPageStore pages = new SqlitePageStore(database);
@@ -127,30 +127,30 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task ResavingADeletedPathStartsWithEmptyStateAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         await Store().SetValueAsync(Key("/page.cs"), "key", "1");
         await using (StorageDbContext database = new(_options)) {
             await new SqlitePageStore(database).DeletePageAsync(Key("/page.cs"));
         }
 
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
 
         Assert.That(await Store().ListKeysAsync(Key("/page.cs")), Is.Empty);
     }
 
     [Test]
     public async Task AnEditKeepsTheStateAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         await Store().SetValueAsync(Key("/page.cs"), "key", "1");
 
-        await SavePageAsync("/page.cs", "edited");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs", "edited");
 
         Assert.That((await Store().GetValueAsync(Key("/page.cs"), "key")), Is.EqualTo("1"));
     }
 
     [Test]
     public async Task TheLastWriteWinsAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         IPageStateStore store = Store();
 
         await store.SetValueAsync(Key("/page.cs"), "key", "first");
@@ -161,9 +161,9 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task TheKeyCountCapRefusesTheWriteAndLeavesNoRowAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         IPageStateStore store = new SqlitePageStateStore(
-            new Factory(_options), new PageStorageOptions { MaxKeysPerPage = 2 }, TimeProvider.System);
+            DatabaseTemplate.Factory(_options), new PageStorageOptions { MaxKeysPerPage = 2 }, TimeProvider.System);
 
         await store.SetValueAsync(Key("/page.cs"), "one", "1");
         await store.SetValueAsync(Key("/page.cs"), "two", "2");
@@ -176,9 +176,9 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task ThePageByteCapRefusesTheWriteAndLeavesTheOldValueAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         IPageStateStore store = new SqlitePageStateStore(
-            new Factory(_options),
+            DatabaseTemplate.Factory(_options),
             new PageStorageOptions { MaxValueBytes = 4096, MaxPageBytes = 64 },
             TimeProvider.System);
 
@@ -192,9 +192,9 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task AnUpdateIsAllowedWhenThePageIsAlreadyFullAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         IPageStateStore store = new SqlitePageStateStore(
-            new Factory(_options),
+            DatabaseTemplate.Factory(_options),
             new PageStorageOptions { MaxValueBytes = 4096, MaxPageBytes = 64 },
             TimeProvider.System);
         await store.SetValueAsync(Key("/page.cs"), "key", new string('x', 40));
@@ -206,10 +206,10 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task TheWriteRefreshesTheStorageGaugeAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         PageStorageRefresh refresh = new();
         IPageStateStore store = new SqlitePageStateStore(
-            new Factory(_options), new PageStorageOptions(), TimeProvider.System, refresh);
+            DatabaseTemplate.Factory(_options), new PageStorageOptions(), TimeProvider.System, refresh);
 
         await store.SetValueAsync(Key("/page.cs"), "key", "1");
 
@@ -220,7 +220,7 @@ public sealed class SqlitePageStateStoreTests {
 
     [Test]
     public async Task TheSamplerIncludesStateBytesAsync() {
-        await SavePageAsync("/page.cs");
+        await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         await Store().SetValueAsync(Key("/page.cs"), "key", "value");
 
         await using SqliteConnection connection = new(new SqliteConnectionStringBuilder {
@@ -242,17 +242,8 @@ public sealed class SqlitePageStateStoreTests {
     }
 
     private IPageStateStore Store() {
-        return new SqlitePageStateStore(new Factory(_options), new PageStorageOptions(), TimeProvider.System);
-    }
-
-    private async Task SavePageAsync(string path, string template = "Hello.") {
-        await using StorageDbContext database = new(_options);
-        await new SqlitePageStore(database).SavePageAsync(new PageTemplate(Key(path), template));
+        return new SqlitePageStateStore(DatabaseTemplate.Factory(_options), new PageStorageOptions(), TimeProvider.System);
     }
 
     private static PagePath Key(string path) => PagePath.Normalize(path);
-
-    private sealed class Factory(DbContextOptions<StorageDbContext> options) : IDbContextFactory<StorageDbContext> {
-        public StorageDbContext CreateDbContext() => new(options);
-    }
 }

@@ -58,7 +58,6 @@ public sealed class RunRegistryTests {
         Assert.That(registry.TryStart("run-1", 1, out RunStream? first), Is.True);
 
         Assert.That(registry.TryStart("run-2", 1, out _), Is.False);
-        Assert.That(registry.ActiveRun(1), Is.EqualTo("run-1"));
         Assert.That(registry.Stop("run-1"), Is.True);
         Assert.That(first!.StopToken.IsCancellationRequested, Is.True);
     }

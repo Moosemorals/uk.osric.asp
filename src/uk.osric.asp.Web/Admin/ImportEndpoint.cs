@@ -73,7 +73,7 @@ internal sealed class ImportEndpoint {
     /// <param name="options">The archive options.</param>
     public static async Task UploadAsync(HttpContext context, PageArchiveReader reader, ImportStageStore stages, ArchiveOptions options) {
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "import.form_expired",
                 "The upload form expired",
                 "The form could not be verified, so nothing was staged. Reload the import page and choose the file again.",
@@ -93,7 +93,7 @@ internal sealed class ImportEndpoint {
             await WriteTooLargeAsync(context, options);
             return;
         } catch (InvalidDataException) {
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "import.bad_form",
                 "That upload could not be read",
                 "The form was malformed or larger than this site accepts, so nothing was staged. Choose a file and try again.",
@@ -103,7 +103,7 @@ internal sealed class ImportEndpoint {
 
         List<IFormFile> files = [.. form.Files.Where(file => string.Equals(file.Name, ArchiveField, StringComparison.Ordinal))];
         if (files.Count != 1) {
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                 "import.no_file",
                 "That upload needs exactly one archive",
                 "The upload carried no archive file, or more than one, so nothing was staged. Choose a single .sqlite file and try again.",
@@ -435,9 +435,6 @@ internal sealed class ImportEndpoint {
             "This site runs one import at a time and the queue is full. Wait for the running import to finish, then try again.",
             [new(ReviewUrl(id), "Back to the review"), new("/edit", "Page list")]),
             context.RequestAborted);
-
-    private static Task WriteErrorAsync(HttpContext context, int statusCode, ErrorMessage message) =>
-        ErrorResponses.WriteAsync(context, statusCode, message, context.RequestAborted);
 
     private static async Task WriteRejectedAsync(HttpContext context, IReadOnlyList<string> problems) {
         await ShellDocument.BeginAsync(context, "Import failed", StatusCodes.Status400BadRequest, stylesheet: "/admin.css");

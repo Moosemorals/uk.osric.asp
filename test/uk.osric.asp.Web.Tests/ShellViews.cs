@@ -320,7 +320,7 @@ internal static class ShellViews {
     private static async Task<string> EditorAsync(FakePageStore storage, string? path, string command = "") {
         using PageHarness pages = new(storage);
 
-        return await HandleEditorAsync(storage, pages, path, command);
+        return await HandleEditorAsync(pages, path, command);
     }
 
     // A stored compilation carrying a warning, so the editor's diagnostics block is rendered.
@@ -334,10 +334,10 @@ internal static class ShellViews {
             null,
             [new PageDiagnostic(PageDiagnosticSeverity.Warning, new TemplatePosition(1, 4), "CS0219: unused variable")]));
 
-        return await HandleEditorAsync(storage, pages, "/page", string.Empty);
+        return await HandleEditorAsync(pages, "/page", string.Empty);
     }
 
-    private static async Task<string> HandleEditorAsync(FakePageStore storage, PageHarness pages, string? path, string command) {
+    private static async Task<string> HandleEditorAsync(PageHarness pages, string? path, string command) {
         string requestPath = path is null ? "/edit" : "/edit" + PageHarness.Key(path).Key;
         DefaultHttpContext context = TestHttp.CreateContext(path, "GET", requestPath);
 

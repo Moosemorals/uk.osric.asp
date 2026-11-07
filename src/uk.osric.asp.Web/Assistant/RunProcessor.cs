@@ -196,7 +196,7 @@ internal sealed class RunProcessor(
                             ResolveApprovalAsync(queued, stream, step, call, definition!, runTimeout.Token));
                     } else {
                         result = await WhilePaused(() =>
-                            ExecuteToolAsync(call, stream, step, runTimeout.Token));
+                            ExecuteToolAsync(call, stream, runTimeout.Token));
                     }
 
                     toolCallCount++;
@@ -307,22 +307,18 @@ internal sealed class RunProcessor(
             arguments = call.Arguments,
         });
 
-        try {
-            ApprovalResolutionResult decision = await wait;
-            await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "running", cancellationToken: cancellationToken));
-            stream.Publish("approval.resolved", new { step, toolCallId = call.Id, decision = decision == ApprovalResolutionResult.Approved ? "approved" : "denied" });
-            return decision == ApprovalResolutionResult.Approved
-                ? await ExecuteToolAsync(call, stream, step, cancellationToken)
-                : ToolFailure("The owner denied this tool call.", $"{call.DisplayName}: denied");
-        } catch (OperationCanceledException) {
-            throw;
-        }
+        ApprovalResolutionResult decision = await wait;
+        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "running", cancellationToken: cancellationToken));
+        stream.Publish("approval.resolved", new { step, toolCallId = call.Id, decision = decision == ApprovalResolutionResult.Approved ? "approved" : "denied" });
+
+        return decision == ApprovalResolutionResult.Approved
+            ? await ExecuteToolAsync(call, stream, cancellationToken)
+            : ToolFailure("The owner denied this tool call.", $"{call.DisplayName}: denied");
     }
 
     private async Task<ToolExecutionResult> ExecuteToolAsync(
         PreparedToolCall call,
         RunStream stream,
-        int step,
         CancellationToken cancellationToken) {
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(options.ToolTimeoutSeconds));

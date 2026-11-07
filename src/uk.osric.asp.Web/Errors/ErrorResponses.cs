@@ -8,6 +8,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using uk.osric.asp.Web.Html;
+using uk.osric.asp.Web.Http;
 
 /// <summary>Writes a failed response for whichever audience asked for it.</summary>
 /// <remarks>
@@ -26,7 +27,7 @@ internal static class ErrorResponses {
     /// <param name="context">The failing request.</param>
     /// <param name="statusCode">The status to send.</param>
     /// <param name="message">What to say.</param>
-    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <param name="cancellationToken">Cancels the write; the request's own token when none is given.</param>
     public static Task WriteAsync(
         HttpContext context,
         int statusCode,
@@ -35,28 +36,39 @@ internal static class ErrorResponses {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
+        cancellationToken = cancellationToken.CanBeCanceled ? cancellationToken : context.RequestAborted;
+
         return ErrorAudience.PrefersJson(context.Request)
             ? WriteJsonAsync(context, statusCode, message, cancellationToken)
-            : WriteHtmlAsync(context, statusCode, message, cancellationToken);
+            : WriteHtmlAsync(context, statusCode, message, cancellationToken: cancellationToken);
     }
 
     /// <summary>Writes the error as a document: heading, explanation, recovery links, code and reference.</summary>
     /// <param name="context">The failing request.</param>
     /// <param name="statusCode">The status to send.</param>
     /// <param name="message">What to say.</param>
+    /// <param name="detailsHtml">
+    /// Extra markup written between the explanation and the recovery links, for a view that knows
+    /// something the message cannot carry. It is the caller's markup, not a request value, so nothing
+    /// here encodes it.
+    /// </param>
     /// <param name="cancellationToken">Cancels the write.</param>
     public static async Task WriteHtmlAsync(
         HttpContext context,
         int statusCode,
         ErrorMessage message,
+        string? detailsHtml = null,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
-        NoStore(context);
+        SecurityHeaders.NoStoreIfAbsent(context);
         await ShellDocument.BeginAsync(context, message.Title, statusCode, cancellationToken: cancellationToken);
         await context.Response.WriteAsync($"<h1>{WebUtility.HtmlEncode(message.Title)}</h1>", cancellationToken);
         await context.Response.WriteAsync($"<p>{WebUtility.HtmlEncode(message.Summary)}</p>", cancellationToken);
+        if (detailsHtml is not null) {
+            await context.Response.WriteAsync(detailsHtml, cancellationToken);
+        }
         if (message.Remedies.Count > 0) {
             await context.Response.WriteAsync(PageLayout.Nav("Recovery navigation", message.Remedies, "editor-menu"), cancellationToken);
         }
@@ -82,7 +94,7 @@ internal static class ErrorResponses {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
-        NoStore(context);
+        SecurityHeaders.NoStoreIfAbsent(context);
         ProblemDetails problem = new() {
             Title = message.Title,
             Status = statusCode,
@@ -107,12 +119,6 @@ internal static class ErrorResponses {
         ArgumentNullException.ThrowIfNull(message);
 
         return new ProblemResult(statusCode, message);
-    }
-
-    private static void NoStore(HttpContext context) {
-        if (context.Response.Headers.CacheControl.Count == 0) {
-            context.Response.Headers.CacheControl = "no-store";
-        }
     }
 
     private sealed record ProblemResult(int StatusCode, ErrorMessage Message) : IResult {

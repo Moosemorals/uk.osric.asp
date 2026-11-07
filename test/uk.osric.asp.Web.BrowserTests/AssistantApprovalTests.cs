@@ -72,9 +72,4 @@ internal sealed class AssistantApprovalTests : BrowserTest {
         await Assertions.Expect(Page.Locator("#assistant-options-status")).ToHaveTextAsync("Page options saved");
         return long.Parse(Page.Url.Split('/')[^1], System.Globalization.CultureInfo.InvariantCulture);
     }
-
-    private async Task SendAsync(string message) {
-        await Page.FillAsync("#assistant-message", message);
-        await Page.ClickAsync("#assistant-message-form button[type=submit]");
-    }
 }
