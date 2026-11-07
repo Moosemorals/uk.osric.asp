@@ -132,31 +132,63 @@ internal sealed class SqlitePageStore(StorageDbContext database, PageStorageRefr
 
         PageTemplate revision = template;
         for (int attempt = 0; ; attempt++) {
-            PageRevision row = ToRevision(revision);
             try {
                 await using (IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken)) {
-                    database.Add(row);
-                    await database.SaveChangesAsync(cancellationToken);
-                    await database.Database.ExecuteSqlInterpolatedAsync($"""
-                        INSERT INTO "PageHeads" ("Path", "RevisionId", "IsDeleted")
-                        VALUES ({revision.Path.Key}, {revision.RevisionId}, 0)
-                        ON CONFLICT ("Path") DO UPDATE SET
-                            "RevisionId" = excluded."RevisionId",
-                            "IsDeleted" = 0
-                        """, cancellationToken);
+                    await WriteRevisionAsync(database, revision, cancellationToken);
                     await transaction.CommitAsync(cancellationToken);
                 }
 
                 return;
             } catch (DbUpdateException exception) when (attempt + 1 < IdentityRetryCount && IsIdentityCollision(exception)) {
-                database.Entry(row).State = EntityState.Detached;
-                string revisionId = Guid.NewGuid().ToString("N");
-                revision = revision with {
-                    RevisionId = revisionId,
-                    Hash = RevisionHash.Of(revision.Template, revision.CreationRuntimeId, revision.SavedAt, revisionId),
-                };
+                revision = RegenerateRevision(revision);
             }
         }
+    }
+
+    /// <summary>Inserts one revision and points the page's head at it.</summary>
+    /// <param name="database">The context to write through, which may be inside a caller's transaction.</param>
+    /// <param name="template">The revision to store.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <remarks>
+    /// An editor save and an imported batch go through this pair, so the row shape and the head
+    /// upsert cannot drift. The revision insert comes first: the head's foreign key points at it.
+    /// </remarks>
+    internal static async Task WriteRevisionAsync(StorageDbContext database, PageTemplate template, CancellationToken cancellationToken) {
+        PageRevision row = ToRevision(template);
+        try {
+            await database.AddAsync(row, cancellationToken);
+            await database.SaveChangesAsync(cancellationToken);
+        } catch {
+            // A failed insert must not leave the row tracked, or the next attempt would try to add it twice.
+            database.Entry(row).State = EntityState.Detached;
+            throw;
+        }
+
+        await WriteHeadAsync(database, template, cancellationToken);
+    }
+
+    /// <summary>Points a page's head at an already stored revision, clearing a tombstone.</summary>
+    /// <param name="database">The context to write through.</param>
+    /// <param name="template">The revision the head should point at.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    internal static Task WriteHeadAsync(StorageDbContext database, PageTemplate template, CancellationToken cancellationToken) {
+        return database.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "PageHeads" ("Path", "RevisionId", "IsDeleted")
+            VALUES ({template.Path.Key}, {template.RevisionId}, 0)
+            ON CONFLICT ("Path") DO UPDATE SET
+                "RevisionId" = excluded."RevisionId",
+                "IsDeleted" = 0
+            """, cancellationToken);
+    }
+
+    /// <summary>Gives a batch a fresh revision id and hash after a collision.</summary>
+    /// <param name="template">The revision that collided.</param>
+    internal static PageTemplate RegenerateRevision(PageTemplate template) {
+        string revisionId = Guid.NewGuid().ToString("N");
+        return template with {
+            RevisionId = revisionId,
+            Hash = RevisionHash.Of(template.Template, template.CreationRuntimeId, template.SavedAt, revisionId),
+        };
     }
 
     public async Task<bool> TrySavePageAsync(PageTemplate template, string expectedHash, CancellationToken cancellationToken = default) {

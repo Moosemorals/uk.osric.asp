@@ -36,15 +36,45 @@ internal sealed class SqlitePageStateStore(
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(value);
 
-        long added = KeyBytes(key) + KeyBytes(value);
         await using StorageDbContext database = Open();
+
+        int written = await UpsertAsync(database, path, key, value, clock.GetUtcNow(), options, cancellationToken);
+        if (written == 0) {
+            throw await RefusalAsync(database, path, cancellationToken);
+        }
+
+        refresh?.Request();
+    }
+
+    /// <summary>Writes one value under every per-page cap, in one statement.</summary>
+    /// <param name="database">The context the write runs in, which may be inside a batch transaction.</param>
+    /// <param name="path">The page whose state is written.</param>
+    /// <param name="key">The key to write.</param>
+    /// <param name="value">The value as JSON.</param>
+    /// <param name="updatedAt">The row's timestamp.</param>
+    /// <param name="options">The caps the statement enforces.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <returns>How many rows were written: 1 on success, 0 when a cap or a missing live page refused it.</returns>
+    /// <remarks>
+    /// Both paths that write state — a page's own <see cref="SetValueAsync"/> and an import's batch —
+    /// go through this statement, so the columns, the conflict target and the caps cannot drift.
+    /// </remarks>
+    internal static Task<int> UpsertAsync(
+        StorageDbContext database,
+        PagePath path,
+        string key,
+        string value,
+        DateTimeOffset updatedAt,
+        PageStorageOptions options,
+        CancellationToken cancellationToken) {
+        long added = KeyBytes(key) + KeyBytes(value);
 
         // One statement carries every rule: the head must still be live, the page must stay within its
         // key count, and the total must stay within its byte cap. A concurrent writer therefore either
         // fits or is refused; it cannot slip over the cap through a read-then-write race in the host.
-        int written = await database.Database.ExecuteSqlInterpolatedAsync($"""
+        return database.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO "PageState" ("PagePath", "Key", "Value", "UpdatedAt")
-            SELECT {path.Key}, {key}, {value}, {clock.GetUtcNow().ToString("O", CultureInfo.InvariantCulture)}
+            SELECT {path.Key}, {key}, {value}, {updatedAt.ToString("O", CultureInfo.InvariantCulture)}
             WHERE EXISTS (
                     SELECT 1 FROM "PageHeads" WHERE "Path" = {path.Key} AND "IsDeleted" = 0)
               AND (EXISTS (
@@ -58,12 +88,6 @@ internal sealed class SqlitePageStateStore(
             WHERE (SELECT COALESCE(SUM(length(CAST("Key" AS BLOB)) + length(CAST("Value" AS BLOB))), 0)
                     FROM "PageState" WHERE "PagePath" = {path.Key} AND "Key" <> {key}) + {added} <= {options.MaxPageBytes};
             """, cancellationToken);
-
-        if (written == 0) {
-            throw await RefusalAsync(database, path, cancellationToken);
-        }
-
-        refresh?.Request();
     }
 
     /// <inheritdoc/>

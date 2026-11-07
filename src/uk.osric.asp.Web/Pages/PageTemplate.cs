@@ -40,4 +40,29 @@ internal sealed record PageTemplate {
     public string CreationRuntimeId { get; init; }
 
     public DateTimeOffset SavedAt { get; init; }
+
+    /// <summary>Builds a revision around a template and the image compiled from it.</summary>
+    /// <param name="path">The canonical key the page is saved under.</param>
+    /// <param name="source">The template text.</param>
+    /// <param name="image">The compiled image, or <see langword="null"/> when there is none.</param>
+    /// <param name="runtimeId">The build that compiled the image.</param>
+    /// <returns>
+    /// A revision with a fresh id, timestamp and hash. An editor save and an import both build
+    /// revisions here, so the two paths cannot produce a row shaped differently.
+    /// </returns>
+    public static PageTemplate NewRevision(PagePath path, string source, PageImage? image, string runtimeId) {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(runtimeId);
+
+        string revisionId = Guid.NewGuid().ToString("N");
+        DateTimeOffset savedAt = DateTimeOffset.UtcNow;
+
+        return new PageTemplate(path, source, image) {
+            RevisionId = revisionId,
+            CreationRuntimeId = runtimeId,
+            SavedAt = savedAt,
+            Hash = RevisionHash.Of(source, runtimeId, savedAt, revisionId),
+        };
+    }
 }

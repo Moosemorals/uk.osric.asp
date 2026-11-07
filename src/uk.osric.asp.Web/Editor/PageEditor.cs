@@ -80,12 +80,12 @@ internal sealed class PageEditor(
         } catch (InvalidOperationException) {
             // A compiler fault is our bug, but the author's edit must survive it. Store the template
             // without an image; the next request retries, and the failure still answers 500.
-            await storage.SavePageAsync(NewRevision(path, template, null), cancellationToken);
+            await storage.SavePageAsync(PageTemplate.NewRevision(path, template, null, images.RuntimeId), cancellationToken);
             metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
             throw;
         }
 
-        await storage.SavePageAsync(NewRevision(path, template, image), cancellationToken);
+        await storage.SavePageAsync(PageTemplate.NewRevision(path, template, image, images.RuntimeId), cancellationToken);
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
         metrics.RecordSave(path, image.Bytes is not null, duration);
@@ -110,12 +110,12 @@ internal sealed class PageEditor(
         try {
             image = images.Build(path, template, PageMetrics.ReasonSave, cancellationToken);
         } catch (InvalidOperationException) {
-            await storage.TrySavePageAsync(NewRevision(path, template, null), expectedRevisionHash, cancellationToken);
+            await storage.TrySavePageAsync(PageTemplate.NewRevision(path, template, null, images.RuntimeId), expectedRevisionHash, cancellationToken);
             metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
             throw;
         }
 
-        PageTemplate revision = NewRevision(path, template, image);
+        PageTemplate revision = PageTemplate.NewRevision(path, template, image, images.RuntimeId);
         bool saved = await storage.TrySavePageAsync(revision, expectedRevisionHash, cancellationToken);
         if (!saved) {
             return new ConditionalPageSaveResult(false, null, []);
@@ -134,16 +134,5 @@ internal sealed class PageEditor(
         }
 
         return image.Diagnostics.Count > 0 ? "compiled with warnings" : "compiled";
-    }
-
-    private PageTemplate NewRevision(PagePath path, string template, PageImage? image) {
-        string revisionId = Guid.NewGuid().ToString("N");
-        DateTimeOffset savedAt = DateTimeOffset.UtcNow;
-        return new PageTemplate(path, template, image) {
-            RevisionId = revisionId,
-            CreationRuntimeId = images.RuntimeId,
-            SavedAt = savedAt,
-            Hash = RevisionHash.Of(template, images.RuntimeId, savedAt, revisionId),
-        };
     }
 }
