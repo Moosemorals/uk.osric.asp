@@ -72,6 +72,59 @@ public sealed class SecurityHeaderTests : IntegrationTest {
         Assert.That(Policy(response), Is.EqualTo(SecurityHeaders.Default));
     }
 
+    [Test]
+    public async Task APageThatAllowsScriptsWidensItsPolicy() {
+        await SavePageAsync("/scripted", "<% ctx.AllowScripts(); %>Scripted.");
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/scripted");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        AssertEveryHeader(response);
+        Assert.That(Policy(response), Is.EqualTo(SecurityHeaders.WithScripts));
+    }
+
+    [Test]
+    public async Task APageThatDoesNotAllowScriptsForbidsThem() {
+        await SavePageAsync("/plain", "Plain.");
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/plain");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        AssertEveryHeader(response);
+        Assert.That(Policy(response), Is.EqualTo(SecurityHeaders.Default));
+    }
+
+    [Test]
+    public async Task APageThatThrowsAfterAllowingScriptsStillForbidsThem() {
+        await SavePageAsync("/boom-scripted",
+            "<% ctx.AllowScripts(); throw new System.InvalidOperationException(\"Boom.\"); %>");
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/boom-scripted");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+        AssertEveryHeader(response);
+        Assert.That(Policy(response), Is.EqualTo(SecurityHeaders.Default));
+    }
+
+    [Test]
+    public async Task ANotModifiedScriptedPageStillCarriesItsPolicy() {
+        await SavePageAsync("/scripted-cached", "<% ctx.AllowScripts(); %>Scripted.");
+        using HttpClient client = CreateClient();
+        HttpResponseMessage first = await client.GetAsync("/scripted-cached");
+        Assert.That(first.Headers.ETag, Is.Not.Null);
+
+        using HttpRequestMessage request = new(HttpMethod.Get, "/scripted-cached");
+        request.Headers.IfNoneMatch.Add(first.Headers.ETag!);
+        HttpResponseMessage notModified = await client.SendAsync(request);
+
+        Assert.That(notModified.StatusCode, Is.EqualTo(HttpStatusCode.NotModified));
+        AssertEveryHeader(notModified);
+        Assert.That(Policy(notModified), Is.EqualTo(SecurityHeaders.WithScripts));
+    }
+
     private static string Policy(HttpResponseMessage response) {
         Assert.That(response.Headers.TryGetValues(SecurityHeaders.ContentSecurityPolicy, out IEnumerable<string>? values), Is.True);
         Assert.That(values, Has.Exactly(1).Items, "one value, never a list");

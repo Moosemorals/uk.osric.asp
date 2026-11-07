@@ -13,6 +13,7 @@ using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
@@ -139,6 +140,43 @@ public sealed class PageEndpointTests {
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("Hello, world!"));
+    }
+
+    [Test]
+    public async Task APageThatAllowsScriptsWidensItsPolicyAsync() {
+        DefaultHttpContext context = CreateContext("scripted.cs");
+        FakePageStore storage = new();
+        storage["/scripted.cs"] = new PageTemplate(
+            PagePath.Normalize("/scripted.cs"), "<% ctx.AllowScripts(); %>Scripted.");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.Headers[SecurityHeaders.ContentSecurityPolicy].ToString(),
+            Is.EqualTo(SecurityHeaders.WithScripts));
+    }
+
+    [Test]
+    public async Task APageThatDoesNotAllowScriptsLeavesThePolicyAloneAsync() {
+        DefaultHttpContext context = CreateContext("plain.cs");
+        FakePageStore storage = new();
+        storage["/plain.cs"] = new PageTemplate(PagePath.Normalize("/plain.cs"), "Plain.");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.Headers.ContainsKey(SecurityHeaders.ContentSecurityPolicy), Is.False);
+    }
+
+    [Test]
+    public async Task APageThatRedirectsDoesNotWidenItsPolicyAsync() {
+        DefaultHttpContext context = CreateContext("moved.cs");
+        FakePageStore storage = new();
+        storage["/moved.cs"] = new PageTemplate(
+            PagePath.Normalize("/moved.cs"), "<% ctx.AllowScripts(); ctx.Redirect(\"/elsewhere\"); %>");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(302));
+        Assert.That(context.Response.Headers.ContainsKey(SecurityHeaders.ContentSecurityPolicy), Is.False);
     }
 
     [Test]

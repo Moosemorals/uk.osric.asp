@@ -23,6 +23,26 @@ public sealed class SimpleContextTests {
         Assert.That(response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
         Assert.That(response.Headers, Is.Empty);
         Assert.That(response.Location, Is.Null);
+        Assert.That(response.AllowsScripts, Is.False);
+    }
+
+    [Test]
+    public void AllowScriptsIsRecordedInTheResponse() {
+        SimpleContext context = CreateContext(out _);
+
+        context.AllowScripts();
+
+        Assert.That(context.ToResponse().AllowsScripts, Is.True);
+    }
+
+    [Test]
+    public void AllowScriptsIsIdempotent() {
+        SimpleContext context = CreateContext(out _);
+
+        context.AllowScripts();
+        context.AllowScripts();
+
+        Assert.That(context.ToResponse().AllowsScripts, Is.True);
     }
 
     [TestCase("Cache-Control")]

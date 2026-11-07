@@ -18,6 +18,13 @@ public sealed record PageResponse(
     IReadOnlyDictionary<string, string> Headers,
     string? Location) {
 
+    /// <summary>Whether the page asked to load same-origin scripts.</summary>
+    /// <remarks>
+    /// The shell turns this into <c>script-src 'self'</c> on the response's
+    /// <c>Content-Security-Policy</c>; inline scripts stay blocked either way.
+    /// </remarks>
+    public bool AllowsScripts { get; init; }
+
     /// <summary>The response a page gets when it asks for nothing in particular.</summary>
     public static PageResponse Default { get; } = new(
         200,

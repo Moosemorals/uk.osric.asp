@@ -81,6 +81,16 @@ public interface IContext {
     /// </exception>
     public void SetHeader(string name, string value);
 
+    /// <summary>Allows this page to load same-origin scripts.</summary>
+    /// <remarks>
+    /// Widens the response's <c>Content-Security-Policy</c> from <c>script-src 'none'</c> to
+    /// <c>script-src 'self'</c>. Inline scripts and event-handler attributes stay blocked, as do
+    /// scripts from another origin: the page's script is another page, or a seeded asset, served
+    /// with a JavaScript content type and referenced by <c>&lt;script src="/…"&gt;</c>. Calling this
+    /// more than once is harmless.
+    /// </remarks>
+    public void AllowScripts();
+
     /// <summary>Redirects instead of writing a body.</summary>
     /// <param name="location">
     /// The target, relative or absolute. A relative target keeps its query and fragment, and its path

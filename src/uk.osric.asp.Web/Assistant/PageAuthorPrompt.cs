@@ -83,7 +83,11 @@ internal static class PageAuthorPrompt {
         Pages run for GET, POST, and HEAD. The header allow-list is
         Cache-Control, Content-Language, ETag, Expires, Vary, and X-*; pages
         cannot set cookies, Location, content type through a header, or framing
-        headers.
+        headers. `ctx.AllowScripts()` widens this response to
+        `script-src 'self'` for same-origin external scripts; inline scripts
+        and event-handler attributes stay blocked, so the script must be
+        another page, or a seeded asset, served with a JavaScript content type
+        and referenced by `<script src="/…">`.
         
         ## Page authentication
         Pages are public unless the page's own code checks `ctx.User`. Add the

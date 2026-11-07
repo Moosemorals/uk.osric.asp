@@ -80,13 +80,15 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and
   content types set by middleware, startup-seeded page assets and their conditional responses,
-  migrations, DI wiring and the fact that a page is compiled once. Editor integration coverage
-  distinguishes `/edit` from the `/edit/` root editor, checks command authorization and antiforgery,
-  restores a deleted seed from the page list, and confirms deleted seeded assets remain tombstoned
-  across restarts. `PageAuthenticationTests` runs the whole private-page round
-  trip: a guarded page saved through the editor, the redirect to `/login` with its query, signing in
-  back to that page, its form with and without `ctx.AntiforgeryField`, sign-out and a password change
-  making an existing cookie anonymous, and an external `returnUrl` still falling back to the editor. The suites reference `Web` and
+  a stored page that widens its own policy with `ctx.AllowScripts()` while a page that redirects or
+  throws does not, migrations, DI wiring and the fact that a page is compiled once. Editor
+  integration coverage distinguishes `/edit` from the `/edit/` root editor, checks command
+  authorization and antiforgery, restores a deleted seed from the page list, and confirms deleted
+  seeded assets remain tombstoned across restarts. `PageAuthenticationTests` runs the whole
+  private-page round trip: a guarded page saved through the editor, the redirect to `/login` with its
+  query, signing in back to that page, its form with and without `ctx.AntiforgeryField`, sign-out and
+  a password change making an existing cookie anonymous, and an external `returnUrl` still falling
+  back to the editor. The suites reference `Web` and
   `Runtime`, start the real application through `WebApplicationFactory<Program>`, and use a
   throwaway SQLite file per fixture that is deleted with it. The host runs as `Production`, so
   failures are answered by the error page rather than the developer exception page, and the client
@@ -150,6 +152,8 @@ is read in.
 - `BrowserTest` gives each test its own context, page and script, and fails it on any console error or
   page error the browser reported while it ran — which is how the seeded icon was found rendering as a
   black silhouette under the page content security policy.
+- `PageScriptTests` saves a JavaScript page and an HTML page that calls `ctx.AllowScripts()`, then
+  proves the browser loaded the script. That is the enforcement the header alone cannot show.
 - Fixtures that need different assistant limits start their own `BrowserHost`; the shared one signs in
   once and every test starts from that browser state, so a suite run does not spend the sign-in
   throttle's allowance on itself.

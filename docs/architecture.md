@@ -120,7 +120,8 @@ the EF tools discover internal migrations and an internal `StorageDbContext` wit
 A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it
 touches is a plain record in `Sdk`. `IContext` is the whole surface — `Request` (method, path, query,
 form, headers, cookies), `Path`, `User`, `Aborted`, `Log`/`LogWarning`/`LogError`, `Write`/`WriteRaw`,
-`SetStatus`, `SetContentType`, `SetHeader`, `Redirect`, `RedirectToLogin` and `AntiforgeryField`.
+`SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect`, `RedirectToLogin` and
+`AntiforgeryField`.
 
 The handler is asynchronous: `IHandler.HandleAsync` returns a `Task`, the generator always emits an
 `async` method, and `await` is therefore an ordinary expression in a code block and inside a write
@@ -153,7 +154,9 @@ Two rules keep the response safe:
 - Headers are bounded by an allow-list in `SimpleContext`: `Cache-Control`, `Content-Language`,
   `ETag`, `Expires`, `Vary` and any `X-` name. `Set-Cookie`, `Location`, `Content-Type` and the
   framing headers are refused, so a page cannot clobber the editor's authentication, antiforgery or
-  session cookie. Redirects go through `Redirect`; content type through `SetContentType`.
+  session cookie. Redirects go through `Redirect`; content type through `SetContentType`, and the
+  script permission through `AllowScripts` — the `Content-Security-Policy` header itself stays
+  shell-owned.
 
 Successful page responses receive a strong `ETag` computed from the UTF-8 bytes of the rendered
 body. The host also sets `Content-Length` from those encoded bytes for responses that may carry a
@@ -307,9 +310,12 @@ comes back without discarding its earlier revisions.
 - The data-protection key ring is persisted on a volume. That is what lets the 30-day cookie and
   in-flight antiforgery tokens survive a redeploy.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
-  starts (DEC-93). The editor view is the only one that widens the policy to `script-src 'self'`, for
-  the `/editor.js` module that keeps its line gutter true; every other response forbids scripts
-  outright. `/editor.css` and `/editor.js` are seeded pages like `/site.css`, so they stay editable.
+  starts (DEC-93). The editor and assistant views widen the policy to `script-src 'self'` for their
+  own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` (DEC-138); every
+  other response forbids scripts outright. The header stays shell-owned, so a page cannot set
+  `Content-Security-Policy` with `SetHeader`, and inline scripts stay blocked on every path.
+  `/editor.css`, `/editor.js` and `/assistant.js` are seeded pages like `/site.css`, so they stay
+  editable.
 
 ### Page authentication
 

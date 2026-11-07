@@ -66,6 +66,7 @@ internal sealed class SimpleContext : IContext {
     // Read from the page's task and written by the abandoning thread, which no longer share one, so
     // the flag is volatile rather than merely lock-protected.
     private volatile bool _abandoned;
+    private bool _allowsScripts;
     private string _contentType = PageResponse.Default.ContentType;
     private string? _location;
     private int _status = PageResponse.Default.Status;
@@ -143,7 +144,8 @@ internal sealed class SimpleContext : IContext {
     public IPageStorage Storage => _storage;
 
     /// <summary>What the page asked the response to be.</summary>
-    public PageResponse ToResponse() => new(_status, _contentType, _headers, _location);
+    public PageResponse ToResponse() =>
+        new(_status, _contentType, _headers, _location) { AllowsScripts = _allowsScripts };
 
     /// <summary>The body written so far.</summary>
     public string GetBody() {
@@ -259,6 +261,11 @@ internal sealed class SimpleContext : IContext {
         }
 
         _headers[name] = value;
+    }
+
+    /// <inheritdoc/>
+    public void AllowScripts() {
+        _allowsScripts = true;
     }
 
     /// <inheritdoc/>

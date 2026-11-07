@@ -157,6 +157,11 @@ internal sealed class PageEndpoint() {
             return;
         }
 
+        // A redirect carries no document to run a script in, so its policy is left alone.
+        if (response.AllowsScripts) {
+            SecurityHeaders.AllowScripts(context);
+        }
+
         context.Response.StatusCode = response.Status;
         context.Response.ContentType = response.ContentType;
         foreach ((string name, string value) in response.Headers) {

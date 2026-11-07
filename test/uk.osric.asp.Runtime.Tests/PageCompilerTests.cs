@@ -402,6 +402,8 @@ public sealed class PageCompilerTests {
 
         public void SetHeader(string name, string value) { }
 
+        public void AllowScripts() { }
+
         public void Redirect(string location, int status = 302) { }
 
         public void RedirectToLogin() { }
