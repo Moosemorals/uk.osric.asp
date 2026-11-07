@@ -11,6 +11,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Text;
+using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 
@@ -26,15 +27,18 @@ internal static class AssistantEndpoint {
         IOptions<AssistantOptions> options) {
         string? owner = Owner(context);
         if (owner is null) {
-            NoStore(context);
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await WriteConversationNotFoundAsync(context);
             return;
         }
 
         if (context.Request.Method == "POST") {
             NoStore(context);
             if (!IsPostValid(context)) {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                    "assistant.form_expired",
+                    "The conversation was not created",
+                    "The form could not be verified. Reload this page and try again.",
+                    [new("/assistant", "Conversations")]));
                 return;
             }
             Conversation created = await conversations.CreateAsync(owner, context.RequestAborted);
@@ -48,7 +52,7 @@ internal static class AssistantEndpoint {
         await context.Response.WriteAsync("<h1>Assistant</h1>");
         await context.Response.WriteAsync(PageLayout.Nav("Assistant navigation", [
             new("/assistant", "Conversations", true),
-            new("/edit", "Page listing"),
+            new("/edit", "Page list"),
         ]));
         await context.Response.WriteAsync($"""
             <form method="post" action="/assistant">
@@ -83,8 +87,7 @@ internal static class AssistantEndpoint {
         string? owner = Owner(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
-            NoStore(context);
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await WriteConversationNotFoundAsync(context);
             return;
         }
 
@@ -106,7 +109,7 @@ internal static class AssistantEndpoint {
         await context.Response.WriteAsync($"<h1>{Encode(conversation.Title)}</h1>");
         await context.Response.WriteAsync(PageLayout.Nav("Assistant navigation", [
             new("/assistant", "Conversations"),
-            new("/edit", "Page listing"),
+            new("/edit", "Page list"),
         ]));
 
         await context.Response.WriteAsync($"""
@@ -180,12 +183,16 @@ internal static class AssistantEndpoint {
         AssistantOptions options) {
         NoStore(context);
         if (!IsPostValid(context)) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                "assistant.form_expired", "The message could not be sent",
+                "The form could not be verified. Reload the conversation and try again.");
             return;
         }
         string? owner = Owner(context);
         if (owner is null || await conversations.GetAsync(id, owner, context.RequestAborted) is null) {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.conversation_not_found", "That conversation does not exist",
+                "It may have been deleted, or it belongs to another account.");
             return;
         }
         if (!context.Request.HasFormContentType
@@ -193,15 +200,21 @@ internal static class AssistantEndpoint {
             || contentValues.Count != 1
             || string.IsNullOrWhiteSpace(contentValues[0])
             || contentValues[0]!.Length > options.MaxMessageChars) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                "assistant.message_invalid", "The message is empty or too long",
+                $"A message needs one value no longer than {options.MaxMessageChars} characters.");
             return;
         }
         if (await conversations.GetActiveRunAsync(id, owner, context.RequestAborted) is not null) {
-            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
+                "assistant.run_active", "A run is already in progress",
+                "Wait for it to finish, or stop it, then send the message again.");
             return;
         }
         if (!queue.TryReserve()) {
-            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            await WriteJsonErrorAsync(context, StatusCodes.Status429TooManyRequests,
+                "assistant.queue_full", "The run queue is full",
+                "Too many runs are waiting. Try again shortly.");
             return;
         }
 
@@ -210,21 +223,29 @@ internal static class AssistantEndpoint {
             RunStartResult started = await conversations.StartRunAsync(
                 id, owner, contentValues[0]!, options.Model, PageAuthorPrompt.Version, context.RequestAborted);
             if (started.Status != RunStartStatus.Started || started.RunId is null) {
-                context.Response.StatusCode = started.Status == RunStartStatus.NotFound
-                    ? StatusCodes.Status404NotFound
-                    : StatusCodes.Status409Conflict;
+                await WriteJsonErrorAsync(context,
+                    started.Status == RunStartStatus.NotFound ? StatusCodes.Status404NotFound : StatusCodes.Status409Conflict,
+                    started.Status == RunStartStatus.NotFound ? "assistant.conversation_not_found" : "assistant.run_not_started",
+                    started.Status == RunStartStatus.NotFound ? "That conversation does not exist" : "The run could not be started",
+                    started.Status == RunStartStatus.NotFound
+                        ? "It may have been deleted, or it belongs to another account."
+                        : "Reload the conversation and try again.");
                 return;
             }
 
             if (!registry.TryStart(started.RunId, id, out _)) {
                 await conversations.SetRunStatusAsync(started.RunId, "failed", "registry_conflict", "The run could not be started.", CancellationToken.None);
-                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
+                    "assistant.run_conflict", "The run could not be started",
+                    "Reload the conversation and try again.");
                 return;
             }
             if (!queue.TryEnqueueReserved(new QueuedRun(id, started.RunId, owner))) {
                 await conversations.SetRunStatusAsync(started.RunId, "failed", "queue_full", "The run queue is full.", CancellationToken.None);
                 registry.Complete(started.RunId, id);
-                context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                await WriteJsonErrorAsync(context, StatusCodes.Status429TooManyRequests,
+                    "assistant.queue_full", "The run queue is full",
+                    "Too many runs are waiting. Try again shortly.");
                 return;
             }
 
@@ -250,12 +271,16 @@ internal static class AssistantEndpoint {
         RunRegistry registry) {
         NoStore(context);
         if (!IsPostValid(context)) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                "assistant.form_expired", "The run could not be stopped",
+                "The form could not be verified. Reload the conversation and try again.");
             return;
         }
         string? owner = Owner(context);
         if (owner is null || await conversations.GetAsync(id, owner, context.RequestAborted) is null) {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.conversation_not_found", "That conversation does not exist",
+                "It may have been deleted, or it belongs to another account.");
             return;
         }
         Run? active = await conversations.GetActiveRunAsync(id, owner, context.RequestAborted);
@@ -279,7 +304,11 @@ internal static class AssistantEndpoint {
         context.Response.Headers["X-Accel-Buffering"] = "no";
         string? owner = Owner(context);
         if (owner is null) {
-            return Results.Unauthorized();
+            return ErrorResponses.Problem(StatusCodes.Status401Unauthorized, new ErrorMessage(
+                "auth.required",
+                "Sign in required",
+                "You need to sign in before this site will stream that run.",
+                []));
         }
 
         string? requestedRun = context.Request.Query["run"].FirstOrDefault();
@@ -287,7 +316,11 @@ internal static class AssistantEndpoint {
             ? await conversations.GetActiveRunAsync(id, owner, context.RequestAborted)
             : await conversations.GetRunAsync(id, owner, requestedRun, context.RequestAborted);
         if (requestedRun is not null && run is null) {
-            return Results.NotFound();
+            return ErrorResponses.Problem(StatusCodes.Status404NotFound, new ErrorMessage(
+                "assistant.run_not_found",
+                "That run does not exist",
+                "It may have been deleted, or it belongs to another conversation.",
+                []));
         }
         if (run is null) {
             return TypedResults.ServerSentEvents(IdleEventsAsync(id));
@@ -318,17 +351,23 @@ internal static class AssistantEndpoint {
     public static async Task OptionsAsync(HttpContext context, long id, IConversationStore conversations) {
         NoStore(context);
         if (!IsPostValid(context)) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                "assistant.form_expired", "The options could not be saved",
+                "The form could not be verified. Reload the conversation and try again.");
             return;
         }
         string? owner = Owner(context);
         if (owner is null) {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.conversation_not_found", "That conversation does not exist",
+                "It may have been deleted, or it belongs to another account.");
             return;
         }
         Conversation? conversation = await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.conversation_not_found", "That conversation does not exist",
+                "It may have been deleted, or it belongs to another account.");
             return;
         }
         if (!context.Request.HasFormContentType
@@ -338,7 +377,9 @@ internal static class AssistantEndpoint {
             || mode.Count != 1
             || !Enum.TryParse(mode[0], ignoreCase: false, out ApprovalMode approvalMode)
             || !Enum.IsDefined(approvalMode)) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                "assistant.options_invalid", "The options could not be saved",
+                $"A title no longer than {ConversationTitle.MaximumLength} characters and an approval mode are required.");
             return;
         }
 
@@ -347,12 +388,16 @@ internal static class AssistantEndpoint {
         string trimmed = title[0]!.Trim();
         if (!string.Equals(trimmed, conversation.Title, StringComparison.Ordinal)
             && !await conversations.RenameAsync(id, owner, trimmed, context.RequestAborted)) {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.conversation_not_found", "That conversation does not exist",
+                "It may have been deleted, or it belongs to another account.");
             return;
         }
         if (conversation.ApprovalMode != approvalMode.ToString()
             && !await conversations.SetApprovalModeAsync(id, owner, approvalMode, context.RequestAborted)) {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.conversation_not_found", "That conversation does not exist",
+                "It may have been deleted, or it belongs to another account.");
             return;
         }
         // A page submit reloads the conversation; the script posts the same form and gets no body.
@@ -372,14 +417,24 @@ internal static class AssistantEndpoint {
         ToolApprovalCoordinator coordinator) {
         NoStore(context);
         if (!IsPostValid(context)) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                "assistant.form_expired", "The decision could not be recorded",
+                "The form could not be verified. Reload the conversation and try again.");
             return;
         }
         string? owner = Owner(context);
         if (owner is null || !context.Request.HasFormContentType
             || !context.Request.Form.TryGetValue("decision", out Microsoft.Extensions.Primitives.StringValues decision)
             || decision.Count != 1 || decision[0] is not ("approve" or "deny")) {
-            context.Response.StatusCode = owner is null ? StatusCodes.Status404NotFound : StatusCodes.Status400BadRequest;
+            if (owner is null) {
+                await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                    "assistant.conversation_not_found", "That conversation does not exist",
+                    "It may have been deleted, or it belongs to another account.");
+            } else {
+                await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                    "assistant.decision_invalid", "The decision could not be recorded",
+                    "Choose approve or deny, then try again.");
+            }
             return;
         }
 
@@ -388,10 +443,14 @@ internal static class AssistantEndpoint {
         if (result is ApprovalResolutionResult.Approved or ApprovalResolutionResult.Denied) {
             _ = coordinator.Signal(runId, toolCallId, result);
             context.Response.StatusCode = StatusCodes.Status204NoContent;
+        } else if (result == ApprovalResolutionResult.NotFound) {
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.approval_not_found", "That approval is no longer waiting",
+                "The run moved on before the decision arrived. Reload the conversation to see its state.");
         } else {
-            context.Response.StatusCode = result == ApprovalResolutionResult.NotFound
-                ? StatusCodes.Status404NotFound
-                : StatusCodes.Status409Conflict;
+            await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
+                "assistant.approval_conflict", "That approval could not be recorded",
+                "The run is no longer waiting for it. Reload the conversation to see its state.");
         }
     }
 
@@ -399,8 +458,7 @@ internal static class AssistantEndpoint {
         string? owner = Owner(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
-            NoStore(context);
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await WriteConversationNotFoundAsync(context);
             return;
         }
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
@@ -424,12 +482,16 @@ internal static class AssistantEndpoint {
         RunRegistry registry) {
         NoStore(context);
         if (!IsPostValid(context)) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                "assistant.form_expired", "The run could not be stopped",
+                "The form could not be verified. Reload the conversation and try again.");
             return;
         }
         string? owner = Owner(context);
         if (owner is null || await conversations.GetAsync(id, owner, context.RequestAborted) is null) {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.conversation_not_found", "That conversation does not exist",
+                "It may have been deleted, or it belongs to another account.");
             return;
         }
         Run? active = await conversations.GetActiveRunAsync(id, owner, context.RequestAborted);
@@ -438,7 +500,11 @@ internal static class AssistantEndpoint {
             await conversations.FailPendingApprovalsAsync(active.Id, "conversation_deleted", CancellationToken.None);
         }
         if (!await conversations.DeleteAsync(id, owner, context.RequestAborted)) {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, new ErrorMessage(
+                "assistant.conversation_not_found",
+                "That conversation does not exist",
+                "It may already have been deleted. Nothing was deleted.",
+                [new("/assistant", "Conversations")]));
             return;
         }
         Redirect.SeeOther(context, "/assistant");
@@ -591,6 +657,16 @@ internal static class AssistantEndpoint {
 
     private static bool IsPostValid(HttpContext context) =>
         context.Features.Get<IAntiforgeryValidationFeature>() is not { IsValid: false };
+
+    private static Task WriteConversationNotFoundAsync(HttpContext context) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, new ErrorMessage(
+            "assistant.conversation_not_found",
+            "That conversation does not exist",
+            "It may have been deleted, or it belongs to another account.",
+            [new("/assistant", "Conversations")]));
+
+    private static Task WriteJsonErrorAsync(HttpContext context, int statusCode, string code, string title, string summary) =>
+        ErrorResponses.WriteJsonAsync(context, statusCode, new ErrorMessage(code, title, summary, []));
 
     private static void NoStore(HttpContext context) => context.Response.Headers.CacheControl = "no-store";
 

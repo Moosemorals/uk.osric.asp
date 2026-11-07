@@ -48,8 +48,8 @@ public sealed class ShellTests : IntegrationTest {
         HttpResponseMessage response = await client.GetAsync("/missing.cs");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-        Assert.That(response.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/plain; charset=utf-8"));
-        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("/missing.cs not found."));
+        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
+        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("/missing.cs not found."));
     }
 
     [TestCase("/Hello", "/hello")]
@@ -72,7 +72,8 @@ public sealed class ShellTests : IntegrationTest {
         HttpResponseMessage response = await client.GetAsync(requestPath);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo($"{key} not found."));
+        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
+        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain($"{key} not found."));
     }
 
     [Test]

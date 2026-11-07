@@ -17,12 +17,14 @@ first effort there.
 
 The defect and operation jobs were raised by the architecture review and the code-health scan of
 2026-10-30; BUG-13 came out of the BUG-06 fix, ARCH-11 came out of the BUG-05/BUG-13 planning, and
-BUG-14 came out of the metrics dashboard planning. The `IDEA-` jobs were added on 2026-11-01, OPS-06
+BUG-14 came out of the metrics dashboard planning, and BUG-18 came out of the editor's
+save-and-view work. The `IDEA-` jobs were added on 2026-11-01, OPS-06
 and IDEA-013 came out of the naming-consistency planning, and every status below was checked against
 the code on 2026-11-06.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
+| [BUG-18](BUG-18.md) | Medium | S | Save and view answered a bare 400, and human errors were blank |
 | [BUG-17](BUG-17.md) | Medium | M | A long think loses the answer, and the page cannot say why |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore action |

@@ -12,6 +12,7 @@ using System.Net;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Assistant;
+using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
@@ -22,15 +23,31 @@ internal sealed class EditorEndpoint {
     internal const string MessageKey = "editor.message";
 
     public static async Task HandleAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, IAntiforgery antiforgery) {
-        if (context.Request.Method == "POST" && context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
-            NoStore(context);
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        if (context.Request.Method is not ("GET" or "POST")) {
+            await WriteErrorAsync(context, StatusCodes.Status405MethodNotAllowed, new ErrorMessage(
+                "editor.method_not_allowed",
+                "Not allowed",
+                "The editor answers GET and POST only. Follow a link or use one of the editor's buttons.",
+                ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true)));
             return;
         }
 
-        if (context.Request.Method is not ("GET" or "POST") || !TryGetCommand(context, out string? command)) {
-            NoStore(context);
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        if (context.Request.Method == "POST" && context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                "editor.form_expired",
+                "The editor form expired",
+                "The form could not be verified, so nothing was saved. Use your browser's back button to return to your text, reload the editor, then save again.",
+                ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true)));
+            return;
+        }
+
+        (bool commandValid, string? command) = await ReadCommandAsync(context);
+        if (!commandValid || !IsAllowedCommand(context.Request.Method, command)) {
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                "editor.unknown_command",
+                "The editor could not tell what to do",
+                "That request did not name an editor action this page understands. Use one of the buttons on the editor page.",
+                [new("/edit", "Page list")]));
             return;
         }
 
@@ -42,7 +59,11 @@ internal sealed class EditorEndpoint {
 
         if (command == "new") {
             if (context.Request.Method != "POST" || !bareEditorPath) {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                    "editor.new_page",
+                    "That is not how a page is created",
+                    "Creating a page posts the new-page form from the page list. Open the page list and use \"Create or open\".",
+                    [new("/edit", "Page list")]));
                 return;
             }
 
@@ -51,8 +72,11 @@ internal sealed class EditorEndpoint {
         }
 
         if (bareEditorPath && (context.Request.Method == "POST" || command is not null)) {
-            NoStore(context);
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                "editor.needs_page",
+                "That action needs a page",
+                "The page list has no page to act on. Open the page list and choose a page, or create one with \"Create or open\".",
+                [new("/edit", "Page list")]));
             return;
         }
 
@@ -88,7 +112,11 @@ internal sealed class EditorEndpoint {
                 return;
             case "revision":
                 if (!TryGetRevisionHash(context, out string? hash)) {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                        "editor.revision_link",
+                        "That revision link is not valid",
+                        "A revision link needs a 64-character SHA-256 hash. Open the page history and choose a revision from the list.",
+                        [new(PageUrls.EditorCommand(path, "history"), "Back to history"), new(PageUrls.Editor(path), "Back to editor")]));
                     return;
                 }
                 await WriteRevisionAsync(context, pages, path, hash);
@@ -104,8 +132,11 @@ internal sealed class EditorEndpoint {
                 await WriteEditorAsync(context, pages, antiforgery, assistantEnabled, path);
                 return;
             default:
-                NoStore(context);
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                    "editor.unknown_command",
+                    "The editor could not tell what to do",
+                    "That request did not name an editor action this page understands. Use one of the buttons on the editor page.",
+                    [new(PageUrls.Editor(path), "Back to editor")]));
                 return;
         }
     }
@@ -179,24 +210,31 @@ internal sealed class EditorEndpoint {
         await ShellDocument.EndAsync(context);
     }
 
-    private static Task NewPageAsync(HttpContext context, ReservedPaths reserved) {
+    private static async Task NewPageAsync(HttpContext context, ReservedPaths reserved) {
         NoStore(context);
         if (!context.Request.HasFormContentType
             || !context.Request.Form.TryGetValue("path", out StringValues value)
             || value.Count != 1
             || string.IsNullOrWhiteSpace(value[0])) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            return Task.CompletedTask;
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                "editor.new_page_path",
+                "A page name is required",
+                "The new-page form needs a path, for example /notes/first. Nothing was created.",
+                [new("/edit", "Page list")]));
+            return;
         }
 
         PagePath path = PagePath.Normalize(value[0]);
         if (!path.IsAddressable || reserved.IsReserved(path)) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            return Task.CompletedTask;
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                "editor.new_page_path",
+                "That page name cannot be used",
+                $"{path} is not a page this site can create: it is either unreadable as a path or one the site answers for itself. Nothing was created.",
+                [new("/edit", "Page list")]));
+            return;
         }
 
         Redirect.SeeOther(context, PageUrls.Editor(path));
-        return Task.CompletedTask;
     }
 
     private static async Task WriteEditorAsync(HttpContext context, PageEditor pages, IAntiforgery antiforgery, bool assistantEnabled, PagePath path) {
@@ -222,8 +260,8 @@ internal sealed class EditorEndpoint {
         }
 
         List<NavLink> menu = [
-            new("/edit", "Page listing"),
-            new(PageUrls.Page(path), "Back to file"),
+            new("/edit", "Page list"),
+            new(PageUrls.Page(path), "View file"),
         ];
         if (assistantEnabled) {
             menu.Add(new("/assistant", "Assistant"));
@@ -251,7 +289,8 @@ internal sealed class EditorEndpoint {
                     <textarea name="template" id="template" rows="10" cols="50" wrap="off" spellcheck="false">
             {WebUtility.HtmlEncode(template)}</textarea>
                 </div>
-                <button type="submit">Save</button>
+                <button type="submit" name="cmd" value="save">Save</button>
+                <button type="submit" name="cmd" value="save-and-view">Save and view</button>
             </form>
             <form method="post" action="/logout">
                 {AntiforgeryField.Hidden(tokens)}
@@ -275,7 +314,7 @@ internal sealed class EditorEndpoint {
         await context.Response.WriteAsync("<p>Generated from the saved template by the current runtime; unsaved edits are not included.</p>");
         await context.Response.WriteAsync(PageLayout.Nav("Editor navigation", [
             new(PageUrls.Editor(path), "Back to editor"),
-            new("/edit", "Page listing"),
+            new("/edit", "Page list"),
         ], "editor-menu"));
         if (generated.Source is { } source) {
             await context.Response.WriteAsync($"<pre class=\"source\" tabindex=\"0\">{WebUtility.HtmlEncode(source.Text)}</pre>");
@@ -313,7 +352,7 @@ internal sealed class EditorEndpoint {
             return;
         }
         if (!head.IsDeleted) {
-            await WriteScrubRequiresDeletedPageAsync(context);
+            await WriteScrubRequiresDeletedPageAsync(context, path);
             return;
         }
 
@@ -338,18 +377,29 @@ internal sealed class EditorEndpoint {
         await ShellDocument.EndAsync(context);
     }
 
-    private static async Task WriteScrubRequiresDeletedPageAsync(HttpContext context) {
-        context.Response.StatusCode = StatusCodes.Status409Conflict;
-        context.Response.ContentType = "text/plain; charset=utf-8";
-        NoStore(context);
-        await context.Response.WriteAsync("Delete the page before scrubbing its history.");
-    }
+    private static Task WriteScrubRequiresDeletedPageAsync(HttpContext context, PagePath path) =>
+        WriteErrorAsync(context, StatusCodes.Status409Conflict, new ErrorMessage(
+            "editor.scrub_live_page",
+            "Delete the page before scrubbing its history",
+            $"Scrubbing removes the retained history of a deleted page, so {path.Key} has to be deleted first. Nothing was removed.",
+            [new(PageUrls.EditorCommand(path, "delete"), "Delete the page"), new("/edit", "Page list")]));
 
     private static async Task PostCommandAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, PagePath path, string? command) {
-        NoStore(context);
-        if (command is null) {
-            context.Session.SetString(MessageKey, await SaveAsync(context, pages, reserved, path));
+        if (command is null or "save") {
+            SaveOutcome saved = await SaveAsync(context, pages, reserved, path);
+            context.Session.SetString(MessageKey, saved.Message);
             Redirect.SeeOther(context, PageUrls.Editor(path));
+            return;
+        }
+
+        if (command == "save-and-view") {
+            SaveOutcome saved = await SaveAsync(context, pages, reserved, path);
+            // A page that did not compile cannot be shown; sending the author to a 500 would waste
+            // their time when the diagnostics they need are on the editor they just left.
+            context.Session.SetString(MessageKey, saved.Viewable
+                ? saved.Message
+                : saved.Message + " The page cannot be shown until the errors are fixed.");
+            Redirect.SeeOther(context, saved.Viewable ? PageUrls.Page(path) : PageUrls.Editor(path));
             return;
         }
 
@@ -370,7 +420,11 @@ internal sealed class EditorEndpoint {
             return;
         }
 
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            "editor.unknown_command",
+            "The editor could not tell what to do",
+            "That request did not name an editor action this page understands. Use one of the buttons on the editor page.",
+            [new(PageUrls.Editor(path), "Back to editor")]));
     }
 
     private static async Task ScrubAsync(HttpContext context, PageEditor pages, PagePath path) {
@@ -378,7 +432,11 @@ internal sealed class EditorEndpoint {
             || !context.Request.Form.TryGetValue("confirmation", out StringValues confirmation)
             || confirmation.Count != 1
             || !string.Equals(confirmation[0], path.Key, StringComparison.Ordinal)) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                "editor.scrub_confirmation",
+                "Scrub was not confirmed",
+                $"The confirmation did not match {path.Key}, so nothing was removed. Type the page's key exactly to confirm.",
+                [new(PageUrls.EditorCommand(path, "scrub"), "Back to confirmation")]));
             return;
         }
 
@@ -389,7 +447,7 @@ internal sealed class EditorEndpoint {
                 return;
             }
             if (!head.IsDeleted) {
-                await WriteScrubRequiresDeletedPageAsync(context);
+                await WriteScrubRequiresDeletedPageAsync(context, path);
                 return;
             }
 
@@ -399,7 +457,7 @@ internal sealed class EditorEndpoint {
                 if (currentHead is null) {
                     await NotFound.WriteAsync(context, path);
                 } else {
-                    await WriteScrubRequiresDeletedPageAsync(context);
+                    await WriteScrubRequiresDeletedPageAsync(context, path);
                 }
                 return;
             }
@@ -416,7 +474,7 @@ internal sealed class EditorEndpoint {
             await ShellDocument.BeginAsync(context, "Scrub incomplete", StatusCodes.Status503ServiceUnavailable);
             await context.Response.WriteAsync("<h1>Scrub cleanup did not complete</h1>");
             await context.Response.WriteAsync("<p>Check the deleted pages list; if the page remains there, scrub it again. It may already have been logically removed.</p>");
-            await context.Response.WriteAsync(PageLayout.Nav("Recovery navigation", [new("/edit", "Page listing")], "editor-menu"));
+            await context.Response.WriteAsync(PageLayout.Nav("Recovery navigation", [new("/edit", "Page list")], "editor-menu"));
             await ShellDocument.EndAsync(context);
         }
     }
@@ -435,23 +493,55 @@ internal sealed class EditorEndpoint {
         }
     }
 
-    private static bool TryGetCommand(HttpContext context, out string? command) {
-        command = null;
-        if (!context.Request.Query.TryGetValue("cmd", out StringValues values)) {
-            return true;
+    // A command arrives one of two ways: in the query for a link, or in the form for a submit
+    // button. Both are read so either a link or a button can name the action; when both name one
+    // and they disagree the request is ambiguous rather than guessed at.
+    private static async Task<(bool Valid, string? Command)> ReadCommandAsync(HttpContext context) {
+        bool found = false;
+        string? command = null;
+
+        if (context.Request.Query.TryGetValue("cmd", out StringValues queryValues)) {
+            if (!TrySingleCommand(queryValues, out command)) {
+                return (false, null);
+            }
+            found = true;
         }
 
-        if (values.Count != 1 || string.IsNullOrWhiteSpace(values[0])) {
-            return false;
+        if (context.Request.HasFormContentType) {
+            IFormCollection form;
+            try {
+                form = await context.Request.ReadFormAsync(context.RequestAborted);
+            } catch (InvalidDataException) {
+                return (false, null);
+            }
+
+            if (form.TryGetValue("cmd", out StringValues formValues)) {
+                if (!TrySingleCommand(formValues, out string? formCommand)) {
+                    return (false, null);
+                }
+                if (found && !string.Equals(command, formCommand, StringComparison.Ordinal)) {
+                    return (false, null);
+                }
+                command = formCommand;
+                found = true;
+            }
         }
 
-        command = values[0];
-        return context.Request.Method switch {
-            "GET" => command is "generated" or "history" or "revision" or "delete" or "scrub",
-            "POST" => command is "new" or "delete" or "scrub",
-            _ => false,
-        };
+        return (true, found ? command : null);
     }
+
+    private static bool TrySingleCommand(StringValues values, out string? command) {
+        command = values.Count == 1 && !string.IsNullOrWhiteSpace(values[0]) ? values[0] : null;
+        return command is not null;
+    }
+
+    // A command missing from a POST is a save: that is what the editor's form means, and it is what
+    // a browser sends for an implicit submission (the Enter key) that names no button.
+    private static bool IsAllowedCommand(string method, string? command) => method switch {
+        "GET" => command is null or "generated" or "history" or "revision" or "delete" or "scrub",
+        "POST" => command is null or "save" or "save-and-view" or "new" or "delete" or "scrub",
+        _ => false,
+    };
 
     private static bool TryGetRevisionHash(HttpContext context, out string hash) {
         hash = string.Empty;
@@ -466,26 +556,32 @@ internal sealed class EditorEndpoint {
         return true;
     }
 
-    private static async Task<string> SaveAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, PagePath path) {
+    private static async Task<SaveOutcome> SaveAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, PagePath path) {
         if (reserved.IsReserved(path)) {
-            return $"{path.Key} is reserved by the site.";
+            return new SaveOutcome($"{path.Key} is reserved by the site.", Viewable: false);
         }
 
-        if (!context.Request.Form.TryGetValue("template", out StringValues template)) {
-            return "A template is required.";
+        if (!context.Request.HasFormContentType
+            || !context.Request.Form.TryGetValue("template", out StringValues template)) {
+            return new SaveOutcome("A template is required.", Viewable: false);
         }
 
         if (template.Count != 1) {
-            return "The template must have exactly one value.";
+            return new SaveOutcome("The template must have exactly one value.", Viewable: false);
         }
 
         IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(path, template.ToString(), context.RequestAborted);
         return diagnostics switch {
-            { Count: 0 } => "Saved successfully.",
-            _ when diagnostics.Any(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error) => "Saved with errors.",
-            _ => "Saved with warnings.",
+            { Count: 0 } => new SaveOutcome("Saved successfully.", Viewable: true),
+            _ when diagnostics.Any(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error) => new SaveOutcome("Saved with errors.", Viewable: false),
+            _ => new SaveOutcome("Saved with warnings.", Viewable: true),
         };
     }
+
+    private static Task WriteErrorAsync(HttpContext context, int statusCode, ErrorMessage message) =>
+        ErrorResponses.WriteAsync(context, statusCode, message, context.RequestAborted);
+
+    private readonly record struct SaveOutcome(string Message, bool Viewable);
 
     private static async Task WriteHistoryAsync(HttpContext context, PageEditor pages, PagePath path) {
         PageHeadSummary? head = await pages.GetHeadAsync(path, context.RequestAborted);
@@ -502,7 +598,7 @@ internal sealed class EditorEndpoint {
         }
         await context.Response.WriteAsync(PageLayout.Nav("Editor navigation", [
             new(PageUrls.Editor(path), "Back to editor"),
-            new("/edit", "Page listing"),
+            new("/edit", "Page list"),
         ], "editor-menu"));
         if (revisions.Count == 0) {
             await context.Response.WriteAsync("<p>No saved revisions.</p>");

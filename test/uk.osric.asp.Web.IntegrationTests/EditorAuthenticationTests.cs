@@ -89,14 +89,18 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
     }
 
     [Test]
-    public async Task LoginWithoutAntiforgeryReturns400() {
+    public async Task LoginWithoutAntiforgeryRendersTheFormAgainAsync() {
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.PostAsync("/login", Form(
             ("username", UserName),
             ("password", Password)));
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        string body = await response.Content.ReadAsStringAsync();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
+        Assert.That(body, Does.Contain("The sign-in form expired"));
+        Assert.That(body, Does.Contain("name=\"__RequestVerificationToken\""), "the replacement form needs a fresh token");
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }
 

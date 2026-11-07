@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
+using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Users;
 
 /// <summary>Registers the editor's local-account authentication and its protections.</summary>
@@ -44,22 +45,27 @@ internal static class AuthenticationExtensions {
                 options.ExpireTimeSpan = LongTermWindow;
                 options.SlidingExpiration = true;
 
-                options.Events.OnRedirectToLogin = context => {
+                options.Events.OnRedirectToLogin = async context => {
                     context.Response.Headers.CacheControl = "no-store";
                     if (context.Request.Path.Value?.EndsWith("/events", StringComparison.Ordinal) == true
                         && context.Request.Path.StartsWithSegments("/assistant")) {
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        return Task.CompletedTask;
+                        // The event stream is read by a script, so its refusal is a document it can parse.
+                        await ErrorResponses.WriteJsonAsync(
+                            context.HttpContext,
+                            StatusCodes.Status401Unauthorized,
+                            ErrorMessage.ForStatus(StatusCodes.Status401Unauthorized, isAuthenticated: false));
+                        return;
                     }
                     context.Response.Redirect(context.RedirectUri);
-                    return Task.CompletedTask;
                 };
 
-                // An authorised account that is no longer valid is a 403, not a redirect loop.
-                options.Events.OnRedirectToAccessDenied = context => {
+                // An authorised account that is no longer valid is a page, not a redirect loop.
+                options.Events.OnRedirectToAccessDenied = async context => {
                     context.Response.Headers.CacheControl = "no-store";
-                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    return Task.CompletedTask;
+                    await ErrorResponses.WriteAsync(
+                        context.HttpContext,
+                        StatusCodes.Status403Forbidden,
+                        ErrorMessage.ForStatus(StatusCodes.Status403Forbidden, isAuthenticated: true));
                 };
 
                 // Long-lived cookies need revocation: a password change or a removed account rotates
@@ -143,7 +149,10 @@ internal static class AuthenticationExtensions {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = (context, _) => {
                 context.HttpContext.Response.Headers.CacheControl = "no-store";
-                return ValueTask.CompletedTask;
+                return new ValueTask(ErrorResponses.WriteAsync(
+                    context.HttpContext,
+                    StatusCodes.Status429TooManyRequests,
+                    ErrorMessage.ForStatus(429, context.HttpContext.User.Identity?.IsAuthenticated == true)));
             };
 
             options.AddPolicy(LoginRateLimitPolicy.Name, context => {

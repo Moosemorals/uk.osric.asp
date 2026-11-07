@@ -238,8 +238,8 @@ public sealed class EditorEndpointTests {
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain(string.Concat(
             "<nav class=\"editor-menu\" aria-label=\"Editor navigation\">",
-            "<a href=\"/edit\">Page listing</a> ",
-            "<a href=\"/page.cs\">Back to file</a> ",
+            "<a href=\"/edit\">Page list</a> ",
+            "<a href=\"/page.cs\">View file</a> ",
             "<a href=\"/edit/page.cs?cmd=generated\">Generated C#</a> ",
             "<a href=\"/edit/page.cs?cmd=history\">History</a> ",
             "<a href=\"/edit/page.cs?cmd=delete\">Delete</a></nav>")));
@@ -424,7 +424,8 @@ public sealed class EditorEndpointTests {
         await EditorEndpoint.HandleAsync(post, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(confirmation.Response.StatusCode, Is.EqualTo(409));
-        Assert.That(await TestHttp.ReadBodyAsync(confirmation), Does.Contain("Delete the page before scrubbing its history."));
+        Assert.That(confirmation.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
+        Assert.That(await TestHttp.ReadBodyAsync(confirmation), Does.Contain("Delete the page before scrubbing its history").And.Contain("has to be deleted first"));
         Assert.That(post.Response.StatusCode, Is.EqualTo(409));
         PageHeadSummary? head = await storage.GetHeadAsync(PagePath.Normalize("/page.cs"));
         Assert.That(head?.IsDeleted, Is.False);
@@ -489,6 +490,65 @@ public sealed class EditorEndpointTests {
         Assert.That(storage.ReadCount, Is.Zero);
         AssertRedirect(context, "Saved successfully.");
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
+    }
+
+    [Test]
+    public async Task SaveAndViewRedirectsToTheSavedPageAsync() {
+        DefaultHttpContext context = CreateContext("POST");
+        SetFields(context, ("template", "Hello."), ("cmd", "save-and-view"));
+        FakePageStore storage = new();
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/page.cs"));
+        Assert.That(Session(context).GetString(EditorEndpoint.MessageKey), Is.EqualTo("Saved successfully."));
+        Assert.That(storage["/page.cs"]?.Template, Is.EqualTo("Hello."));
+    }
+
+    [Test]
+    public async Task SaveAndViewStaysOnTheEditorWhenThePageHasErrorsAsync() {
+        DefaultHttpContext context = CreateContext("POST");
+        SetFields(context, ("template", "<% int value = ; %>"), ("cmd", "save-and-view"));
+        FakePageStore storage = new();
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        // The page cannot be rendered, so sending the author there would hide the diagnostics
+        // behind the error page they would find instead.
+        Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/page.cs"));
+        Assert.That(Session(context).GetString(EditorEndpoint.MessageKey),
+            Is.EqualTo("Saved with errors. The page cannot be shown until the errors are fixed."));
+        Assert.That(storage["/page.cs"]?.Template, Is.EqualTo("<% int value = ; %>"));
+    }
+
+    [Test]
+    public async Task ACommandInBothTheFormAndTheQueryMustAgreeAsync() {
+        DefaultHttpContext context = CreateContext("POST");
+        context.Request.QueryString = new QueryString("?cmd=delete");
+        SetFields(context, ("template", "Hello."), ("cmd", "save-and-view"));
+        FakePageStore storage = new();
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
+        Assert.That(storage.WriteCount, Is.Zero);
+    }
+
+    [Test]
+    public async Task AnUnknownFormCommandIsAnHtmlBadRequestAsync() {
+        DefaultHttpContext context = CreateContext("POST");
+        SetFields(context, ("template", "Hello."), ("cmd", "publish"));
+        FakePageStore storage = new();
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("did not name an editor action"));
+        Assert.That(storage.WriteCount, Is.Zero);
     }
 
     [Test]
@@ -593,7 +653,8 @@ public sealed class EditorEndpointTests {
         await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
-        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("/hello?world not found."));
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("/hello?world not found."));
         Assert.That(storage.ReadCount, Is.Zero);
         Assert.That(storage.WriteCount, Is.Zero);
     }
@@ -774,6 +835,11 @@ public sealed class EditorEndpointTests {
 
     private static void SetTemplate(DefaultHttpContext context, StringValues template) {
         SetField(context, "template", template);
+    }
+
+    private static void SetFields(DefaultHttpContext context, params (string Name, StringValues Value)[] fields) {
+        context.Request.ContentType = "application/x-www-form-urlencoded";
+        context.Request.Form = new FormCollection(fields.ToDictionary(field => field.Name, field => field.Value));
     }
 
     private static void SetField(DefaultHttpContext context, string name, StringValues value) {

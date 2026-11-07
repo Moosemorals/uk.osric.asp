@@ -31,7 +31,8 @@ public sealed class RenderBudgetTests : IntegrationTest {
         using HttpResponseMessage slow = await client.GetAsync("/slow");
 
         Assert.That(slow.StatusCode, Is.EqualTo(HttpStatusCode.GatewayTimeout));
-        Assert.That(await slow.Content.ReadAsStringAsync(), Is.EqualTo("/slow is taking too long."));
+        Assert.That(slow.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
+        Assert.That(await slow.Content.ReadAsStringAsync(), Does.Contain("/slow is taking too long."));
 
         using HttpResponseMessage hello = await client.GetAsync("/hello");
         Assert.That(hello.StatusCode, Is.EqualTo(HttpStatusCode.OK),

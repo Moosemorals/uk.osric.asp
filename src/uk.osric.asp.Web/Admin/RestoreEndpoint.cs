@@ -8,6 +8,7 @@ using Microsoft.Extensions.Primitives;
 using System.Net;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Editor;
+using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
@@ -17,8 +18,11 @@ internal static class RestoreEndpoint {
 
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
         if (!TryGetPath(context.Request.Query["path"], out PagePath path)) {
-            context.Response.Headers.CacheControl = "no-store";
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                "admin.restore_path",
+                "That restore link is missing its page",
+                "A restore link has to name the page it restores. Nothing was restored.",
+                [new("/admin", "Back to seeded pages")]));
             return;
         }
 
@@ -41,14 +45,14 @@ internal static class RestoreEndpoint {
         context.Response.Headers.CacheControl = "no-store";
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }
             || !context.Request.HasFormContentType) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteFormErrorAsync(context);
             return;
         }
 
         IFormCollection form = await context.Request.ReadFormAsync(context.RequestAborted);
         if (!form.TryGetValue("path", out StringValues pathValues)
             || !TryGetPath(pathValues, out PagePath path)) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteFormErrorAsync(context);
             return;
         }
 
@@ -67,6 +71,13 @@ internal static class RestoreEndpoint {
         context.Session.SetString(EditorEndpoint.MessageKey, "Restored the bundled version.");
         Redirect.SeeOther(context, PageUrls.Editor(path));
     }
+
+    private static Task WriteFormErrorAsync(HttpContext context) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            "admin.restore_form",
+            "The restore form could not be used",
+            "The form expired, or it did not name a page. Nothing was restored. Go back to the seeded pages and try again.",
+            [new("/admin", "Back to seeded pages")]));
 
     private static bool TryGetPath(StringValues values, out PagePath path) {
         path = PagePath.Normalize(null);
@@ -98,7 +109,7 @@ internal static class RestoreEndpoint {
             """);
         await context.Response.WriteAsync(PageLayout.Nav("Admin navigation", [
             new(PageUrls.Editor(path), "Cancel and return to editor"),
-            new("/edit", "Page listing"),
+            new("/edit", "Page list"),
         ], "editor-menu"));
         await ShellDocument.EndAsync(context);
     }

@@ -22,6 +22,7 @@ public sealed class ErrorHandlingTests : IntegrationTest {
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
         Assert.That(body, Does.Contain("Something went wrong").And.Contain("An unexpected error occurred."));
+        Assert.That(body, Does.Contain("Error code: <code>server.error</code>"));
         Assert.That(body, Does.Not.Contain("href=\"/edit/throw\""));
         Assert.That(body, Does.Not.Contain("Boom."), "the exception message must not leak to the client");
     }
@@ -87,6 +88,6 @@ public sealed class ErrorHandlingTests : IntegrationTest {
         HttpResponseMessage response = await client.GetAsync("/error");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("/error not found."));
+        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("/error not found."));
     }
 }

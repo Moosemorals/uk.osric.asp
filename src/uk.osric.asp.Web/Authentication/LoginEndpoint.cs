@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using System.Net;
 using System.Security.Claims;
+using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Users;
@@ -44,8 +45,7 @@ internal static class LoginEndpoint {
         IAuthenticationService authentication) {
 
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false } || !context.Request.HasFormContentType) {
-            NoStore(context);
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteExpiredFormAsync(context, antiforgery);
             return;
         }
 
@@ -86,7 +86,11 @@ internal static class LoginEndpoint {
     public static async Task LogoutAsync(HttpContext context, IAuthenticationService authentication) {
         context.Response.Headers.CacheControl = "no-store";
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                "auth.logout_expired",
+                "Sign-out did not complete",
+                "The sign-out form could not be verified, so you are still signed in. Go back to the page you came from and sign out again.",
+                ErrorMessage.DefaultRemedies(isAuthenticated: true)));
             return;
         }
 
@@ -96,6 +100,26 @@ internal static class LoginEndpoint {
             new AuthenticationProperties());
 
         Redirect.SeeOther(context, "/");
+    }
+
+    /// <summary>Re-renders the sign-in form after its token was rejected, with a fresh token.</summary>
+    /// <param name="context">The rejected sign-in POST.</param>
+    /// <param name="antiforgery">Mints the replacement token.</param>
+    /// <remarks>
+    /// A stale token can be answered before the endpoint runs, so the host's status-code fallback
+    /// calls this too: a form that expired is a problem we can fix for the reader, not one to report
+    /// at them.
+    /// </remarks>
+    public static Task WriteExpiredFormAsync(HttpContext context, IAntiforgery antiforgery) {
+        NoStore(context);
+
+        return WriteFormAsync(
+            context,
+            antiforgery,
+            returnUrl: null,
+            userName: null,
+            rememberMe: true,
+            error: "The sign-in form expired before it was submitted. Please sign in again.");
     }
 
     private static void NoStore(HttpContext context) => context.Response.Headers.CacheControl = "no-store";

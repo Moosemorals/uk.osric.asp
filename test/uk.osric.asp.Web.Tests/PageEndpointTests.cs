@@ -51,8 +51,8 @@ public sealed class PageEndpointTests {
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
-        Assert.That(context.Response.ContentType, Is.EqualTo("text/plain; charset=utf-8"));
-        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo($"{expectedKey} not found."));
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain($"{expectedKey} not found."));
         Assert.That(storage.LastReadPath?.Key, Is.EqualTo(expectedKey));
     }
 
@@ -91,7 +91,7 @@ public sealed class PageEndpointTests {
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
         Assert.That(context.Response.Headers.Location, Is.Empty);
-        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo($"{PagePath.Normalize(path)} not found."));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain($"{PagePath.Normalize(path)} not found."));
         Assert.That(storage.ReadCount, Is.Zero);
     }
 
@@ -258,7 +258,7 @@ public sealed class PageEndpointTests {
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
-        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("/favicon.ico not found."));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("/favicon.ico not found."));
         Assert.That(storage.ReadCount, Is.Zero);
     }
 
@@ -410,8 +410,8 @@ public sealed class PageEndpointTests {
         await PageEndpoint.HandleAsync(context, CreatePages(storage, options), NullLoggerFactory.Instance, EndpointEnvironment(options));
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(504));
-        Assert.That(context.Response.ContentType, Is.EqualTo("text/plain; charset=utf-8"));
-        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("/slow.cs is taking too long."));
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("/slow.cs is taking too long."));
         Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1.4)));
     }
 

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Primitives;
 using System.Net;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Editor;
+using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
@@ -34,7 +35,7 @@ internal static class SeedsEndpoint {
             "<p>Restoring replaces the live page with the version bundled with this release. "
             + "Revision history is retained; a page that already matches its seed offers no restore.</p>");
         await context.Response.WriteAsync(PageLayout.Nav("Admin navigation", [
-            new("/edit", "Page listing"),
+            new("/edit", "Page list"),
         ], "editor-menu"));
         if (rows.Exists(row => row.NeedsRestore)) {
             await context.Response.WriteAsync($"""
@@ -73,7 +74,7 @@ internal static class SeedsEndpoint {
     }
 
     public static async Task RestoreAsync(HttpContext context, PageEditor pages) {
-        if (!CanReadPost(context)) {
+        if (!await CanReadPostAsync(context)) {
             return;
         }
 
@@ -81,7 +82,7 @@ internal static class SeedsEndpoint {
         if (!form.TryGetValue("path", out StringValues pathValues)
             || !TryGetPath(pathValues, out PagePath path)
             || !path.IsAddressable) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteRestoreFormErrorAsync(context);
             return;
         }
 
@@ -99,7 +100,7 @@ internal static class SeedsEndpoint {
     }
 
     public static async Task RestoreAllAsync(HttpContext context, PageEditor pages) {
-        if (!CanReadPost(context)) {
+        if (!await CanReadPostAsync(context)) {
             return;
         }
 
@@ -160,16 +161,25 @@ internal static class SeedsEndpoint {
         return true;
     }
 
-    private static bool CanReadPost(HttpContext context) {
+    // An unverified POST may be answered before this endpoint runs, so it writes the same answer
+    // the host's status-code fallback gives: a page that says the form expired and nothing changed.
+    private static async Task<bool> CanReadPostAsync(HttpContext context) {
         context.Response.Headers.CacheControl = "no-store";
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }
             || !context.Request.HasFormContentType) {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteRestoreFormErrorAsync(context);
             return false;
         }
 
         return true;
     }
+
+    private static Task WriteRestoreFormErrorAsync(HttpContext context) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            "admin.restore_form",
+            "The restore form could not be used",
+            "The form expired, or it did not name a page. Nothing was restored. Reload the seeded pages and try again.",
+            [new("/admin", "Back to seeded pages")]));
 
     private static bool TryGetPath(StringValues values, out PagePath path) {
         path = PagePath.Normalize(null);

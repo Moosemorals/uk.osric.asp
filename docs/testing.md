@@ -44,11 +44,11 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   scripted provider to verify disabled routing, conversation streaming, approval gating and writes.
   No suite contacts a real model provider.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
-  `ShellViews` renders all nineteen shell views once each — the sign-in form and its failure, the
+  `ShellViews` renders all twenty shell views once each — the sign-in form and its failure, the
   listing, the seeded-page admin, the editor clean and with diagnostics, history, a saved revision,
   generated source, the delete confirmation, the restore confirmation, status, the error page, the
-  error page with details, the compile failure, and the assistant list, chat, reasoning chat, and
-  delete confirmation — and `AccessibilityTests` applies eleven shared rules to every document: one
+  error page with details, a not-found page, the compile failure, and the assistant list, chat,
+  reasoning chat, and delete confirmation — and `AccessibilityTests` applies eleven shared rules to every document: one
   `main`, one `h1`, no skipped heading level, a distinct name on every `nav`, `scope` on every `th`, a
   label on every control, every `form.form` field in its `dd` with its label in a `dt` (or a
   textarea's label in a fieldset legend), no role that repeats an implicit one (bar the documented

@@ -171,6 +171,42 @@ public sealed class EditorEndpointTests : IntegrationTest {
     }
 
     [Test]
+    public async Task SaveAndViewSavesTheSourceAndLandsOnThePageAsync() {
+        await SavePageAsync("/hello", "Hello.");
+        using HttpClient client = await CreateSignedInClientAsync();
+        string token = await GetAntiforgeryTokenAsync(client, "/edit/hello");
+
+        HttpResponseMessage save = await client.PostAsync("/edit/hello", Form(
+            ("__RequestVerificationToken", token),
+            ("template", "Hello, world!"),
+            ("cmd", "save-and-view")));
+
+        Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(save.Headers.Location?.ToString(), Is.EqualTo("/hello"));
+
+        using HttpResponseMessage page = await client.GetAsync("/hello");
+        Assert.That(await page.Content.ReadAsStringAsync(), Is.EqualTo("Hello, world!"));
+    }
+
+    [Test]
+    public async Task SaveAndViewKeepsTheAuthorOnTheEditorWhenThePageDoesNotCompileAsync() {
+        await SavePageAsync("/broken", "fine");
+        using HttpClient client = await CreateSignedInClientAsync();
+        string token = await GetAntiforgeryTokenAsync(client, "/edit/broken");
+
+        HttpResponseMessage save = await client.PostAsync("/edit/broken", Form(
+            ("__RequestVerificationToken", token),
+            ("template", "<% int value = ; %>"),
+            ("cmd", "save-and-view")));
+
+        Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(save.Headers.Location?.ToString(), Is.EqualTo("/edit/broken"));
+
+        string editor = await (await client.GetAsync("/edit/broken")).Content.ReadAsStringAsync();
+        Assert.That(editor, Does.Contain("The page cannot be shown until the errors are fixed."));
+    }
+
+    [Test]
     public async Task ScrubRequiresExactTypedPathAndRemovesThePage() {
         await SavePageAsync("/private", "private source");
         using HttpClient client = await CreateSignedInClientAsync();
@@ -182,7 +218,7 @@ public sealed class EditorEndpointTests : IntegrationTest {
             ("confirmation", "/private")));
 
         Assert.That(liveConfirmation.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
-        Assert.That(await liveConfirmation.Content.ReadAsStringAsync(), Does.Contain("Delete the page before scrubbing its history."));
+        Assert.That(await liveConfirmation.Content.ReadAsStringAsync(), Does.Contain("Delete the page before scrubbing its history"));
         Assert.That(liveScrub.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
         Assert.That(await ReadPageAsync("/private"), Is.Not.Null);
 
@@ -272,11 +308,13 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(body, Does.Contain(">\nHello, world!</textarea>"));
         Assert.That(body, Does.Contain("?cmd=history"));
         Assert.That(body, Does.Contain(
-            "<nav class=\"editor-menu\" aria-label=\"Editor navigation\"><a href=\"/edit\">Page listing</a>"
-            + " <a href=\"/hello\">Back to file</a>"
+            "<nav class=\"editor-menu\" aria-label=\"Editor navigation\"><a href=\"/edit\">Page list</a>"
+            + " <a href=\"/hello\">View file</a>"
             + " <a href=\"/edit/hello?cmd=generated\">Generated C#</a>"
             + " <a href=\"/edit/hello?cmd=history\">History</a>"
             + " <a href=\"/edit/hello?cmd=delete\">Delete</a></nav>"));
+        Assert.That(body, Does.Contain("<button type=\"submit\" name=\"cmd\" value=\"save\">Save</button>"));
+        Assert.That(body, Does.Contain("<button type=\"submit\" name=\"cmd\" value=\"save-and-view\">Save and view</button>"));
         Assert.That(body, Does.Not.Contain("?cmd=scrub"));
         Assert.That(body, Does.Contain("name=\"__RequestVerificationToken\""));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);

@@ -227,8 +227,34 @@ internal class Program {
             app.UseHsts();
         }
 
-        app.UseSession();
+        // The guarantee that nobody gets a blank body: an endpoint, the framework, a routing 404/405
+        // or the rate limiter can all answer with a status and nothing else, and this turns that into
+        // a document a person can read or a problem document a program can parse. A response that
+        // already carries a body, a content type or a length is left alone, so nothing is written twice.
+        app.UseStatusCodePages(async statusContext => {
+            HttpContext failed = statusContext.HttpContext;
 
+            // A rejected sign-in form is recoverable: show the form again with a fresh token rather
+            // than a page describing a dead end. Every other unclaimed status gets the mapped page.
+            if (failed.Response.StatusCode == StatusCodes.Status400BadRequest
+                && HttpMethods.IsPost(failed.Request.Method)
+                && failed.Request.Path.StartsWithSegments("/login")) {
+                await LoginEndpoint.WriteExpiredFormAsync(
+                    failed,
+                    failed.RequestServices.GetRequiredService<IAntiforgery>());
+                return;
+            }
+
+            bool isAuthenticated = failed.User.Identity?.IsAuthenticated == true;
+            ErrorMessage message = failed.Response.StatusCode == StatusCodes.Status400BadRequest
+                && HttpMethods.IsPost(failed.Request.Method)
+                    ? ErrorMessage.FormExpired(isAuthenticated)
+                    : ErrorMessage.ForStatus(failed.Response.StatusCode, isAuthenticated);
+
+            await ErrorResponses.WriteAsync(failed, failed.Response.StatusCode, message);
+        });
+
+        app.UseSession();
         // Order matters: routing first, so the limiter and identity read endpoint metadata, then
         // authorization, then the antiforgery check that guards the safe verbs.
         app.UseRouting();
@@ -311,8 +337,15 @@ internal class Program {
     }
 
     private static Task AssistantDisabled(HttpContext context) {
-        context.Response.Headers.CacheControl = "no-store";
-        context.Response.StatusCode = StatusCodes.Status404NotFound;
-        return Task.CompletedTask;
+        bool isAuthenticated = context.User.Identity?.IsAuthenticated == true;
+        ErrorMessage message = new(
+            "assistant.disabled",
+            "The assistant is not available",
+            isAuthenticated
+                ? "The assistant is turned off on this site. Turn it on with Assistant:Enabled in configuration, then restart."
+                : "The assistant is turned off on this site.",
+            ErrorMessage.DefaultRemedies(isAuthenticated));
+
+        return ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, message);
     }
 }

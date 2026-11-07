@@ -164,8 +164,9 @@ headers, so a page cannot preserve a stale one after an edit.
 
 Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
 over 1 MiB is refused with 413 before it is read. A page that outruns its execution budget is answered
-`504` with no body — see "Page execution budget" below. Keys the site's own routes answer for are listed
-in `Pages:ReservedPaths`, refused by the editor and never served.
+`504` with the same document every other failure uses — see "Error responses" below and "Page
+execution budget" for the deadline itself. Keys the site's own routes answer for are listed in
+`Pages:ReservedPaths`, refused by the editor and never served.
 
 ## The document shell
 
@@ -196,6 +197,33 @@ drift apart from one view to the next.
 Every one of these views is rendered once by `ShellViews` and checked against the shared accessibility
 rules — see [testing](testing.md#the-five-suites) — with what a string cannot
 prove left to a recorded hand pass (DEC-110).
+
+## Error responses
+
+No person is handed an empty body, and no program is handed a document it cannot parse. One writer,
+`Errors/ErrorResponses.cs`, takes an `ErrorMessage` — a stable `Code`, a `Title`, a plain-language
+`Summary` and the `Remedies` that lead somewhere useful — and writes it for the audience the request
+named: a browser gets the document shell with a heading, the explanation, a recovery nav, the error
+code and the reference id; a request that accepts JSON without HTML gets an RFC 9457 problem document at
+`application/problem+json`, with the code as an extension member. `ErrorAudience` makes that choice
+from `Accept` alone; a request that names neither is treated as a browser, because a person who gets a
+document can still read it.
+
+Three layers keep the promise:
+
+- Call sites that know the problem say it. `NotFound` keeps `"{key} not found."` and adds a
+  "Create this page" link for a signed-in owner; the editor names an unknown action instead of
+  stopping at a status.
+- `UseStatusCodePages` is the guarantee. An endpoint, the framework, a routing 404/405, a rejected
+  antiforgery token or the rate limiter can all answer with a status and nothing else; the fallback
+  turns that into `ErrorMessage.ForStatus`, or `ErrorMessage.FormExpired` for a refused POST, and
+  writes nothing when a body, content type or length is already present.
+- Where the failure is recoverable, the host recovers and says so. A rejected sign-in form is
+  re-rendered with a fresh token rather than reported, and a "Save and view" whose save has compile
+  errors returns the author to the editor with the diagnostics instead of a page that cannot render.
+
+`ErrorEndpoint` keeps the exception path: a 500 is the same document, with stack detail only for a
+signed-in owner, and a problem document when the request wanted JSON.
 
 ## AI page assistant
 

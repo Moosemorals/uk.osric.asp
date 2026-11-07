@@ -33,6 +33,24 @@ public sealed class AssistantOptionsTests : IntegrationTest {
     }
 
     [Test]
+    public async Task AnUnknownRunOnTheEventStreamIsAProblemDocumentAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        string conversation = await CreateConversationAsync(client);
+        using HttpRequestMessage request = new(HttpMethod.Get, conversation + "/events?run=missing");
+        request.Headers.Accept.ParseAdd("text/event-stream");
+
+        using HttpResponseMessage response = await client.SendAsync(request);
+        string body = await response.Content.ReadAsStringAsync();
+
+        // The stream's client speaks JSON, so its refusal is a problem document even though the
+        // successful response is an event stream.
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/problem+json"));
+        Assert.That(body, Does.Contain("\"code\":\"assistant.run_not_found\""));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
+    }
+
+    [Test]
     public async Task PageSubmitRedirectsBackToTheConversationAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
         string conversation = await CreateConversationAsync(client);

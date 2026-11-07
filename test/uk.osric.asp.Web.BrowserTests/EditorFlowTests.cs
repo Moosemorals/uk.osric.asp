@@ -35,6 +35,18 @@ internal sealed class EditorFlowTests : BrowserTest {
     }
 
     [Test]
+    public async Task SaveAndViewLandsOnTheSavedPageAsync() {
+        string path = UniquePath("save-and-view");
+
+        await Page.GotoAsync($"edit/{path.TrimStart('/')}");
+        await Page.FillAsync("#template", "<h1>Saved and shown</h1>");
+        await Page.ClickAsync("button[name=cmd][value=save-and-view]");
+
+        await Page.WaitForURLAsync($"**/{path.TrimStart('/')}");
+        await Assertions.Expect(Page.Locator("h1")).ToHaveTextAsync("Saved and shown");
+    }
+
+    [Test]
     public async Task SavingTwiceListsBothRevisionsInHistoryAsync() {
         string path = UniquePath("history");
 

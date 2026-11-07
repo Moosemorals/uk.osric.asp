@@ -9,6 +9,7 @@ using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 
@@ -161,23 +162,26 @@ internal sealed class PageEndpoint() {
         await ShellDocument.EndAsync(context);
     }
 
-    private static async Task WriteTimeoutAsync(HttpContext context, PagePath path) {
-        context.Response.StatusCode = StatusCodes.Status504GatewayTimeout;
-        context.Response.ContentType = "text/plain; charset=utf-8";
-        await context.Response.WriteAsync($"{path} is taking too long.");
-    }
+    private static Task WriteTimeoutAsync(HttpContext context, PagePath path) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status504GatewayTimeout, new ErrorMessage(
+            "page.timeout",
+            "The page took too long",
+            $"{path} is taking too long.",
+            ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true)));
 
-    private static async Task WriteBadRequestAsync(HttpContext context, PagePath path) {
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
-        context.Response.ContentType = "text/plain; charset=utf-8";
-        await context.Response.WriteAsync($"{path} rejected: the form could not be read.");
-    }
+    private static Task WriteBadRequestAsync(HttpContext context, PagePath path) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            "page.form_unreadable",
+            "The form could not be read",
+            $"{path} rejected: the form could not be read.",
+            ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true)));
 
-    private static async Task WriteTooLargeAsync(HttpContext context, PagePath path) {
-        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
-        context.Response.ContentType = "text/plain; charset=utf-8";
-        await context.Response.WriteAsync($"{path} rejected: the request body is too large.");
-    }
+    private static Task WriteTooLargeAsync(HttpContext context, PagePath path) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status413PayloadTooLarge, new ErrorMessage(
+            "page.body_too_large",
+            "The request body is too large",
+            $"{path} rejected: the request body is larger than this site accepts.",
+            ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true)));
 
     // The header check above cannot see a chunked body, so read it here instead: bounded, then
     // handed back as a seekable stream for the form to parse. The snapshot buffers the body anyway;

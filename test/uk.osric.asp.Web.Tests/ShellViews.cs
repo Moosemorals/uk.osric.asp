@@ -11,11 +11,13 @@ using System.Globalization;
 using System.Security.Claims;
 using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
+using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
 
@@ -46,6 +48,7 @@ internal static class ShellViews {
         "status",
         "error",
         "error-details",
+        "not-found",
         "compile-error",
         "assistant-list",
         "assistant-chat",
@@ -70,6 +73,7 @@ internal static class ShellViews {
         "status" => RenderAsync(name, StatusAsync),
         "error" => RenderAsync(name, () => ErrorAsync(withDetails: false)),
         "error-details" => RenderAsync(name, () => ErrorAsync(withDetails: true)),
+        "not-found" => RenderAsync(name, NotFoundAsync),
         "compile-error" => RenderAsync(name, CompileErrorAsync),
         "assistant-list" => RenderAsync(name, AssistantListAsync),
         "assistant-chat" => RenderAsync(name, () => AssistantChatAsync(withReasoning: false)),
@@ -159,6 +163,14 @@ internal static class ShellViews {
         DefaultHttpContext context = TestHttp.CreateContext(null);
 
         await StatusEndpoint.HandleAsync(context, dashboard, CancellationToken.None);
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> NotFoundAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("missing", "GET", "/missing");
+
+        await NotFound.WriteAsync(context, PagePath.Normalize("/missing"));
 
         return await TestHttp.ReadBodyAsync(context);
     }

@@ -86,7 +86,7 @@ internal abstract class BrowserTest {
     protected async Task SavePageAsync(string path, string template) {
         await Page.GotoAsync($"edit/{path.TrimStart('/')}");
         await Page.FillAsync("#template", template);
-        await Page.ClickAsync("button[type=submit]");
+        await Page.ClickAsync("button[name=cmd][value=save]");
         await Page.WaitForURLAsync($"**/edit/{path.TrimStart('/')}");
         await ExpectMessageAsync("Saved successfully.");
     }

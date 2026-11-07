@@ -28,6 +28,15 @@ internal static class ErrorEndpoint {
             && userFacingException is null
             && isAuthenticated;
 
+        ErrorMessage unexpected = ErrorMessage.ForStatus(StatusCodes.Status500InternalServerError, isAuthenticated);
+
+        // An unhandled exception on a JSON endpoint is still something a program asked for, so it
+        // gets a problem document rather than a document full of stack frames it cannot parse.
+        if (ErrorAudience.PrefersJson(context.Request) && userFacingException is null) {
+            await ErrorResponses.WriteJsonAsync(context, StatusCodes.Status500InternalServerError, unexpected);
+            return;
+        }
+
         string message = userFacingException?.Message ?? "An unexpected error occurred. Please try again.";
         string path = pathFeature?.Path ?? context.Request.Path.Value ?? "/";
 
@@ -37,6 +46,7 @@ internal static class ErrorEndpoint {
         if (showDetails) {
             await context.Response.WriteAsync(EditorDetails(exception!, path));
         }
+        await context.Response.WriteAsync($"<p class=\"error-code\">Error code: <code>{WebUtility.HtmlEncode(unexpected.Code)}</code></p>");
         await context.Response.WriteAsync($"<p>Reference: {WebUtility.HtmlEncode(context.TraceIdentifier)}</p>");
         if (isAuthenticated) {
             await context.Response.WriteAsync($"<p><a href=\"{WebUtility.HtmlEncode(PageUrls.Editor(PagePath.Normalize(path)))}\">Edit this page</a></p>");

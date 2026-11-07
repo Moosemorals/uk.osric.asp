@@ -53,23 +53,27 @@ public sealed class LoginEndpointTests {
     }
 
     [Test]
-    public async Task PostWithInvalidAntiforgeryReturns400Async() {
+    public async Task PostWithInvalidAntiforgeryRendersTheFormAgainAsync() {
         DefaultHttpContext context = FormContext("owner", Password);
         context.Features.Set<IAntiforgeryValidationFeature>(new TestAntiforgeryValidationFeature(false));
 
         await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication);
 
-        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+        // A stale token is recoverable: the reader gets the form back, with a fresh one, not an error.
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("The sign-in form expired"));
         Assert.That(_authentication.SignedInPrincipal, Is.Null);
     }
 
     [Test]
-    public async Task PostWithANonFormBodyReturns400Async() {
+    public async Task PostWithANonFormBodyRendersTheFormAgainAsync() {
         DefaultHttpContext context = TestHttp.CreateContext(null, "POST", "/login");
 
         await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication);
 
-        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("The sign-in form expired"));
+        Assert.That(_authentication.SignedInPrincipal, Is.Null);
     }
 
     [Test]
