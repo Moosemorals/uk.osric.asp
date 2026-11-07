@@ -77,6 +77,7 @@ and the logs quote them:
 | --- | --- |
 | Business rules, calculations, parsing, formatting, validation | `Core`, as pure functions |
 | Values passed between layers | `Core`, as `record`/`readonly record struct` |
+| A view a visitor reads, or a form they submit | A stored page, and `Pages/Seeds` when it ships with the site |
 | Emitting a page assembly, loading it and invoking the handler | `Runtime` |
 | Deciding when to compile, store and run a page | `Web`, in `PageImageBuilder`, `PageRenderer` and `PageEditor` |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
@@ -97,6 +98,10 @@ When something in the shell needs a decision from a pure rule, pass the data in 
 do not hand that rule `IPageStore`, a database context, a logger, or `HttpContext`. The runtime passes
 `IContext` to a compiled handler; that is the deliberate seam between compiled page code and the
 host, and `SimpleContext` is its only implementation.
+
+A new view starts as a page. It becomes an endpoint only when it needs something a page may not have
+— identity, cookies, the page store, framing headers, or work that outlives the request — and the
+jobs that would move more of the shell are `IDEA-014` to `IDEA-019` in [jobs](jobs/README.md).
 
 ## Visibility
 

@@ -36,6 +36,13 @@ functions over immutable values in `Core` — no I/O, clock, configuration, DI, 
 Endpoints are a thin shell: bind the request, call the core, shape the response. Pass data in and get
 values back; never hand the core a service, logger or `HttpContext`.
 
+A new view is a page before it is an endpoint. The shell is for what a page cannot do or must not be:
+minting an identity or setting a cookie, reading or writing the page store, framing and security
+headers, work that outlives the request, and the error, health and metrics routes that have to answer
+when the page pipeline itself is broken. A view that ships with the site is a seeded page under
+`Pages/Seeds`, so the owner can edit it. When a missing page capability is the only thing in the way,
+add it to `docs/jobs/` as an `IDEA-` job rather than growing the shell by default.
+
 ## Testing
 
 See `docs/testing.md`. Test-first: write the failing test, make it pass, then refactor. Every test is
