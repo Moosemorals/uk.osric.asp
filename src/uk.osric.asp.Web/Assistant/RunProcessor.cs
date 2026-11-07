@@ -74,7 +74,7 @@ internal sealed class RunProcessor(
                 IReadOnlyList<Message> transcript = await StoreAsync(
                     store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
                 List<ChatMessage> messages = [new ChatMessage("system", PageAuthorPrompt.Build())];
-                messages.AddRange(transcript.Select(ToChatMessage));
+                messages.AddRange(transcript.Select(message => message.ToChatMessage()));
                 ContextTrimResult trimmed = ContextTrimmer.Trim(messages, options.MaxContextChars);
                 if (trimmed.Error is not null) {
                     await FailAsync(queued, stream, "context_too_long", trimmed.Error, partial, step, runTimeout.Token);
@@ -418,13 +418,6 @@ internal sealed class RunProcessor(
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
         return await action(scope.ServiceProvider.GetRequiredService<IConversationStore>());
     }
-
-    private static ChatMessage ToChatMessage(Message message) => new(
-        message.Role,
-        message.Content,
-        message.ToolCallsJson,
-        message.ToolCallId,
-        message.ToolName);
 
     private static IReadOnlyList<PreparedToolCall> PrepareToolCalls(IReadOnlyList<ToolCall> calls, int step) => [.. calls.Select(call => new PreparedToolCall(
         call.Id ?? $"missing-{step}-{call.Index}",

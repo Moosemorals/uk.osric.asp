@@ -46,6 +46,51 @@
     display: none;
 }
 
+/* One grid for every row, so the labels share a column however long they are; the row wrapper only
+   groups a label with its value, it is not a box of its own. */
+.assistant-budget-list {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.35rem 0.6rem;
+    align-items: center;
+    margin: 0;
+}
+
+.assistant-budget {
+    display: contents;
+}
+
+.assistant-budget dt {
+    font-weight: 600;
+}
+
+.assistant-budget dd {
+    display: grid;
+    gap: 0.15rem;
+    margin: 0;
+}
+
+.assistant-budget-count {
+    font-variant-numeric: tabular-nums;
+}
+
+.assistant-budget meter {
+    width: 100%;
+    height: 0.7rem;
+}
+
+/* A budget that is already over is the one line on the page worth reading twice. */
+.assistant-budget-exceeded .assistant-budget-count {
+    color: #8a3b12;
+    font-weight: 600;
+}
+
+.assistant-budget-note {
+    margin: 0.4rem 0 0;
+    color: #414b48;
+    font-size: 0.85rem;
+}
+
 #assistant-transcript {
     display: grid;
     gap: 0.35rem;

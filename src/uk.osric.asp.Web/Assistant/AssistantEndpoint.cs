@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Assistant;
 
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 using System.Net;
 using System.Net.ServerSentEvents;
 using System.Security.Claims;
@@ -145,7 +146,9 @@ internal static class AssistantEndpoint {
                         <button type="submit">Stop</button>
                     </form>
                 </fieldset>
-
+            """);
+        await WriteBudgetsAsync(context, messages, calls, lastRun, options);
+        await context.Response.WriteAsync($"""
                 <fieldset>
                     <legend>Page options</legend>
                     <form id="assistant-options-form" method="post" action="/assistant/{id}/options" class="assistant-options form">
@@ -550,6 +553,73 @@ internal static class AssistantEndpoint {
             await context.Response.WriteAsync("</article>");
         }
         await context.Response.WriteAsync("</section>");
+    }
+
+    // Every budget a reader can run into is shown with what has been spent on it, so a run that
+    // stops on one names it before it stops. The context figure is measured exactly as the trimmer
+    // measures it: the system prompt and the stored transcript, in characters.
+    private static async Task WriteBudgetsAsync(
+        HttpContext context,
+        IReadOnlyList<Message> messages,
+        IReadOnlyDictionary<string, (string Name, string Arguments)> calls,
+        Run? run,
+        AssistantOptions options) {
+        long contextChars = ContextTrimmer.MeasureChars([
+            new ChatMessage("system", PageAuthorPrompt.Build()),
+            .. messages.Select(message => message.ToChatMessage()),
+        ]);
+        int longestArguments = calls.Count == 0 ? 0 : calls.Values.Max(call => call.Arguments.Length);
+        int longestResult = messages
+            .Where(message => message.Role == "tool")
+            .Select(message => message.Content.Length)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        await context.Response.WriteAsync("""
+            <fieldset class="assistant-budgets">
+                <legend>Budgets</legend>
+                <dl class="assistant-budget-list">
+            """);
+        await WriteBudgetAsync(context, "Message", 0, options.MaxMessageChars, "characters", id: "assistant-budget-message");
+        await WriteBudgetAsync(context, "Context", contextChars, options.MaxContextChars, "characters");
+        await WriteBudgetAsync(context, "Steps", run?.StepCount ?? 0, options.MaxSteps, "steps");
+        await WriteBudgetAsync(context, "Tool calls", run?.ToolCallCount ?? 0, options.MaxToolCalls, "calls");
+        await WriteBudgetAsync(context, "Tool arguments", longestArguments, options.MaxToolArgumentChars, "characters");
+        await WriteBudgetAsync(context, "Tool result", longestResult, options.MaxToolResultChars, "characters");
+        await WriteBudgetAsync(context, "Output", run?.CompletionTokens ?? 0, options.MaxOutputTokens, "tokens");
+        await context.Response.WriteAsync("""
+                </dl>
+                <p class="assistant-budget-note">Steps, tool calls and output count the current or most recent run; the rest are this conversation.</p>
+            </fieldset>
+            """);
+    }
+
+    private static async Task WriteBudgetAsync(
+        HttpContext context,
+        string label,
+        long used,
+        long available,
+        string unit,
+        string? id = null) {
+        // A meter past its own maximum is invalid markup, so only the number is allowed to exceed it.
+        long shown = Math.Clamp(used, 0, available);
+        string countId = id is null ? "" : $" id=\"{id}\"";
+        string meterId = id is null ? "" : $" id=\"{id}-meter\"";
+        string exceeded = used > available ? " assistant-budget-exceeded" : "";
+        string usedText = used.ToString("N0", CultureInfo.InvariantCulture);
+        string limit = available.ToString("N0", CultureInfo.InvariantCulture);
+
+        // The meter is the picture of a number that is already spelled out beside it, so it is
+        // hidden from assistive technology rather than announced twice with no name.
+        await context.Response.WriteAsync($"""
+            <div class="assistant-budget{exceeded}">
+                <dt>{Encode(label)}</dt>
+                <dd>
+                    <span class="assistant-budget-count"><span{countId}>{usedText}</span> / {limit} {Encode(unit)}</span>
+                    <meter{meterId} aria-hidden="true" min="0" max="{available}" value="{shown}" low="{available * 3 / 5}" high="{available * 17 / 20}" optimum="0"></meter>
+                </dd>
+            </div>
+            """);
     }
 
     // The run's own message is written by the host and is safe to show; a bare status word is not

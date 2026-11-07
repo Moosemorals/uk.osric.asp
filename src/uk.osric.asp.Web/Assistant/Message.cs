@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Web.Assistant;
 
+using uk.osric.asp.Core.Assistant;
+
 /// <summary>One stored message of a conversation, including its tool calls and their results.</summary>
 internal sealed class Message {
     public long Id { get; set; }
@@ -17,4 +19,7 @@ internal sealed class Message {
     public string? ToolName { get; set; }
     public string Status { get; set; } = "complete";
     public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>This message as the provider would see it, which is what the budgeting rules measure.</summary>
+    public ChatMessage ToChatMessage() => new(Role, Content, ToolCallsJson, ToolCallId, ToolName);
 }

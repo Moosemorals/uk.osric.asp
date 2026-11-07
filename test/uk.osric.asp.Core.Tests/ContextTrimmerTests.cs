@@ -146,8 +146,38 @@ public sealed class ContextTrimmerTests {
     }
 
     [Test]
+    public void MeasureCountsContentAndToolCallJson() {
+        ChatMessage[] messages = [
+            new("system", "prompt"),
+            new("assistant", "", "0123456789"),
+            new("tool", "result", ToolCallId: "call-1"),
+        ];
+
+        Assert.That(ContextTrimmer.MeasureChars(messages), Is.EqualTo(6 + 10 + 6));
+    }
+
+    [Test]
+    public void MeasureOfNothingIsNothing() {
+        Assert.That(ContextTrimmer.MeasureChars([]), Is.Zero);
+    }
+
+    [Test]
+    public void MeasureAgreesWithTheBudgetThatRefusesATranscript() {
+        ChatMessage[] messages = [new("system", "s"), new("user", "0123456789")];
+
+        Assert.That(ContextTrimmer.MeasureChars(messages), Is.EqualTo(11));
+        Assert.That(ContextTrimmer.Trim(messages, 10).Error, Is.Not.Null);
+        Assert.That(ContextTrimmer.Trim(messages, 11).Error, Is.Null);
+    }
+
+    [Test]
     public void ANullTranscriptIsRefused() {
         Assert.That(() => ContextTrimmer.Trim(null!, 10), Throws.ArgumentNullException);
+    }
+
+    [Test]
+    public void MeasuringANullTranscriptIsRefused() {
+        Assert.That(() => ContextTrimmer.MeasureChars(null!), Throws.ArgumentNullException);
     }
 
     [Test]

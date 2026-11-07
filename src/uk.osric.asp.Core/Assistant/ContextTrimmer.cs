@@ -87,6 +87,19 @@ public static class ContextTrimmer {
             "The system prompt and newest user turn exceed the configured context budget.");
     }
 
+    /// <summary>Measures a transcript, so a page can show a budget the trimmer agrees with.</summary>
+    /// <param name="messages">The transcript, in provider order.</param>
+    /// <returns>The characters the transcript needs, counted exactly as <see cref="Trim"/> counts them.</returns>
+    public static long MeasureChars(IReadOnlyList<ChatMessage> messages) {
+        ArgumentNullException.ThrowIfNull(messages);
+
+        long total = 0;
+        foreach (ChatMessage message in messages) {
+            total += MessageLength(message);
+        }
+        return total;
+    }
+
     private static int MessageLength(ChatMessage message) =>
         message.Content.Length + (message.ToolCallsJson?.Length ?? 0);
 }

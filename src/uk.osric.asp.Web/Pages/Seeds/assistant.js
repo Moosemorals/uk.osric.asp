@@ -14,6 +14,9 @@ if (root) {
     const stopForm = document.getElementById('assistant-stop-form');
     const input = document.getElementById('assistant-message');
     const count = document.getElementById('assistant-char-count');
+    const messageBudget = document.getElementById('assistant-budget-message');
+    const messageMeter = document.getElementById('assistant-budget-message-meter');
+    const numbers = new Intl.NumberFormat('en-GB');
     const token = messageForm.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
     const messages = new Map();
     // Matches MessageText.MaximumLength, so a streamed tool summary matches the stored one.
@@ -273,9 +276,18 @@ if (root) {
         };
     }
 
-    input.addEventListener('input', () => {
-        count.textContent = String(input.value.length);
-    });
+    function showMessageLength() {
+        const used = input.value.length;
+        count.textContent = String(used);
+        if (messageBudget && messageMeter) {
+            messageBudget.textContent = numbers.format(used);
+            messageMeter.value = Math.min(used, messageMeter.max);
+        }
+    }
+
+    // Firefox restores a textarea on reload, so the count is painted once on load as well as on input.
+    input.addEventListener('input', showMessageLength);
+    showMessageLength();
 
     // The form still submits as a page for a reader without JavaScript; here it posts and stays.
     optionsForm.addEventListener('submit', async event => {
@@ -322,7 +334,7 @@ if (root) {
         const data = await response.json();
         addUserMessage(content);
         input.value = '';
-        count.textContent = '0';
+        showMessageLength();
         root.dataset.activeRun = data.runId;
         root.dataset.replayFrom = '0';
         connect(data.runId, 0);

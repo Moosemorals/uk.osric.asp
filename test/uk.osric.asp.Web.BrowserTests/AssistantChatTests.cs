@@ -47,6 +47,17 @@ internal sealed class AssistantChatTests : BrowserTest {
     }
 
     [Test]
+    public async Task TypingFillsTheMessageBudgetAsync() {
+        await NewConversationAsync();
+
+        await Page.FillAsync("#assistant-message", "12345");
+
+        await Assertions.Expect(Page.Locator("#assistant-budget-message")).ToHaveTextAsync("5");
+        double value = await Page.Locator("#assistant-budget-message-meter").EvaluateAsync<double>("meter => meter.value");
+        Assert.That(value, Is.EqualTo(5));
+    }
+
+    [Test]
     public async Task SavingOptionsChangesTheTitleAndTheApprovalModeAsync() {
         long id = await NewConversationAsync();
 

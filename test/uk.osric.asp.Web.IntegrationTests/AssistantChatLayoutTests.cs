@@ -46,10 +46,13 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
         int options = body.IndexOf("<legend>Page options</legend>", StringComparison.Ordinal);
         int compose = body.IndexOf("<legend><label for=\"assistant-message\">Your message</label></legend>", StringComparison.Ordinal);
         int transcript = body.IndexOf("<legend>Assistant messages</legend>", StringComparison.Ordinal);
+        int budgets = body.IndexOf("<legend>Budgets</legend>", StringComparison.Ordinal);
         Assert.That(transcript, Is.GreaterThanOrEqualTo(0), "the transcript fieldset is missing");
+        Assert.That(budgets, Is.GreaterThanOrEqualTo(0), "the budgets fieldset is missing");
         Assert.That(options, Is.GreaterThanOrEqualTo(0), "the page options fieldset is missing");
         Assert.That(compose, Is.GreaterThan(transcript), "the message fieldset must follow the transcript");
-        Assert.That(options, Is.GreaterThan(compose), "page options must follow the message fieldset");
+        Assert.That(budgets, Is.GreaterThan(compose), "budgets must follow the message fieldset");
+        Assert.That(options, Is.GreaterThan(budgets), "page options must follow the budgets");
 
         int title = body.IndexOf("<input id=\"conversation-title\"", StringComparison.Ordinal);
         int input = body.IndexOf("<textarea id=\"assistant-message\"", StringComparison.Ordinal);
@@ -73,10 +76,39 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
     }
 
     [Test]
+    public async Task TheBudgetsSectionReportsWhatEachLimitHasHadSpentOnItAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        string conversation = await CreateConversationAsync(client);
+
+        string body = await RunAndReloadAsync(client, conversation);
+
+        Assert.That(body, Does.Contain("<dt>Message</dt>"));
+        Assert.That(body, Does.Contain("<span id=\"assistant-budget-message\">0</span> / 16,384 characters</span>"));
+        Assert.That(body, Does.Contain(" / 120,000 characters</span>"), "the context budget is missing");
+        Assert.That(body, Does.Contain(" / 512 steps</span>"), "the step budget is missing");
+        Assert.That(body, Does.Contain(" / 1,024 calls</span>"), "the tool-call budget is missing");
+        Assert.That(body, Does.Contain(" / 32,768 tokens</span>"), "the output budget is missing");
+
+        // The system prompt alone is already spent, and the run's own steps are counted from the store.
+        Assert.That(body, Does.Match("<meter aria-hidden=\"true\" min=\"0\" max=\"120000\" value=\"[1-9][0-9]*\""));
+        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span>2</span> / 512 steps</span>"),
+            "the answered run took two steps: the tool call and the answer");
+        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span>1</span> / 1,024 calls</span>"));
+    }
+
+    [Test]
     public async Task AToolOnlyStepLeavesNoBlankAssistantRowAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
         string conversation = await CreateConversationAsync(client);
 
+        string body = await RunAndReloadAsync(client, conversation);
+
+        Assert.That(body, Does.Contain("I read the page."));
+        Assert.That(body, Does.Not.Contain("<article class=\"assistant-message\"><h2 class=\"visually-hidden\">Assistant</h2></article>"),
+            "a step that only calls a tool must not render an empty assistant row");
+    }
+
+    private async Task<string> RunAndReloadAsync(HttpClient client, string conversation) {
         string messageToken = await GetAntiforgeryTokenAsync(client, conversation);
         using HttpResponseMessage started = await client.PostAsync(conversation + "/messages", Form(
             ("__RequestVerificationToken", messageToken),
@@ -90,11 +122,7 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
         await events.Content.ReadAsStringAsync();
 
         using HttpResponseMessage reloaded = await client.GetAsync(conversation);
-        string body = await reloaded.Content.ReadAsStringAsync();
-
-        Assert.That(body, Does.Contain("I read the page."));
-        Assert.That(body, Does.Not.Contain("<article class=\"assistant-message\"><h2 class=\"visually-hidden\">Assistant</h2></article>"),
-            "a step that only calls a tool must not render an empty assistant row");
+        return await reloaded.Content.ReadAsStringAsync();
     }
 
     private sealed class ToolCallingClient(string arguments) : IChatCompletionClient {
