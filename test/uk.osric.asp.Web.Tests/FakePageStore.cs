@@ -29,7 +29,7 @@ internal sealed class FakePageStore : IPageStore {
     public int ImageWriteCount { get; private set; }
 
     /// <summary>Spends time in every read, so a test can exhaust a render's budget before it runs.</summary>
-    public TimeSpan ReadDelay { get; init; }
+    public TimeSpan ReadDelay { get; set; }
 
     public PagePath? LastReadPath { get; private set; }
 

@@ -26,8 +26,11 @@ public sealed class RunProcessorTests {
         MaxContextChars = 20_000,
     };
 
+    private readonly ToolApprovalCoordinator _approvals = new();
+
     private string _databasePath = string.Empty;
     private ServiceProvider? _services;
+    private FakePageStore _storage = null!;
     private PageHarness? _pages;
 
     [OneTimeSetUp]
@@ -45,7 +48,8 @@ public sealed class RunProcessorTests {
     public void SetUp() {
         _databasePath = s_template!.CreateFile("assistant-run");
 
-        _pages = new PageHarness(new FakePageStore());
+        _storage = new FakePageStore();
+        _pages = new PageHarness(_storage);
         ServiceCollection services = new();
         services.AddDbContext<StorageDbContext>(options => options.UseSqlite(DatabaseTemplate.ConnectionString(_databasePath)));
         services.AddSingleton(TimeProvider.System);
@@ -142,6 +146,58 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    public async Task AToolThatOutlastsTheRunTimeoutDoesNotFailTheRunAsync() {
+        _storage.ReadDelay = TimeSpan.FromSeconds(2);
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("There is no such page."),
+            new Finished("stop"),
+        ]);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, RunTimeout(seconds: 1, toolSeconds: 5));
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Run? run = await store.GetLastRunAsync(conversation.Id, "owner");
+        Assert.Multiple(() => {
+            Assert.That(run?.Status, Is.EqualTo("completed"));
+            Assert.That(run?.ErrorCode, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task ARunWaitingForApprovalOutlivesTheRunTimeoutAsync() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-1", "delete_page", """{"path":"/gone"}"""),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("Deleted."),
+            new Finished("stop"),
+        ]);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, RunTimeout(seconds: 1, toolSeconds: 5), ApprovalMode.RequireApproval);
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await WaitForPendingApprovalAsync(conversation);
+        await Task.Delay(TimeSpan.FromSeconds(1.5));
+
+        Assert.That(_approvals.Signal(started.RunId!, "call-1", ApprovalResolutionResult.Approved), Is.True);
+        await run;
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Run? finished = await store.GetLastRunAsync(conversation.Id, "owner");
+        Assert.Multiple(() => {
+            Assert.That(finished?.Status, Is.EqualTo("completed"));
+            Assert.That(finished?.ErrorCode, Is.Null);
+        });
+    }
+
+    [Test]
     public async Task AProviderThatStopsSendingFailsTheRunWithItsOwnCodeAsync() {
         ScriptedClient client = new([new ContentDelta("Starting")],
             new ProviderException("provider_timeout", "The provider stopped sending before the answer was complete."));
@@ -203,20 +259,37 @@ public sealed class RunProcessorTests {
         });
     }
 
-    private static AssistantOptions RunTimeout(int seconds) => new() {
+    private static AssistantOptions RunTimeout(int seconds, int toolSeconds = 2) => new() {
         RunTimeoutSeconds = seconds,
         RequestTimeoutSeconds = 3,
-        ToolTimeoutSeconds = 2,
+        ToolTimeoutSeconds = toolSeconds,
         MaxContextChars = 20_000,
     };
 
+    private async Task WaitForPendingApprovalAsync(Conversation conversation) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        for (int attempt = 0; attempt < 100; attempt++) {
+            if ((await store.GetPendingApprovalsAsync(conversation.Id, "owner")).Count > 0) {
+                return;
+            }
+            await Task.Delay(50);
+        }
+        Assert.Fail("The run never asked for approval.");
+    }
+
     private async Task<(Conversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunAsync(
-        IChatCompletionClient client, AssistantOptions? options = null) {
+        IChatCompletionClient client,
+        AssistantOptions? options = null,
+        ApprovalMode? approvalMode = null) {
         options ??= _options;
         ServiceProvider services = _services!;
         await using AsyncServiceScope scope = services.CreateAsyncScope();
         IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
         Conversation conversation = await store.CreateAsync("owner");
+        if (approvalMode is not null) {
+            Assert.That(await store.SetApprovalModeAsync(conversation.Id, "owner", approvalMode.Value), Is.True);
+        }
         RunStartResult started = await store.StartRunAsync(conversation.Id, "owner", "Say hello", "test-model", PageAuthorPrompt.Version);
         RunRegistry registry = new(options, TimeProvider.System);
         Assert.That(registry.TryStart(started.RunId!, conversation.Id, out RunStream? stream), Is.True);
@@ -227,7 +300,7 @@ public sealed class RunProcessorTests {
             client,
             tools,
             registry,
-            new ToolApprovalCoordinator(),
+            _approvals,
             new AssistantMetrics(),
             options,
             NullLogger<RunProcessor>.Instance);
@@ -260,6 +333,23 @@ public sealed class RunProcessorTests {
             }
             if (error is not null) {
                 throw error;
+            }
+        }
+    }
+
+    /// <summary>A client that answers each provider request with the next script in the list.</summary>
+    private sealed class SteppedClient(params IReadOnlyList<ChatStreamEvent>[] scripts) : IChatCompletionClient {
+        private int _next;
+
+        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
+            ChatRequest request,
+            [EnumeratorCancellation] CancellationToken cancellationToken) {
+            IReadOnlyList<ChatStreamEvent> script = scripts[Math.Min(_next, scripts.Length - 1)];
+            _next++;
+            foreach (ChatStreamEvent @event in script) {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return @event;
+                await Task.Yield();
             }
         }
     }

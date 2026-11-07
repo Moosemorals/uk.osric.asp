@@ -266,12 +266,15 @@ The feature bounds run duration, concurrency, queue depth, steps, tool calls, ar
 results, context and event replay, and bounds each provider request by silence rather than by duration:
 the deadline is re-armed for every event the provider sends, so a model that reasons for minutes is not
 cut off, while a stalled stream ends the step with `provider_timeout`. The whole run uses the same
-five-minute silence rule, re-armed per streamed event; keep-alive comments are not events. A run that stops leaves its
-reason in the transcript, and a message that stops at the provider's output limit is stored as
-`truncated`, because the reload after a terminal event is when a bare status word used to be all a
-reader had. Provider content and reasoning are never logged; reasoning is display-only and is omitted
-from subsequent provider requests. Assistant metrics use only low-cardinality model, tool, outcome,
-and token-kind tags.
+five-minute silence rule, re-armed per streamed event; keep-alive comments are not events, and the
+clock stops while a tool runs or an approval waits for its owner, because neither is the run going
+quiet. An approval the owner never answers leaves the run `awaiting_approval` until they stop the run
+or delete the conversation, or the host restarts. A run that stops leaves its reason in the
+transcript, and a message that stops at the provider's output limit is stored as `truncated`, because
+the reload after a terminal event is when a bare status word used to be all a reader had. Provider
+content and reasoning are never logged; reasoning is display-only and is omitted from subsequent
+provider requests. Assistant metrics use only low-cardinality model, tool, outcome, and token-kind
+tags.
 
 ## Authentication and the editor
 

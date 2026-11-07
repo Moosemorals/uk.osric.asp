@@ -33,6 +33,21 @@ internal sealed class RunProcessor(
         using CancellationTokenSource runTimeout = CancellationTokenSource.CreateLinkedTokenSource(hostStopping, stream.StopToken);
         TimeSpan runInactivity = TimeSpan.FromSeconds(options.RunTimeoutSeconds);
         runTimeout.CancelAfter(runInactivity);
+
+        // The run deadline measures the provider going quiet, so our own work must not count towards
+        // it: a tool call is bounded by ToolTimeoutSeconds and an approval by its owner, and neither
+        // is the run falling silent.
+        void PauseRunTimeout() => runTimeout.CancelAfter(Timeout.InfiniteTimeSpan);
+        void RestartRunTimeout() => runTimeout.CancelAfter(runInactivity);
+        async Task<ToolExecutionResult> WhilePaused(Func<Task<ToolExecutionResult>> action) {
+            PauseRunTimeout();
+            try {
+                return await action();
+            } finally {
+                RestartRunTimeout();
+            }
+        }
+
         ChatStreamAccumulator? partial = null;
         int step = 0;
         string? activeToolCallId = null;
@@ -177,9 +192,11 @@ internal sealed class RunProcessor(
                     } else if (toolCallCount >= options.MaxToolCalls) {
                         result = ToolFailure("The run reached its tool-call limit.", $"{call.DisplayName}: tool-call limit");
                     } else if (requiresApproval) {
-                        result = await ResolveApprovalAsync(queued, stream, step, call, definition!, runTimeout.Token);
+                        result = await WhilePaused(() =>
+                            ResolveApprovalAsync(queued, stream, step, call, definition!, runTimeout.Token));
                     } else {
-                        result = await ExecuteToolAsync(call, stream, step, runTimeout.Token);
+                        result = await WhilePaused(() =>
+                            ExecuteToolAsync(call, stream, step, runTimeout.Token));
                     }
 
                     toolCallCount++;
