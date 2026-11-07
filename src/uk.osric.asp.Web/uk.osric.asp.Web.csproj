@@ -16,6 +16,9 @@ SPDX-License-Identifier: MIT
     <!-- Metrics only: the exporter serves /metrics, and the hosting package registers the provider. -->
     <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <!-- Pinned directly for sqlite3_serialize/sqlite3_deserialize, which sit below the ADO.NET
+         provider. The same version Microsoft.EntityFrameworkCore.Sqlite already resolves. -->
+    <PackageReference Include="SQLitePCLRaw.core" />
   </ItemGroup>
 
   <ItemGroup>
