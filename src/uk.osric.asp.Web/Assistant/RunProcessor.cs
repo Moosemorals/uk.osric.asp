@@ -31,7 +31,8 @@ internal sealed class RunProcessor(
         }
 
         using CancellationTokenSource runTimeout = CancellationTokenSource.CreateLinkedTokenSource(hostStopping, stream.StopToken);
-        runTimeout.CancelAfter(TimeSpan.FromSeconds(options.RunTimeoutSeconds));
+        TimeSpan runInactivity = TimeSpan.FromSeconds(options.RunTimeoutSeconds);
+        runTimeout.CancelAfter(runInactivity);
         ChatStreamAccumulator? partial = null;
         int step = 0;
         string? activeToolCallId = null;
@@ -87,6 +88,10 @@ internal sealed class RunProcessor(
                 string providerOutcome = "ok";
                 try {
                     await foreach (ChatStreamEvent @event in client.StreamAsync(request, runTimeout.Token)) {
+                        // The run deadline is an inactivity limit, not a duration: an event the
+                        // provider actually streamed re-arms it. The SSE parser drops keep-alive
+                        // comments, so a heartbeat cannot keep a stalled run alive.
+                        runTimeout.CancelAfter(runInactivity);
                         partial.Add(@event);
                         if (!firstTokenRecorded && @event is ContentDelta or ReasoningDelta or ToolCallDelta) {
                             metrics.RecordProviderFirstToken(run.Model, Stopwatch.GetElapsedTime(providerStart));
@@ -214,7 +219,7 @@ internal sealed class RunProcessor(
             string message = status switch {
                 "interrupted" => "The host stopped before the run completed.",
                 "cancelled" => "The run was stopped.",
-                _ => "The run exceeded its configured time limit.",
+                _ => "The run stopped responding for longer than its configured time limit.",
             };
             await PersistPartialAsync(queued, stream, step, partial, status, CancellationToken.None);
             if (activeToolCallId is not null) {

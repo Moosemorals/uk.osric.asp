@@ -17,7 +17,7 @@ internal sealed class AssistantOptions {
     public bool RequireApiKey { get; init; } = true;
     public bool AllowInsecureHttp { get; init; }
     public double Temperature { get; init; } = 0.2;
-    public int MaxOutputTokens { get; init; } = 4096;
+    public int MaxOutputTokens { get; init; } = 32_768;
     public bool IncludeUsage { get; init; } = true;
     public int MaxSteps { get; init; } = 12;
     public int MaxToolCalls { get; init; } = 32;
@@ -25,7 +25,7 @@ internal sealed class AssistantOptions {
     public int MaxActiveRuns { get; init; } = 2;
     public int MaxQueuedRuns { get; init; } = 8;
     public int RequestTimeoutSeconds { get; init; } = 300;
-    public int RunTimeoutSeconds { get; init; } = 600;
+    public int RunTimeoutSeconds { get; init; } = 300;
     public int ToolTimeoutSeconds { get; init; } = 30;
     public int MaxProviderRetries { get; init; } = 1;
     public int MaxMessageChars { get; init; } = 16_384;

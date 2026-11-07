@@ -125,6 +125,22 @@ public sealed class AssistantProviderClientTests {
     }
 
     [Test]
+    public async Task AKeepAliveCommentDoesNotResetTheRequestTimeoutAsync() {
+        using HttpClient client = Client(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new TimedContent(
+                (": keep-alive\n\n", 300),
+                (": keep-alive\n\n", 300),
+                (": keep-alive\n\n", 300),
+                (": keep-alive\n\n", 300)),
+        }));
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false, RequestTimeoutSeconds = 1 });
+
+        ProviderException exception = (await Assert.ThrowsAsync<ProviderException>(async () => await CollectAsync(provider)))!;
+
+        Assert.That(exception.Code, Is.EqualTo("provider_timeout"));
+    }
+
+    [Test]
     public async Task AStreamThatStopsSendingFailsWithASafeTimeoutAsync() {
         using HttpClient client = Client(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
             Content = new TimedContent(("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"starting\"}}]}\n\n", 4000)),

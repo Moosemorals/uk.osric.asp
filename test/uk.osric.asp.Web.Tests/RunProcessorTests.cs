@@ -104,6 +104,39 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    public async Task ARunThatKeepsStreamingOutlivesTheRunTimeoutAsync() {
+        ScriptedClient client = new(
+            [.. Enumerable.Range(1, 6).Select(index => new ContentDelta($"part {index} "))],
+            delayMilliseconds: 400);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, RunTimeout(seconds: 1));
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Run? run = await store.GetLastRunAsync(conversation.Id, "owner");
+        Assert.That(run?.Status, Is.EqualTo("completed"));
+    }
+
+    [Test]
+    public async Task ARunThatStopsStreamingFailsWithRunTimeoutAsync() {
+        ScriptedClient client = new([new ContentDelta("too late")], delayMilliseconds: 3_000);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, RunTimeout(seconds: 1));
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Run? run = await store.GetLastRunAsync(conversation.Id, "owner");
+        Assert.Multiple(() => {
+            Assert.That(run?.Status, Is.EqualTo("failed"));
+            Assert.That(run?.ErrorCode, Is.EqualTo("run_timeout"));
+        });
+    }
+
+    [Test]
     public async Task AProviderThatStopsSendingFailsTheRunWithItsOwnCodeAsync() {
         ScriptedClient client = new([new ContentDelta("Starting")],
             new ProviderException("provider_timeout", "The provider stopped sending before the answer was complete."));
@@ -165,17 +198,25 @@ public sealed class RunProcessorTests {
         });
     }
 
+    private static AssistantOptions RunTimeout(int seconds) => new() {
+        RunTimeoutSeconds = seconds,
+        RequestTimeoutSeconds = 3,
+        ToolTimeoutSeconds = 2,
+        MaxContextChars = 20_000,
+    };
+
     private async Task<(Conversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunAsync(
-        IChatCompletionClient client) {
+        IChatCompletionClient client, AssistantOptions? options = null) {
+        options ??= _options;
         ServiceProvider services = _services!;
         await using AsyncServiceScope scope = services.CreateAsyncScope();
         IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
         Conversation conversation = await store.CreateAsync("owner");
         RunStartResult started = await store.StartRunAsync(conversation.Id, "owner", "Say hello", "test-model", PageAuthorPrompt.Version);
-        RunRegistry registry = new(_options, TimeProvider.System);
+        RunRegistry registry = new(options, TimeProvider.System);
         Assert.That(registry.TryStart(started.RunId!, conversation.Id, out RunStream? stream), Is.True);
-        PagePathPolicy paths = new(new ReservedPaths(ReservedPaths.Default), _options);
-        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, _options);
+        PagePathPolicy paths = new(new ReservedPaths(ReservedPaths.Default), options);
+        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, options);
         RunProcessor processor = new(
             services.GetRequiredService<IServiceScopeFactory>(),
             client,
@@ -183,7 +224,7 @@ public sealed class RunProcessorTests {
             registry,
             new ToolApprovalCoordinator(),
             new AssistantMetrics(),
-            _options,
+            options,
             NullLogger<RunProcessor>.Instance);
         return (conversation, started, stream!, processor);
     }
@@ -198,12 +239,16 @@ public sealed class RunProcessorTests {
 
     private sealed class ScriptedClient(
         IReadOnlyList<ChatStreamEvent> events,
-        Exception? error = null) : IChatCompletionClient {
+        Exception? error = null,
+        int delayMilliseconds = 0) : IChatCompletionClient {
 
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
             ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
             foreach (ChatStreamEvent @event in events) {
+                if (delayMilliseconds > 0) {
+                    await Task.Delay(delayMilliseconds, cancellationToken);
+                }
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return @event;
                 await Task.Yield();
