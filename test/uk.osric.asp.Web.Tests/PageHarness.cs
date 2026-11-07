@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
@@ -92,7 +93,8 @@ internal sealed class PageHarness : IDisposable {
     public async Task<(RenderResult Result, string Output)> RenderAsync(
         string path,
         int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
-        bool isHead = false) {
+        bool isHead = false,
+        PageUser? user = null) {
         PagePath key = Key(path);
         SimpleContext context = new(
             NullLoggerFactory.Instance,
@@ -103,7 +105,8 @@ internal sealed class PageHarness : IDisposable {
             Fetch,
             FetchOptions,
             Metrics,
-            maxBodyChars);
+            maxBodyChars,
+            user);
 
         RenderResult result = await Renderer.RenderAsync(key, context, CancellationToken.None);
 

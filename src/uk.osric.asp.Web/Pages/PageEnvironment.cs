@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using Microsoft.AspNetCore.Antiforgery;
+
 /// <summary>What the page endpoint needs beyond the renderer, gathered in one place.</summary>
 /// <remarks>
 /// Every member is a singleton, so the record is one too; it exists so the endpoint's signature stays
@@ -15,6 +17,7 @@ namespace uk.osric.asp.Web.Pages;
 /// <param name="StateStore">Where a page's state is read and written.</param>
 /// <param name="Fetcher">Where a page's outbound request goes.</param>
 /// <param name="Metrics">Where the endpoint's own refusals are recorded.</param>
+/// <param name="Antiforgery">Validates a page's post and mints the field a form carries.</param>
 internal sealed record PageEnvironment(
     ReservedPaths Reserved,
     RenderOptions Render,
@@ -22,4 +25,5 @@ internal sealed record PageEnvironment(
     PageFetchOptions Fetch,
     IPageStateStore StateStore,
     IPageFetcher Fetcher,
-    PageMetrics Metrics);
+    PageMetrics Metrics,
+    IAntiforgery Antiforgery);

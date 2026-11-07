@@ -9,6 +9,9 @@ using Microsoft.AspNetCore.Http;
 /// <summary>A token source with no cookie side effects, for endpoint tests.</summary>
 internal sealed class TestAntiforgery : IAntiforgery {
 
+    /// <summary>Whether <see cref="IsRequestValidAsync"/> accepts the request.</summary>
+    public bool RequestIsValid { get; set; } = true;
+
     public int TokenRequests { get; private set; }
 
     public AntiforgeryTokenSet GetAndStoreTokens(HttpContext context) {
@@ -25,7 +28,7 @@ internal sealed class TestAntiforgery : IAntiforgery {
     }
 
     public Task<bool> IsRequestValidAsync(HttpContext context) {
-        return Task.FromResult(true);
+        return Task.FromResult(RequestIsValid);
     }
 
     public Task ValidateRequestAsync(HttpContext context) {

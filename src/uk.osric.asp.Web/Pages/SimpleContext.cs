@@ -46,12 +46,18 @@ internal sealed class SimpleContext : IContext {
     private readonly IPageFetcher _fetcher;
     private readonly PageFetchOptions _fetchOptions;
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly string _loginRedirect;
     private readonly ILogger _logger;
     private readonly PageMetrics _metrics;
     private readonly int _maxBodyChars;
     private readonly PageRequest _request;
     private readonly IPageStorage _storage;
     private readonly TextWriter _writer;
+    private readonly Func<string>? _antiforgeryFactory;
+
+    // Written once, under the body lock, so two reads in one render hand out one token: the token and
+    // its cookie are a pair, and minting a second would leave the first unverifiable.
+    private string? _antiforgeryField;
 
     // Written once by AttachDeadline, before the page task starts: creating that task is the barrier
     // the reader needs, and the value it carries is immutable.
@@ -76,6 +82,11 @@ internal sealed class SimpleContext : IContext {
     /// <param name="fetchOptions">How many requests this render may make.</param>
     /// <param name="metrics">Where a refusal this context makes is recorded.</param>
     /// <param name="maxBodyChars">How much body the page may write before it is refused.</param>
+    /// <param name="user">The signed-in account, or <see langword="null"/> for an anonymous visitor.</param>
+    /// <param name="loginRedirect">Where <see cref="RedirectToLogin"/> sends an anonymous visitor.</param>
+    /// <param name="antiforgeryField">
+    /// Builds the hidden antiforgery input, or <see langword="null"/> when the page must get nothing.
+    /// </param>
     public SimpleContext(
         ILoggerFactory loggerFactory,
         PageRequest request,
@@ -85,7 +96,10 @@ internal sealed class SimpleContext : IContext {
         IPageFetcher fetcher,
         PageFetchOptions fetchOptions,
         PageMetrics metrics,
-        int maxBodyChars = RenderOptions.DefaultMaxBodyChars) {
+        int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
+        PageUser? user = null,
+        string loginRedirect = "/login",
+        Func<string>? antiforgeryField = null) {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
@@ -93,12 +107,15 @@ internal sealed class SimpleContext : IContext {
         ArgumentNullException.ThrowIfNull(fetcher);
         ArgumentNullException.ThrowIfNull(fetchOptions);
         ArgumentNullException.ThrowIfNull(metrics);
+        ArgumentException.ThrowIfNullOrWhiteSpace(loginRedirect);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxBodyChars, 1);
 
         // The path is canonical here: PageEndpoint redirects anything else before building a context.
         _logger = loggerFactory.CreateLogger(PageCategory);
         _maxBodyChars = maxBodyChars;
         _request = request;
+        _loginRedirect = loginRedirect;
+        _antiforgeryFactory = antiforgeryField;
         Aborted = aborted;
         _fetcher = fetcher;
         _fetchOptions = fetchOptions;
@@ -107,6 +124,7 @@ internal sealed class SimpleContext : IContext {
         _boundStorage = storage as IRenderBoundPageStorage;
         _writer = writer;
         _deadline = CancellationToken.None;
+        User = user;
     }
 
     /// <inheritdoc/>
@@ -114,6 +132,9 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public string Path => _request.Path;
+
+    /// <inheritdoc/>
+    public PageUser? User { get; }
 
     /// <inheritdoc/>
     public CancellationToken Aborted { get; }
@@ -285,6 +306,36 @@ internal sealed class SimpleContext : IContext {
 
         SetStatus(status);
         _location = location;
+    }
+
+    /// <inheritdoc/>
+    public void RedirectToLogin() {
+        // A form post that turns into a sign-in must not be replayed as a post when the visitor comes
+        // back. Pages only answer GET, POST and HEAD, so anything else takes the GET shape.
+        int status = string.Equals(_request.Method, "POST", StringComparison.OrdinalIgnoreCase)
+            ? StatusCodes.Status303SeeOther
+            : StatusCodes.Status302Found;
+
+        Redirect(_loginRedirect, status);
+    }
+
+    /// <inheritdoc/>
+    public string AntiforgeryField {
+        get {
+            if (_antiforgeryFactory is null) {
+                return string.Empty;
+            }
+
+            // Generated under the body lock so an abandoned render cannot mint a token after the
+            // response has gone, which would leave a cookie nothing can verify.
+            lock (_body) {
+                if (_abandoned) {
+                    return string.Empty;
+                }
+
+                return _antiforgeryField ??= _antiforgeryFactory();
+            }
+        }
     }
 
     // The render's deadline, passed to the fetcher separately from the abort token so a refusal can

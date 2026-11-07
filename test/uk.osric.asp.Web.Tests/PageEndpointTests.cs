@@ -4,9 +4,11 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using System.Diagnostics;
+using System.Security.Claims;
 using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
@@ -23,6 +25,7 @@ public sealed class PageEndpointTests {
     private static readonly PageFetchOptions FetchOptions = new();
     private readonly RecordingCompiler _compiler = new(new PageCompiler());
     private readonly PageMetrics _metrics = new();
+    private readonly TestAntiforgery _antiforgery = new();
 
     [TearDown]
     public void StopMetrics() {
@@ -37,7 +40,8 @@ public sealed class PageEndpointTests {
             FetchOptions,
             new FakePageStateStore(),
             new FakePageFetcher(),
-            _metrics);
+            _metrics,
+            _antiforgery);
     }
 
     [TestCase(null, "/", "/")]
@@ -290,6 +294,7 @@ public sealed class PageEndpointTests {
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(302));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(location));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
     }
 
@@ -460,6 +465,157 @@ public sealed class PageEndpointTests {
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("hello"));
+    }
+
+    [Test]
+    public async Task AnAnonymousVisitorToAGuardedPageIsSentToLoginAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("private.cs", "GET", "/private.cs");
+        context.Request.QueryString = new QueryString("?tab=one&tab=two");
+        // A cookie the page can read is not an identity: only the authenticated principal is.
+        context.Request.Headers.Cookie = ".uk.osric.asp.auth=forged";
+        FakePageStore storage = new();
+        storage["/private.cs"] = new PageTemplate(PagePath.Normalize("/private.cs"), GuardedPage);
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status302Found));
+        Assert.That(ReturnUrlOf(context), Is.EqualTo("/private.cs?tab=one&tab=two"));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty, "output written before the guard must not be sent");
+    }
+
+    [Test]
+    public async Task AnAnonymousPostToAGuardedPageSeesOtherAsync() {
+        DefaultHttpContext context = PostForm("private.cs", "note=hi");
+        FakePageStore storage = new();
+        storage["/private.cs"] = new PageTemplate(PagePath.Normalize("/private.cs"), GuardedPage);
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        // A form post that turns into a sign-in must not be replayed as a post on the way back.
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status303SeeOther));
+        Assert.That(ReturnUrlOf(context), Is.EqualTo("/private.cs"));
+    }
+
+    [Test]
+    public async Task ASignedInVisitorSeesThePageAndTheNameAsync() {
+        DefaultHttpContext context = CreateContext("private.cs");
+        SignIn(context, "owner");
+        FakePageStore storage = new();
+        storage["/private.cs"] = new PageTemplate(PagePath.Normalize("/private.cs"), GuardedPage);
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("<p>before</p><p>owner</p>"));
+    }
+
+    [Test]
+    public async Task AnAuthenticatedResponseIsNotCacheableAsync() {
+        DefaultHttpContext context = CreateContext("private.cs");
+        SignIn(context);
+        FakePageStore storage = new();
+        storage["/private.cs"] = new PageTemplate(PagePath.Normalize("/private.cs"), "Hello.");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        Assert.That(context.Response.Headers.ETag, Is.Empty);
+    }
+
+    [Test]
+    public async Task AnAnonymousPageStillCarriesItsValidatorAsync() {
+        DefaultHttpContext context = CreateContext("public.cs");
+        FakePageStore storage = new();
+        storage["/public.cs"] = new PageTemplate(PagePath.Normalize("/public.cs"), "Hello.");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(context.Response.Headers.ETag, Is.Not.Empty);
+    }
+
+    [Test]
+    public async Task AnAuthenticatedPostWithoutAValidTokenIsRefusedBeforeThePageRunsAsync() {
+        _antiforgery.RequestIsValid = false;
+        DefaultHttpContext context = PostForm("private.cs", "note=hi");
+        SignIn(context);
+        FakePageStore storage = new();
+        storage["/private.cs"] = new PageTemplate(
+            PagePath.Normalize("/private.cs"), "<% throw new System.InvalidOperationException(\"the page ran\"); %>");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("could not be verified"));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+    }
+
+    [Test]
+    public async Task AnAuthenticatedPostWithAValidTokenRendersAsync() {
+        DefaultHttpContext context = PostForm("private.cs", "note=hi");
+        SignIn(context);
+        FakePageStore storage = new();
+        storage["/private.cs"] = new PageTemplate(
+            PagePath.Normalize("/private.cs"), "<% ctx.Write(ctx.Request.Form[\"note\"]); %>");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("hi"));
+    }
+
+    [Test]
+    public async Task AnAnonymousPostIsNotSubjectToTheTokenCheckAsync() {
+        _antiforgery.RequestIsValid = false;
+        DefaultHttpContext context = PostForm("public.cs", "note=hi");
+        FakePageStore storage = new();
+        storage["/public.cs"] = new PageTemplate(
+            PagePath.Normalize("/public.cs"), "<% ctx.Write(ctx.Request.Form[\"note\"]); %>");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("hi"));
+    }
+
+    [Test]
+    public async Task TheAntiforgeryFieldIsRenderedOncePerRenderAsync() {
+        DefaultHttpContext context = CreateContext("private.cs");
+        SignIn(context);
+        FakePageStore storage = new();
+        storage["/private.cs"] = new PageTemplate(
+            PagePath.Normalize("/private.cs"), "<%== ctx.AntiforgeryField %><%== ctx.AntiforgeryField %>");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("name=\"__RequestVerificationToken\""));
+        Assert.That(body, Does.Contain("value=\"request-token\""));
+        Assert.That(_antiforgery.TokenRequests, Is.EqualTo(1), "asking twice must not mint a second pair");
+    }
+
+    private const string GuardedPage =
+        "<p>before</p><% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %><p><%= user.Name %></p>";
+
+    private static void SignIn(DefaultHttpContext context, string name = "owner") {
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, name)], "test"));
+    }
+
+    private static string ReturnUrlOf(DefaultHttpContext context) {
+        string location = context.Response.Headers.Location.ToString();
+        Assert.That(location, Does.StartWith("/login?returnUrl="));
+
+        return QueryHelpers.ParseQuery(new Uri("https://site.example" + location).Query)["returnUrl"].ToString();
+    }
+
+    // No ContentLength, which is what a chunked request looks like to the endpoint.
+    private static DefaultHttpContext PostForm(string path, string body) {
+        DefaultHttpContext context = TestHttp.CreateContext(path, "POST", "/" + path);
+        context.Request.ContentType = "application/x-www-form-urlencoded";
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
+        return context;
     }
 
     private static GeneratedSource Generate(string template) {

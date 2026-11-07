@@ -120,6 +120,91 @@ public sealed class SimpleContextTests {
     }
 
     [Test]
+    public void UserIsNullByDefault() {
+        SimpleContext context = CreateContext(out _);
+
+        Assert.That(context.User, Is.Null);
+    }
+
+    [Test]
+    public void ASuppliedUserIsReturnedWithItsName() {
+        SimpleContext context = CreateContext(out _, user: new PageUser("owner"));
+
+        Assert.That(context.User, Is.EqualTo(new PageUser("owner")));
+        Assert.That(context.User?.Name, Is.EqualTo("owner"));
+    }
+
+    [TestCase("GET", 302)]
+    [TestCase("HEAD", 302)]
+    [TestCase("POST", 303)]
+    public void RedirectToLoginUsesTheStatusTheMethodNeeds(string method, int status) {
+        SimpleContext context = CreateContext(out _, method: method);
+
+        context.RedirectToLogin();
+
+        Assert.That(context.ToResponse().Status, Is.EqualTo(status));
+        Assert.That(context.ToResponse().Location, Is.EqualTo("/login"));
+    }
+
+    [Test]
+    public void RedirectToLoginUsesTheTargetTheShellBuilt() {
+        SimpleContext context = CreateContext(out _, loginRedirect: "/login?returnUrl=%2Fpage");
+
+        context.RedirectToLogin();
+
+        Assert.That(context.ToResponse().Location, Is.EqualTo("/login?returnUrl=%2Fpage"));
+    }
+
+    [Test]
+    public void AntiforgeryFieldIsEmptyWithoutAFactory() {
+        SimpleContext context = CreateContext(out _);
+
+        Assert.That(context.AntiforgeryField, Is.Empty);
+    }
+
+    [Test]
+    public void AntiforgeryFieldIsGeneratedOncePerRender() {
+        int calls = 0;
+        SimpleContext context = CreateContext(out _, antiforgeryField: () => {
+            calls++;
+            return "<input>";
+        });
+
+        Assert.That(context.AntiforgeryField, Is.EqualTo("<input>"));
+        Assert.That(context.AntiforgeryField, Is.EqualTo("<input>"));
+        Assert.That(calls, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void AntiforgeryFieldIsEmptyAfterAbandonment() {
+        int calls = 0;
+        SimpleContext context = CreateContext(out _, antiforgeryField: () => {
+            calls++;
+            return "<input>";
+        });
+
+        context.Abandon();
+
+        Assert.That(context.AntiforgeryField, Is.Empty);
+        Assert.That(calls, Is.Zero);
+    }
+
+    [Test]
+    public void AnAbandonedRenderNeverMintsASecondToken() {
+        int calls = 0;
+        SimpleContext context = CreateContext(out _, antiforgeryField: () => {
+            calls++;
+            return "<input>";
+        });
+
+        _ = context.AntiforgeryField;
+        context.Abandon();
+
+        Assert.That(context.AntiforgeryField, Is.Empty);
+        Assert.That(calls, Is.EqualTo(1));
+    }
+
+    [Test]
     public void WriteEscapesHtml() {
         SimpleContext context = CreateContext(out StringWriter output);
 
@@ -229,17 +314,26 @@ public sealed class SimpleContextTests {
             PagePath.Normalize(path), new FakePageStateStore(), new PageStorageOptions(), writable: true);
     }
 
-    private static SimpleContext CreateContext(out StringWriter output) {
+    private static SimpleContext CreateContext(
+        out StringWriter output,
+        PageUser? user = null,
+        string loginRedirect = "/login",
+        Func<string>? antiforgeryField = null,
+        string method = "GET") {
         output = new StringWriter();
         return new SimpleContext(
             NullLoggerFactory.Instance,
-            TestHttp.Request("/page"),
+            TestHttp.Request("/page", method),
             CancellationToken.None,
             output,
             StorageFor("/page"),
             new FakePageFetcher(),
             new PageFetchOptions(),
-            s_metrics);
+            s_metrics,
+            RenderOptions.DefaultMaxBodyChars,
+            user,
+            loginRedirect,
+            antiforgeryField);
     }
 
     private static SimpleContext CreateContext(string path, out RecordingLoggerFactory logs) {

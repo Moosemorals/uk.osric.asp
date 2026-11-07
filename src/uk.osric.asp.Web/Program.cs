@@ -114,7 +114,8 @@ internal class Program {
             services.GetRequiredService<PageFetchOptions>(),
             services.GetRequiredService<IPageStateStore>(),
             services.GetRequiredService<IPageFetcher>(),
-            services.GetRequiredService<PageMetrics>()));
+            services.GetRequiredService<PageMetrics>(),
+            services.GetRequiredService<IAntiforgery>()));
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         builder.Services.AddScoped<IPageStore, SqlitePageStore>();

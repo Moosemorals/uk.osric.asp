@@ -30,6 +30,14 @@ public interface IContext {
     /// <summary>The canonical key of the page being rendered.</summary>
     public string Path { get; }
 
+    /// <summary>The signed-in local account, or <see langword="null"/> for an anonymous visitor.</summary>
+    /// <remarks>
+    /// The identity is supplied and validated by the shell; a page cannot forge it with a header,
+    /// cookie or form field. A page is public unless its own code checks this value, so the ordinary
+    /// guard is <c>if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }</c>.
+    /// </remarks>
+    public PageUser? User { get; }
+
     /// <summary>Aborted when the request is abandoned; pages may observe it to stop early.</summary>
     public CancellationToken Aborted { get; }
 
@@ -80,6 +88,35 @@ public interface IContext {
     /// </param>
     /// <param name="status">The redirect status; 302 by default.</param>
     public void Redirect(string location, int status = 302);
+
+    /// <summary>Sends an anonymous visitor to the sign-in form and back to this page afterwards.</summary>
+    /// <remarks>
+    /// <para>
+    /// The target is the shell's own: <c>/login?returnUrl=</c> followed by this page's canonical path
+    /// and raw query, so the visitor returns to exactly what they asked for. A fragment is not
+    /// preserved, because the browser never sends one.
+    /// </para>
+    /// <para>
+    /// The status is <c>302 Found</c> for <c>GET</c> and <c>HEAD</c>, and <c>303 See Other</c> for
+    /// <c>POST</c>, so a submitted form is not replayed when the visitor comes back. This returns
+    /// normally; a guard must also <c>return;</c> from the page.
+    /// </para>
+    /// </remarks>
+    public void RedirectToLogin();
+
+    /// <summary>The hidden input that carries this request's antiforgery pair.</summary>
+    /// <remarks>
+    /// <para>
+    /// Write it raw, as <c>&lt;%== ctx.AntiforgeryField %&gt;</c>, inside every form on a page an
+    /// authenticated visitor can submit: the shell refuses an authenticated <c>POST</c> without a
+    /// valid pair. It is generated once per render, so asking twice does not mint two tokens.
+    /// </para>
+    /// <para>
+    /// Empty when the render was abandoned, which fails closed at the next <c>POST</c> rather than
+    /// handing out a token nothing can verify.
+    /// </para>
+    /// </remarks>
+    public string AntiforgeryField { get; }
 
     /// <summary>This page's key/value store.</summary>
     /// <remarks>

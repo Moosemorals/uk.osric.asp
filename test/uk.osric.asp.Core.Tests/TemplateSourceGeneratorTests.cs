@@ -281,6 +281,20 @@ public sealed class TemplateSourceGeneratorTests {
         Assert.That(source, Does.Contain("#line 3 \"page\"" + Environment.NewLine + "}}"));
     }
 
+    [Test]
+    public void AGuardWithAReturnStaysInsideTheGeneratedHandler() {
+        string source = Generate(
+            "<% if (ctx.User is null) { ctx.RedirectToLogin(); return; } %>after");
+
+        int handler = source.IndexOf("HandleAsync", StringComparison.Ordinal);
+        int guard = source.IndexOf("return;", StringComparison.Ordinal);
+        int after = source.IndexOf("ctx.WriteRaw(@\"after\");", StringComparison.Ordinal);
+
+        Assert.That(handler, Is.GreaterThanOrEqualTo(0));
+        Assert.That(guard, Is.GreaterThan(handler), "the guard must be emitted inside the handler");
+        Assert.That(after, Is.GreaterThan(guard), "the rest of the page still follows the guard");
+    }
+
     private static string Generate(string template) {
         TemplateGenerationResult result = TemplateSourceGenerator.Generate(template);
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Errors));

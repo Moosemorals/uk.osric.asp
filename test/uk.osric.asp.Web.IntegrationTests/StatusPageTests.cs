@@ -24,6 +24,9 @@ public sealed class StatusPageTests : IntegrationTest {
         string sharedStyles = await client.GetStringAsync("/site.css");
         using HttpClient anonymous = CreateClient();
         string login = await anonymous.GetStringAsync("/login");
+        // An authenticated page response is deliberately no-store and carries no validator, so the
+        // asset's cache contract is asserted on the anonymous fetch of the same page.
+        using HttpResponseMessage anonymousStylesheet = await anonymous.GetAsync("/status.css");
 
         Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/status.css\">"));
         Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/layout.css\">"));
@@ -33,8 +36,9 @@ public sealed class StatusPageTests : IntegrationTest {
             Is.LessThan(status.IndexOf("/status.css", StringComparison.Ordinal)), "the view's sheet follows the shared ones");
         Assert.That(stylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(stylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
-        Assert.That(stylesheet.Headers.CacheControl?.NoCache, Is.True);
-        Assert.That(stylesheet.Headers.ETag, Is.Not.Null);
+        Assert.That(stylesheet.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(anonymousStylesheet.Headers.CacheControl?.NoCache, Is.True);
+        Assert.That(anonymousStylesheet.Headers.ETag, Is.Not.Null);
         Assert.That(statusStyles, Does.Contain(".status-nav").And.Contain(".chart").And.Contain(".heatmap"));
         Assert.That(sharedStyles, Does.Contain("body {").And.Contain(".diagnostics"));
         Assert.That(sharedStyles, Does.Not.Contain(".status-nav").And.Not.Contain(".chart").And.Not.Contain(".heatmap"));

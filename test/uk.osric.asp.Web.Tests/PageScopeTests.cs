@@ -104,6 +104,30 @@ public sealed class PageScopeTests {
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
 
+    [Test]
+    public void TheAuthenticationContractCompiles() {
+        string template = """
+            <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+            <p><%= user.Name %></p>
+            <form method="post"><%== ctx.AntiforgeryField %></form>
+            """;
+
+        CompileResult result = Compiler.Compile(Generate(template));
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public void ClaimsStayOutsideThePagePolicy() {
+        CompileResult result = Compiler.Compile(
+            Generate("<% System.Security.Claims.ClaimsPrincipal principal = null; %>"));
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("PAGE001", StringComparison.Ordinal)));
+    }
+
     private static GeneratedSource Generate(string template) {
         TemplateGenerationResult parsed = TemplateSourceGenerator.Generate(template);
         Assert.That(parsed.IsSuccess, Is.True, string.Join(Environment.NewLine, parsed.Errors));

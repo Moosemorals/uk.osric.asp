@@ -184,7 +184,8 @@ internal static class ShellViews {
                 new PageFetchOptions(),
                 new FakePageStateStore(),
                 new FakePageFetcher(),
-                new PageMetrics()));
+                new PageMetrics(),
+                new TestAntiforgery()));
 
         return await TestHttp.ReadBodyAsync(context);
     }

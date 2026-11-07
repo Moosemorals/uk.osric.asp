@@ -376,6 +376,8 @@ public sealed class PageCompilerTests {
 
         public string Path => "test";
 
+        public uk.osric.asp.Sdk.PageUser? User => null;
+
         public CancellationToken Aborted => CancellationToken.None;
 
         public string Output => _output.ToString();
@@ -401,6 +403,10 @@ public sealed class PageCompilerTests {
         public void SetHeader(string name, string value) { }
 
         public void Redirect(string location, int status = 302) { }
+
+        public void RedirectToLogin() { }
+
+        public string AntiforgeryField => string.Empty;
 
         public uk.osric.asp.Sdk.IPageStorage Storage { get; } = new NoStorage();
 

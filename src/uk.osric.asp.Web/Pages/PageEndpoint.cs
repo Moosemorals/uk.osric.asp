@@ -4,11 +4,13 @@
 namespace uk.osric.asp.Web.Pages;
 
 using Microsoft.Net.Http.Headers;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
@@ -72,6 +74,21 @@ internal sealed class PageEndpoint() {
             return;
         }
 
+        // Identity comes only from the principal UseAuthentication validated, never from a header or
+        // a cookie the page could read. It is mapped once, so the guard and the CSRF check agree.
+        PageUser? user = MapUser(context.User);
+        bool authenticated = context.User.Identity?.IsAuthenticated == true;
+
+        // A signed-in visitor's form is exactly where a cross-site post becomes an action by the
+        // owner, so the host checks it rather than leaving it to the page author. An anonymous post
+        // has no cookie-backed identity to forge and is unchanged.
+        if (authenticated
+            && HttpMethods.IsPost(context.Request.Method)
+            && !await environment.Antiforgery.IsRequestValidAsync(context)) {
+            await WriteForgedRequestAsync(context, path);
+            return;
+        }
+
         StringWriter output = new();
 
         // A HEAD request runs the page to produce the representation and its validators, so its state
@@ -90,7 +107,10 @@ internal sealed class PageEndpoint() {
             environment.Fetcher,
             environment.Fetch,
             environment.Metrics,
-            environment.Render.MaxBodyChars);
+            environment.Render.MaxBodyChars,
+            user,
+            LoginRedirect.For(path, context.Request.QueryString),
+            () => AntiforgeryField.Hidden(environment.Antiforgery.GetAndStoreTokens(context)));
 
         RenderResult result = await pages.RenderAsync(path, page, context.RequestAborted);
 
@@ -105,15 +125,34 @@ internal sealed class PageEndpoint() {
                 await WriteTimeoutAsync(context, path);
                 break;
             default:
-                await WritePageAsync(context, page.ToResponse(), page.GetBody());
+                await WritePageAsync(context, page.ToResponse(), page.GetBody(), authenticated);
                 break;
         }
     }
 
+    // An authenticated identity without a name is anonymous as far as a page is concerned: a
+    // half-built principal must fail closed rather than hand the page a nameless user.
+    private static PageUser? MapUser(ClaimsPrincipal principal) {
+        if (principal.Identity?.IsAuthenticated != true) {
+            return null;
+        }
+
+        string? name = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        return string.IsNullOrEmpty(name) ? null : new PageUser(name);
+    }
+
     // The page's body is buffered until here, so the response is written in one go: status and
     // headers first, and nothing at all when the page redirected or the request was a HEAD.
-    private static async Task WritePageAsync(HttpContext context, PageResponse response, string body) {
+    private static async Task WritePageAsync(
+        HttpContext context,
+        PageResponse response,
+        string body,
+        bool authenticated) {
         if (response.Location is not null) {
+            // A redirect can carry the promise of a page the visitor is not yet allowed to see, so it
+            // is never cached, whoever asked.
+            context.Response.Headers.CacheControl = "no-store";
             Redirect.To(context, response.Status, response.Location);
             return;
         }
@@ -126,7 +165,14 @@ internal sealed class PageEndpoint() {
 
         byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
         EntityTagHeaderValue? entityTag = null;
-        if (response.Status is >= StatusCodes.Status200OK and < StatusCodes.Status300MultipleChoices) {
+
+        if (authenticated) {
+            // Copies first, then overrides, so a page cannot weaken it with SetHeader. A response
+            // rendered for one owner must never be a shared cache's answer to another visitor, and a
+            // validator would invite exactly that revalidation.
+            context.Response.Headers.CacheControl = "no-store";
+            context.Response.Headers.Remove("ETag");
+        } else if (response.Status is >= StatusCodes.Status200OK and < StatusCodes.Status300MultipleChoices) {
             byte[] digest = SHA256.HashData(bodyBytes);
             entityTag = new EntityTagHeaderValue($"\"{Convert.ToHexString(digest)}\"");
             context.Response.Headers["ETag"] = entityTag.ToString();
@@ -175,6 +221,18 @@ internal sealed class PageEndpoint() {
             "The form could not be read",
             $"{path} rejected: the form could not be read.",
             ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true)));
+
+    private static Task WriteForgedRequestAsync(HttpContext context, PagePath path) {
+        // The check happens before the page runs, so nothing the page might have written or stored
+        // exists; no-store keeps the refusal itself out of a cache.
+        context.Response.Headers.CacheControl = "no-store";
+
+        return ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            "page.form_unverified",
+            "The form could not be verified",
+            $"{path} rejected: the form could not be verified. Go back, reload the page and try again.",
+            ErrorMessage.DefaultRemedies(isAuthenticated: true)));
+    }
 
     private static Task WriteTooLargeAsync(HttpContext context, PagePath path) =>
         ErrorResponses.WriteAsync(context, StatusCodes.Status413PayloadTooLarge, new ErrorMessage(
