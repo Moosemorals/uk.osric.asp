@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web;
 
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -66,6 +67,16 @@ internal class Program {
             .ValidateOnStart();
         builder.Services.AddSingleton<IValidateOptions<AssistantOptions>, AssistantOptionsValidator>();
 
+        // The upload limits and the framework's form parser come from the same cap, so an oversized
+        // body is refused rather than buffered, and a normal one never spills to a temporary file.
+        builder.Services.Configure<FormOptions>(options => {
+            ArchiveOptions archive = ArchiveOptions.FromConfiguration(builder.Configuration);
+            options.MultipartBodyLengthLimit = archive.MaxUploadBytes + (64 * 1024);
+            options.MemoryBufferThreshold = archive.MaxUploadBytes + (64 * 1024);
+            options.ValueCountLimit = 1024;
+            options.MultipartHeadersLengthLimit = 16 * 1024;
+        });
+
         builder.Services.Configure<ForwardedHeadersOptions>(options => {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
                 | ForwardedHeaders.XForwardedProto
@@ -97,6 +108,7 @@ internal class Program {
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton(PageStorageOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(ArchiveOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
         builder.Services.AddSingleton(PageFetchOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddHttpClient(PageFetcher.ClientName)
@@ -120,6 +132,8 @@ internal class Program {
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         builder.Services.AddScoped<IPageStore, SqlitePageStore>();
+        builder.Services.AddScoped<PageArchiveReader>();
+        builder.Services.AddSingleton<ImportStageStore>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
         builder.Services.AddScoped<PageEditor>();
         builder.Services.AddScoped<PageRenderer>();
@@ -278,6 +292,14 @@ internal class Program {
         app.MapPost("/admin/export", ExportEndpoint.DownloadAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+
+        app.MapGet("/admin/import", ImportEndpoint.UploadFormAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/admin/import", ImportEndpoint.UploadAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/admin/import/{id}", ImportEndpoint.ReviewAsync)
+            .RequireAuthorization(EditorPolicy.Name);
 
         app.MapGet("/login", LoginEndpoint.GetAsync).AllowAnonymous();
         app.MapPost("/login", LoginEndpoint.PostAsync)
