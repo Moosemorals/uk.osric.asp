@@ -23,7 +23,9 @@ and IDEA-013 came out of the naming-consistency planning, and every status below
 the code on 2026-11-06. IDEA-014 to IDEA-019 came out of the shell-versus-page review of 2026-11-07:
 what is left in the shell is mostly authority a page does not have rather than markup a page could
 not write. IDEA-020 came out of the import and export planning, and records why a destructive reset
-is not part of that flow.
+is not part of that flow. IDEA-021 came out of the assistant validation discussion of 2026-11-07;
+it pairs with the [content-type plan](../plans/page-content-types.md) and records why validation is
+a tool rather than a save step.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -47,6 +49,7 @@ is not part of that flow.
 | [IDEA-018](IDEA-018.md) | — | M | The document shell is not reachable from page code |
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
+| [IDEA-021](IDEA-021.md) | — | M | The assistant cannot validate the JavaScript it writes |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -77,6 +80,9 @@ self-contained comes first, because these are the ones that never get scheduled 
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
+10. **IDEA-021, script validation** — an assistant tool, not a save gate. It is small once the
+    [content-type plan](../plans/page-content-types.md) names the source language; until then it
+    can still validate supplied content directly.
 
 ## Closed
 
