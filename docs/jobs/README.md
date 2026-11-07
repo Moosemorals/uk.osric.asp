@@ -20,7 +20,10 @@ The defect and operation jobs were raised by the architecture review and the cod
 BUG-14 came out of the metrics dashboard planning, and BUG-18 came out of the editor's
 save-and-view work. The `IDEA-` jobs were added on 2026-11-01, OPS-06
 and IDEA-013 came out of the naming-consistency planning, and every status below was checked against
-the code on 2026-11-06.
+the code on 2026-11-06. IDEA-014 to IDEA-019 came out of the shell-versus-page review of 2026-11-07:
+what is left in the shell is mostly authority a page does not have rather than markup a page could
+not write. IDEA-020 came out of the import and export planning, and records why a destructive reset
+is not part of that flow.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -38,6 +41,13 @@ the code on 2026-11-06.
 | [IDEA-009](IDEA-009.md) | — | M | Pages cannot be exported or imported as an archive — must carry page state now that storage exists |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-013](IDEA-013.md) | — | M | There is no glossary, so the site's own words are guesswork |
+| [IDEA-014](IDEA-014.md) | — | M | A page cannot keep per-visitor state, so a form cannot redirect and say why |
+| [IDEA-015](IDEA-015.md) | — | M | A page cannot read the page store, so the listing and history are shell views |
+| [IDEA-016](IDEA-016.md) | — | M | A page cannot save its own source |
+| [IDEA-017](IDEA-017.md) | — | L | A page cannot edit another page, so the editor cannot become one |
+| [IDEA-018](IDEA-018.md) | — | M | The document shell is not reachable from page code |
+| [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
+| [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -61,6 +71,13 @@ self-contained comes first, because these are the ones that never get scheduled 
 6. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
    and a rule, once there is something worth being woken for.
 7. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
+8. **IDEA-014 … IDEA-019, page capabilities** — each lets a stored page do something only the shell
+   can do today. None is urgent while the shell works; they matter when a view is worth moving.
+   IDEA-018 and IDEA-014 pay off first, because the listing and history views (IDEA-015) need a
+   layout and a save message before they can leave the shell, and IDEA-017 is the one to leave last.
+9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
+   the archive is not a backup; the job records what a destructive replace would have to answer
+   before it is worth building.
 
 ## Closed
 
