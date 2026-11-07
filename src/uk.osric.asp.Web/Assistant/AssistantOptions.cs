@@ -19,7 +19,7 @@ internal sealed class AssistantOptions {
     public double Temperature { get; init; } = 0.2;
     public int MaxOutputTokens { get; init; } = 32_768;
     public bool IncludeUsage { get; init; } = true;
-    public int MaxSteps { get; init; } = 12;
+    public int MaxSteps { get; init; } = 120;
     public int MaxToolCalls { get; init; } = 32;
     public int MaxToolCallsPerStep { get; init; } = 8;
     public int MaxActiveRuns { get; init; } = 2;
