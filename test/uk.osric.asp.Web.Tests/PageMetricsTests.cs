@@ -123,12 +123,12 @@ public sealed class PageMetricsTests {
     [Test]
     public async Task AnAbandonedRenderIsRecordedAsATimeoutAsync() {
         const string SlowPage =
-            "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(1500); while (System.DateTime.UtcNow < until) { } %>";
+            "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600); while (System.DateTime.UtcNow < until) { } %>";
 
         // The capture has to start before the meter so no instrument is missed.
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
-        RenderOptions options = new() { TimeoutSeconds = 1 };
+        RenderOptions options = new() { TimeoutSeconds = 0.25 };
         using PageHarness pages = new(storage, options: options,
             budget: new PageBudget(options, new CompileOptions()));
         await pages.Editor.SaveAsync(Key("/slow"), SlowPage);

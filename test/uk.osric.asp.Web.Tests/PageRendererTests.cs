@@ -19,10 +19,20 @@ using uk.osric.asp.Web.Pages;
 [NonParallelizable]
 public sealed class PageRendererTests {
 
+    // The behaviour under test is the deadline, not its length, so the budget is far shorter than a
+    // visitor's: a quarter of a second instead of five.
+    private const double BudgetSeconds = 0.25;
+
     // A page that cannot call Thread.Sleep or Task.Delay (the API policy refuses both) burns CPU until
-    // a wall-clock deadline, so it is a real slow page that still ends on its own.
+    // a wall-clock deadline, so it is a real slow page that still ends on its own. It outlasts the
+    // budget by a wide margin, so the answer cannot be waiting for it, and it stops soon enough that
+    // the rest of this fixture does not run beside a core that is still spinning.
     private const string SlowPage =
-        "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(1500); while (System.DateTime.UtcNow < until) { } %>";
+        "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600); while (System.DateTime.UtcNow < until) { } %>";
+
+    // A whole-second budget left 400 ms of room for the deadline continuation to be scheduled; the
+    // same room is kept here, because what it absorbs is a busy machine rather than a slow page.
+    private static readonly TimeSpan BudgetWithGrace = TimeSpan.FromMilliseconds(650);
 
     [Test]
     public async Task RenderPropagatesACompilerFaultAsync() {
@@ -191,7 +201,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task APageThatOutrunsTheBudgetIsAbandonedAsync() {
         FakePageStore storage = new();
-        RenderOptions options = new() { TimeoutSeconds = 1 };
+        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, options: options,
             budget: new PageBudget(options, new CompileOptions()), health: health);
@@ -201,7 +211,7 @@ public sealed class PageRendererTests {
         (RenderResult result, string _) = await pages.RenderAsync("/slow");
 
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
-        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1.4)),
+        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(BudgetWithGrace),
             "the answer must not wait for the page to finish");
         Assert.That(health.Abandoned, Is.EqualTo(1), "an abandoned render is what the health check counts");
     }
@@ -209,11 +219,11 @@ public sealed class PageRendererTests {
     [Test]
     public async Task AnAbandonedPageStopsWritingToTheResponseAsync() {
         FakePageStore storage = new();
-        RenderOptions options = new() { TimeoutSeconds = 1 };
+        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
         using PageHarness pages = new(storage, options: options,
             budget: new PageBudget(options, new CompileOptions()));
         await pages.StoreCompiledAsync("/chatty",
-            "before<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(1200); while (System.DateTime.UtcNow < until) { } %>after");
+            "before<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600); while (System.DateTime.UtcNow < until) { } %>after");
 
         (RenderResult result, string output) = await pages.RenderAsync("/chatty");
 
@@ -222,14 +232,14 @@ public sealed class PageRendererTests {
 
         // The page is still running when the site answers; give it time to finish and check that its
         // late writes went nowhere.
-        await Task.Delay(600);
+        await Task.Delay(500);
         Assert.That(output, Is.EqualTo("before"));
     }
 
     [Test]
     public async Task AnAbandonedPageWaitingOnStorageIsCancelledAndReleasedAsync() {
         FakePageStore storage = new();
-        RenderOptions options = new() { TimeoutSeconds = 1 };
+        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         FakePageStateStore state = new() { ReadDelay = TimeSpan.FromSeconds(30) };
         state.LivePages.Add("/waiting");
@@ -248,7 +258,7 @@ public sealed class PageRendererTests {
         (RenderResult result, string _) = await pages.RenderAsync("/waiting");
 
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
-        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1.4)),
+        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(BudgetWithGrace),
             "the answer must not wait for the page to stop waiting");
 
         // A page suspended in an await unwinds as soon as the deadline fires, so its render is
@@ -266,7 +276,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task AnAbandonedPageIsReleasedFromTheHealthCountWhenItFinishesAsync() {
         FakePageStore storage = new();
-        RenderOptions options = new() { TimeoutSeconds = 1 };
+        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, options: options,
             budget: new PageBudget(options, new CompileOptions()), health: health);
@@ -287,7 +297,7 @@ public sealed class PageRendererTests {
     public async Task APageWhoseCompileOutlivesTheBudgetIsServedByTheNextRequestAsync() {
         FakePageStore storage = new();
         storage["/cold"] = new PageTemplate(PageHarness.Key("/cold"), "Hello.");
-        RenderOptions options = new() { TimeoutSeconds = 1 };
+        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, new SlowCompiler(new PageCompiler()), options,
             new PageBudget(options, new CompileOptions()), health);
@@ -310,7 +320,7 @@ public sealed class PageRendererTests {
     public async Task ARenderThatWaitsPastTheBudgetForASlotIsDroppedAsync() {
         FakePageStore storage = new();
         storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "Hello.");
-        RenderOptions options = new() { TimeoutSeconds = 1, Slots = 1 };
+        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds, Slots = 1 };
         PageBudget budget = new(options, new CompileOptions());
         using PageHarness pages = new(storage, options: options, budget: budget, health: new PageHealth(options.AbandonedLimit));
 
@@ -329,7 +339,7 @@ public sealed class PageRendererTests {
     public async Task ARenderThatSpendsItsBudgetWaitingForACompileSlotTimesOutAsync() {
         FakePageStore storage = new();
         storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "Hello.");
-        RenderOptions options = new() { TimeoutSeconds = 1 };
+        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
         PageBudget budget = new(options, new CompileOptions());
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, options: options, budget: budget, health: health);
@@ -341,7 +351,7 @@ public sealed class PageRendererTests {
 
             Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
             Assert.That(output, Is.Empty, "a page that never started wrote nothing");
-            Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1.4)),
+            Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(BudgetWithGrace),
                 "the wait is bounded by the render's budget, not the longer compile budget");
         } finally {
             budget.CompileSlots.Release();
@@ -352,9 +362,9 @@ public sealed class PageRendererTests {
 
     [Test]
     public async Task ARenderThatSpendsItsBudgetOnTheReadTimesOutWithoutRunningThePageAsync() {
-        FakePageStore storage = new() { ReadDelay = TimeSpan.FromMilliseconds(1200) };
+        FakePageStore storage = new() { ReadDelay = TimeSpan.FromMilliseconds(600) };
         storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "Hello.");
-        RenderOptions options = new() { TimeoutSeconds = 1 };
+        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, options: options,
             budget: new PageBudget(options, new CompileOptions()), health: health);
@@ -363,7 +373,7 @@ public sealed class PageRendererTests {
         (RenderResult result, string output) = await pages.RenderAsync("/hello");
 
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Timeout));
-        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromMilliseconds(1200)),
+        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromMilliseconds(500)),
             "the answer comes when the budget is spent, not when the slow read finishes");
         Assert.That(output, Is.Empty);
         Assert.That(health.Abandoned, Is.Zero, "the page never ran, so no render was abandoned");

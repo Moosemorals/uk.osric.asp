@@ -192,8 +192,8 @@ its `TestAssembly.cs`:
 - `Web.Tests` and `Web.IntegrationTests` run every *fixture* in parallel (`ParallelScope.Fixtures`) and
   the tests inside a fixture one at a time. A fixture owns its services and storage — and in the
   integration suite its host and its database — so fixtures are independent, but the tests inside one
-  are not: the budget tests measure a wall clock against a page that burns CPU, the storage fixtures
-  migrate a database in `[SetUp]`, and a fixture signs in once per test.
+  are not: the budget tests measure a wall clock against a page that burns CPU, a storage test opens
+  the database file the fixture holds the template for, and a fixture signs in once per test.
 - `PageMetricsTests` is `[NonParallelizable]`, because a `MeterListener` hears every instrument in the
   process, including the page meter another fixture is recording into. `MetricsEndpointTests` reads
   the same process-wide meter through the exporter, but asserts that a series is present rather than
@@ -207,14 +207,23 @@ its `TestAssembly.cs`:
   queues for a thread. Run beside another fixture's compiles, the answer lands late and a timing
   assertion fails on load rather than behaviour.
 
-Parallelism is worth less here than it looks. Roslyn already uses every core inside a single compile,
-so fixtures that compile at the same time contend rather than scale; and `Pages:Render:TimeoutSeconds`
-is a whole number, so every test of the budget costs at least a second of wall clock. That second is
-what makes `Web.Tests` the slow suite — the budget tests are about half of it — and it is why
-per-test parallelism is not used there. A sub-second budget is the change that would buy more.
+Parallelism is worth less here than it looks: Roslyn already uses every core inside a single compile,
+so fixtures that compile at the same time contend rather than scale, and the non-parallel fixtures run
+one at a time beside nothing else.
 
-The four projects are independent processes, so `make -j4 test` runs them at once as well: about 27 s
-against 38 s on a four-core machine, even though each suite then reports a slightly longer duration.
+What the budget tests cost is the budget itself, so they run a quarter of a second rather than the
+five a visitor gets: the behaviour under test is the deadline, not its length. `TimeoutSeconds` is a
+`double` for exactly that reason, and `PageBudget.MinimumTimeoutSeconds` keeps a configured zero from
+switching the limit off. A page that outruns its budget still burns CPU until it stops on its own, so
+the slow pages in those tests end shortly after the deadline and the fixtures that run them keep the
+process to themselves.
+
+The storage fixtures do not migrate a database per test either: each migration costs about fifty
+milliseconds and every test needs its own file, so a fixture migrates one `DatabaseTemplate` and each
+test starts from a copy.
+
+The four projects are independent processes, so `make -j4 test` runs them at once as well: about 15 s
+against 30 s on an eight-core machine, even though each suite then reports a slightly longer duration.
 
 ## Conventions
 

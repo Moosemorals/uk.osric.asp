@@ -20,7 +20,7 @@ internal sealed class FaultingCompiler : IPageCompiler {
     }
 }
 
-/// <summary>A compile that outlasts a one-second render budget, the way a cold Roslyn does.</summary>
+/// <summary>A compile that outlasts a quarter-second render budget, the way a cold Roslyn does.</summary>
 /// <remarks>
 /// It finishes, so its image must be kept even though the answer was given up on.
 /// </remarks>
@@ -29,7 +29,7 @@ internal sealed class SlowCompiler(IPageCompiler inner) : IPageCompiler {
     public string RuntimeId => inner.RuntimeId;
 
     public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
-        Thread.Sleep(TimeSpan.FromMilliseconds(1300));
+        Thread.Sleep(TimeSpan.FromMilliseconds(500));
 
         return inner.Compile(source, cancellationToken);
     }

@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -22,27 +21,34 @@ public sealed class StoredTicketDataFormatTests {
     private const string CookieName = ".uk.osric.asp.auth";
     private static readonly DateTimeOffset Expiry = DateTimeOffset.UtcNow.AddDays(30);
 
+    private static DatabaseTemplate? s_template;
+
     private string _databasePath = string.Empty;
     private ServiceProvider _provider = null!;
     private AuthTicketStore _tickets = null!;
     private HttpContextAccessor _http = null!;
     private StoredTicketDataFormat _format = null!;
 
+    [OneTimeSetUp]
+    public static void MigrateOnce() {
+        s_template = new DatabaseTemplate("auth-tickets");
+    }
+
+    [OneTimeTearDown]
+    public static void DeleteTemplate() {
+        s_template?.Dispose();
+        s_template = null;
+    }
+
     [SetUp]
-    public async Task SetUpAsync() {
-        _databasePath = Path.Combine(Path.GetTempPath(), $"auth-tickets-{Guid.NewGuid():N}.db");
-        SqliteConnectionStringBuilder connection = new() { DataSource = _databasePath, Pooling = false };
+    public void SetUp() {
+        _databasePath = s_template!.CreateFile("auth-tickets");
         ServiceCollection services = new();
-        services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
+        services.AddDbContext<StorageDbContext>(options => options.UseSqlite(DatabaseTemplate.ConnectionString(_databasePath)));
         services.AddSingleton<AuthTicketStore>();
         _http = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
         services.AddSingleton<IHttpContextAccessor>(_http);
         _provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
-
-        await using (AsyncServiceScope scope = _provider.CreateAsyncScope()) {
-            StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
-            await database.Database.MigrateAsync();
-        }
 
         _tickets = _provider.GetRequiredService<AuthTicketStore>();
         _format = new StoredTicketDataFormat(
@@ -55,9 +61,7 @@ public sealed class StoredTicketDataFormatTests {
     [TearDown]
     public void TearDown() {
         _provider.Dispose();
-        File.Delete(_databasePath);
-        File.Delete(_databasePath + "-wal");
-        File.Delete(_databasePath + "-shm");
+        DatabaseTemplate.DeleteFiles(_databasePath);
     }
 
     [Test]

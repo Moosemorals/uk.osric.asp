@@ -403,8 +403,8 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = CreateContext("slow.cs");
         FakePageStore storage = new();
         storage["/slow.cs"] = new PageTemplate(PagePath.Normalize("/slow.cs"),
-            "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(1500); while (System.DateTime.UtcNow < until) { } %>");
-        RenderOptions options = new() { TimeoutSeconds = 1 };
+            "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600); while (System.DateTime.UtcNow < until) { } %>");
+        RenderOptions options = new() { TimeoutSeconds = 0.25 };
 
         long start = Stopwatch.GetTimestamp();
         await PageEndpoint.HandleAsync(context, CreatePages(storage, options), NullLoggerFactory.Instance, EndpointEnvironment(options));
@@ -412,7 +412,7 @@ public sealed class PageEndpointTests {
         Assert.That(context.Response.StatusCode, Is.EqualTo(504));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("/slow.cs is taking too long."));
-        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1.4)));
+        Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromMilliseconds(650)));
     }
 
     [Test]

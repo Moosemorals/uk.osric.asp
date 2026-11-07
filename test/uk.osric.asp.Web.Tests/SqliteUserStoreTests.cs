@@ -3,35 +3,41 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NUnit.Framework;
 using uk.osric.asp.Web.Storage;
 using uk.osric.asp.Web.Users;
 
 [TestFixture]
-// Each test migrates its own database, so the per-test paths need a per-test instance to hold them.
+// Each test copies the fixture's migrated template, so the per-test path needs a per-test instance.
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public sealed class SqliteUserStoreTests {
+
+    private static DatabaseTemplate? s_template;
 
     private string _databasePath = string.Empty;
     private DbContextOptions<StorageDbContext> _options = new DbContextOptionsBuilder<StorageDbContext>().Options;
 
-    [SetUp]
-    public async Task SetUpAsync() {
-        _databasePath = Path.Combine(Path.GetTempPath(), $"users-{Guid.NewGuid():N}.db");
-        SqliteConnectionStringBuilder connection = new() { DataSource = _databasePath, Pooling = false };
-        _options = new DbContextOptionsBuilder<StorageDbContext>().UseSqlite(connection.ToString()).Options;
+    [OneTimeSetUp]
+    public static void MigrateOnce() {
+        s_template = new DatabaseTemplate("users");
+    }
 
-        await using StorageDbContext database = new(_options);
-        await database.Database.MigrateAsync();
+    [OneTimeTearDown]
+    public static void DeleteTemplate() {
+        s_template?.Dispose();
+        s_template = null;
+    }
+
+    [SetUp]
+    public void OpenDatabase() {
+        _databasePath = s_template!.CreateFile("users");
+        _options = DatabaseTemplate.Options(_databasePath);
     }
 
     [TearDown]
-    public void TearDown() {
-        File.Delete(_databasePath);
-        File.Delete(_databasePath + "-wal");
-        File.Delete(_databasePath + "-shm");
+    public void DeleteDatabase() {
+        DatabaseTemplate.DeleteFiles(_databasePath);
     }
 
     [Test]

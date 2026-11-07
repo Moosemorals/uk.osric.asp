@@ -14,7 +14,7 @@ using Microsoft.Extensions.Configuration;
 internal sealed record RenderOptions {
 
     /// <summary>The budget for one render, in seconds, when none is configured.</summary>
-    public const int DefaultTimeoutSeconds = 5;
+    public const double DefaultTimeoutSeconds = 5;
 
     /// <summary>Renders allowed to run at once when none is configured.</summary>
     public const int DefaultSlots = 2;
@@ -26,7 +26,8 @@ internal sealed record RenderOptions {
     public const int DefaultAbandonedLimit = 2;
 
     /// <summary>The whole budget for one render, including the wait for a slot.</summary>
-    public int TimeoutSeconds { get; init; } = DefaultTimeoutSeconds;
+    /// <remarks>May be a fraction of a second, down to <see cref="PageBudget.MinimumTimeoutSeconds"/>.</remarks>
+    public double TimeoutSeconds { get; init; } = DefaultTimeoutSeconds;
 
     /// <summary>Page renders allowed to run at once; further requests wait without a thread.</summary>
     public int Slots { get; init; } = DefaultSlots;
@@ -49,7 +50,7 @@ internal sealed record RenderOptions {
         IConfigurationSection section = configuration.GetSection("Pages:Render");
 
         return new RenderOptions {
-            TimeoutSeconds = Math.Max(1, section.GetValue("TimeoutSeconds", DefaultTimeoutSeconds)),
+            TimeoutSeconds = Math.Max(PageBudget.MinimumTimeoutSeconds, section.GetValue("TimeoutSeconds", DefaultTimeoutSeconds)),
             Slots = Math.Max(1, section.GetValue("Slots", DefaultSlots)),
             MaxBodyChars = Math.Max(1024, section.GetValue("MaxBodyChars", DefaultMaxBodyChars)),
             AbandonedLimit = Math.Max(1, section.GetValue("AbandonedLimit", DefaultAbandonedLimit)),

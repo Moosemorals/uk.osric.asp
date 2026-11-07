@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -18,10 +17,8 @@ using uk.osric.asp.Web.Storage;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public sealed class RunProcessorTests {
 
-    private string _databasePath = string.Empty;
-    private DbContextOptions<StorageDbContext> _databaseOptions = new DbContextOptionsBuilder<StorageDbContext>().Options;
-    private ServiceProvider? _services;
-    private PageHarness? _pages;
+    private static DatabaseTemplate? s_template;
+
     private readonly AssistantOptions _options = new() {
         RunTimeoutSeconds = 5,
         RequestTimeoutSeconds = 3,
@@ -29,18 +26,28 @@ public sealed class RunProcessorTests {
         MaxContextChars = 20_000,
     };
 
+    private string _databasePath = string.Empty;
+    private ServiceProvider? _services;
+    private PageHarness? _pages;
+
+    [OneTimeSetUp]
+    public static void MigrateOnce() {
+        s_template = new DatabaseTemplate("assistant-run");
+    }
+
+    [OneTimeTearDown]
+    public static void DeleteTemplate() {
+        s_template?.Dispose();
+        s_template = null;
+    }
+
     [SetUp]
-    public async Task SetUpAsync() {
-        _databasePath = Path.Combine(Path.GetTempPath(), $"assistant-run-{Guid.NewGuid():N}.db");
-        SqliteConnectionStringBuilder connection = new() { DataSource = _databasePath, Pooling = false };
-        _databaseOptions = new DbContextOptionsBuilder<StorageDbContext>().UseSqlite(connection.ToString()).Options;
-        await using (StorageDbContext database = new(_databaseOptions)) {
-            await database.Database.MigrateAsync();
-        }
+    public void SetUp() {
+        _databasePath = s_template!.CreateFile("assistant-run");
 
         _pages = new PageHarness(new FakePageStore());
         ServiceCollection services = new();
-        services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
+        services.AddDbContext<StorageDbContext>(options => options.UseSqlite(DatabaseTemplate.ConnectionString(_databasePath)));
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IConversationStore, SqliteConversationStore>();
         services.AddScoped(_ => _pages.Editor);
@@ -51,9 +58,7 @@ public sealed class RunProcessorTests {
     public void TearDown() {
         _services?.Dispose();
         _pages?.Dispose();
-        File.Delete(_databasePath);
-        File.Delete(_databasePath + "-wal");
-        File.Delete(_databasePath + "-shm");
+        DatabaseTemplate.DeleteFiles(_databasePath);
     }
 
     [Test]

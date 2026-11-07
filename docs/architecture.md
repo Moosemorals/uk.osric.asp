@@ -371,7 +371,9 @@ waits for it against one deadline that covers both queueing and running:
 - `Pages:Render:Slots` renders may run at once; further requests wait asynchronously, holding no
   thread. A request that waits past the deadline is shed: it answers `504` immediately without ever
   running the page.
-- `Pages:Render:TimeoutSeconds` is the whole budget. When it expires the site answers `504`, calls
+- `Pages:Render:TimeoutSeconds` is the whole budget, and may be fractional: the deadline is honoured
+  in milliseconds, and the configuration is clamped at `PageBudget.MinimumTimeoutSeconds` so a zero
+  cannot switch the limit off. When it expires the site answers `504`, calls
   `SimpleContext.Abandon` so the still-running page cannot write any more, and gives up on it. A
   render that never returns cannot be reclaimed: it is counted, logged with the page's path and the
   elapsed time, and recorded on `page.render.abandoned`. A page that is *waiting* on an `await`

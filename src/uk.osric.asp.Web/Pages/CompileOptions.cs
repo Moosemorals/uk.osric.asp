@@ -16,13 +16,14 @@ internal sealed record CompileOptions {
     public const int DefaultSlots = 1;
 
     /// <summary>The budget for one compile, in seconds, when none is configured.</summary>
-    public const int DefaultTimeoutSeconds = 10;
+    public const double DefaultTimeoutSeconds = 10;
 
     /// <summary>Compiles allowed to run at once.</summary>
     public int Slots { get; init; } = DefaultSlots;
 
     /// <summary>The budget for one compile.</summary>
-    public int TimeoutSeconds { get; init; } = DefaultTimeoutSeconds;
+    /// <remarks>May be a fraction of a second, down to <see cref="PageBudget.MinimumTimeoutSeconds"/>.</remarks>
+    public double TimeoutSeconds { get; init; } = DefaultTimeoutSeconds;
 
     /// <summary>The budget as a time span.</summary>
     public TimeSpan Timeout => TimeSpan.FromSeconds(TimeoutSeconds);
@@ -37,7 +38,7 @@ internal sealed record CompileOptions {
 
         return new CompileOptions {
             Slots = Math.Max(1, section.GetValue("Slots", DefaultSlots)),
-            TimeoutSeconds = Math.Max(1, section.GetValue("TimeoutSeconds", DefaultTimeoutSeconds)),
+            TimeoutSeconds = Math.Max(PageBudget.MinimumTimeoutSeconds, section.GetValue("TimeoutSeconds", DefaultTimeoutSeconds)),
         };
     }
 }

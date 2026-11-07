@@ -66,20 +66,20 @@ public sealed class PageImageBuilderTests {
 
     [Test]
     public void ABuildThatOutranItsBudgetIsReported() {
-        PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 1 });
+        PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 0.25 });
         using PageHarness pages = new(new FakePageStore(), new StallingCompiler(), budget: budget);
 
         PageImage compilation = Build(pages, "/stalled", "Hello.");
 
         Assert.That(compilation.Diagnostics, Is.EqualTo(new PageDiagnostic[] {
-            new(PageDiagnosticSeverity.Error, null, "PAGE004: the page took longer than 1 s to compile."),
+            new(PageDiagnosticSeverity.Error, null, "PAGE004: the page took longer than 0.25 s to compile."),
         }));
         Assert.That(compilation.Bytes, Is.Null);
     }
 
     [Test]
     public async Task ACompileThatWaitedPastItsBudgetForASlotIsReportedAsync() {
-        PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 1 });
+        PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 0.25 });
         using PageHarness pages = new(new FakePageStore(), budget: budget);
 
         await budget.CompileSlots.WaitAsync();
@@ -87,11 +87,11 @@ public sealed class PageImageBuilderTests {
             long start = Stopwatch.GetTimestamp();
             PageImage compilation = Build(pages, "/queued", "Hello.");
 
-            Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(3)),
+            Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1)),
                 "the wait for a slot is bounded by the compile budget");
             Assert.That(compilation.Diagnostics, Is.EqualTo(new PageDiagnostic[] {
                 new(PageDiagnosticSeverity.Error, null,
-                    "PAGE003: the page waited longer than 1 s for a compile slot."),
+                    "PAGE003: the page waited longer than 0.25 s for a compile slot."),
             }));
         } finally {
             budget.CompileSlots.Release();

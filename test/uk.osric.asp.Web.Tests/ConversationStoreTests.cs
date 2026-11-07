@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NUnit.Framework;
 using uk.osric.asp.Core.Assistant;
@@ -14,23 +13,31 @@ using uk.osric.asp.Web.Storage;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public sealed class ConversationStoreTests {
 
+    private static DatabaseTemplate? s_template;
+
     private string _databasePath = string.Empty;
     private DbContextOptions<StorageDbContext> _options = new DbContextOptionsBuilder<StorageDbContext>().Options;
 
+    [OneTimeSetUp]
+    public static void MigrateOnce() {
+        s_template = new DatabaseTemplate("assistant-conversations");
+    }
+
+    [OneTimeTearDown]
+    public static void DeleteTemplate() {
+        s_template?.Dispose();
+        s_template = null;
+    }
+
     [SetUp]
-    public async Task SetUpAsync() {
-        _databasePath = Path.Combine(Path.GetTempPath(), $"assistant-conversations-{Guid.NewGuid():N}.db");
-        SqliteConnectionStringBuilder connection = new() { DataSource = _databasePath, Pooling = false };
-        _options = new DbContextOptionsBuilder<StorageDbContext>().UseSqlite(connection.ToString()).Options;
-        await using StorageDbContext database = new(_options);
-        await database.Database.MigrateAsync();
+    public void OpenDatabase() {
+        _databasePath = s_template!.CreateFile("assistant-conversations");
+        _options = DatabaseTemplate.Options(_databasePath);
     }
 
     [TearDown]
-    public void TearDown() {
-        File.Delete(_databasePath);
-        File.Delete(_databasePath + "-wal");
-        File.Delete(_databasePath + "-shm");
+    public void DeleteDatabase() {
+        DatabaseTemplate.DeleteFiles(_databasePath);
     }
 
     [Test]

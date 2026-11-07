@@ -20,7 +20,7 @@ using Microsoft.Extensions.Configuration;
 internal sealed record PageFetchOptions {
 
     /// <summary>The per-fetch timeout, in seconds, when none is configured.</summary>
-    public const int DefaultTimeoutSeconds = 4;
+    public const double DefaultTimeoutSeconds = 4;
 
     /// <summary>The largest response body, in bytes, when none is configured.</summary>
     public const int DefaultMaxResponseBytes = 1024 * 1024;
@@ -35,7 +35,8 @@ internal sealed record PageFetchOptions {
     public IReadOnlyList<string> AllowedHosts { get; init; } = [];
 
     /// <summary>How long one fetch may take.</summary>
-    public int TimeoutSeconds { get; init; } = DefaultTimeoutSeconds;
+    /// <remarks>May be a fraction of a second, down to <see cref="PageBudget.MinimumTimeoutSeconds"/>.</remarks>
+    public double TimeoutSeconds { get; init; } = DefaultTimeoutSeconds;
 
     /// <summary>The most decompressed bytes one response may return.</summary>
     public int MaxResponseBytes { get; init; } = DefaultMaxResponseBytes;
@@ -64,7 +65,7 @@ internal sealed record PageFetchOptions {
 
         return new PageFetchOptions {
             AllowedHosts = hosts,
-            TimeoutSeconds = Math.Max(1, section.GetValue("TimeoutSeconds", DefaultTimeoutSeconds)),
+            TimeoutSeconds = Math.Max(PageBudget.MinimumTimeoutSeconds, section.GetValue("TimeoutSeconds", DefaultTimeoutSeconds)),
             MaxResponseBytes = Math.Max(1024, section.GetValue("MaxResponseBytes", DefaultMaxResponseBytes)),
             MaxRequestsPerRender = Math.Max(1, section.GetValue("MaxRequestsPerRender", DefaultMaxRequestsPerRender)),
             MaxRedirects = Math.Max(0, section.GetValue("MaxRedirects", DefaultMaxRedirects)),

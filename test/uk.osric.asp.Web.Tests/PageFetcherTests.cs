@@ -254,7 +254,7 @@ public sealed class PageFetcherTests {
         PageFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new SlowHandler(),
-            new PageFetchOptions { AllowedHosts = ["api.example.com"], TimeoutSeconds = 1 });
+            new PageFetchOptions { AllowedHosts = ["api.example.com"], TimeoutSeconds = 0.25 });
 
         Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.Timeout));
     }

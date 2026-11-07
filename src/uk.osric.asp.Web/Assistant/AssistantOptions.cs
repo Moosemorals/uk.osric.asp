@@ -24,9 +24,9 @@ internal sealed class AssistantOptions {
     public int MaxToolCallsPerStep { get; init; } = 8;
     public int MaxActiveRuns { get; init; } = 2;
     public int MaxQueuedRuns { get; init; } = 8;
-    public int RequestTimeoutSeconds { get; init; } = 300;
-    public int RunTimeoutSeconds { get; init; } = 300;
-    public int ToolTimeoutSeconds { get; init; } = 30;
+    public double RequestTimeoutSeconds { get; init; } = 300;
+    public double RunTimeoutSeconds { get; init; } = 300;
+    public double ToolTimeoutSeconds { get; init; } = 30;
     public int MaxProviderRetries { get; init; } = 1;
     public int MaxMessageChars { get; init; } = 16_384;
     public int MaxPageChars { get; init; } = 262_144;
@@ -78,6 +78,8 @@ internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOpti
         }
         if (options.MaxOutputTokens <= 0 || options.MaxSteps <= 0 || options.MaxToolCalls <= 0
             || options.MaxToolCallsPerStep <= 0 || options.MaxActiveRuns <= 0 || options.MaxQueuedRuns <= 0
+            || !double.IsFinite(options.RequestTimeoutSeconds) || !double.IsFinite(options.RunTimeoutSeconds)
+            || !double.IsFinite(options.ToolTimeoutSeconds)
             || options.RequestTimeoutSeconds <= 0 || options.RunTimeoutSeconds <= 0 || options.ToolTimeoutSeconds <= 0
             || options.MaxProviderRetries < 0 || options.MaxMessageChars <= 0 || options.MaxPageChars <= 0
             || options.MaxToolArgumentChars <= 0 || options.MaxToolResultChars <= 0

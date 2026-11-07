@@ -68,7 +68,7 @@ internal sealed class PageImageBuilder(
             if (!queued) {
                 result = new CompileResult(null, null, [
                     new PageDiagnostic(PageDiagnosticSeverity.Error, null,
-                        $"PAGE003: the page waited longer than {budget.CompileOptions.TimeoutSeconds} s for a compile slot."),
+                        $"PAGE003: the page waited longer than {PageBudget.DescribeSeconds(budget.CompileOptions.Timeout)} s for a compile slot."),
                 ]);
             } else {
                 try {
@@ -80,7 +80,7 @@ internal sealed class PageImageBuilder(
                         // recompiled on every request.
                         result = new CompileResult(null, null, [
                             new PageDiagnostic(PageDiagnosticSeverity.Error, null,
-                                $"PAGE004: the page took longer than {budget.CompileOptions.TimeoutSeconds} s to compile."),
+                                $"PAGE004: the page took longer than {PageBudget.DescribeSeconds(budget.CompileOptions.Timeout)} s to compile."),
                         ]);
                     } catch (InvalidOperationException ex) {
                         logger.LogDebug("Generated source for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, generatedSource);

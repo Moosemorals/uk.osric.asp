@@ -86,7 +86,7 @@ internal sealed class PageRenderer(
                     // give up on: the answer is the same 504 all the same.
                     outcome = PageMetrics.RenderTimeout;
                     logger.LogWarning("Page {Path} spent its {TimeoutSeconds} s budget before it ran and was dropped",
-                        path.Key, budget.RenderOptions.TimeoutSeconds);
+                        path.Key, PageBudget.DescribeSeconds(budget.RenderOptions.Timeout));
 
                     return RenderResult.TimedOut;
                 }
@@ -270,7 +270,7 @@ internal sealed class PageRenderer(
                 path.Key, elapsed.TotalMilliseconds);
         } else {
             logger.LogWarning("Page {Path} exceeded its {TimeoutSeconds} s budget after {ElapsedMs:0} ms; the render was abandoned",
-                path.Key, budget.RenderOptions.TimeoutSeconds, elapsed.TotalMilliseconds);
+                path.Key, PageBudget.DescribeSeconds(budget.RenderOptions.Timeout), elapsed.TotalMilliseconds);
         }
 
         // The template is released when the page finally stops, not now: unloading the assembly under
