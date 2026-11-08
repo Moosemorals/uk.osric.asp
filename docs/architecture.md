@@ -350,6 +350,13 @@ a reader watches move is therefore the figure the reload will show. The context 
 conversation — the whole untrimmed transcript plus the system prompt — rather than the trimmed
 request that was actually sent, which is what `ContextTrimmer.MeasureChars` measures for both.
 
+Each finished turn of the transcript ends with a changed-pages card: the live pages its `write_page`
+and `edit_page` calls reported saving, each linked to the page and to its editor. It is read from the
+stored tool results by `PageWrites` rather than published live, because the page reloads on the run's
+terminal event and a result the run itself reported is what that reload would show. A refused write
+changed nothing, so it is absent; the run still going has no card, so a reader never sees a page
+listed before the turn that changed it has ended.
+
 ## Authentication and the editor
 
 The editor is behind a sign-in; pages stay public unless the page's

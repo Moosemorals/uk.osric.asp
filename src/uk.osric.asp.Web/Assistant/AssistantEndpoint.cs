@@ -12,6 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Errors;
@@ -128,8 +129,15 @@ internal static class AssistantEndpoint {
             """);
 
         Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
-        foreach (Message message in visibleMessages) {
-            await WriteMessageAsync(context, message, calls);
+        // A run is a turn, and the card that says what it changed belongs at the end of it; the run
+        // still going has not changed anything yet as far as a reader is concerned.
+        foreach (IGrouping<string, Message> turn in visibleMessages.GroupBy(message => message.RunId)) {
+            foreach (Message message in turn) {
+                await WriteMessageAsync(context, message, calls);
+            }
+            if (!string.Equals(turn.Key, activeRun?.Id, StringComparison.Ordinal)) {
+                await WriteChangedPagesAsync(context, turn);
+            }
         }
         await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
         await WriteStoppedRunAsync(context, lastRun);
@@ -541,6 +549,30 @@ internal static class AssistantEndpoint {
             }
             await context.Response.WriteAsync($"<p class=\"assistant-tool-label\">Response</p><pre class=\"assistant-tool-response\">{Encode(message.Content)}</pre></details>");
         }
+    }
+
+    // The card is read from the stored tool results rather than published live: the page reloads on
+    // the terminal event, and a result the run reported is what the reload would show anyway.
+    private static async Task WriteChangedPagesAsync(HttpContext context, IEnumerable<Message> turn) {
+        List<PagePath> changed = [];
+        foreach (Message message in turn) {
+            if (message.Role == "tool"
+                && PageWrites.Written(message.ToolName, message.Content) is { } path
+                && !changed.Contains(path)) {
+                changed.Add(path);
+            }
+        }
+        if (changed.Count == 0) {
+            return;
+        }
+
+        await context.Response.WriteAsync("<section class=\"assistant-changed-pages\"><h2>Changed pages</h2><ul>");
+        foreach (PagePath path in changed) {
+            string key = Encode(path.Key);
+            await context.Response.WriteAsync(
+                $"<li><a href=\"{Encode(PageUrls.Page(path))}\">{key}</a> <a href=\"{Encode(PageUrls.Editor(path))}\">Edit<span class=\"visually-hidden\"> {key}</span></a></li>");
+        }
+        await context.Response.WriteAsync("</ul></section>");
     }
 
     private static async Task WritePendingApprovalsAsync(

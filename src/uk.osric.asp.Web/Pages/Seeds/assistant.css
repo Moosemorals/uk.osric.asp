@@ -184,6 +184,28 @@
     background: var(--assistant-alert);
 }
 
+/* The turn's own summary of what it saved, so the pages are reachable without opening the tool
+   details above it. */
+.assistant-changed-pages {
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--assistant-accent);
+    background: var(--assistant-paper);
+}
+
+.assistant-changed-pages h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.assistant-changed-pages ul {
+    margin: 0.25rem 0 0;
+    padding-inline-start: 1.1rem;
+}
+
+.assistant-changed-pages a + a {
+    margin-inline-start: 0.5rem;
+}
+
 .assistant-approval h3,
 .assistant-approval p {
     margin-block: 0 0.25rem;
@@ -222,6 +244,7 @@
     .assistant-content,
     .assistant-message.user-message,
     .assistant-approval,
+    .assistant-changed-pages,
     .assistant-tool {
         padding: 0.4rem;
     }

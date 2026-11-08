@@ -263,6 +263,7 @@ internal static class ShellViews {
 
     // The reasoning view also carries a finished tool call, so the shared rules see the tool
     // details the chat renders from stored messages: arguments in the summary, both halves inside.
+    // A successful write finishes the turn, so the rules see the changed-pages card as well.
     private static async Task<string> AssistantChatAsync(bool withReasoning) {
         DefaultHttpContext context = AuthenticatedContext("/assistant/1");
         ShellConversationStore conversations = new(withReasoning
@@ -285,6 +286,16 @@ internal static class ShellViews {
                     Content = """{"ok":true,"data":null}""",
                     ToolCallId = "call-1",
                     ToolName = "read_page",
+                    CreatedAt = DateTimeOffset.UtcNow,
+                },
+                new Message {
+                    ConversationId = 1,
+                    RunId = "run-1",
+                    Sequence = 3,
+                    Role = "tool",
+                    Content = """{"ok":true,"data":{"path":"/blog","revisionHash":"abc"},"error":null}""",
+                    ToolCallId = "call-2",
+                    ToolName = "write_page",
                     CreatedAt = DateTimeOffset.UtcNow,
                 },
             ]

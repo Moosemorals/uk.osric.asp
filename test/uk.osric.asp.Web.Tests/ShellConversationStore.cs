@@ -8,7 +8,8 @@ using uk.osric.asp.Web.Assistant;
 
 internal sealed class ShellConversationStore(
     IReadOnlyList<Message>? messages = null,
-    Run? lastRun = null) : IConversationStore {
+    Run? lastRun = null,
+    Run? activeRun = null) : IConversationStore {
     private static Conversation Conversation => new() {
         Id = 1,
         Owner = "owner",
@@ -49,7 +50,7 @@ internal sealed class ShellConversationStore(
         Task.FromResult(messages ?? []);
 
     public Task<Run?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default) =>
-        Task.FromResult<Run?>(null);
+        Task.FromResult(activeRun);
 
     public Task<Run?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult(lastRun);

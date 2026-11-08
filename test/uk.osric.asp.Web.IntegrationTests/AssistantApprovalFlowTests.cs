@@ -60,6 +60,16 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
         Assert.That(completedEvents, Does.Contain("event: tool.finished"));
         Assert.That((await ReadPageAsync("/gated-page"))?.Template, Is.EqualTo("<h1>Gated</h1>"));
 
+        // The turn has ended, so the transcript now says which page it changed, from the stored
+        // result the real executor wrote rather than a hand-built copy of it.
+        using HttpResponseMessage finished = await client.GetAsync(gatedConversation);
+        string finishedBody = await finished.Content.ReadAsStringAsync();
+        Assert.Multiple(() => {
+            Assert.That(finishedBody, Does.Contain("assistant-changed-pages"), "the changed-pages card");
+            Assert.That(finishedBody, Does.Contain("href=\"/gated-page\""), "the live page");
+            Assert.That(finishedBody, Does.Contain("href=\"/edit/gated-page\""), "the editor");
+        });
+
         string automaticConversation = await CreateConversationAsync(client);
         string automaticToken = await GetAntiforgeryTokenAsync(client, automaticConversation);
         using HttpResponseMessage automaticStarted = await client.PostAsync(automaticConversation + "/messages", Form(
