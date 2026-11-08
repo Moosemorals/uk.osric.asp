@@ -113,7 +113,7 @@ internal sealed class PageArchiveReader(
 
     // The identity comes before the schema: a database written by something else is not a page
     // archive at all, and saying so is more useful than describing a schema it never had.
-    private bool ReadFormat(SqliteConnection connection, List<string> problems) {
+    private static bool ReadFormat(SqliteConnection connection, List<string> problems) {
         long applicationId = ReadInteger(connection, "PRAGMA application_id");
         if (applicationId != PageArchiveFormat.ApplicationId) {
             Add(problems, "That file is not a page archive: it does not carry the archive's identity.");
@@ -185,7 +185,11 @@ internal sealed class PageArchiveReader(
             && CheckColumns(connection, PageArchiveFormat.PageStateTable, PageArchiveFormat.PageStateColumns, problems);
     }
 
-    private static bool CheckColumns(SqliteConnection connection, string table, IReadOnlyList<ArchiveColumn> expected, List<string> problems) {
+    private static bool CheckColumns(
+        SqliteConnection connection,
+        string table,
+        IReadOnlyList<ArchiveColumn> expected,
+        List<string> problems) {
         List<ArchiveColumn> actual = [];
 
         using (SqliteCommand command = connection.CreateCommand()) {
@@ -374,7 +378,7 @@ internal sealed class PageArchiveReader(
         }
     }
 
-    private (long Count, long Bytes) ReadPageTotals(SqliteConnection connection) {
+    private static (long Count, long Bytes) ReadPageTotals(SqliteConnection connection) {
         using SqliteCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT COUNT(*), COALESCE(SUM(length(CAST("Path" AS BLOB)) + length(CAST("Source" AS BLOB))), 0)

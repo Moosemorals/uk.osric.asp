@@ -148,5 +148,4 @@ public sealed class PageScopeTests {
             diagnostic => diagnostic is not null
                 && diagnostic.Message.Contains("PAGE001", StringComparison.Ordinal)));
     }
-
 }

@@ -345,7 +345,6 @@ public sealed class PageCompilerTests {
         return Compiler.Compile(TestTemplates.Generate(template));
     }
 
-
     private static LoadedPage Load(string template) {
         CompileResult result = Compile(template);
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
@@ -370,7 +369,7 @@ public sealed class PageCompilerTests {
 
         public string Path => "test";
 
-        public uk.osric.asp.Sdk.PageUser? User => null;
+        public PageUser? User => null;
 
         public CancellationToken Aborted => CancellationToken.None;
 
@@ -404,9 +403,9 @@ public sealed class PageCompilerTests {
 
         public string AntiforgeryField => string.Empty;
 
-        public uk.osric.asp.Sdk.IPageFeatures Features { get; } = new NoFeatures();
+        public IPageFeatures Features { get; } = new NoFeatures();
 
-        private sealed class NoFeatures : uk.osric.asp.Sdk.IPageFeatures {
+        private sealed class NoFeatures : IPageFeatures {
             public bool TryGet<T>([NotNullWhen(true)] out T? feature) where T : class {
                 feature = null;
                 return false;

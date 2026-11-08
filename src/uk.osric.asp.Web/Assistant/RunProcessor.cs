@@ -68,9 +68,7 @@ internal sealed class RunProcessor(
                 return;
             }
 
-            if (stream.StopToken.IsCancellationRequested) {
-                throw new OperationCanceledException(stream.StopToken);
-            }
+            stream.StopToken.ThrowIfCancellationRequested();
 
             await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "running", cancellationToken: runTimeout.Token));
             stream.Publish("run.started", new { runId = queued.RunId, model = run.Model, promptVersion = run.PromptVersion });
@@ -442,10 +440,11 @@ internal sealed class RunProcessor(
         return await action(scope.ServiceProvider.GetRequiredService<IConversationStore>());
     }
 
-    private static IReadOnlyList<PreparedToolCall> PrepareToolCalls(IReadOnlyList<ToolCall> calls, int step) => [.. calls.Select(call => new PreparedToolCall(
-        call.Id ?? $"missing-{step}-{call.Index}",
-        call.Name ?? string.Empty,
-        call.Arguments))];
+    private static IReadOnlyList<PreparedToolCall> PrepareToolCalls(IReadOnlyList<ToolCall> calls, int step) =>
+        [.. calls.Select(call => new PreparedToolCall(
+            call.Id ?? $"missing-{step}-{call.Index}",
+            call.Name ?? string.Empty,
+            call.Arguments))];
 
     private static string SerializeToolCalls(IReadOnlyList<ToolCall> calls) =>
         SerializePreparedToolCalls(PrepareToolCalls(calls, 1));

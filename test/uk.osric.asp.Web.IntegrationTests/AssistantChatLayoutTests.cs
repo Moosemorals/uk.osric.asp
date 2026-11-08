@@ -13,7 +13,7 @@ using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Assistant;
 
 [TestFixture]
-public sealed class AssistantChatLayoutTests : IntegrationTest {
+public sealed partial class AssistantChatLayoutTests : IntegrationTest {
     private const string Arguments = """{"path":"/missing-page-for-layout-test"}""";
 
     private readonly ToolCallingClient _provider = new(Arguments);
@@ -61,7 +61,7 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
         Assert.That(body, Does.Contain("<dt><label for=\"conversation-title\">Conversation title</label></dt>"));
         Assert.That(body, Does.Contain("<dt><label for=\"approval-mode\">Tool approval</label></dt>"));
 
-        Match summary = Regex.Match(body, "<details class=\"assistant-tool\"><summary>(?<text>[^<]*)</summary>");
+        Match summary = ToolSummary().Match(body);
         Assert.That(summary.Success, Is.True, "the tool call is not hidden behind a details element");
         string summaryText = WebUtility.HtmlDecode(summary.Groups["text"].Value);
         Assert.That(summaryText, Does.StartWith("read_page {"));
@@ -70,7 +70,7 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
         Assert.That(summaryText, Does.EndWith(MessageText.Ellipsis));
 
         Assert.That(body, Does.Contain($"<pre class=\"assistant-tool-arguments\">{WebUtility.HtmlEncode(Arguments)}</pre>"));
-        Match response = Regex.Match(body, "<pre class=\"assistant-tool-response\">(?<text>[^<]+)</pre>");
+        Match response = ToolResponse().Match(body);
         Assert.That(response.Success, Is.True, "the tool response is not shown");
         Assert.That(response.Groups["text"].Value, Does.Contain("&quot;ok&quot;"));
     }
@@ -108,7 +108,7 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
             "a step that only calls a tool must not render an empty assistant row");
     }
 
-    private async Task<string> RunAndReloadAsync(HttpClient client, string conversation) {
+    private static async Task<string> RunAndReloadAsync(HttpClient client, string conversation) {
         string messageToken = await GetAntiforgeryTokenAsync(client, conversation);
         using HttpResponseMessage started = await client.PostAsync(conversation + "/messages", Form(
             ("__RequestVerificationToken", messageToken),
@@ -142,4 +142,10 @@ public sealed class AssistantChatLayoutTests : IntegrationTest {
             }
         }
     }
+
+    [GeneratedRegex("<details class=\"assistant-tool\"><summary>(?<text>[^<]*)</summary>")]
+    private static partial Regex ToolSummary();
+
+    [GeneratedRegex("<pre class=\"assistant-tool-response\">(?<text>[^<]+)</pre>")]
+    private static partial Regex ToolResponse();
 }

@@ -193,7 +193,7 @@ public sealed class AssistantProviderClientTests {
         protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken) =>
             CreateContentReadStreamAsync();
 
-        protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context) =>
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
             throw new NotSupportedException("The timed content is only read as a stream.");
 
         protected override bool TryComputeLength(out long length) {

@@ -18,12 +18,12 @@ public interface IPageFeatures {
     public bool TryGet<T>([NotNullWhen(true)] out T? feature) where T : class;
 
     /// <summary>Reads a capability, or <see langword="null"/> when this render does not offer it.</summary>
-    public T? Get<T>() where T : class => TryGet<T>(out T? feature) ? feature : null;
+    public T? Get<T>() where T : class => TryGet(out T? feature) ? feature : null;
 
     /// <summary>Reads a capability this page cannot render without.</summary>
     /// <exception cref="InvalidOperationException">This render does not offer the capability.</exception>
     public T GetRequired<T>() where T : class =>
-        TryGet<T>(out T? feature)
+        TryGet(out T? feature)
             ? feature
             : throw new InvalidOperationException($"This render does not offer {typeof(T).Name}.");
 }

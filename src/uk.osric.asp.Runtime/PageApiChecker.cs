@@ -16,8 +16,6 @@ using uk.osric.asp.Core.Compilation;
 /// </remarks>
 internal static class PageApiChecker {
 
-
-
     private const string ShapeMessage =
         "PAGE002: page code must stay inside a code block; a declaration block may only declare types.";
     private const string NamespaceMessage = "PAGE002: a page may not declare a namespace.";

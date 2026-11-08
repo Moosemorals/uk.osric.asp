@@ -12,7 +12,7 @@ using System.Threading.Channels;
 internal sealed class RunStream(string runId, AssistantOptions options, TimeProvider clock) {
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Queue<RunEvent> _journal = new();
     private readonly HashSet<Channel<RunEvent>> _subscribers = [];
     private readonly AssistantOptions _options = options;

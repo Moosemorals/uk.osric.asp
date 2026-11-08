@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Assistant;
 
 using Microsoft.Extensions.DependencyInjection;
+using System.Globalization;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Pages;
@@ -72,7 +73,11 @@ internal sealed class PageToolExecutor(
     ];
 
     public static IReadOnlyList<ToolDefinition> Definitions { get; } =
-        [.. s_tools.Select(tool => new ToolDefinition(tool.Name, tool.Description, ParametersJson(tool.Arguments), tool.NeedsApproval))];
+        [.. s_tools.Select(tool => new ToolDefinition(
+            tool.Name,
+            tool.Description,
+            tool.NeedsApproval,
+            ParametersJson(tool.Arguments)))];
 
     private static readonly IReadOnlyDictionary<string, ToolArgumentSchema[]> s_schemas =
         s_tools.ToDictionary(tool => tool.Name, tool => tool.Arguments.ToArray(), StringComparer.Ordinal);
@@ -236,7 +241,7 @@ internal sealed class PageToolExecutor(
             return Failure("The page exceeds Assistant:MaxPageChars.", $"Write {Describe(checkedPath.Path!)}: too large");
         }
 
-        IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic> diagnostics =
+        IReadOnlyList<Core.Compilation.PageDiagnostic> diagnostics =
             await pages.SaveAsync(checkedPath.Path!, content, cancellationToken);
         PageTemplate saved = (await pages.GetAsync(checkedPath.Path!, cancellationToken))!;
         return Success(new { path = checkedPath.Path!.Key, revisionHash = saved.Hash, diagnostics = DiagnosticData(diagnostics) },
@@ -265,7 +270,7 @@ internal sealed class PageToolExecutor(
         if (query.Length == 0) {
             return Failure("The search query must not be empty.", "Search query is empty");
         }
-        PathValidationResult checkedPrefix = paths.ValidatePrefix(String(arguments, "prefix"));
+        PathValidationResult checkedPrefix = PagePathPolicy.ValidatePrefix(String(arguments, "prefix"));
         if (!checkedPrefix.IsSuccess) {
             return Failure(checkedPrefix.Error!, "Search refused");
         }
@@ -292,11 +297,12 @@ internal sealed class PageToolExecutor(
         }
 
         VirtualShellCommand command = parsed.Command;
-        string? prefixText = command.Name is "ls" or "find" ? command.Arguments.FirstOrDefault()
-            : command.Name == "grep"
-                ? command.Arguments.Count > (command.Arguments[0] == "-i" ? 2 : 1) ? command.Arguments[^1] : null
-                : null;
-        PathValidationResult checkedPrefix = paths.ValidatePrefix(prefixText);
+        string? prefixText = command.Name switch {
+            "ls" or "find" => command.Arguments.Count > 0 ? command.Arguments[0] : null,
+            "grep" => command.Arguments.Count > (command.Arguments[0] == "-i" ? 2 : 1) ? command.Arguments[^1] : null,
+            _ => null,
+        };
+        PathValidationResult checkedPrefix = PagePathPolicy.ValidatePrefix(prefixText);
         if (!checkedPrefix.IsSuccess) {
             return Failure(checkedPrefix.Error!, "Shell command refused");
         }
@@ -320,7 +326,7 @@ internal sealed class PageToolExecutor(
             int queryIndex = command.Arguments[0] == "-i" ? 1 : 0;
             string query = command.Arguments[queryIndex];
             StringComparison comparison = command.Arguments[0] == "-i" ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            (List<string> found, _) = await FindMatchesAsync<string>(pages, prefix, query, comparison,
+            (List<string> found, _) = await FindMatchesAsync(pages, prefix, query, comparison,
                 (head, line, text) => $"{head.Path.Key}:{line}: {text}",
                 cancellationToken);
 
@@ -340,7 +346,7 @@ internal sealed class PageToolExecutor(
             "cat" => target.Template,
             "head" => string.Join('\n', sourceLines.Take(ParseCount(command.Arguments[1]))),
             "tail" => string.Join('\n', sourceLines.TakeLast(ParseCount(command.Arguments[1]))),
-            "wc" => sourceLines.Length.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "wc" => sourceLines.Length.ToString(CultureInfo.InvariantCulture),
             "stat" => $"{checkedPath.Path!.Key}\n{target.Template.Length} chars\n{target.Hash}\n{target.SavedAt:O}\n{ImageStatus(target)}",
             _ => "",
         };
@@ -464,18 +470,19 @@ internal sealed class PageToolExecutor(
         ? []
         : DiagnosticData(page.Image.Diagnostics);
 
-    private static object[] DiagnosticData(IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic> diagnostics) => [.. diagnostics.Select(diagnostic => new {
-        code = DiagnosticCode(diagnostic),
-        severity = diagnostic.Severity.ToString(),
-        line = diagnostic.Position?.Line,
-        column = diagnostic.Position?.Column,
-        message = diagnostic.Message,
-    })];
+    private static object[] DiagnosticData(IReadOnlyList<Core.Compilation.PageDiagnostic> diagnostics) =>
+        [.. diagnostics.Select(diagnostic => new {
+            code = DiagnosticCode(diagnostic),
+            severity = diagnostic.Severity.ToString(),
+            line = diagnostic.Position?.Line,
+            column = diagnostic.Position?.Column,
+            message = diagnostic.Message,
+        })];
 
-    private static string? DiagnosticCode(uk.osric.asp.Core.Compilation.PageDiagnostic diagnostic) {
+    private static string? DiagnosticCode(Core.Compilation.PageDiagnostic diagnostic) {
         int separator = diagnostic.Message.IndexOf(':');
         return separator > 0 ? diagnostic.Message[..separator] : null;
     }
 
-    private static int ParseCount(string text) => int.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
+    private static int ParseCount(string text) => int.Parse(text, CultureInfo.InvariantCulture);
 }

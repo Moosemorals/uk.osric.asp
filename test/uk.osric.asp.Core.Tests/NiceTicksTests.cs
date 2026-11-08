@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Core.Tests;
 
 using NUnit.Framework;
+using System.Globalization;
 using uk.osric.asp.Core.Charting;
 
 [TestFixture]
@@ -11,7 +12,7 @@ public sealed class NiceTicksTests {
 
     private static readonly TimeZoneInfo London = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
 
-    private static DateTimeOffset At(string iso) => DateTimeOffset.Parse(iso, System.Globalization.CultureInfo.InvariantCulture);
+    private static DateTimeOffset At(string iso) => DateTimeOffset.Parse(iso, CultureInfo.InvariantCulture);
 
     private static string Labels(IReadOnlyList<ChartTick> ticks) => string.Join(' ', ticks.Select(tick => tick.Label));
 

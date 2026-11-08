@@ -135,10 +135,9 @@ internal sealed class SqlitePageStore(
         PageTemplate revision = template;
         for (int attempt = 0; ; attempt++) {
             try {
-                await using (IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken)) {
-                    await WriteRevisionAsync(database, revision, cancellationToken);
-                    await transaction.CommitAsync(cancellationToken);
-                }
+                await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+                await WriteRevisionAsync(database, revision, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return;
             } catch (DbUpdateException exception) when (attempt + 1 < SqliteErrors.RetryCount && SqliteErrors.IsUniqueViolation(exception)) {

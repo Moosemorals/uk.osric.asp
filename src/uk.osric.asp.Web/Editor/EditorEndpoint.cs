@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using System.Globalization;
 using System.Net;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
@@ -296,7 +297,12 @@ internal sealed class EditorEndpoint {
         Redirect.SeeOther(context, PageUrls.Editor(path));
     }
 
-    private static async Task WriteEditorAsync(HttpContext context, PageEditor pages, IAntiforgery antiforgery, bool assistantEnabled, PagePath path) {
+    private static async Task WriteEditorAsync(
+        HttpContext context,
+        PageEditor pages,
+        IAntiforgery antiforgery,
+        bool assistantEnabled,
+        PagePath path) {
         // The only page on the site that loads a script, so the only response that widens its policy.
         SecurityHeaders.AllowScripts(context);
 
@@ -415,7 +421,12 @@ internal sealed class EditorEndpoint {
             $"Scrubbing removes the retained history of a deleted page, so {path.Key} has to be deleted first. Nothing was removed.",
             [new(PageUrls.EditorCommand(path, "delete"), "Delete the page"), new("/edit", "Page list")]));
 
-    private static async Task PostCommandAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, PagePath path, string? command) {
+    private static async Task PostCommandAsync(
+        HttpContext context,
+        PageEditor pages,
+        ReservedPaths reserved,
+        PagePath path,
+        string? command) {
         if (command is null or "save") {
             SaveOutcome saved = await SaveAsync(context, pages, reserved, path);
             context.Session.SetString(MessageKey, saved.Message);
@@ -672,7 +683,7 @@ internal sealed class EditorEndpoint {
                 string hash = WebUtility.HtmlEncode(revision.Hash);
                 string url = WebUtility.HtmlEncode(PageUrls.EditorRevision(path, revision.Hash));
                 string state = revision.IsCurrent ? "<strong>Current</strong>" : string.Empty;
-                await context.Response.WriteAsync($"<tr><td>{WebUtility.HtmlEncode(revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}</td><td><a href=\"{url}\">{hash}</a></td><td>{state}</td><td>{WebUtility.HtmlEncode(revision.ImageStatus)}</td><td>{WebUtility.HtmlEncode(revision.CreationRuntimeId)}</td></tr>");
+                await context.Response.WriteAsync($"<tr><td>{WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}</td><td><a href=\"{url}\">{hash}</a></td><td>{state}</td><td>{WebUtility.HtmlEncode(revision.ImageStatus)}</td><td>{WebUtility.HtmlEncode(revision.CreationRuntimeId)}</td></tr>");
             }
             await context.Response.WriteAsync("</tbody></table>");
         }
@@ -688,7 +699,7 @@ internal sealed class EditorEndpoint {
 
         await ShellDocument.BeginAsync(context, "Saved revision", stylesheet: "/editor.css");
         await context.Response.WriteAsync($"<h1>Saved revision for {WebUtility.HtmlEncode(path.Key)}</h1>");
-        await context.Response.WriteAsync($"<p>Saved {WebUtility.HtmlEncode(revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}; {WebUtility.HtmlEncode(revision.ImageStatus)}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}.</p>");
+        await context.Response.WriteAsync($"<p>Saved {WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}; {WebUtility.HtmlEncode(revision.ImageStatus)}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}.</p>");
         await context.Response.WriteAsync(PageLayout.Nav("Revision navigation", [
             new(PageUrls.EditorCommand(path, "history"), "Back to history"),
         ], "editor-menu"));

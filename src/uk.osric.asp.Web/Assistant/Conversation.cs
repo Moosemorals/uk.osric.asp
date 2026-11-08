@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Web.Assistant;
 
-using Approval = uk.osric.asp.Core.Assistant.ApprovalMode;
+using Approval = Core.Assistant.ApprovalMode;
 
 /// <summary>A stored conversation: its owner, title and approval mode.</summary>
 internal sealed class Conversation {

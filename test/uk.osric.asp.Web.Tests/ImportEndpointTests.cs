@@ -16,7 +16,7 @@ using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
-public sealed class ImportEndpointTests {
+public sealed partial class ImportEndpointTests {
 
     private const string BrokenSource = "<% int value = ; %>";
 
@@ -111,7 +111,7 @@ public sealed class ImportEndpointTests {
 
         string body = await ReviewAsync(harness, stage.Id);
 
-        Assert.That(Regex.Matches(body, "checked").Count, Is.EqualTo(2));
+        Assert.That(Checkboxes().Count(body), Is.EqualTo(2));
     }
 
     [Test]
@@ -316,9 +316,15 @@ public sealed class ImportEndpointTests {
     }
 
     private static List<string> Tags(string body) =>
-        [.. Regex.Matches(body, "<span class=\"tag\">([^<]+)</span>").Select(match => match.Groups[1].Value)];
+        [.. Tags().Matches(body).Select(match => match.Groups[1].Value)];
 
     private static PagePath Key(string path) => PagePath.Normalize(path);
+
+    [GeneratedRegex("checked")]
+    private static partial Regex Checkboxes();
+
+    [GeneratedRegex("<span class=\"tag\">([^<]+)</span>")]
+    private static partial Regex Tags();
 
     private sealed class ThrowingCompiler : IPageCompiler {
         public string RuntimeId => "test-runtime";

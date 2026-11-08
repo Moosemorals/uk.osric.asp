@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Storage;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using System.Data.Common;
+using System.Globalization;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>Samples the database file's size and records it for the status page.</summary>
@@ -62,18 +63,18 @@ internal sealed class PageStorageSampler(
                 COALESCE(length(Image), 0) + COALESCE(length(Symbols), 0)), 0)
             FROM PageRevisions;
             """;
-        long payload = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), System.Globalization.CultureInfo.InvariantCulture);
+        long payload = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         command.CommandText = """
             SELECT COALESCE(SUM(
                 length(CAST(PagePath AS BLOB)) + length(CAST(Key AS BLOB)) +
                 length(CAST(Value AS BLOB)) + length(CAST(UpdatedAt AS BLOB))), 0)
             FROM PageState;
             """;
-        payload += Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), System.Globalization.CultureInfo.InvariantCulture);
+        payload += Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         command.CommandText = "PRAGMA page_count";
-        long count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), System.Globalization.CultureInfo.InvariantCulture);
+        long count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         command.CommandText = "PRAGMA page_size";
-        long size = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), System.Globalization.CultureInfo.InvariantCulture);
+        long size = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         return (payload, checked(count * size));
     }
 

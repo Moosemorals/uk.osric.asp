@@ -24,7 +24,7 @@ using System.Collections.Frozen;
 /// </para>
 /// <para>
 /// <c>System.Threading.Tasks</c> is admitted as a type rather than as a namespace: exactly
-/// <see cref="System.Threading.Tasks.Task"/> is allowed, so a page can write and await a task, and
+/// <see cref="Task"/> is allowed, so a page can write and await a task, and
 /// <c>TaskCompletionSource</c>, <c>TaskScheduler</c>, <c>Parallel</c> and <c>ValueTask</c> stay
 /// denied without being named. Ten of <c>Task</c>'s own members are denied by name in
 /// <c>s_deniedApis</c>, because each starts work the render deadline cannot stop or turns an

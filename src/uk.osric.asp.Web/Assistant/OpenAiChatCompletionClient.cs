@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 
@@ -86,7 +87,7 @@ internal sealed class OpenAiChatCompletionClient(
         Uri endpoint = new(options.BaseUrl.TrimEnd('/') + "/" + options.ChatCompletionsPath.TrimStart('/'));
         for (int attempt = 0; ; attempt++) {
             using HttpRequestMessage message = new(HttpMethod.Post, endpoint) {
-                Content = new StringContent(SerializeRequest(request), System.Text.Encoding.UTF8, "application/json"),
+                Content = new StringContent(SerializeRequest(request), Encoding.UTF8, "application/json"),
             };
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
             if (options.RequireApiKey && !string.IsNullOrWhiteSpace(options.ApiKey)) {

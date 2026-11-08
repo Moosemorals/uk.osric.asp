@@ -72,7 +72,11 @@ internal sealed class ExportEndpoint {
 
     // A group renders under its own heading only when it has pages, so a site without seeds has no
     // empty heading. The index keeps every checkbox id in the form distinct.
-    private static async Task<int> WriteGroupAsync(HttpContext context, IReadOnlyList<PageHeadSummary> heads, string heading, int firstIndex) {
+    private static async Task<int> WriteGroupAsync(
+        HttpContext context,
+        IReadOnlyList<PageHeadSummary> heads,
+        string heading,
+        int firstIndex) {
         if (heads.Count == 0) {
             return firstIndex;
         }
@@ -212,5 +216,4 @@ internal sealed class ExportEndpoint {
     private static IReadOnlyList<NavLink> AdminRemedies(HttpContext context) => context.User.Identity?.IsAuthenticated == true
         ? [new("/admin/export", "Export pages"), new("/edit", "Page list")]
         : ErrorMessage.DefaultRemedies(isAuthenticated: false);
-
 }

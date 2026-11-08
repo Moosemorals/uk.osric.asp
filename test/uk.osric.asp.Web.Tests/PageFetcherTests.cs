@@ -390,7 +390,6 @@ public sealed class PageFetcherTests {
         return await fetcher.FetchAsync(request, "/page", aborted, deadline);
     }
 
-
     private static PageFetcher Fetcher(HttpMessageHandler handler, PageFetchOptions options, PageMetrics? metrics = null) {
         return new PageFetcher(
             new StubHttpClientFactory(handler),

@@ -35,7 +35,7 @@ public interface IPageStorage {
     /// <param name="key">The key; ordinal, 1 to 200 characters, no control characters.</param>
     /// <param name="value">The value; a null is stored as JSON <c>null</c>.</param>
     /// <returns>A task that completes when the write is committed.</returns>
-    /// <exception cref="System.ArgumentException">The key or the value breaks a cap.</exception>
+    /// <exception cref="ArgumentException">The key or the value breaks a cap.</exception>
     public Task SetAsync<T>(string key, T value);
 
     /// <summary>Removes a key.</summary>

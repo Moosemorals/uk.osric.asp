@@ -172,5 +172,4 @@ public static class LineChart {
 
         return labels.Length == 0 ? "Chart" : string.Join(", ", labels);
     }
-
 }

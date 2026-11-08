@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Pages;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 
+#pragma warning disable CA1068 // CancellationToken parameters must come last
 /// <summary>The host's <see cref="IHttpFetch"/>, bound to one layer and the render's budget.</summary>
 /// <remarks>
 /// <para>
@@ -27,6 +28,7 @@ internal sealed class PageHttpFetch(
     RenderFetchBudget budget,
     PageMetrics metrics,
     ILogger logger) : IHttpFetch, IRenderBoundFeature {
+#pragma warning restore CA1068 // CancellationToken parameters must come last
 
     private CancellationToken _deadline;
     private volatile bool _abandoned;

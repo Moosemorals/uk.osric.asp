@@ -71,7 +71,7 @@ internal sealed record ImportStageSnapshot(
 /// rather than a half-applied one.
 /// </remarks>
 internal sealed class ImportStage {
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly Dictionary<string, PageArchiveEntry> _entries;
     private ImportPageResult[] _results = [];
     private ImportBatchStatus _status = ImportBatchStatus.Reviewing;

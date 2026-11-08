@@ -57,6 +57,11 @@ csharp_new_line_before_finally = false
 # CA1873: Avoid potentially expensive logging
 dotnet_diagnostic.CA1873.severity = none
 
+# ASP0018: Unused route parameter
+# Endpoints read route values from HttpContext rather than binding them as delegate arguments, so a
+# '{**path}' or '{id}' the analyzer cannot see being read is still the route the endpoint serves.
+dotnet_diagnostic.ASP0018.severity = none
+
 #### Naming ####
 # Rules
 dotnet_naming_rule.types_and_namespaces_should_be_pascalcase = types_and_namespaces:pascalcase

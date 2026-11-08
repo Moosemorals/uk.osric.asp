@@ -69,7 +69,7 @@ internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOpti
             failures.Add("Assistant:Model must not be empty.");
         }
         if (string.IsNullOrWhiteSpace(options.ChatCompletionsPath)
-            || !options.ChatCompletionsPath.StartsWith("/", StringComparison.Ordinal)) {
+            || !options.ChatCompletionsPath.StartsWith('/')) {
             failures.Add("Assistant:ChatCompletionsPath must be an absolute path.");
         }
         if (options.Temperature is < 0 or > 2 || double.IsNaN(options.Temperature)) {

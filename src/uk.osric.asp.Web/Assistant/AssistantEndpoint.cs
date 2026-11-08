@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using System.Globalization;
 using System.Net;
 using System.Net.ServerSentEvents;
+using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
@@ -441,7 +442,11 @@ internal static class AssistantEndpoint {
         }
     }
 
-    public static async Task DeleteConfirmationAsync(HttpContext context, long id, IConversationStore conversations, IAntiforgery antiforgery) {
+    public static async Task DeleteConfirmationAsync(
+        HttpContext context,
+        long id,
+        IConversationStore conversations,
+        IAntiforgery antiforgery) {
         string? owner = Owner(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
@@ -666,7 +671,7 @@ internal static class AssistantEndpoint {
         long after,
         bool reset,
         int heartbeatSeconds,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken) {
+        [EnumeratorCancellation] CancellationToken cancellationToken) {
         if (reset) {
             yield return new SseItem<string>(JsonSerializer.Serialize(new { reason = "event id belongs to a different run" }, s_jsonOptions), "stream.reset");
             yield break;
@@ -697,7 +702,7 @@ internal static class AssistantEndpoint {
 
     private static async IAsyncEnumerable<SseItem<string>> IdleEventsAsync(
         long conversationId,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        [EnumeratorCancellation] CancellationToken cancellationToken = default) {
         cancellationToken.ThrowIfCancellationRequested();
         yield return new SseItem<string>(JsonSerializer.Serialize(new { conversationId }, s_jsonOptions), "run.idle");
         await Task.CompletedTask;

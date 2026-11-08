@@ -13,9 +13,9 @@ public sealed class PageFeaturesTests {
     [Test]
     public void TryGetReportsARegisteredCapability() {
         TestCapability capability = new();
-        PageFeatures features = new PageFeatures().Add<TestCapability>(capability);
+        PageFeatures features = new PageFeatures().Add(capability);
 
-        bool found = features.TryGet<TestCapability>(out TestCapability? feature);
+        bool found = features.TryGet(out TestCapability? feature);
 
         Assert.That(found, Is.True);
         Assert.That(feature, Is.SameAs(capability));
@@ -25,7 +25,7 @@ public sealed class PageFeaturesTests {
     public void TryGetReportsAMissingCapabilityAndLeavesTheDefault() {
         PageFeatures features = new();
 
-        bool found = features.TryGet<IPageStorage>(out IPageStorage? feature);
+        bool found = features.TryGet(out IPageStorage? feature);
 
         Assert.That(found, Is.False);
         Assert.That(feature, Is.Null);
@@ -36,7 +36,7 @@ public sealed class PageFeaturesTests {
         TestStorage storage = new();
         PageFeatures features = new PageFeatures().Add(storage);
 
-        bool found = features.TryGet<IPageStorage>(out IPageStorage? feature);
+        bool found = features.TryGet(out IPageStorage? feature);
 
         Assert.That(found, Is.True);
         Assert.That(feature, Is.SameAs(storage));
@@ -45,7 +45,7 @@ public sealed class PageFeaturesTests {
     [Test]
     public void GetReturnsARegisteredCapability() {
         TestCapability capability = new();
-        IPageFeatures features = new PageFeatures().Add<TestCapability>(capability);
+        IPageFeatures features = new PageFeatures().Add(capability);
 
         Assert.That(features.Get<TestCapability>(), Is.SameAs(capability));
     }
@@ -60,7 +60,7 @@ public sealed class PageFeaturesTests {
     [Test]
     public void GetRequiredReturnsARegisteredCapability() {
         TestCapability capability = new();
-        IPageFeatures features = new PageFeatures().Add<TestCapability>(capability);
+        IPageFeatures features = new PageFeatures().Add(capability);
 
         Assert.That(features.GetRequired<TestCapability>(), Is.SameAs(capability));
     }
@@ -84,17 +84,17 @@ public sealed class PageFeaturesTests {
 
     [Test]
     public void ACapabilityIsRegisteredOnce() {
-        PageFeatures features = new PageFeatures().Add<TestCapability>(new TestCapability());
+        PageFeatures features = new PageFeatures().Add(new TestCapability());
 
         Assert.That(
-            () => features.Add<TestCapability>(new TestCapability()),
+            () => features.Add(new TestCapability()),
             Throws.InvalidOperationException);
     }
 
     [Test]
     public void AttachDeadlineReachesABoundCapability() {
         TestCapability capability = new();
-        PageFeatures features = new PageFeatures().Add<TestCapability>(capability);
+        PageFeatures features = new PageFeatures().Add(capability);
         using CancellationTokenSource deadline = new();
 
         features.AttachDeadline(deadline.Token);
@@ -105,7 +105,7 @@ public sealed class PageFeaturesTests {
     [Test]
     public void AbandonReachesABoundCapability() {
         TestCapability capability = new();
-        PageFeatures features = new PageFeatures().Add<TestCapability>(capability);
+        PageFeatures features = new PageFeatures().Add(capability);
 
         features.Abandon();
 

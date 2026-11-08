@@ -154,13 +154,13 @@ internal sealed class PageMetrics : IDisposable {
             "page.fetch.duration", "s", "Time one outbound fetch took, including its redirects.");
         _importDuration = _meter.CreateHistogram<double>(
             "page.import.duration", "s", "Time to compile and commit one imported archive.");
-        _meter.CreateObservableGauge<long>("page.storage.payload.size",
+        _meter.CreateObservableGauge("page.storage.payload.size",
             () => ObserveStorage(value => value.Payload), "By",
             "Logical PageRevisions TEXT bytes and image/symbol blob bytes, plus PageState key and value bytes; excludes indexes and SQLite overhead.");
-        _meter.CreateObservableGauge<long>("page.storage.database.size",
+        _meter.CreateObservableGauge("page.storage.database.size",
             () => ObserveStorage(value => value.Database), "By",
             "Whole SQLite database page_count times page_size, including indexes and freelist; excludes separate WAL.");
-        _meter.CreateObservableGauge<long>("page.storage.volume.capacity",
+        _meter.CreateObservableGauge("page.storage.volume.capacity",
             () => ObserveStorage(value => value.Capacity), "By",
             "Total capacity of the filesystem volume containing the SQLite database.");
     }

@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Assistant;
 
 /// <summary>The live run journals, by run id and by conversation.</summary>
 internal sealed class RunRegistry(AssistantOptions options, TimeProvider clock) {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Dictionary<string, RunStream> _runs = new(StringComparer.Ordinal);
     private readonly Dictionary<long, string> _activeByConversation = [];
 

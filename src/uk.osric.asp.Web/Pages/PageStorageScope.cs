@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Pages;
@@ -62,7 +63,7 @@ internal sealed class PageStorageScope(
         ThrowIfEnded();
 
         string json = JsonSerializer.Serialize(value, s_json);
-        if (System.Text.Encoding.UTF8.GetByteCount(json) > options.MaxValueBytes) {
+        if (Encoding.UTF8.GetByteCount(json) > options.MaxValueBytes) {
             throw new ArgumentException(
                 $"The value for {key} is larger than the {options.MaxValueBytes} byte limit.", nameof(value));
         }
@@ -101,9 +102,7 @@ internal sealed class PageStorageScope(
             throw new InvalidOperationException($"The render of {path.Key} was abandoned; it cannot use storage.");
         }
 
-        if (_deadline.IsCancellationRequested) {
-            throw new OperationCanceledException(_deadline);
-        }
+        _deadline.ThrowIfCancellationRequested();
     }
 
     // The render's deadline, linked in by the renderer. The per-command budget is a command timeout on

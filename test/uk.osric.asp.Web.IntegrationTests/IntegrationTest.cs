@@ -17,7 +17,7 @@ using uk.osric.asp.Web.Storage;
 using uk.osric.asp.Web.Users;
 
 /// <summary>Starts the composed application once per fixture, against a throwaway database.</summary>
-public abstract class IntegrationTest {
+public abstract partial class IntegrationTest {
 
     /// <summary>The account every fixture creates.</summary>
     protected const string UserName = "owner";
@@ -69,7 +69,7 @@ public abstract class IntegrationTest {
     }
 
     /// <summary>Signs a client in through <c>POST /login</c>, antiforgery token and all.</summary>
-    protected async Task SignInAsync(HttpClient client, string? userName = null, string? password = null) {
+    protected static async Task SignInAsync(HttpClient client, string? userName = null, string? password = null) {
         string token = await GetAntiforgeryTokenAsync(client, "/login");
 
         HttpResponseMessage response = await client.PostAsync("/login", Form(
@@ -87,14 +87,14 @@ public abstract class IntegrationTest {
         Assert.That(response.IsSuccessStatusCode, Is.True, $"{path} answered {(int)response.StatusCode}");
 
         string body = await response.Content.ReadAsStringAsync();
-        Match match = Regex.Match(body, "name=\"__RequestVerificationToken\" value=\"([^\"]+)\"");
+        Match match = AntiforgeryToken().Match(body);
         Assert.That(match.Success, Is.True, $"{path} did not render an antiforgery token");
 
         return WebUtility.HtmlDecode(match.Groups[1].Value);
     }
 
     /// <summary>Saves a page through the editor, with a fresh token.</summary>
-    protected async Task<HttpResponseMessage> PostEditorAsync(HttpClient client, string path, string? template) {
+    protected static async Task<HttpResponseMessage> PostEditorAsync(HttpClient client, string path, string? template) {
         string token = await GetAntiforgeryTokenAsync(client, "/edit/" + path);
         Dictionary<string, string> fields = new() { ["__RequestVerificationToken"] = token };
 
@@ -220,4 +220,7 @@ public abstract class IntegrationTest {
             CreatedAt = template.CreatedAt,
         });
     }
+
+    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
+    private static partial Regex AntiforgeryToken();
 }

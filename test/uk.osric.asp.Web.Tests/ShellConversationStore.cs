@@ -28,7 +28,7 @@ internal sealed class ShellConversationStore(
         ]);
 
     public Task<Conversation?> GetAsync(long id, string owner, CancellationToken cancellationToken = default) =>
-        Task.FromResult<Conversation?>(id == 1 && owner == "owner" ? Conversation : null);
+        Task.FromResult(id == 1 && owner == "owner" ? Conversation : null);
 
     public Task<bool> RenameAsync(long id, string owner, string title, CancellationToken cancellationToken = default) =>
         Task.FromResult(id == 1 && owner == "owner");

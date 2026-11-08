@@ -13,7 +13,7 @@ using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
-public sealed class ArchiveEndpointTests : IntegrationTest {
+public sealed partial class ArchiveEndpointTests : IntegrationTest {
 
     private const string Source = "<% ctx.Write(\"round trip\"); %>";
 
@@ -140,7 +140,7 @@ public sealed class ArchiveEndpointTests : IntegrationTest {
     // The review's first checkbox carries the page key the approval has to tick.
     private static async Task<string> PageKeysAsync(HttpClient client, string review) {
         string body = await (await client.GetAsync(review)).Content.ReadAsStringAsync();
-        Match match = Regex.Match(body, "name=\"include\" value=\"([^\"]+)\"");
+        Match match = IncludeInput().Match(body);
 
         Assert.That(match.Success, Is.True, "the review offers no pages");
         return WebUtility.HtmlDecode(match.Groups[1].Value);
@@ -163,6 +163,9 @@ public sealed class ArchiveEndpointTests : IntegrationTest {
             { file, "archive", "pages.sqlite" },
         };
     }
+
+    [GeneratedRegex("name=\"include\" value=\"([^\"]+)\"")]
+    private static partial Regex IncludeInput();
 }
 
 /// <summary>The upload cap is a per-deployment setting, so it needs a host of its own.</summary>

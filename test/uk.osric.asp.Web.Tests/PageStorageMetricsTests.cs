@@ -166,13 +166,14 @@ public sealed class PageStorageMetricsTests {
     }
 
     private static MeterListener Listen(Dictionary<string, long> values) {
-        MeterListener listener = new();
-        listener.InstrumentPublished = (instrument, owner) => {
-            if (instrument.Meter.Name == PageMetrics.MeterName && instrument.Name.StartsWith("page.storage.", StringComparison.Ordinal)) {
-                Assert.That(instrument.Unit, Is.EqualTo("By"));
-                Assert.That(instrument.IsObservable, Is.True);
-                owner.EnableMeasurementEvents(instrument);
-            }
+        MeterListener listener = new() {
+            InstrumentPublished = (instrument, owner) => {
+                if (instrument.Meter.Name == PageMetrics.MeterName && instrument.Name.StartsWith("page.storage.", StringComparison.Ordinal)) {
+                    Assert.That(instrument.Unit, Is.EqualTo("By"));
+                    Assert.That(instrument.IsObservable, Is.True);
+                    owner.EnableMeasurementEvents(instrument);
+                }
+            },
         };
         listener.SetMeasurementEventCallback<long>((instrument, value, tags, state) => {
             Assert.That(tags.Length, Is.Zero);

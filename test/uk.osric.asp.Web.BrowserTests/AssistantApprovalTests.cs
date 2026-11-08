@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
 using NUnit.Framework;
-using System.Text.RegularExpressions;
+using System.Globalization;
 
 /// <summary>A tool call that needs the owner's decision before it touches a page.</summary>
 [TestFixture]
@@ -66,10 +66,10 @@ internal sealed class AssistantApprovalTests : BrowserTest {
     private async Task<long> StartConversationRequiringApprovalAsync() {
         await Page.GotoAsync("assistant");
         await Page.ClickAsync("text=New conversation");
-        await Page.WaitForURLAsync(new Regex(@"/assistant/\d+$"));
+        await Page.WaitForURLAsync(AssistantUrl());
         await Page.SelectOptionAsync("#approval-mode", "RequireApproval");
         await Page.ClickAsync("#assistant-options-form button[type=submit]");
         await Assertions.Expect(Page.Locator("#assistant-options-status")).ToHaveTextAsync("Page options saved");
-        return long.Parse(Page.Url.Split('/')[^1], System.Globalization.CultureInfo.InvariantCulture);
+        return long.Parse(Page.Url.Split('/')[^1], CultureInfo.InvariantCulture);
     }
 }

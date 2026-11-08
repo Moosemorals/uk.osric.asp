@@ -67,7 +67,10 @@ internal sealed class PageEditor(
     /// <param name="template">The template text.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <returns>The compiler's author-facing diagnostics, errors and warnings; empty when the page compiled cleanly.</returns>
-    public async Task<IReadOnlyList<PageDiagnostic>> SaveAsync(PagePath path, string template, CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<PageDiagnostic>> SaveAsync(
+        PagePath path,
+        string template,
+        CancellationToken cancellationToken = default) {
         long start = Stopwatch.GetTimestamp();
 
         PageImage image;

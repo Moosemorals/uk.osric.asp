@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using System.Text;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Storage;
 
@@ -147,7 +148,7 @@ internal sealed class SqlitePageStateStore(
 
         if (!live) {
             return new ArgumentException(
-                $"{path.Key} was deleted before its state could be written; the write was refused.", "key");
+                $"{path.Key} was deleted before its state could be written; the write was refused.");
         }
 
         int keys = await database.Set<PageStateEntry>()
@@ -158,13 +159,13 @@ internal sealed class SqlitePageStateStore(
 
         return keys >= options.MaxKeysPerPage
             ? new ArgumentException(
-                $"{path.Key} already holds {keys} keys and may hold {options.MaxKeysPerPage}.", "key")
+                $"{path.Key} already holds {keys} keys and may hold {options.MaxKeysPerPage}.")
             : new ArgumentException(
-                $"{path.Key} would need {bytes} bytes of state and may use {options.MaxPageBytes}.", "key");
+                $"{path.Key} would need {bytes} bytes of state and may use {options.MaxPageBytes}.");
     }
 
     // The SQL measures bytes, so the host does too, rather than counting characters and hoping.
-    private static long KeyBytes(string text) => System.Text.Encoding.UTF8.GetByteCount(text);
+    private static long KeyBytes(string text) => Encoding.UTF8.GetByteCount(text);
 
     private StorageDbContext Open() {
         StorageDbContext database = contexts.CreateDbContext();

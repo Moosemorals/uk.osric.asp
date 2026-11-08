@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Errors;
 using Microsoft.AspNetCore.Diagnostics;
 using System.Diagnostics;
 using System.Net;
+using System.Reflection;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
@@ -87,7 +88,7 @@ internal static class ErrorEndpoint {
     // state machine type is compiler output. Walking the declaring-type chain finds the handler for
     // the state machine, its lambdas and its local functions alike, and stops at the page's own
     // top-level types - which are exactly the ones that are not the entry point.
-    private static bool DeclaredInHandler(System.Reflection.MethodBase? method) {
+    private static bool DeclaredInHandler(MethodBase? method) {
         for (Type? type = method?.DeclaringType; type is not null; type = type.DeclaringType) {
             if (string.Equals(type.Name, "GeneratedPage", StringComparison.Ordinal)) {
                 return true;

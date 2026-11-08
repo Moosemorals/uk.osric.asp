@@ -9,7 +9,7 @@ using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Web.Html;
 
 [TestFixture]
-public sealed class PageLayoutTests {
+public sealed partial class PageLayoutTests {
 
     [TestCase("", 1)]
     [TestCase("a", 1)]
@@ -79,11 +79,14 @@ public sealed class PageLayoutTests {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(2, 5), "CS0103: missing"),
             new(PageDiagnosticSeverity.Warning, new TemplatePosition(40, 1), "CS0219: unused"),
         ]), linkToLines: true);
-        MatchCollection targets = Regex.Matches(diagnostics, "href=\"#(L[0-9]+)\"");
+        MatchCollection targets = LineLinks().Matches(diagnostics);
 
         Assert.That(targets, Is.Not.Empty);
         foreach (Match target in targets) {
             Assert.That(gutter, Does.Contain($"id=\"{target.Groups[1].Value}\""), target.Groups[1].Value);
         }
     }
+
+    [GeneratedRegex("href=\"#(L[0-9]+)\"")]
+    private static partial Regex LineLinks();
 }

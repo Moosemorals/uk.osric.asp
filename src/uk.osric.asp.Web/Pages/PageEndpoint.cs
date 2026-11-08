@@ -199,7 +199,7 @@ internal sealed class PageEndpoint() {
         } else if (response.Status is >= StatusCodes.Status200OK and < StatusCodes.Status300MultipleChoices) {
             byte[] digest = SHA256.HashData(bodyBytes);
             entityTag = new EntityTagHeaderValue($"\"{Convert.ToHexString(digest)}\"");
-            context.Response.Headers["ETag"] = entityTag.ToString();
+            context.Response.Headers.ETag = entityTag.ToString();
         }
 
         if (entityTag is not null

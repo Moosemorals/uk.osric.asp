@@ -6,13 +6,13 @@ namespace uk.osric.asp.Core.Assistant;
 /// <summary>A function tool offered to the configured chat-completions provider.</summary>
 /// <param name="Name">The stable tool name.</param>
 /// <param name="Description">The provider-visible description.</param>
-/// <param name="ParametersJson">The JSON Schema object for the tool arguments.</param>
 /// <param name="NeedsApproval">Whether RequireApproval mode pauses before execution.</param>
+/// <param name="ParametersJson">The JSON Schema object for the tool arguments.</param>
 public sealed record ToolDefinition(
     string Name,
     string Description,
-    string ParametersJson,
-    bool NeedsApproval);
+    bool NeedsApproval,
+    string ParametersJson);
 
 /// <summary>A provider request expressed only in framework-independent values.</summary>
 /// <param name="Model">The configured model name.</param>

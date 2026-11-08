@@ -17,7 +17,7 @@ using System.Runtime.Loader;
 /// </para>
 /// <para>
 /// <c>uk.osric.asp.Sdk</c> is deliberately not denied: it is the page contract, and the fallback to
-/// the default context hands the page the same copy of <see cref="uk.osric.asp.Sdk.IContext"/> the
+/// the default context hands the page the same copy of <see cref="Sdk.IContext"/> the
 /// host is using, so the handler signature matches.
 /// </para>
 /// <para>

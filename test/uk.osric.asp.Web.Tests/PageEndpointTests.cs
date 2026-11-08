@@ -153,7 +153,7 @@ public sealed class PageEndpointTests {
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/javascript; charset=utf-8"));
-        Assert.That(context.Response.Headers["Cache-Control"].ToString(), Is.EqualTo("no-cache"));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-cache"));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("export const answer = 42;"));
     }
 
@@ -716,7 +716,6 @@ public sealed class PageEndpointTests {
         return context;
     }
 
-
     private PageRenderer CreatePages(IPageStore storage, RenderOptions? options = null) {
         RenderOptions render = options ?? Options;
         PageBudget budget = new(render, new CompileOptions());
@@ -740,7 +739,7 @@ public sealed class PageEndpointTests {
     private static DefaultHttpContext ChunkedForm(string body) {
         DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "POST", "/hello.cs");
         context.Request.ContentType = "application/x-www-form-urlencoded";
-        context.Request.Body = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(body));
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
         return context;
     }
 }

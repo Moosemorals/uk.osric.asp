@@ -57,7 +57,7 @@ public sealed class LoadedPage : IDisposable {
     /// <summary>Runs the page against a request context.</summary>
     /// <param name="context">The context the page writes to.</param>
     /// <returns>A task that completes when the page has finished.</returns>
-    /// <exception cref="System.Exception">Whatever the page threw, unwrapped.</exception>
+    /// <exception cref="Exception">Whatever the page threw, unwrapped.</exception>
     public async Task InvokeAsync(IContext context) {
         ArgumentNullException.ThrowIfNull(context);
 

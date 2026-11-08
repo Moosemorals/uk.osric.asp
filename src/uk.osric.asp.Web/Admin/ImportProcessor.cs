@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Admin;
 
 using System.Diagnostics;
+using System.Globalization;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
@@ -89,7 +90,11 @@ internal sealed class ImportProcessor(
         }
     }
 
-    private (PageImage? Image, ImportPageStatus Status) Compile(string stageId, PagePath path, string source, CancellationToken cancellationToken) {
+    private (PageImage? Image, ImportPageStatus Status) Compile(
+        string stageId,
+        PagePath path,
+        string source,
+        CancellationToken cancellationToken) {
         try {
             PageImage image = images.Build(path, source, PageMetrics.ReasonImport, cancellationToken);
             if (image.Bytes is null) {
@@ -108,5 +113,5 @@ internal sealed class ImportProcessor(
     }
 
     private static string DescribePages(int count) =>
-        count == 1 ? "1 page" : $"{count.ToString(System.Globalization.CultureInfo.InvariantCulture)} pages";
+        count == 1 ? "1 page" : $"{count.ToString(CultureInfo.InvariantCulture)} pages";
 }

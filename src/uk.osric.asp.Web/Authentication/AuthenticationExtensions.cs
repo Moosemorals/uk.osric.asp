@@ -148,12 +148,13 @@ internal static class AuthenticationExtensions {
 
         services.AddRateLimiter(options => {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.OnRejected = (context, _) => {
+            options.OnRejected = (context, cancellationToken) => {
                 SecurityHeaders.NoStore(context.HttpContext);
                 return new ValueTask(ErrorResponses.WriteAsync(
                     context.HttpContext,
                     StatusCodes.Status429TooManyRequests,
-                    ErrorMessage.ForStatus(429, context.HttpContext.User.Identity?.IsAuthenticated == true)));
+                    ErrorMessage.ForStatus(429, context.HttpContext.User.Identity?.IsAuthenticated == true),
+                    cancellationToken));
             };
 
             options.AddPolicy(LoginRateLimitPolicy.Name, context => {

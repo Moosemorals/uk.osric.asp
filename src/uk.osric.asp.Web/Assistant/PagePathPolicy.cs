@@ -53,7 +53,7 @@ internal sealed class PagePathPolicy {
 
     /// <summary>Validates an optional prefix, which only has to be an addressable path.</summary>
     /// <param name="prefixText">The prefix the model asked for, or null for none.</param>
-    public PathValidationResult ValidatePrefix(string? prefixText) {
+    public static PathValidationResult ValidatePrefix(string? prefixText) {
         if (string.IsNullOrWhiteSpace(prefixText)) {
             return new PathValidationResult(null, null);
         }

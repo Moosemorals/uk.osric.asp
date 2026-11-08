@@ -9,7 +9,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 
 [TestFixture]
-public sealed class LoginRateLimitTests {
+public sealed partial class LoginRateLimitTests {
 
     [Test]
     public async Task RepeatedFailedLoginsAreRejected() {
@@ -64,7 +64,7 @@ public sealed class LoginRateLimitTests {
 
     private static async Task<string> GetTokenAsync(HttpClient client) {
         string body = await (await client.GetAsync("/login")).Content.ReadAsStringAsync();
-        Match match = Regex.Match(body, "name=\"__RequestVerificationToken\" value=\"([^\"]+)\"");
+        Match match = AntiforgeryToken().Match(body);
         Assert.That(match.Success, Is.True);
 
         return WebUtility.HtmlDecode(match.Groups[1].Value);
@@ -77,4 +77,7 @@ public sealed class LoginRateLimitTests {
             ["__RequestVerificationToken"] = token,
         }));
     }
+
+    [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
+    private static partial Regex AntiforgeryToken();
 }

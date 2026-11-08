@@ -390,5 +390,4 @@ public sealed class PageApiPolicyTests {
     private static CompileResult Compile(string template) {
         return Compiler.Compile(TestTemplates.Generate(template));
     }
-
 }

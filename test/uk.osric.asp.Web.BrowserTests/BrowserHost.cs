@@ -47,11 +47,12 @@ internal sealed class BrowserHost : IAsyncDisposable {
     /// <summary>The password for <see cref="UserName"/>; long enough for the policy.</summary>
     public const string Password = "browser-test-password";
 
-    private static readonly object s_gate = new();
+    private static readonly Lock s_gate = new();
     private static BrowserHost? s_shared;
 
     private readonly Process _process = new();
     private readonly StringBuilder _log = new();
+    private readonly Lock _logLock = new();
     private readonly string _directory;
 
     private BrowserHost(string directory) => _directory = directory;
@@ -96,7 +97,7 @@ internal sealed class BrowserHost : IAsyncDisposable {
     public StubProvider? Provider { get; private set; }
 
     /// <summary>What the host has written to standard output and error so far.</summary>
-    public string Log { get { lock (_log) { return _log.ToString(); } } }
+    public string Log { get { lock (_logLock) { return _log.ToString(); } } }
 
     /// <summary>Starts a host with its own database, provider and port.</summary>
     public static async Task<BrowserHost> StartAsync(BrowserHostSettings settings) {
@@ -114,7 +115,7 @@ internal sealed class BrowserHost : IAsyncDisposable {
 
     /// <summary>Writes the host's log into the test output, for a failure that needs explaining.</summary>
     public void WriteDiagnostics(string to) {
-        lock (_log) {
+        lock (_logLock) {
             Directory.CreateDirectory(to);
             File.WriteAllText(Path.Combine(to, "web.log"), _log.ToString());
         }
@@ -232,7 +233,7 @@ internal sealed class BrowserHost : IAsyncDisposable {
         if (line is null) {
             return;
         }
-        lock (_log) {
+        lock (_logLock) {
             _log.AppendLine(line);
         }
     }

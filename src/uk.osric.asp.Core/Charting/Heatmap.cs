@@ -201,5 +201,4 @@ public static class Heatmap {
         double.TryParse(label, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
             ? value
             : double.PositiveInfinity;
-
 }

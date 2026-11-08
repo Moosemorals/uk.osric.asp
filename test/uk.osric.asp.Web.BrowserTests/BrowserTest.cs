@@ -5,13 +5,14 @@ namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
 using NUnit.Framework;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 /// <summary>
 /// One browser test: its own context and page, a fresh provider script, and a failing assertion for
 /// anything the browser complained about while the test ran.
 /// </summary>
-internal abstract class BrowserTest {
+internal abstract partial class BrowserTest {
 
     private readonly List<string> _problems = [];
 
@@ -101,9 +102,9 @@ internal abstract class BrowserTest {
     protected async Task<long> NewConversationAsync() {
         await Page.GotoAsync("assistant");
         await Page.ClickAsync("text=New conversation");
-        await Page.WaitForURLAsync(new Regex(@"/assistant/\d+$"));
+        await Page.WaitForURLAsync(AssistantUrl());
 
-        return long.Parse(Page.Url.Split('/')[^1], System.Globalization.CultureInfo.InvariantCulture);
+        return long.Parse(Page.Url.Split('/')[^1], CultureInfo.InvariantCulture);
     }
 
     /// <summary>Types a message and lets the page's script post it, which starts the run.</summary>
@@ -114,4 +115,7 @@ internal abstract class BrowserTest {
 
     /// <summary>A page path that belongs to this test alone.</summary>
     protected static string UniquePath(string stem) => $"/{stem}-{Guid.NewGuid():N}";
+
+    [GeneratedRegex(@"/assistant/\d+$")]
+    protected static partial Regex AssistantUrl();
 }

@@ -90,6 +90,6 @@ public static class MessageText {
             shortened.Append(text, starts[position], length);
         }
 
-        return shortened.Append(Ellipsis).ToString();
+        return shortened.Append('…').ToString();
     }
 }

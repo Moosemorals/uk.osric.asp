@@ -140,7 +140,7 @@ internal class Program {
                 PooledConnectionLifetime = TimeSpan.FromMinutes(2),
             });
         builder.Services.AddSingleton<IPageFetcher, PageFetcher>();
-        builder.Services.AddSingleton<PageEnvironment>(services => new PageEnvironment(
+        builder.Services.AddSingleton(services => new PageEnvironment(
             services.GetRequiredService<ReservedPaths>(),
             services.GetRequiredService<RenderOptions>(),
             services.GetRequiredService<PageContentTypes>(),

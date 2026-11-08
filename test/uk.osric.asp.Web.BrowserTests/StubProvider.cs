@@ -65,7 +65,7 @@ internal sealed class StubProvider : IAsyncDisposable {
     private readonly List<string> _requests = [];
     private readonly CancellationTokenSource _stopping = new();
     private readonly Task _loop;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     public StubProvider(int port) {
         Port = port;

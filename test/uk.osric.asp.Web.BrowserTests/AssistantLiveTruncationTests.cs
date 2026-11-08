@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
 using NUnit.Framework;
-using System.Text.RegularExpressions;
 
 /// <summary>
 /// A real model with a tiny output budget, which is the other way a long think loses its answer: the
@@ -46,7 +45,7 @@ internal sealed class AssistantLiveTruncationTests : BrowserTest {
         await SignInAsync();
         await Page.GotoAsync("assistant");
         await Page.ClickAsync("text=New conversation");
-        await Page.WaitForURLAsync(new Regex(@"/assistant/\d+$"));
+        await Page.WaitForURLAsync(AssistantUrl());
         await Page.FillAsync("#assistant-message", "Explain, at length, why the sea is salty.");
         await Page.ClickAsync("#assistant-message-form button[type=submit]");
 

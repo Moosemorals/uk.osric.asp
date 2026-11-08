@@ -77,7 +77,9 @@ internal sealed class SimpleContext : IContext {
     /// <param name="antiforgeryField">
     /// Builds the hidden antiforgery input, or <see langword="null"/> when the page must get nothing.
     /// </param>
+#pragma warning disable CA1068 // CancellationToken parameters must come last
     public SimpleContext(
+#pragma warning restore CA1068 // CancellationToken parameters must come last
         ILoggerFactory loggerFactory,
         PageRequest request,
         CancellationToken aborted,
