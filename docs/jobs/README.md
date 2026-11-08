@@ -25,7 +25,9 @@ what is left in the shell is mostly authority a page does not have rather than m
 not write. IDEA-020 came out of the import and export planning, and records why a destructive reset
 is not part of that flow. IDEA-021 came out of the assistant validation discussion of 2026-11-07;
 it pairs with the [content-type plan](../plans/page-content-types.md) and records why validation is
-a tool rather than a save step.
+a tool rather than a save step. IDEA-022 came out of the [page-features
+planning](../plans/page-features.md) of 2026-11-08, and is worth doing only after storage and fetch
+have left `SimpleContext`.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -49,6 +51,7 @@ a tool rather than a save step.
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-021](IDEA-021.md) | — | M | The assistant cannot validate the JavaScript it writes |
+| [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.

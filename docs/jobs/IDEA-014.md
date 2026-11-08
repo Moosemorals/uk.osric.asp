@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Size | Medium |
 | Area | Sdk, Web, storage |
-| Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Pages/SimpleContext.cs` |
+| Location | `src/uk.osric.asp.Sdk/`, `src/uk.osric.asp.Web/Pages/PageFeatures.cs` |
 
 ## Idea
 
@@ -22,8 +22,10 @@ it and redirects (`MessageKey` in `EditorEndpoint`), because a `POST` answered w
 else to put "Saved successfully." A page has no equivalent, so a page that submits a form and
 redirects cannot tell the visitor what happened, and the view grows into a shell endpoint to say it.
 
-The goal is a per-visitor store on `IContext`: bounded, keyed by a cookie the shell mints, readable
-and writable by page code, and cleared when the visitor signs out.
+The goal is a per-visitor store a page can reach: bounded, keyed by a cookie the shell mints,
+readable and writable by page code, and cleared when the visitor signs out. It arrives as a
+capability (`IPageSession` from `ctx.Features`) rather than as another member on `IContext`, once
+the [page-features plan](../plans/page-features.md) has landed.
 
 ## Sketch
 
@@ -36,9 +38,10 @@ and writable by page code, and cleared when the visitor signs out.
    an idle lifetime and a sweep, sized against the same reasoning as `Pages:Storage` and the render
    buffer. Decide the backing store explicitly: the current `AddDistributedMemoryCache` is lost on
    restart and per process, which a flash message does not mind and a half-written form does.
-3. Contract shape: `TryGetValueAsync<T>`/`SetAsync<T>`/`DeleteAsync` on a `ctx.Session`, async and
-   tokenless like `Storage` (DEC-123), with presence and value travelling together as
-   `PageValue<T>` does. A `HEAD` render may read and must not write, as storage already does.
+3. Contract shape: an `IPageSession` capability with
+   `TryGetValueAsync<T>`/`SetAsync<T>`/`DeleteAsync`, async and tokenless like `IPageStorage`
+   (DEC-123), with presence and value travelling together as `PageValue<T>` does. A `HEAD` render
+   may read and must not write, as storage already does.
 4. Fail closed on the shell's own cookies. A page may not name `.uk.osric.asp.session`,
    `.uk.osric.asp.antiforgery` or the authentication ticket, and signing out has to clear the page
    session as well as delete the ticket row.
@@ -51,4 +54,5 @@ and writable by page code, and cleared when the visitor signs out.
 
 Adding a member to `IContext` changes the SDK module version id, so every stored image is recompiled
 on its next request (DEC-26). That is the intended cost of a contract change, not a reason to avoid
-one.
+one — and it is the cost a new capability interface pays too, which is why the page-features plan
+exists: the recompiles do not go away, the churn in what a page must implement does.

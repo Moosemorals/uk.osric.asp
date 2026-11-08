@@ -98,8 +98,10 @@ serves like any other page. No storage, schema or `RuntimeId` decision moved —
 in `Core`, whose module version id was already in the id — and the API policy applies to a declared
 type exactly as it does to a code block, so writing a class is not a way to reach `System.IO`.
 
-Phase 2 is now the shared layout, not shared types. It is planned in
-[page layouts](../plans/page-layout.md) and is best done after IDEA-018, because the layout page
-calls the builder that job moves. The layout is the first capability the listing and history views
+Phase 2 is now the shared layout, not shared types, and it is being replanned. The layout is the
+first capability to arrive through the page-features change (`IContext` keeps the request, response
+and logging core; storage, fetch and the layout's own slots become capabilities a page asks for), so
+its plan waits until that has bedded in. It stays best done after IDEA-018, because the layout page
+calls the builder that job moves, and it is still the first capability the listing and history views
 (IDEA-015, IDEA-017) cannot move without; shared types stay deferred until a concrete helper needs
 them.
