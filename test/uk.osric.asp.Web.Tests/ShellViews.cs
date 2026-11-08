@@ -192,6 +192,7 @@ internal static class ShellViews {
             new PageEnvironment(
                 Reserved,
                 new RenderOptions(),
+                TestContentTypes.Shipped,
                 new PageStorageOptions(),
                 new PageFetchOptions(),
                 new FakePageStateStore(),

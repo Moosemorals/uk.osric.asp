@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using System.Net;
 using System.Text.Json;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
@@ -123,6 +124,9 @@ internal class Program {
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(services => PageContentTypesConfiguration.FromConfiguration(
+            builder.Configuration,
+            services.GetRequiredService<ILoggerFactory>().CreateLogger("Pages.ContentTypes")));
         builder.Services.AddSingleton(PageStorageOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton(ArchiveOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
@@ -139,6 +143,7 @@ internal class Program {
         builder.Services.AddSingleton<PageEnvironment>(services => new PageEnvironment(
             services.GetRequiredService<ReservedPaths>(),
             services.GetRequiredService<RenderOptions>(),
+            services.GetRequiredService<PageContentTypes>(),
             services.GetRequiredService<PageStorageOptions>(),
             services.GetRequiredService<PageFetchOptions>(),
             services.GetRequiredService<IPageStateStore>(),
@@ -248,6 +253,10 @@ internal class Program {
         // The compiler's reference set comes from the runtime, so resolve it before the host listens:
         // a runtime that cannot supply one must fail the deploy, not the first page that gets saved.
         _ = app.Services.GetRequiredService<IPageCompiler>();
+
+        // A malformed content-type map is the same trade: the site does not come up with half a map,
+        // and the journal names the offending key before anything is served.
+        _ = app.Services.GetRequiredService<PageContentTypes>();
 
         // Before anything that reads the scheme. Without it every request arrives as plain HTTP from
         // the proxy, so HSTS emits nothing and IsHttps is always false.

@@ -125,6 +125,7 @@ internal sealed class PageEndpoint() {
             context.RequestAborted,
             output,
             features,
+            environment.ContentTypes,
             environment.Render.MaxBodyChars,
             user,
             LoginRedirect.For(path, context.Request.QueryString),

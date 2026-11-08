@@ -33,10 +33,11 @@ public sealed class PageEndpointTests {
         _metrics.Dispose();
     }
 
-    private PageEnvironment EndpointEnvironment(RenderOptions? render = null) {
+    private PageEnvironment EndpointEnvironment(RenderOptions? render = null, PageContentTypes? contentTypes = null) {
         return new PageEnvironment(
             Reserved,
             render ?? Options,
+            contentTypes ?? TestContentTypes.Shipped,
             StorageOptions,
             FetchOptions,
             new FakePageStateStore(),
@@ -140,6 +141,65 @@ public sealed class PageEndpointTests {
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("Hello, world!"));
+    }
+
+    [Test]
+    public async Task AStoredScriptPageNeedsNoDirectiveToBeJavaScriptAsync() {
+        DefaultHttpContext context = CreateContext("x.js");
+        FakePageStore storage = new();
+        storage["/x.js"] = new PageTemplate(PagePath.Normalize("/x.js"), "export const answer = 42;");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/javascript; charset=utf-8"));
+        Assert.That(context.Response.Headers["Cache-Control"].ToString(), Is.EqualTo("no-cache"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("export const answer = 42;"));
+    }
+
+    [Test]
+    public async Task AStoredStylesheetPageCanOverrideItsTypeBackToHtmlAsync() {
+        DefaultHttpContext context = CreateContext("x.css");
+        FakePageStore storage = new();
+        storage["/x.css"] = new PageTemplate(PagePath.Normalize("/x.css"),
+            "<% ctx.SetContentType(\"text/html; charset=utf-8\"); %>Styled.");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
+    }
+
+    [TestCase("GET")]
+    [TestCase("HEAD")]
+    public async Task AStoredScriptPageRevalidatesLikeAnyOtherPageAsync(string method) {
+        FakePageStore storage = new();
+        storage["/x.js"] = new PageTemplate(PagePath.Normalize("/x.js"), "export {};");
+        DefaultHttpContext initial = TestHttp.CreateContext("x.js", method, "/x.js");
+
+        await PageEndpoint.HandleAsync(initial, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        DefaultHttpContext conditional = TestHttp.CreateContext("x.js", method, "/x.js");
+        conditional.Request.Headers.IfNoneMatch = initial.Response.Headers.ETag;
+
+        await PageEndpoint.HandleAsync(conditional, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(initial.Response.ContentType, Is.EqualTo("text/javascript; charset=utf-8"));
+        Assert.That(conditional.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
+        Assert.That(conditional.Response.ContentType, Is.Null);
+        Assert.That(await TestHttp.ReadBodyAsync(conditional), Is.Empty);
+    }
+
+    [Test]
+    public async Task AnUnmappedPageTakesTheConfiguredFallbackAsync() {
+        DefaultHttpContext context = CreateContext("notes");
+        FakePageStore storage = new();
+        storage["/notes"] = new PageTemplate(PagePath.Normalize("/notes"), "Notes.");
+        PageContentTypes plain = PageContentTypes.Create("text/plain; charset=utf-8", []);
+
+        await PageEndpoint.HandleAsync(
+            context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment(contentTypes: plain));
+
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/plain; charset=utf-8"));
     }
 
     [Test]

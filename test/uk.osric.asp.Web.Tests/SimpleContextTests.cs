@@ -21,9 +21,65 @@ public sealed class SimpleContextTests {
 
         Assert.That(response.Status, Is.EqualTo(200));
         Assert.That(response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
-        Assert.That(response.Headers, Is.Empty);
+        Assert.That(response.Headers["Cache-Control"], Is.EqualTo("no-cache"));
         Assert.That(response.Location, Is.Null);
         Assert.That(response.AllowsScripts, Is.False);
+    }
+
+    [TestCase("/app.js", "text/javascript; charset=utf-8")]
+    [TestCase("/app.mjs", "text/javascript; charset=utf-8")]
+    [TestCase("/app.css", "text/css; charset=utf-8")]
+    [TestCase("/app.json", "application/json; charset=utf-8")]
+    [TestCase("/app.txt", "text/plain; charset=utf-8")]
+    [TestCase("/notes", "text/html; charset=utf-8")]
+    public void TheKeyDecidesTheInitialContentType(string path, string contentType) {
+        SimpleContext context = CreateContext(out _, path: path);
+
+        Assert.That(context.ToResponse().ContentType, Is.EqualTo(contentType));
+    }
+
+    [Test]
+    public void SetContentTypeOverridesAMappedType() {
+        SimpleContext context = CreateContext(out _, path: "/app.js");
+
+        context.SetContentType("text/html; charset=utf-8");
+
+        Assert.That(context.ToResponse().ContentType, Is.EqualTo("text/html; charset=utf-8"));
+    }
+
+    [Test]
+    public void SetContentTypeOverridesTheFallback() {
+        SimpleContext context = CreateContext(out _, path: "/notes");
+
+        context.SetContentType("text/javascript; charset=utf-8");
+
+        Assert.That(context.ToResponse().ContentType, Is.EqualTo("text/javascript; charset=utf-8"));
+    }
+
+    [TestCase("/app.js")]
+    [TestCase("/app.css")]
+    [TestCase("/notes")]
+    public void EveryPageDefaultsToNoCache(string path) {
+        SimpleContext context = CreateContext(out _, path: path);
+
+        Assert.That(context.ToResponse().Headers["Cache-Control"], Is.EqualTo("no-cache"));
+    }
+
+    [Test]
+    public void APageSetCacheControlWins() {
+        SimpleContext context = CreateContext(out _, path: "/app.js");
+
+        context.SetHeader("Cache-Control", "max-age=3600");
+
+        Assert.That(context.ToResponse().Headers["Cache-Control"], Is.EqualTo("max-age=3600"));
+    }
+
+    [Test]
+    public void AnUnmappedPageTakesTheConfiguredFallback() {
+        PageContentTypes plain = PageContentTypes.Create("text/plain; charset=utf-8", []);
+        SimpleContext context = CreateContext(out _, path: "/notes", contentTypes: plain);
+
+        Assert.That(context.ToResponse().ContentType, Is.EqualTo("text/plain; charset=utf-8"));
     }
 
     [Test]
@@ -70,7 +126,7 @@ public sealed class SimpleContextTests {
         SimpleContext context = CreateContext(out _);
 
         Assert.That(() => context.SetHeader(name, "value"), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers, Is.Empty);
+        Assert.That(context.ToResponse().Headers.ContainsKey(name), Is.False);
     }
 
     [TestCase("X-Content-Type-Options")]
@@ -82,7 +138,7 @@ public sealed class SimpleContextTests {
 
         Assert.That(() => context.SetHeader(name, ""), Throws.ArgumentException);
         Assert.That(() => context.SetHeader(name, "value"), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers, Is.Empty);
+        Assert.That(context.ToResponse().Headers.ContainsKey(name), Is.False);
     }
 
     [TestCase("")]
@@ -91,7 +147,7 @@ public sealed class SimpleContextTests {
         SimpleContext context = CreateContext(out _);
 
         Assert.That(() => context.SetHeader("X-Page", value), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers, Is.Empty);
+        Assert.That(context.ToResponse().Headers.ContainsKey("X-Page"), Is.False);
     }
 
     [TestCase("value\r\nSet-Cookie: stolen=yes")]
@@ -337,14 +393,17 @@ public sealed class SimpleContextTests {
         PageUser? user = null,
         string loginRedirect = "/login",
         Func<string>? antiforgeryField = null,
-        string method = "GET") {
+        string method = "GET",
+        string path = "/page",
+        PageContentTypes? contentTypes = null) {
         output = new StringWriter();
         return new SimpleContext(
             NullLoggerFactory.Instance,
-            TestHttp.Request("/page", method),
+            TestHttp.Request(path, method),
             CancellationToken.None,
             output,
-            FeaturesFor("/page"),
+            FeaturesFor(path),
+            contentTypes ?? TestContentTypes.Shipped,
             RenderOptions.DefaultMaxBodyChars,
             user,
             loginRedirect,
@@ -358,6 +417,7 @@ public sealed class SimpleContextTests {
             TestHttp.Request(path),
             CancellationToken.None,
             new StringWriter(),
-            FeaturesFor("/page"));
+            FeaturesFor("/page"),
+            TestContentTypes.Shipped);
     }
 }

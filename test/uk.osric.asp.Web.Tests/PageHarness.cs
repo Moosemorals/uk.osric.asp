@@ -29,9 +29,11 @@ internal sealed class PageHarness : IDisposable {
         FakePageFetcher? fetch = null,
         PageStorageOptions? storageOptions = null,
         ILogger<PageRenderer>? rendererLogger = null,
-        PageFetchOptions? fetchOptions = null) {
+        PageFetchOptions? fetchOptions = null,
+        PageContentTypes? contentTypes = null) {
         State = state ?? new FakePageStateStore();
         Fetch = fetch ?? new FakePageFetcher();
+        ContentTypes = contentTypes ?? TestContentTypes.Shipped;
         StorageOptions = storageOptions ?? new PageStorageOptions();
         FetchOptions = fetchOptions ?? new PageFetchOptions();
         Options = options ?? new RenderOptions();
@@ -59,6 +61,9 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>Where every fetch in this harness goes.</summary>
     public FakePageFetcher Fetch { get; }
+
+    /// <summary>The content-type map every context in this harness renders against.</summary>
+    public PageContentTypes ContentTypes { get; }
 
     public PageStorageOptions StorageOptions { get; }
 
@@ -141,6 +146,7 @@ internal sealed class PageHarness : IDisposable {
             CancellationToken.None,
             new StringWriter(),
             features,
+            ContentTypes,
             maxBodyChars,
             user);
     }

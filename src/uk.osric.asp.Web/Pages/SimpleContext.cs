@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Pages;
 
 using System.Net;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Http;
 
@@ -58,7 +59,7 @@ internal sealed class SimpleContext : IContext {
     // the flag is volatile rather than merely lock-protected.
     private volatile bool _abandoned;
     private bool _allowsScripts;
-    private string _contentType = PageResponse.Default.ContentType;
+    private string _contentType;
     private string? _location;
     private int _status = PageResponse.Default.Status;
     private int _written;
@@ -69,6 +70,7 @@ internal sealed class SimpleContext : IContext {
     /// <param name="aborted">The token from the request being served.</param>
     /// <param name="writer">The buffer the body is written to.</param>
     /// <param name="features">The capabilities this layer offers.</param>
+    /// <param name="contentTypes">The media type the page's key names.</param>
     /// <param name="maxBodyChars">How much body the page may write before it is refused.</param>
     /// <param name="user">The signed-in account, or <see langword="null"/> for an anonymous visitor.</param>
     /// <param name="loginRedirect">Where <see cref="RedirectToLogin"/> sends an anonymous visitor.</param>
@@ -81,6 +83,7 @@ internal sealed class SimpleContext : IContext {
         CancellationToken aborted,
         TextWriter writer,
         PageFeatures features,
+        PageContentTypes contentTypes,
         int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
         PageUser? user = null,
         string loginRedirect = "/login",
@@ -89,6 +92,7 @@ internal sealed class SimpleContext : IContext {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(features);
+        ArgumentNullException.ThrowIfNull(contentTypes);
         ArgumentException.ThrowIfNullOrWhiteSpace(loginRedirect);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxBodyChars, 1);
 
@@ -102,6 +106,9 @@ internal sealed class SimpleContext : IContext {
         _features = features;
         _writer = writer;
         User = user;
+
+        // The extension decides the initial value; SetContentType is still the page's override.
+        _contentType = contentTypes.ForPath(request.Path).MediaType;
     }
 
     /// <inheritdoc/>
@@ -120,8 +127,16 @@ internal sealed class SimpleContext : IContext {
     public IPageFeatures Features => _features;
 
     /// <summary>What the page asked the response to be.</summary>
-    public PageResponse ToResponse() =>
-        new(_status, _contentType, _headers, _location) { AllowsScripts = _allowsScripts };
+    /// <remarks>
+    /// Every rendered page is <c>no-cache</c> unless the page set its own <c>Cache-Control</c>: a
+    /// stored page is something its author changed a moment ago, so a heuristic copy is the wrong
+    /// default for all of it. <c>no-cache</c> requires revalidation rather than forbidding storage,
+    /// and the host's ETag makes that cheap.
+    /// </remarks>
+    public PageResponse ToResponse() {
+        _headers.TryAdd("Cache-Control", "no-cache");
+        return new(_status, _contentType, _headers, _location) { AllowsScripts = _allowsScripts };
+    }
 
     /// <summary>The body written so far.</summary>
     public string GetBody() {
