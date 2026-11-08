@@ -1,0 +1,20 @@
+<% var layout = ctx.Features.GetRequired<IPageLayout>();
+   // Asked for by name, this page is the document rather than the chrome around one, so nothing has
+   // set a title for it. When it wraps a page, that page's title is already here.
+   if (ctx.Path == ctx.Request.Path) { layout.Title = "Site"; }
+   bool At(string href) => ctx.Request.Path == href;
+   bool Under(string href) => At(href) || ctx.Request.Path.StartsWith(href + "/", System.StringComparison.Ordinal);
+   var links = new System.Collections.Generic.List<NavLink> { new("/", "Home", At("/")) };
+   if (ctx.User is null) {
+       links.Add(new("/login", "Sign in", At("/login")));
+   } else {
+       links.Add(new("/assistant", "Assistant", Under("/assistant")));
+       links.Add(new("/edit", "Pages", Under("/edit")));
+       links.Add(new("/admin", "Admin", Under("/admin")));
+       links.Add(new("/logout", "Sign out", At("/logout")));
+   } %><%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head) %>
+<%== PageDocument.Banner(PageDocument.Nav("Site", links, "site-nav")) %>
+<%== PageDocument.OpenMain() %>
+<%== layout.Body %>
+<%== PageDocument.CloseMain() %>
+<%== PageDocument.End() %>

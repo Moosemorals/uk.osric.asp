@@ -92,59 +92,55 @@ internal sealed class PageEndpoint() {
             return;
         }
 
-        StringWriter output = new();
-
         // A HEAD request runs the page to produce the representation and its validators, so its state
         // is readable but never written, and it cannot POST to a remote system.
         bool isHead = HttpMethods.IsHead(context.Request.Method);
-        PageStorageScope storage = new(
-            path,
-            environment.StateStore,
-            environment.Storage,
-            writable: !isHead);
 
-        // The fetch allowance belongs to the render, so every layer built from this request shares
-        // one counter rather than each getting the whole budget.
-        RenderFetchBudget budget = new(environment.Fetch.MaxRequestsPerRender);
-        PageHttpFetch fetch = new(
-            path,
-            isHead,
-            context.RequestAborted,
-            environment.Fetcher,
-            environment.Fetch,
-            budget,
-            environment.Metrics,
-            loggerFactory.CreateLogger(SimpleContext.PageCategory));
-        PageFeatures features = new PageFeatures()
-            .Add<IPageStorage>(storage)
-            .Add<IHttpFetch>(fetch);
+        // The antiforgery pair is minted once per request: a page and the layout around it must be
+        // verifiable against the same token, and a second would leave the first unverifiable.
+        string? antiforgeryField = null;
 
-        SimpleContext page = new(
+        // One body and one fetch allowance for the whole chain: the chrome is part of the response,
+        // so a layout must not be able to buffer or fetch beside the page's own budgets.
+        PageChain chain = new(
+            environment,
             loggerFactory,
             snapshot,
-            context.RequestAborted,
-            output,
-            features,
-            environment.ContentTypes,
-            environment.Render.MaxBodyChars,
             user,
+            isHead,
+            context.RequestAborted,
+            new BodyBudget(environment.Render.MaxBodyChars),
+            new RenderFetchBudget(environment.Fetch.MaxRequestsPerRender),
             LoginRedirect.For(path, context.Request.QueryString),
-            () => AntiforgeryField.Hidden(environment.Antiforgery.GetAndStoreTokens(context)));
+            () => antiforgeryField ??= AntiforgeryField.Hidden(environment.Antiforgery.GetAndStoreTokens(context)));
 
-        RenderResult result = await pages.RenderAsync(path, page, context.RequestAborted);
+        PageLayoutState contentLayout = new(environment.Layout.Default);
+        StringWriter output = new();
+        SimpleContext page = chain.CreateLayer(path, output, contentLayout, isLayout: false);
+
+        // One slot and one deadline for the whole chain, so a wrapped page costs one render rather
+        // than two.
+        await using PageRenderer.RenderSession session = await pages.OpenSessionAsync(path, context.RequestAborted);
+        RenderResult result = await session.RenderAsync(path, page);
 
         switch (result.Status) {
             case RenderStatus.NotFound:
                 await NotFound.WriteAsync(context, path);
-                break;
+                return;
             case RenderStatus.CompileFailed:
                 await WriteCompileErrorAsync(context, result.Diagnostics);
-                break;
+                return;
             case RenderStatus.Timeout:
                 await WriteTimeoutAsync(context, path);
+                return;
+        }
+
+        switch (await chain.WrapAsync(session, path, contentLayout, page.ToResponse(), page.GetBody())) {
+            case PageChainResult.Failed failure:
+                await ErrorResponses.WriteAsync(context, failure.StatusCode, failure.Error);
                 break;
-            default:
-                await WritePageAsync(context, page.ToResponse(), page.GetBody(), authenticated);
+            case PageChainResult.Served served:
+                await WritePageAsync(context, served.Response, served.Body, authenticated);
                 break;
         }
     }

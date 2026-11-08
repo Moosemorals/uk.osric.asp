@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using System.Globalization;
 using System.Net;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
@@ -46,8 +47,10 @@ internal sealed class SimpleContext : IContext {
     private readonly PageFeatures _features;
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _loginRedirect;
+    private readonly BodyBudget _bodyBudget;
+    private readonly bool _isLayout;
     private readonly ILogger _logger;
-    private readonly int _maxBodyChars;
+    private readonly PagePath _path;
     private readonly PageRequest _request;
     private readonly TextWriter _writer;
 
@@ -62,7 +65,6 @@ internal sealed class SimpleContext : IContext {
     private string _contentType;
     private string? _location;
     private int _status = PageResponse.Default.Status;
-    private int _written;
 
     /// <summary>Creates the context a page runs against.</summary>
     /// <param name="loggerFactory">Creates the one logger every page writes through.</param>
@@ -71,11 +73,19 @@ internal sealed class SimpleContext : IContext {
     /// <param name="writer">The buffer the body is written to.</param>
     /// <param name="features">The capabilities this layer offers.</param>
     /// <param name="contentTypes">The media type the page's key names.</param>
-    /// <param name="maxBodyChars">How much body the page may write before it is refused.</param>
+    /// <param name="maxBodyChars">How much body this layer may write when no chain budget is given.</param>
     /// <param name="user">The signed-in account, or <see langword="null"/> for an anonymous visitor.</param>
     /// <param name="loginRedirect">Where <see cref="RedirectToLogin"/> sends an anonymous visitor.</param>
     /// <param name="antiforgeryField">
     /// Builds the hidden antiforgery input, or <see langword="null"/> when the page must get nothing.
+    /// </param>
+    /// <param name="path">The layer's own key, which is the request's path for the content layer.</param>
+    /// <param name="isLayout">
+    /// Whether this layer is a layout, in which case the response belongs to the content: status,
+    /// content type, headers and a redirect are ignored, because a layout is markup and nothing else.
+    /// </param>
+    /// <param name="bodyBudget">
+    /// The allowance the whole chain shares; a layer on its own gets one of its own.
     /// </param>
 #pragma warning disable CA1068 // CancellationToken parameters must come last
     public SimpleContext(
@@ -89,7 +99,10 @@ internal sealed class SimpleContext : IContext {
         int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
         PageUser? user = null,
         string loginRedirect = "/login",
-        Func<string>? antiforgeryField = null) {
+        Func<string>? antiforgeryField = null,
+        PagePath? path = null,
+        bool isLayout = false,
+        BodyBudget? bodyBudget = null) {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
@@ -100,7 +113,9 @@ internal sealed class SimpleContext : IContext {
 
         // The path is canonical here: PageEndpoint redirects anything else before building a context.
         _logger = loggerFactory.CreateLogger(PageCategory);
-        _maxBodyChars = maxBodyChars;
+        _bodyBudget = bodyBudget ?? new BodyBudget(maxBodyChars);
+        _isLayout = isLayout;
+        _path = path ?? PagePath.Normalize(request.Path);
         _request = request;
         _loginRedirect = loginRedirect;
         _antiforgeryFactory = antiforgeryField;
@@ -110,14 +125,14 @@ internal sealed class SimpleContext : IContext {
         User = user;
 
         // The extension decides the initial value; SetContentType is still the page's override.
-        _contentType = contentTypes.ForPath(request.Path);
+        _contentType = contentTypes.ForPath(_path.Key);
     }
 
     /// <inheritdoc/>
     public PageRequest Request => _request;
 
     /// <inheritdoc/>
-    public string Path => _request.Path;
+    public string Path => _path.Key;
 
     /// <inheritdoc/>
     public PageUser? User { get; }
@@ -211,18 +226,21 @@ internal sealed class SimpleContext : IContext {
                 return;
             }
 
-            if (_written + text.Length > _maxBodyChars) {
+            if (!_bodyBudget.TryCharge(text.Length)) {
                 throw new InvalidOperationException(
-                    $"{Path} wrote more than {_maxBodyChars} characters; the render was stopped.");
+                    $"{Path} wrote more than {_bodyBudget.MaxChars} characters; the render was stopped.");
             }
 
-            _written += text.Length;
             _writer.Write(text);
         }
     }
 
     /// <inheritdoc/>
     public void SetStatus(int status) {
+        if (IgnoreAsLayout(nameof(SetStatus), status.ToString(CultureInfo.InvariantCulture))) {
+            return;
+        }
+
         if (status is < 100 or > 599) {
             throw new ArgumentOutOfRangeException(nameof(status), status, "A status code must be between 100 and 599.");
         }
@@ -232,6 +250,10 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public void SetContentType(string contentType) {
+        if (IgnoreAsLayout(nameof(SetContentType), contentType)) {
+            return;
+        }
+
         ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
 
         _contentType = contentType;
@@ -239,6 +261,10 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public void SetHeader(string name, string value) {
+        if (IgnoreAsLayout(nameof(SetHeader), name)) {
+            return;
+        }
+
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
@@ -255,11 +281,17 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public void AllowScripts() {
+        // The one response setting a layout shares: its script is part of its chrome, so the union
+        // with the content's is what the response is served with.
         _allowsScripts = true;
     }
 
     /// <inheritdoc/>
     public void Redirect(string location, int status = 302) {
+        if (IgnoreAsLayout(nameof(Redirect), location)) {
+            return;
+        }
+
         ArgumentException.ThrowIfNullOrWhiteSpace(location);
 
         if (location.Contains('\r') || location.Contains('\n')) {
@@ -298,6 +330,18 @@ internal sealed class SimpleContext : IContext {
                 return _antiforgeryField ??= _antiforgeryFactory();
             }
         }
+    }
+
+    // A layout is markup and nothing else. The content ran first and owns the response, so an
+    // attempt from a layout is ignored rather than allowed to change what the visitor asked for -
+    // and logged, because a silent no-op is a puzzle for whoever wrote the layout.
+    private bool IgnoreAsLayout(string member, string detail) {
+        if (!_isLayout) {
+            return false;
+        }
+
+        LogWarning($"{Path} called {member}({detail}); a layout cannot set the response.");
+        return true;
     }
 
     private static bool IsAllowed(string name) {

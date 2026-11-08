@@ -35,6 +35,7 @@ public sealed class PageEndpointTests {
     private PageEnvironment EndpointEnvironment(RenderOptions? render = null, PageContentTypes? contentTypes = null) {
         return new PageEnvironment(
             Reserved,
+            new PageLayoutConfiguration(),
             render ?? Options,
             contentTypes ?? TestContentTypes.Shipped,
             StorageOptions,

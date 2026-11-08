@@ -21,6 +21,17 @@ h6 {
     line-height: 1.2;
 }
 
+/* The site menu: one line of tools, with the current one bold rather than a link to itself. */
+.site-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+}
+
+.site-nav .current {
+    font-weight: 600;
+}
+
 .diagnostics {
     padding: 1rem;
     overflow-x: auto;

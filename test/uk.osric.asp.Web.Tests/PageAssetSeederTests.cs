@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/layout.css", "/rocket.svg", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/_layout", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/layout.css", "/rocket.svg", "/site.css", "/status.css"];
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {
@@ -58,6 +58,15 @@ public sealed class PageAssetSeederTests {
         string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
 
         Assert.That(template, Does.Not.Contain("<%"));
+    }
+
+    [Test]
+    public async Task TheLayoutSeedIsAPageTheOwnerCanEdit() {
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/_layout"));
+
+        Assert.That(template, Does.Contain("PageDocument.Head"));
+        Assert.That(template, Does.Contain("layout.Body"));
+        Assert.That(new ReservedPaths(ReservedPaths.Default).IsReserved(PagePath.Normalize("/_layout")), Is.False);
     }
 
     [Test]

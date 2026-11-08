@@ -191,6 +191,7 @@ internal static class ShellViews {
             NullLoggerFactory.Instance,
             new PageEnvironment(
                 Reserved,
+                new PageLayoutConfiguration(),
                 new RenderOptions(),
                 TestContentTypes.Shipped,
                 new PageStorageOptions(),

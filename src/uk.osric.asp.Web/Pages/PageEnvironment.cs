@@ -12,6 +12,7 @@ using uk.osric.asp.Core.Pages;
 /// readable as the page contract grows a capability.
 /// </remarks>
 /// <param name="Reserved">The keys the site's own routes answer for.</param>
+/// <param name="Layout">The page every HTML page is wrapped in unless it says otherwise.</param>
 /// <param name="Render">The render budget and body cap.</param>
 /// <param name="ContentTypes">The media type each page key's extension names.</param>
 /// <param name="Storage">The storage caps.</param>
@@ -22,6 +23,7 @@ using uk.osric.asp.Core.Pages;
 /// <param name="Antiforgery">Validates a page's post and mints the field a form carries.</param>
 internal sealed record PageEnvironment(
     ReservedPaths Reserved,
+    PageLayoutConfiguration Layout,
     RenderOptions Render,
     PageContentTypes ContentTypes,
     PageStorageOptions Storage,

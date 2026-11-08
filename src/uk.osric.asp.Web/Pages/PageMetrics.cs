@@ -122,6 +122,7 @@ internal sealed class PageMetrics : IDisposable {
     private readonly Counter<long> _renderAbandoned;
     private readonly Counter<long> _cacheLookups;
     private readonly Counter<long> _staleness;
+    private readonly Counter<long> _layoutFallbacks;
     private readonly Histogram<long> _imageSize;
     private readonly Histogram<double> _fetchDuration;
     private readonly Histogram<double> _importDuration;
@@ -148,6 +149,8 @@ internal sealed class PageMetrics : IDisposable {
             "page.cache.lookups", null, "Compiled images the render path could use, could not use, or did not find.");
         _staleness = _meter.CreateCounter<long>(
             "page.cache.staleness", null, "Why a stored compiled image was not reused.");
+        _layoutFallbacks = _meter.CreateCounter<long>(
+            "page.layout.fallback", null, "Pages served without the default layout because it could not be served.");
         _imageSize = _meter.CreateHistogram<long>(
             "page.image.size", "By", "Size of an emitted page assembly.");
         _fetchDuration = _meter.CreateHistogram<double>(
@@ -195,6 +198,18 @@ internal sealed class PageMetrics : IDisposable {
     /// </remarks>
     public void RecordWait(TimeSpan duration) {
         _renderWait.Record(duration.TotalSeconds);
+    }
+
+    /// <summary>Records a page served unwrapped because the default layout could not be served.</summary>
+    /// <param name="path">The page that was served instead.</param>
+    /// <remarks>
+    /// A fallback is a degradation rather than a fault, so it is counted rather than raised: one
+    /// deleted page must not take the site down, and this is how an operator notices it anyway.
+    /// </remarks>
+    public void RecordLayoutFallback(PagePath path) {
+        TagList tags = new() { { "page.path", path.Key } };
+
+        _layoutFallbacks.Add(1, tags);
     }
 
     /// <summary>Records a render that was given up on; it may still be running.</summary>

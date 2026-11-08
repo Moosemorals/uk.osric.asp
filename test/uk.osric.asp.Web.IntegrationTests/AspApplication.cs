@@ -29,6 +29,10 @@ using uk.osric.asp.Web.Users;
 /// <param name="chatCompletionClient">Stands in for the configured provider.</param>
 /// <param name="pageFetcher">Stands in for the page fetcher, so no fixture needs a socket.</param>
 /// <param name="archiveUploadBytes">Overrides the import upload cap, for the too-large fixture.</param>
+/// <param name="pageLayout">
+/// The layout pages are wrapped in. Off by default so a fixture about one page does not also have to
+/// write the layout; <c>SiteChromeTests</c> switches the shipped default on.
+/// </param>
 internal sealed class AspApplication(
     int loginPermitLimit = 100,
     int renderTimeoutSeconds = 5,
@@ -37,7 +41,8 @@ internal sealed class AspApplication(
     bool assistantEnabled = false,
     IChatCompletionClient? chatCompletionClient = null,
     IPageFetcher? pageFetcher = null,
-    int? archiveUploadBytes = null) : WebApplicationFactory<Program> {
+    int? archiveUploadBytes = null,
+    string? pageLayout = null) : WebApplicationFactory<Program> {
 
     /// <summary>The database this host migrates and serves; it is deleted with the factory.</summary>
     public string DatabasePath { get; } =
@@ -58,6 +63,7 @@ internal sealed class AspApplication(
         builder.ConfigureLogging(logging => logging.AddProvider(Logs));
         builder.UseSetting("Pages:Render:TimeoutSeconds", renderTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
         builder.UseSetting("Assistant:Enabled", assistantEnabled.ToString(CultureInfo.InvariantCulture));
+        builder.UseSetting("Pages:Layout", pageLayout ?? string.Empty);
         if (assistantEnabled) {
             builder.UseSetting("Assistant:ApiKey", "integration-test-key");
         }

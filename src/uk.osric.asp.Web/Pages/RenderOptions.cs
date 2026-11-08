@@ -23,6 +23,12 @@ internal sealed record RenderOptions {
     /// <summary>Abandoned renders alive at once before the health check fails.</summary>
     public const int DefaultAbandonedLimit = 2;
 
+    /// <summary>How many layouts one page may be wrapped in, when none is configured.</summary>
+    public const int DefaultMaxLayoutDepth = 4;
+
+    /// <summary>The deepest chain a configuration may ask for.</summary>
+    public const int MaximumLayoutDepth = 16;
+
     /// <summary>The whole budget for one render, including the wait for a slot.</summary>
     /// <remarks>May be a fraction of a second, down to <see cref="PageBudget.MinimumTimeoutSeconds"/>.</remarks>
     public double TimeoutSeconds { get; init; } = DefaultTimeoutSeconds;
@@ -35,6 +41,9 @@ internal sealed record RenderOptions {
 
     /// <summary>Abandoned renders alive at once before the health check reports unhealthy.</summary>
     public int AbandonedLimit { get; init; } = DefaultAbandonedLimit;
+
+    /// <summary>How many layouts one page may be wrapped in, from <c>Pages:Render:MaxLayoutDepth</c>.</summary>
+    public int MaxLayoutDepth { get; init; } = DefaultMaxLayoutDepth;
 
     /// <summary>The budget as a time span.</summary>
     public TimeSpan Timeout => TimeSpan.FromSeconds(TimeoutSeconds);
@@ -52,6 +61,8 @@ internal sealed record RenderOptions {
             Slots = Math.Max(1, section.GetValue("Slots", DefaultSlots)),
             MaxBodyChars = Math.Max(1024, section.GetValue("MaxBodyChars", DefaultMaxBodyChars)),
             AbandonedLimit = Math.Max(1, section.GetValue("AbandonedLimit", DefaultAbandonedLimit)),
+            MaxLayoutDepth = Math.Clamp(
+                section.GetValue("MaxLayoutDepth", DefaultMaxLayoutDepth), 1, MaximumLayoutDepth),
         };
     }
 }
