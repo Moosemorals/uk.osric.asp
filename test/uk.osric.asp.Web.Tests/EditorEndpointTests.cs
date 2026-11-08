@@ -349,7 +349,8 @@ public sealed class EditorEndpointTests {
             "<a href=\"/edit\">Page list</a> ",
             "<a href=\"/page.cs\">View file</a> ",
             "<a href=\"/edit/page.cs?cmd=history\">History</a> ",
-            "<a href=\"/edit/page.cs?cmd=delete\">Delete</a></nav>")));
+            "<a href=\"/edit/page.cs?cmd=delete\">Delete</a> ",
+            "<a href=\"/help\">Help</a></nav>")));
         Assert.That(body, Does.Not.Contain("?cmd=scrub"));
     }
 
@@ -365,7 +366,8 @@ public sealed class EditorEndpointTests {
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain(
             "<a href=\"/edit/gone?cmd=history\">History</a>"
-            + " <a href=\"/edit/gone?cmd=scrub\">Scrub retained history</a></nav>"));
+            + " <a href=\"/edit/gone?cmd=scrub\">Scrub retained history</a>"
+            + " <a href=\"/help\">Help</a></nav>"));
         Assert.That(body, Does.Not.Contain("?cmd=delete"));
     }
 

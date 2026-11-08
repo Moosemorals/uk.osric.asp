@@ -338,6 +338,7 @@ internal sealed class EditorEndpoint {
             menu.Add(new(PageUrls.EditorCommand(path, "history"), "History"));
             menu.Add(new(PageUrls.EditorCommand(path, "scrub"), "Scrub retained history"));
         }
+        menu.Add(new("/help", "Help"));
 
         await context.Response.WriteAsync(PageDocument.Nav("Editor navigation", menu, "editor-menu"));
 

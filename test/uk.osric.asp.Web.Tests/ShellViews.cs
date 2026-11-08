@@ -58,6 +58,7 @@ internal static class ShellViews {
         "admin-import-review",
         "admin-import-progress",
         "admin",
+        "help",
     ];
 
     /// <summary>Renders one of <see cref="Names"/>.</summary>
@@ -87,6 +88,7 @@ internal static class ShellViews {
         "admin-import-review" => RenderAsync(name, AdminImportReviewAsync),
         "admin-import-progress" => RenderAsync(name, AdminImportProgressAsync),
         "admin" => RenderAsync(name, AdminAsync),
+        "help" => RenderAsync(name, HelpAsync),
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, "No such shell view."),
     };
 
@@ -111,17 +113,21 @@ internal static class ShellViews {
         return await TestHttp.ReadBodyAsync(context);
     }
 
-    // The administration index is a stored page, so it is rendered the way the host renders one: the
-    // seeded fragment wrapped in the seeded layout.
-    private static async Task<string> AdminAsync() {
+    // The administration index and the help page are stored pages, so they are rendered the way the
+    // host renders one: the seeded fragment wrapped in the seeded layout.
+    private static Task<string> AdminAsync() => StoredPageAsync("/admin");
+
+    private static Task<string> HelpAsync() => StoredPageAsync("/help");
+
+    private static async Task<string> StoredPageAsync(string path) {
         FakePageStore pages = new();
-        foreach (string seed in new[] { "/_layout", "/admin" }) {
+        foreach (string seed in new[] { "/_layout", path }) {
             pages[seed] = new PageTemplate(
                 PageHarness.Key(seed),
                 await PageAssetSeeder.ReadSeedTemplateAsync(PageHarness.Key(seed)) ?? string.Empty);
         }
 
-        DefaultHttpContext context = TestHttp.CreateContext("admin", "GET", "/admin");
+        DefaultHttpContext context = TestHttp.CreateContext(path.TrimStart('/'), "GET", path);
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
 

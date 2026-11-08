@@ -60,6 +60,14 @@ A whim is an idea that has not acquired a shape. It gets an ID (`WHIM-01`) and o
 [WHIMS.md](WHIMS.md), never a file of its own, and it is not counted, sized or ordered here.
 Promoting a whim means writing an `IDEA-` file and removing its line; deleting one is free.
 
+## Help for authors
+
+The author manual is the seeded page `/help`, linked from the editor and the page list. A job or
+plan that adds or changes something a page author can do — an `IContext` member, a capability, a
+layout slot, an editor action, a content type or a response rule — updates `/help` in the same
+change. The update belongs beside the tests and the architecture notes in the plan, not in a
+follow-up.
+
 ## A rough order
 
 Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and

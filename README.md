@@ -66,6 +66,10 @@ sealed class Amount {
 Declaration blocks keep their template order, which is also the order of the generated `using`
 directives: a `using` written after a type is a compiler error on the line it is written.
 
+The editor's Help link opens `/help`, the author manual: layouts, template syntax, capabilities,
+private pages, assets and the editor's own actions. It is itself a seeded page under
+`Pages/Seeds/help`, so it can be edited and restored like any other page.
+
 ## Running it
 
 ```bash

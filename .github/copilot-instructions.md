@@ -43,6 +43,11 @@ when the page pipeline itself is broken. A view that ships with the site is a se
 `Pages/Seeds`, so the owner can edit it. When a missing page capability is the only thing in the way,
 add it to `docs/jobs/` as an `IDEA-` job rather than growing the shell by default.
 
+The author manual is the seeded `/help` page, linked from the editor. A change that adds or alters
+what a page author can do — a context member, a capability, a layout slot, an editor action, a
+content type or a response rule — updates `/help` in the same change, and its plan says so beside
+the tests and the architecture notes.
+
 ## JavaScript
 
 Seeded scripts under `Pages/Seeds` and any new JavaScript are native ES modules: no bundler, no npm,

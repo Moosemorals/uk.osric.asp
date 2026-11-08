@@ -26,11 +26,12 @@ path = ["src/uk.osric.asp.Web/Storage/Migrations/*.cs"]
 SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
 SPDX-License-Identifier = "MIT"
 
-# Seeded pages whose document opens with the doctype, so they cannot carry a comment before it.
+# Seeded pages that open with a template block, so they cannot carry a comment before it.
 [[annotations]]
 path = [
   "src/uk.osric.asp.Web/Pages/Seeds/_layout",
   "src/uk.osric.asp.Web/Pages/Seeds/admin",
+  "src/uk.osric.asp.Web/Pages/Seeds/help",
 ]
 SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
 SPDX-License-Identifier = "MIT"

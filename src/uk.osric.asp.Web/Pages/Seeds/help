@@ -1,0 +1,232 @@
+<% ctx.Features.GetRequired<IPageLayout>().Title = "Help"; %>
+<h1>Help</h1>
+<p>This is the author manual. It is itself a stored page, so logged in users
+can improve it at <a href="/edit/help">/edit/help</a>.</p>
+
+<nav aria-label="Help contents">
+    <h2>Contents</h2>
+    <ul>
+        <li><a href="#editor">The editor</a></li>
+        <li><a href="#fragment">A page is a fragment</a></li>
+        <li><a href="#layout">Layout and title</a></li>
+        <li><a href="#head-and-scripts">Stylesheets, head and scripts</a></li>
+        <li><a href="#syntax">Template syntax</a></li>
+        <li><a href="#context">Context and capabilities</a></li>
+        <li><a href="#private">Private pages and forms</a></li>
+        <li><a href="#assets">Assets, seeds and recovery</a></li>
+        <li><a href="#keeping-current">Keeping this page current</a></li>
+    </ul>
+</nav>
+
+<h2 id="editor">The editor</h2>
+<p>The editor is at <a href="/edit">/edit</a>. The page list has a form to create or open a page by
+its path, and every live and deleted page has its own editor at <code>/edit/&lt;path&gt;</code>.</p>
+<ul>
+    <li><strong>Save</strong> compiles the template and stores the source and the compiled image.
+    A page that does not compile is still stored, so you do not lose your work.</li>
+    <li><strong>Save and view</strong> saves, then opens the page. If it does not compile, you stay
+    in the editor with the diagnostics instead.</li>
+    <li><strong>Diagnostics</strong> name the line and column in your template. A diagnostic that
+    has a position is a link to the matching number in the line gutter.</li>
+    <li><strong>History</strong> lists the saved revisions of a page. Choosing one shows its stored
+    source without compiling it.</li>
+    <li><strong>Delete</strong> hides a page but keeps its template and history. <strong>Scrub</strong>
+    permanently removes a deleted page and its retained history; use it only when you mean it.</li>
+    <li><strong>Restore from seed</strong> is offered for the pages the site ships with, such as
+    <code>/_layout</code>, <code>/help</code> and the stylesheets. It saves the bundled source as a
+    new revision.</li>
+    <li>The assistant is available from the editor only when the host enables it.</li>
+</ul>
+<p>Paths are canonical: <code>/About</code>, <code>/about/</code> and <code>/about</code> are the
+same page. A path the site's own routes already answer for, such as <code>/edit</code> or
+<code>/login</code>, cannot be created as a page.</p>
+
+<h2 id="fragment">A page is a fragment</h2>
+<p>Every HTML page is wrapped in the site's default layout, <code>/_layout</code>. The layout writes
+the document: the doctype, <code>html</code>, <code>head</code>, title, stylesheets, the site menu,
+the banner, the <code>main</code> landmark and the close. Your page writes only what belongs inside
+<code>main</code>.</p>
+<p>Do not write a doctype, <code>html</code>, <code>head</code>, <code>body</code>, a
+<code>title</code> element or the site menu. Start at the page's first heading and write one
+<code>h1</code>.</p>
+<p>A response that is not HTML, a redirect and the empty body of a <code>HEAD</code> response are not
+wrapped. A page whose key has a content type of its own, such as <code>/site.css</code> or
+<code>/editor.js</code>, is served as that content type and is never wrapped.</p>
+
+<h2 id="layout">Layout and title</h2>
+<p>The layout slots are reached through the page's features, so a page that never wants a layout
+never meets one:</p>
+<pre class="source" tabindex="0"><code>&lt;% IPageLayout layout = ctx.Features.GetRequired&lt;IPageLayout&gt;();
+   layout.Title = "About";
+   layout.AddStylesheet("/about.css"); %&gt;
+&lt;h1&gt;About&lt;/h1&gt;
+&lt;p&gt;This page is wrapped in the site layout.&lt;/p&gt;</code></pre>
+<p><strong>A wrapped page must set a title.</strong> Reading <code>Title</code> before any layer sets
+it throws, and the host refuses the chain before the layout runs, so the error names the page that
+forgot rather than the layout that noticed. A layout may read the title so far and compose its own:
+<code>layout.Title = $"{layout.Title} — Site";</code>.</p>
+<p><code>AddStylesheet("/about.css")</code> links one sheet. Call it zero, one or many times. The
+document's base sheets come first, then each layout's from the outermost in, then the page's in the
+order it asked. A sheet must be a site-relative URL, and an exact duplicate is linked once.</p>
+<p><code>AddHead("&lt;meta name=&quot;robots&quot; content=&quot;noindex&quot;&gt;")</code> adds raw markup to the
+document's <code>head</code>. Use it for a meta tag or another document-level link, not for a
+stylesheet; <code>AddStylesheet</code> owns those.</p>
+<p><code>layout.Layout</code> names another stored page to wrap this one. The host pre-fills it with
+the site default, so leaving it alone gets the site chrome. Setting it to <code>null</code> serves
+the page alone: do that only when the page genuinely writes its own whole document, because nothing
+else will give it a head, a title or a menu.</p>
+<p>Inside a layout, <code>layout.Body</code> is the page the layout wraps. It is empty in the content
+layer, because only a layout has something to wrap.</p>
+<p>The chain renders inside out: the page first, then its layout, then the layout's parent. The
+whole chain shares one render budget, one fetch allowance and one body allowance, so two layers do
+not get two bites. The default chain is limited to four layouts, and the host stops at the first
+repeat, so a layout cannot wrap itself forever.</p>
+<p>If the default layout is missing or does not compile, the page is served unwrapped and the host
+logs a warning. A layout the page named that cannot be served is an error that names the missing
+layout.</p>
+<p>A layout is not a guard. The content has already run by the time the layout starts, so a layout
+can hide chrome but cannot prevent a side effect.</p>
+<p>A minimal layout writes the document through the shared builder and puts the page in the middle:</p>
+<pre class="source" tabindex="0"><code>&lt;% var layout = ctx.Features.GetRequired&lt;IPageLayout&gt;();
+   if (ctx.Path == ctx.Request.Path) { layout.Title = "Site"; }
+   bool At(string href) =&gt; ctx.Request.Path == href;
+   var links = new System.Collections.Generic.List&lt;NavLink&gt; { new("/", "Home", At("/")) }; %&gt;
+&lt;%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head) %&gt;
+&lt;%== PageDocument.Banner(PageDocument.Nav("Site", links, "site-nav")) %&gt;
+&lt;%== PageDocument.OpenMain() %&gt;
+&lt;%== layout.Body %&gt;
+&lt;%== PageDocument.CloseMain() %&gt;
+&lt;%== PageDocument.End() %&gt;</code></pre>
+<p>The seeded <code>/_layout</code> is the full version of that page, and you can edit or restore it
+from the page list.</p>
+
+<h2 id="head-and-scripts">Stylesheets, head and scripts</h2>
+<p>The page's key chooses its initial content type from the host's extension map; an unmapped key is
+HTML. <code>ctx.SetContentType("text/css; charset=utf-8")</code> overrides it when a page needs to
+send something else.</p>
+<p>A page that loads a script calls <code>ctx.AllowScripts()</code>. That widens the response from
+<code>script-src 'none'</code> to <code>script-src 'self'</code>; it does not allow inline scripts or
+event-handler attributes:</p>
+<pre class="source" tabindex="0"><code>&lt;% ctx.AllowScripts(); %&gt;
+&lt;script type="module" src="/my-script.js"&gt;&lt;/script&gt;</code></pre>
+<p>The script itself is another stored page, or a seeded asset, served with a JavaScript content
+type. Write it as a native ES module: use <code>import</code>/<code>export</code> rather than globals,
+and end a side-effect-only script with <code>export {};</code>. Modules are already deferred, so the
+script's position in the document does not matter.</p>
+
+<h2 id="syntax">Template syntax</h2>
+<p>Literal template text is HTML. A code block is C#, and the handler is asynchronous, so
+<code>await</code> is an ordinary expression in a block and inside an output expression.</p>
+<dl>
+    <dt><code>&lt;% %&gt;</code></dt>
+    <dd>C# statements. They can write with <code>ctx.Write</code> or <code>ctx.WriteRaw</code>.</dd>
+    <dt><code>&lt;%= %&gt;</code></dt>
+    <dd>Writes an HTML-escaped string, like <code>ctx.Write</code>.</dd>
+    <dt><code>&lt;%== %&gt;</code></dt>
+    <dd>Writes raw HTML, like <code>ctx.WriteRaw</code>. Only use it for markup you built or trust.</dd>
+    <dt><code>&lt;%! %&gt;</code></dt>
+    <dd>Declarations, such as <code>using</code> directives and types of the page's own. They are
+    hoisted above the handler and keep their template order.</dd>
+</dl>
+<pre class="source" tabindex="0"><code>&lt;h1&gt;Hello&lt;/h1&gt;
+&lt;p&gt;You asked for &lt;%= ctx.Path %&gt;.&lt;/p&gt;
+&lt;% for (int i = 1; i &lt;= 3; i++) { %&gt;
+    &lt;p&gt;Line &lt;%= i.ToString() %&gt;&lt;/p&gt;
+&lt;% } %&gt;</code></pre>
+<p>An output expression must produce a string, so convert other values explicitly with
+<code>.ToString()</code>. A declaration block looks like this:</p>
+<pre class="source" tabindex="0"><code>&lt;%!
+using System.Globalization;
+
+sealed class Amount {
+    public static string Format(decimal value) =&gt; value.ToString("N2", CultureInfo.InvariantCulture);
+}
+%&gt;
+&lt;p&gt;Total: &lt;% ctx.Write(Amount.Format(42.5m)); %&gt;&lt;/p&gt;</code></pre>
+<p>Forms use <code>&lt;form class="form"&gt;</code> with one <code>&lt;dl&gt;</code>; a label is a
+<code>&lt;dt&gt;</code> and its control is the matching <code>&lt;dd&gt;</code>. A textarea goes in a
+<code>&lt;fieldset&gt;</code> whose <code>&lt;legend&gt;</code> contains its label.</p>
+
+<h2 id="context">Context and capabilities</h2>
+<p>The variable <code>ctx</code> implements <code>IContext</code>. It carries the request and the
+response, and nothing else:</p>
+<ul>
+    <li><code>ctx.Request</code> is a <code>PageRequest</code> with read-only <code>Query</code>,
+    <code>Form</code>, <code>Headers</code> and <code>Cookies</code> dictionaries.</li>
+    <li><code>ctx.Path</code> is the page's canonical key; <code>ctx.User</code> is the signed-in
+    <code>PageUser</code> or <code>null</code>; <code>ctx.Aborted</code> is cancelled when the
+    visitor abandons the request.</li>
+    <li><code>ctx.Log</code>, <code>ctx.LogWarning</code> and <code>ctx.LogError</code> write to the
+    page log, tagged with this page's key.</li>
+    <li><code>ctx.SetStatus</code>, <code>ctx.SetContentType</code>, <code>ctx.SetHeader</code>,
+    <code>ctx.Redirect</code> and <code>ctx.RedirectToLogin</code> shape the response.</li>
+    <li><code>ctx.AllowScripts</code> permits same-origin external scripts;
+    <code>ctx.AntiforgeryField</code> carries the hidden input a form must include.</li>
+</ul>
+<p><code>ctx.Features</code> is how a page asks for an optional capability.
+<code>TryGet&lt;T&gt;(out T?)</code> reports whether it is there, <code>Get&lt;T&gt;()</code> returns
+<code>null</code> when it is not, and <code>GetRequired&lt;T&gt;()</code> throws naming the
+interface. The host decides what is offered.</p>
+<p><code>IPageStorage</code> is the page's own key/value store. Every visitor shares it, a write is
+last-write-wins, and a page cannot reach another page's keys:</p>
+<pre class="source" tabindex="0"><code>&lt;% IPageStorage storage = ctx.Features.GetRequired&lt;IPageStorage&gt;();
+   PageValue&lt;int&gt; stored = await storage.TryGetValueAsync&lt;int&gt;("visits");
+   int visits = (stored.Found ? stored.Value : 0) + 1;
+   await storage.SetAsync("visits", visits); %&gt;
+&lt;p&gt;Visited &lt;%= visits.ToString() %&gt; times.&lt;/p&gt;</code></pre>
+<p><code>IHttpFetch</code> makes one bounded HTTP request from the host, not the browser, and only to
+hosts the operator allow-lists. Failures are values rather than exceptions:</p>
+<pre class="source" tabindex="0"><code>&lt;% IHttpFetch fetch = ctx.Features.GetRequired&lt;IHttpFetch&gt;();
+   HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/status");
+   if (response.Succeeded) { %&gt;
+&lt;p&gt;State: &lt;%= response.Body %&gt;&lt;/p&gt;
+&lt;% } else { %&gt;
+&lt;p&gt;Unavailable (&lt;%= response.Failure.ToString() %&gt;).&lt;/p&gt;
+&lt;% } %&gt;</code></pre>
+<p>The page API allows the <code>uk.osric.asp.Sdk</code> contract, the common collection, culture and
+LINQ helpers, the explicit base types the contract uses, and the system exception types a page may
+catch. <code>System.IO</code>, <code>System.Net</code>, <code>System.Reflection</code>,
+<code>System.Diagnostics</code>, regular expressions, expression trees, interop, threading beyond
+<code>CancellationToken</code>, <code>Microsoft.*</code> and host namespaces are not available.</p>
+
+<h2 id="private">Private pages and forms</h2>
+<p>Pages are public unless their own code checks <code>ctx.User</code>. Put the guard at the top and
+return after redirecting:</p>
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;
+&lt;h1&gt;Draft&lt;/h1&gt;
+&lt;p&gt;Signed in as &lt;%= user.Name %&gt;.&lt;/p&gt;</code></pre>
+<p>Every form an authenticated visitor can submit must carry the antiforgery field written raw,
+because the host refuses an authenticated <code>POST</code> without that pair:</p>
+<pre class="source" tabindex="0"><code>&lt;form method="post" class="form"&gt;
+    &lt;%== ctx.AntiforgeryField %&gt;
+    &lt;dl&gt;
+        &lt;dt&gt;&lt;label for="note"&gt;Note&lt;/label&gt;&lt;/dt&gt;
+        &lt;dd&gt;&lt;input id="note" name="note"&gt;&lt;/dd&gt;
+    &lt;/dl&gt;
+    &lt;button type="submit"&gt;Save&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+<p>Do not write a sign-in form, handle a password or read the authentication cookie:
+<code>/login</code> and <code>/logout</code> already exist and are reserved. A response rendered for
+a signed-in visitor is sent <code>no-store</code> and without an <code>ETag</code>.</p>
+
+<h2 id="assets">Assets, seeds and recovery</h2>
+<p>A page whose key has a known extension is served with that content type, so stylesheets, scripts
+and other assets are pages like any other. The host maps <code>.js</code>, <code>.mjs</code>,
+<code>.css</code>, <code>.json</code> and <code>.txt</code> by default; an unmapped extension, such
+as <code>.svg</code>, needs <code>ctx.SetContentType</code> on the page that serves it.</p>
+<p>The pages the site ships with are called seeds. They live under <code>Pages/Seeds</code> and are
+created only when the page does not already exist, so editing a seed changes the site without being
+overwritten on the next start. The page list offers <strong>Restore from seed</strong> on a seeded
+row, which saves the bundled source as a new revision; that is how you recover
+<code>/_layout</code>, <code>/site.css</code> or this page after a bad edit.</p>
+<p>Deleting a page leaves a tombstone and its history. Saving the path again continues that history.
+Scrubbing removes the retained history, and it cannot undo copies that already left the database.</p>
+
+<h2 id="keeping-current">Keeping this page current</h2>
+<p>This page is the seeded page <code>/help</code>. Its source is
+<code>src/uk.osric.asp.Web/Pages/Seeds/help</code>; use <a href="/edit/help">/edit/help</a> to change
+it.</p>
+<p>A change that adds or alters what a page author can do should update this page in the same change:
+a new <code>IContext</code> member, capability, layout slot, editor action, content type or response
+rule belongs here, next to the tests and the architecture notes. The plan for the change should say
+so.</p>

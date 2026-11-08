@@ -304,7 +304,8 @@ public sealed class EditorEndpointTests : IntegrationTest {
             "<nav class=\"editor-menu\" aria-label=\"Editor navigation\"><a href=\"/edit\">Page list</a>"
             + " <a href=\"/hello\">View file</a>"
             + " <a href=\"/edit/hello?cmd=history\">History</a>"
-            + " <a href=\"/edit/hello?cmd=delete\">Delete</a></nav>"));
+            + " <a href=\"/edit/hello?cmd=delete\">Delete</a>"
+            + " <a href=\"/help\">Help</a></nav>"));
         Assert.That(body, Does.Contain("<button type=\"submit\" name=\"cmd\" value=\"save\">Save</button>"));
         Assert.That(body, Does.Contain("<button type=\"submit\" name=\"cmd\" value=\"save-and-view\">Save and view</button>"));
         Assert.That(body, Does.Not.Contain("?cmd=scrub"));

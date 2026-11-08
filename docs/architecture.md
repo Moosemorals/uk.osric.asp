@@ -279,6 +279,10 @@ write buffer 2
 The layout is not a guard: the content has already run. It is not a data boundary: it reads its own
 storage and nothing of the page's.
 
+The author-facing version of this section is the seeded `/help` page, which is itself a page the
+owner can edit and restore. It is linked from the editor and the page list; a change to what a page
+author can do updates it in the same change.
+
 ## Error responses
 
 No person is handed an empty body, and no program is handed a document it cannot parse. One writer,

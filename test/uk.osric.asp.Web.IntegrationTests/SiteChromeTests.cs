@@ -86,6 +86,32 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     }
 
     [Test]
+    public async Task TheHelpPageIsWrappedInTheSeededLayout() {
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/help");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(body, Does.StartWith("<!DOCTYPE html>"));
+        Assert.That(body, Does.Contain("<title>Help</title>"));
+        Assert.That(body, Does.Contain("<h1>Help</h1>"));
+        Assert.That(body, Does.Contain("id=\"layout\"").And.Contain("id=\"keeping-current\""));
+        Assert.That(body, Does.Contain("href=\"/edit/help\""));
+    }
+
+    [Test]
+    public async Task TheEditorLinksToTheHelpPage() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync("/edit/help");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(body, Does.Contain("<a href=\"/help\">Help</a>"));
+    }
+
+    [Test]
     public async Task TheAdminIndexRequiresSignIn() {
         using HttpClient client = CreateClient();
 

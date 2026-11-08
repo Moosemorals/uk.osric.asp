@@ -30,6 +30,7 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | DEC-07 | Work is tracked as jobs: one file per job, `IDEA-` for opportunities and `SEC-`/`BUG-`/`OPS-`/`ARCH-` for defects. **Size** is the scheduling column; small and self-contained work goes first because it never gets scheduled otherwise. | [jobs](jobs/README.md) |
 | DEC-08 | Speculative product work — AI authoring, page-declared types, `IContext` fetch and state, a richer editor — is backlog (IDEA-001 … IDEA-008), not a licence to expand the current task. | [jobs](jobs/README.md) |
 | DEC-09 | A plan is written before a large change and kept as the record of the reasoning, including the options that were rejected. Plans are not rewritten into marketing copy afterwards. | [plans](plans/) |
+| DEC-160 | The author manual is the seeded page `/help`, linked from the editor and the page list. It is a page, not a shell view, so the owner can edit and restore it like any other; a change to what a page author can do updates it in the same change, and the plan says so. | [help seed](../src/uk.osric.asp.Web/Pages/Seeds/help), [jobs](jobs/README.md#help-for-authors) |
 
 ## Architecture and code placement
 
