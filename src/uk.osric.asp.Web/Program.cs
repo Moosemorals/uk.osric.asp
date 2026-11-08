@@ -352,6 +352,7 @@ internal class Program {
             .AllowAnonymous()
             .RequireRateLimiting(LoginRateLimitPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/logout", LoginEndpoint.LogoutConfirmationAsync);
         app.MapPost("/logout", LoginEndpoint.LogoutAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 

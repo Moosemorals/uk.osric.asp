@@ -96,6 +96,40 @@ internal static class LoginEndpoint {
         await WriteFormAsync(context, antiforgery, returnUrl, userName, rememberMe, "Invalid username or password.");
     }
 
+    /// <summary>Asks the visitor to confirm signing out.</summary>
+    /// <param name="context">The request being answered.</param>
+    /// <param name="antiforgery">Mints the pair the confirmation form carries.</param>
+    /// <remarks>
+    /// The menu links here rather than posting, because a <c>GET</c> a prefetcher follows must not
+    /// end a session, and a post form in every document would carry an antiforgery field into pages
+    /// a shared cache may store.
+    /// </remarks>
+    public static async Task LogoutConfirmationAsync(HttpContext context, IAntiforgery antiforgery) {
+        ArgumentNullException.ThrowIfNull(antiforgery);
+
+        if (context.User.Identity?.IsAuthenticated != true) {
+            SecurityHeaders.NoStore(context);
+            Redirect.SeeOther(context, "/");
+            return;
+        }
+
+        AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
+
+        await ShellDocument.BeginAsync(context, "Sign out", SiteNavigation.For(context));
+        await context.Response.WriteAsync("<h1>Sign out</h1>");
+        await context.Response.WriteAsync("<p>Signing out ends this browser's session. Nothing you have written is lost.</p>");
+        await context.Response.WriteAsync($"""
+            <form method="post" action="/logout" class="form">
+                {AntiforgeryField.Hidden(tokens)}
+                <div class="form-actions">
+                    <button type="submit">Sign out</button>
+                    <a href="/edit">Cancel</a>
+                </div>
+            </form>
+            """);
+        await ShellDocument.EndAsync(context);
+    }
+
     /// <summary>Deletes the authentication cookie.</summary>
     public static async Task LogoutAsync(HttpContext context, IAuthenticationService authentication, ILoggerFactory loggers) {
         ArgumentNullException.ThrowIfNull(loggers);

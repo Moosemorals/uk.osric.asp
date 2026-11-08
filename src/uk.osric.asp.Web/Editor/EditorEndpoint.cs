@@ -353,10 +353,6 @@ internal sealed class EditorEndpoint {
                 <button type="submit" name="cmd" value="save">Save</button>
                 <button type="submit" name="cmd" value="save-and-view">Save and view</button>
             </form>
-            <form method="post" action="/logout">
-                {AntiforgeryField.Hidden(tokens)}
-                <button type="submit">Sign out</button>
-            </form>
             <script type="module" src="/editor.js"></script>
             """);
         await ShellDocument.EndAsync(context);

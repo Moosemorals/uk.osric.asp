@@ -36,6 +36,7 @@ internal static class ShellViews {
     public static IReadOnlyList<string> Names { get; } = [
         "login",
         "login-failed",
+        "logout",
         "listing",
         "editor",
         "editor-with-diagnostics",
@@ -63,6 +64,7 @@ internal static class ShellViews {
     public static Task<ShellView> RenderAsync(string name) => name switch {
         "login" => RenderAsync(name, LoginAsync),
         "login-failed" => RenderAsync(name, FailedLoginAsync),
+        "logout" => RenderAsync(name, LogoutAsync),
         "listing" => RenderAsync(name, ListingAsync),
         "editor" => RenderAsync(name, () => EditorAsync(NewStore(), path: "/page")),
         "editor-with-diagnostics" => RenderAsync(name, EditorWithDiagnosticsAsync),
@@ -93,6 +95,16 @@ internal static class ShellViews {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/login");
 
         await LoginEndpoint.GetAsync(context, new TestAntiforgery());
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> LogoutAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/logout");
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
+
+        await LoginEndpoint.LogoutConfirmationAsync(context, new TestAntiforgery());
 
         return await TestHttp.ReadBodyAsync(context);
     }
