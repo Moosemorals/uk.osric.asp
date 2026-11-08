@@ -15,6 +15,12 @@ if (root) {
     const count = document.getElementById('assistant-char-count');
     const messageBudget = document.getElementById('assistant-budget-message');
     const messageMeter = document.getElementById('assistant-budget-message-meter');
+    // Keyed by the name the server writes, so an update needs no table of its own.
+    const budgetRows = new Map(Array.from(document.querySelectorAll('[data-budget]'), row => [row.dataset.budget, {
+        row,
+        count: row.querySelector('.assistant-budget-count > span'),
+        meter: row.querySelector('meter'),
+    }]));
     const numbers = new Intl.NumberFormat('en-GB');
     const token = messageForm.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
     const messages = new Map();
@@ -183,6 +189,21 @@ if (root) {
         statusLine.textContent = 'A tool needs your approval';
     }
 
+    // The server already knows what each figure is; the page only shows it, by the same two rules
+    // the markup is written with: the number may exceed the meter, the meter may not.
+    function applyBudgets(budgets) {
+        for (const [name, used] of Object.entries(budgets ?? {})) {
+            const budget = budgetRows.get(name);
+            if (!budget) {
+                continue;
+            }
+            const maximum = Number(budget.meter.max);
+            budget.count.textContent = numbers.format(used);
+            budget.meter.value = Math.min(used, maximum);
+            budget.row.classList.toggle('assistant-budget-exceeded', used > maximum);
+        }
+    }
+
     function connect(runId, after) {
         source?.close();
         const url = `/assistant/${encodeURIComponent(conversationId)}/events?run=${encodeURIComponent(runId)}&after=${encodeURIComponent(after)}`;
@@ -226,6 +247,7 @@ if (root) {
             }
             statusLine.textContent = 'Response step complete';
         });
+        source.addEventListener('budget.updated', event => applyBudgets(JSON.parse(event.data).budgets));
         source.addEventListener('tool.started', event => showTool(JSON.parse(event.data)));
         source.addEventListener('approval.required', event => addApproval(JSON.parse(event.data)));
         source.addEventListener('approval.resolved', event => {

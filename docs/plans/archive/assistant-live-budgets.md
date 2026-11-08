@@ -5,10 +5,12 @@ SPDX-License-Identifier: MIT
 
 # Live assistant budgets
 
-Status: **proposed, not implemented**. Written 2026-11-08. This is a design and an implementation
-plan, not a record of work done. It began as a feasibility question — whether the conversation
+Status: **implemented 2026-11-08**. Written 2026-11-08 as a design and an implementation plan; this
+is now the record of what was built. It began as a feasibility question — whether the conversation
 page's budget list could move while a run is running — and settles on pushing the figures over the
-run journal that the page already listens to.
+run journal that the page already listens to. The decisions are DEC-159, DEC-160 and DEC-161: site
+navigation has since claimed 148–158, so this plan takes the numbers after it rather than the three
+it first reserved.
 
 ## The short version
 
@@ -17,8 +19,8 @@ run journal that the page already listens to.
   loop publishes it. A live figure and a reloaded one cannot disagree, because there is only one
   calculation.
 - **Push, do not poll.** The run loop publishes `budget.updated` on the existing `RunStream` when it
-  learns something — once per step, once per tool call — so the update is journaled, replayed on
-  reconnect and ordered with the deltas it belongs beside.
+  learns something — as a step starts and finishes, and around each tool call — so the update is
+  journaled, replayed on reconnect and ordered with the deltas it belongs beside.
 - **No new endpoint, no timer, no second mechanism.** The page already holds an SSE stream for the
   length of a run; that is the channel.
 - **The rows gain names, not identifiers.** Each row is `data-budget="context"` and so on, which is
@@ -58,32 +60,32 @@ run journal that the page already listens to.
 Checked against the code on 2026-11-08.
 
 - **The list is rendered once**, in `WriteBudgetsAsync`
-  ([AssistantEndpoint.cs](../../src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs)), from three
+  ([AssistantEndpoint.cs](../../../src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs)), from three
   inputs: the stored `messages`, the tool calls parsed out of them by `ReadToolCalls`, and the
   counters on the `Run`. Seven rows: message, context, steps, tool calls, tool arguments, tool
   result, output.
 - **Context is the untrimmed total**, measured with `ContextTrimmer.MeasureChars` over the system
   prompt plus every stored message — exactly the rule the trimmer counts by
-  ([ContextTrimmer.cs](../../src/uk.osric.asp.Core/Assistant/ContextTrimmer.cs)). It is not the
+  ([ContextTrimmer.cs](../../../src/uk.osric.asp.Core/Assistant/ContextTrimmer.cs)). It is not the
   length of the request that would be built after trimming.
 - **Only the message row has ids** (`assistant-budget-message`, `assistant-budget-message-meter`),
-  and only because [assistant.js](../../src/uk.osric.asp.Web/Pages/Seeds/assistant.js) updates it
+  and only because [assistant.js](../../../src/uk.osric.asp.Web/Pages/Seeds/assistant.js) updates it
   from the textarea. The other six rows are anonymous markup.
 - **The store is already live.** `RecordStepAsync` increments steps and tool calls and keeps the
   most recent non-null token counts on the `Run`
-  ([SqliteConversationStore.cs](../../src/uk.osric.asp.Web/Assistant/SqliteConversationStore.cs)),
+  ([SqliteConversationStore.cs](../../../src/uk.osric.asp.Web/Assistant/SqliteConversationStore.cs)),
   so a reload mid-run would show current figures. Only the page is stale.
 - **The page reloads at every terminal event** — `run.completed`, `run.failed`, `run.cancelled`,
   and `stream.reset` — which is why the staleness has never been visible for longer than a run
-  ([assistant.js](../../src/uk.osric.asp.Web/Pages/Seeds/assistant.js)).
+  ([assistant.js](../../../src/uk.osric.asp.Web/Pages/Seeds/assistant.js)).
 - **The stream is journaled and replayable.** `RunStream` keeps a bounded journal, `ReadEventsAsync`
   serves it from `after`, a slow subscriber is reset, and a heartbeat keeps an idle stream honest
-  ([RunStream.cs](../../src/uk.osric.asp.Web/Assistant/RunStream.cs),
-  [AssistantEndpoint.cs](../../src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs)).
+  ([RunStream.cs](../../../src/uk.osric.asp.Web/Assistant/RunStream.cs),
+  [AssistantEndpoint.cs](../../../src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs)).
 - **The pieces a live figure needs are already on the wire, except usage.** `message.started` and
   `tool.started` carry `step`; `tool.finished` carries `arguments` and the stored `content`;
   `run.completed` carries the last step's `usage`. `Assistant:IncludeUsage` is on by default
-  ([AssistantOptions.cs](../../src/uk.osric.asp.Web/Assistant/AssistantOptions.cs)), so the provider
+  ([AssistantOptions.cs](../../../src/uk.osric.asp.Web/Assistant/AssistantOptions.cs)), so the provider
   reports usage per step — but nothing publishes it while the run is live.
 - **The meter is a picture, not the reading.** `WriteBudgetAsync` clamps the meter and lets only the
   number exceed, and the meter is `aria-hidden` (DEC-141).
@@ -99,8 +101,8 @@ Checked against the code on 2026-11-08.
 | DEC-141 | The meter is a picture and the number beside it is the reading | Kept: the number text changes, the meter's `value` follows, and the meter stays `aria-hidden` |
 | DEC-123, [BUG-17](../jobs/BUG-17.md) | The run deadline measures the provider going quiet, and is re-armed by real events | Unchanged, and not reused: the update is published when the loop learns something, never by a timer |
 | [ARCH-13](../jobs/ARCH-13.md) | A page cannot stream its response | Unaffected — this is the assistant's host-owned stream, not a stored page's |
-| [assistant.js](../../src/uk.osric.asp.Web/Pages/Seeds/assistant.js) | Native ES module, side-effect only, ends `export {};` | Gains one listener and one small lookup table; no globals, no bundler |
-| [assistant.css](../../src/uk.osric.asp.Web/Pages/Seeds/assistant.css) | `.assistant-budget-exceeded` colours the count | Unchanged — the class is toggled, not added |
+| [assistant.js](../../../src/uk.osric.asp.Web/Pages/Seeds/assistant.js) | Native ES module, side-effect only, ends `export {};` | Gains one listener and one small lookup table; no globals, no bundler |
+| [assistant.css](../../../src/uk.osric.asp.Web/Pages/Seeds/assistant.css) | `.assistant-budget-exceeded` colours the count | Unchanged — the class is toggled, not added |
 
 No job entry: this started as a design question rather than a defect or an idea, so it goes
 straight to a plan. `docs/jobs/README.md` is not touched.
@@ -201,14 +203,21 @@ what gets published and no row ever goes backwards.
 
 Publishing points, in order of the run:
 
-1. after `RecordStepAsync`, once per step — steps, output, and the context measured for the request
-   that step just made;
-2. as each `tool.started` is handled — the one figure that is known before the tool runs, which is
-   why it does not wait for a slow tool or an approval;
-3. after each `tool.finished` — tool calls and the longest result;
-4. just before `run.completed` — the final counters and the retained output figure, so the last
-   thing a reader sees live is what the reload will show. `Publish` throws once the stream is
-   complete, so this is the last event the loop may send.
+1. as a step starts, beside `message.started` — the step count and the context measured for the
+   request about to be made, so a slow answer is watched from the step it belongs to rather than
+   from the one before it;
+2. after `RecordStepAsync` — the stored counters and the usage that step reported, which is the only
+   moment the output row can move;
+3. as each `tool.started` is handled — the arguments, when they beat every call already stored,
+   because an approval can wait a long time and a slow tool would otherwise hide the cost;
+4. after each `tool.finished` — the longest result, when it beats every result already stored;
+5. just before `run.completed` — the whole snapshot re-measured from the stored transcript with the
+   stored counters, so the last figure a reader sees is exactly the one the reload will render.
+   `Publish` throws once the stream is complete, so this is the last event the loop may send.
+
+The step count is published as the step starts even though the store only counts it when the step's
+response is recorded, so a reload taken mid-step can lag the live figure by that one step; the
+completion figure is re-measured from the store and cannot.
 
 The payload is keyed by the row names the markup uses, so the browser needs no translation table:
 
@@ -240,7 +249,7 @@ transcript.
 
 ### D6 — The browser applies numbers; it does not decide them
 
-In [assistant.js](../../src/uk.osric.asp.Web/Pages/Seeds/assistant.js), beside the existing
+In [assistant.js](../../../src/uk.osric.asp.Web/Pages/Seeds/assistant.js), beside the existing
 `messageBudget`/`messageMeter`:
 
 - build a `Map` once from `document.querySelectorAll('[data-budget]')`, keyed by the attribute, with
@@ -312,8 +321,12 @@ figures in order and the last one wins.
 - `TheCountersAreCarriedThroughUnchanged`
 - `AMissingUsageCountsAsNoOutput`
 - `AnEmptyTranscriptMeasuresOnlyWhatItIsGiven`
+
+**`Web.Tests` — `AssistantBudgetTests`** (new)
+
 - `TheSnapshotAndTheDisplayedToolCallsReadTheSameJson` — the parity test with `ReadToolCalls`, so the
-  two parsers cannot drift silently
+  two parsers cannot drift silently. It lives here rather than in `Core.Tests` because
+  `ReadToolCalls` is the shell's, and it is the reason that method is `internal`.
 
 **`Web.IntegrationTests` — `AssistantChatLayoutTests`** (changed)
 
@@ -331,10 +344,11 @@ figures in order and the last one wins.
   the completion reload.
 - `AToolCallRaisesTheToolCallBudgetBeforeTheRunCompletes`
 - `TypingIsNotOverwrittenByABudgetUpdate` — the message row keeps the textarea's figure across a
-  `budget.updated` and a reconnect, proving `message` is never published.
+  later `budget.updated`, proving `message` is never published. The first step is held open by the
+  scripted provider so the typing lands between two updates rather than after the last one.
 
-Both browser cases lean on the scripted provider's per-chunk delay, which `AssistantStreamTests`
-already uses to keep a run in flight.
+The browser cases lean on the scripted provider's delays, which `AssistantStreamTests` already uses
+to keep a run in flight.
 
 ## Phases
 
@@ -355,18 +369,17 @@ the write-up can land without any visible change.
 
 ## Documentation and decisions
 
-The next free decision number is 155: [site navigation](site-navigation.md) reserves 148–154, so this
-plan starts after it.
+[Site navigation](../site-navigation.md) reserves 148–158, so this plan takes the numbers after it.
 
-- **DEC-155**: every assistant budget figure is one pure `BudgetSnapshot` in
+- **DEC-159**: every assistant budget figure is one pure `BudgetSnapshot` in
   `Core.Assistant`, measured by `ContextTrimmer.MeasureChars` and the transcript's own tool calls and
   results, and read by both the page render and the run stream. The context row counts the untrimmed
   conversation, as the trimmer counts it; the output row counts the most recent step's completion
   tokens, as `RecordStepAsync` stores them.
-- **DEC-156**: the conversation page's budgets are updated live over the existing run journal as
+- **DEC-160**: the conversation page's budgets are updated live over the existing run journal as
   `budget.updated`, published when the loop learns something and never on a timer. There is no
   budgets endpoint; a terminal event still reloads the page, and the reload is authoritative.
-- **DEC-157**: a budget update changes the count text, the meter's `value` and the exceeded class,
+- **DEC-161**: a budget update changes the count text, the meter's `value` and the exceeded class,
   and nothing else — the meter stays `aria-hidden` and the list is not a live region (extends
   DEC-141).
 - `docs/architecture.md`: "AI page assistant" gains a sentence that the budgets the page shows are

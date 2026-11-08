@@ -148,7 +148,12 @@ internal static class AssistantEndpoint {
                     </form>
                 </fieldset>
             """);
-        await WriteBudgetsAsync(context, messages, calls, lastRun, options);
+        BudgetSnapshot budgets = BudgetSnapshot.Measure(
+            [new ChatMessage("system", PageAuthorPrompt.Build()), .. messages.Select(message => message.ToChatMessage())],
+            lastRun?.StepCount ?? 0,
+            lastRun?.ToolCallCount ?? 0,
+            lastRun?.CompletionTokens);
+        await WriteBudgetsAsync(context, budgets, options);
         await context.Response.WriteAsync($"""
                 <fieldset>
                     <legend>Page options</legend>
@@ -561,37 +566,24 @@ internal static class AssistantEndpoint {
     }
 
     // Every budget a reader can run into is shown with what has been spent on it, so a run that
-    // stops on one names it before it stops. The context figure is measured exactly as the trimmer
-    // measures it: the system prompt and the stored transcript, in characters.
+    // stops on one names it before it stops. The figures come from the same snapshot the run
+    // publishes, so a live one and a reloaded one cannot disagree.
     private static async Task WriteBudgetsAsync(
         HttpContext context,
-        IReadOnlyList<Message> messages,
-        IReadOnlyDictionary<string, (string Name, string Arguments)> calls,
-        Run? run,
+        BudgetSnapshot snapshot,
         AssistantOptions options) {
-        long contextChars = ContextTrimmer.MeasureChars([
-            new ChatMessage("system", PageAuthorPrompt.Build()),
-            .. messages.Select(message => message.ToChatMessage()),
-        ]);
-        int longestArguments = calls.Count == 0 ? 0 : calls.Values.Max(call => call.Arguments.Length);
-        int longestResult = messages
-            .Where(message => message.Role == "tool")
-            .Select(message => message.Content.Length)
-            .DefaultIfEmpty(0)
-            .Max();
-
         await context.Response.WriteAsync("""
             <fieldset class="assistant-budgets">
                 <legend>Budgets</legend>
                 <dl class="assistant-budget-list">
             """);
-        await WriteBudgetAsync(context, "Message", 0, options.MaxMessageChars, "characters", id: "assistant-budget-message");
-        await WriteBudgetAsync(context, "Context", contextChars, options.MaxContextChars, "characters");
-        await WriteBudgetAsync(context, "Steps", run?.StepCount ?? 0, options.MaxSteps, "steps");
-        await WriteBudgetAsync(context, "Tool calls", run?.ToolCallCount ?? 0, options.MaxToolCalls, "calls");
-        await WriteBudgetAsync(context, "Tool arguments", longestArguments, options.MaxToolArgumentChars, "characters");
-        await WriteBudgetAsync(context, "Tool result", longestResult, options.MaxToolResultChars, "characters");
-        await WriteBudgetAsync(context, "Output", run?.CompletionTokens ?? 0, options.MaxOutputTokens, "tokens");
+        await WriteBudgetAsync(context, "message", "Message", 0, options.MaxMessageChars, "characters");
+        await WriteBudgetAsync(context, "context", "Context", snapshot.ContextChars, options.MaxContextChars, "characters");
+        await WriteBudgetAsync(context, "steps", "Steps", snapshot.Steps, options.MaxSteps, "steps");
+        await WriteBudgetAsync(context, "tool-calls", "Tool calls", snapshot.ToolCalls, options.MaxToolCalls, "calls");
+        await WriteBudgetAsync(context, "tool-arguments", "Tool arguments", snapshot.LongestArguments, options.MaxToolArgumentChars, "characters");
+        await WriteBudgetAsync(context, "tool-result", "Tool result", snapshot.LongestResult, options.MaxToolResultChars, "characters");
+        await WriteBudgetAsync(context, "output", "Output", snapshot.CompletionTokens, options.MaxOutputTokens, "tokens");
         await context.Response.WriteAsync("""
                 </dl>
                 <p class="assistant-budget-note">Steps, tool calls and output count the current or most recent run; the rest are this conversation.</p>
@@ -601,27 +593,27 @@ internal static class AssistantEndpoint {
 
     private static async Task WriteBudgetAsync(
         HttpContext context,
+        string row,
         string label,
         long used,
         long available,
-        string unit,
-        string? id = null) {
+        string unit) {
         // A meter past its own maximum is invalid markup, so only the number is allowed to exceed it.
         long shown = Math.Clamp(used, 0, available);
-        string countId = id is null ? "" : $" id=\"{id}\"";
-        string meterId = id is null ? "" : $" id=\"{id}-meter\"";
         string exceeded = used > available ? " assistant-budget-exceeded" : "";
         string usedText = used.ToString("N0", CultureInfo.InvariantCulture);
         string limit = available.ToString("N0", CultureInfo.InvariantCulture);
 
-        // The meter is the picture of a number that is already spelled out beside it, so it is
-        // hidden from assistive technology rather than announced twice with no name.
+        // The row's name is what the page's script looks it up by, and both ids follow from it, so a
+        // live figure and a reloaded one address the same elements. The meter is the picture of a
+        // number that is already spelled out beside it, so it is hidden from assistive technology
+        // rather than announced twice with no name.
         await context.Response.WriteAsync($"""
-            <div class="assistant-budget{exceeded}">
+            <div class="assistant-budget{exceeded}" data-budget="{Encode(row)}">
                 <dt>{Encode(label)}</dt>
                 <dd>
-                    <span class="assistant-budget-count"><span{countId}>{usedText}</span> / {limit} {Encode(unit)}</span>
-                    <meter{meterId} aria-hidden="true" min="0" max="{available}" value="{shown}" low="{available * 3 / 5}" high="{available * 17 / 20}" optimum="0"></meter>
+                    <span class="assistant-budget-count"><span id="assistant-budget-{Encode(row)}">{usedText}</span> / {limit} {Encode(unit)}</span>
+                    <meter id="assistant-budget-{Encode(row)}-meter" aria-hidden="true" min="0" max="{available}" value="{shown}" low="{available * 3 / 5}" high="{available * 17 / 20}" optimum="0"></meter>
                 </dd>
             </div>
             """);
@@ -649,7 +641,7 @@ internal static class AssistantEndpoint {
         _ => status,
     };
 
-    private static Dictionary<string, (string Name, string Arguments)> ReadToolCalls(IEnumerable<Message> messages) {
+    internal static Dictionary<string, (string Name, string Arguments)> ReadToolCalls(IEnumerable<Message> messages) {
         Dictionary<string, (string Name, string Arguments)> calls = new(StringComparer.Ordinal);
         foreach (Message message in messages.Where(message => message.ToolCallsJson is not null)) {
             using JsonDocument document = JsonDocument.Parse(message.ToolCallsJson!);

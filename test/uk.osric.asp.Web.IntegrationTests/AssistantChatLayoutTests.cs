@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
+using System.Globalization;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -89,10 +90,49 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         Assert.That(body, Does.Contain(" / 32,768 tokens</span>"), "the output budget is missing");
 
         // The system prompt alone is already spent, and the run's own steps are counted from the store.
-        Assert.That(body, Does.Match("<meter aria-hidden=\"true\" min=\"0\" max=\"500000\" value=\"[1-9][0-9]*\""));
-        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span>2</span> / 512 steps</span>"),
+        Assert.That(body, Does.Match("<meter id=\"assistant-budget-context-meter\" aria-hidden=\"true\" min=\"0\" max=\"500000\" value=\"[1-9][0-9]*\""));
+        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-steps\">2</span> / 512 steps</span>"),
             "the answered run took two steps: the tool call and the answer");
-        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span>1</span> / 1,024 calls</span>"));
+        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-tool-calls\">1</span> / 1,024 calls</span>"));
+
+        // Every row carries the name the page's script looks it up by.
+        foreach (string row in new[] { "message", "context", "steps", "tool-calls", "tool-arguments", "tool-result", "output" }) {
+            Assert.That(body, Does.Contain($"data-budget=\"{row}\""), $"the {row} row is missing its hook");
+        }
+    }
+
+    [Test]
+    public async Task ARunPublishesItsBudgetsAsItSpendsThemAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        string conversation = await CreateConversationAsync(client);
+
+        string eventStream = await RunAsync(client, conversation);
+        JsonElement budgets = LastBudgets(eventStream);
+
+        Assert.Multiple(() => {
+            Assert.That(eventStream, Does.Contain("event: budget.updated"));
+            Assert.That(budgets.GetProperty("steps").GetInt32(), Is.EqualTo(2), "the tool call and the answer are two steps");
+            Assert.That(budgets.GetProperty("tool-calls").GetInt32(), Is.EqualTo(1));
+            Assert.That(budgets.GetProperty("tool-arguments").GetInt32(), Is.GreaterThan(0));
+            Assert.That(budgets.GetProperty("tool-result").GetInt32(), Is.GreaterThan(0));
+            Assert.That(budgets.GetProperty("context").GetInt64(), Is.GreaterThan(0), "the system prompt alone is already spent");
+            Assert.That(budgets.TryGetProperty("message", out _), Is.False, "the textarea owns the message row");
+        });
+    }
+
+    [Test]
+    public async Task TheBudgetsAfterTheReloadMatchTheLastLiveFigureAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        string conversation = await CreateConversationAsync(client);
+
+        JsonElement budgets = LastBudgets(await RunAsync(client, conversation));
+        using HttpResponseMessage reloaded = await client.GetAsync(conversation);
+        IReadOnlyDictionary<string, long> shown = RenderedBudgets(await reloaded.Content.ReadAsStringAsync());
+
+        foreach (string row in new[] { "context", "steps", "tool-calls", "tool-arguments", "tool-result", "output" }) {
+            Assert.That(shown[row], Is.EqualTo(budgets.GetProperty(row).GetInt64()),
+                $"the {row} row disagrees with the last figure the run published");
+        }
     }
 
     [Test]
@@ -108,6 +148,12 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
     }
 
     private static async Task<string> RunAndReloadAsync(HttpClient client, string conversation) {
+        await RunAsync(client, conversation);
+        using HttpResponseMessage reloaded = await client.GetAsync(conversation);
+        return await reloaded.Content.ReadAsStringAsync();
+    }
+
+    private static async Task<string> RunAsync(HttpClient client, string conversation) {
         string messageToken = await GetAntiforgeryTokenAsync(client, conversation);
         using HttpResponseMessage started = await client.PostAsync(conversation + "/messages", Form(
             ("__RequestVerificationToken", messageToken),
@@ -118,10 +164,41 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
 
         using HttpResponseMessage events = await client.GetAsync(
             $"{conversation}/events?run={Uri.EscapeDataString(runId)}&after=0");
-        await events.Content.ReadAsStringAsync();
+        return await events.Content.ReadAsStringAsync();
+    }
 
-        using HttpResponseMessage reloaded = await client.GetAsync(conversation);
-        return await reloaded.Content.ReadAsStringAsync();
+    private static JsonElement LastBudgets(string eventStream) =>
+        ParseEvents(eventStream).Last(item => item.Type == "budget.updated").Data.GetProperty("budgets");
+
+    private static IReadOnlyDictionary<string, long> RenderedBudgets(string body) {
+        Dictionary<string, long> budgets = new(StringComparer.Ordinal);
+        foreach (Match match in BudgetCount().Matches(body)) {
+            budgets[match.Groups["row"].Value] = long.Parse(
+                match.Groups["used"].Value.Replace(",", string.Empty, StringComparison.Ordinal),
+                CultureInfo.InvariantCulture);
+        }
+        return budgets;
+    }
+
+    private static IReadOnlyList<(string Type, JsonElement Data)> ParseEvents(string eventStream) {
+        List<(string Type, JsonElement Data)> events = [];
+        foreach (string block in eventStream.Split("\n\n", StringSplitOptions.RemoveEmptyEntries)) {
+            string? type = null;
+            string? data = null;
+            foreach (string line in block.Split('\n')) {
+                if (line.StartsWith("event: ", StringComparison.Ordinal)) {
+                    type = line["event: ".Length..];
+                } else if (line.StartsWith("data: ", StringComparison.Ordinal)) {
+                    data = line["data: ".Length..];
+                }
+            }
+            if (type is null || data is null) {
+                continue;
+            }
+            using JsonDocument document = JsonDocument.Parse(data);
+            events.Add((type, document.RootElement.Clone()));
+        }
+        return events;
     }
 
     private sealed class ToolCallingClient(string arguments) : IChatCompletionClient {
@@ -141,6 +218,9 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
             }
         }
     }
+
+    [GeneratedRegex("<span id=\"assistant-budget-(?<row>[a-z-]+)\">(?<used>[0-9,]+)</span>")]
+    private static partial Regex BudgetCount();
 
     [GeneratedRegex("<details class=\"assistant-tool\"><summary>(?<text>[^<]*)</summary>")]
     private static partial Regex ToolSummary();

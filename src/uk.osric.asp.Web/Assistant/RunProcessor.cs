@@ -76,6 +76,9 @@ internal sealed class RunProcessor(
                 queued.RunId, queued.ConversationId, run.Model);
 
             int toolCallCount = 0;
+            int toolCallsRecorded = 0;
+            int? completionTokens = null;
+            BudgetSnapshot budgets = BudgetSnapshot.Empty;
             for (step = 1; step <= options.MaxSteps; step++) {
                 IReadOnlyList<Message> transcript = await StoreAsync(
                     store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
@@ -93,7 +96,11 @@ internal sealed class RunProcessor(
                     });
                 }
 
+                // The step is spent as it starts, and the context row counts the whole conversation
+                // the loop has just read rather than the trimmed request, so it is measured here.
+                budgets = BudgetSnapshot.Measure(messages, step, toolCallsRecorded, completionTokens);
                 stream.Publish("message.started", new { step });
+                PublishBudgets(stream, budgets);
                 partial = new ChatStreamAccumulator();
                 ChatRequest request = new(
                     run.Model,
@@ -146,8 +153,11 @@ internal sealed class RunProcessor(
                 ChatResponse response = partial.Complete();
                 if (response.Usage is { } usage) {
                     metrics.RecordUsage(usage);
+                    // The store keeps the last non-null count, so the loop does the same.
+                    completionTokens = usage.CompletionTokens ?? completionTokens;
                 }
                 await StoreAsync(store => store.RecordStepAsync(queued.RunId, response.ToolCalls.Count, response.Usage, runTimeout.Token));
+                toolCallsRecorded += response.ToolCalls.Count;
                 if (response.FinishReason == "content_filter") {
                     await PersistAssistantAsync(queued, stream, step, response, "failed", includeToolCalls: false, CancellationToken.None);
                     await FailAsync(queued, stream, "content_filter", "The assistant refused to continue.", null, step, runTimeout.Token);
@@ -157,6 +167,15 @@ internal sealed class RunProcessor(
                     await FailAsync(queued, stream, "empty_response", "The provider returned an empty response.", null, step, runTimeout.Token);
                     return;
                 }
+
+                // The provider reports usage once per step, so this is the only point the output row
+                // can move, and the stored counters are what the reload after the run will show.
+                budgets = budgets with {
+                    Steps = step,
+                    ToolCalls = toolCallsRecorded,
+                    CompletionTokens = completionTokens ?? 0,
+                };
+                PublishBudgets(stream, budgets);
 
                 if (response.FinishReason == "length") {
                     stream.Publish("run.warning", new { code = "length", message = "The response reached the provider token limit." });
@@ -168,7 +187,7 @@ internal sealed class RunProcessor(
                     string status = response.FinishReason == "length" ? "truncated" : "complete";
                     await PersistAssistantAsync(queued, stream, step, response, status, includeToolCalls: false, runTimeout.Token);
                     partial = null;
-                    await CompleteAsync(queued, stream, step, response);
+                    await CompleteAsync(queued, stream, step, response, budgets);
                     return;
                 }
 
@@ -191,6 +210,13 @@ internal sealed class RunProcessor(
                         arguments = call.Arguments,
                         summary = $"Using {call.DisplayName}",
                     });
+
+                    // The cost of a call is known before it runs, which matters because an approval
+                    // can wait a long time and a slow tool would otherwise hide it.
+                    if (call.Arguments.Length > budgets.LongestArguments) {
+                        budgets = budgets with { LongestArguments = call.Arguments.Length };
+                        PublishBudgets(stream, budgets);
+                    }
 
                     long toolStart = Stopwatch.GetTimestamp();
                     if (callsThisStep > options.MaxToolCallsPerStep) {
@@ -222,6 +248,12 @@ internal sealed class RunProcessor(
                         content = result.Content,
                         durationMs = (long)Stopwatch.GetElapsedTime(toolStart).TotalMilliseconds,
                     });
+
+                    // The stored result is what the page measures, so a longer one moves the row now.
+                    if (result.Content.Length > budgets.LongestResult) {
+                        budgets = budgets with { LongestResult = result.Content.Length };
+                        PublishBudgets(stream, budgets);
+                    }
                     activeToolCallId = null;
                     activeToolName = null;
                 }
@@ -425,14 +457,36 @@ internal sealed class RunProcessor(
         QueuedRun queued,
         RunStream stream,
         int steps,
-        ChatResponse response) {
+        ChatResponse response,
+        BudgetSnapshot budgets) {
         await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "completed"));
+        // The page measures the stored transcript, so the last live figure is measured the same way:
+        // anything else would make the reload a correction of what a reader just watched. `Publish`
+        // throws once the stream is complete, so nothing may follow `run.completed`.
+        IReadOnlyList<Message> transcript = await StoreAsync(
+            store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, CancellationToken.None));
+        List<ChatMessage> messages = [new ChatMessage("system", PageAuthorPrompt.Build())];
+        messages.AddRange(transcript.Select(message => message.ToChatMessage()));
+        PublishBudgets(stream, BudgetSnapshot.Measure(messages, steps, budgets.ToolCalls, budgets.CompletionTokens));
         stream.Publish("run.completed", new {
             runId = queued.RunId,
             steps,
             usage = response.Usage,
         });
     }
+
+    // The keys are the row names the page's markup carries, so the browser needs no translation and
+    // `message` is absent: the textarea is that row's only source.
+    private static void PublishBudgets(RunStream stream, BudgetSnapshot budgets) => stream.Publish("budget.updated", new {
+        budgets = new Dictionary<string, long>(StringComparer.Ordinal) {
+            ["context"] = budgets.ContextChars,
+            ["steps"] = budgets.Steps,
+            ["tool-calls"] = budgets.ToolCalls,
+            ["tool-arguments"] = budgets.LongestArguments,
+            ["tool-result"] = budgets.LongestResult,
+            ["output"] = budgets.CompletionTokens,
+        },
+    });
 
     private async Task<T> StoreAsync<T>(Func<IConversationStore, Task<T>> action) {
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();

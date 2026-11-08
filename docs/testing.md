@@ -46,11 +46,14 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   the run's scope. `Web.IntegrationTests/ErrorHandlingTests` proves the framework's own
   unhandled-exception line carries the request scope, which is what fixes the order of the middleware.
 - **The assistant** is covered at the same boundaries: `Core.Tests` checks transcript trimming,
-  stream accumulation, strict tool arguments, virtual-shell parsing, title generation and authored
-  template-source line edits. `Web.Tests` uses migrated SQLite files for conversations, sequence
+  stream accumulation, strict tool arguments, virtual-shell parsing, title generation, authored
+  template-source line edits and the `BudgetSnapshot` the page and the stream both read.
+  `Web.Tests` uses migrated SQLite files for conversations, sequence
   allocation, approvals and restart repair; fake HTTP handlers for provider SSE; and scripted model
   streams for the run processor. `Web.IntegrationTests` runs the real authenticated host with a
-  scripted provider to verify disabled routing, conversation streaming, approval gating and writes.
+  scripted provider to verify disabled routing, conversation streaming, approval gating and writes,
+  and compares the last `budget.updated` a run published with the page the reload renders. The
+  browser suite watches a budget figure move while the run is still busy.
   No suite contacts a real model provider.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
   `ShellViews` renders all twenty-two shell views once each — the sign-in form and its failure, the

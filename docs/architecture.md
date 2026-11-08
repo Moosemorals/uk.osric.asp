@@ -295,6 +295,13 @@ content and reasoning are never logged; reasoning is display-only and is omitted
 provider requests. Assistant metrics use only low-cardinality model, tool, outcome, and token-kind
 tags.
 
+The budgets the page shows are one `BudgetSnapshot` measured from the stored transcript: the page
+renders it, and the run publishes it as `budget.updated` over the journal the page already listens
+to, at the start of each step, when that step's usage is stored and around each tool call. A figure
+a reader watches move is therefore the figure the reload will show. The context row counts the
+conversation — the whole untrimmed transcript plus the system prompt — rather than the trimmed
+request that was actually sent, which is what `ContextTrimmer.MeasureChars` measures for both.
+
 ## Authentication and the editor
 
 The editor is behind a sign-in; pages stay public unless the page's

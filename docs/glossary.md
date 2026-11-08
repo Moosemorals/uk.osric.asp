@@ -20,7 +20,9 @@ The process-wide limit on how long a render or compile may take and how many may
 shared by every request.
 
 **Not** a per-page quota, and not a promise that running page code stops: it bounds the response and
-releases the slot, while the abandoned render continues (DEC-42).
+releases the slot, while the abandoned render continues (DEC-42). Nor are the assistant's budgets
+this: those are the `Assistant:Max*` limits on one run or conversation, drawn as used/available
+pairs (DEC-141, DEC-159).
 
 **Owner:** pages — `PageBudget`, `Pages:Render:TimeoutSeconds`, `Pages:Render:Slots`,
 `Pages:Render:MaxBodyChars`, `Pages:Compile:TimeoutSeconds` and `Pages:Compile:Slots`.

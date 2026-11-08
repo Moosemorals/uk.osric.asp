@@ -57,6 +57,57 @@ internal sealed class AssistantChatTests : BrowserTest {
     }
 
     [Test]
+    public async Task TheStepBudgetCountsUpWhileTheAnswerStreamsAsync() {
+        await NewConversationAsync();
+        Provider.Script(
+            StubResponse.Tool("step-count-call", "read_page", """{"path":"/"}"""),
+            new StubResponse { Delay = TimeSpan.FromSeconds(5), Chunks = StubResponse.Words("I read the page.", TimeSpan.Zero).Chunks });
+
+        await SendAsync("Read the home page");
+
+        // The second step is spent as it starts, so the row moves before its answer has finished.
+        await Assertions.Expect(Page.Locator("#assistant-budget-steps")).ToHaveTextAsync("2", new() { Timeout = 30_000 });
+        await Assertions.Expect(Page.Locator("#assistant-chat")).ToHaveAttributeAsync("aria-busy", "true");
+    }
+
+    [Test]
+    public async Task AToolCallRaisesTheToolCallBudgetBeforeTheRunCompletesAsync() {
+        await NewConversationAsync();
+        Provider.Script(
+            StubResponse.Tool("tool-budget-call", "read_page", """{"path":"/"}"""),
+            new StubResponse { Delay = TimeSpan.FromSeconds(5), Chunks = StubResponse.Words("I read the page.", TimeSpan.Zero).Chunks });
+
+        await SendAsync("Read the home page");
+
+        await Assertions.Expect(Page.Locator("#assistant-budget-tool-calls")).ToHaveTextAsync("1", new() { Timeout = 30_000 });
+        await Assertions.Expect(Page.Locator("#assistant-chat")).ToHaveAttributeAsync("aria-busy", "true");
+    }
+
+    [Test]
+    public async Task TypingIsNotOverwrittenByABudgetUpdateAsync() {
+        await NewConversationAsync();
+        // The first step is held open so the typing happens while the run is running but before the
+        // update that would overwrite it, which is the whole point of the test.
+        Provider.Script(
+            new StubResponse { Delay = TimeSpan.FromSeconds(3), ToolCall = ("typing-call", "read_page", """{"path":"/"}""") },
+            new StubResponse { Delay = TimeSpan.FromSeconds(3), Chunks = StubResponse.Words("I read the page.", TimeSpan.Zero).Chunks });
+
+        await SendAsync("Read the home page");
+        await Assertions.Expect(Page.Locator("#assistant-budget-steps")).ToHaveTextAsync("1", new() { Timeout = 30_000 });
+
+        // The textarea is the message row's only source, so the updates that follow must leave it alone.
+        await Page.EvaluateAsync("""
+            const input = document.getElementById('assistant-message');
+            input.value = '12345';
+            input.dispatchEvent(new Event('input'));
+            """);
+        await Assertions.Expect(Page.Locator("#assistant-budget-steps")).ToHaveTextAsync("2", new() { Timeout = 30_000 });
+
+        await Assertions.Expect(Page.Locator("#assistant-budget-message")).ToHaveTextAsync("5");
+        await Assertions.Expect(Page.Locator("#assistant-chat")).ToHaveAttributeAsync("aria-busy", "true");
+    }
+
+    [Test]
     public async Task SavingOptionsChangesTheTitleAndTheApprovalModeAsync() {
         long id = await NewConversationAsync();
 
