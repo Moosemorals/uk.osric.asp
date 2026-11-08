@@ -24,9 +24,7 @@ and IDEA-013 came out of the naming-consistency planning, and every status below
 the code on 2026-11-06. IDEA-014 to IDEA-019 came out of the shell-versus-page review of 2026-11-07:
 what is left in the shell is mostly authority a page does not have rather than markup a page could
 not write. IDEA-020 came out of the import and export planning, and records why a destructive reset
-is not part of that flow. IDEA-021 came out of the assistant validation discussion of 2026-11-07;
-it pairs with the [content-type plan](../plans/archive/page-content-types.md) and records why validation is
-a tool rather than a save step. IDEA-022 came out of the [page-features
+is not part of that flow. IDEA-022 came out of the [page-features
 planning](../plans/archive/page-features.md) of 2026-11-08, and is worth doing now that storage and
 fetch have left `SimpleContext`.
 
@@ -51,7 +49,6 @@ fetch have left `SimpleContext`.
 | [IDEA-018](IDEA-018.md) | — | M | The document shell is not reachable from page code |
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
-| [IDEA-021](IDEA-021.md) | — | M | The assistant cannot validate the JavaScript it writes |
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
@@ -91,12 +88,6 @@ self-contained comes first, because these are the ones that never get scheduled 
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
-10. **IDEA-021, script validation** — assistant tools, not a save gate. The
-    [plan](../plans/assistant-script-validation.md) is written: `check_script` checks a stored page
-    by path, and `check_script_text` checks a complete page template supplied before
-    `write_page`. Both parse the literal text as an ES module and return positioned syntax
-    diagnostics. They are JavaScript only and do not consult the content-type map, so a
-    non-JavaScript page reports syntax errors.
 
 ## Closed
 
@@ -150,3 +141,4 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-07 | `SavePageAsync` is a single `INSERT … ON CONFLICT("Path") DO UPDATE`, so two saves for the same new key update one row instead of the second failing the primary key; the winner writes content and compile result together. `ConcurrentSavesForTheSameNewPathLeaveOneRowAsync` races eight writers to prove it |
 | BUG-08 | The page reference set is built from `TRUSTED_PLATFORM_ASSEMBLIES` when `TemplateCompiler` is constructed, and `Program` constructs it before the host listens, so a missing or empty value stops startup with a message naming the AppContext key instead of compiling every page against nothing |
 | BUG-16 | Every view the site serves is one document. `ShellDocument` writes the head, `<main id="main">` and the foot, so a view writes body content and nothing else; the duplication went with it — one nav renderer, one antiforgery field, one URL builder, one diagnostics renderer, and eight hand-written preambles gone. The listing's actions name the page they act on, the editor's textarea has a label, a failed sign-in is an alert that describes both fields, every `th` is scoped, the gutter is out of the accessibility tree while its diagnostic links give the position in words, charts are named by `<title>`/`<desc>`, and diagnostics are a list wherever they appear. `/layout.css` is a new seeded page carrying the rules the new markup needs so they reach an installation that has been running since before it existed (DEC-109; linked first since DEC-116). `AccessibilityTests` applies eleven rules to every view over rendered markup (DEC-110), and the contrast was measured rather than eyeballed: the gutter's grey was below AA and is now 6.42:1. A skip link followed and then went, because `main` was already the first thing in the body (DEC-121). See [the plan](../plans/archive/semantic-html-and-accessibility.md) |
+| IDEA-021 | The assistant can check the JavaScript it writes without running or storing it: `check_script` parses a stored page by path and `check_script_text` parses a complete template supplied before a write, both as an ES module and both read-only. See [the script validation plan](../plans/archive/assistant-script-validation.md) and DEC-145/DEC-146 |

@@ -26,8 +26,9 @@ can enforce it.
   platform assembly paths, generates assembly names, emits to a stream, and loads and invokes the
   compiled handler in a collectible `AssemblyLoadContext`. It also applies the page API policy
   (`PageApiChecker`) before emitting, and hands each image a `PageLoadContext` that refuses the
-  shell's assemblies. It references `Core`, `Sdk` and Roslyn, and nothing else — in particular no
-  ASP.NET, storage or logging types, because it is not built on the Web SDK.
+  shell's assemblies. It also parses page JavaScript (`JavaScriptValidator`) so the assistant can
+  check a script without running it. It references `Core`, `Sdk`, Roslyn and Acornima, and nothing
+  else — in particular no ASP.NET, storage or logging types, because it is not built on the Web SDK.
 - **`src/uk.osric.asp.Web`** owns HTTP endpoints, hosting, configuration, `SimpleContext`, and source
   storage. EF Core, SQLite, database migrations and `IPageStore` belong here.
 
@@ -74,6 +75,8 @@ and the logs quote them:
 | `PAGE002` | `PageApiChecker` | page code escaped its method, or a declaration block declared something other than a type |
 | `PAGE003` | `PageImageBuilder` | the page waited too long for a compile slot |
 | `PAGE004` | `PageImageBuilder` | the page took too long to compile |
+| `SCRIPT001` | `JavaScriptValidator` | the assistant's script check found a syntax error |
+| `SCRIPT002` | `JavaScriptValidator` | the assistant's script check found an opener the failed parse never closed |
 
 ## Where does code go?
 
@@ -272,10 +275,11 @@ The provider boundary is an explicitly configured OpenAI-compatible streaming ch
 endpoint. Enabling the feature sends the system prompt, conversation transcript, and page source read
 by tools to that provider. No provider SDK is used. Assistant tools have access only to the page store
 through `PageEditor`: list/read/search, bounded template-source line edits with an atomic revision-hash
-check, whole-page writes, tombstone deletes, and a read-only virtual shell. There is no process,
-filesystem, git, package, or outbound-network tool. The per-conversation approval mode defaults to
-`AlwaysApprove`; `RequireApproval` waits for an individual owner decision on each flagged mutation.
-Unresolved, stale, stopped, or restarted approvals never execute.
+check, whole-page writes, tombstone deletes, a read-only virtual shell, and two read-only script
+checks that parse a stored page or a supplied complete template as an ES module and change nothing.
+There is no process, filesystem, git, package, or outbound-network tool. The per-conversation approval
+mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on each
+flagged mutation. Unresolved, stale, stopped, or restarted approvals never execute.
 
 The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
 results, context and event replay, and bounds each provider request by silence rather than by duration:

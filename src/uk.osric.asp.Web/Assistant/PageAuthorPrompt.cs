@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v7";
+    public const string Version = "page-author-v8";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -90,6 +90,16 @@ internal static class PageAuthorPrompt {
         `<script type="module" src="/…"></script>`; modules are deferred, so
         the script's position in the document does not matter. Inline
         scripts and event-handler attributes stay blocked.
+        Before `write_page`, call `check_script_text` with the complete
+        content. After `edit_page`, call `check_script` with the page's path.
+        Never check a replacement fragment on its own: a fragment can be
+        invalid alone even when the edit is correct. Both parse the page's
+        literal text as an ES module and return `valid` with a list of `line`,
+        `column` and `message`. Treat `valid: false` as unfinished work: use
+        the positions, especially any `SCRIPT002` unclosed-opener hint, to find
+        and fix the edit, then check again before reporting done. They check
+        syntax, not intent: a duplicated block that still parses is not
+        reported.
 
         ## IContext contract
         {{ContractSection()}} `Request` is a `PageRequest`: its `Query`, `Form`,

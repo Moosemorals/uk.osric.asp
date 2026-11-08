@@ -5,10 +5,16 @@ SPDX-License-Identifier: MIT
 
 # Checking the JavaScript the assistant writes
 
-Status: **proposed, not implemented**. Written 2026-11-08 as the implementation plan for
-[IDEA-021](../jobs/IDEA-021.md), with that job's open questions answered. The backlog follow-up it
-promised — Language Server Protocol support for the human editor — is recorded as
-[WHIM-01](../jobs/WHIMS.md), not built here.
+Status: **implemented 2026-11-08**. Written 2026-11-08 as the implementation plan for
+[IDEA-021](../../jobs/IDEA-021.md), with that job's open questions answered. The decisions are DEC-145
+and DEC-146, and the behaviour is recorded in [architecture](../../architecture.md). The backlog
+follow-up it promised — Language Server Protocol support for the human editor — is recorded as
+[WHIM-01](../../jobs/WHIMS.md), not built here.
+
+Two details differ from the plan as written and are noted here rather than left to be discovered:
+the unclosed-opener stack also tracks a template literal's `${`, so a substitution's `}` cannot
+close a real brace outside the literal and hide the hint; and page code cannot reach Acornima because
+the API policy is default-deny, rather than because the assembly is absent from `PageReferenceSet`.
 
 ## The short version
 
@@ -57,7 +63,7 @@ promised — Language Server Protocol support for the human editor — is record
 - Reporting C# template or Roslyn diagnostics. `read_page` already returns the stored compile
   diagnostics; both tools only add the tokenizer's `TEMPLATE001` when they cannot build a skeleton.
 - Executing the script, or introducing a process boundary. Acornima parses; it does not run code.
-- Showing these diagnostics in the human editor. That is [WHIM-01](../jobs/WHIMS.md), and if it is
+- Showing these diagnostics in the human editor. That is [WHIM-01](../../jobs/WHIMS.md), and if it is
   promoted it reuses this validator rather than adding a second one.
 - One tool with both `path` and `content`. Two tools keep each schema honest, and the names say which
   source is being checked.
@@ -68,19 +74,19 @@ promised — Language Server Protocol support for the human editor — is record
 
 ## What exists today
 
-- [PageToolExecutor](../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs)
+- [PageToolExecutor](../../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs)
   owns one `ToolSpec` table. The model's schema and the execution-time validation are derived from
   the same table, so each tool is one entry and one `switch` arm.
 - `read_page` already shows the shape a read-only tool uses: `PagePathPolicy.Validate(path,
   write: false)`, then `PageEditor.GetAsync`, then a bounded `Success`/`Failure` envelope.
-- [PageDiagnostic](../../src/uk.osric.asp.Core/Compilation/PageDiagnostic.cs)
+- [PageDiagnostic](../../../src/uk.osric.asp.Core/Compilation/PageDiagnostic.cs)
   is the existing positioned, severity-tagged diagnostic value. `PageDiagnostic.SortedForDisplay`
   orders by line and column.
-- [TemplateTokenizer](../../src/uk.osric.asp.Core/Compilation/TemplateTokenizer.cs)
+- [TemplateTokenizer](../../../src/uk.osric.asp.Core/Compilation/TemplateTokenizer.cs)
   is internal to `Core`, splits a template into text, code, declaration and write tokens, and reports
   an unterminated block as `TEMPLATE001`. `Token` carries the content's start position but not
   absolute offsets.
-- [PageContentTypes](../../src/uk.osric.asp.Core/Pages/PageContentTypes.cs)
+- [PageContentTypes](../../../src/uk.osric.asp.Core/Pages/PageContentTypes.cs)
   now maps a key's extension to a media type only. The unused source-language kind was dropped, so
   there is no `Kind` signal to consult even if a tool wanted one.
 - `Runtime` exposes `PageCompiler` publicly because `Web` calls it; its remaining helpers are
@@ -264,7 +270,7 @@ and a temptation to refuse a save the current contract deliberately stores.
 
 The human editor does not show these diagnostics. If it ever does, it reuses `JavaScriptValidator`
 for an explicit check and still does not run it on save. Language Server Protocol support for the
-editor is [WHIM-01](../jobs/WHIMS.md).
+editor is [WHIM-01](../../jobs/WHIMS.md).
 
 ### D12 — Invalid script is a successful call; failures are failures
 
@@ -413,7 +419,7 @@ private static object[] ScriptDiagnostics(IReadOnlyList<PageDiagnostic> diagnost
 ### Prompt
 
 Replace the `## Scripts` guidance in
-[PageAuthorPrompt](../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs) with:
+[PageAuthorPrompt](../../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs) with:
 
 > Before `write_page`, call `check_script_text` with the complete content. After `edit_page`, call
 > `check_script` with the page's path. Never check a replacement fragment on its own: a fragment can
@@ -584,12 +590,12 @@ script runs when the host serves it.
 
 ## Relationship to other work
 
-- [The content-type plan](../plans/archive/page-content-types.md) has landed: a key's extension names
+- [The content-type plan](page-content-types.md) has landed: a key's extension names
   the response media type, but there is no source-language kind. That is why these tools do not
   consult the map and why checking a non-JavaScript page is expected to produce errors.
-- [IDEA-001](../jobs/IDEA-001.md) owns the editor. Its LSP follow-up is
-  [WHIM-01](../jobs/WHIMS.md); this plan deliberately does not change the editor.
-- [SEC-03](../jobs/SEC-03.md) is not a prerequisite. Acornima parses and does not execute, so there
+- [IDEA-001](../../jobs/IDEA-001.md) owns the editor. Its LSP follow-up is
+  [WHIM-01](../../jobs/WHIMS.md); this plan deliberately does not change the editor.
+- [SEC-03](../../jobs/SEC-03.md) is not a prerequisite. Acornima parses and does not execute, so there
   is no new process boundary to argue about.
 - DEC-15 requires the dependency justification and pin; this plan and DEC-145/DEC-146 supply them.
 - DEC-26 means the `Core` change recompiles every stored image on its next request once. That is the

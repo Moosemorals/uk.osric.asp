@@ -32,6 +32,8 @@ SPDX-License-Identifier: MIT
     <Content Remove="Pages/Seeds/**" />
     <None Remove="Pages/Seeds/**" />
     <Content Include="Pages/Seeds/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- The image carries the notice for the parser it ships, not just the repository. -->
+    <None Include="../../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

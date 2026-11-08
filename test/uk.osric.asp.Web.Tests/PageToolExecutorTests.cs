@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
+using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
@@ -608,6 +609,239 @@ public sealed class PageToolExecutorTests {
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("changed while the edit was being saved"));
         Assert.That(storage["/notes"]?.Template, Is.EqualTo("changed elsewhere"));
+    }
+
+    [Test]
+    public void CheckScriptIsAReadOnlyToolWithARequiredPath() {
+        ToolDefinition definition = PageToolExecutor.Definitions.Single(item => item.Name == "check_script");
+        using JsonDocument parameters = JsonDocument.Parse(definition.ParametersJson);
+
+        Assert.Multiple(() => {
+            Assert.That(definition.NeedsApproval, Is.False);
+            Assert.That(parameters.RootElement.GetProperty("properties").TryGetProperty("path", out _), Is.True);
+            Assert.That(parameters.RootElement.GetProperty("properties").TryGetProperty("content", out _), Is.False);
+            Assert.That(parameters.RootElement.GetProperty("required").EnumerateArray().Select(item => item.GetString()),
+                Is.EqualTo<string[]>(["path"]));
+        });
+    }
+
+    [Test]
+    public void CheckScriptTextIsAReadOnlyToolWithRequiredContent() {
+        ToolDefinition definition = PageToolExecutor.Definitions.Single(item => item.Name == "check_script_text");
+        using JsonDocument parameters = JsonDocument.Parse(definition.ParametersJson);
+
+        Assert.Multiple(() => {
+            Assert.That(definition.NeedsApproval, Is.False);
+            Assert.That(parameters.RootElement.GetProperty("properties").TryGetProperty("content", out _), Is.True);
+            Assert.That(parameters.RootElement.GetProperty("properties").TryGetProperty("path", out _), Is.False);
+            Assert.That(parameters.RootElement.GetProperty("required").EnumerateArray().Select(item => item.GetString()),
+                Is.EqualTo<string[]>(["content"]));
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptAcceptsAValidStoredScriptAsync() {
+        FakePageStore storage = new();
+        storage["/app.js"] = new PageTemplate(PageHarness.Key("/app.js"), "export const answer = 42;\n");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.True);
+            Assert.That(Data(result).GetProperty("diagnostics").GetArrayLength(), Is.Zero);
+            Assert.That(Data(result).GetProperty("path").GetString(), Is.EqualTo("/app.js"));
+            Assert.That(result.Summary, Is.EqualTo("Checked /app.js: valid"));
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptReportsASyntaxErrorAsASuccessfulCallAsync() {
+        FakePageStore storage = new();
+        storage["/app.js"] = new PageTemplate(PageHarness.Key("/app.js"), "export function go() {\n    export const answer = 42;\n");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", CancellationToken.None);
+
+        JsonElement diagnostics = Data(result).GetProperty("diagnostics");
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
+            Assert.That(diagnostics.EnumerateArray().Select(item => item.GetProperty("message").GetString()),
+                Has.Some.StartsWith("SCRIPT001: UnexpectedToken").And.Some.EqualTo("SCRIPT002: unclosed '{'."));
+            Assert.That(diagnostics[0].GetProperty("line").GetInt32(), Is.EqualTo(1));
+            Assert.That(result.Summary, Does.EndWith("problems"));
+            Assert.That(storage.WriteCount, Is.Zero);
+            Assert.That(storage.ImageWriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptReportsAnUnterminatedTemplateBlockAsync() {
+        FakePageStore storage = new();
+        storage["/app.js"] = new PageTemplate(PageHarness.Key("/app.js"), "const a = 1;\n<% if (true) {");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
+            Assert.That(Data(result).GetProperty("diagnostics")[0].GetProperty("message").GetString(),
+                Does.StartWith("TEMPLATE001:"));
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptChecksMarkupAsJavaScriptAsync() {
+        FakePageStore storage = new();
+        storage["/page"] = new PageTemplate(PageHarness.Key("/page"), "<h1>Hello</h1>");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/page\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptDoesNotConsultTheKeyExtensionAsync() {
+        FakePageStore storage = new();
+        storage["/script.html"] = new PageTemplate(PageHarness.Key("/script.html"), "export const answer = 42;\n");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "check_script", "{\"path\":\"/script.html\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptRefusesAProtectedPathBeforeReadingStorageAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "check_script", "{\"path\":\"/editor.js\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Summary, Is.EqualTo("Check refused"));
+            Assert.That(storage.ReadCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptReportsAMissingPageAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "check_script", "{\"path\":\"/missing\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("was not found"));
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptTextChecksContentWithoutTouchingTheStoreAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new { content = "export const answer = 42;\n" });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.True);
+            Assert.That(Data(result).GetProperty("diagnostics").GetArrayLength(), Is.Zero);
+            Assert.That(Data(result).TryGetProperty("path", out _), Is.False);
+            Assert.That(result.Summary, Is.EqualTo("Checked supplied text: valid"));
+            Assert.That(storage.ReadCount, Is.Zero);
+            Assert.That(storage.WriteCount, Is.Zero);
+            Assert.That(storage.ImageWriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptTextReportsAnInvalidScriptAsASuccessfulCallAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new { content = "const a = { x: 1 y: 2 };" });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, CancellationToken.None);
+
+        JsonElement diagnostics = Data(result).GetProperty("diagnostics");
+        JsonElement error = diagnostics.EnumerateArray()
+            .Single(item => item.GetProperty("message").GetString()!.StartsWith("SCRIPT001:", StringComparison.Ordinal));
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
+            Assert.That(error.GetProperty("line").GetInt32(), Is.EqualTo(1));
+            Assert.That(error.GetProperty("column").GetInt32(), Is.EqualTo(18));
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptTextChecksTheLiteralTextAroundTemplateBlocksAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string content = "<% var when = DateTime.UtcNow; %>\nexport const label = \"<%= when %>\";\n";
+        string arguments = JsonSerializer.Serialize(new { content });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptTextReportsALoneReturnAsIllegalAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new { content = "return 1;" });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
+            Assert.That(Data(result).GetProperty("diagnostics")[0].GetProperty("message").GetString(),
+                Does.Contain("IllegalReturn"));
+        });
     }
 
     private static string[] Paths(ToolExecutionResult result) =>

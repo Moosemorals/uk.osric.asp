@@ -6,8 +6,10 @@ namespace uk.osric.asp.Web.Assistant;
 using System.Globalization;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
+using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
@@ -25,7 +27,7 @@ internal sealed record ToolSpec(
     bool NeedsApproval,
     IReadOnlyList<ToolArgumentSchema> Arguments);
 
-/// <summary>Runs the page tools the model asks for: read, write, list and delete.</summary>
+/// <summary>Runs the page tools the model asks for: read, write, list, check and delete.</summary>
 internal sealed class PageToolExecutor(
     IServiceScopeFactory scopeFactory,
     PagePathPolicy paths,
@@ -66,6 +68,20 @@ internal sealed class PageToolExecutor(
             new("prefix", ToolArgumentType.String, false),
             new("caseSensitive", ToolArgumentType.Boolean, false),
         ]),
+        new("check_script",
+            "Check the JavaScript a stored page serves. Reads the page by path and parses its literal "
+            + "text as an ES module. The key's extension is not consulted: a page that is not "
+            + "JavaScript will generally produce syntax errors. Checks syntax only; imports are not "
+            + "resolved and nothing is executed.",
+            false,
+            [new("path", ToolArgumentType.String, true)]),
+        new("check_script_text",
+            "Check the JavaScript in a complete page template supplied as content, without storing "
+            + "it. Parses the literal text as an ES module. Pass the whole page, not an edit_page "
+            + "replacement fragment: a fragment can be invalid alone even when the edit is correct. "
+            + "Checks syntax only; imports are not resolved and nothing is executed.",
+            false,
+            [new("content", ToolArgumentType.String, true)]),
         new("shell", "Run a read-only virtual-shell command over stored pages.", false, [
             new("command", ToolArgumentType.String, true),
         ]),
@@ -104,6 +120,8 @@ internal sealed class PageToolExecutor(
             "write_page" => await WritePageAsync(parsed.Values, pages, cancellationToken),
             "delete_page" => await DeletePageAsync(parsed.Values, pages, cancellationToken),
             "search_pages" => await SearchPagesAsync(parsed.Values, pages, cancellationToken),
+            "check_script" => await CheckScriptAsync(parsed.Values, pages, cancellationToken),
+            "check_script_text" => CheckScriptText(parsed.Values),
             "shell" => await ShellAsync(parsed.Values, pages, cancellationToken),
             _ => Failure("Unknown tool.", $"Unknown tool {MessageText.Sanitize(name)}"),
         };
@@ -185,6 +203,46 @@ internal sealed class PageToolExecutor(
             source,
         };
         return Success(data, $"Read {Describe(path)}");
+    }
+
+    private async Task<ToolExecutionResult> CheckScriptAsync(
+        IReadOnlyDictionary<string, JsonElement> arguments,
+        PageEditor pages,
+        CancellationToken cancellationToken) {
+        PathValidationResult checkedPath = paths.Validate(String(arguments, "path"), write: false);
+        if (!checkedPath.IsSuccess) {
+            return Failure(checkedPath.Error!, "Check refused");
+        }
+
+        PagePath path = checkedPath.Path!;
+        PageTemplate? page = await pages.GetAsync(path, cancellationToken);
+        if (page is null) {
+            return Failure($"Page {Describe(path)} was not found.", $"Check {Describe(path)}: not found");
+        }
+
+        return CheckTemplate(page.Template, path);
+    }
+
+    private ToolExecutionResult CheckScriptText(IReadOnlyDictionary<string, JsonElement> arguments) =>
+        CheckTemplate(String(arguments, "content")!, path: null);
+
+    // A skeleton that could not be built is reported beside the parser's own errors, so a page with
+    // an unterminated template block says so instead of failing the tool call.
+    private ToolExecutionResult CheckTemplate(string template, PagePath? path) {
+        ScriptSkeletonResult skeleton = TemplateScriptSkeleton.Create(template);
+        IReadOnlyList<PageDiagnostic> diagnostics = skeleton.IsSuccess
+            ? JavaScriptValidator.Validate(skeleton.Source)
+            : skeleton.Diagnostics;
+        bool valid = diagnostics.All(diagnostic => diagnostic.Severity != PageDiagnosticSeverity.Error);
+
+        string where = path is null ? "supplied text" : Describe(path);
+        string summary = diagnostics.Count == 0
+            ? $"Checked {where}: valid"
+            : $"Checked {where}: {diagnostics.Count} problem{(diagnostics.Count == 1 ? string.Empty : "s")}";
+
+        return path is null
+            ? Success(new { valid, diagnostics = ScriptDiagnostics(diagnostics) }, summary)
+            : Success(new { path = path.Key, valid, diagnostics = ScriptDiagnostics(diagnostics) }, summary);
     }
 
     private async Task<ToolExecutionResult> EditPageAsync(
@@ -473,6 +531,13 @@ internal sealed class PageToolExecutor(
         [.. diagnostics.Select(diagnostic => new {
             code = DiagnosticCode(diagnostic),
             severity = diagnostic.Severity.ToString(),
+            line = diagnostic.Position?.Line,
+            column = diagnostic.Position?.Column,
+            message = diagnostic.Message,
+        })];
+
+    private static object[] ScriptDiagnostics(IReadOnlyList<PageDiagnostic> diagnostics) =>
+        [.. diagnostics.Select(diagnostic => new {
             line = diagnostic.Position?.Line,
             column = diagnostic.Position?.Column,
             message = diagnostic.Message,

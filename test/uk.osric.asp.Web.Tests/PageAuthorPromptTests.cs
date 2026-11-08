@@ -135,4 +135,17 @@ public sealed class PageAuthorPromptTests {
     public void PromptVersionIsStableAndPresentInThePrompt() {
         Assert.That(PageAuthorPrompt.Build(), Does.Contain(PageAuthorPrompt.Version));
     }
+
+    [Test]
+    public void TheScriptSectionTeachesTheScriptChecks() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("check_script_text"));
+            Assert.That(prompt, Does.Contain("check_script` with the page's path"));
+            Assert.That(prompt, Does.Contain("valid: false"));
+            Assert.That(prompt, Does.Contain("SCRIPT002"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v8"));
+        });
+    }
 }
