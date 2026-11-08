@@ -11,6 +11,9 @@ SPDX-License-Identifier: MIT
 | Area | Web, Runtime, Core, assistant |
 | Location | `src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs`, `src/uk.osric.asp.Core/Compilation/`, `src/uk.osric.asp.Runtime/` |
 
+Planned: [assistant script validation](../plans/assistant-script-validation.md). The plan's decisions
+supersede the alternatives sketched below.
+
 ## Idea
 
 The assistant can write and edit stored pages. A page that serves JavaScript is a template whose
@@ -23,10 +26,10 @@ Add a read-only tool that parses the script and returns syntax diagnostics with 
 stable code. It is a helper for the assistant, not a replacement for its judgement, and not a gate
 on saving.
 
-The [content-type plan](../plans/archive/page-content-types.md) supplies the useful signal: a key whose
-extension the site's content-type map resolves to JavaScript is JavaScript source. The validator is
-useful without that plan — it can validate supplied content directly — but the plan makes the
-common path exact and lets the prompt name the convention.
+The [content-type plan](../plans/archive/page-content-types.md) has landed, but it only maps a key's
+extension to a response media type; the unused source-language kind was dropped. The tools therefore
+validate a stored path or supplied complete text as JavaScript whatever the path's extension, and a
+page that is not JavaScript produces syntax errors rather than a refusal.
 
 ## Sketch
 
@@ -141,24 +144,28 @@ with its own decision, not a side effect of save.
 #### Name and scope
 
 Most existing tools are `verb_noun`: `list_pages`, `read_page`, `edit_page`, `write_page`,
-`delete_page`, `search_pages` (and `shell`, which is the exception). The recommendation is
+`delete_page`, `search_pages` (and `shell`, which is the exception). The name explored here is
 **`validate_script`**:
 
 - it names the unit it validates, rather than pretending to validate a whole page;
 - it does not overpromise CSS, JSON or HTML support;
 - it fits the existing naming pattern.
 
-`check_script` is the main alternative. `validate_javascript` is too long and repeats the obvious
+The plan chooses `check_script` for a stored path and `check_script_text` for complete supplied
+content; the reasoning about a script-named tool still applies.
+
+The chosen names are `check_script` and `check_script_text`. The alternatives were:
+`validate_javascript` is too long and repeats the obvious
 inside the tool description. `validate_page` is misleading while JavaScript is the only language,
 and `validate_file` suggests the page store has file types beyond the extension signal.
 
 That leads to the second question: is this a JavaScript validator or a file validator with
 JavaScript as one of its validators?
 
-- **JavaScript validator now (recommended).** A `JavaScriptValidator` in `Runtime`, a
-  `validate_script` tool in `Web`, and no registry. This follows the repo's simplicity rule: there
-  is one language, one parser and one consumer. The result type can be the existing
-  `PageDiagnostic`, which is already language-neutral enough for a later CSS or JSON validator.
+- **JavaScript validator now (chosen).** A `JavaScriptValidator` in `Runtime`, the two tools in
+  `Web`, and no registry. This follows the repo's simplicity rule: there is one language, one parser
+  and one consumer. The result type can be the existing `PageDiagnostic`, which is already
+  language-neutral enough for a later CSS or JSON validator.
 - **File validator now.** A `PageValidator`/`IPageValidator` registry keyed by the content-type
   plan's kind, a `validate_page` tool, and JavaScript as one implementation. It is the right shape
   when the second language is real, but it adds an abstraction with one implementer and makes the
@@ -166,12 +173,12 @@ JavaScript as one of its validators?
   mechanical: the tool can keep its implementation and add a dispatcher when a second validator
   exists.
 
-The tool's description can still say "validate the JavaScript a page serves" so the model does not
+The tool descriptions can still say "validate the JavaScript a page serves" so the model does not
 assume it checks CSS or HTML.
 
 #### Arguments and result
 
-Suggested shape:
+The plan splits the two sources into two tools. The original sketch was one tool:
 
 - `path` and `content`, both optional, at least one required.
   - `path` reads the stored page, validates its script portion, and is refused for protected paths,
@@ -279,41 +286,43 @@ tool timeout.
 
 ## Acceptance criteria
 
-- `validate_script` on a valid `.js` page returns `valid: true`.
+- `check_script` on a valid `.js` page returns `valid: true`.
+- `check_script_text` on valid complete content returns `valid: true` without reading or writing the
+  store.
 - A half-function edit returns `valid: false` with a positioned error and an unclosed-opener hint
   that points at the duplicated block, not only at the later token where parsing failed.
 - A duplicated complete top-level function returns a `VarRedeclaration` diagnostic.
-- A syntactically valid duplicate block returns `valid: true`; the tool description says it checks
+- A syntactically valid duplicate block returns `valid: true`; the tool descriptions say they check
   syntax, not intent.
 - Protected paths are refused; nothing is written; no approval is requested.
 - `write_page` and `PageEditor.SaveAsync` are unchanged; validation is never implicit.
 - `PageAuthorPrompt` tells the assistant to validate, and `make check` passes.
 
-## Open questions
+## Questions the plan answers
 
-- The name: `validate_script` versus `check_script`; and whether the user would rather have
-  `validate_page` with a language field from the start.
-- The scope: JavaScript only now, or a validator registry today. The recommendation is JavaScript
-  only, with `PageDiagnostic` as the shared result so a later CSS/JSON validator does not need a new
-  tool shape.
-- Whether the result includes source context and how many lines; whether unclosed-opener hints are
-  warnings in `diagnostics` or a separate `hints` array.
-- Whether `content` alone is enough (no path) and whether a path whose extension the map does not
-  resolve to JavaScript should be refused or still validated as JavaScript.
-- Whether import specifiers should be resolved against stored pages. Syntax validation does not
-  need it; a missing import is a runtime failure, not a parse failure, and checking it would add a
-  second meaning to "valid".
-- Whether the skeleton helper should be a public `Core` API or a public tokenizer. The plan
-  recommends the former: expose the result, not the tokenizer.
-- Whether the editor should ever show these diagnostics. If it does, it reuses the validator; it
-  still does not run it on save.
+- **Name and scope.** `check_script` for a stored path and `check_script_text` for complete supplied
+  content, JavaScript only, no validator registry. See D1 and D3.
+- **Arguments and result.** `path` for one, `content` for the other; `valid` plus
+  `{ line, column, message }`, with no source context, severity or separate hint array. See D2 and
+  D5.
+- **Imports and non-JavaScript paths.** Imports are parsed but not resolved. The key's extension is
+  not consulted, so a path that is not JavaScript is parsed as JavaScript and its markup generally
+  produces syntax errors. See D3 and D7.
+- **Hints.** Unclosed openers are `SCRIPT002` warnings in the same list, not a separate array. See
+  D6.
+- **The skeleton.** A public `Core` helper returning a string and diagnostics, not the tokenizer.
+  See D9.
+- **The editor.** Not part of this change. Language Server Protocol support is
+  [WHIM-01](WHIMS.md). See D11.
 
 ## Relationship to other work
 
-- [The content-type plan](../plans/archive/page-content-types.md) turns the extension into a source-language
-  signal and makes the common script page pure JavaScript.
+- [The content-type plan](../plans/archive/page-content-types.md) has landed: a key's extension
+  names the response media type, but the unused source-language kind was dropped. The tools
+  therefore do not consult the map and validate a path or supplied text as JavaScript regardless of
+  extension.
 - [IDEA-001](IDEA-001.md), a proper editor, could use the same validator for a "check" action, but
-  not as part of save.
+  not as part of save. Its Language Server Protocol follow-up is [WHIM-01](WHIMS.md).
 - [SEC-03](SEC-03.md) is not a prerequisite: Acornima parses and does not execute, so there is no
   new process boundary to argue about. The process-boundary question returns only if the site ever
   executes the script.

@@ -7,7 +7,8 @@ SPDX-License-Identifier: MIT
 
 One file per distinct job — something the site gets wrong (`SEC-`, `BUG-`, `OPS-`, `ARCH-`) and
 something it could usefully become (`IDEA-`). Each file has a short ID (`SEC-03`, `IDEA-005`, ...)
-to use in commits, branches and discussion.
+to use in commits, branches and discussion. A whim is smaller than a job and shares one file,
+[WHIMS.md](WHIMS.md).
 
 Two measures, and neither is a plan. **Severity** is the reviewer's assessment of risk, and is blank
 for an idea because an idea is not something that has gone wrong. **Size** is how much work it looks
@@ -56,6 +57,12 @@ fetch have left `SimpleContext`.
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
 
+## Whims
+
+A whim is an idea that has not acquired a shape. It gets an ID (`WHIM-01`) and one or two lines in
+[WHIMS.md](WHIMS.md), never a file of its own, and it is not counted, sized or ordered here.
+Promoting a whim means writing an `IDEA-` file and removing its line; deleting one is free.
+
 ## A rough order
 
 Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and
@@ -84,9 +91,12 @@ self-contained comes first, because these are the ones that never get scheduled 
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
-10. **IDEA-021, script validation** — an assistant tool, not a save gate. It is small now that the
-    [content-type plan](../plans/archive/page-content-types.md) names the source language, and it
-    can still validate supplied content directly for a key the map does not resolve to JavaScript.
+10. **IDEA-021, script validation** — assistant tools, not a save gate. The
+    [plan](../plans/assistant-script-validation.md) is written: `check_script` checks a stored page
+    by path, and `check_script_text` checks a complete page template supplied before
+    `write_page`. Both parse the literal text as an ES module and return positioned syntax
+    diagnostics. They are JavaScript only and do not consult the content-type map, so a
+    non-JavaScript page reports syntax errors.
 
 ## Closed
 
