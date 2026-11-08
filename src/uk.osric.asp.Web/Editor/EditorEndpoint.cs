@@ -148,7 +148,8 @@ internal sealed class EditorEndpoint {
         PageHeadSummary[] ownPages = [.. live.Where(head => !seeds.Contains(head.Path.Key))];
         PageHeadSummary[] seededPages = [.. live.Where(head => seeds.Contains(head.Path.Key))];
 
-        await ShellDocument.BeginAsync(context, "Pages");
+        await ShellDocument.BeginAsync(context, "Pages",
+            SiteNavigation.For(context));
         await context.Response.WriteAsync("<h1>Pages</h1>");
         await WriteMessageAsync(context);
         await context.Response.WriteAsync(AdminNavigation.Nav("edit"));
@@ -311,7 +312,8 @@ internal sealed class EditorEndpoint {
         string template = page?.Template ?? "";
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
 
-        await ShellDocument.BeginAsync(context, "Editor", stylesheet: "/editor.css", bodyClass: "editor-page");
+        await ShellDocument.BeginAsync(context, "Editor",
+            SiteNavigation.For(context), stylesheets: ["/editor.css"], bodyClass: "editor-page");
         await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path.Key)}</h1>");
         await WriteMessageAsync(context);
         if (wasDeleted) {
@@ -368,7 +370,8 @@ internal sealed class EditorEndpoint {
         }
 
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
-        await ShellDocument.BeginAsync(context, "Delete page");
+        await ShellDocument.BeginAsync(context, "Delete page",
+            SiteNavigation.For(context));
         await context.Response.WriteAsync($"<h1>Delete {WebUtility.HtmlEncode(path.Key)}?</h1>");
         await context.Response.WriteAsync("<p>This hides the page but retains its template and revision history.</p>");
         await context.Response.WriteAsync($"""
@@ -393,7 +396,8 @@ internal sealed class EditorEndpoint {
         }
 
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
-        await ShellDocument.BeginAsync(context, "Scrub page history");
+        await ShellDocument.BeginAsync(context, "Scrub page history",
+            SiteNavigation.For(context));
         await context.Response.WriteAsync($"<h1>Scrub {WebUtility.HtmlEncode(path.Key)}?</h1>");
         await context.Response.WriteAsync("""
             <p>This irreversibly removes this deleted page and all retained revisions. It cannot be undone and is intended for cases such as committed secrets.</p>
@@ -546,7 +550,8 @@ internal sealed class EditorEndpoint {
                 services.GetService<ILogger<EditorEndpoint>>()?.LogError(exception, "Page scrub cleanup did not complete.");
             }
             context.Session.SetString(MessageKey, "Scrub cleanup did not complete. Check the deleted pages list; if the page remains there, scrub it again.");
-            await ShellDocument.BeginAsync(context, "Scrub incomplete", StatusCodes.Status503ServiceUnavailable);
+            await ShellDocument.BeginAsync(context, "Scrub incomplete",
+            SiteNavigation.For(context), StatusCodes.Status503ServiceUnavailable);
             await context.Response.WriteAsync("<h1>Scrub cleanup did not complete</h1>");
             await context.Response.WriteAsync("<p>Check the deleted pages list; if the page remains there, scrub it again. It may already have been logically removed.</p>");
             await context.Response.WriteAsync(PageDocument.Nav("Recovery navigation", [new("/edit", "Page list")], "editor-menu"));
@@ -665,7 +670,8 @@ internal sealed class EditorEndpoint {
         }
 
         IReadOnlyList<PageRevisionSummary> revisions = await pages.ListRevisionsAsync(path, context.RequestAborted);
-        await ShellDocument.BeginAsync(context, "Page history");
+        await ShellDocument.BeginAsync(context, "Page history",
+            SiteNavigation.For(context));
         await context.Response.WriteAsync($"<h1>History for {WebUtility.HtmlEncode(path.Key)}</h1>");
         if (head.IsDeleted) {
             await context.Response.WriteAsync("<p>This page is deleted. Its revisions remain available here.</p>");
@@ -696,7 +702,8 @@ internal sealed class EditorEndpoint {
             return;
         }
 
-        await ShellDocument.BeginAsync(context, "Saved revision", stylesheet: "/editor.css");
+        await ShellDocument.BeginAsync(context, "Saved revision",
+            SiteNavigation.For(context), stylesheets: ["/editor.css"]);
         await context.Response.WriteAsync($"<h1>Saved revision for {WebUtility.HtmlEncode(path.Key)}</h1>");
         await context.Response.WriteAsync($"<p>Saved {WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}; {WebUtility.HtmlEncode(revision.ImageStatus)}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}.</p>");
         await context.Response.WriteAsync(PageDocument.Nav("Revision navigation", [

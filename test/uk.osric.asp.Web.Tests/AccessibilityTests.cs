@@ -60,6 +60,17 @@ public sealed class AccessibilityTests {
     }
 
     [Test]
+    public async Task TheSkipLinkIsTheFirstFocusableElementAndTargetsMainAsync() {
+        await ForEachViewAsync((view, document) => {
+            MarkupElement? first = document.Elements("body").Single().Children.FirstOrDefault(IsFocusable);
+
+            Assert.That(first, Is.Not.Null, $"{view.Name}: nothing focusable in the body");
+            Assert.That(first!.Name, Is.EqualTo("a"), $"{view.Name}: the first focusable element is {first.Name}");
+            Assert.That(first.Attribute("href"), Is.EqualTo("#main"), $"{view.Name}: the skip link targets elsewhere");
+        });
+    }
+
+    [Test]
     public async Task HeadingsNeverSkipALevelAsync() {
         await ForEachViewAsync((view, document) => {
             int previous = 0;

@@ -177,7 +177,8 @@ internal static class LoginEndpoint {
         // Both fields hold the pair that failed, so both say so; the alert above is their description.
         string invalid = failed ? " aria-describedby=\"login-error\" aria-invalid=\"true\"" : string.Empty;
 
-        await ShellDocument.BeginAsync(context, "Sign in");
+        await ShellDocument.BeginAsync(context, "Sign in",
+            SiteNavigation.For(context));
         await context.Response.WriteAsync("<h1>Sign in</h1>");
 
         if (failed) {

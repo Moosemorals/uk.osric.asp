@@ -3,42 +3,47 @@
 
 namespace uk.osric.asp.Web.Html;
 
-using System.Net;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Http;
 
-/// <summary>Writes the document shell every non-page view shares: the head and the open <c>main</c> landmark.</summary>
+/// <summary>Writes the document every non-page view shares, through the markup the Sdk owns.</summary>
 internal static class ShellDocument {
 
-    /// <summary>Starts a shell document: the head and the open <c>main</c> landmark.</summary>
+    /// <summary>Starts a shell document: the head, the banner and the open <c>main</c> landmark.</summary>
     /// <param name="context">The response being written.</param>
-    /// <param name="title">The document title, encoded here.</param>
+    /// <param name="title">The document title, encoded by the builder.</param>
+    /// <param name="navigation">
+    /// The site menu, normally <see cref="SiteNavigation.For"/>. It is required so a view cannot be
+    /// written without one.
+    /// </param>
     /// <param name="statusCode">The response status.</param>
-    /// <param name="stylesheet">A sheet the view needs, after <c>/layout.css</c> and <c>/site.css</c>.</param>
+    /// <param name="stylesheets">
+    /// The sheets the view needs, after <c>/layout.css</c> and <c>/site.css</c>, in the order given.
+    /// </param>
     /// <param name="bodyClass">A class for <c>body</c>, when the view styles the document box.</param>
     /// <param name="head">
     /// Raw markup written into <c>head</c> after the stylesheets, for a document that describes
     /// itself — a progress page's refresh is the only user. It is the caller's markup, not a value
-    /// from a request, so nothing here needs encoding.
+    /// from a request, so nothing needs encoding.
     /// </param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <remarks>
-    /// One place owns the document, so a view cannot forget the landmark, and <c>#main</c> always
-    /// exists. Nothing precedes it in the body, which is why there is no skip link: with no banner
-    /// or site navigation to pass, the link would target the element immediately after it
-    /// (DEC-121). <c>/layout.css</c> is linked first: it carries the document's shape, and
-    /// <c>/site.css</c> and the view's own sheet come after it so a view can override a structural
-    /// rule without a more specific selector.
+    /// One place owns the response, and <see cref="PageDocument"/> owns the markup, so a view cannot
+    /// forget the banner, the skip link or the landmark, and the shell cannot drift from a seeded
+    /// layout.
     /// </remarks>
     public static Task BeginAsync(
         HttpContext context,
         string title,
+        string navigation,
         int statusCode = StatusCodes.Status200OK,
-        string? stylesheet = null,
+        IReadOnlyList<string>? stylesheets = null,
         string? bodyClass = null,
         string? head = null,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(title);
+        ArgumentNullException.ThrowIfNull(navigation);
 
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.StatusCode = statusCode;
@@ -46,22 +51,11 @@ internal static class ShellDocument {
         // this weaker value would replace it, and setting one first makes the framework log a warning.
         SecurityHeaders.NoStoreIfAbsent(context);
 
-        return context.Response.WriteAsync($"""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>{WebUtility.HtmlEncode(title)}</title>
-                <link rel="stylesheet" href="/layout.css">
-                <link rel="stylesheet" href="/site.css">
-                {(stylesheet is null ? "" : $"<link rel=\"stylesheet\" href=\"{WebUtility.HtmlEncode(stylesheet)}\">")}
-                <link rel="icon" href="/rocket.svg" type="image/svg+xml">
-                {head}
-            </head>
-            <body{(bodyClass is null ? "" : $" class=\"{WebUtility.HtmlEncode(bodyClass)}\"")}>
-            <main id="main">
-            """, cancellationToken);
+        string markup = PageDocument.Head(title, stylesheets, head, bodyClass)
+            + PageDocument.Banner(navigation)
+            + PageDocument.OpenMain();
+
+        return context.Response.WriteAsync(markup, cancellationToken);
     }
 
     /// <summary>Closes the landmark and the document.</summary>
@@ -70,10 +64,6 @@ internal static class ShellDocument {
     public static Task EndAsync(HttpContext context, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(context);
 
-        return context.Response.WriteAsync($"""
-            </main>
-            </body>
-            </html>
-            """, cancellationToken);
+        return context.Response.WriteAsync(PageDocument.CloseMain() + PageDocument.End(), cancellationToken);
     }
 }

@@ -64,7 +64,8 @@ internal static class ErrorResponses {
         ArgumentNullException.ThrowIfNull(message);
 
         SecurityHeaders.NoStoreIfAbsent(context);
-        await ShellDocument.BeginAsync(context, message.Title, statusCode, cancellationToken: cancellationToken);
+        await ShellDocument.BeginAsync(context, message.Title,
+            SiteNavigation.For(context), statusCode, cancellationToken: cancellationToken);
         await context.Response.WriteAsync($"<h1>{WebUtility.HtmlEncode(message.Title)}</h1>", cancellationToken);
         await context.Response.WriteAsync($"<p>{WebUtility.HtmlEncode(message.Summary)}</p>", cancellationToken);
         if (detailsHtml is not null) {

@@ -38,7 +38,8 @@ internal sealed class ExportEndpoint {
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         SecurityHeaders.AllowScripts(context);
 
-        await ShellDocument.BeginAsync(context, "Export pages", stylesheet: "/admin.css");
+        await ShellDocument.BeginAsync(context, "Export pages",
+            SiteNavigation.For(context), stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync("<h1>Export pages</h1>");
         await context.Response.WriteAsync(AdminNavigation.Nav("export"));
         await context.Response.WriteAsync("""

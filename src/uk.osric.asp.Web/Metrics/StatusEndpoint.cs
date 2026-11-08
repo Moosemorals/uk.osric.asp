@@ -23,7 +23,8 @@ internal static class StatusEndpoint {
         context.Response.ContentType = "text/html; charset=utf-8";
         SecurityHeaders.NoStore(context);
 
-        await ShellDocument.BeginAsync(context, "Status", stylesheet: "/status.css", cancellationToken: cancellationToken);
+        await ShellDocument.BeginAsync(context, "Status",
+            SiteNavigation.For(context), stylesheets: ["/status.css"], cancellationToken: cancellationToken);
         await context.Response.WriteAsync("<h1>Status</h1>", cancellationToken: cancellationToken);
         await WriteNavAsync(context, duration, cancellationToken);
 

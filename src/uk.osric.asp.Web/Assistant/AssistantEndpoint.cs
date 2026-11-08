@@ -51,7 +51,8 @@ internal static class AssistantEndpoint {
 
         IReadOnlyList<ConversationListItem> items = await conversations.ListAsync(owner, context.RequestAborted);
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
-        await ShellDocument.BeginAsync(context, "Assistant", stylesheet: "/assistant.css");
+        await ShellDocument.BeginAsync(context, "Assistant",
+            SiteNavigation.For(context), stylesheets: ["/assistant.css"]);
         await context.Response.WriteAsync("<h1>Assistant</h1>");
         await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations", true),
@@ -110,7 +111,8 @@ internal static class AssistantEndpoint {
                 : [];
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         SecurityHeaders.AllowScripts(context);
-        await ShellDocument.BeginAsync(context, conversation.Title, stylesheet: "/assistant.css", bodyClass: "assistant-page");
+        await ShellDocument.BeginAsync(context, conversation.Title,
+            SiteNavigation.For(context), stylesheets: ["/assistant.css"], bodyClass: "assistant-page");
         await context.Response.WriteAsync($"<h1>{Encode(conversation.Title)}</h1>");
         await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations"),
@@ -460,7 +462,8 @@ internal static class AssistantEndpoint {
             return;
         }
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
-        await ShellDocument.BeginAsync(context, "Delete conversation", stylesheet: "/assistant.css");
+        await ShellDocument.BeginAsync(context, "Delete conversation",
+            SiteNavigation.For(context), stylesheets: ["/assistant.css"]);
         await context.Response.WriteAsync("<h1>Delete conversation</h1>");
         await context.Response.WriteAsync($"<p>Delete {Encode(conversation.Title)} and its transcript? Pages are not affected.</p>");
         await context.Response.WriteAsync($"""

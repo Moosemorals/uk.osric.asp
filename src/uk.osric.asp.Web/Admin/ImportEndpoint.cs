@@ -40,7 +40,8 @@ internal sealed class ImportEndpoint {
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         SecurityHeaders.AllowScripts(context);
 
-        await ShellDocument.BeginAsync(context, "Import pages", stylesheet: "/admin.css");
+        await ShellDocument.BeginAsync(context, "Import pages",
+            SiteNavigation.For(context), stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync("<h1>Import pages</h1>");
         await context.Response.WriteAsync(AdminNavigation.Nav("import"));
         await context.Response.WriteAsync($"""
@@ -162,7 +163,8 @@ internal sealed class ImportEndpoint {
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         SecurityHeaders.AllowScripts(context);
 
-        await ShellDocument.BeginAsync(context, "Review import", stylesheet: "/admin.css");
+        await ShellDocument.BeginAsync(context, "Review import",
+            SiteNavigation.For(context), stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync($"<h1>Import {DescribeCount(stage.Pages.Count, "page")}</h1>");
         await context.Response.WriteAsync(AdminNavigation.Nav("import"));
         await context.Response.WriteAsync("""
@@ -306,7 +308,8 @@ internal sealed class ImportEndpoint {
         await ShellDocument.BeginAsync(
             context,
             "Import progress",
-            stylesheet: "/admin.css",
+            SiteNavigation.For(context),
+            stylesheets: ["/admin.css"],
             head: running ? """<meta http-equiv="refresh" content="2">""" : null);
         await context.Response.WriteAsync("<h1>Import progress</h1>");
         await context.Response.WriteAsync(AdminNavigation.Nav("import"));
@@ -462,7 +465,8 @@ internal sealed class ImportEndpoint {
             context.RequestAborted);
 
     private static async Task WriteRejectedAsync(HttpContext context, IReadOnlyList<string> problems) {
-        await ShellDocument.BeginAsync(context, "Import failed", StatusCodes.Status400BadRequest, stylesheet: "/admin.css");
+        await ShellDocument.BeginAsync(context, "Import failed",
+            SiteNavigation.For(context), StatusCodes.Status400BadRequest, stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync("<h1>That archive could not be imported</h1>");
         await context.Response.WriteAsync(AdminNavigation.Nav("import"));
         await context.Response.WriteAsync(PageLayout.Diagnostics(
