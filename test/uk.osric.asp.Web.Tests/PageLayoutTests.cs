@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using NUnit.Framework;
 using System.Text.RegularExpressions;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Web.Html;

@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using NUnit.Framework;
 using System.Security.Claims;
 using uk.osric.asp.Web.Health;
 

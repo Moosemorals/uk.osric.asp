@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
-using NUnit.Framework;
 using System.Net;
 
 [TestFixture]

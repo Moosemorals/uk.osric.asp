@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
-using NUnit.Framework;
 
 /// <summary>The import page's drop zone, which is an enhancement over a working file input.</summary>
 [TestFixture]

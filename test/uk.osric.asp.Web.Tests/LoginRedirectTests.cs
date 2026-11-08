@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
-using NUnit.Framework;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Authentication;
 

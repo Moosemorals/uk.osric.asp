@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Metrics;
 
 using System.Globalization;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;

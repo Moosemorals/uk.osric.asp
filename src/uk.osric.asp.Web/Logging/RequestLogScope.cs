@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Logging;
 
-using Microsoft.AspNetCore.Routing;
 using System.Security.Claims;
 
 /// <summary>Puts the request's ambient facts on every line written while it is answered.</summary>

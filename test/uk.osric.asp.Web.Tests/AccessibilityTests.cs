@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using NUnit.Framework;
 using System.Collections.Concurrent;
 
 /// <summary>The accessibility rules every document the shell renders has to keep.</summary>

@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.IntegrationTests;
 
 using Microsoft.Extensions.Logging;
-using NUnit.Framework;
 using System.Net;
 
 [TestFixture]

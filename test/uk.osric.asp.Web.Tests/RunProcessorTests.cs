@@ -7,8 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using NUnit.Framework;
-using System.Net.Http;
 using System.Runtime.CompilerServices;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;

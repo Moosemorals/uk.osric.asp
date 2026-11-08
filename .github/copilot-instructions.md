@@ -85,6 +85,9 @@ Core host dies at startup.
 layout, naming, SPDX headers and framework conventions are deliberately not restated here. The
 judgement calls it cannot express:
 
+- Declare only the usings a file adds beyond the SDK's: `ImplicitUsings` supplies the built-in
+  namespaces everywhere and test projects take `NUnit.Framework` project-wide, so a file never
+  repeats `System.*`, the hosting namespaces or the test framework.
 - `record`/`record struct` for immutable data and value objects, `class` for behaviour, `struct` only
   for small immutable values. Primary constructors for classes that only capture dependencies.
 - Prefer interfaces over abstract base classes as extension points.

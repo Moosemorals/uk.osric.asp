@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-using Microsoft.Extensions.Configuration;
-
 /// <summary>Bounds what one page render may cost the process that runs it.</summary>
 /// <remarks>
 /// The deadline is the whole budget for a request: queueing for a slot counts against it, because a

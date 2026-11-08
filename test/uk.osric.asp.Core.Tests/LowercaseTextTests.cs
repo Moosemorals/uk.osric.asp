@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Core.Tests;
 
-using NUnit.Framework;
 using uk.osric.asp.Core.Text;
 
 [TestFixture]

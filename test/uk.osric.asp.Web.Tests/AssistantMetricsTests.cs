@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using NUnit.Framework;
 using System.Diagnostics.Metrics;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;

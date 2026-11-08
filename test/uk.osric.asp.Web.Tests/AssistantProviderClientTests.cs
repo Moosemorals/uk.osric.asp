@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Logging.Abstractions;
-using NUnit.Framework;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Http.Headers;

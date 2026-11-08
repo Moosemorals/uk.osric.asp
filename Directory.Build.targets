@@ -13,6 +13,14 @@ SPDX-License-Identifier: MIT
   </PropertyGroup>
 
   <!--
+    Every test asserts, so the framework is one project-wide using rather than a line repeated in
+    every file. Helpers and fakes in a test project share it with no harm.
+  -->
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
+  <!--
     The repository root is embedded in test assemblies so tests can locate the web app
     without depending on the working directory they happen to be run from.
   -->

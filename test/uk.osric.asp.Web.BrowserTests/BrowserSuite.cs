@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
-using NUnit.Framework;
 
 /// <summary>
 /// Starts the host and the browser once for the whole suite. One host keeps the suite to a handful of

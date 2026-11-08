@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using NUnit.Framework;
 using uk.osric.asp.Web.Health;
 using uk.osric.asp.Web.Pages;
 

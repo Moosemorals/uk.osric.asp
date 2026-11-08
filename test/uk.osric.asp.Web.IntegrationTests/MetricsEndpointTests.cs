@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
-using NUnit.Framework;
 using System.Net;
 
 /// <summary>Proves the scrape endpoint exports our meter with the buckets the dashboard reads.</summary>

@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Configuration;
-using NUnit.Framework;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>Proves a budget may be a fraction of a second, and is never configured away.</summary>

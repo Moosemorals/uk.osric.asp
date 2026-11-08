@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.Users;
 
-using Microsoft.Extensions.DependencyInjection;
-
 /// <summary>The account command that runs before the web host starts.</summary>
 internal static class UserCommands {
 

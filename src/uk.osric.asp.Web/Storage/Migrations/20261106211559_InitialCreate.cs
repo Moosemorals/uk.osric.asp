@@ -6,7 +6,6 @@
 namespace uk.osric.asp.Web.Storage.Migrations;
 
 using Microsoft.EntityFrameworkCore.Migrations;
-using System;
 
 /// <inheritdoc />
 internal partial class InitialCreate : Migration {

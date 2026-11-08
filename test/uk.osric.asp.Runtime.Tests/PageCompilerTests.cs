@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Runtime.Tests;
 
-using NUnit.Framework;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;

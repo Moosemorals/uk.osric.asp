@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
-using NUnit.Framework;
 using System.Reflection;
 using System.Text.Json;
 using uk.osric.asp.Core.Pages;

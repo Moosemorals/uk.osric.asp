@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
-using NUnit.Framework;
 using uk.osric.asp.Web.Users;
 
 [TestFixture]

@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
-using NUnit.Framework;
 using System.Net;
 
 /// <summary>Caddy terminates TLS, so the request scheme only becomes honest once its headers are trusted.</summary>

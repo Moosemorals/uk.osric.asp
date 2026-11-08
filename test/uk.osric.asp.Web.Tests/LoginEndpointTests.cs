@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
-using NUnit.Framework;
 using System.Security.Claims;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Users;

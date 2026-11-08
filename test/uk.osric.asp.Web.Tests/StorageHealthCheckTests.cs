@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using NUnit.Framework;
 using uk.osric.asp.Web.Health;
 using uk.osric.asp.Web.Storage;
 

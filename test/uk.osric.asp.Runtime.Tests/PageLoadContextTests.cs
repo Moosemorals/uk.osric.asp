@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Runtime.Tests;
 
-using NUnit.Framework;
 using System.Reflection;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;

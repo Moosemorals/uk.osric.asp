@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
-using NUnit.Framework;
 using uk.osric.asp.Web.Html;
 
 [TestFixture]

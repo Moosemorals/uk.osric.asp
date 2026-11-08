@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.Metrics;
 
-using Microsoft.Extensions.Configuration;
-
 /// <summary>Where the dashboard reads metrics from and how its axis labels are written.</summary>
 internal sealed record MetricsOptions {
 

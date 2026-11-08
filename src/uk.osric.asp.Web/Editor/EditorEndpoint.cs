@@ -4,8 +4,6 @@
 namespace uk.osric.asp.Web.Editor;
 
 using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using System.Globalization;

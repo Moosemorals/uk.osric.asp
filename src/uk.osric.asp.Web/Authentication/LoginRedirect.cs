@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Authentication;
 
-using Microsoft.AspNetCore.Http;
 using uk.osric.asp.Core.Pages;
 
 /// <summary>Builds the sign-in URL a page redirects an anonymous visitor to.</summary>

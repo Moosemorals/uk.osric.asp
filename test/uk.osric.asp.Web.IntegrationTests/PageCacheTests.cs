@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
-using NUnit.Framework;
 using System.Net;
 
 /// <summary>Proves, through the real host, that a page is compiled once rather than per request.</summary>

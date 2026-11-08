@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-using Microsoft.Extensions.Configuration;
-
 /// <summary>Bounds what one page's key/value store may cost.</summary>
 /// <remarks>
 /// Every cap is clamped to a safe minimum, and <see cref="MaxPageBytes"/> is never allowed below

@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Authentication;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>Reads and writes <see cref="AuthTicket"/> rows, opening a scope per call.</summary>

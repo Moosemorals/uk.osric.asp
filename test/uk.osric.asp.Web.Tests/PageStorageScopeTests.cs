@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using NUnit.Framework;
 using System.Text.Json;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;

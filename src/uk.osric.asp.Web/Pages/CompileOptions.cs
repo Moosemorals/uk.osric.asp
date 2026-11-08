@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-using Microsoft.Extensions.Configuration;
-
 /// <summary>Bounds what one compilation may cost.</summary>
 /// <remarks>
 /// Roslyn honours a cancellation token between operations rather than inside one, so the timeout is a

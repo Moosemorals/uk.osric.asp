@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.Admin;
 
-using Microsoft.Extensions.DependencyInjection;
-
 /// <summary>Runs approved imports one at a time, each in its own scope.</summary>
 /// <remarks>
 /// One at a time because <c>CompileSlots</c> is one: a second import would only wait behind the

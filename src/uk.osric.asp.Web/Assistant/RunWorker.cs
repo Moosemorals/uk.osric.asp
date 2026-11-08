@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Assistant;
 
-using Microsoft.Extensions.DependencyInjection;
 using uk.osric.asp.Web.Logging;
 
 /// <summary>Reads the run queue and runs jobs within the configured concurrency.</summary>

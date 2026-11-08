@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.IntegrationTests;
 
 using Microsoft.AspNetCore.Mvc.Testing;
-using NUnit.Framework;
 using System.Net;
 using System.Text.RegularExpressions;
 

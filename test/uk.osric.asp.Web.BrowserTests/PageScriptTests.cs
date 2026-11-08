@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.BrowserTests;
 
-using NUnit.Framework;
-
 /// <summary>A stored page may load a script it serves from the same origin.</summary>
 [TestFixture]
 internal sealed class PageScriptTests : BrowserTest {

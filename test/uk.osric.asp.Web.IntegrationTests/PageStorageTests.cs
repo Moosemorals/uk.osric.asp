@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.IntegrationTests;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using NUnit.Framework;
 using System.Net;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;

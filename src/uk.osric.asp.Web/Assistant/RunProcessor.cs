@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Assistant;
 
-using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;

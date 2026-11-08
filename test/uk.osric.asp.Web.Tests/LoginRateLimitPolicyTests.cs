@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using NUnit.Framework;
 using System.Globalization;
 using System.Net;
 using uk.osric.asp.Web.Authentication;

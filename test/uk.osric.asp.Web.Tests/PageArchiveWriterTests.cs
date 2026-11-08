@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
-using NUnit.Framework;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Pages;

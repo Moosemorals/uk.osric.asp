@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-using Microsoft.Extensions.Configuration;
-
 /// <summary>Bounds and enables a page's outbound HTTP.</summary>
 /// <remarks>
 /// <para>

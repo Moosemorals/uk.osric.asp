@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.IntegrationTests;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using NUnit.Framework;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;

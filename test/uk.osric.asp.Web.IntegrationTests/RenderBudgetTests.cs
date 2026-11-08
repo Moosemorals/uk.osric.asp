@@ -3,9 +3,7 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
-using NUnit.Framework;
 using System.Net;
-using System.Net.Http;
 
 /// <summary>Proves a page that outruns its budget is answered, not waited on, by the real host.</summary>
 [TestFixture]

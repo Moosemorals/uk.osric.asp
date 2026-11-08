@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
-using NUnit.Framework;
 using System.Globalization;
 
 /// <summary>A tool call that needs the owner's decision before it touches a page.</summary>

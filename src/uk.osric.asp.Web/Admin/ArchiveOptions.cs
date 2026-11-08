@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.Admin;
 
-using Microsoft.Extensions.Configuration;
-
 /// <summary>Every bound an import archive may reach, in one place.</summary>
 /// <remarks>
 /// These bound one hostile upload; they are not a policy on the site's own pages. A large site's

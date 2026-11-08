@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Runtime.Tests;
 
-using NUnit.Framework;
 using uk.osric.asp.Core.Compilation;
 
 /// <summary>Generates page source for a fixture, failing when the template does not parse.</summary>

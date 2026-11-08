@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 

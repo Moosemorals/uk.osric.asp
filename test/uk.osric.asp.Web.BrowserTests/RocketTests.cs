@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.BrowserTests;
 
-using NUnit.Framework;
-
 /// <summary>The site's icon is a stored page, and it has to survive the page content security policy.</summary>
 [TestFixture]
 internal sealed class RocketTests : BrowserTest {

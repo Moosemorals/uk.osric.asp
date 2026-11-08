@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
-using NUnit.Framework;
 using System.Globalization;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Admin;

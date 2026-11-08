@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
-using NUnit.Framework;
 using System.Net;
 
 /// <summary>Proves the promise that no human is handed a blank failure, and no program is handed HTML.</summary>

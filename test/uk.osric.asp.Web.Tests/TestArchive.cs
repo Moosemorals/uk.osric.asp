@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Data.Sqlite;
-using NUnit.Framework;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using uk.osric.asp.Web.Admin;

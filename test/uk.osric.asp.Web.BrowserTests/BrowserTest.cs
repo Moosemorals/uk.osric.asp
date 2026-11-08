@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
-using NUnit.Framework;
 using System.Globalization;
 using System.Text.RegularExpressions;
 

@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Options;
-using NUnit.Framework;
 using uk.osric.asp.Web.Assistant;
 
 [TestFixture]
