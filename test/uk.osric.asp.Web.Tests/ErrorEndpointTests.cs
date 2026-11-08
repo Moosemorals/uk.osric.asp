@@ -73,8 +73,38 @@ public sealed class ErrorEndpointTests {
         Assert.That(context.Response.Headers.CacheControl, Is.EqualTo("no-store"));
     }
 
-    private static DefaultHttpContext CreateContext(Exception? error, bool authenticated = false) {
+    [Test]
+    public async Task AuthenticatedErrorOnAPageOffersTheEditorAsync() {
+        DefaultHttpContext context = CreateContext(new InvalidOperationException("Boom."), authenticated: true);
+
+        await ErrorEndpoint.HandleAsync(context);
+
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("href=\"/edit/boom\">Edit this page"));
+    }
+
+    [Test]
+    public async Task AuthenticatedErrorOnAShellRouteOffersNoEditorAsync() {
+        DefaultHttpContext context = CreateContext(new InvalidOperationException("Boom."), authenticated: true, path: "/metrics");
+
+        await ErrorEndpoint.HandleAsync(context);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Not.Contain("href=\"/edit/metrics\""));
+        Assert.That(body, Does.Contain("Return to the home page"));
+    }
+
+    [Test]
+    public async Task AnonymousErrorOffersNoEditorAsync() {
+        DefaultHttpContext context = CreateContext(new InvalidOperationException("Boom."), path: "/boom");
+
+        await ErrorEndpoint.HandleAsync(context);
+
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Not.Contain("href=\"/edit/boom\""));
+    }
+
+    private static DefaultHttpContext CreateContext(Exception? error, bool authenticated = false, string path = "/boom") {
         DefaultHttpContext context = TestHttp.CreateContext(null);
+        context.Request.Path = path;
         context.TraceIdentifier = "trace";
         if (authenticated) {
             context.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "owner")], "test"));
@@ -83,7 +113,7 @@ public sealed class ErrorEndpointTests {
         if (error is not null) {
             context.Features.Set<IExceptionHandlerPathFeature>(new ExceptionHandlerFeature {
                 Error = error,
-                Path = "/boom",
+                Path = path,
             });
         }
         return context;

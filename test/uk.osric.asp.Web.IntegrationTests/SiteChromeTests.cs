@@ -158,6 +158,19 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     }
 
     [Test]
+    public async Task ASignedInOwnerIsSentToTheEditorWhenThePageSetsNoTitle() {
+        await SavePageAsync("/untitled", "<h1>Forgot</h1>");
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync("/untitled");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+        Assert.That(body, Does.Contain("<h1>The page set no title</h1>"));
+        Assert.That(body, Does.Contain("href=\"/edit/untitled\">Edit this page"));
+    }
+
+    [Test]
     public async Task APageThatClearsItsLayoutIsServedUnwrapped() {
         await SavePageAsync("/own-document", """
             <% ctx.Features.GetRequired<IPageLayout>().Layout = null; %><!DOCTYPE html>

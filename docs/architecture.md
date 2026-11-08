@@ -294,6 +294,13 @@ code and the reference id; a request that accepts JSON without HTML gets an RFC 
 from `Accept` alone; a request that names neither is treated as a browser, because a person who gets a
 document can still read it.
 
+The recovery nav gains an "Edit this page" link for a signed-in owner whenever the failing request
+named a page the site serves — the key is addressable and not one of `Pages:ReservedPaths` — and never
+for a shell route, so a failure on `/metrics` cannot offer to edit it. The link is derived from the
+request by the writer rather than passed in by each call site, which is why the layout errors from
+`PageChain` and the exception page agree. A remedy that already leads to that editor URL, such as
+`NotFound`'s "Create this page", is left as it is.
+
 Three layers keep the promise:
 
 - Call sites that know the problem say it. `NotFound` keeps `"{key} not found."` and adds a

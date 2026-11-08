@@ -153,6 +153,27 @@ public sealed class PageLayoutChainTests {
     }
 
     [Test]
+    public async Task AnUntitledPageOffersItsEditorToTheSignedInOwner() {
+        StoreLayout();
+        Store("/untitled", "<h1>Forgot</h1>");
+
+        Rendered rendered = await RenderAsync("/untitled", signedIn: true);
+
+        Assert.That(rendered.Context.Response.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+        Assert.That(rendered.Body, Does.Contain("href=\"/edit/untitled\">Edit this page"));
+    }
+
+    [Test]
+    public async Task AnUntitledPageOffersNoEditorToAnAnonymousVisitor() {
+        StoreLayout();
+        Store("/untitled", "<h1>Forgot</h1>");
+
+        Rendered rendered = await RenderAsync("/untitled");
+
+        Assert.That(rendered.Body, Does.Not.Contain("href=\"/edit/untitled\""));
+    }
+
+    [Test]
     public void ReadingATitleThatWasNeverSetThrows() {
         PageLayoutState layout = new(DefaultLayout);
 

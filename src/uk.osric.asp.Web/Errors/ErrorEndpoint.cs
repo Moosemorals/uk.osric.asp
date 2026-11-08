@@ -7,10 +7,8 @@ using Microsoft.AspNetCore.Diagnostics;
 using System.Diagnostics;
 using System.Net;
 using System.Reflection;
-using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
-using uk.osric.asp.Web.Http;
 
 /// <summary>Writes the error page from inside the exception handler.</summary>
 internal static class ErrorEndpoint {
@@ -39,17 +37,15 @@ internal static class ErrorEndpoint {
         }
 
         string path = pathFeature?.Path ?? context.Request.Path.Value ?? "/";
-        List<NavLink> remedies = [];
-        if (isAuthenticated) {
-            remedies.Add(new(PageUrls.Editor(PagePath.Normalize(path)), "Edit this page"));
-        }
-        remedies.Add(new("/", "Return to the home page"));
 
+        // The editor link is the document writer's job: it offers one when the request named a page a
+        // signed-in owner can edit, and the exception handler does not have to know which paths those
+        // are.
         ErrorMessage message = new(
             unexpected.Code,
             "Something went wrong",
             userFacingException?.Message ?? "An unexpected error occurred. Please try again.",
-            remedies);
+            [new("/", "Return to the home page")]);
 
         string? details = showDetails ? EditorDetails(exception!, path) : null;
         await ErrorResponses.WriteHtmlAsync(

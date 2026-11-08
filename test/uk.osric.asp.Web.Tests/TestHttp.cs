@@ -7,15 +7,18 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>Request and response plumbing shared by the endpoint fixtures.</summary>
 internal static class TestHttp {
 
     // A real DefaultHttpContext throws from RequestServices when nothing supplied one, and the shell
-    // reaches for a logger there on the paths a test only sometimes takes. Logging is the only thing
-    // an endpoint asks the request for, so a bare factory is enough.
+    // reaches for a logger there on the paths a test only sometimes takes. The documented error page
+    // also asks which keys the site's own routes own, so the reserved list is here as it is in the
+    // host.
     private static readonly IServiceProvider s_services = new ServiceCollection()
         .AddLogging()
+        .AddSingleton(new ReservedPaths(ReservedPaths.Default))
         .BuildServiceProvider();
 
     /// <summary>Builds a context whose body can be read back after the handler has run.</summary>

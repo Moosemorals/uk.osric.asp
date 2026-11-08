@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>Writes a failed response for whichever audience asked for it.</summary>
 /// <remarks>
@@ -17,6 +19,12 @@ using uk.osric.asp.Web.Http;
 /// explanation and links that lead somewhere useful; a program gets an RFC 9457 problem document.
 /// Call sites that know something specific say it; <see cref="ErrorMessage.ForStatus"/> covers
 /// everything that does not, which is what the status-code fallback in the host uses.
+/// <para>
+/// The document also offers the editor for the page the request named, when the reader is signed in
+/// and the key is one the page route owns. That is derived from the request rather than passed in,
+/// so no call site can forget it, and a shell route's failure cannot offer to edit a page that does
+/// not exist.
+/// </para>
 /// </remarks>
 internal static class ErrorResponses {
 
@@ -71,8 +79,9 @@ internal static class ErrorResponses {
         if (detailsHtml is not null) {
             await context.Response.WriteAsync(detailsHtml, cancellationToken);
         }
-        if (message.Remedies.Count > 0) {
-            await context.Response.WriteAsync(PageDocument.Nav("Recovery navigation", message.Remedies, "editor-menu"), cancellationToken);
+        IReadOnlyList<NavLink> remedies = Remedies(context, message.Remedies);
+        if (remedies.Count > 0) {
+            await context.Response.WriteAsync(PageDocument.Nav("Recovery navigation", remedies, "editor-menu"), cancellationToken);
         }
         // The code is the same identifier the problem document carries, so a person reporting a
         // failure and a program logging one name it the same way.
@@ -125,5 +134,29 @@ internal static class ErrorResponses {
 
     private sealed record ProblemResult(int StatusCode, ErrorMessage Message) : IResult {
         public Task ExecuteAsync(HttpContext context) => WriteJsonAsync(context, StatusCode, Message);
+    }
+
+    // The editor link belongs to the page that failed, and only the request knows whether it named
+    // one: a shell route's document must not offer to edit /metrics. The link is added only when no
+    // remedy already leads to that editor URL, so NotFound's "Create this page" keeps its wording.
+    private static IReadOnlyList<NavLink> Remedies(HttpContext context, IReadOnlyList<NavLink> remedies) {
+        if (context.User.Identity?.IsAuthenticated != true
+            || context.RequestServices?.GetService<ReservedPaths>() is not { } reserved) {
+            return remedies;
+        }
+
+        PagePath path = PagePath.Normalize(context.Request.Path.Value);
+        if (!path.IsAddressable || reserved.IsReserved(path)) {
+            return remedies;
+        }
+
+        string editor = PageUrls.Editor(path);
+        foreach (NavLink remedy in remedies) {
+            if (string.Equals(remedy.Href, editor, StringComparison.Ordinal)) {
+                return remedies;
+            }
+        }
+
+        return [new(editor, "Edit this page"), .. remedies];
     }
 }
