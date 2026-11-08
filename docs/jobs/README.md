@@ -84,9 +84,9 @@ self-contained comes first, because these are the ones that never get scheduled 
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
-10. **IDEA-021, script validation** — an assistant tool, not a save gate. It is small once the
-    [content-type plan](../plans/archive/page-content-types.md) names the source language; until then it
-    can still validate supplied content directly.
+10. **IDEA-021, script validation** — an assistant tool, not a save gate. It is small now that the
+    [content-type plan](../plans/archive/page-content-types.md) names the source language, and it
+    can still validate supplied content directly for a key the map does not resolve to JavaScript.
 
 ## Closed
 
