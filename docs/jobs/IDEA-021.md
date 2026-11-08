@@ -23,10 +23,10 @@ Add a read-only tool that parses the script and returns syntax diagnostics with 
 stable code. It is a helper for the assistant, not a replacement for its judgement, and not a gate
 on saving.
 
-The [content-type plan](../plans/page-content-types.md) supplies the useful signal: a key ending in
-`.js` or `.mjs` is JavaScript source. The validator is useful without that plan — it can validate
-supplied content directly — but the plan makes the common path exact and lets the prompt name the
-convention.
+The [content-type plan](../plans/page-content-types.md) supplies the useful signal: a key whose
+extension the site's content-type map resolves to JavaScript is JavaScript source. The validator is
+useful without that plan — it can validate supplied content directly — but the plan makes the
+common path exact and lets the prompt name the convention.
 
 ## Sketch
 
@@ -299,8 +299,8 @@ tool timeout.
   tool shape.
 - Whether the result includes source context and how many lines; whether unclosed-opener hints are
   warnings in `diagnostics` or a separate `hints` array.
-- Whether `content` alone is enough (no path) and whether a path whose extension is not `.js`/`.mjs`
-  should be refused or still validated as JavaScript.
+- Whether `content` alone is enough (no path) and whether a path whose extension the map does not
+  resolve to JavaScript should be refused or still validated as JavaScript.
 - Whether import specifiers should be resolved against stored pages. Syntax validation does not
   need it; a missing import is a runtime failure, not a parse failure, and checking it would add a
   second meaning to "valid".
