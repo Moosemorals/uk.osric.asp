@@ -23,23 +23,6 @@ internal static class PageLayout {
                 .Select(number => $"<span id=\"{LineAnchor(number)}\">{number}</span>"))
         + "</div>";
 
-    /// <summary>Renders a navigation landmark from its label and links.</summary>
-    /// <param name="label">The landmark's accessible name, which no other <c>nav</c> may repeat.</param>
-    /// <param name="links">The links, in reading order.</param>
-    /// <param name="className">A class for the <c>nav</c>, when the view styles it.</param>
-    /// <remarks>The label is required, so an unnamed navigation landmark cannot be written.</remarks>
-    public static string Nav(string label, IReadOnlyList<NavLink> links, string? className = null) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(label);
-        ArgumentNullException.ThrowIfNull(links);
-
-        string attribute = className is null ? string.Empty : $" class=\"{WebUtility.HtmlEncode(className)}\"";
-        string body = string.Join(" ", links.Select(link => link.IsCurrent
-            ? $"<span class=\"current\" aria-current=\"true\">{WebUtility.HtmlEncode(link.Text)}</span>"
-            : $"<a href=\"{WebUtility.HtmlEncode(link.Href)}\">{WebUtility.HtmlEncode(link.Text)}</a>"));
-
-        return $"<nav{attribute} aria-label=\"{WebUtility.HtmlEncode(label)}\">{body}</nav>";
-    }
-
     /// <summary>Renders diagnostic lines as a list, encoding every message.</summary>
     /// <param name="lines">The lines to show, in the order given.</param>
     /// <param name="linkToLines">Whether a line with a number links to that gutter number.</param>

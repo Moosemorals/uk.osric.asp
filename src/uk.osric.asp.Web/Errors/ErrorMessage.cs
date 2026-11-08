@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Errors;
 
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 
 /// <summary>One failure, worded for the person who hit it: what went wrong and what to do next.</summary>

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 
@@ -70,7 +71,7 @@ internal static class ErrorResponses {
             await context.Response.WriteAsync(detailsHtml, cancellationToken);
         }
         if (message.Remedies.Count > 0) {
-            await context.Response.WriteAsync(PageLayout.Nav("Recovery navigation", message.Remedies, "editor-menu"), cancellationToken);
+            await context.Response.WriteAsync(PageDocument.Nav("Recovery navigation", message.Remedies, "editor-menu"), cancellationToken);
         }
         // The code is the same identifier the problem document carries, so a person reporting a
         // failure and a program logging one name it the same way.

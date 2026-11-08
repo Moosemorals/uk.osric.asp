@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Admin;
 
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 
 /// <summary>The navigation landmark the two administration views share.</summary>
@@ -20,6 +21,6 @@ internal static class AdminNavigation {
             new("/edit", "Page list"),
         ];
 
-        return PageLayout.Nav(Label, links, "editor-menu");
+        return PageDocument.Nav(Label, links, "editor-menu");
     }
 }

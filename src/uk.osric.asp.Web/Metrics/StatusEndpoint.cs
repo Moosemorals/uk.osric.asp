@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Metrics;
 
 using System.Net;
 using uk.osric.asp.Core.Charting;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 
@@ -54,7 +55,7 @@ internal static class StatusEndpoint {
             duration.Token,
             duration.Token == current.Token))];
 
-        return context.Response.WriteAsync(PageLayout.Nav("Time window", links, "status-nav"), cancellationToken);
+        return context.Response.WriteAsync(PageDocument.Nav("Time window", links, "status-nav"), cancellationToken);
     }
 
     private static async Task WriteLegendAsync(HttpContext context, IReadOnlyList<string> labels) {

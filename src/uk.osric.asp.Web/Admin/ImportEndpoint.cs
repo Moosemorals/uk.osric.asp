@@ -10,6 +10,7 @@ using System.Net;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
@@ -467,7 +468,7 @@ internal sealed class ImportEndpoint {
         await context.Response.WriteAsync(PageLayout.Diagnostics(
             [.. problems.Select(problem => new DiagnosticLine(problem, PageDiagnosticSeverity.Error, null))]));
         await context.Response.WriteAsync("<p>Nothing was staged or saved.</p>");
-        await context.Response.WriteAsync(PageLayout.Nav("Recovery navigation", [
+        await context.Response.WriteAsync(PageDocument.Nav("Recovery navigation", [
             new("/admin/import", "Choose another file"),
             new("/edit", "Page list"),
         ], "editor-menu"));

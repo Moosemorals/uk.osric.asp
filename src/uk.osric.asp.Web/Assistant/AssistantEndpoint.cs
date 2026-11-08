@@ -13,6 +13,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Text;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
@@ -52,7 +53,7 @@ internal static class AssistantEndpoint {
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         await ShellDocument.BeginAsync(context, "Assistant", stylesheet: "/assistant.css");
         await context.Response.WriteAsync("<h1>Assistant</h1>");
-        await context.Response.WriteAsync(PageLayout.Nav("Assistant navigation", [
+        await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations", true),
             new("/edit", "Page list"),
         ]));
@@ -111,7 +112,7 @@ internal static class AssistantEndpoint {
         SecurityHeaders.AllowScripts(context);
         await ShellDocument.BeginAsync(context, conversation.Title, stylesheet: "/assistant.css", bodyClass: "assistant-page");
         await context.Response.WriteAsync($"<h1>{Encode(conversation.Title)}</h1>");
-        await context.Response.WriteAsync(PageLayout.Nav("Assistant navigation", [
+        await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations"),
             new("/edit", "Page list"),
         ]));

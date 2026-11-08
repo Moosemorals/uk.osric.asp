@@ -10,6 +10,7 @@ using System.Globalization;
 using System.Net;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Errors;
@@ -336,7 +337,7 @@ internal sealed class EditorEndpoint {
             menu.Add(new(PageUrls.EditorCommand(path, "scrub"), "Scrub retained history"));
         }
 
-        await context.Response.WriteAsync(PageLayout.Nav("Editor navigation", menu, "editor-menu"));
+        await context.Response.WriteAsync(PageDocument.Nav("Editor navigation", menu, "editor-menu"));
 
         await context.Response.WriteAsync($"""
             <form method="post" action="?" class="editor-form">
@@ -375,7 +376,7 @@ internal sealed class EditorEndpoint {
                 {AntiforgeryField.Hidden(tokens)}
                 <button type="submit">Delete page</button>
             </form>
-            {PageLayout.Nav("Confirmation navigation", [new(PageUrls.Editor(path), "Cancel")], "editor-menu")}
+            {PageDocument.Nav("Confirmation navigation", [new(PageUrls.Editor(path), "Cancel")], "editor-menu")}
             """);
         await ShellDocument.EndAsync(context);
     }
@@ -407,7 +408,7 @@ internal sealed class EditorEndpoint {
                 </dl>
                 <button type="submit">Permanently scrub</button>
             </form>
-            {PageLayout.Nav("Confirmation navigation", [new(PageUrls.Editor(path), "Cancel")], "editor-menu")}
+            {PageDocument.Nav("Confirmation navigation", [new(PageUrls.Editor(path), "Cancel")], "editor-menu")}
             """);
         await ShellDocument.EndAsync(context);
     }
@@ -548,7 +549,7 @@ internal sealed class EditorEndpoint {
             await ShellDocument.BeginAsync(context, "Scrub incomplete", StatusCodes.Status503ServiceUnavailable);
             await context.Response.WriteAsync("<h1>Scrub cleanup did not complete</h1>");
             await context.Response.WriteAsync("<p>Check the deleted pages list; if the page remains there, scrub it again. It may already have been logically removed.</p>");
-            await context.Response.WriteAsync(PageLayout.Nav("Recovery navigation", [new("/edit", "Page list")], "editor-menu"));
+            await context.Response.WriteAsync(PageDocument.Nav("Recovery navigation", [new("/edit", "Page list")], "editor-menu"));
             await ShellDocument.EndAsync(context);
         }
     }
@@ -669,7 +670,7 @@ internal sealed class EditorEndpoint {
         if (head.IsDeleted) {
             await context.Response.WriteAsync("<p>This page is deleted. Its revisions remain available here.</p>");
         }
-        await context.Response.WriteAsync(PageLayout.Nav("Editor navigation", [
+        await context.Response.WriteAsync(PageDocument.Nav("Editor navigation", [
             new(PageUrls.Editor(path), "Back to editor"),
             new("/edit", "Page list"),
         ], "editor-menu"));
@@ -698,7 +699,7 @@ internal sealed class EditorEndpoint {
         await ShellDocument.BeginAsync(context, "Saved revision", stylesheet: "/editor.css");
         await context.Response.WriteAsync($"<h1>Saved revision for {WebUtility.HtmlEncode(path.Key)}</h1>");
         await context.Response.WriteAsync($"<p>Saved {WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}; {WebUtility.HtmlEncode(revision.ImageStatus)}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}.</p>");
-        await context.Response.WriteAsync(PageLayout.Nav("Revision navigation", [
+        await context.Response.WriteAsync(PageDocument.Nav("Revision navigation", [
             new(PageUrls.EditorCommand(path, "history"), "Back to history"),
         ], "editor-menu"));
         await context.Response.WriteAsync($"<pre class=\"source\" tabindex=\"0\">{WebUtility.HtmlEncode(revision.Template)}</pre>");
