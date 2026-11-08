@@ -186,6 +186,35 @@ and applies them.
   may not support the migrated schema; restore its matching backup with the app stopped when
   necessary.
 
+## Content types
+
+A stored page's default response type comes from the last extension in its key:
+`Pages:ContentTypes:Extensions` maps an extension to a media type and `Pages:ContentTypes:Fallback`
+covers every other key (`text/html; charset=utf-8` by default). The shipped map lives in the image's
+`appsettings.json`; `ctx.SetContentType` is still the page's override.
+
+A host that wants a different map edits `~/.config/uk.osric.asp/appsettings.Production.json`, which
+`make deploy` seeds once with `{}` and the quadlet mounts read-only over
+`/app/appsettings.Production.json`. Providers merge key by key, so the file lists only what it
+changes — a new extension, a replacement row, or the fallback — and mapping a row to the fallback
+retracts it. Restart the service to apply an edit; that is not a redeploy:
+
+```bash
+ssh deploy@<server-ip> systemctl --user restart uk.osric.asp.service
+```
+
+A malformed row is fatal: the container does not come up and the journal names the offending key
+(`journalctl --user -u uk.osric.asp.service`). Check a response with `curl -sI` for both headers:
+
+```bash
+curl -sI https://moosemorals.com/site.css | grep -iE '^(content-type|cache-control):'
+```
+
+Every rendered page is `Cache-Control: no-cache` unless the page sets its own, and an authenticated
+response is `no-store` whatever the page set. `.svg` is deliberately not in the shipped map because
+it is active content; `/rocket.svg` sets `image/svg+xml` itself. The mount is read-only on purpose:
+no page, editor or assistant can change the map.
+
 ## Memory and swap
 
 The VM has 8 GB of RAM, which is enough for the app, Caddy, Prometheus, podman and the kernel to

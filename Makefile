@@ -379,6 +379,10 @@ deploy: deploy-guard check image | $(SSH_CONTROL_DIR)
 	@# absent. Seed it once so a host that never enables the assistant still starts; a host that does
 	@# has already filled it in, and `test -e` leaves the secret alone.
 	$(SSH) $(HOST) 'install -d -m 0700 .config/uk.osric.asp; test -e .config/uk.osric.asp/assistant.env || install -m 0600 /dev/null .config/uk.osric.asp/assistant.env'
+	@# The host's settings override is the same shape of problem: a single-file bind of a missing
+	@# path becomes a directory and the app cannot read it. Seed it once with an empty object, which
+	@# merges over the shipped section and changes nothing, and leave a host's own file alone.
+	$(SSH) $(HOST) 'test -e .config/uk.osric.asp/appsettings.Production.json || echo "{}" > .config/uk.osric.asp/appsettings.Production.json'
 	$(SSH) $(HOST) install -d .config/prometheus
 	$(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.network' < deploy/uk.osric.asp.network
 	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | $(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'

@@ -25,6 +25,11 @@ Environment="ConnectionStrings__Storage=Data Source=/data/storage.db"
 # rejects a missing path and does not understand systemd's `-` prefix. `make deploy` therefore
 # creates the file once, empty and mode 0600, so a host that never enables the assistant still starts.
 EnvironmentFile=%h/.config/uk.osric.asp/assistant.env
+# The host's own settings override: `Pages:ContentTypes` without a rebuild. It is mounted read-only
+# because the map is host configuration and no page, editor or assistant may write it; a file bind
+# fails differently from a directory, so `make deploy` seeds it with {} once and podman never turns
+# the missing path into a directory. A restart applies an edit.
+Volume=%h/.config/uk.osric.asp/appsettings.Production.json:/app/appsettings.Production.json:ro
 # The image ships APP_UID 1654; inside the user namespace it maps to a subuid on the host.
 User=1654:1654
 Volume=uk.osric.asp-storage:/data:U
