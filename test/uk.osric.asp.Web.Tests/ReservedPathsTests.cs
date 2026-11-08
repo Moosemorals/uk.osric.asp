@@ -22,8 +22,8 @@ public sealed class ReservedPathsTests {
     [TestCase("/status")]
     [TestCase("/assistant")]
     [TestCase("/assistant/1")]
-    [TestCase("/admin")]
     [TestCase("/admin/import")]
+    [TestCase("/admin/import/1")]
     [TestCase("/admin/export")]
     public void DefaultKeysAreReserved(string path) {
         Assert.That(Defaults.IsReserved(PagePath.Normalize(path)), Is.True);
@@ -40,6 +40,13 @@ public sealed class ReservedPathsTests {
     [TestCase("/adminx")]
     public void SimilarKeysAreNotReserved(string path) {
         Assert.That(Defaults.IsReserved(PagePath.Normalize(path)), Is.False);
+    }
+
+    [Test]
+    public void TheAdminIndexIsNotReservedButItsToolsAre() {
+        Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin")), Is.False);
+        Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/import")), Is.True);
+        Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/export")), Is.True);
     }
 
     [Test]

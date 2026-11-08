@@ -1,0 +1,8 @@
+<% var layout = ctx.Features.GetRequired<IPageLayout>();
+   layout.Title = "Administration";
+   if (ctx.User is null) { ctx.RedirectToLogin(); return; } %><h1>Administration</h1>
+<ul class="pages" role="list">
+<li><a href="/admin/import">Import pages</a></li>
+<li><a href="/admin/export">Export pages</a></li>
+<li><a href="/status">Status</a></li>
+</ul>

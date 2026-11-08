@@ -62,9 +62,19 @@ public sealed class PageArchiveReaderTests {
 
     [Test]
     public void AReservedPathIsRejected() {
-        byte[] bytes = TestArchive.Build([("/admin", "Admin")]);
+        byte[] bytes = TestArchive.Build([("/admin/import", "Admin")]);
 
         AssertRejected(Reader().Read(bytes), "reserved");
+    }
+
+    [Test]
+    public void TheAdminIndexIsNotReservedSoAnArchiveMayCarryIt() {
+        byte[] bytes = TestArchive.Build([("/admin", "Admin")]);
+
+        PageArchiveReadResult result = Reader().Read(bytes);
+
+        Assert.That(result.Problems, Is.Empty);
+        Assert.That(result.Pages.Single().Path.Key, Is.EqualTo("/admin"));
     }
 
     [Test]

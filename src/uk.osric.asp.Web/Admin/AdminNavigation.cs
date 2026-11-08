@@ -16,6 +16,7 @@ internal static class AdminNavigation {
     /// <param name="current">The view being shown, so its own link is marked rather than repeated.</param>
     public static string Nav(string current) {
         List<NavLink> links = [
+            new("/admin", "Administration", string.Equals(current, "index", StringComparison.Ordinal)),
             new("/admin/import", "Import pages", string.Equals(current, "import", StringComparison.Ordinal)),
             new("/admin/export", "Export pages", string.Equals(current, "export", StringComparison.Ordinal)),
             new("/edit", "Page list"),

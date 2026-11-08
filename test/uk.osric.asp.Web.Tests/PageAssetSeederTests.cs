@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/layout.css", "/rocket.svg", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/_layout", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/layout.css", "/rocket.svg", "/site.css", "/status.css"];
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {
@@ -58,6 +58,16 @@ public sealed class PageAssetSeederTests {
         string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
 
         Assert.That(template, Does.Not.Contain("<%"));
+    }
+
+    [Test]
+    public async Task TheAdminIndexIsAReachableFragment() {
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/admin"));
+
+        Assert.That(template, Is.Not.Null);
+        Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
+        Assert.That(template, Does.Contain("<h1>Administration</h1>"));
+        Assert.That(template, Does.Contain("/admin/import").And.Contain("/admin/export").And.Contain("/status"));
     }
 
     [Test]

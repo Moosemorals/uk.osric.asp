@@ -30,6 +30,7 @@ SPDX-License-Identifier = "MIT"
 [[annotations]]
 path = [
   "src/uk.osric.asp.Web/Pages/Seeds/_layout",
+  "src/uk.osric.asp.Web/Pages/Seeds/admin",
 ]
 SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
 SPDX-License-Identifier = "MIT"

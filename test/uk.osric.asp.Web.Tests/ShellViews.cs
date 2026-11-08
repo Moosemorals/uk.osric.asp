@@ -57,6 +57,7 @@ internal static class ShellViews {
         "admin-import-failed",
         "admin-import-review",
         "admin-import-progress",
+        "admin",
     ];
 
     /// <summary>Renders one of <see cref="Names"/>.</summary>
@@ -85,6 +86,7 @@ internal static class ShellViews {
         "admin-import-failed" => RenderAsync(name, AdminImportFailedAsync),
         "admin-import-review" => RenderAsync(name, AdminImportReviewAsync),
         "admin-import-progress" => RenderAsync(name, AdminImportProgressAsync),
+        "admin" => RenderAsync(name, AdminAsync),
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, "No such shell view."),
     };
 
@@ -105,6 +107,42 @@ internal static class ShellViews {
             [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
 
         await LoginEndpoint.LogoutConfirmationAsync(context, new TestAntiforgery());
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    // The administration index is a stored page, so it is rendered the way the host renders one: the
+    // seeded fragment wrapped in the seeded layout.
+    private static async Task<string> AdminAsync() {
+        FakePageStore pages = new();
+        foreach (string seed in new[] { "/_layout", "/admin" }) {
+            pages[seed] = new PageTemplate(
+                PageHarness.Key(seed),
+                await PageAssetSeeder.ReadSeedTemplateAsync(PageHarness.Key(seed)) ?? string.Empty);
+        }
+
+        DefaultHttpContext context = TestHttp.CreateContext("admin", "GET", "/admin");
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
+
+        using PageHarness harness = new(pages);
+        using PageMetrics metrics = new();
+
+        await PageEndpoint.HandleAsync(
+            context,
+            harness.Renderer,
+            NullLoggerFactory.Instance,
+            new PageEnvironment(
+                Reserved,
+                new PageLayoutConfiguration { Default = "/_layout" },
+                new RenderOptions(),
+                TestContentTypes.Shipped,
+                new PageStorageOptions(),
+                new PageFetchOptions(),
+                new FakePageStateStore(),
+                new FakePageFetcher(),
+                metrics,
+                new TestAntiforgery()));
 
         return await TestHttp.ReadBodyAsync(context);
     }

@@ -69,7 +69,7 @@ public sealed partial class ArchiveEndpointTests : IntegrationTest {
     public async Task AnImportedReservedPathIsRefused() {
         using HttpClient client = await CreateSignedInClientAsync();
         byte[] archive = PageArchiveWriter.Write([
-            new PageArchiveEntry(PagePath.Normalize("/admin"), "reserved", []),
+            new PageArchiveEntry(PagePath.Normalize("/admin/import"), "reserved", []),
         ]);
 
         string token = await GetAntiforgeryTokenAsync(client, "/admin/import");
@@ -77,19 +77,19 @@ public sealed partial class ArchiveEndpointTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("reserved"));
-        Assert.That(await ReadPageAsync("/admin"), Is.Null);
+        Assert.That(await ReadPageAsync("/admin/import"), Is.Null);
     }
 
     [Test]
     public async Task AdminPathsAreNotPageKeys() {
         using HttpClient client = await CreateSignedInClientAsync();
-        await SavePageAsync("/admin/impersonation", "not reachable");
+        await SavePageAsync("/admin/import/impersonation", "not reachable");
 
-        Assert.That((await client.GetAsync("/admin/impersonation")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.GetAsync("/admin/import/impersonation")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
 
         string token = await GetAntiforgeryTokenAsync(client, "/edit");
         HttpResponseMessage created = await client.PostAsync("/edit?cmd=new", Form(
-            ("path", "/admin/elsewhere"),
+            ("path", "/admin/export/elsewhere"),
             ("__RequestVerificationToken", token)));
 
         Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
