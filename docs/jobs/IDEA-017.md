@@ -5,6 +5,10 @@ SPDX-License-Identifier: MIT
 
 # IDEA-017 — A page cannot edit another page, so the editor cannot become one
 
+> **Still the recovery path.** The layout work (DEC-149) did not move the editor into a page, and it
+> must not: the shell's own document is deliberately never the stored layout, so a broken layout
+> cannot lock the owner out. A page editor would still need its own recovery story.
+
 | | |
 | --- | --- |
 | Size | Large |

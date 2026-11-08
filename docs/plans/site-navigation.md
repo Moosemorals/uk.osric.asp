@@ -5,11 +5,11 @@ SPDX-License-Identifier: MIT
 
 # Site navigation and a default layout
 
-Status: **proposed, not implemented**. Written 2026-11-08; revised after review, which chose a
+Status: **implemented**. Written 2026-11-08; revised after review, which chose a
 default layout delivered as a capability rather than more `IContext`, a page that controls its own
 stylesheets from none to many, a title a wrapped page must set, and a document builder that owns the
-document's policy. This plan therefore absorbs IDEA-005 phase 2 instead of following it. It is a
-design and an implementation plan, not a record of work done.
+document's policy. This plan therefore absorbs IDEA-005 phase 2 instead of following it. It was a
+design and an implementation plan; the phases below are what was built.
 
 ## The short version
 

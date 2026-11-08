@@ -56,22 +56,31 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   browser suite watches a budget figure move while the run is still busy.
   No suite contacts a real model provider.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
-  `ShellViews` renders all twenty-two shell views once each — the sign-in form and its failure, the
-  listing with an edited seed and a matching one so its restore buttons are swept too, the editor
-  clean and with diagnostics, history, a saved revision, the delete confirmation, status, the error
-  page, the error page with details, a not-found page, the compile failure, the assistant list,
-  chat, reasoning chat, delete confirmation, and the export list, the upload form, a rejected
-  archive, the import review and the import progress — and `AccessibilityTests` applies eleven shared rules to every document: one
+  `ShellViews` renders all twenty-four shell views once each — the sign-in form and its failure, the
+  sign-out confirmation, the listing with an edited seed and a matching one so its restore buttons
+  are swept too, the editor clean and with diagnostics, history, a saved revision, the delete
+  confirmation, status, the error page, the error page with details, a not-found page, the compile
+  failure, the assistant list, chat, reasoning chat, delete confirmation, the export list, the
+  upload form, a rejected archive, the import review, the import progress, and the stored
+  administration index as the layout wraps it — and `AccessibilityTests` applies twelve shared rules to every document: one
   `main`, one `h1`, no skipped heading level, a distinct name on every `nav`, `scope` on every `th`, a
   label on every control, every `form.form` field in its `dd` with its label in a `dt` (or a
   textarea's label in a fieldset legend), no role that repeats an implicit one (bar the documented
   `role="list"`), no focusable element inside an `aria-hidden` subtree, no inline style, and a name
-  for every image and every `svg role="img"`. `MarkupReader` is a hand-written reader rather than a parser dependency,
+  for every image and every `svg role="img"`, and a skip link that is the body's first focusable
+  element and targets `#main`. The layout chain is its own suite, `PageLayoutChainTests`, which
+  drives `PageEndpoint` with a stored page and its layouts: the default wrap, the opt-out, the
+  nesting, the depth limit, the cycle, the one slot and deadline, the shared budgets, the fallbacks
+  and the response the content owns; `SiteNavigationTests` covers the menu items, and the
+  integration suite's `SiteChromeTests` proves the shipped `Pages:Layout` through the real host and
+  compares the shell's menu with the layout's. `MarkupReader` is a hand-written reader rather than a parser dependency,
   which is sound only because this repository encodes every value at the boundary — and is why it has
-  to fail loudly when it meets something it does not expect. `ShellDocumentTests` covers the document
-  itself: the language, the title, the sheet order, the status, the cache header, and that `main` is
-  the body's only element. **What a string cannot show** — the accessibility tree, tab order, focus visibility,
-  zoom and reflow, contrast, and how a chart is read aloud — is a written hand pass (DEC-110), with its
+  to fail loudly when it meets something it does not expect. `PageDocumentTests` covers the document
+  itself — the language, the title, the encoding, the sheet order and deduplication, the refusal of
+  an off-site sheet, the skip link and the banner — and `ShellDocumentTests` covers the response
+  around it: the status, the cache header, the view's sheets, and the banner before the one `main`.
+  **What a string cannot show** — the accessibility tree, tab order, focus visibility, zoom and
+  reflow, contrast, and how a chart is read aloud — is a written hand pass (DEC-110), with its
   findings recorded beside the plan.
 - **The execution budget** is tested in `Web.Tests` (`PageRendererTests` for the render deadline, the
   render queue, the abandoned context and the body cap; `PageImageBuilderTests` for the compile queue

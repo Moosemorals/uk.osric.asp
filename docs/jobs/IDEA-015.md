@@ -5,6 +5,10 @@ SPDX-License-Identifier: MIT
 
 # IDEA-015 — A page cannot read the page store
 
+> **Unblocked.** The layout these views needed now exists (DEC-149, [site
+> navigation](../plans/site-navigation.md)), so a listing or history page can be a fragment the
+> default layout wraps. The store read this item asks for is still its own job.
+
 | | |
 | --- | --- |
 | Size | Medium |

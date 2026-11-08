@@ -11,13 +11,19 @@ SPDX-License-Identifier: MIT
 | Area | Sdk, Core, Runtime, Web |
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Pages/PageRenderer.cs`, `src/uk.osric.asp.Web/Html/ShellDocument.cs` |
 
+> **The layout half is done.** Phase 2 landed as [site navigation](../plans/site-navigation.md):
+> every HTML page is wrapped in the stored `/_layout` by default, the slots are on
+> `IPageLayout` reached through `ctx.Features`, the chain renders under one slot and deadline, and
+> the shell keeps its own document (DEC-148–DEC-158). What is left of this item is shared **code**:
+> a named declaration a second page can compile against.
+
 ## Idea
 
 A page's `<% %>` blocks are pasted into `GeneratedPage.HandleAsync`, and `<%! %>` now lets a page
 declare its own types (DEC-92). Nothing is shared: each page is its own assembly, so a helper or a
 fragment written in one page cannot be used by another.
 
-The concrete need is not a shared *type*. It is a shared *document* — roughly `_layout.cshtml`. The
+**Done.** The concrete need is a shared *document* — roughly `_layout.cshtml`. The
 listing, history and editor views are the next views worth moving out of the shell, and every one of
 them needs the head, the `main` landmark, the sheet order and the site chrome. Copying that into each
 page is the mistake DEC-107 fixed in the shell, made once per page instead. And the layout must be a

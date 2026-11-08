@@ -145,8 +145,15 @@ and applies them.
   keeps it. The caps live under `Pages:Storage` (`Pages__Storage__MaxValueBytes`, and so on).
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
-  covers `/admin`, `/assistant`, `/edit`, `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics`
-  and `/status`. Change it only when the route table changes.
+  covers `/admin/export`, `/admin/import`, `/assistant`, `/edit`, `/favicon.ico`, `/heath`, `/login`,
+  `/logout`, `/metrics` and `/status`. `/admin` itself is a seeded page, so only the tools beneath it
+  are reserved. Change the list only when the route table changes.
+- **Layout:** `Pages:Layout` (environment form `Pages__Layout`) names the page every HTML page is
+  wrapped in; it is seeded as `/_layout` and is edited and restored from the page list like any other
+  page. An empty value turns wrapping off. `Pages__Render__MaxLayoutDepth` bounds how deep a chain of
+  layouts may nest (four by default, clamped 1–16), and a missing or uncompilable *default* layout
+  degrades to unwrapped pages with a warning and a `page.layout.fallback` count rather than taking
+  the site down.
 - **Import and export:** `/admin/export` and `/admin/import` move pages between sites as a `.sqlite`
   archive of source and state. The caps live under `Pages:Archive` (`Pages__Archive__MaxUploadBytes`,
   `MaxPages`, `MaxCompiledBytes`, `StageTtlMinutes`, `MaxStagedImports`); a reviewed archive is held

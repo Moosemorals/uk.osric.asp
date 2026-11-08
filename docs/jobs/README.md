@@ -42,13 +42,11 @@ carries a [plan of its own](../plans/page-diagnostics-and-visibility.md).
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [OPS-06](OPS-06.md) | Low | M | Half of what the site measures, the dashboard never shows |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter and linked diagnostics |
-| [IDEA-005](IDEA-005.md) | — | L | Pages cannot share code or a layout |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-014](IDEA-014.md) | — | M | A page cannot keep per-visitor state, so a form cannot redirect and say why |
 | [IDEA-015](IDEA-015.md) | — | M | A page cannot read the page store, so the listing and history are shell views |
 | [IDEA-016](IDEA-016.md) | — | M | A page cannot save its own source |
 | [IDEA-017](IDEA-017.md) | — | L | A page cannot edit another page, so the editor cannot become one |
-| [IDEA-018](IDEA-018.md) | — | M | The document shell is not reachable from page code |
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
@@ -73,9 +71,10 @@ self-contained comes first, because these are the ones that never get scheduled 
    PageLayout adoption remain [IDEA-010](IDEA-010.md).
 2. **OPS-03, CI automation** — `make check` and `make ci` already exist; what is missing is
    something that runs one of them without being asked.
-3. **IDEA-005, a shared layout** — declarations inside one page are done. What pages need next is a
-   layout page rendered around them, not shared types; it is what the listing and history views
-   need, and it pairs with IDEA-018.
+3. **IDEA-005, shared code between pages** — the layout half is done (see [site
+   navigation](../plans/site-navigation.md)) and IDEA-018 with it. What is left is shared *types*:
+   a named declaration a second page can use, which is a compile-time question rather than a
+   rendering one.
 4. **IDEA-001, a proper editor** — the line gutter, linked diagnostics and caret persistence are
    done; syntax highlighting or adopting a third-party editor is what is left.
 5. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
@@ -84,9 +83,9 @@ self-contained comes first, because these are the ones that never get scheduled 
 7. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 8. **IDEA-014 … IDEA-019, page capabilities** — each lets a stored page do something only the shell
    can do today. None is urgent while the shell works; they matter when a view is worth moving.
-   IDEA-005's layout, IDEA-018 and IDEA-014 pay off first, because the listing and history views
-   (IDEA-015) need a layout and a save message before they can leave the shell, and IDEA-017 is the
-   one to leave last.
+   The layout IDEA-015 needed now exists, so the listing and history views can become fragments the
+   default layout wraps; IDEA-014's save message and IDEA-017's editor are the others in the way,
+   and IDEA-017 is still the one to leave last.
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
@@ -111,6 +110,8 @@ Resolved jobs; the files were deleted and their history is in git.
 | IDEA-012 | The page handler is asynchronous: `IHandler.HandleAsync` returns `Task`, the generated handler is always `async`, and `System.Threading.Tasks.Task` is admitted to the page policy with its starting and blocking members denied by name (DEC-123, DEC-124). See [the plan](../plans/archive/async-page-contract.md) |
 | IDEA-008 | Implemented as the conversational authenticated page-authoring agent. It is disabled by default, uses a configured OpenAI-compatible provider and bounded page-store tools, and its approval defaults and provider data flow are recorded in DEC-111. See [the plan](../plans/archive/ai-page-assistant.md) |
 | IDEA-013 | The site's vocabulary is defined in [the glossary](../glossary.md): one alphabetical entry per term, with the neighbouring term it is not and the code that owns it. The naming plan links to it rather than repeating the assistant terms |
+| IDEA-005 | Phase 2 landed as [site navigation](../plans/site-navigation.md): a page is wrapped in the stored `/_layout` by default, reached through `ctx.Features.GetRequired<IPageLayout>()`, with a title the page must set, its own sheets, one slot and deadline for the chain, and a fallback when the default layout cannot be served (DEC-148–DEC-158). Shared *code* between pages is still its own job |
+| IDEA-018 | `Sdk/PageDocument` owns the document — head, base sheets, icon, skip link, banner, `Nav`, the `main` landmark and the close — and `ShellDocument` and the seeded layout are adapters over it. `Gutter` and `Diagnostics` stayed in `Web/Html` because they carry a `Core` diagnostic type the Sdk may not name (DEC-156) |
 | ARCH-03 | Renders have a deadline, a slot count and a body cap, compiles have their own slot and deadline, an abandoned render is logged and counted, and `/heath` reports it so podman restarts a wedged container. See [the plan](../plans/archive/page-execution-budget.md). SEC-03 (the process boundary) is deliberately still open |
 | ARCH-02 | Pages are a restricted runtime: `IContext` carries a plain `PageRequest` snapshot and asks for `SetStatus`/`SetContentType`/`SetHeader`/`Redirect`, all applied after the buffered handler returns. `SimpleContext` is the only implementation, headers are allow-listed so a page cannot clobber the site's cookies, pages run only for `GET`/`POST`/`HEAD`, and a body over 1 MiB is refused. Documented in `docs/architecture.md` |
 | ARCH-04 | `CompiledTemplate.Invoke` unwraps the reflection wrapper with `ExceptionDispatchInfo`, so the shell sees the page's own exception and no longer knows about `TargetInvocationException`. The `NoInlining` attributes were removed with a note on what they would have been protecting |

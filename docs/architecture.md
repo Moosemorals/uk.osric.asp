@@ -148,7 +148,8 @@ returns it or throws naming the interface, so the page decides whether absence i
 decides what is registered — a page cannot add or replace a capability — and a capability is either
 registered or absent, never `null` (DEC-142).
 
-Two capabilities are registered today, both asynchronous and both bounded by the render:
+Three capabilities are registered today — two that do I/O and are bounded by the render, and one
+that is the page's slots in its document:
 
 - `IPageStorage` is the page's own key/value store. It is bound to the page's key, so a page cannot
   name another page's state; the handle is the isolation. Values are JSON round-tripped by the
@@ -158,6 +159,10 @@ Two capabilities are registered today, both asynchronous and both bounded by the
   operator has allow-listed. `GetAsync` and `PostAsync` sit over `SendAsync(HttpFetchRequest)`;
   every failure is a value rather than an exception, and the render's shared request count, the
   deadline and abandonment all bound it (DEC-128, DEC-129, DEC-143).
+- `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
+  `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
+  `IContext` because it is a set of slots a render offers, and because a page that never wants a
+  layout never meets one (DEC-148). See "Layouts" below.
 
 A page's log entries are filed under the single `uk.osric.asp.Pages` category, with the page's key on
 a `Path` scope property, so one page can be filtered or levelled without touching another. That
@@ -212,24 +217,67 @@ the icon) and opens `<main id="main">`; `EndAsync` closes the landmark and the d
 writes its own body content and nothing else, so the title, the landmark and the sheet order cannot
 drift apart from one view to the next.
 
-- `main` is the body's only element, so there is no skip link: with nothing before it to pass, the
-  link would target the element immediately after it. It comes back with the site navigation it
-  would skip, and that navigation has to account for stored pages, so it is a product decision
-  rather than markup (DEC-121).
+- The body opens with the skip link, then the banner, then the one `main`. `BeginAsync` requires a
+  navigation argument, so no view can be written without a menu: the shell composes its own with
+  `SiteNavigation`, and the seeded layout writes the same items for stored pages (DEC-151, DEC-154).
 - `/layout.css` is a seeded page and is linked **first** (DEC-116). It holds the document's shape —
   the visually hidden utility, the listing and the form grid. `site.css` owns look and
   comes next, and the view's own sheet is last, so either can override a structural rule without a
   more specific selector. The owner restores a stale seeded sheet from the page list.
-- `PageLayout` keeps the fragments: `Gutter`, `Diagnostics` (a `ul` with `role="list"`, DEC-108) and
-  `Nav`. `Html/` keeps `NavLink`, `DiagnosticLine`, `AntiforgeryField` and `PageUrls` beside it, so a
-  named nav, an antiforgery field and an editor URL are each built once rather than concatenated at
-  every endpoint.
-- A page written by the owner gets none of this: it owns its whole response, and giving it a layout
-  would be a product change rather than a semantics fix.
+- `PageLayout` keeps the editor's fragments: `Gutter` and `Diagnostics` (a `ul` with `role="list"`,
+  DEC-108). Everything a document shares — the head with its base sheets and icon, the banner with
+  the skip link, `Nav`, `OpenMain`/`CloseMain` and the close — is `Sdk/PageDocument.cs`, so the
+  shell, a seeded layout and a page all write one document shape (DEC-156). `Html/` keeps
+  `DiagnosticLine`, `AntiforgeryField`, `SiteNavigation` and `PageUrls` beside it.
+- A stored page is wrapped in a layout by default, so it writes a fragment rather than a document;
+  the layout writes the head, the banner and the landmark through the same builder. See "Layouts".
 
 Every one of these views is rendered once by `ShellViews` and checked against the shared accessibility
 rules — see [testing](testing.md#the-five-suites) — with what a string cannot
 prove left to a recorded hand pass (DEC-110).
+
+## Layouts
+
+A page is a fragment. The host wraps every `text/html` page in the layout named by `Pages:Layout`
+(`/_layout` as seeded), unless the page clears `IPageLayout.Layout`. A redirect, a `HEAD`'s empty
+body, a non-HTML content type and the layout itself are never wrapped (DEC-149).
+
+The chain renders inside out, content first, because only then does the host know what the content
+produced:
+
+```
+render /about   → buffer 1   (sets Title, AddHead, AddStylesheet)
+render /_layout → buffer 2   (Body = buffer 1)
+write buffer 2
+```
+
+- **One budget for the chain.** `PageRenderer.OpenSessionAsync` takes one render slot and one
+  deadline; each layer renders under them with its own key on the metric. The fetch allowance, the
+  body allowance and the antiforgery pair are shared the same way, so a layout cannot spend them
+  twice (DEC-150).
+- **The content owns the response.** Status, content type, headers and the redirect come from the
+  layer the visitor asked for; a layout that tries to set one is ignored and logged. `AllowScripts`
+  is the union, because the layout's script is part of its chrome (DEC-158).
+- **A wrapped page must set a title.** Reading `Title` before it is set throws, and the host refuses
+  the chain before the layout starts, so the error names the page that forgot. A layout may read the
+  title so far and compose its own; the outermost layer is the one written (DEC-157).
+- **A page controls its own sheets.** `AddStylesheet` once per link, from none to many. The order on
+  the wire is the document's base sheets, then each layout's from outermost in, then the page's in
+  the order it asked; an exact duplicate is linked once and an href that is not site-relative is
+  refused rather than blocked silently by `style-src 'self'` (DEC-155).
+- **Depth and cycles.** `Pages:Render:MaxLayoutDepth` (four by default, clamped 1–16) bounds the
+  chain and a seen-set stops at the first repeat — which is why the seeded `/_layout`, pre-filled
+  with the default like every layer, needs no special case.
+- **Failure is not symmetric.** A *default* layout that is missing or does not compile serves the
+  page unwrapped, logs a warning and counts `page.layout.fallback`; a layout the page *named* that
+  cannot be served is an error naming the key.
+- **The menu is written twice, on purpose.** `SiteNavigation` composes it from the principal for the
+  shell's own views; the seeded `/_layout` writes it from `ctx.User` for stored pages. The shell's
+  document must not depend on a stored page, because the error, health, sign-in and editor routes
+  have to answer when the page pipeline is broken (DEC-151). Both go through `PageDocument.Nav`.
+
+The layout is not a guard: the content has already run. It is not a data boundary: it reads its own
+storage and nothing of the page's.
 
 ## Error responses
 
