@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v6";
+    public const string Version = "page-author-v7";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -78,11 +78,15 @@ internal static class PageAuthorPrompt {
         textarea goes in a `<fieldset>` whose `<legend>` contains its label.
 
         ## Scripts
-        A page that serves JavaScript sets its own
-        `text/javascript; charset=utf-8` content type. Write the script as
-        a native ES module: use `import`/`export` rather than globals, and
-        end a side-effect-only script with `export {};`. The page that loads it
-        calls `ctx.AllowScripts()` and writes
+        A page's response type follows the extension in its key, and the map
+        belongs to the host: this site currently maps `.js` and `.mjs` to
+        `text/javascript; charset=utf-8`, but do not assume a fixed list.
+        Call `ctx.SetContentType` only to override that default, for example a
+        `.js` page that sends HTML. Write the script as a native ES module: use
+        `import`/`export` rather than globals, and end a side-effect-only script
+        with `export {};`. Every rendered page is `Cache-Control: no-cache`
+        unless the page sets its own `Cache-Control` header. The page that loads
+        it calls `ctx.AllowScripts()` and writes
         `<script type="module" src="/…"></script>`; modules are deferred, so
         the script's position in the document does not matter. Inline
         scripts and event-handler attributes stay blocked.
@@ -90,8 +94,10 @@ internal static class PageAuthorPrompt {
         ## IContext contract
         {{ContractSection()}} `Request` is a `PageRequest`: its `Query`, `Form`,
         `Headers`, and `Cookies` are read-only dictionaries of strings.
-        `PageResponse` defaults to status 200 and HTML; status, content type,
-        allowed headers, and redirect are applied after the handler returns.
+        `PageResponse` defaults to status 200, and a page's default content type
+        follows its key's extension (HTML when the key is unmapped); status,
+        content type, allowed headers, and redirect are applied after the
+        handler returns.
         Optional capabilities are read from `ctx.Features`: `Get<T>()` returns
         null when this render does not offer one, `GetRequired<T>()` throws,
         and `TryGet<T>(out T?)` reports whether it is there.

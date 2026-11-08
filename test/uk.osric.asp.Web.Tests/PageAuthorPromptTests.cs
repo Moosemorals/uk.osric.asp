@@ -115,6 +115,19 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void TheScriptSectionTeachesTheExtensionDefaultAndTheCachePolicy() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("response type follows the extension in its key"));
+            Assert.That(prompt, Does.Contain("`.js` and `.mjs`"));
+            Assert.That(prompt, Does.Contain("only to override that default"));
+            Assert.That(prompt, Does.Contain("Cache-Control: no-cache"));
+            Assert.That(prompt, Does.Contain("do not assume a fixed list"), "the map belongs to the host");
+        });
+    }
+
+    [Test]
     public void ThePrivatePageExampleIsPresent() {
         Assert.That(PageAuthorPrompt.Examples.Select(example => example.Name), Does.Contain("private-page"));
     }

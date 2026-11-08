@@ -46,6 +46,29 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Match(@"(?m)^(?:export|import)\b"));
     }
 
+    [TestCase("/admin.css")]
+    [TestCase("/admin.js")]
+    [TestCase("/assistant.css")]
+    [TestCase("/assistant.js")]
+    [TestCase("/editor.css")]
+    [TestCase("/editor.js")]
+    [TestCase("/layout.css")]
+    [TestCase("/site.css")]
+    [TestCase("/status.css")]
+    public async Task StylesheetsAndScriptsCarryNoTemplateDirectiveAsync(string path) {
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
+
+        Assert.That(template, Does.Not.Contain("<%"));
+    }
+
+    [Test]
+    public async Task TheSvgSeedKeepsItsOwnContentTypeAsync() {
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/rocket.svg"));
+
+        Assert.That(template, Does.Contain("ctx.SetContentType(\"image/svg+xml\")"));
+        Assert.That(template, Does.Not.Contain("Cache-Control"));
+    }
+
     [TestCase("/not-a-seed")]
     [TestCase("/admin/restore")]
     public async Task UnknownAndNestedPagesHaveNoShippedSeedAsync(string path) {

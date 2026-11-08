@@ -73,6 +73,18 @@ public sealed class SecurityHeaderTests : IntegrationTest {
     }
 
     [Test]
+    public async Task ASeededScriptKeepsItsTypeAndForbidsInlineScripts() {
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/assistant.js");
+
+        Assert.That(response.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/javascript; charset=utf-8"));
+        AssertEveryHeader(response);
+        Assert.That(Policy(response), Is.EqualTo(SecurityHeaders.Default),
+            "a JavaScript response does not widen its own policy");
+    }
+
+    [Test]
     public async Task APageThatAllowsScriptsWidensItsPolicy() {
         await SavePageAsync("/scripted", "<% ctx.AllowScripts(); %>Scripted.");
         using HttpClient client = CreateClient();

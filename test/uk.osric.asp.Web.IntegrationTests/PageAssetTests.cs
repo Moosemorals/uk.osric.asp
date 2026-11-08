@@ -65,6 +65,7 @@ public sealed class PageAssetTests : IntegrationTest {
         string assistantScriptBody = await assistantScript.Content.ReadAsStringAsync();
         Assert.That(assistantScript.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(assistantScript.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/javascript; charset=utf-8"));
+        Assert.That(assistantScript.Headers.CacheControl?.NoCache, Is.True);
         Assert.That(assistantScriptBody, Is.EqualTo(RenderedSeed("assistant.js")));
         Assert.That(assistantScriptBody, Does.Not.Contain("<%"));
 
@@ -170,7 +171,12 @@ public sealed class PageAssetTests : IntegrationTest {
 
     private static string RenderedSeed(string name) {
         string template = ReadSeed(name);
-        string[] parts = template.Split("<%", StringSplitOptions.None);
-        return parts[0] + parts[1][(parts[1].IndexOf("%>", StringComparison.Ordinal) + 2)..];
+        int start = template.IndexOf("<%", StringComparison.Ordinal);
+        if (start < 0) {
+            return template;
+        }
+
+        int end = template.IndexOf("%>", start, StringComparison.Ordinal);
+        return template[..start] + template[(end + 2)..];
     }
 }

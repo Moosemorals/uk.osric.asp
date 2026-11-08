@@ -93,6 +93,7 @@ and the logs quote them:
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
 | The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageFeatures`, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure` | `Sdk`, as plain values a compiled page binds against |
 | The page policy: `PageApiPolicy`, `ApiReference` | `Core.Compilation`, as a pure rule over strings |
+| Which media type a page's key names, and what an unmapped key falls back to | `Core.Pages`, as `PageContentTypes` beside `PagePath`; `Web` reads the section |
 | The Roslyn walk that applies the page policy | `Runtime` |
 | The template language and its diagnostics | `Core.Compilation` |
 | The `/status` charts | `Core.Charting` |
@@ -173,7 +174,9 @@ Two rules keep the response safe:
   framing headers are refused, so a page cannot clobber the editor's authentication, antiforgery or
   session cookie. Redirects go through `Redirect`; content type through `SetContentType`, and the
   script permission through `AllowScripts` — the `Content-Security-Policy` header itself stays
-  shell-owned.
+  shell-owned. The extension is only a default: a key's last segment selects the initial content
+  type through `Pages:ContentTypes` (DEC-144), and `SetContentType` always wins. Every rendered page
+  also starts with `Cache-Control: no-cache`, and a page opts out by setting its own header.
 
 Successful page responses receive a strong `ETag` computed from the UTF-8 bytes of the rendered
 body. The host also sets `Content-Length` from those encoded bytes for responses that may carry a
@@ -555,8 +558,10 @@ pages until the commit and the whole new set afterwards. There is no undo: the b
 or does not, and the way back is another import.
 
 Built-in page templates live in `src/uk.osric.asp.Web/Pages/Seeds`, included as content in build and
-publish output. Each file is a complete page template, including its response content type and cache
-headers; its filename becomes the page path. `/site.css` holds the site's look, `/layout.css` the
+publish output. Each file is a complete page template and its filename becomes the page path. The
+response type follows that name's extension through `Pages:ContentTypes`, so the scripts and
+stylesheets are pure source with no directive of their own; `/rocket.svg` sets `image/svg+xml`
+itself because `.svg` is not in the map. `/site.css` holds the site's look, `/layout.css` the
 rules the document shell's markup needs (see "The document shell"), while `/status.css` holds
 dashboard styles and is linked only by `/status`. Editing a seed file changes the initial content for
 a never-created page, not an existing database page. The authenticated restore action applies the

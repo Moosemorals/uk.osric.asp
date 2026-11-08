@@ -24,7 +24,7 @@ the code on 2026-11-06. IDEA-014 to IDEA-019 came out of the shell-versus-page r
 what is left in the shell is mostly authority a page does not have rather than markup a page could
 not write. IDEA-020 came out of the import and export planning, and records why a destructive reset
 is not part of that flow. IDEA-021 came out of the assistant validation discussion of 2026-11-07;
-it pairs with the [content-type plan](../plans/page-content-types.md) and records why validation is
+it pairs with the [content-type plan](../plans/archive/page-content-types.md) and records why validation is
 a tool rather than a save step. IDEA-022 came out of the [page-features
 planning](../plans/archive/page-features.md) of 2026-11-08, and is worth doing now that storage and
 fetch have left `SimpleContext`.
@@ -85,7 +85,7 @@ self-contained comes first, because these are the ones that never get scheduled 
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
 10. **IDEA-021, script validation** — an assistant tool, not a save gate. It is small once the
-    [content-type plan](../plans/page-content-types.md) names the source language; until then it
+    [content-type plan](../plans/archive/page-content-types.md) names the source language; until then it
     can still validate supplied content directly.
 
 ## Closed

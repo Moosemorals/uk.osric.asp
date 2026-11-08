@@ -5,10 +5,12 @@ SPDX-License-Identifier: MIT
 
 # Content types from page extensions
 
-Status: **proposed, not implemented**. Written 2026-11-07; revised 2026-11-08 so that the map and
+Status: **implemented 2026-11-08**. Written 2026-11-07; revised 2026-11-08 so that the map and
 the fallback are configuration rather than a table in code, and so that caching is one default with
-a per-page opt-out. This is a design and an implementation plan, not a record of work done. It does
-not change the page SDK, the template language, the compiler or the page store schema.
+a per-page opt-out. This is now the record of that work: the decision is DEC-144 and the behaviour is
+recorded in [architecture](../../architecture.md#page-contract). It changed the page contract, so
+every stored image is recompiled on its next request (DEC-26); it did not change the page SDK, the
+template language, the compiler or the page store schema.
 
 ## The short version
 

@@ -23,7 +23,7 @@ Add a read-only tool that parses the script and returns syntax diagnostics with 
 stable code. It is a helper for the assistant, not a replacement for its judgement, and not a gate
 on saving.
 
-The [content-type plan](../plans/page-content-types.md) supplies the useful signal: a key whose
+The [content-type plan](../plans/archive/page-content-types.md) supplies the useful signal: a key whose
 extension the site's content-type map resolves to JavaScript is JavaScript source. The validator is
 useful without that plan — it can validate supplied content directly — but the plan makes the
 common path exact and lets the prompt name the convention.
@@ -236,9 +236,8 @@ Add to the `## Scripts` section of `PageAuthorPrompt`:
 > or with the complete content before saving. Treat `valid: false` as unfinished work: fix the
 > diagnostics and validate again before reporting done.
 
-Bump `PageAuthorPrompt.Version` to `page-author-v6` and cover the new sentence with a
-`PageAuthorPromptTests` assertion. The extension plan's prompt change and this one should land
-together if both are accepted, or the version bumps twice if they do not.
+Bump `PageAuthorPrompt.Version` again and cover the new sentence with a `PageAuthorPromptTests`
+assertion. The content-type plan's prompt change has already landed, so this is the next bump.
 
 ## Tests
 
@@ -311,7 +310,7 @@ tool timeout.
 
 ## Relationship to other work
 
-- [The content-type plan](../plans/page-content-types.md) turns the extension into a source-language
+- [The content-type plan](../plans/archive/page-content-types.md) turns the extension into a source-language
   signal and makes the common script page pure JavaScript.
 - [IDEA-001](IDEA-001.md), a proper editor, could use the same validator for a "check" action, but
   not as part of save.
