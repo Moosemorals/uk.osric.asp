@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v8";
+    public const string Version = "page-author-v9";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -76,6 +76,26 @@ internal static class PageAuthorPrompt {
         Forms use `<form class="form">` with one `<dl>` holding
         `<dt><label for="id">…</label></dt>` and `<dd>` around the control. A
         textarea goes in a `<fieldset>` whose `<legend>` contains its label.
+
+        ## Layout
+        A page is a fragment, not a document. Do not write `<!DOCTYPE html>`,
+        `<html>`, `<head>`, `<body>`, a title element or the site menu: the
+        host wraps every HTML page in the stored layout page, which writes all
+        of that. Start at the page's first heading, and write one `<h1>`.
+        The layout's slots are on `IPageLayout`, reached through the page's
+        features:
+
+        `<% IPageLayout layout = ctx.Features.GetRequired<IPageLayout>(); %>`
+
+        A wrapped page must set `layout.Title`; the host refuses the chain and
+        names the page if it does not. `layout.AddStylesheet("/blog.css")`
+        links one sheet, called once per link, after the site's own and any
+        layout's, so zero, one or several are all ordinary; the href must stay
+        on this site. `layout.AddHead("<meta …>")` adds markup to `<head>`.
+        `layout.Layout` names another stored page to wrap this one, and setting
+        it to null serves the page alone — do that only for a page that
+        genuinely writes its own document, because nothing else will give it a
+        head or a menu.
 
         ## Scripts
         A page's response type follows the extension in its key, and the map
