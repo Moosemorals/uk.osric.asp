@@ -59,6 +59,34 @@ public sealed class AssistantFlowTests : IntegrationTest {
         Assert.That(_provider.RequestCount, Is.EqualTo(1));
     }
 
+    [Test]
+    public async Task EveryConversationOnTheListCanBeDeletedWithItsButtonAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        string kept = await CreateConversationAsync(client);
+        string deleted = await CreateConversationAsync(client);
+
+        string list = await client.GetStringAsync("/assistant");
+        Assert.Multiple(() => {
+            Assert.That(list, Does.Contain($"<form class=\"assistant-conversation-delete\" method=\"post\" action=\"{kept}/delete\">"));
+            Assert.That(list, Does.Contain($"<form class=\"assistant-conversation-delete\" method=\"post\" action=\"{deleted}/delete\">"));
+            Assert.That(list, Does.Contain("<button type=\"submit\" aria-label=\"Delete New conversation\">Delete</button>"));
+        });
+
+        string token = await GetAntiforgeryTokenAsync(client, "/assistant");
+        using HttpResponseMessage deletedResponse = await client.PostAsync(
+            $"{deleted}/delete", Form(("__RequestVerificationToken", token)));
+        Assert.That(deletedResponse.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(deletedResponse.Headers.Location!.ToString(), Is.EqualTo("/assistant"));
+
+        string remaining = await client.GetStringAsync("/assistant");
+        Assert.Multiple(() => {
+            Assert.That(remaining, Does.Not.Contain($"action=\"{deleted}/delete\""));
+            Assert.That(remaining, Does.Contain($"action=\"{kept}/delete\""));
+        });
+        using HttpResponseMessage gone = await client.GetAsync(deleted);
+        Assert.That(gone.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
     private sealed class ScriptedClient(IReadOnlyList<ChatStreamEvent> events) : IChatCompletionClient {
         private int _requestCount;
 

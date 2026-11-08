@@ -68,11 +68,18 @@ internal static class AssistantEndpoint {
         if (items.Count == 0) {
             await context.Response.WriteAsync("<p>No conversations yet.</p>");
         } else {
-            await context.Response.WriteAsync("<ul class=\"assistant-conversations\">");
+            await context.Response.WriteAsync("<ul class=\"assistant-conversations\" role=\"list\">");
             foreach (ConversationListItem item in items) {
-                string active = item.ActiveRunId is null ? "" : " <span>Active</span>";
-                await context.Response.WriteAsync(
-                    $"<li><a href=\"/assistant/{item.Id}\">{Encode(item.Title)}</a> <time>{Encode(item.UpdatedAt.ToString("u"))}</time>{active}</li>");
+                string active = item.ActiveRunId is null ? "" : " <span class=\"assistant-conversation-active\">Active</span>";
+                await context.Response.WriteAsync($"""
+                    <li>
+                        <a href="/assistant/{item.Id}">{Encode(item.Title)}</a> <time>{Encode(item.UpdatedAt.ToString("u"))}</time>{active}
+                        <form class="assistant-conversation-delete" method="post" action="/assistant/{item.Id}/delete">
+                            {AntiforgeryField.Hidden(tokens)}
+                            <button type="submit" aria-label="Delete {Encode(item.Title)}">Delete</button>
+                        </form>
+                    </li>
+                    """);
             }
             await context.Response.WriteAsync("</ul>");
         }

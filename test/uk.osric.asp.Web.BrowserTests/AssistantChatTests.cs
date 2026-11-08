@@ -135,6 +135,19 @@ internal sealed class AssistantChatTests : BrowserTest {
     }
 
     [Test]
+    public async Task DeletingAConversationFromTheListTakesItOffTheListAsync() {
+        long kept = await NewConversationAsync();
+        long deleted = await NewConversationAsync();
+
+        await Page.GotoAsync("assistant");
+        await Page.Locator($"form.assistant-conversation-delete[action='/assistant/{deleted}/delete'] button").ClickAsync();
+
+        await Page.WaitForURLAsync("**/assistant");
+        await Assertions.Expect(Page.Locator($"[href='/assistant/{deleted}']")).ToHaveCountAsync(0);
+        await Assertions.Expect(Page.Locator($"[href='/assistant/{kept}']")).ToHaveCountAsync(1);
+    }
+
+    [Test]
     public async Task AStoppedRunKeepsWhatItHadAlreadyWrittenAsync() {
         await NewConversationAsync();
         Provider.Script(StubResponse.Words(string.Join(' ', Enumerable.Repeat("word", 200)), TimeSpan.FromMilliseconds(100)));

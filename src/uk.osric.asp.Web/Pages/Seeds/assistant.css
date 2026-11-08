@@ -11,6 +11,27 @@
     --assistant-muted: #d9d9d9;
 }
 
+/* Each row is a title, its timestamp and the one action that removes it; the row wraps rather than
+   squeezing the title when the viewport is narrow. */
+.assistant-conversations {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.assistant-conversations li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+}
+
+.assistant-conversation-delete {
+    margin: 0;
+}
+
 .assistant-chat {
     display: grid;
     gap: 0.5rem;
