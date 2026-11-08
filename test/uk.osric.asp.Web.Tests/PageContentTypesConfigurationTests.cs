@@ -20,14 +20,14 @@ public sealed class PageContentTypesConfigurationTests {
         PageContentTypes contentTypes = ReadShipped();
 
         Assert.Multiple(() => {
-            Assert.That(contentTypes.Fallback.MediaType, Is.EqualTo("text/html; charset=utf-8"));
+            Assert.That(contentTypes.Fallback, Is.EqualTo("text/html; charset=utf-8"));
             Assert.That(contentTypes.ExtensionCount, Is.EqualTo(5));
-            Assert.That(contentTypes.ForPath("/app.js").MediaType, Is.EqualTo("text/javascript; charset=utf-8"));
-            Assert.That(contentTypes.ForPath("/app.mjs").MediaType, Is.EqualTo("text/javascript; charset=utf-8"));
-            Assert.That(contentTypes.ForPath("/app.css").MediaType, Is.EqualTo("text/css; charset=utf-8"));
-            Assert.That(contentTypes.ForPath("/app.json").MediaType, Is.EqualTo("application/json; charset=utf-8"));
-            Assert.That(contentTypes.ForPath("/app.txt").MediaType, Is.EqualTo("text/plain; charset=utf-8"));
-            Assert.That(contentTypes.ForPath("/app").MediaType, Is.EqualTo("text/html; charset=utf-8"));
+            Assert.That(contentTypes.ForPath("/app.js"), Is.EqualTo("text/javascript; charset=utf-8"));
+            Assert.That(contentTypes.ForPath("/app.mjs"), Is.EqualTo("text/javascript; charset=utf-8"));
+            Assert.That(contentTypes.ForPath("/app.css"), Is.EqualTo("text/css; charset=utf-8"));
+            Assert.That(contentTypes.ForPath("/app.json"), Is.EqualTo("application/json; charset=utf-8"));
+            Assert.That(contentTypes.ForPath("/app.txt"), Is.EqualTo("text/plain; charset=utf-8"));
+            Assert.That(contentTypes.ForPath("/app"), Is.EqualTo("text/html; charset=utf-8"));
         });
     }
 
@@ -49,8 +49,8 @@ public sealed class PageContentTypesConfigurationTests {
             ["Pages:ContentTypes:Extensions:.js"] = "text/javascript",
         });
 
-        Assert.That(contentTypes.Fallback.MediaType, Is.EqualTo(PageResponse.Default.ContentType));
-        Assert.That(contentTypes.ForPath("/notes").MediaType, Is.EqualTo(PageResponse.Default.ContentType));
+        Assert.That(contentTypes.Fallback, Is.EqualTo(PageResponse.Default.ContentType));
+        Assert.That(contentTypes.ForPath("/notes"), Is.EqualTo(PageResponse.Default.ContentType));
     }
 
     [Test]

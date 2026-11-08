@@ -37,7 +37,7 @@ internal static class PageContentTypesConfiguration {
         PageContentTypes contentTypes = PageContentTypes.Create(fallback, extensions);
         logger.LogInformation(
             "Pages serve {FallbackContentType} by default and map {ExtensionCount} extensions",
-            contentTypes.Fallback.MediaType,
+            contentTypes.Fallback,
             contentTypes.ExtensionCount);
         return contentTypes;
     }

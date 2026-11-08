@@ -10,7 +10,9 @@ the fallback are configuration rather than a table in code, and so that caching 
 a per-page opt-out. This is now the record of that work: the decision is DEC-144 and the behaviour is
 recorded in [architecture](../../architecture.md#page-contract). It changed the page contract, so
 every stored image is recompiled on its next request (DEC-26); it did not change the page SDK, the
-template language, the compiler or the page store schema.
+template language, the compiler or the page store schema. One thing here was not built: nothing
+consumes the source-language kind decision 4 proposed, so `ForPath` returns the media type string and
+the kind arrives with the validator that needs it (IDEA-021).
 
 ## The short version
 

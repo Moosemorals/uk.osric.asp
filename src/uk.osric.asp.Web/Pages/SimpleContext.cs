@@ -108,7 +108,7 @@ internal sealed class SimpleContext : IContext {
         User = user;
 
         // The extension decides the initial value; SetContentType is still the page's override.
-        _contentType = contentTypes.ForPath(request.Path).MediaType;
+        _contentType = contentTypes.ForPath(request.Path);
     }
 
     /// <inheritdoc/>

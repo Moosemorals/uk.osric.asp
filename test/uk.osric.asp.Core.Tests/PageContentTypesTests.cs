@@ -11,31 +11,26 @@ public sealed class PageContentTypesTests {
 
     private const string Html = "text/html; charset=utf-8";
 
-    [TestCase("/app.js", "text/javascript; charset=utf-8", PageContentKind.JavaScript)]
-    [TestCase("/app.mjs", "text/javascript; charset=utf-8", PageContentKind.JavaScript)]
-    [TestCase("/app.css", "text/css; charset=utf-8", PageContentKind.Css)]
-    [TestCase("/app.json", "application/json; charset=utf-8", PageContentKind.Json)]
-    [TestCase("/app.txt", "text/plain; charset=utf-8", PageContentKind.Text)]
-    [TestCase("/nested/path/app.js", "text/javascript; charset=utf-8", PageContentKind.JavaScript)]
-    [TestCase("/APP.JS", "text/javascript; charset=utf-8", PageContentKind.JavaScript)]
-    [TestCase("/v1.2/app.js", "text/javascript; charset=utf-8", PageContentKind.JavaScript)]
-    [TestCase("/v1.2/app", Html, PageContentKind.Html)]
-    [TestCase("/app", Html, PageContentKind.Html)]
-    [TestCase("/app.html", Html, PageContentKind.Html)]
-    [TestCase("/app.htm", Html, PageContentKind.Html)]
-    [TestCase("/app.svg", Html, PageContentKind.Html)]
-    [TestCase("/.js", Html, PageContentKind.Html)]
-    [TestCase("/app.", Html, PageContentKind.Html)]
-    [TestCase("/app.js/child", Html, PageContentKind.Html)]
-    [TestCase("/", Html, PageContentKind.Html)]
-    [TestCase(null, Html, PageContentKind.Html)]
-    public void ForPathReturnsTheTypeTheKeyNames(string? path, string mediaType, PageContentKind kind) {
-        PageContentTypes map = Shipped();
-
-        PageContentType type = map.ForPath(path);
-
-        Assert.That(type.MediaType, Is.EqualTo(mediaType));
-        Assert.That(type.Kind, Is.EqualTo(kind));
+    [TestCase("/app.js", "text/javascript; charset=utf-8")]
+    [TestCase("/app.mjs", "text/javascript; charset=utf-8")]
+    [TestCase("/app.css", "text/css; charset=utf-8")]
+    [TestCase("/app.json", "application/json; charset=utf-8")]
+    [TestCase("/app.txt", "text/plain; charset=utf-8")]
+    [TestCase("/nested/path/app.js", "text/javascript; charset=utf-8")]
+    [TestCase("/APP.JS", "text/javascript; charset=utf-8")]
+    [TestCase("/v1.2/app.js", "text/javascript; charset=utf-8")]
+    [TestCase("/v1.2/app", Html)]
+    [TestCase("/app", Html)]
+    [TestCase("/app.html", Html)]
+    [TestCase("/app.htm", Html)]
+    [TestCase("/app.svg", Html)]
+    [TestCase("/.js", Html)]
+    [TestCase("/app.", Html)]
+    [TestCase("/app.js/child", Html)]
+    [TestCase("/", Html)]
+    [TestCase(null, Html)]
+    public void ForPathReturnsTheTypeTheKeyNames(string? path, string mediaType) {
+        Assert.That(Shipped().ForPath(path), Is.EqualTo(mediaType));
     }
 
     [Test]
@@ -44,20 +39,15 @@ public sealed class PageContentTypesTests {
             "text/plain; charset=utf-8",
             [new KeyValuePair<string, string?>(".js", "text/javascript")]);
 
-        PageContentType notes = map.ForPath("/notes");
-        PageContentType script = map.ForPath("/app.js");
-
-        Assert.That(notes.MediaType, Is.EqualTo("text/plain; charset=utf-8"));
-        Assert.That(notes.Kind, Is.EqualTo(PageContentKind.Text));
-        Assert.That(script.Kind, Is.EqualTo(PageContentKind.JavaScript));
+        Assert.That(map.ForPath("/notes"), Is.EqualTo("text/plain; charset=utf-8"));
+        Assert.That(map.ForPath("/app.js"), Is.EqualTo("text/javascript"));
     }
 
     [Test]
     public void CreateKeepsTheFallbackAndCountsTheRows() {
         PageContentTypes map = Shipped();
 
-        Assert.That(map.Fallback.MediaType, Is.EqualTo(Html));
-        Assert.That(map.Fallback.Kind, Is.EqualTo(PageContentKind.Html));
+        Assert.That(map.Fallback, Is.EqualTo(Html));
         Assert.That(map.ExtensionCount, Is.EqualTo(5));
     }
 
@@ -71,7 +61,7 @@ public sealed class PageContentTypesTests {
         ]);
 
         Assert.That(map.ExtensionCount, Is.EqualTo(1));
-        Assert.That(map.ForPath("/app.js").Kind, Is.EqualTo(PageContentKind.JavaScript));
+        Assert.That(map.ForPath("/app.js"), Is.EqualTo("text/javascript"));
     }
 
     [TestCase("js")]
@@ -132,27 +122,12 @@ public sealed class PageContentTypesTests {
             Throws.InstanceOf<ArgumentNullException>());
     }
 
-    [TestCase("text/html", PageContentKind.Html)]
-    [TestCase("TEXT/HTML", PageContentKind.Html)]
-    [TestCase("text/javascript", PageContentKind.JavaScript)]
-    [TestCase("application/javascript", PageContentKind.JavaScript)]
-    [TestCase("text/css", PageContentKind.Css)]
-    [TestCase("text/css; charset=utf-8", PageContentKind.Css)]
-    [TestCase("application/json", PageContentKind.Json)]
-    [TestCase("application/vnd.api+json", PageContentKind.Json)]
-    [TestCase("text/plain", PageContentKind.Text)]
-    [TestCase("image/svg+xml", PageContentKind.Other)]
-    [TestCase("application/wasm", PageContentKind.Other)]
-    public void TheKindIsDerivedFromTheMediaType(string mediaType, PageContentKind kind) {
-        Assert.That(PageContentType.FromMediaType(mediaType).Kind, Is.EqualTo(kind));
-    }
-
     [Test]
     public void TheShippedJavaScriptTypeIsPinned() {
-        PageContentType type = Shipped().ForPath("/app.js");
+        string type = Shipped().ForPath("/app.js");
 
-        Assert.That(type.MediaType, Is.EqualTo("text/javascript; charset=utf-8"));
-        Assert.That(type.MediaType, Is.Not.EqualTo("application/javascript"));
+        Assert.That(type, Is.EqualTo("text/javascript; charset=utf-8"));
+        Assert.That(type, Is.Not.EqualTo("application/javascript"));
     }
 
     private static PageContentTypes Shipped() => PageContentTypes.Create(Html, new Dictionary<string, string?> {
