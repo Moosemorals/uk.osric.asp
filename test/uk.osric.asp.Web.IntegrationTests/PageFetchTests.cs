@@ -24,7 +24,8 @@ public sealed class PageFetchTests : IntegrationTest {
     [Test]
     public async Task AStoredPageFetchesThroughTheHostAsync() {
         await SavePageAsync("/live", """
-            <% PageFetchResponse response = await ctx.FetchAsync(new PageFetchRequest("https://api.example.com/state")); %>
+            <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+               HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/state"); %>
             <p>state: <%= response.Body %></p>
             """);
         using HttpClient client = CreateClient();
@@ -38,7 +39,7 @@ public sealed class PageFetchTests : IntegrationTest {
     [Test]
     public async Task ThePageKeyTravelsWithTheRequestAsync() {
         await SavePageAsync("/live", """
-            <% await ctx.FetchAsync(new PageFetchRequest("https://api.example.com/state")); %>ok
+            <% await ctx.Features.GetRequired<IHttpFetch>().GetAsync("https://api.example.com/state"); %>ok
             """);
         using HttpClient client = CreateClient();
 
@@ -50,14 +51,15 @@ public sealed class PageFetchTests : IntegrationTest {
     [Test]
     public async Task AFetchRefusalRendersTheFailureAsync() {
         await SavePageAsync("/live", """
-            <% PageFetchResponse response = await ctx.FetchAsync(new PageFetchRequest("https://api.example.com/state")); %>
+            <% HttpFetchResponse response = await ctx.Features.GetRequired<IHttpFetch>()
+                   .GetAsync("https://api.example.com/state"); %>
             <p><%= response.Failure.ToString() %></p>
             """);
-        _fetcher.Answer = _ => new PageFetchResponse(
+        _fetcher.Answer = _ => new HttpFetchResponse(
             0,
             new Dictionary<string, string>(),
             string.Empty,
-            PageFetchFailure.NotAllowed,
+            HttpFetchFailure.NotAllowed,
             false);
         using HttpClient client = CreateClient();
 
@@ -65,11 +67,11 @@ public sealed class PageFetchTests : IntegrationTest {
     }
 
     private sealed class RecordingPageFetcher : IPageFetcher {
-        public List<PageFetchRequest> Requests { get; } = [];
+        public List<HttpFetchRequest> Requests { get; } = [];
 
         public string? LastPagePath { get; private set; }
 
-        public Func<PageFetchRequest, PageFetchResponse>? Answer { get; set; }
+        public Func<HttpFetchRequest, HttpFetchResponse>? Answer { get; set; }
 
         public void Reset() {
             Requests.Clear();
@@ -77,19 +79,19 @@ public sealed class PageFetchTests : IntegrationTest {
             LastPagePath = null;
         }
 
-        public Task<PageFetchResponse> FetchAsync(
-            PageFetchRequest request,
+        public Task<HttpFetchResponse> FetchAsync(
+            HttpFetchRequest request,
             string pagePath,
             CancellationToken aborted,
             CancellationToken deadline) {
             Requests.Add(request);
             LastPagePath = pagePath;
 
-            PageFetchResponse response = Answer?.Invoke(request) ?? new PageFetchResponse(
+            HttpFetchResponse response = Answer?.Invoke(request) ?? new HttpFetchResponse(
                 200,
                 new Dictionary<string, string>(),
                 "up",
-                PageFetchFailure.None,
+                HttpFetchFailure.None,
                 false);
 
             return Task.FromResult(response);

@@ -56,6 +56,7 @@ public sealed class PageAuthorPromptTests {
 
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("## Page storage"));
+            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IPageStorage>()"));
             Assert.That(prompt, Does.Contain("TryGetValueAsync<T>"));
             Assert.That(prompt, Does.Contain("SetAsync"));
             Assert.That(prompt, Does.Contain("PageValue<int>"));
@@ -69,7 +70,8 @@ public sealed class PageAuthorPromptTests {
 
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("## Outbound fetch"));
-            Assert.That(prompt, Does.Contain("ctx.FetchAsync"));
+            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IHttpFetch>()"));
+            Assert.That(prompt, Does.Contain("GetAsync(url)"));
             Assert.That(prompt, Does.Contain("allow-listed"));
             Assert.That(prompt, Does.Contain("Failures are values"));
         });

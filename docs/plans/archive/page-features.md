@@ -5,10 +5,11 @@ SPDX-License-Identifier: MIT
 
 # Features: capabilities a page asks for
 
-Status: **proposed, not implemented**. Written 2026-11-08. This is a design and an implementation
-plan, not a record of work done. It changes the page contract, so every stored image is recompiled
-on its next request (DEC-26); it does not change the template language, the generator, the page
-store schema or the API policy.
+Status: **implemented 2026-11-08**. Written as a design and an implementation plan, and now the
+record of that work. It changed the page contract, so every stored image is recompiled on its next
+request (DEC-26); it did not change the template language, the generator, the page store schema or
+the API policy. The decisions are DEC-142 and DEC-143, and the behaviour is recorded in
+[architecture](../../architecture.md#page-contract).
 
 ## The short version
 
@@ -44,10 +45,10 @@ change.
 
 ## Non-goals
 
-- Layout, title, head and body slots. See [IDEA-005](../jobs/IDEA-005.md); that plan is written
+- Layout, title, head and body slots. See [IDEA-005](../../jobs/IDEA-005.md); that plan is written
   against this one, once this has bedded in.
-- Per-visitor state ([IDEA-014](../jobs/IDEA-014.md)) or page-store access
-  ([IDEA-015](../jobs/IDEA-015.md)). Both become features later; neither is built here.
+- Per-visitor state ([IDEA-014](../../jobs/IDEA-014.md)) or page-store access
+  ([IDEA-015](../../jobs/IDEA-015.md)). Both become features later; neither is built here.
 - Cutting the rest of `IContext` into capability interfaces. The request, the response, logging and
   the identity are what a page *is*; moving them behind lookups is churn a page pays for on every
   line and gains nothing from.
@@ -345,8 +346,8 @@ schema and migrations.
 
 ## What it unlocks
 
-[IDEA-005](../jobs/IDEA-005.md) phase 2 — the layout — is the first plan written on top of this:
+[IDEA-005](../../jobs/IDEA-005.md) phase 2 — the layout — is the first plan written on top of this:
 the title, the head slot and the body slot are all "state one layer has and another layer reads",
-which is what a feature is. [IDEA-014](../jobs/IDEA-014.md) then lands as `IPageSession` from
+which is what a feature is. [IDEA-014](../../jobs/IDEA-014.md) then lands as `IPageSession` from
 `ctx.Features` instead of another member on `IContext`, and
-[IDEA-015](../jobs/IDEA-015.md)'s page-store access lands the same way.
+[IDEA-015](../../jobs/IDEA-015.md)'s page-store access lands the same way.

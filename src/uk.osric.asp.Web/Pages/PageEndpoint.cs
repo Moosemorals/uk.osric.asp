@@ -95,21 +95,36 @@ internal sealed class PageEndpoint() {
         StringWriter output = new();
 
         // A HEAD request runs the page to produce the representation and its validators, so its state
-        // is readable but never written.
+        // is readable but never written, and it cannot POST to a remote system.
+        bool isHead = HttpMethods.IsHead(context.Request.Method);
         PageStorageScope storage = new(
             path,
             environment.StateStore,
             environment.Storage,
-            writable: !HttpMethods.IsHead(context.Request.Method));
+            writable: !isHead);
+
+        // The fetch allowance belongs to the render, so every layer built from this request shares
+        // one counter rather than each getting the whole budget.
+        RenderFetchBudget budget = new(environment.Fetch.MaxRequestsPerRender);
+        PageHttpFetch fetch = new(
+            path,
+            isHead,
+            context.RequestAborted,
+            environment.Fetcher,
+            environment.Fetch,
+            budget,
+            environment.Metrics,
+            loggerFactory.CreateLogger(SimpleContext.PageCategory));
+        PageFeatures features = new PageFeatures()
+            .Add<IPageStorage>(storage)
+            .Add<IHttpFetch>(fetch);
+
         SimpleContext page = new(
             loggerFactory,
             snapshot,
             context.RequestAborted,
             output,
-            storage,
-            environment.Fetcher,
-            environment.Fetch,
-            environment.Metrics,
+            features,
             environment.Render.MaxBodyChars,
             user,
             LoginRedirect.For(path, context.Request.QueryString),

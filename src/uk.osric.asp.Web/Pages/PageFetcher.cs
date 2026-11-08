@@ -31,8 +31,8 @@ internal sealed class PageFetcher(
     public const string ClientName = "page-fetch";
 
     /// <inheritdoc/>
-    public async Task<PageFetchResponse> FetchAsync(
-        PageFetchRequest request,
+    public async Task<HttpFetchResponse> FetchAsync(
+        HttpFetchRequest request,
         string pagePath,
         CancellationToken aborted,
         CancellationToken deadline) {
@@ -40,30 +40,30 @@ internal sealed class PageFetcher(
         ArgumentException.ThrowIfNullOrWhiteSpace(pagePath);
 
         long start = Stopwatch.GetTimestamp();
-        PageFetchResponse response = await SendAsync(request, pagePath, aborted, deadline);
+        HttpFetchResponse response = await SendAsync(request, pagePath, aborted, deadline);
 
         metrics.RecordFetch(PagePath.Normalize(pagePath), OutcomeOf(response), Stopwatch.GetElapsedTime(start));
 
         return response;
     }
 
-    private async Task<PageFetchResponse> SendAsync(
-        PageFetchRequest request,
+    private async Task<HttpFetchResponse> SendAsync(
+        HttpFetchRequest request,
         string pagePath,
         CancellationToken aborted,
         CancellationToken deadline) {
         if (!TryCreateUri(request.Url, out Uri? current) || !TryValidate(request, out string? mediaType)) {
-            return Refuse(PageFetchFailure.InvalidRequest, pagePath, request.Url, LogLevel.Warning);
+            return Refuse(HttpFetchFailure.InvalidRequest, pagePath, request.Url, LogLevel.Warning);
         }
 
         if (!options.Allows(current.IdnHost)) {
-            return Refuse(PageFetchFailure.NotAllowed, pagePath, request.Url, LogLevel.Warning);
+            return Refuse(HttpFetchFailure.NotAllowed, pagePath, request.Url, LogLevel.Warning);
         }
 
         using CancellationTokenSource budget = CancellationTokenSource.CreateLinkedTokenSource(aborted, deadline);
         budget.CancelAfter(options.Timeout);
 
-        HttpMethod method = request.Method == PageFetchMethod.Post ? HttpMethod.Post : HttpMethod.Get;
+        HttpMethod method = request.Method == HttpFetchMethod.Post ? HttpMethod.Post : HttpMethod.Get;
         string? body = method == HttpMethod.Post ? request.Body : null;
 
         for (int redirects = 0; ; redirects++) {
@@ -84,17 +84,17 @@ internal sealed class PageFetcher(
                 response = await SendAsync(message, budget.Token);
             } catch (OperationCanceledException) {
                 return aborted.IsCancellationRequested
-                    ? Refuse(PageFetchFailure.Aborted, pagePath, request.Url, LogLevel.Information)
-                    : Refuse(PageFetchFailure.Timeout, pagePath, request.Url, LogLevel.Information);
+                    ? Refuse(HttpFetchFailure.Aborted, pagePath, request.Url, LogLevel.Information)
+                    : Refuse(HttpFetchFailure.Timeout, pagePath, request.Url, LogLevel.Information);
             } catch (HttpRequestException failure) {
                 logger.LogInformation(failure, "Page {Path} could not reach {Host}", pagePath, current.IdnHost);
 
-                return Empty(PageFetchFailure.Network);
+                return Empty(HttpFetchFailure.Network);
             }
 
             using (response) {
                 if (!IsRedirect(response.StatusCode)) {
-                    return await ReadAsync(response, PageFetchFailure.None, budget.Token);
+                    return await ReadAsync(response, HttpFetchFailure.None, budget.Token);
                 }
 
                 Uri? location = response.Headers.Location is { } target
@@ -102,17 +102,17 @@ internal sealed class PageFetcher(
                     : null;
 
                 if (location is null || options.MaxRedirects == 0) {
-                    return await ReadAsync(response, PageFetchFailure.None, budget.Token);
+                    return await ReadAsync(response, HttpFetchFailure.None, budget.Token);
                 }
 
                 if (redirects >= options.MaxRedirects) {
-                    return await ReadAsync(response, PageFetchFailure.TooManyRedirects, budget.Token);
+                    return await ReadAsync(response, HttpFetchFailure.TooManyRedirects, budget.Token);
                 }
 
                 if (!IsFetchable(location) || !options.Allows(location.IdnHost)) {
                     // The page still sees where it pointed and the status it answered with, but no
                     // connection is made to the host it named.
-                    return await ReadAsync(response, PageFetchFailure.NotAllowed, budget.Token);
+                    return await ReadAsync(response, HttpFetchFailure.NotAllowed, budget.Token);
                 }
 
                 // The browser convention: a redirected POST becomes a bodiless GET unless the status
@@ -154,14 +154,14 @@ internal sealed class PageFetcher(
             && string.IsNullOrEmpty(uri.Fragment);
     }
 
-    private static bool TryValidate(PageFetchRequest request, out string? mediaType) {
+    private static bool TryValidate(HttpFetchRequest request, out string? mediaType) {
         mediaType = null;
 
-        if (request.Method is not (PageFetchMethod.Get or PageFetchMethod.Post)) {
+        if (request.Method is not (HttpFetchMethod.Get or HttpFetchMethod.Post)) {
             return false;
         }
 
-        if (request.Method == PageFetchMethod.Get && request.Body is not null) {
+        if (request.Method == HttpFetchMethod.Get && request.Body is not null) {
             return false;
         }
 
@@ -188,9 +188,9 @@ internal sealed class PageFetcher(
             or HttpStatusCode.PermanentRedirect;
     }
 
-    private async Task<PageFetchResponse> ReadAsync(
+    private async Task<HttpFetchResponse> ReadAsync(
         HttpResponseMessage response,
-        PageFetchFailure failure,
+        HttpFetchFailure failure,
         CancellationToken cancellationToken) {
         byte[] body = await ReadBodyAsync(response, cancellationToken);
         bool truncated = body.Length > options.MaxResponseBytes;
@@ -209,11 +209,11 @@ internal sealed class PageFetcher(
             }
         }
 
-        PageFetchFailure outcome = failure == PageFetchFailure.None && (int)response.StatusCode >= 400
-            ? PageFetchFailure.HttpError
+        HttpFetchFailure outcome = failure == HttpFetchFailure.None && (int)response.StatusCode >= 400
+            ? HttpFetchFailure.HttpError
             : failure;
 
-        return new PageFetchResponse((int)response.StatusCode, headers, text, outcome, truncated);
+        return new HttpFetchResponse((int)response.StatusCode, headers, text, outcome, truncated);
     }
 
     // Content-Length is not trusted to be small, so the cap is applied to what arrives.
@@ -250,7 +250,7 @@ internal sealed class PageFetcher(
         return Encoding.UTF8.GetString(body);
     }
 
-    private PageFetchResponse Refuse(PageFetchFailure failure, string pagePath, string url, LogLevel level) {
+    private HttpFetchResponse Refuse(HttpFetchFailure failure, string pagePath, string url, LogLevel level) {
         // The host, not the URL: a query can carry a secret, and a refusal is usually a missing
         // allow-list entry that the host name is enough to explain.
         string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed) ? parsed.IdnHost : "(unparsed)";
@@ -259,20 +259,20 @@ internal sealed class PageFetcher(
         return Empty(failure);
     }
 
-    private static PageFetchResponse Empty(PageFetchFailure failure) {
-        return new PageFetchResponse(0, new Dictionary<string, string>(), string.Empty, failure, false);
+    private static HttpFetchResponse Empty(HttpFetchFailure failure) {
+        return new HttpFetchResponse(0, new Dictionary<string, string>(), string.Empty, failure, false);
     }
 
-    private static string OutcomeOf(PageFetchResponse response) {
+    private static string OutcomeOf(HttpFetchResponse response) {
         return response.Failure switch {
-            PageFetchFailure.None => PageMetrics.FetchOk,
-            PageFetchFailure.HttpError => PageMetrics.FetchHttpError,
-            PageFetchFailure.NotAllowed => PageMetrics.FetchNotAllowed,
-            PageFetchFailure.Timeout => PageMetrics.FetchTimeout,
-            PageFetchFailure.Network => PageMetrics.FetchNetwork,
-            PageFetchFailure.InvalidRequest => PageMetrics.FetchInvalid,
-            PageFetchFailure.TooManyRequests => PageMetrics.FetchLimit,
-            PageFetchFailure.TooManyRedirects => PageMetrics.FetchRedirectLimit,
+            HttpFetchFailure.None => PageMetrics.FetchOk,
+            HttpFetchFailure.HttpError => PageMetrics.FetchHttpError,
+            HttpFetchFailure.NotAllowed => PageMetrics.FetchNotAllowed,
+            HttpFetchFailure.Timeout => PageMetrics.FetchTimeout,
+            HttpFetchFailure.Network => PageMetrics.FetchNetwork,
+            HttpFetchFailure.InvalidRequest => PageMetrics.FetchInvalid,
+            HttpFetchFailure.TooManyRequests => PageMetrics.FetchLimit,
+            HttpFetchFailure.TooManyRedirects => PageMetrics.FetchRedirectLimit,
             _ => PageMetrics.FetchAborted,
         };
     }

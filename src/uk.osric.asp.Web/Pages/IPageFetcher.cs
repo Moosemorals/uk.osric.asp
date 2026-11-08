@@ -19,11 +19,11 @@ internal interface IPageFetcher {
     /// <returns>The response; a failure is reported in the value, not thrown.</returns>
     /// <remarks>
     /// The two tokens travel separately rather than linked, because a refusal has to say which one
-    /// fired: the visitor leaving is <see cref="PageFetchFailure.Aborted"/>, and the render running
-    /// out of budget is <see cref="PageFetchFailure.Timeout"/>.
+    /// fired: the visitor leaving is <see cref="HttpFetchFailure.Aborted"/>, and the render running
+    /// out of budget is <see cref="HttpFetchFailure.Timeout"/>.
     /// </remarks>
-    Task<PageFetchResponse> FetchAsync(
-        PageFetchRequest request,
+    Task<HttpFetchResponse> FetchAsync(
+        HttpFetchRequest request,
         string pagePath,
         CancellationToken aborted,
         CancellationToken deadline);

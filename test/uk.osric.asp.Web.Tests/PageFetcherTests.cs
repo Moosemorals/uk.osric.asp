@@ -16,14 +16,14 @@ public sealed class PageFetcherTests {
 
     [Test]
     public async Task AnAllowedHostIsFetchedAsync() {
-        PageFetchResponse response = await FetchAsync(
+        HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/status"),
             Respond(HttpStatusCode.OK, "{\"state\":\"up\"}"));
 
         Assert.That(response.Succeeded, Is.True);
         Assert.That(response.Status, Is.EqualTo(200));
         Assert.That(response.Body, Is.EqualTo("{\"state\":\"up\"}"));
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.None));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.None));
         Assert.That(response.Truncated, Is.False);
     }
 
@@ -31,9 +31,9 @@ public sealed class PageFetcherTests {
     public async Task AHostThatIsNotListedIsRefusedWithoutASocketAsync() {
         StubHttpMessageHandler handler = new(Respond(HttpStatusCode.OK, "no"));
 
-        PageFetchResponse response = await FetchAsync(Request("https://evil.example/"), handler);
+        HttpFetchResponse response = await FetchAsync(Request("https://evil.example/"), handler);
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.NotAllowed));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.NotAllowed));
         Assert.That(response.Status, Is.Zero);
         Assert.That(handler.Requests, Is.Empty);
     }
@@ -46,9 +46,9 @@ public sealed class PageFetcherTests {
     public async Task AnUnacceptableUrlIsInvalidWithoutASocketAsync(string url) {
         StubHttpMessageHandler handler = new(Respond(HttpStatusCode.OK, "no"));
 
-        PageFetchResponse response = await FetchAsync(Request(url), handler);
+        HttpFetchResponse response = await FetchAsync(Request(url), handler);
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.InvalidRequest));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.InvalidRequest));
         Assert.That(handler.Requests, Is.Empty);
     }
 
@@ -62,9 +62,9 @@ public sealed class PageFetcherTests {
             return Respond(HttpStatusCode.Created, "made")(request);
         });
 
-        PageFetchResponse response = await FetchAsync(
-            new PageFetchRequest("https://api.example.com/items") {
-                Method = PageFetchMethod.Post,
+        HttpFetchResponse response = await FetchAsync(
+            new HttpFetchRequest("https://api.example.com/items") {
+                Method = HttpFetchMethod.Post,
                 Body = "{\"name\":\"x\"}",
                 Headers = new Dictionary<string, string> {
                     ["Content-Type"] = "application/json",
@@ -78,14 +78,33 @@ public sealed class PageFetcherTests {
     }
 
     [Test]
+    public async Task APostWithoutAContentTypeSendsPlainTextAsync() {
+        StubHttpMessageHandler handler = new(request => {
+            Assert.That(request.Method, Is.EqualTo(HttpMethod.Post));
+            Assert.That(request.Content?.Headers.ContentType?.MediaType, Is.EqualTo("text/plain"));
+
+            return Respond(HttpStatusCode.OK, "made")(request);
+        });
+
+        HttpFetchResponse response = await FetchAsync(
+            new HttpFetchRequest("https://api.example.com/items") {
+                Method = HttpFetchMethod.Post,
+                Body = "hello",
+            },
+            handler);
+
+        Assert.That(response.Succeeded, Is.True);
+    }
+
+    [Test]
     public async Task AGetWithABodyIsInvalidAsync() {
         StubHttpMessageHandler handler = new(Respond(HttpStatusCode.OK, "no"));
 
-        PageFetchResponse response = await FetchAsync(
-            new PageFetchRequest("https://api.example.com/") { Body = "{}" },
+        HttpFetchResponse response = await FetchAsync(
+            new HttpFetchRequest("https://api.example.com/") { Body = "{}" },
             handler);
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.InvalidRequest));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.InvalidRequest));
         Assert.That(handler.Requests, Is.Empty);
     }
 
@@ -95,13 +114,13 @@ public sealed class PageFetcherTests {
     public async Task ADisallowedRequestHeaderIsInvalidAsync(string name) {
         StubHttpMessageHandler handler = new(Respond(HttpStatusCode.OK, "no"));
 
-        PageFetchResponse response = await FetchAsync(
-            new PageFetchRequest("https://api.example.com/") {
+        HttpFetchResponse response = await FetchAsync(
+            new HttpFetchRequest("https://api.example.com/") {
                 Headers = new Dictionary<string, string> { [name] = "value" },
             },
             handler);
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.InvalidRequest));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.InvalidRequest));
         Assert.That(handler.Requests, Is.Empty);
     }
 
@@ -109,19 +128,19 @@ public sealed class PageFetcherTests {
     public async Task AHeaderWithALineBreakIsInvalidAsync() {
         StubHttpMessageHandler handler = new(Respond(HttpStatusCode.OK, "no"));
 
-        PageFetchResponse response = await FetchAsync(
-            new PageFetchRequest("https://api.example.com/") {
+        HttpFetchResponse response = await FetchAsync(
+            new HttpFetchRequest("https://api.example.com/") {
                 Headers = new Dictionary<string, string> { ["X-Trace"] = "one\r\ntwo" },
             },
             handler);
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.InvalidRequest));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.InvalidRequest));
         Assert.That(handler.Requests, Is.Empty);
     }
 
     [Test]
     public async Task ResponseHeadersAreFilteredAsync() {
-        PageFetchResponse response = await FetchAsync(
+        HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             _ => {
                 HttpResponseMessage message = new(HttpStatusCode.OK) { Content = Content("body") };
@@ -139,11 +158,11 @@ public sealed class PageFetcherTests {
     [TestCase(HttpStatusCode.NotFound)]
     [TestCase(HttpStatusCode.InternalServerError)]
     public async Task A4xxOr5xxIsAnHttpErrorWithTheRealStatusAsync(HttpStatusCode status) {
-        PageFetchResponse response = await FetchAsync(
+        HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             Respond(status, "nope"));
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.HttpError));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.HttpError));
         Assert.That(response.Status, Is.EqualTo((int)status));
         Assert.That(response.Succeeded, Is.False);
     }
@@ -154,7 +173,7 @@ public sealed class PageFetcherTests {
             ? Redirect("/next")
             : Respond(HttpStatusCode.OK, "arrived")(request));
 
-        PageFetchResponse response = await FetchAsync(Request("https://api.example.com/start"), handler);
+        HttpFetchResponse response = await FetchAsync(Request("https://api.example.com/start"), handler);
 
         Assert.That(response.Succeeded, Is.True);
         Assert.That(response.Body, Is.EqualTo("arrived"));
@@ -168,9 +187,9 @@ public sealed class PageFetcherTests {
             return message;
         });
 
-        PageFetchResponse response = await FetchAsync(Request("https://api.example.com/start"), handler);
+        HttpFetchResponse response = await FetchAsync(Request("https://api.example.com/start"), handler);
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.NotAllowed));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.NotAllowed));
         Assert.That(response.Status, Is.EqualTo(302));
         Assert.That(handler.Requests, Has.Count.EqualTo(1));
         Assert.That(response.Headers["Location"], Is.EqualTo("https://elsewhere.example/"));
@@ -180,9 +199,9 @@ public sealed class PageFetcherTests {
     public async Task ExceedingTheRedirectLimitIsReportedAsync() {
         StubHttpMessageHandler handler = new(request => Redirect("/again"));
 
-        PageFetchResponse response = await FetchAsync(Request("https://api.example.com/start"), handler);
+        HttpFetchResponse response = await FetchAsync(Request("https://api.example.com/start"), handler);
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.TooManyRedirects));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.TooManyRedirects));
         Assert.That(handler.Requests, Has.Count.EqualTo(4));
     }
 
@@ -199,8 +218,8 @@ public sealed class PageFetcherTests {
                 : Respond(HttpStatusCode.OK, "after")(request);
         });
 
-        PageFetchResponse response = await FetchAsync(
-            new PageFetchRequest("https://api.example.com/post") { Method = PageFetchMethod.Post, Body = "x" },
+        HttpFetchResponse response = await FetchAsync(
+            new HttpFetchRequest("https://api.example.com/post") { Method = HttpFetchMethod.Post, Body = "x" },
             handler);
 
         Assert.That(response.Succeeded, Is.True);
@@ -221,7 +240,7 @@ public sealed class PageFetcherTests {
         });
 
         await FetchAsync(
-            new PageFetchRequest("https://api.example.com/post") { Method = PageFetchMethod.Post, Body = "x" },
+            new HttpFetchRequest("https://api.example.com/post") { Method = HttpFetchMethod.Post, Body = "x" },
             handler);
 
         Assert.That(keptPost, Is.True);
@@ -229,7 +248,7 @@ public sealed class PageFetcherTests {
 
     [Test]
     public async Task ALongResponseIsTruncatedAtTheCapAsync() {
-        PageFetchResponse response = await FetchAsync(
+        HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             Respond(HttpStatusCode.OK, new string('x', 4096)),
             new PageFetchOptions { AllowedHosts = ["api.example.com"], MaxResponseBytes = 1024 });
@@ -241,22 +260,22 @@ public sealed class PageFetcherTests {
 
     [Test]
     public async Task ANetworkFailureIsAValueAsync() {
-        PageFetchResponse response = await FetchAsync(
+        HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new StubHttpMessageHandler(_ => throw new HttpRequestException("refused")));
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.Network));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.Network));
         Assert.That(response.Status, Is.Zero);
     }
 
     [Test]
     public async Task ThePerFetchTimeoutIsATimeoutAsync() {
-        PageFetchResponse response = await FetchAsync(
+        HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new SlowHandler(),
             new PageFetchOptions { AllowedHosts = ["api.example.com"], TimeoutSeconds = 0.25 });
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.Timeout));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.Timeout));
     }
 
     [Test]
@@ -264,13 +283,13 @@ public sealed class PageFetcherTests {
         using CancellationTokenSource aborted = new();
         aborted.CancelAfter(50);
 
-        PageFetchResponse response = await FetchAsync(
+        HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new SlowHandler(),
             new PageFetchOptions { AllowedHosts = ["api.example.com"], TimeoutSeconds = 30 },
             aborted.Token);
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.Aborted));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.Aborted));
     }
 
     [Test]
@@ -278,14 +297,14 @@ public sealed class PageFetcherTests {
         using CancellationTokenSource deadline = new();
         deadline.CancelAfter(50);
 
-        PageFetchResponse response = await FetchAsync(
+        HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new SlowHandler(),
             new PageFetchOptions { AllowedHosts = ["api.example.com"], TimeoutSeconds = 30 },
             CancellationToken.None,
             deadline.Token);
 
-        Assert.That(response.Failure, Is.EqualTo(PageFetchFailure.Timeout));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.Timeout));
     }
 
     [Test]
@@ -333,7 +352,7 @@ public sealed class PageFetcherTests {
         Assert.That(options.Allows("sub.api.example.com"), Is.False);
     }
 
-    private static PageFetchRequest Request(string url) => new(url);
+    private static HttpFetchRequest Request(string url) => new(url);
 
     private static Func<HttpRequestMessage, HttpResponseMessage> Respond(HttpStatusCode status, string body) {
         return _ => new HttpResponseMessage(status) { Content = Content(body) };
@@ -348,8 +367,8 @@ public sealed class PageFetcherTests {
         return message;
     }
 
-    private static async Task<PageFetchResponse> FetchAsync(
-        PageFetchRequest request,
+    private static async Task<HttpFetchResponse> FetchAsync(
+        HttpFetchRequest request,
         Func<HttpRequestMessage, HttpResponseMessage> respond,
         PageFetchOptions? options = null,
         CancellationToken aborted = default,
@@ -360,8 +379,8 @@ public sealed class PageFetcherTests {
         return await fetcher.FetchAsync(request, "/page", aborted, deadline);
     }
 
-    private static async Task<PageFetchResponse> FetchAsync(
-        PageFetchRequest request,
+    private static async Task<HttpFetchResponse> FetchAsync(
+        HttpFetchRequest request,
         HttpMessageHandler handler,
         PageFetchOptions? options = null,
         CancellationToken aborted = default,

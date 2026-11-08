@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Sdk;
 
 /// <summary>The method an outbound fetch uses.</summary>
-public enum PageFetchMethod {
+public enum HttpFetchMethod {
     /// <summary>A request with no body.</summary>
     Get,
 

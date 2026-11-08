@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Pages;
 
 using System.Net;
-using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Http;
 
@@ -39,29 +38,21 @@ internal sealed class SimpleContext : IContext {
     // ILoggerFactory caches a logger for each distinct category for the life of the process and
     // never evicts one, so the key would have to come from the request — and a not-found request
     // picks its own URL.
-    private const string PageCategory = "uk.osric.asp.Pages";
+    internal const string PageCategory = "uk.osric.asp.Pages";
 
     private readonly Func<string>? _antiforgeryFactory;
-    private readonly IRenderBoundPageStorage? _boundStorage;
     private readonly Lock _body = new();
-    private readonly IPageFetcher _fetcher;
-    private readonly PageFetchOptions _fetchOptions;
+    private readonly PageFeatures _features;
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _loginRedirect;
     private readonly ILogger _logger;
-    private readonly PageMetrics _metrics;
     private readonly int _maxBodyChars;
     private readonly PageRequest _request;
-    private readonly IPageStorage _storage;
     private readonly TextWriter _writer;
 
     // Written once, under the body lock, so two reads in one render hand out one token: the token and
     // its cookie are a pair, and minting a second would leave the first unverifiable.
     private string? _antiforgeryField;
-
-    // Written once by AttachDeadline, before the page task starts: creating that task is the barrier
-    // the reader needs, and the value it carries is immutable.
-    private CancellationToken _deadline;
 
     // Read from the page's task and written by the abandoning thread, which no longer share one, so
     // the flag is volatile rather than merely lock-protected.
@@ -70,7 +61,6 @@ internal sealed class SimpleContext : IContext {
     private string _contentType = PageResponse.Default.ContentType;
     private string? _location;
     private int _status = PageResponse.Default.Status;
-    private int _fetches;
     private int _written;
 
     /// <summary>Creates the context a page runs against.</summary>
@@ -78,10 +68,7 @@ internal sealed class SimpleContext : IContext {
     /// <param name="request">The request snapshot.</param>
     /// <param name="aborted">The token from the request being served.</param>
     /// <param name="writer">The buffer the body is written to.</param>
-    /// <param name="storage">The page's own key/value store.</param>
-    /// <param name="fetcher">Where an outbound fetch goes.</param>
-    /// <param name="fetchOptions">How many requests this render may make.</param>
-    /// <param name="metrics">Where a refusal this context makes is recorded.</param>
+    /// <param name="features">The capabilities this layer offers.</param>
     /// <param name="maxBodyChars">How much body the page may write before it is refused.</param>
     /// <param name="user">The signed-in account, or <see langword="null"/> for an anonymous visitor.</param>
     /// <param name="loginRedirect">Where <see cref="RedirectToLogin"/> sends an anonymous visitor.</param>
@@ -93,10 +80,7 @@ internal sealed class SimpleContext : IContext {
         PageRequest request,
         CancellationToken aborted,
         TextWriter writer,
-        IPageStorage storage,
-        IPageFetcher fetcher,
-        PageFetchOptions fetchOptions,
-        PageMetrics metrics,
+        PageFeatures features,
         int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
         PageUser? user = null,
         string loginRedirect = "/login",
@@ -104,10 +88,7 @@ internal sealed class SimpleContext : IContext {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(storage);
-        ArgumentNullException.ThrowIfNull(fetcher);
-        ArgumentNullException.ThrowIfNull(fetchOptions);
-        ArgumentNullException.ThrowIfNull(metrics);
+        ArgumentNullException.ThrowIfNull(features);
         ArgumentException.ThrowIfNullOrWhiteSpace(loginRedirect);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxBodyChars, 1);
 
@@ -118,13 +99,8 @@ internal sealed class SimpleContext : IContext {
         _loginRedirect = loginRedirect;
         _antiforgeryFactory = antiforgeryField;
         Aborted = aborted;
-        _fetcher = fetcher;
-        _fetchOptions = fetchOptions;
-        _metrics = metrics;
-        _storage = storage;
-        _boundStorage = storage as IRenderBoundPageStorage;
+        _features = features;
         _writer = writer;
-        _deadline = CancellationToken.None;
         User = user;
     }
 
@@ -141,7 +117,7 @@ internal sealed class SimpleContext : IContext {
     public CancellationToken Aborted { get; }
 
     /// <inheritdoc/>
-    public IPageStorage Storage => _storage;
+    public IPageFeatures Features => _features;
 
     /// <summary>What the page asked the response to be.</summary>
     public PageResponse ToResponse() =>
@@ -156,10 +132,7 @@ internal sealed class SimpleContext : IContext {
 
     /// <summary>Gives the page the render's deadline, so its I/O is cancelled with the render.</summary>
     /// <param name="deadline">The deadline's token; it outlives this context's use of it.</param>
-    public void AttachDeadline(CancellationToken deadline) {
-        _deadline = deadline;
-        _boundStorage?.AttachDeadline(deadline);
-    }
+    public void AttachDeadline(CancellationToken deadline) => _features.AttachDeadline(deadline);
 
     /// <summary>Stops the page writing, once its render has been given up on.</summary>
     /// <remarks>
@@ -171,7 +144,7 @@ internal sealed class SimpleContext : IContext {
             _abandoned = true;
         }
 
-        _boundStorage?.Abandon();
+        _features.Abandon();
     }
 
     /// <inheritdoc/>
@@ -269,41 +242,6 @@ internal sealed class SimpleContext : IContext {
     }
 
     /// <inheritdoc/>
-    public Task<PageFetchResponse> FetchAsync(PageFetchRequest request) {
-        ArgumentNullException.ThrowIfNull(request);
-
-        if (_abandoned) {
-            throw new InvalidOperationException($"The render of {Path} was abandoned; it cannot fetch.");
-        }
-
-        // A HEAD runs to produce the representation and its validators, so a POST would mutate a
-        // remote system once per validator.
-        if (request.Method == PageFetchMethod.Post && IsHead) {
-            return RefuseFetch(PageMetrics.FetchInvalid, "a POST during a HEAD request");
-        }
-
-        if (_fetches >= _fetchOptions.MaxRequestsPerRender) {
-            return RefuseFetch(PageMetrics.FetchLimit, $"more than {_fetchOptions.MaxRequestsPerRender} requests");
-        }
-
-        _fetches++;
-
-        return _fetcher.FetchAsync(request, Path, Aborted, Deadline());
-    }
-
-    private Task<PageFetchResponse> RefuseFetch(string outcome, string why) {
-        _metrics.RecordFetch(PagePath.Normalize(Path), outcome, TimeSpan.Zero);
-        _logger.LogWarning("Page {Path} was refused a fetch for {Reason}", Path, why);
-
-        return Task.FromResult(new PageFetchResponse(
-            0,
-            new Dictionary<string, string>(),
-            string.Empty,
-            outcome == PageMetrics.FetchLimit ? PageFetchFailure.TooManyRequests : PageFetchFailure.InvalidRequest,
-            false));
-    }
-
-    /// <inheritdoc/>
     public void Redirect(string location, int status = 302) {
         ArgumentException.ThrowIfNullOrWhiteSpace(location);
 
@@ -344,12 +282,6 @@ internal sealed class SimpleContext : IContext {
             }
         }
     }
-
-    // The render's deadline, passed to the fetcher separately from the abort token so a refusal can
-    // say which one fired. DEC-123 keeps every I/O member on IContext tokenless.
-    private CancellationToken Deadline() => _deadline;
-
-    private bool IsHead => string.Equals(_request.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsAllowed(string name) {
         // The X- wildcard would otherwise reach the shell's own X-Content-Type-Options and friends,

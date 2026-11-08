@@ -17,9 +17,9 @@ namespace uk.osric.asp.Sdk;
 /// </para>
 /// <para>
 /// The handler is asynchronous, so <c>await</c> is an ordinary expression in a code block and inside
-/// a write expression. Every member that does I/O returns a <see cref="Task"/> and takes no
-/// cancellation token: the context owns <see cref="Aborted"/> and the render's deadline, and an
-/// implementation links them per call.
+/// a write expression. Every member that does I/O — here or on a capability reached through
+/// <see cref="Features"/> — returns a <see cref="Task"/> and takes no cancellation token: the render
+/// owns <see cref="Aborted"/> and the deadline, and the implementation links them per call.
 /// </para>
 /// </remarks>
 public interface IContext {
@@ -128,18 +128,12 @@ public interface IContext {
     /// </remarks>
     public string AntiforgeryField { get; }
 
-    /// <summary>This page's key/value store.</summary>
+    /// <summary>The capabilities this render offers.</summary>
     /// <remarks>
-    /// The handle is bound to this page, so it cannot name another page's state. Every visitor
-    /// shares it, and a write is last-write-wins.
+    /// Storage and outbound HTTP live here rather than on the context, because a page that needs
+    /// neither should never meet them. A capability the render does not offer is absent rather than
+    /// <see langword="null"/>; a page decides whether that is fatal with
+    /// <see cref="IPageFeatures.Get{T}"/> or <see cref="IPageFeatures.GetRequired{T}"/>.
     /// </remarks>
-    public IPageStorage Storage { get; }
-
-    /// <summary>Makes a bounded outbound HTTP request.</summary>
-    /// <param name="request">The request to make.</param>
-    /// <returns>
-    /// The response. A failure is reported in <see cref="PageFetchResponse.Failure"/> rather than
-    /// thrown, so a page can fall back without a <c>try</c>.
-    /// </returns>
-    public Task<PageFetchResponse> FetchAsync(PageFetchRequest request);
+    public IPageFeatures Features { get; }
 }

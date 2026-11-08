@@ -88,13 +88,15 @@ public sealed class PageScopeTests {
     public void TheStorageAndFetchContractCompiles() {
         string template = """
             <%
-                PageValue<int> stored = await ctx.Storage.TryGetValueAsync<int>("visits");
+                IPageStorage storage = ctx.Features.GetRequired<IPageStorage>();
+                PageValue<int> stored = await storage.TryGetValueAsync<int>("visits");
                 int visits = stored.Found ? stored.Value : 0;
-                await ctx.Storage.SetAsync("visits", visits + 1);
-                await ctx.Storage.DeleteAsync("gone");
-                ctx.Write(System.String.Join(",", await ctx.Storage.KeysAsync()));
+                await storage.SetAsync("visits", visits + 1);
+                await storage.DeleteAsync("gone");
+                ctx.Write(System.String.Join(",", await storage.KeysAsync()));
 
-                PageFetchResponse response = await ctx.FetchAsync(new PageFetchRequest("https://example.com/"));
+                IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+                HttpFetchResponse response = await fetch.SendAsync(new HttpFetchRequest("https://example.com/"));
                 ctx.Write(response.Succeeded ? response.Body : response.Failure.ToString());
             %>
             """;
@@ -115,6 +117,25 @@ public sealed class PageScopeTests {
         CompileResult result = Compiler.Compile(TestTemplates.Generate(template));
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public void TheFetchCapabilityCompilesWithoutAPolicyChange() {
+        CompileResult result = Compiler.Compile(
+            TestTemplates.Generate("<% IHttpFetch fetch = ctx.Features.Get<IHttpFetch>(); %>"));
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public void SystemTypeStaysDenied() {
+        CompileResult result = Compiler.Compile(
+            TestTemplates.Generate("<% System.Type type = null; %>"));
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("PAGE001", StringComparison.Ordinal)));
     }
 
     [Test]

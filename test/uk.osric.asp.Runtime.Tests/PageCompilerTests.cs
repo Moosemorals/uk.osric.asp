@@ -5,6 +5,7 @@ namespace uk.osric.asp.Runtime.Tests;
 
 using NUnit.Framework;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Runtime;
@@ -403,32 +404,12 @@ public sealed class PageCompilerTests {
 
         public string AntiforgeryField => string.Empty;
 
-        public uk.osric.asp.Sdk.IPageStorage Storage { get; } = new NoStorage();
+        public uk.osric.asp.Sdk.IPageFeatures Features { get; } = new NoFeatures();
 
-        public Task<uk.osric.asp.Sdk.PageFetchResponse> FetchAsync(uk.osric.asp.Sdk.PageFetchRequest request) {
-            return Task.FromResult(new uk.osric.asp.Sdk.PageFetchResponse(
-                0,
-                new Dictionary<string, string>(),
-                string.Empty,
-                uk.osric.asp.Sdk.PageFetchFailure.NotAllowed,
-                false));
-        }
-
-        private sealed class NoStorage : uk.osric.asp.Sdk.IPageStorage {
-            public Task<uk.osric.asp.Sdk.PageValue<T>> TryGetValueAsync<T>(string key) {
-                return Task.FromResult(new uk.osric.asp.Sdk.PageValue<T>(false, default));
-            }
-
-            public Task SetAsync<T>(string key, T value) {
-                throw new InvalidOperationException("The test context has no storage.");
-            }
-
-            public Task<bool> DeleteAsync(string key) {
-                throw new InvalidOperationException("The test context has no storage.");
-            }
-
-            public Task<IReadOnlyList<string>> KeysAsync() {
-                return Task.FromResult<IReadOnlyList<string>>([]);
+        private sealed class NoFeatures : uk.osric.asp.Sdk.IPageFeatures {
+            public bool TryGet<T>([NotNullWhen(true)] out T? feature) where T : class {
+                feature = null;
+                return false;
             }
         }
     }

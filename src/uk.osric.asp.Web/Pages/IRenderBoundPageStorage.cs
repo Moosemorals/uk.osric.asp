@@ -7,15 +7,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>Page storage the render can stop.</summary>
 /// <remarks>
-/// Two things end a storage call early: the render's deadline, and the render being given up on. Both
-/// come from the shell, never from the page, because the SDK has no abandonment member (DEC-123).
+/// The handle a page holds is only <see cref="IPageStorage"/>; this is the shell's view of the same
+/// object, with the deadline and abandonment the SDK deliberately does not expose (DEC-123).
 /// </remarks>
-internal interface IRenderBoundPageStorage : IPageStorage {
-
-    /// <summary>Gives the storage the render's deadline.</summary>
-    /// <param name="deadline">The deadline's token; it outlives this use of it.</param>
-    void AttachDeadline(CancellationToken deadline);
-
-    /// <summary>Stops accepting work, because the render was given up on.</summary>
-    void Abandon();
-}
+internal interface IRenderBoundPageStorage : IPageStorage, IRenderBoundFeature;

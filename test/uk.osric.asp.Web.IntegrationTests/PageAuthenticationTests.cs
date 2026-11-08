@@ -86,7 +86,7 @@ public sealed class PageAuthenticationTests : IntegrationTest {
     [Test]
     public async Task AnAuthenticatedPostWithoutTheFieldIsRefusedBeforeThePageRuns() {
         await SavePageAsync("/private-refused", """
-            <% await ctx.Storage.SetAsync("ran", "yes"); %>
+            <% await ctx.Features.GetRequired<IPageStorage>().SetAsync("ran", "yes"); %>
             <p>the page ran</p>
             """);
         using HttpClient client = await CreateSignedInClientAsync();

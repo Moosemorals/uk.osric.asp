@@ -15,9 +15,10 @@ using uk.osric.asp.Web.Storage;
 public sealed class PageStorageTests : IntegrationTest {
 
     private const string Counter = """
-        <% PageValue<int> stored = await ctx.Storage.TryGetValueAsync<int>("visits");
+        <% IPageStorage storage = ctx.Features.GetRequired<IPageStorage>();
+           PageValue<int> stored = await storage.TryGetValueAsync<int>("visits");
            int visits = (stored.Found ? stored.Value : 0) + 1;
-           await ctx.Storage.SetAsync("visits", visits); %>
+           await storage.SetAsync("visits", visits); %>
         <p>Visited <%= visits.ToString() %> times.</p>
         """;
 
@@ -70,7 +71,7 @@ public sealed class PageStorageTests : IntegrationTest {
     public async Task AnotherPageCannotSeeTheKeysAsync() {
         await SavePageAsync("/counter", Counter);
         await SavePageAsync("/other", """
-            <p>keys: <%= (await ctx.Storage.KeysAsync()).Count.ToString() %></p>
+            <p>keys: <%= (await ctx.Features.GetRequired<IPageStorage>().KeysAsync()).Count.ToString() %></p>
             """);
         using HttpClient client = CreateClient();
         await client.GetStringAsync("/counter");

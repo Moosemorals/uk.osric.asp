@@ -139,8 +139,9 @@ and applies them.
   path or port, and a malformed one fails the start rather than being ignored. The container's
   egress is not otherwise restricted — the allow-list is a footgun guard, not a sandbox (SEC-03).
   `Pages__Fetch__TimeoutSeconds` defaults to 4, deliberately below the 5-second render budget.
-- **Page state:** `ctx.Storage` is stored in `PageState` in the same database, so `storage.db` now
-  carries it and a backup includes it. Deleting a page clears its state; editing or restoring it
+- **Page state:** a page reaches state through `ctx.Features.GetRequired<IPageStorage>()`; it is
+  stored in `PageState` in the same database, so `storage.db` now carries it and a backup includes
+  it. Deleting a page clears its state; editing or restoring it
   keeps it. The caps live under `Pages:Storage` (`Pages__Storage__MaxValueBytes`, and so on).
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default

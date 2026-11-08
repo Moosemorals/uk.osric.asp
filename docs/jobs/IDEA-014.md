@@ -13,8 +13,9 @@ SPDX-License-Identifier: MIT
 
 ## Idea
 
-`ctx.Storage` is one store for the whole site: every visitor shares it, a write is last-write-wins,
-and the handle is bound to `IContext.Path` (DEC-125, DEC-126, DEC-127). That is the right shape for a
+`ctx.Features.GetRequired<IPageStorage>()` is one store for the whole site: every visitor shares it,
+a write is last-write-wins, and the handle is bound to the page's own key (DEC-125, DEC-126, DEC-127).
+That is the right shape for a
 guestbook or a counter and the wrong shape for anything the site says to one visitor.
 
 The shell uses `context.Session` for exactly that. Every editor action writes a one-shot message into
@@ -24,8 +25,8 @@ redirects cannot tell the visitor what happened, and the view grows into a shell
 
 The goal is a per-visitor store a page can reach: bounded, keyed by a cookie the shell mints,
 readable and writable by page code, and cleared when the visitor signs out. It arrives as a
-capability (`IPageSession` from `ctx.Features`) rather than as another member on `IContext`, once
-the [page-features plan](../plans/page-features.md) has landed.
+capability (`IPageSession` from `ctx.Features`) rather than as another member on `IContext`, now
+that the [page-features plan](../plans/archive/page-features.md) has landed.
 
 ## Sketch
 

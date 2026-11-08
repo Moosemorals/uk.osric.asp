@@ -20,7 +20,7 @@ using System.Collections.Frozen;
 /// cancellation token, <c>System.Runtime.InteropServices</c>, <c>System.Runtime.Loader</c>,
 /// <c>System.Runtime.CompilerServices</c>, <c>System.Text.RegularExpressions</c>, and anything in
 /// <c>Microsoft.*</c> or our own shell assemblies. <c>System.Net</c> stays out on purpose:
-/// <c>IContext.FetchAsync</c> is the page's only egress.
+/// <c>IHttpFetch</c> is the page's only egress.
 /// </para>
 /// <para>
 /// <c>System.Threading.Tasks</c> is admitted as a type rather than as a namespace: exactly

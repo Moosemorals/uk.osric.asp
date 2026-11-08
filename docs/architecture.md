@@ -15,9 +15,9 @@ The boundary is pure rules over values, with effects isolated in their own proje
 can enforce it.
 
 - **`src/uk.osric.asp.Sdk`** is the page contract: `IContext`, `PageRequest`, `PageResponse`,
-  `IHandler` and `UserFacingException`. It is what a compiled page binds against and the only
-  product assembly a page may name. It has no references at all, so nothing it exposes can drag the
-  host in.
+  `IHandler`, `UserFacingException`, and the capability interfaces a page may ask for through
+  `IContext.Features`. It is what a compiled page binds against and the only product assembly a page
+  may name. It has no references at all, so nothing it exposes can drag the host in.
 - **`src/uk.osric.asp.Core`** holds the host's pure half: the template tokenizer and source
   generator, the page diagnostics, the API policy, page identity and the chart helpers. It has no
   project or package references at all, so it cannot reach for I/O, a clock, DI or ASP.NET. Its only
@@ -91,7 +91,7 @@ and the logs quote them:
 | The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
-| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageStorage`/`PageValue<T>`, `PageFetchRequest`/`PageFetchResponse`/`PageFetchMethod`/`PageFetchFailure` | `Sdk`, as plain values a compiled page binds against |
+| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageFeatures`, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure` | `Sdk`, as plain values a compiled page binds against |
 | The page policy: `PageApiPolicy`, `ApiReference` | `Core.Compilation`, as a pure rule over strings |
 | The Roslyn walk that applies the page policy | `Runtime` |
 | The template language and its diagnostics | `Core.Compilation` |
@@ -127,25 +127,33 @@ the EF tools discover internal migrations and an internal `StorageDbContext` wit
 ## Page contract
 
 A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it
-touches is a plain record in `Sdk`. `IContext` is the whole surface — `Request` (method, path, query,
-form, headers, cookies), `Path`, `User`, `Aborted`, `Log`/`LogWarning`/`LogError`, `Write`/`WriteRaw`,
-`SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect`, `RedirectToLogin` and
-`AntiforgeryField`.
+touches is a plain record in `Sdk`. `IContext` is the surface every page has — `Request` (method,
+path, query, form, headers, cookies), `Path`, `User`, `Aborted`, `Log`/`LogWarning`/`LogError`,
+`Write`/`WriteRaw`, `SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect`,
+`RedirectToLogin`, `AntiforgeryField` and `Features`.
 
 The handler is asynchronous: `IHandler.HandleAsync` returns a `Task`, the generator always emits an
 `async` method, and `await` is therefore an ordinary expression in a code block and inside a write
-expression. Any member `IContext` gains that does I/O returns a `Task` and takes no cancellation
-token — the context owns `Aborted` and the render's deadline and links them per call (DEC-123).
+expression. Any member that does I/O — on `IContext` or on a capability — returns a `Task` and takes
+no cancellation token: the context owns `Aborted` and the render's deadline, and an implementation
+links them per call (DEC-123).
 
-Two capabilities hang off the context, both asynchronous and both bounded by the render:
+`IContext.Features` is how a page asks for a capability this render may or may not offer.
+`TryGet<T>` reports whether one is there, `Get<T>` returns it or `null`, and `GetRequired<T>`
+returns it or throws naming the interface, so the page decides whether absence is fatal. The host
+decides what is registered — a page cannot add or replace a capability — and a capability is either
+registered or absent, never `null` (DEC-142).
 
-- `Storage` is the page's own key/value store. It is bound to `IContext.Path`, so a page cannot name
-  another page's state; the handle is the isolation. Values are JSON round-tripped by the host, keys
-  are ordinal, and writes are last-write-wins. A `HEAD` render may read but never write (DEC-125,
-  DEC-126, DEC-127).
-- `FetchAsync` makes one outbound HTTP request from the host, not the browser, and only to hosts the
-  operator has allow-listed. It returns a value for every failure rather than throwing, and the
-  render's request count, the deadline and `Abandon` all bound it (DEC-128, DEC-129).
+Two capabilities are registered today, both asynchronous and both bounded by the render:
+
+- `IPageStorage` is the page's own key/value store. It is bound to the page's key, so a page cannot
+  name another page's state; the handle is the isolation. Values are JSON round-tripped by the
+  host, keys are ordinal, and writes are last-write-wins. A `HEAD` render may read but never write
+  (DEC-125, DEC-126, DEC-127).
+- `IHttpFetch` makes one outbound HTTP request from the host, not the browser, and only to hosts the
+  operator has allow-listed. `GetAsync` and `PostAsync` sit over `SendAsync(HttpFetchRequest)`;
+  every failure is a value rather than an exception, and the render's shared request count, the
+  deadline and abandonment all bound it (DEC-128, DEC-129, DEC-143).
 
 A page's log entries are filed under the single `uk.osric.asp.Pages` category, with the page's key on
 a `Path` scope property, so one page can be filtered or levelled without touching another. That
@@ -376,7 +384,7 @@ Stored pages are C#, so the surface they may touch is constrained twice.
 - A narrow set of `System.Text.Json` types is allowed, so a fetched JSON body can be parsed:
   `JsonDocument`, `JsonElement`, `JsonSerializer`, `JsonSerializerOptions`,
   `JsonSerializerDefaults`, `JsonValueKind` and `JsonException`. The
-  `System.Text.Json.Serialization` attributes are not, and `System.Net` stays denied — `FetchAsync`
+  `System.Text.Json.Serialization` attributes are not, and `System.Net` stays denied — `IHttpFetch`
   is the page's only egress (DEC-130).
 - `PageApiChecker` in `Runtime` walks the generated syntax tree, projects Roslyn symbols onto
   `ApiReference` values, rejects `stackalloc`, `dynamic`, pointers, function pointers and `unsafe`,

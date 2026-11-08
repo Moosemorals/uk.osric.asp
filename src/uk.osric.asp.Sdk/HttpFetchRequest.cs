@@ -10,10 +10,10 @@ namespace uk.osric.asp.Sdk;
 /// <c>X-</c> header deliberately, because nothing forwards a credential by accident.
 /// </remarks>
 /// <param name="Url">An absolute <c>http</c> or <c>https</c> URL, with no credentials and no fragment.</param>
-public sealed record PageFetchRequest(string Url) {
+public sealed record HttpFetchRequest(string Url) {
 
-    /// <summary>The method; <see cref="PageFetchMethod.Get"/> by default.</summary>
-    public PageFetchMethod Method { get; init; } = PageFetchMethod.Get;
+    /// <summary>The method; <see cref="HttpFetchMethod.Get"/> by default.</summary>
+    public HttpFetchMethod Method { get; init; } = HttpFetchMethod.Get;
 
     /// <summary>The request body. <c>POST</c> only, and text only.</summary>
     public string? Body { get; init; }

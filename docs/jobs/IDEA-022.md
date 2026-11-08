@@ -18,9 +18,9 @@ cap under a lock, status/content type/headers, logging, redirects, antiforgery, 
 delegation, storage, the deadline, the abandonment flag and the final `ToResponse`. Finding one of
 those is a scroll, and moving one is a risk to the rest.
 
-The [page-features plan](../plans/page-features.md) moves storage and fetch out first, which takes
-roughly a fifth of the file with them. Re-measure before doing anything else: if what is left is
-still the hard-to-navigate shape, split it.
+The [page-features plan](../plans/archive/page-features.md) moved storage and fetch out first, which
+took roughly a fifth of the file with them. Re-measure before doing anything else: if what is left
+is still the hard-to-navigate shape, split it.
 
 ## Sketch
 

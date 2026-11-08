@@ -94,23 +94,55 @@ internal sealed class PageHarness : IDisposable {
         string path,
         int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
         bool isHead = false,
-        PageUser? user = null) {
+        PageUser? user = null,
+        bool withFetch = true,
+        bool withStorage = true) {
         PagePath key = Key(path);
-        SimpleContext context = new(
-            NullLoggerFactory.Instance,
-            TestHttp.Request(key.Key, isHead ? "HEAD" : "GET"),
-            CancellationToken.None,
-            new StringWriter(),
-            new PageStorageScope(key, State, StorageOptions, writable: !isHead),
-            Fetch,
-            FetchOptions,
-            Metrics,
-            maxBodyChars,
-            user);
+        SimpleContext context = CreateContext(
+            key, maxBodyChars, isHead, user, withFetch: withFetch, withStorage: withStorage);
 
         RenderResult result = await Renderer.RenderAsync(key, context, CancellationToken.None);
 
         return (result, context.GetBody());
+    }
+
+    /// <summary>Builds one layer's context, with or without the capabilities the host normally adds.</summary>
+    public SimpleContext CreateContext(
+        PagePath path,
+        int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
+        bool isHead = false,
+        PageUser? user = null,
+        RenderFetchBudget? budget = null,
+        bool withFetch = true,
+        bool withStorage = true) {
+        PageFeatures features = new();
+
+        if (withStorage) {
+            PageStorageScope storage = new(path, State, StorageOptions, writable: !isHead);
+            features.Add<IPageStorage>(storage);
+        }
+
+        if (withFetch) {
+            PageHttpFetch fetch = new(
+                path,
+                isHead,
+                CancellationToken.None,
+                Fetch,
+                FetchOptions,
+                budget ?? new RenderFetchBudget(FetchOptions.MaxRequestsPerRender),
+                Metrics,
+                NullLoggerFactory.Instance.CreateLogger(SimpleContext.PageCategory));
+            features.Add<IHttpFetch>(fetch);
+        }
+
+        return new SimpleContext(
+            NullLoggerFactory.Instance,
+            TestHttp.Request(path.Key, isHead ? "HEAD" : "GET"),
+            CancellationToken.None,
+            new StringWriter(),
+            features,
+            maxBodyChars,
+            user);
     }
 
     // The timeout tests measure the page, not the compiler: a page compiled on its first request

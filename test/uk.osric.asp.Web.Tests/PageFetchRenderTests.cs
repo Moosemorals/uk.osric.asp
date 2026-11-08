@@ -13,15 +13,16 @@ public sealed class PageFetchRenderTests {
 
     [Test]
     public async Task APageRendersWhatItFetchedAsync() {
-        FakePageFetcher fetcher = new(request => new PageFetchResponse(
+        FakePageFetcher fetcher = new(request => new HttpFetchResponse(
             200,
             new Dictionary<string, string> { ["Content-Type"] = "application/json" },
             "{\"state\":\"up\"}",
-            PageFetchFailure.None,
+            HttpFetchFailure.None,
             false));
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         await pages.StoreCompiledAsync("/live", """
-            <% PageFetchResponse response = await ctx.FetchAsync(new PageFetchRequest("https://api.example.com/"));
+            <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+               HttpFetchResponse response = await fetch.SendAsync(new HttpFetchRequest("https://api.example.com/"));
                using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(response.Body); %>
             <p><%= document.RootElement.GetProperty("state").GetString() %></p>
             """);
@@ -34,15 +35,16 @@ public sealed class PageFetchRenderTests {
 
     [Test]
     public async Task APageCanBranchOnAFailureValueAsync() {
-        FakePageFetcher fetcher = new(_ => new PageFetchResponse(
+        FakePageFetcher fetcher = new(_ => new HttpFetchResponse(
             0,
             new Dictionary<string, string>(),
             string.Empty,
-            PageFetchFailure.NotAllowed,
+            HttpFetchFailure.NotAllowed,
             false));
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         await pages.StoreCompiledAsync("/live", """
-            <% PageFetchResponse response = await ctx.FetchAsync(new PageFetchRequest("https://api.example.com/")); %>
+            <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+               HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/"); %>
             <p><%= response.Succeeded ? response.Body : "unavailable" %></p>
             """);
 
@@ -57,8 +59,8 @@ public sealed class PageFetchRenderTests {
         FakePageFetcher fetcher = new();
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         await pages.StoreCompiledAsync("/post", """
-            <% PageFetchResponse response = await ctx.FetchAsync(
-                   new PageFetchRequest("https://api.example.com/") { Method = PageFetchMethod.Post, Body = "x" }); %>
+            <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+               HttpFetchResponse response = await fetch.PostAsync("https://api.example.com/", "x"); %>
             <p><%= response.Failure.ToString() %></p>
             """);
 
@@ -71,18 +73,19 @@ public sealed class PageFetchRenderTests {
 
     [Test]
     public async Task ARenderMakesNoMoreRequestsThanItsCapAsync() {
-        FakePageFetcher fetcher = new(_ => new PageFetchResponse(
+        FakePageFetcher fetcher = new(_ => new HttpFetchResponse(
             200,
             new Dictionary<string, string>(),
             "ok",
-            PageFetchFailure.None,
+            HttpFetchFailure.None,
             false));
         PageFetchOptions options = new() { MaxRequestsPerRender = 2 };
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
         await pages.StoreCompiledAsync("/greedy", """
             <%
+                IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
                 for (int index = 0; index < 4; index++) {
-                    PageFetchResponse response = await ctx.FetchAsync(new PageFetchRequest("https://api.example.com/"));
+                    HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/");
                     ctx.Write(response.Failure.ToString());
                     ctx.Write(" ");
                 }
@@ -98,24 +101,73 @@ public sealed class PageFetchRenderTests {
 
     [Test]
     public async Task AnAbandonedRenderCannotFetchAsync() {
-        PageFetchOptions options = new();
-        SimpleContext context = new(
-            Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance,
-            TestHttp.Request("/page"),
-            CancellationToken.None,
-            new StringWriter(),
-            new PageStorageScope(
-                uk.osric.asp.Core.Pages.PagePath.Normalize("/page"),
-                new FakePageStateStore(),
-                new PageStorageOptions(),
-                writable: true),
-            new FakePageFetcher(),
-            options,
-            new PageMetrics());
+        using PageHarness pages = new(new FakePageStore());
+        SimpleContext context = pages.CreateContext(PageHarness.Key("/page"));
 
         context.Abandon();
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => context.FetchAsync(new PageFetchRequest("https://api.example.com/")));
+            () => context.Features.GetRequired<IHttpFetch>().GetAsync("https://api.example.com/"));
+    }
+
+    [Test]
+    public async Task GetAsyncBuildsAGetRequestAsync() {
+        FakePageFetcher fetcher = new();
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
+        SimpleContext context = pages.CreateContext(PageHarness.Key("/page"));
+
+        await context.Features.GetRequired<IHttpFetch>().GetAsync("https://api.example.com/state");
+
+        HttpFetchRequest request = fetcher.Requests.Single();
+        Assert.That(request.Url, Is.EqualTo("https://api.example.com/state"));
+        Assert.That(request.Method, Is.EqualTo(HttpFetchMethod.Get));
+        Assert.That(request.Body, Is.Null);
+        Assert.That(request.Headers, Is.Empty);
+    }
+
+    [Test]
+    public async Task PostAsyncBuildsAPostRequestWithABodyAsync() {
+        FakePageFetcher fetcher = new();
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
+        SimpleContext context = pages.CreateContext(PageHarness.Key("/page"));
+
+        await context.Features.GetRequired<IHttpFetch>().PostAsync("https://api.example.com/state", "hello");
+
+        HttpFetchRequest request = fetcher.Requests.Single();
+        Assert.That(request.Url, Is.EqualTo("https://api.example.com/state"));
+        Assert.That(request.Method, Is.EqualTo(HttpFetchMethod.Post));
+        Assert.That(request.Body, Is.EqualTo("hello"));
+        Assert.That(request.Headers, Is.Empty);
+    }
+
+    [Test]
+    public async Task TwoLayersSharingABudgetMakeOneRequestTooManyAsync() {
+        FakePageFetcher fetcher = new();
+        PageFetchOptions options = new() { MaxRequestsPerRender = 1 };
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
+        RenderFetchBudget budget = new(options.MaxRequestsPerRender);
+        IHttpFetch outer = pages.CreateContext(PageHarness.Key("/page"), budget: budget)
+            .Features.GetRequired<IHttpFetch>();
+        IHttpFetch inner = pages.CreateContext(PageHarness.Key("/page"), budget: budget)
+            .Features.GetRequired<IHttpFetch>();
+
+        await outer.GetAsync("https://api.example.com/");
+        HttpFetchResponse second = await inner.GetAsync("https://api.example.com/");
+
+        Assert.That(second.Failure, Is.EqualTo(HttpFetchFailure.TooManyRequests));
+        Assert.That(fetcher.Requests, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ARequiredFetchIsRefusedWhenTheRenderOffersNoneAsync() {
+        using PageHarness pages = new(new FakePageStore());
+        await pages.StoreCompiledAsync("/needs-fetch", """
+            <% _ = ctx.Features.GetRequired<IHttpFetch>(); %>
+            """);
+
+        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => pages.RenderAsync("/needs-fetch", withFetch: false));
+
+        Assert.That(refused?.Message, Does.Contain(nameof(IHttpFetch)));
     }
 }

@@ -7,16 +7,16 @@ using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>A <see cref="IPageFetcher"/> that answers from a script rather than a socket.</summary>
-internal sealed class FakePageFetcher(Func<PageFetchRequest, PageFetchResponse>? answer = null) : IPageFetcher {
+internal sealed class FakePageFetcher(Func<HttpFetchRequest, HttpFetchResponse>? answer = null) : IPageFetcher {
 
-    private readonly Func<PageFetchRequest, PageFetchResponse> _answer = answer ?? (request => new PageFetchResponse(
+    private readonly Func<HttpFetchRequest, HttpFetchResponse> _answer = answer ?? (request => new HttpFetchResponse(
         0,
         new Dictionary<string, string>(),
         string.Empty,
-        PageFetchFailure.NotAllowed,
+        HttpFetchFailure.NotAllowed,
         false));
 
-    public List<PageFetchRequest> Requests { get; } = [];
+    public List<HttpFetchRequest> Requests { get; } = [];
 
     public string? LastPagePath { get; private set; }
 
@@ -24,8 +24,8 @@ internal sealed class FakePageFetcher(Func<PageFetchRequest, PageFetchResponse>?
 
     public CancellationToken LastDeadline { get; private set; }
 
-    public Task<PageFetchResponse> FetchAsync(
-        PageFetchRequest request,
+    public Task<HttpFetchResponse> FetchAsync(
+        HttpFetchRequest request,
         string pagePath,
         CancellationToken aborted,
         CancellationToken deadline) {
