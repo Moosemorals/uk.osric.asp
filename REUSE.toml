@@ -44,6 +44,7 @@ path = [
   "src/uk.osric.asp.Web/Pages/Seeds/help",
   "src/uk.osric.asp.Web/Pages/Seeds/pages",
   "src/uk.osric.asp.Web/Pages/Seeds/recent",
+  "src/uk.osric.asp.Web/Pages/Seeds/scratch",
 ]
 SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
 SPDX-License-Identifier = "MIT"

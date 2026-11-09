@@ -1,0 +1,89 @@
+<% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+<% ctx.Features.GetRequired<IPageLayout>().Title = "Scratch: a page that edits itself"; %>
+<h1>Scratch</h1>
+<p>Signed in as <%= user.Name %>. This page is a demonstration of the page-write capability
+(<code>IPageWriter</code>): it reads its own source with <code>IPageCatalog</code>, shows it below,
+and saves what you submit as a new revision of <em>this page</em>. It is the worked example for the
+page that edits itself (<a href="/help#writing">IDEA-016</a>); <a href="/edit">the editor</a> is the
+owner's version of the same save, and <a href="/pages">/pages</a> is the same read without a
+write.</p>
+<p>Every save is a revision, so a bad edit is recoverable: <a href="/edit/scratch">/edit/scratch</a>
+has this page's history and a <strong>Restore from seed</strong> button.</p>
+<%
+    IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+    PageSource? current = await catalog.ReadAsync(ctx.Path);
+    string draft = current?.Source ?? "";
+    string headHash = current?.Hash ?? "";
+    string? refusal = null;
+    PageSaveResult? answered = null;
+
+    if (current is null) {
+        refusal = "This page could not be read back from the store, so it cannot be edited here.";
+    } else if (string.Equals(ctx.Request.Method, "POST", System.StringComparison.Ordinal)) {
+        bool hasTemplate = ctx.Request.Form.TryGetValue("template", out string? template);
+        bool hasHash = ctx.Request.Form.TryGetValue("hash", out string? expected);
+
+        if (!hasTemplate || template is null) {
+            refusal = "That form carried no template, so nothing was saved.";
+        } else if (!hasHash || !string.Equals(expected, current.Hash, System.StringComparison.Ordinal)) {
+            refusal = "Somebody saved this page while you were typing, so nothing was saved. The current source is in the box.";
+        } else {
+            draft = template;
+            answered = await ctx.Features.GetRequired<IPageWriter>().SaveAsync(template);
+            headHash = answered.Hash;
+        }
+    }
+%>
+<% if (refusal is not null) { %>
+<section aria-labelledby="refusal">
+    <h2 id="refusal">Nothing was saved</h2>
+    <p><%= refusal %></p>
+</section>
+<% } %>
+<% if (answered is not null) { %>
+<section aria-labelledby="answer">
+    <h2 id="answer"><%= answered.HasErrors ? "Saved with errors" : answered.HasWarnings ? "Saved with warnings" : "Saved" %></h2>
+    <p>Revision <code><%= answered.Hash %></code> is stored. This response is the save's answer and is
+    still the page as it was; <a href="/scratch">load the page again</a> to see what the next request
+    serves.<% if (answered.HasErrors) { %> The page cannot be served until the errors below are fixed,
+    and <a href="/edit/scratch">the editor</a> can restore the seeded source.<% } %></p>
+<% if (answered.Diagnostics.Count > 0) { %>
+    <table>
+        <caption>What the compiler said about the template you saved</caption>
+        <thead>
+            <tr>
+                <th scope="col">Severity</th>
+                <th scope="col">Line</th>
+                <th scope="col">Column</th>
+                <th scope="col">Code</th>
+                <th scope="col">Message</th>
+            </tr>
+        </thead>
+        <tbody>
+<% foreach (PageDiagnostic diagnostic in answered.Diagnostics) { %>
+            <tr>
+                <th scope="row"><%= diagnostic.Severity == PageDiagnosticSeverity.Error ? "Error" : "Warning" %></th>
+                <td><%= diagnostic.Line?.ToString() ?? "" %></td>
+                <td><%= diagnostic.Column?.ToString() ?? "" %></td>
+                <td><code><%= diagnostic.Code %></code></td>
+                <td><%= diagnostic.Message %></td>
+            </tr>
+<% } %>
+        </tbody>
+    </table>
+<% } %>
+</section>
+<% } %>
+<form method="post" class="form">
+    <%== ctx.AntiforgeryField %>
+    <input type="hidden" name="hash" value="<%= headHash %>">
+    <fieldset>
+        <legend>This page's own source</legend>
+        <textarea name="template" id="template" rows="24" cols="70" wrap="off" spellcheck="false" aria-describedby="template-hint"><%= draft %></textarea>
+        <p id="template-hint">Saving compiles before it stores, so a template with an error is still
+        saved and reported above. This is a demonstration page, not the editor.</p>
+    </fieldset>
+    <button type="submit">Save this page</button>
+</form>
+<p><a href="/help#writing">How a page saves itself</a> · <a href="/pages">Read a page's source</a> ·
+<a href="/edit/scratch">Edit this page in the editor</a></p>

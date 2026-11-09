@@ -13,6 +13,7 @@ can improve it at <a href="/edit/help">/edit/help</a>.</p>
         <li><a href="#syntax">Template syntax</a></li>
         <li><a href="#context">Context and capabilities</a></li>
         <li><a href="#catalog">Reading the page store</a></li>
+        <li><a href="#writing">Saving the page you are</a></li>
         <li><a href="#markdown">Markdown</a></li>
         <li><a href="#private">Private pages and forms</a></li>
         <li><a href="#assets">Assets, seeds and recovery</a></li>
@@ -210,7 +211,8 @@ catch. <code>System.IO</code>, <code>System.Net</code>, <code>System.Reflection<
 <h2 id="catalog">Reading the page store</h2>
 <p><code>IPageCatalog</code> is a read-only view of the site's page store: list the heads under a
 prefix, read a live page's template, list a page's history, and read one retained revision by its
-key and hash. It never meets an image, a symbol or a write; saving is a separate capability.</p>
+key and hash. It never meets an image, a symbol or a write; saving is
+<code>IPageWriter</code>, below.</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageCatalog catalog = ctx.Features.GetRequired&lt;IPageCatalog&gt;();
    System.Collections.Generic.IReadOnlyList&lt;PageEntry&gt; pages = await catalog.ListAsync("/blog");
    PageSource? page = await catalog.ReadAsync("/blog");
@@ -243,6 +245,34 @@ one render may pull in at most 512 KiB of template across the page and its layou
 refusal rather than half a page. A listing charges nothing, because its rows are metadata and the
 body cap bounds what a page can write out of them. Both limits are set under
 <code>Pages:Read</code>.</p>
+
+<h2 id="writing">Saving the page you are</h2>
+<p><code>IPageWriter</code> saves the source of the page that calls it. It is bound to
+<code>ctx.Path</code> and takes no key, so a page writes itself and nothing else:</p>
+<pre class="source" tabindex="0"><code>&lt;% PageSaveResult saved = await ctx.Features.GetRequired&lt;IPageWriter&gt;()
+        .SaveAsync(ctx.Request.Form["template"]); %&gt;
+&lt;p&gt;Saved &lt;code&gt;&lt;%= saved.Hash %&gt;&lt;/code&gt;.&lt;/p&gt;</code></pre>
+<p>The answer is a <code>PageSaveResult</code>: the new revision's hash, and the compiler's
+diagnostics as <code>PageDiagnostic</code> values — severity, the template line and column when there
+is one, the code (<code>PAGE001</code>, <code>CS1002</code>) and its text. A save compiles before it
+stores, exactly as the editor's does, so a template with an error is still saved and reported, and a
+warning still serves. A page that saves itself reads its own current source with
+<code>IPageCatalog.ReadAsync(ctx.Path)</code>, which is also where the hash for a stale-form check
+comes from.</p>
+<p><strong>The write needs a signed-in visitor.</strong> Reading the store is as public as the page
+that calls it; changing what the site serves is not, so <code>SaveAsync</code> refuses an anonymous
+render before it compiles anything, with a message saying to sign in. Guard your own form as well when
+you want the visitor sent to the sign-in page instead of the error page:</p>
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;</code></pre>
+<p>A save belongs to the <em>next</em> request: the running page is already compiled, so the response
+you are writing is still the page as it was. Save on a <code>POST</code>, write the answer you were
+given, and let the next request serve the new source. A <code>HEAD</code> never saves, because it runs
+the page once per validator, and one render saves once. A save that has started is never abandoned: if
+the page runs out of time the revision is still stored, and the next request serves it.</p>
+<p>A layout is offered the read and not the write, because it is markup: one that saved itself would
+add a revision to every page it wraps. The seeded <a href="/scratch">/scratch</a> is the worked
+example — a page that shows its own source, saves it, reports the diagnostics and refuses a form whose
+revision hash has been overtaken.</p>
 
 <h2 id="markdown">Markdown</h2>
 <p><code>IMarkdownRenderer</code> renders Markdown to HTML. Write its result raw:</p>

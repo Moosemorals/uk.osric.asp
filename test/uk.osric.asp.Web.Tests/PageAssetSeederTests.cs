@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/layout.css", "/pages", "/recent", "/rocket.svg", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/_layout", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/layout.css", "/pages", "/recent", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {
@@ -119,6 +119,21 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("IPageCatalog"));
         Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }"));
         Assert.That(template, Does.Contain("href=\"/recent\""));
+    }
+
+    [Test]
+    public async Task TheDraftShowsItsOwnSourceAndSavesItself() {
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/scratch"));
+
+        Assert.That(template, Is.Not.Null);
+        Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
+        Assert.That(template, Does.Contain("<h1>Scratch</h1>"));
+        Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }"),
+            "the draft guards its own view, so an anonymous visitor is sent to sign in");
+        Assert.That(template, Does.Contain("IPageCatalog").And.Contain("IPageWriter"));
+        Assert.That(template, Does.Contain("name=\"template\""));
+        Assert.That(template, Does.Contain("ctx.AntiforgeryField"));
+        Assert.That(template, Does.Contain("href=\"/help#writing\""));
     }
 
     [Test]
