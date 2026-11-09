@@ -47,8 +47,6 @@ internal sealed class PageRenderer(
     /// <param name="context">The context the page writes to.</param>
     /// <param name="cancellationToken">Cancels the read, any store, and the render itself.</param>
     internal async Task<RenderResult> RenderAsync(PagePath path, SimpleContext context, CancellationToken cancellationToken = default) {
-        ArgumentNullException.ThrowIfNull(context);
-
         await using RenderSession session = await OpenSessionAsync(path, cancellationToken);
 
         return await session.RenderAsync(path, context);

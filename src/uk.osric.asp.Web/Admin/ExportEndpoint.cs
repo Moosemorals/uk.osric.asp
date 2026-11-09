@@ -27,6 +27,8 @@ internal sealed class ExportEndpoint {
     /// <param name="reserved">The keys the site's own routes answer for.</param>
     /// <param name="antiforgery">Mints the form's token.</param>
     public static async Task ListAsync(HttpContext context, IPageStore pages, ReservedPaths reserved, IAntiforgery antiforgery) {
+        ArgumentNullException.ThrowIfNull(context);
+
         IReadOnlyList<PageListing> heads = await pages.ListPagesAsync(context.RequestAborted);
         PageListing[] reachable = [.. heads
             .Where(head => IsExportable(head, reserved))

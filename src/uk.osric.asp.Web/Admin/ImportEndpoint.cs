@@ -37,6 +37,8 @@ internal sealed class ImportEndpoint {
     /// <param name="antiforgery">Mints the form's token.</param>
     /// <param name="options">The archive options, for the size the form describes.</param>
     public static async Task UploadFormAsync(HttpContext context, IAntiforgery antiforgery, ArchiveOptions options) {
+        ArgumentNullException.ThrowIfNull(context);
+
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         SecurityHeaders.AllowScripts(context);
 
@@ -149,6 +151,8 @@ internal sealed class ImportEndpoint {
     /// <param name="pages">The page store, for what the site already holds.</param>
     /// <param name="antiforgery">Mints the form's token.</param>
     public static async Task ReviewAsync(HttpContext context, ImportStageStore stages, IPageStore pages, IAntiforgery antiforgery) {
+        ArgumentNullException.ThrowIfNull(context);
+
         ImportStage? stage = stages.Get(RouteId(context));
         if (stage is null) {
             await WriteExpiredAsync(context);
@@ -296,6 +300,8 @@ internal sealed class ImportEndpoint {
     /// <param name="context">The request being answered.</param>
     /// <param name="stages">The staged archives.</param>
     public static async Task ProgressAsync(HttpContext context, ImportStageStore stages) {
+        ArgumentNullException.ThrowIfNull(context);
+
         ImportStage? stage = stages.Get(RouteId(context));
         if (stage is null) {
             await WriteExpiredAsync(context);

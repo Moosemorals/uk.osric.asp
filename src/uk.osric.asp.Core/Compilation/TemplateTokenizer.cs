@@ -12,8 +12,6 @@ internal static class TemplateTokenizer {
     /// <param name="input">The template as its author wrote it.</param>
     /// <returns>The tokens, and one error naming the opener of an unterminated block.</returns>
     internal static TokenizeResult Tokenize(string input) {
-        ArgumentNullException.ThrowIfNull(input);
-
         List<Token> tokens = [];
         int index = 0;
         while (index < input.Length) {

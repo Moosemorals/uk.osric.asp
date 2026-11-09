@@ -34,6 +34,8 @@ internal static class SecurityHeaders {
 
     /// <summary>Writes the header set for a response that has not set one of its own.</summary>
     public static async Task ApplyAsync(HttpContext context, RequestDelegate next) {
+        ArgumentNullException.ThrowIfNull(context);
+
         context.Response.OnStarting(() => {
             WriteIfAbsent(context, ContentSecurityPolicy, Default);
 

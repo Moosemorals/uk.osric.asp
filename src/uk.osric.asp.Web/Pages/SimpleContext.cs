@@ -201,10 +201,20 @@ internal sealed class SimpleContext : IContext {
     }
 
     /// <inheritdoc/>
-    public void Write(string message) => WriteBody(WebUtility.HtmlEncode(message));
+    /// <exception cref="ArgumentNullException">The page passed null.</exception>
+    public void Write(string message) {
+        ArgumentNullException.ThrowIfNull(message);
+
+        WriteBody(WebUtility.HtmlEncode(message));
+    }
 
     /// <inheritdoc/>
-    public void WriteRaw(string message) => WriteBody(message);
+    /// <exception cref="ArgumentNullException">The page passed null.</exception>
+    public void WriteRaw(string message) {
+        ArgumentNullException.ThrowIfNull(message);
+
+        WriteBody(message);
+    }
 
     // The page's identity belongs on the scope, not the category: see PageCategory.
     private void LogAt(LogLevel level, string message) {
@@ -241,9 +251,8 @@ internal sealed class SimpleContext : IContext {
             return;
         }
 
-        if (status is < 100 or > 599) {
-            throw new ArgumentOutOfRangeException(nameof(status), status, "A status code must be between 100 and 599.");
-        }
+        ArgumentOutOfRangeException.ThrowIfLessThan(status, 100, nameof(status));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(status, 599, nameof(status));
 
         _status = status;
     }

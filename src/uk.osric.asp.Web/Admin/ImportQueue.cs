@@ -15,8 +15,6 @@ using uk.osric.asp.Web.Work;
 internal sealed class ImportQueue(ArchiveOptions options) : BoundedWorkQueue<string>(Capacity(options)) {
 
     private static int Capacity(ArchiveOptions options) {
-        ArgumentNullException.ThrowIfNull(options);
-
         return Math.Max(1, options.MaxStagedImports);
     }
 }

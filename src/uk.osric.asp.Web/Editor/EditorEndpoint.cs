@@ -24,6 +24,8 @@ internal sealed class EditorEndpoint {
     internal const string MessageKey = "editor.message";
 
     public static async Task HandleAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, IAntiforgery antiforgery) {
+        ArgumentNullException.ThrowIfNull(context);
+
         if (context.Request.Method is not ("GET" or "POST")) {
             await ErrorResponses.WriteAsync(context, StatusCodes.Status405MethodNotAllowed, new ErrorMessage(
                 "editor.method_not_allowed",

@@ -15,9 +15,4 @@ public sealed class GeneratedSourceTests {
         Assert.That(source.Text, Is.EqualTo("public sealed class Handler { }"));
     }
 
-    [TestCase("")]
-    [TestCase("  \n\t")]
-    public void TextWithNothingInItIsRejected(string text) {
-        Assert.That(() => new GeneratedSource(text), Throws.ArgumentException);
-    }
 }

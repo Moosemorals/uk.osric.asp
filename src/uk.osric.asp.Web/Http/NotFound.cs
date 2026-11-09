@@ -15,6 +15,8 @@ internal static class NotFound {
     // reader sees the key the shell actually looked for, which is the fastest way to spot a link that
     // encoded a delimiter it meant as a query.
     public static Task WriteAsync(HttpContext context, PagePath path) {
+        ArgumentNullException.ThrowIfNull(context);
+
         bool isAuthenticated = context.User.Identity?.IsAuthenticated == true;
         List<NavLink> remedies = [];
         if (isAuthenticated && path.IsAddressable) {

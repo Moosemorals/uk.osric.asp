@@ -145,6 +145,19 @@ public sealed class PageDocumentTests {
     }
 
     [Test]
+    public void ANavLinkWithoutHrefOrTextIsRefused() {
+        Assert.Multiple(() => {
+            Assert.Throws<ArgumentNullException>(() => _ = new NavLink(null!, "Home"));
+            Assert.Throws<ArgumentException>(() => _ = new NavLink("/", "  "));
+        });
+    }
+
+    [Test]
+    public void ARequestWithoutAUrlIsRefused() {
+        Assert.Throws<ArgumentException>(() => _ = new HttpFetchRequest("  "));
+    }
+
+    [Test]
     public void NothingInTheBuilderWritesAHeaderOrAStatus() {
         string markup = string.Concat(
             PageDocument.Head("Title", ["/a.css"]),

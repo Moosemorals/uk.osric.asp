@@ -25,6 +25,8 @@ internal static class LoginEndpoint {
 
     /// <summary>Renders the sign-in form, or sends an authenticated visitor back to the editor.</summary>
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
+        ArgumentNullException.ThrowIfNull(context);
+
         if (context.User.Identity?.IsAuthenticated == true) {
             SecurityHeaders.NoStore(context);
             Redirect.SeeOther(context, LocalRedirect.Safe(context.Request.Query["returnUrl"].ToString()));
@@ -48,6 +50,8 @@ internal static class LoginEndpoint {
         IAntiforgery antiforgery,
         IAuthenticationService authentication,
         ILoggerFactory loggers) {
+        ArgumentNullException.ThrowIfNull(context);
+
 
         ArgumentNullException.ThrowIfNull(loggers);
 
@@ -165,6 +169,8 @@ internal static class LoginEndpoint {
     /// at them.
     /// </remarks>
     public static Task WriteExpiredFormAsync(HttpContext context, IAntiforgery antiforgery) {
+        ArgumentNullException.ThrowIfNull(context);
+
         SecurityHeaders.NoStore(context);
 
         return WriteFormAsync(

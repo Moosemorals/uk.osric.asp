@@ -16,8 +16,6 @@ internal sealed record QueuedRun(long ConversationId, string RunId, string Owner
 internal sealed class RunQueue(AssistantOptions options) : BoundedWorkQueue<QueuedRun>(Capacity(options)) {
 
     private static int Capacity(AssistantOptions options) {
-        ArgumentNullException.ThrowIfNull(options);
-
         return options.MaxQueuedRuns;
     }
 }

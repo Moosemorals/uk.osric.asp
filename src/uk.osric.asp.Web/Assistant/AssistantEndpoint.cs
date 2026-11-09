@@ -28,6 +28,8 @@ internal static class AssistantEndpoint {
         IConversationStore conversations,
         IAntiforgery antiforgery,
         IOptions<AssistantOptions> options) {
+        ArgumentNullException.ThrowIfNull(context);
+
         string? owner = Owner(context);
         if (owner is null) {
             await WriteConversationNotFoundAsync(context);
@@ -95,6 +97,8 @@ internal static class AssistantEndpoint {
         IAntiforgery antiforgery,
         RunRegistry registry,
         AssistantOptions options) {
+        ArgumentNullException.ThrowIfNull(context);
+
         string? owner = Owner(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
@@ -209,6 +213,8 @@ internal static class AssistantEndpoint {
         RunQueue queue,
         RunRegistry registry,
         AssistantOptions options) {
+        ArgumentNullException.ThrowIfNull(context);
+
         string? owner = await ValidatedOwnerAsync(context, id, conversations, "The message could not be sent");
         if (owner is null) {
             return;
@@ -288,6 +294,8 @@ internal static class AssistantEndpoint {
         long id,
         IConversationStore conversations,
         RunRegistry registry) {
+        ArgumentNullException.ThrowIfNull(context);
+
         string? owner = await ValidatedOwnerAsync(context, id, conversations, "The run could not be stopped");
         if (owner is null) {
             return;
@@ -310,6 +318,8 @@ internal static class AssistantEndpoint {
         IConversationStore conversations,
         RunRegistry registry,
         AssistantOptions options) {
+        ArgumentNullException.ThrowIfNull(context);
+
         SecurityHeaders.NoStore(context);
         context.Response.Headers["X-Accel-Buffering"] = "no";
         string? owner = Owner(context);
@@ -359,6 +369,8 @@ internal static class AssistantEndpoint {
     }
 
     public static async Task OptionsAsync(HttpContext context, long id, IConversationStore conversations) {
+        ArgumentNullException.ThrowIfNull(context);
+
         SecurityHeaders.NoStore(context);
         if (!IsPostValid(context)) {
             await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
@@ -425,6 +437,8 @@ internal static class AssistantEndpoint {
         string toolCallId,
         IConversationStore conversations,
         ToolApprovalCoordinator coordinator) {
+        ArgumentNullException.ThrowIfNull(context);
+
         SecurityHeaders.NoStore(context);
         if (!IsPostValid(context)) {
             await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
@@ -469,6 +483,8 @@ internal static class AssistantEndpoint {
         long id,
         IConversationStore conversations,
         IAntiforgery antiforgery) {
+        ArgumentNullException.ThrowIfNull(context);
+
         string? owner = Owner(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
@@ -495,6 +511,8 @@ internal static class AssistantEndpoint {
         long id,
         IConversationStore conversations,
         RunRegistry registry) {
+        ArgumentNullException.ThrowIfNull(context);
+
         string? owner = await ValidatedOwnerAsync(context, id, conversations, "The conversation could not be deleted");
         if (owner is null) {
             return;

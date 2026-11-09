@@ -175,11 +175,6 @@ public sealed class ContextTrimmerTests {
     }
 
     [Test]
-    public void MeasuringANullTranscriptIsRefused() {
-        Assert.That(() => ContextTrimmer.MeasureChars(null!), Throws.ArgumentNullException);
-    }
-
-    [Test]
     public void ABudgetOfNothingIsRefused() {
         Assert.That(() => ContextTrimmer.Trim([new("user", "a")], 0), Throws.TypeOf<ArgumentOutOfRangeException>());
     }

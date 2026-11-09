@@ -29,6 +29,8 @@ internal sealed class PageEndpoint() {
         PageRenderer pages,
         ILoggerFactory loggerFactory,
         PageEnvironment environment) {
+        ArgumentNullException.ThrowIfNull(context);
+
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
 
