@@ -57,6 +57,19 @@ internal sealed class AssistantChatTests : BrowserTest {
     }
 
     [Test]
+    public async Task TypingALongMessageShowsTheFigureInThousandsAsync() {
+        await NewConversationAsync();
+
+        await Page.EvaluateAsync("""
+            const input = document.getElementById('assistant-message');
+            input.value = 'x'.repeat(12345);
+            input.dispatchEvent(new Event('input'));
+            """);
+
+        await Assertions.Expect(Page.Locator("#assistant-budget-message")).ToHaveTextAsync("12k");
+    }
+
+    [Test]
     public async Task TheStepBudgetCountsUpWhileTheAnswerStreamsAsync() {
         await NewConversationAsync();
         Provider.Script(

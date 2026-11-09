@@ -21,7 +21,6 @@ if (root) {
         count: row.querySelector('.assistant-budget-count > span'),
         meter: row.querySelector('meter'),
     }]));
-    const numbers = new Intl.NumberFormat('en-GB');
     const token = messageForm.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
     const messages = new Map();
     // Matches MessageText.MaximumLength, so a streamed tool summary matches the stored one.
@@ -32,6 +31,29 @@ if (root) {
 
     function nearBottom() {
         return document.documentElement.scrollHeight - window.scrollY - window.innerHeight < 120;
+    }
+
+    // Mirrors Core's BudgetAmount.Format, so a figure updated live reads the same as the markup it
+    // stands in for after a reload: at most three digits and one unit letter.
+    function formatAmount(value) {
+        if (value < 1000) {
+            return String(value);
+        }
+        const units = ['k', 'M', 'G', 'T', 'P', 'E'];
+        let divisor = 1000;
+        let unit = 0;
+        while (value / divisor >= 1000 && unit < units.length - 1) {
+            divisor *= 1000;
+            unit += 1;
+        }
+        const scaled = value / divisor;
+        let rounded = scaled < 10 ? Math.round(scaled * 10) / 10 : Math.round(scaled);
+        // Rounding 999.6k up would print a fourth digit, so it rolls over to the next unit instead.
+        if (rounded >= 1000 && unit < units.length - 1) {
+            rounded /= 1000;
+            unit += 1;
+        }
+        return `${rounded}${units[unit]}`;
     }
 
     function keepNearBottom(wasNear) {
@@ -198,7 +220,7 @@ if (root) {
                 continue;
             }
             const maximum = Number(budget.meter.max);
-            budget.count.textContent = numbers.format(used);
+            budget.count.textContent = formatAmount(used);
             budget.meter.value = Math.min(used, maximum);
             budget.row.classList.toggle('assistant-budget-exceeded', used > maximum);
         }
@@ -301,7 +323,7 @@ if (root) {
         const used = input.value.length;
         count.textContent = String(used);
         if (messageBudget && messageMeter) {
-            messageBudget.textContent = numbers.format(used);
+            messageBudget.textContent = formatAmount(used);
             messageMeter.value = Math.min(used, messageMeter.max);
         }
     }

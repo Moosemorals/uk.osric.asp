@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Assistant;
 
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Extensions.Options;
-using System.Globalization;
 using System.Net;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
@@ -620,12 +619,12 @@ internal static class AssistantEndpoint {
                 <legend>Budgets</legend>
                 <dl class="assistant-budget-list">
             """);
-        await WriteBudgetAsync(context, "message", "Message", 0, options.MaxMessageChars, "characters");
-        await WriteBudgetAsync(context, "context", "Context", snapshot.ContextChars, options.MaxContextChars, "characters");
+        await WriteBudgetAsync(context, "message", "Message", 0, options.MaxMessageChars, "chars");
+        await WriteBudgetAsync(context, "context", "Context", snapshot.ContextChars, options.MaxContextChars, "chars");
         await WriteBudgetAsync(context, "steps", "Steps", snapshot.Steps, options.MaxSteps, "steps");
         await WriteBudgetAsync(context, "tool-calls", "Tool calls", snapshot.ToolCalls, options.MaxToolCalls, "calls");
-        await WriteBudgetAsync(context, "tool-arguments", "Tool arguments", snapshot.LongestArguments, options.MaxToolArgumentChars, "characters");
-        await WriteBudgetAsync(context, "tool-result", "Tool result", snapshot.LongestResult, options.MaxToolResultChars, "characters");
+        await WriteBudgetAsync(context, "tool-arguments", "Tool arguments", snapshot.LongestArguments, options.MaxToolArgumentChars, "chars");
+        await WriteBudgetAsync(context, "tool-result", "Tool result", snapshot.LongestResult, options.MaxToolResultChars, "chars");
         await WriteBudgetAsync(context, "output", "Output", snapshot.CompletionTokens, options.MaxOutputTokens, "tokens");
         await context.Response.WriteAsync("""
                 </dl>
@@ -644,19 +643,19 @@ internal static class AssistantEndpoint {
         // A meter past its own maximum is invalid markup, so only the number is allowed to exceed it.
         long shown = Math.Clamp(used, 0, available);
         string exceeded = used > available ? " assistant-budget-exceeded" : "";
-        string usedText = used.ToString("N0", CultureInfo.InvariantCulture);
-        string limit = available.ToString("N0", CultureInfo.InvariantCulture);
+        string usedText = BudgetAmount.Format(used);
+        string limit = BudgetAmount.Format(available);
 
         // The row's name is what the page's script looks it up by, and both ids follow from it, so a
         // live figure and a reloaded one address the same elements. The meter is the picture of a
-        // number that is already spelled out beside it, so it is hidden from assistive technology
+        // number that is already spelled out over it, so it is hidden from assistive technology
         // rather than announced twice with no name.
         await context.Response.WriteAsync($"""
             <div class="assistant-budget{exceeded}" data-budget="{Encode(row)}">
                 <dt>{Encode(label)}</dt>
-                <dd>
-                    <span class="assistant-budget-count"><span id="assistant-budget-{Encode(row)}">{usedText}</span> / {limit} {Encode(unit)}</span>
+                <dd class="assistant-budget-gauge">
                     <meter id="assistant-budget-{Encode(row)}-meter" aria-hidden="true" min="0" max="{available}" value="{shown}" low="{available * 3 / 5}" high="{available * 17 / 20}" optimum="0"></meter>
+                    <span class="assistant-budget-count"><span id="assistant-budget-{Encode(row)}">{usedText}</span> / {limit} {Encode(unit)}</span>
                 </dd>
             </div>
             """);

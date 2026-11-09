@@ -359,7 +359,10 @@ renders it, and the run publishes it as `budget.updated` over the journal the pa
 to, at the start of each step, when that step's usage is stored and around each tool call. A figure
 a reader watches move is therefore the figure the reload will show. The context row counts the
 conversation — the whole untrimmed transcript plus the system prompt — rather than the trimmed
-request that was actually sent, which is what `ContextTrimmer.MeasureChars` measures for both.
+request that was actually sent, which is what `ContextTrimmer.MeasureChars` measures for both. The
+panel is read at a glance: each row is a label and a meter with its figure drawn over it, and
+`BudgetAmount` keeps every figure to at most three digits and a unit letter (`16k`, `500k`), so the
+seven rows fit two columns.
 
 Each finished turn of the transcript ends with a changed-pages card: the live pages its `write_page`
 and `edit_page` calls reported saving, each linked to the page and to its editor. It is read from the

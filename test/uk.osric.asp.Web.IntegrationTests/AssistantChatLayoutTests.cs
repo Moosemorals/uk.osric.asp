@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
-using System.Globalization;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -83,17 +82,17 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         string body = await RunAndReloadAsync(client, conversation);
 
         Assert.That(body, Does.Contain("<dt>Message</dt>"));
-        Assert.That(body, Does.Contain("<span id=\"assistant-budget-message\">0</span> / 16,384 characters</span>"));
-        Assert.That(body, Does.Contain(" / 500,000 characters</span>"), "the context budget is missing");
+        Assert.That(body, Does.Contain("<span id=\"assistant-budget-message\">0</span> / 16k chars</span>"));
+        Assert.That(body, Does.Contain(" / 500k chars</span>"), "the context budget is missing");
         Assert.That(body, Does.Contain(" / 512 steps</span>"), "the step budget is missing");
-        Assert.That(body, Does.Contain(" / 1,024 calls</span>"), "the tool-call budget is missing");
-        Assert.That(body, Does.Contain(" / 32,768 tokens</span>"), "the output budget is missing");
+        Assert.That(body, Does.Contain(" / 1k calls</span>"), "the tool-call budget is missing");
+        Assert.That(body, Does.Contain(" / 33k tokens</span>"), "the output budget is missing");
 
         // The system prompt alone is already spent, and the run's own steps are counted from the store.
         Assert.That(body, Does.Match("<meter id=\"assistant-budget-context-meter\" aria-hidden=\"true\" min=\"0\" max=\"500000\" value=\"[1-9][0-9]*\""));
         Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-steps\">2</span> / 512 steps</span>"),
             "the answered run took two steps: the tool call and the answer");
-        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-tool-calls\">1</span> / 1,024 calls</span>"));
+        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-tool-calls\">1</span> / 1k calls</span>"));
 
         // Every row carries the name the page's script looks it up by.
         foreach (string row in new[] { "message", "context", "steps", "tool-calls", "tool-arguments", "tool-result", "output" }) {
@@ -127,10 +126,10 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
 
         JsonElement budgets = LastBudgets(await RunAsync(client, conversation));
         using HttpResponseMessage reloaded = await client.GetAsync(conversation);
-        IReadOnlyDictionary<string, long> shown = RenderedBudgets(await reloaded.Content.ReadAsStringAsync());
+        IReadOnlyDictionary<string, string> shown = RenderedBudgets(await reloaded.Content.ReadAsStringAsync());
 
         foreach (string row in new[] { "context", "steps", "tool-calls", "tool-arguments", "tool-result", "output" }) {
-            Assert.That(shown[row], Is.EqualTo(budgets.GetProperty(row).GetInt64()),
+            Assert.That(shown[row], Is.EqualTo(BudgetAmount.Format(budgets.GetProperty(row).GetInt64())),
                 $"the {row} row disagrees with the last figure the run published");
         }
     }
@@ -170,12 +169,10 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
     private static JsonElement LastBudgets(string eventStream) =>
         ParseEvents(eventStream).Last(item => item.Type == "budget.updated").Data.GetProperty("budgets");
 
-    private static IReadOnlyDictionary<string, long> RenderedBudgets(string body) {
-        Dictionary<string, long> budgets = new(StringComparer.Ordinal);
+    private static IReadOnlyDictionary<string, string> RenderedBudgets(string body) {
+        Dictionary<string, string> budgets = new(StringComparer.Ordinal);
         foreach (Match match in BudgetCount().Matches(body)) {
-            budgets[match.Groups["row"].Value] = long.Parse(
-                match.Groups["used"].Value.Replace(",", string.Empty, StringComparison.Ordinal),
-                CultureInfo.InvariantCulture);
+            budgets[match.Groups["row"].Value] = match.Groups["used"].Value;
         }
         return budgets;
     }
@@ -219,7 +216,7 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         }
     }
 
-    [GeneratedRegex("<span id=\"assistant-budget-(?<row>[a-z-]+)\">(?<used>[0-9,]+)</span>")]
+    [GeneratedRegex("<span id=\"assistant-budget-(?<row>[a-z-]+)\">(?<used>[0-9.]+[kMG]?)</span>")]
     private static partial Regex BudgetCount();
 
     [GeneratedRegex("<details class=\"assistant-tool\"><summary>(?<text>[^<]*)</summary>")]

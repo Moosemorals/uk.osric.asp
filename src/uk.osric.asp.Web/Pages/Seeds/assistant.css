@@ -66,14 +66,16 @@
     display: none;
 }
 
-/* One grid for every row, so the labels share a column however long they are; the row wrapper only
-   groups a label with its value, it is not a box of its own. */
+/* One grid for the whole list, so a label's column and a gauge's column line up from row to row;
+   the row wrapper only groups a label with its gauge, it is not a box of its own. Two pairs of
+   tracks give the seven budgets two columns. */
 .assistant-budget-list {
     display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 0.35rem 0.6rem;
+    grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+    gap: 0.15rem 1.25rem;
     align-items: center;
     margin: 0;
+    font-size: 0.8rem;
 }
 
 .assistant-budget {
@@ -84,19 +86,32 @@
     font-weight: 600;
 }
 
-.assistant-budget dd {
-    display: grid;
-    gap: 0.15rem;
+.assistant-budget-gauge {
+    position: relative;
+    min-width: 0;
     margin: 0;
 }
 
+/* The glow keeps the figure legible over both the filled bar and the track it has not reached. */
 .assistant-budget-count {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1b1b1b;
+    font-size: 0.68rem;
     font-variant-numeric: tabular-nums;
+    line-height: 1;
+    pointer-events: none;
+    text-shadow: 0 0 0.2rem #fff;
 }
 
 .assistant-budget meter {
+    display: block;
     width: 100%;
-    height: 0.7rem;
+    height: 1rem;
+    opacity: 0.5;
 }
 
 /* A budget that is already over is the one line on the page worth reading twice. */
@@ -106,9 +121,9 @@
 }
 
 .assistant-budget-note {
-    margin: 0.4rem 0 0;
+    margin: 0.35rem 0 0;
     color: #414b48;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
 }
 
 #assistant-transcript {
@@ -268,5 +283,9 @@
     .assistant-changed-pages,
     .assistant-tool {
         padding: 0.4rem;
+    }
+
+    .assistant-budget-list {
+        grid-template-columns: max-content minmax(0, 1fr);
     }
 }
