@@ -285,6 +285,137 @@ public sealed class AssistantMemoryStoreTests {
         });
     }
 
+    [Test]
+    public async Task ListReturnsTheOwnersMemoriesNewestChangeFirstAsync() {
+        await using StorageDbContext database = new(_options);
+        IMemoryStore memories = Store(database);
+        MemoryCandidate older = (await memories.RememberAsync("owner", MemoryKind.Fact, "Older fact.", Source)).Memory!;
+        _clock.Now = _clock.Now.AddMinutes(10);
+        MemoryCandidate newer = (await memories.RememberAsync("owner", MemoryKind.Preference, "Newer preference.", Source)).Memory!;
+        await memories.RememberAsync("other", MemoryKind.Fact, "Another owner's fact.", new MemorySource(8, "run-2"));
+
+        IReadOnlyList<MemoryCandidate> listed = await memories.ListAsync("owner");
+
+        Assert.Multiple(() => {
+            Assert.That(listed.Select(memory => memory.Id), Is.EqualTo([newer.Id, older.Id]));
+            Assert.That(listed.All(memory => memory.SourceConversationId == Source.ConversationId), Is.True,
+                "a row says which conversation it came from");
+        });
+    }
+
+    [Test]
+    public async Task GetIsScopedToTheOwnerAsync() {
+        await using StorageDbContext database = new(_options);
+        IMemoryStore memories = Store(database);
+        MemoryCandidate stored = (await memories.RememberAsync("owner", MemoryKind.Fact, "The site runs on Podman.", Source)).Memory!;
+
+        MemoryCandidate? owner = await memories.GetAsync("owner", stored.Id);
+        MemoryCandidate? other = await memories.GetAsync("other", stored.Id);
+        MemoryCandidate? missing = await memories.GetAsync("owner", stored.Id + 1);
+
+        Assert.Multiple(() => {
+            Assert.That(owner?.Content, Is.EqualTo("The site runs on Podman."));
+            Assert.That(other, Is.Null);
+            Assert.That(missing, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task AnEditChangesContentKindAndPinAndKeepsThePreviousVersionAsync() {
+        await using StorageDbContext database = new(_options);
+        IMemoryStore memories = Store(database);
+        MemoryCandidate original = (await memories.RememberAsync("owner", MemoryKind.Preference, "Prefers colour.", Source)).Memory!;
+
+        MemoryWriteResult edited = await memories.EditAsync(
+            "owner", original.Id, original.Version, MemoryKind.Feedback, "Prefers colour, except in code.", pinned: true);
+
+        MemoryEdit[] history = await database.Set<MemoryEdit>().AsNoTracking().ToArrayAsync();
+        Assert.Multiple(() => {
+            Assert.That(edited.IsSuccess, Is.True, edited.Error);
+            Assert.That(edited.Memory!.Kind, Is.EqualTo(MemoryKind.Feedback));
+            Assert.That(edited.Memory.Content, Is.EqualTo("Prefers colour, except in code."));
+            Assert.That(edited.Memory.Pinned, Is.True);
+            Assert.That(edited.Memory.Version, Is.EqualTo(2));
+            Assert.That(edited.Memory.SourceConversationId, Is.EqualTo(Source.ConversationId),
+                "an owner's edit does not change where the memory came from");
+            Assert.That(history, Has.Length.EqualTo(1));
+            Assert.That(history[0].Version, Is.EqualTo(1));
+            Assert.That(history[0].Kind, Is.EqualTo("preference"));
+            Assert.That(history[0].Content, Is.EqualTo("Prefers colour."));
+        });
+        Assert.That((await memories.PinnedAsync("owner")).Select(memory => memory.Id), Is.EqualTo([original.Id]));
+    }
+
+    [Test]
+    public async Task AnEditFromAStalePageIsRefusedWithTheCurrentContentAsync() {
+        await using StorageDbContext database = new(_options);
+        IMemoryStore memories = Store(database);
+        MemoryCandidate original = (await memories.RememberAsync("owner", MemoryKind.Preference, "Prefers colour.", Source)).Memory!;
+        _ = await memories.UpdateAsync("owner", original.Id, original.Version, "Prefers navy.", Source);
+
+        MemoryWriteResult stale = await memories.EditAsync(
+            "owner", original.Id, original.Version, MemoryKind.Preference, "Prefers green.", pinned: false);
+
+        MemoryCandidate current = (await memories.GetAsync("owner", original.Id))!;
+
+        Assert.Multiple(() => {
+            Assert.That(stale.IsSuccess, Is.False);
+            Assert.That(stale.Error, Does.Contain("Prefers navy."));
+            Assert.That(current.Content, Is.EqualTo("Prefers navy."));
+        });
+    }
+
+    [Test]
+    public async Task AnEditOfAnotherOwnersMemoryChangesNothingAsync() {
+        await using StorageDbContext database = new(_options);
+        IMemoryStore memories = Store(database);
+        MemoryCandidate original = (await memories.RememberAsync("owner", MemoryKind.Fact, "The site runs on Podman.", Source)).Memory!;
+
+        MemoryWriteResult edited = await memories.EditAsync("other", original.Id, 1, MemoryKind.Fact, "Changed.", pinned: true);
+        MemoryCandidate kept = (await memories.GetAsync("owner", original.Id))!;
+
+        Assert.Multiple(() => {
+            Assert.That(edited.IsSuccess, Is.False);
+            Assert.That(edited.Error, Does.Contain("No memory with id"));
+            Assert.That(database.Set<MemoryEdit>().Count(), Is.Zero);
+            Assert.That(kept.Content, Is.EqualTo("The site runs on Podman."));
+        });
+    }
+
+    [Test]
+    public async Task AnEditIsRefusedForASecretOrForContentOverTheCapAsync() {
+        await using StorageDbContext database = new(_options);
+        IMemoryStore memories = Store(database, maximumMemoryChars: 20);
+        MemoryCandidate original = (await memories.RememberAsync("owner", MemoryKind.Fact, "Short note.", Source)).Memory!;
+
+        MemoryWriteResult secret = await memories.EditAsync("owner", original.Id, 1, MemoryKind.Fact, "api_key=7f3c9a1b2e", pinned: false);
+        MemoryWriteResult tooLong = await memories.EditAsync("owner", original.Id, 1, MemoryKind.Fact, new string('a', 21), pinned: false);
+        MemoryCandidate kept = (await memories.GetAsync("owner", original.Id))!;
+
+        Assert.Multiple(() => {
+            Assert.That(secret.IsSuccess, Is.False);
+            Assert.That(secret.Error, Does.Contain("password or key assignment"));
+            Assert.That(tooLong.IsSuccess, Is.False);
+            Assert.That(tooLong.Error, Does.Contain("20"));
+            Assert.That(kept.Version, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task TheAssistantsUpdateCannotChangeThePinAsync() {
+        await using StorageDbContext database = new(_options);
+        IMemoryStore memories = Store(database);
+        MemoryCandidate original = (await memories.RememberAsync("owner", MemoryKind.Fact, "The site runs on Podman.", Source)).Memory!;
+        _ = await memories.EditAsync("owner", original.Id, 1, MemoryKind.Fact, "The site runs on Podman.", pinned: true);
+
+        MemoryWriteResult updated = await memories.UpdateAsync("owner", original.Id, 2, "The site runs on Podman and Caddy.", Source);
+
+        Assert.Multiple(() => {
+            Assert.That(updated.IsSuccess, Is.True, updated.Error);
+            Assert.That(updated.Memory!.Pinned, Is.True, "the owner's pin survives a tool write");
+        });
+    }
+
     private SqliteMemoryStore Store(
         StorageDbContext database,
         int maximumMemoriesPerOwner = 200,

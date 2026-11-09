@@ -11,6 +11,9 @@ override uk.osric.asp.Core.Assistant.MemoryCandidate.ToString() -> string!
 override uk.osric.asp.Core.Assistant.MemoryContentResult.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Assistant.MemoryContentResult.GetHashCode() -> int
 override uk.osric.asp.Core.Assistant.MemoryContentResult.ToString() -> string!
+override uk.osric.asp.Core.Assistant.MemoryGroup.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.MemoryGroup.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.MemoryGroup.ToString() -> string!
 override uk.osric.asp.Core.Assistant.MemorySelection.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Assistant.MemorySelection.GetHashCode() -> int
 override uk.osric.asp.Core.Assistant.MemorySelection.ToString() -> string!
@@ -25,10 +28,13 @@ static uk.osric.asp.Core.Assistant.MemoryContent.SameNote(string! left, string! 
 static uk.osric.asp.Core.Assistant.MemoryContentResult.operator !=(uk.osric.asp.Core.Assistant.MemoryContentResult? left, uk.osric.asp.Core.Assistant.MemoryContentResult? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryContentResult.operator ==(uk.osric.asp.Core.Assistant.MemoryContentResult? left, uk.osric.asp.Core.Assistant.MemoryContentResult? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryContentResult.Refused(string! error) -> uk.osric.asp.Core.Assistant.MemoryContentResult!
+static uk.osric.asp.Core.Assistant.MemoryGroup.operator !=(uk.osric.asp.Core.Assistant.MemoryGroup? left, uk.osric.asp.Core.Assistant.MemoryGroup? right) -> bool
+static uk.osric.asp.Core.Assistant.MemoryGroup.operator ==(uk.osric.asp.Core.Assistant.MemoryGroup? left, uk.osric.asp.Core.Assistant.MemoryGroup? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryKinds.All.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryKind>!
 static uk.osric.asp.Core.Assistant.MemoryKinds.Name(uk.osric.asp.Core.Assistant.MemoryKind kind) -> string!
 static uk.osric.asp.Core.Assistant.MemoryKinds.Parse(string? text) -> uk.osric.asp.Core.Assistant.MemoryKind
 static uk.osric.asp.Core.Assistant.MemoryKinds.TryParse(string? text, out uk.osric.asp.Core.Assistant.MemoryKind kind) -> bool
+static uk.osric.asp.Core.Assistant.MemoryListing.Group(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! memories) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryGroup!>!
 static uk.osric.asp.Core.Assistant.MemoryQuery.Terms(string! message, int maximum) -> string!
 static uk.osric.asp.Core.Assistant.MemoryRecall.Build(uk.osric.asp.Core.Assistant.MemorySelection! selection) -> string!
 static uk.osric.asp.Core.Assistant.MemoryRecall.Select(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! pinned, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! used, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! query, int maximumMemories, int maximumChars) -> uk.osric.asp.Core.Assistant.MemorySelection!
@@ -47,7 +53,7 @@ uk.osric.asp.Core.Assistant.MemoryCandidate
 uk.osric.asp.Core.Assistant.MemoryCandidate.<Clone>$() -> uk.osric.asp.Core.Assistant.MemoryCandidate!
 uk.osric.asp.Core.Assistant.MemoryCandidate.Content.get -> string!
 uk.osric.asp.Core.Assistant.MemoryCandidate.Content.init -> void
-uk.osric.asp.Core.Assistant.MemoryCandidate.Deconstruct(out long Id, out uk.osric.asp.Core.Assistant.MemoryKind Kind, out string! Content, out int Version, out System.DateTimeOffset Written, out System.DateTimeOffset? LastUsed, out int RecallCount, out bool Pinned) -> void
+uk.osric.asp.Core.Assistant.MemoryCandidate.Deconstruct(out long Id, out uk.osric.asp.Core.Assistant.MemoryKind Kind, out string! Content, out int Version, out System.DateTimeOffset Written, out System.DateTimeOffset? LastUsed, out int RecallCount, out bool Pinned, out long? SourceConversationId) -> void
 uk.osric.asp.Core.Assistant.MemoryCandidate.Equals(uk.osric.asp.Core.Assistant.MemoryCandidate? other) -> bool
 uk.osric.asp.Core.Assistant.MemoryCandidate.Id.get -> long
 uk.osric.asp.Core.Assistant.MemoryCandidate.Id.init -> void
@@ -55,11 +61,13 @@ uk.osric.asp.Core.Assistant.MemoryCandidate.Kind.get -> uk.osric.asp.Core.Assist
 uk.osric.asp.Core.Assistant.MemoryCandidate.Kind.init -> void
 uk.osric.asp.Core.Assistant.MemoryCandidate.LastUsed.get -> System.DateTimeOffset?
 uk.osric.asp.Core.Assistant.MemoryCandidate.LastUsed.init -> void
-uk.osric.asp.Core.Assistant.MemoryCandidate.MemoryCandidate(long Id, uk.osric.asp.Core.Assistant.MemoryKind Kind, string! Content, int Version, System.DateTimeOffset Written, System.DateTimeOffset? LastUsed, int RecallCount, bool Pinned) -> void
+uk.osric.asp.Core.Assistant.MemoryCandidate.MemoryCandidate(long Id, uk.osric.asp.Core.Assistant.MemoryKind Kind, string! Content, int Version, System.DateTimeOffset Written, System.DateTimeOffset? LastUsed, int RecallCount, bool Pinned, long? SourceConversationId = null) -> void
 uk.osric.asp.Core.Assistant.MemoryCandidate.Pinned.get -> bool
 uk.osric.asp.Core.Assistant.MemoryCandidate.Pinned.init -> void
 uk.osric.asp.Core.Assistant.MemoryCandidate.RecallCount.get -> int
 uk.osric.asp.Core.Assistant.MemoryCandidate.RecallCount.init -> void
+uk.osric.asp.Core.Assistant.MemoryCandidate.SourceConversationId.get -> long?
+uk.osric.asp.Core.Assistant.MemoryCandidate.SourceConversationId.init -> void
 uk.osric.asp.Core.Assistant.MemoryCandidate.Version.get -> int
 uk.osric.asp.Core.Assistant.MemoryCandidate.Version.init -> void
 uk.osric.asp.Core.Assistant.MemoryCandidate.Written.get -> System.DateTimeOffset
@@ -75,12 +83,22 @@ uk.osric.asp.Core.Assistant.MemoryContentResult.Error.get -> string?
 uk.osric.asp.Core.Assistant.MemoryContentResult.Error.init -> void
 uk.osric.asp.Core.Assistant.MemoryContentResult.IsSuccess.get -> bool
 uk.osric.asp.Core.Assistant.MemoryContentResult.MemoryContentResult(string! Content, string? Error) -> void
+uk.osric.asp.Core.Assistant.MemoryGroup
+uk.osric.asp.Core.Assistant.MemoryGroup.<Clone>$() -> uk.osric.asp.Core.Assistant.MemoryGroup!
+uk.osric.asp.Core.Assistant.MemoryGroup.Deconstruct(out uk.osric.asp.Core.Assistant.MemoryKind Kind, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! Memories) -> void
+uk.osric.asp.Core.Assistant.MemoryGroup.Equals(uk.osric.asp.Core.Assistant.MemoryGroup? other) -> bool
+uk.osric.asp.Core.Assistant.MemoryGroup.Kind.get -> uk.osric.asp.Core.Assistant.MemoryKind
+uk.osric.asp.Core.Assistant.MemoryGroup.Kind.init -> void
+uk.osric.asp.Core.Assistant.MemoryGroup.Memories.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>!
+uk.osric.asp.Core.Assistant.MemoryGroup.Memories.init -> void
+uk.osric.asp.Core.Assistant.MemoryGroup.MemoryGroup(uk.osric.asp.Core.Assistant.MemoryKind Kind, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! Memories) -> void
 uk.osric.asp.Core.Assistant.MemoryKind
 uk.osric.asp.Core.Assistant.MemoryKind.Fact = 1 -> uk.osric.asp.Core.Assistant.MemoryKind
 uk.osric.asp.Core.Assistant.MemoryKind.Feedback = 2 -> uk.osric.asp.Core.Assistant.MemoryKind
 uk.osric.asp.Core.Assistant.MemoryKind.Preference = 0 -> uk.osric.asp.Core.Assistant.MemoryKind
 uk.osric.asp.Core.Assistant.MemoryKind.Reference = 3 -> uk.osric.asp.Core.Assistant.MemoryKind
 uk.osric.asp.Core.Assistant.MemoryKinds
+uk.osric.asp.Core.Assistant.MemoryListing
 uk.osric.asp.Core.Assistant.MemoryQuery
 uk.osric.asp.Core.Assistant.MemoryRecall
 uk.osric.asp.Core.Assistant.MemorySecrets

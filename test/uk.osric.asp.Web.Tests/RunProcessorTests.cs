@@ -465,6 +465,15 @@ public sealed class RunProcessorTests {
         public Task<IReadOnlyList<MemoryCandidate>> PinnedAsync(string owner, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("The memory database is unavailable.");
 
+        public Task<IReadOnlyList<MemoryCandidate>> ListAsync(string owner, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<MemoryCandidate?> GetAsync(string owner, long id, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<MemoryWriteResult> EditAsync(string owner, long id, int expectedVersion, MemoryKind kind, string content, bool pinned, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
         public Task<MemoryWriteResult> RememberAsync(string owner, MemoryKind kind, string content, MemorySource source, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("The memory database is unavailable.");
 

@@ -30,6 +30,15 @@ internal sealed class FakeMemoryStore : IMemoryStore {
     public Task<IReadOnlyList<MemoryCandidate>> PinnedAsync(string owner, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("The account command does not recall memory.");
 
+    public Task<IReadOnlyList<MemoryCandidate>> ListAsync(string owner, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("The account command does not read memory.");
+
+    public Task<MemoryCandidate?> GetAsync(string owner, long id, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("The account command does not read memory.");
+
+    public Task<MemoryWriteResult> EditAsync(string owner, long id, int expectedVersion, MemoryKind kind, string content, bool pinned, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("The account command does not write memory.");
+
     public Task<MemoryWriteResult> RememberAsync(string owner, MemoryKind kind, string content, MemorySource source, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("The account command does not write memory.");
 

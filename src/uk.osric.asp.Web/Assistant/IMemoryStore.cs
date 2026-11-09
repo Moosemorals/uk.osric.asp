@@ -38,6 +38,39 @@ internal interface IMemoryStore {
     /// <param name="cancellationToken">Cancels the query.</param>
     Task<IReadOnlyList<MemoryCandidate>> PinnedAsync(string owner, CancellationToken cancellationToken = default);
 
+    /// <summary>Every memory the owner holds, newest change first, for the owner's own page.</summary>
+    /// <param name="owner">The account whose memories are read.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    Task<IReadOnlyList<MemoryCandidate>> ListAsync(string owner, CancellationToken cancellationToken = default);
+
+    /// <summary>One memory the owner holds, or null when there is no such memory for them.</summary>
+    /// <param name="owner">The account whose memory is read.</param>
+    /// <param name="id">The memory's id.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    Task<MemoryCandidate?> GetAsync(string owner, long id, CancellationToken cancellationToken = default);
+
+    /// <summary>The owner's edit of a memory: its content, its kind and its pin.</summary>
+    /// <remarks>
+    /// This is the only write that can set <see cref="MemoryCandidate.Pinned"/>. The assistant's
+    /// <see cref="UpdateAsync"/> has no such argument, so a model cannot pin a memory by any path
+    /// (DEC-201).
+    /// </remarks>
+    /// <param name="owner">The account the memory belongs to.</param>
+    /// <param name="id">The memory to change.</param>
+    /// <param name="expectedVersion">The version the page was rendered from; a stale one is refused.</param>
+    /// <param name="kind">The kind the owner chose.</param>
+    /// <param name="content">The note as the owner wrote it.</param>
+    /// <param name="pinned">Whether the owner pinned it.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    Task<MemoryWriteResult> EditAsync(
+        string owner,
+        long id,
+        int expectedVersion,
+        MemoryKind kind,
+        string content,
+        bool pinned,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Stores a memory, or returns the row that already says the same thing.</summary>
     /// <param name="owner">The account the memory belongs to.</param>
     /// <param name="kind">What kind of note it is.</param>

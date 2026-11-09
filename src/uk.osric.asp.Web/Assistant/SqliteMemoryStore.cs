@@ -24,7 +24,7 @@ internal sealed class SqliteMemoryStore(
 
     private const string SelectColumns = """
         memory."Id", memory."Kind", memory."Content", memory."Version", memory."CreatedAt",
-        memory."LastRecalledAt", memory."RecallCount", memory."Pinned"
+        memory."LastRecalledAt", memory."RecallCount", memory."Pinned", memory."SourceConversationId"
         """;
 
     public async Task<IReadOnlyList<MemoryCandidate>> RecallAsync(
@@ -91,6 +91,33 @@ internal sealed class SqliteMemoryStore(
             """,
             command => AddParameter(command, "$owner", owner),
             cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<MemoryCandidate>> ListAsync(
+        string owner,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+
+        // SQLite cannot order by a DateTimeOffset and the owner holds at most MaxMemoriesPerOwner rows,
+        // so the newest-first order is taken here rather than in the statement.
+        MemoryEntry[] held = await database.Set<MemoryEntry>().AsNoTracking()
+            .Where(memory => memory.Owner == owner)
+            .ToArrayAsync(cancellationToken);
+
+        return [.. held.Select(ToCandidate)
+            .OrderByDescending(memory => memory.Written)
+            .ThenByDescending(memory => memory.Id)];
+    }
+
+    public async Task<MemoryCandidate?> GetAsync(
+        string owner,
+        long id,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+
+        MemoryEntry? entry = await database.Set<MemoryEntry>().AsNoTracking()
+            .SingleOrDefaultAsync(memory => memory.Id == id && memory.Owner == owner, cancellationToken);
+        return entry is null ? null : ToCandidate(entry);
     }
 
     public async Task<MemoryWriteResult> RememberAsync(
@@ -174,7 +201,7 @@ internal sealed class SqliteMemoryStore(
             .SingleOrDefaultAsync(memory => memory.Id == id && memory.Owner == owner, cancellationToken);
         if (entry is null) {
             await transaction.RollbackAsync(cancellationToken);
-            return MemoryWriteResult.Refused($"No memory with id {id.ToString(CultureInfo.InvariantCulture)}.");
+            return MemoryWriteResult.Refused(Missing(id));
         }
         if (entry.Version != expectedVersion) {
             await transaction.RollbackAsync(cancellationToken);
@@ -197,6 +224,61 @@ internal sealed class SqliteMemoryStore(
         entry.UpdatedAt = now;
         entry.SourceConversationId = source.ConversationId;
         entry.SourceRunId = source.RunId;
+
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return MemoryWriteResult.Stored(ToCandidate(entry));
+    }
+
+    public async Task<MemoryWriteResult> EditAsync(
+        string owner,
+        long id,
+        int expectedVersion,
+        MemoryKind kind,
+        string content,
+        bool pinned,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+
+        MemoryContentResult normalised = Normalise(content);
+        if (!normalised.IsSuccess) {
+            return MemoryWriteResult.Refused(normalised.Error!);
+        }
+        if (MemorySecrets.LooksLikeSecret(normalised.Content) is { } rule) {
+            return MemoryWriteResult.Refused(
+                $"A memory that looks like {rule} is refused. Say where the secret lives instead of what it is.");
+        }
+
+        DateTimeOffset now = clock.GetUtcNow();
+        await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+
+        MemoryEntry? entry = await database.Set<MemoryEntry>()
+            .SingleOrDefaultAsync(memory => memory.Id == id && memory.Owner == owner, cancellationToken);
+        if (entry is null) {
+            await transaction.RollbackAsync(cancellationToken);
+            return MemoryWriteResult.Refused(Missing(id));
+        }
+        if (entry.Version != expectedVersion) {
+            await transaction.RollbackAsync(cancellationToken);
+            return MemoryWriteResult.Refused(Stale(entry));
+        }
+
+        // The version being replaced is history before the head moves, and the head keeps where the
+        // memory came from: an owner's edit does not make the conversation that wrote it untrue.
+        database.Add(new MemoryEdit {
+            MemoryId = entry.Id,
+            Version = entry.Version,
+            Kind = entry.Kind,
+            Content = entry.Content,
+            EditedAt = now,
+            SourceConversationId = entry.SourceConversationId,
+        });
+        entry.Content = normalised.Content;
+        entry.Kind = MemoryKinds.Name(kind);
+        entry.Pinned = pinned;
+        entry.Version++;
+        entry.UpdatedAt = now;
 
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -263,6 +345,11 @@ internal sealed class SqliteMemoryStore(
 
     private MemoryContentResult Normalise(string content) => MemoryContent.Normalise(content, options.MaxMemoryChars);
 
+    private static string Missing(long id) => $"No memory with id {id.ToString(CultureInfo.InvariantCulture)}.";
+
+    private static string Stale(MemoryEntry entry) =>
+        $"The assistant changed this memory while the page was open. It is now version {entry.Version.ToString(CultureInfo.InvariantCulture)} and reads: {entry.Content}";
+
     private static MemoryCandidate ToCandidate(MemoryEntry entry) => new(
         entry.Id,
         MemoryKinds.Parse(entry.Kind),
@@ -271,7 +358,8 @@ internal sealed class SqliteMemoryStore(
         entry.UpdatedAt,
         entry.LastRecalledAt,
         entry.RecallCount,
-        entry.Pinned);
+        entry.Pinned,
+        entry.SourceConversationId);
 
     // A raw command because a virtual table is not a mapped type: it is read through the context's own
     // connection, which is opened for the read and closed again when this call opened it.
@@ -301,7 +389,8 @@ internal sealed class SqliteMemoryStore(
                     Instant(reader.GetString(4)),
                     reader.IsDBNull(5) ? null : Instant(reader.GetString(5)),
                     reader.GetInt32(6),
-                    reader.GetBoolean(7)));
+                    reader.GetBoolean(7),
+                    reader.IsDBNull(8) ? null : reader.GetInt64(8)));
             }
 
             return memories;
