@@ -23,29 +23,46 @@ client and the time-window machinery — and rebuilds the page from the instrume
 instrument, with the chart kind decided by the instrument's type rather than by hand. A page that
 starts empty cannot keep showing the wrong thing.
 
+Two things it also settles:
+
+- **The page keeps no skeleton of its own.** Every shell view is written inside
+  `Html/ShellDocument`, which owns the head, the title, the sheet list, the site menu, the skip link,
+  the `main` landmark and the close, and through `Sdk/PageDocument`, which owns the markup. `/status`
+  therefore cannot drift from the rest of the site, and the plan adds the test that proves the view
+  writes body content and nothing else. It stays a shell view rather than a stored page, because the
+  error, health and status routes must answer when the page pipeline is broken (DEC-151).
+- **A chart is only a drawing.** The renderer that embeds a chart in the page can serve it alone, so
+  a chart can be linked directly, with the start time and duration it was drawn for. The page keeps
+  embedding its SVGs; the chart endpoint is an addon, not the page's assembly line.
+
 ## The short version
 
 1. `/status` starts blank: `Dashboard` loses every hand-written query, and a new panel catalogue
-   becomes the only way a chart can appear. The page still renders its heading, its window nav and a
-   Prometheus banner.
+   becomes the only way a chart can appear. The endpoint writes body markup inside `ShellDocument`
+   and owns no document of its own.
 2. **One panel per instrument.** A histogram is a heatmap, a counter is a line chart, a gauge is a
    line chart; a counter whose labels are parts of one total is a stacked area. The inventory is 23
    instruments, so there are 23 panels, and the Host group adds 5 more from the framework's meters.
-3. **The chart is the panel.** Title and legend move inside the SVG, so a panel is one drawing with
-   no `<h2>`, no `<ul>` legend and no prose. The page is a dense grid of `<figure>`s under three
-   group headings.
+3. **The chart is the panel.** Title and legend move inside the SVG, so a panel is one drawing in a
+   `<figure>` with no `<h2>`, no `<ul>` legend and no prose beyond its one caption link. The page is
+   a dense grid of figures under three group headings.
 4. **A series is identified without colour.** A colourblind-safe palette, a dash pattern per series,
-   a direct label at the end of every line, a hover that dims the others, and a click that pins one —
-   all in CSS, because `/status` stays JavaScript-free.
-5. **A stacked area chart** joins `LineChart` and `Heatmap` in `Core.Charting`, for the panels where
+   a direct label at the end of every line, a hover that dims the others, and a click that pins one.
+   The interaction is CSS, because `/status` stays JavaScript-free.
+5. **A drawing stands on its own.** Colour, dashes and type sizes become presentation attributes in
+   `Core.Charting`, not stylesheet rules, so the same SVG is legible with no stylesheet at all.
+6. **A stacked area chart** joins `LineChart` and `Heatmap` in `Core.Charting`, for the panels where
    the labels are parts of a whole (cache lookups by result, tokens by kind, HTTP status by code).
-6. **Drift becomes a failing test.** Each meter publishes its own inventory, the catalogue maps every
+7. **One renderer, two front doors.** `ChartRenderer` turns a panel and a window — a start time and
+   a duration — into an SVG. `Dashboard` embeds the result; `GET /status/chart` serves one panel's
+   SVG on its own, owner-only, for a link or a bookmark.
+8. **Drift becomes a failing test.** Each meter publishes its own inventory, the catalogue maps every
    entry to exactly one panel, and a test fails when either side gains an entry the other lacks or
    when a query names a family that is neither an instrument nor a known runtime one.
-7. The heatmap grows a markup budget, because sixteen heatmaps at one `<rect>` per cell would be
+9. The heatmap grows a markup budget, because sixteen heatmaps at one `<rect>` per cell would be
    megabytes. Adjacent cells of the same shade merge into one rect, and columns are capped.
-8. The page, its stylesheet and its docs are updated together: [metrics](../metrics.md) becomes the
-   one inventory, OPS-06's copy of the table goes, and the job closes when the page is rebuilt.
+10. The page, its stylesheet and its docs are updated together: [metrics](../metrics.md) becomes the
+    one inventory, OPS-06's copy of the table goes, and the job closes when the page is rebuilt.
 
 ## What decides a panel
 
@@ -76,10 +93,13 @@ Three consequences worth stating before they are argued about later:
 
 ## The panel catalogue
 
-`Web/Metrics/StatusCatalogue.cs` holds an ordered list of panels. Each entry names an instrument, a
-chart kind, a title written for a person, a y-axis title, an empty-state sentence, and the label (if
-any) the series are split by. The queries are built from the instrument name and that label, never
-written by hand:
+`Web/Metrics/StatusCatalogue.cs` holds an ordered list of panels. Each entry names an id, an
+instrument (or, in the Host group, the runtime families it reads), a chart kind, a title written for a
+person, a y-axis title, an empty-state sentence, and the label (if any) the series are split by. The
+id is the instrument's name for an instrument panel and `host.memory`-style names for the Host group:
+it is what `GET /status/chart?panel=…` asks for, and the drift test asserts it is unique and, where
+there is an instrument, identical to the instrument's name. The queries are built from the instrument
+name and the split label, never written by hand:
 
 - histogram — `sum by (le) (rate(<family>_bucket[5m]))`, fed to `Heatmap.FromCumulative`.
 - counter, one total — `sum(rate(<family>_total[5m]))`.
@@ -146,14 +166,41 @@ better than three separate ones would.
 
 Twenty-eight panels: sixteen heatmaps, eight line charts, four stacked areas.
 
-## The chart is the panel
+## The page and its drawings
 
-A panel is a `<figure>` holding one `<svg>` and nothing else. The drawing carries its own title in a
-`<text class="chart-title">` band at the top and its own legend in a band beneath it: a swatch, a
-dash sample and the series label, laid out in rows that wrap to the plot's width. `ChartChrome`, a
-shared internal helper in `Core.Charting`, owns that band so `LineChart`, `Heatmap` and
-`StackedAreaChart` cannot disagree about where the plot starts; the plot is what remains after the
-title, the legend and the axes.
+### No skeleton of its own
+
+`/status` is a shell view, and the shell already has one place that writes a document:
+`Html/ShellDocument.BeginAsync` sets the content type, the status and `no-store`, writes the head —
+title, `/layout.css`, `/site.css`, the view's own sheets, the icon — then the skip link, the banner
+with `SiteNavigation.For(context)` and the open `main`; `EndAsync` closes the landmark and the
+document. That is the arrangement the plan wants, and the endpoint's job is the body between the two
+calls and nothing else.
+
+The plan makes that true rather than assumed:
+
+- The endpoint stops setting `Content-Type` and `Cache-Control` itself. It does today, before calling
+  a builder that sets both, and two owners of one header is how they drift.
+- The window nav keeps going through `PageDocument.Nav`, the builder the site menu uses too, so the
+  landmark and the sheet order cannot become a hand-written copy of the chrome.
+- A test renders `/status` and asserts the document around the body is exactly
+  `PageDocument.Head` + `PageDocument.Banner` + `PageDocument.OpenMain` … `CloseMain` + `End` for the
+  same inputs. A hand-written `<head>`, sheet list, menu or footer then fails a test instead of
+  quietly diverging.
+- The stylesheet list is declared once, in the `stylesheets:` argument: `/status.css` after the base
+  sheets. A change to the base sheets reaches `/status` without touching it.
+- It stays a shell view, not a stored page in `/_layout`: DEC-151 keeps the error, health, sign-in,
+  editor and status routes answering when the page pipeline is broken, which is exactly when
+  `/status` is opened.
+
+### A panel is a figure
+
+A panel is a `<figure>` holding one `<svg>` and, beneath it, one caption link — nothing else. The
+drawing carries its own title in a `<text class="chart-title">` band at the top and its own legend in
+a band beneath it: a swatch, a dash sample and the series label, laid out in rows that wrap to the
+plot's width. `ChartChrome`, a shared internal helper in `Core.Charting`, owns that band so
+`LineChart`, `Heatmap` and `StackedAreaChart` cannot disagree about where the plot starts; the plot is
+what remains after the title, the legend and the axes.
 
 - The `<title>` element stays first in the SVG, because the accessibility rules require a named
   `role="img"` drawing and it is also the browser's own tooltip for the whole chart.
@@ -203,8 +250,15 @@ because a duplicate id would pin the wrong series.
 The palette becomes Okabe–Ito's colourblind-safe seven, dropping the yellow that reads as paper and
 keeping the black that reads as ink: `#0072B2`, `#D55E00`, `#009E73`, `#CC79A7`, `#E69F00`,
 `#56B4E9`, `#000000`. Four dash patterns cycle with them, so two series can share a colour and still
-differ. `SvgText.SeriesColours` grows from five to seven and the stylesheet with it; `series-6` and
-`series-7` join `series-1`..`series-5`, and `series-dash-1`..`series-dash-4` are new.
+differ. `SvgText.SeriesColours` grows from five to seven.
+
+Colour, dashes, fill and type size are written as **presentation attributes** — `stroke="#0072B2"`,
+`stroke-dasharray="6 4"`, `font-size="11"` — from a table in `Core.Charting`, not as rules in
+`/status.css`. That is a deliberate reversal of the current arrangement: a chart served on its own has
+no stylesheet, and a drawing that is invisible without one is not a drawing, it is a page fragment.
+The class names stay as hooks for the two things that are page-only: the hover dim and the pinned
+state, which `status.css` owns. A hotlinked chart is therefore a complete, legible, static picture
+with no interaction — the interaction is a property of the page, never of the image.
 
 The anchors are pointer-only and the drawing stays `role="img"`. That is deliberate: a focusable
 anchor inside a drawing the accessibility tree treats as one image is announced as nothing useful,
@@ -235,6 +289,53 @@ other two do.
 - `Heatmap`'s cumulation and this chart's cumulation are different operations with similar names;
   the doc comments on both say which way round they run.
 
+## One renderer, two front doors
+
+The page embeds its SVGs; it must not fetch its own endpoint to do it. So the drawing has to be a
+function of a panel and a window, callable from either place:
+
+- **`ChartWindow`** — a start and a length, plus the step the existing rule derives and the end it
+  implies. `StatusDuration` keeps choosing the length from its token list; `ChartWindow` adds the
+  start, which the page takes as "now" and the endpoint takes from the request. Both snap the start
+  down to the step, in whole minutes, so a window is a stable thing: the same start and length are
+  the same chart, which is what makes a link worth keeping.
+- **`ChartRenderer`** — panel + window + `IMetricsSource` → either the SVG or the reason it could not
+  be drawn. This is the only code that turns a query into a drawing. `Dashboard` calls it once per
+  panel; the endpoint calls it once.
+- **`GET /status/chart?panel=<id>&start=<ISO-8601>&duration=<token>`** — the addon. Owner-only, the
+  same `Editor` policy as `/status`, and `/status/chart` is already under the reserved `/status`
+  prefix, so no page can ever claim it. The response is `image/svg+xml; charset=utf-8` and
+  `Cache-Control: no-store`: it is the owner's data, and the fifteen-second cache is the server's, not
+  a proxy's. The global security headers already give it `nosniff`, the frame denial and the
+  script-free policy, and a drawing made of presentation attributes needs nothing relaxed.
+
+How it behaves:
+
+- `panel` is required; an unknown id is a `404`. `start` defaults to now and `duration` to `1h`. The
+  duration accepts a window token or a positive whole number of minutes (`duration=90`), because a
+  hotlink is a claim about a period, not a choice from the page's nav.
+- A malformed `start` or `duration` is a `400` naming the parameter. The page's own `?duration=` stays
+  lenient — an unknown token draws the default, because that is navigation typed by hand — while a
+  hotlink that silently drew a different window would be a lie about evidence. Two surfaces, two
+  rules, each written down.
+- A Prometheus that does not answer is a `503` with a plain-text reason, not an SVG. A broken image
+  is the honest failure in whatever the chart was pasted into; the page's banner is where the reason
+  is read in full.
+- The renderer never writes a link to itself: only the page passes a title or caption link, so a
+  hotlinked chart is a picture and nothing else.
+- `Dashboard`'s cache becomes a small bounded map keyed by `(start, length)` — sixteen entries,
+  oldest evicted — because a start the caller chooses must not grow a dictionary without bound.
+
+The page reaches the endpoint through each panel's one caption link: a `<figcaption>` holding an
+anchor to `/status/chart?panel=…&start=…&duration=…`, labelled `Open chart` and given the panel's
+title as its accessible name (`aria-label="Open chart: …"`). It is small, it is outside the SVG, it
+is announced and focusable, and every one of the twenty-eight has a unique accessible name. The pin
+anchors inside the drawing stay pointer-only for the reason above; this link does not.
+
+One CSS subtlety that makes both work: a stylesheet rule beats a presentation attribute, so the page
+can thicken a hovered series and dim the others without restating any colour, and the standalone
+chart keeps the colours it was drawn with.
+
 ## Dense packing
 
 The page becomes three grids, one per group, under `<h2>Pages</h2>`, `<h2>Assistant</h2>` and
@@ -243,11 +344,17 @@ The page becomes three grids, one per group, under `<h2>Pages</h2>`, `<h2>Assist
 - `display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: .5rem .75rem`,
   in `/status.css`. Three or four columns on a laptop, two on a tablet, one on a phone.
 - Each `<figure>` has no margin or border of its own; the drawing's own title, legend and axes give
-  it its shape. The group heading spans every column.
+  it its shape, and its caption link sits under it in the same small type. The group heading spans
+  every column.
 - The window nav stays where it is, and the banner above the grid stays as it is.
 - Panels are ordered by group and, within a group, by instrument type — histograms first, then
   counters, then gauges — so like sits beside like and the reader learns the page in one visit. The
   catalogue's order is the page's order; there is no sorting at render time.
+
+`/status.css` shrinks to what only the page needs: the grid, the figure and caption, the hover dim,
+the pinned state, and the spacing. The palette moves into `Core.Charting` with the rest of the
+presentation attributes (see "Identifying a series without colour"), so the sheet no longer defines
+`--series-1`..`--series-7` or the heat shades, and a hotlinked chart does not depend on it.
 
 `/status.css` is a seeded page, so an existing installation keeps the old sheet until the owner
 restores it from `/edit` (DEC-174). The release note in
@@ -275,8 +382,9 @@ heatmaps of that would be a twelve-megabyte page. The charts change shape to sta
   between lines.
 - **A guard test pins the result.** An integration test renders `/status` against a synthetic answer
   of five hundred samples for every query and asserts the body stays under a bound chosen from the
-  first measured build (expect about a megabyte). A chart change that doubles the page is then a
-  failing test rather than a slow page.
+  first measured build (expect about a megabyte). The chart endpoint serves the same bytes for one
+  panel, so the budget covers both front doors and a hotlinked chart can never be the one that
+  explodes. A chart change that doubles the page is a failing test rather than a slow page.
 
 ## The drift guard
 
@@ -289,7 +397,8 @@ Three facts, and one test that ties them together:
    panel that reads it, not to the instrument.
 2. **The catalogue maps every instrument to one panel**, and the test asserts the mapping is a
    bijection: every instrument has a panel, every panel names an instrument, and no instrument has
-   two.
+   two. Ids are unique, and an instrument panel's id is the instrument's name, because
+   `GET /status/chart?panel=…` addresses the panel by it.
 3. **Every family a query names is accounted for.** The test tokenises the catalogue's PromQL,
    drops the function names and keywords (`sum`, `rate`, `by`, `le`, `topk` and the rest, from a
    short list) and asserts every remaining identifier is either an instrument's family or on a
@@ -312,48 +421,66 @@ what is actually created, because a list can be published without being used.
   shared by the three renderers.
 - `src/uk.osric.asp.Core/Charting/StackedAreaChart.cs`.
 - `src/uk.osric.asp.Web/Metrics/Instrument.cs` — the inventory record.
-- `src/uk.osric.asp.Web/Metrics/StatusCatalogue.cs` — the panel list, its query builder and its kinds.
+- `src/uk.osric.asp.Web/Metrics/StatusCatalogue.cs` — the panel list, its ids, its query builder and
+  its kinds.
+- `src/uk.osric.asp.Web/Metrics/ChartWindow.cs` — a start, a length, the derived step and the end.
+- `src/uk.osric.asp.Web/Metrics/ChartRenderer.cs` — panel + window + source → an SVG or the reason.
+- `src/uk.osric.asp.Web/Metrics/ChartEndpoint.cs` — `GET /status/chart`.
 - `test/uk.osric.asp.Core.Tests/StackedAreaChartTests.cs`.
 - `test/uk.osric.asp.Web.Tests/StatusCatalogueTests.cs` — the drift guard and the type rule.
+- `test/uk.osric.asp.Web.Tests/ChartEndpointTests.cs`.
 
 **Changed**
 
-- `Core/Charting/LineChart.cs` — title and legend inside the SVG, end labels, dashes, hit strokes,
-  flat plot geometry independent of the window.
-- `Core/Charting/Heatmap.cs` — runs, the column cap, title and legend inside the SVG, end-of-row
-  shading unchanged.
-- `Core/Charting/SvgText.cs` — seven colours and the dash class.
-- `Web/Metrics/Dashboard.cs` — no queries of its own; it runs the catalogue and renders each kind.
-- `Web/Metrics/StatusEndpoint.cs` — `<figure>` per panel, group headings, no legend list.
-- `Web/Metrics/StatusPanel.cs`, `StatusPage.cs` — no `Labels`; the SVG is never null.
-- `Web/Metrics/StatusDuration.cs` — no `ChartWidth`.
+- `Core/Charting/LineChart.cs` — title and legend inside the SVG, end labels, dashes, presentation
+  attributes, hit strokes, flat plot geometry independent of the window.
+- `Core/Charting/Heatmap.cs` — runs, the column cap, title and legend inside the SVG, presentation
+  attributes for the shades.
+- `Core/Charting/SvgText.cs` — seven-colour palette, four dash patterns, the heat shades and the type
+  sizes, all as attribute values rather than classes.
+- `Web/Metrics/Dashboard.cs` — no queries of its own; it runs the catalogue through `ChartRenderer`
+  and caches by window.
+- `Web/Metrics/StatusEndpoint.cs` — body markup only, inside `ShellDocument`; `<figure>` per panel,
+  group headings, no legend list, no content type or cache header of its own.
+- `Web/Metrics/StatusPanel.cs`, `StatusPage.cs` — no `Labels`; the SVG is never null; the caption link.
+- `Web/Metrics/StatusDuration.cs` — no `ChartWidth` and no step; a token names a length, and
+  `ChartWindow` turns a start and that length into a stepped window.
+- `Web/Program.cs` — the `/status/chart` route, behind the same policy as `/status`.
 - `Web/Pages/PageMetrics.cs`, `Web/Assistant/AssistantMetrics.cs` — the published inventory.
-- `Web/Pages/Seeds/status.css` — the grid, the palette, the dashes, the chart title and legend.
+- `Web/Pages/Seeds/status.css` — the grid, the figure and caption, the hover dim; the palette and the
+  dashes leave it for `Core.Charting`.
 
 **Unchanged**
 
 - `Core/Charting/NiceTicks.cs`, `ValueUnit.cs`, `ChartSamples.cs`, `ChartAxis`/`ChartSize`/
-  `ChartSeries`/`ChartPoint`, `PrometheusSource`, `MetricsOptions`, `StatusDuration`'s tokens and
-  step rule, the 15-second page cache, and the banner behaviour. The graphing code is the part that
-  works.
+  `ChartSeries`/`ChartPoint`, `PrometheusSource`, `MetricsOptions`, `StatusDuration`'s token list,
+  the fifteen-second cache lifetime (`CacheFor`), the banner behaviour, `Html/ShellDocument.cs`,
+  `Sdk/PageDocument.cs`, `Html/SiteNavigation.cs` and `Pages/ReservedPaths.cs` — `/status/chart` is
+  already reserved by the `/status` prefix. The graphing code and the document tools are the parts
+  that work.
 
 ## Tests
 
 - `Core.Tests` — `LineChartTests` and `HeatmapTests` gain the title band, the legend, the end labels,
-  the dash classes and the run merging; `StackedAreaChartTests` pins the band order, the missing-as-
-  zero rule, the negative-value refusal and the axis; `SvgTextTests` pins seven colours and the dash
-  cycle; `NiceTicksTests` and `ValueUnitTests` are untouched.
+  the run merging and a check that a drawing carries its own `stroke`, `stroke-dasharray` and
+  `font-size` and needs no stylesheet to be legible; `StackedAreaChartTests` pins the band order, the
+  missing-as-zero rule, the negative-value refusal and the axis; `SvgTextTests` pins seven colours,
+  the dash cycle and the heat shades; `NiceTicksTests` and `ValueUnitTests` are untouched.
 - `Web.Tests` — `DashboardTests` keeps the cache, the banner and the window tests — a failed panel,
   a failed Prometheus, an empty answer and the window-to-step rule — and loses the panel-count
-  assertions; `StatusCatalogueTests` is the drift guard; `StatusEndpointTests` asserts `<figure>`,
-  group headings and unique ids rather than a legend list, and that a blank catalogue still renders a
-  page; `PageMetricsTests` and `AssistantMetricsTests` assert the inventory against the instruments
-  actually created.
+  assertions; `StatusCatalogueTests` is the drift guard; `StatusEndpointTests` asserts the document
+  around the body is the builder's output, that each panel is a `<figure>` with a caption link, and
+  that ids are unique; `ChartEndpointTests` asserts the content type, a `404` for an unknown panel, a
+  `400` for a malformed window, a `503` when Prometheus is down, and that the bytes for a panel and
+  window equal the ones embedded in the page; `PageMetricsTests` and `AssistantMetricsTests` assert
+  the inventory against the instruments actually created.
 - `Web.IntegrationTests` — `StatusPageTests` keeps the stylesheet and sign-in tests, drops the
-  window-widens-the-chart assertion (the window sets the step now) and gains the body-size guard.
+  window-widens-the-chart assertion (the window sets the step now), gains the body-size guard, the
+  chart route's policy (an anonymous request is redirected to sign-in, as `/status` is) and one
+  end-to-end fetch of `/status/chart` from the signed-in host.
 - `AccessibilityTests` — unchanged rules, re-run over the rebuilt page through `ShellViews`: every
-  drawing still named, no style attributes, no skipped heading level, and the `chart-legend`
-  allowance removed with the list it protected.
+  drawing still named, no style attributes, no skipped heading level, no unnamed caption link, and the
+  `chart-legend` allowance removed with the list it protected.
 
 ## Documentation and decisions
 
@@ -363,7 +490,7 @@ what is actually created, because a list can be published without being used.
   of panels.
 - **DEC-180** — the page is a dense grid of `<figure>`s under three group headings, and a chart
   carries its own title and legend inside its SVG, so a panel adds no heading, no legend list and no
-  prose to the document.
+  prose to the document beyond its one caption link.
 - **DEC-181** — a series is identified without colour: Okabe–Ito palette, a dash pattern, a direct
   end-of-line label, a hover dim and a click that pins by fragment target, all in CSS because DEC-81
   keeps `/status` JavaScript-free. The at-rest cues are the accessible ones.
@@ -372,19 +499,34 @@ what is actually created, because a list can be published without being used.
 - **DEC-183** — the meters publish their instruments and the catalogue maps them one-to-one, and a
   test fails when either side gains an entry the other lacks or when a query names a family that is
   neither an instrument nor a known runtime family.
+- **DEC-184** — a drawing is self-contained: colour, dash, fill and type size are presentation
+  attributes from a palette in `Core.Charting`, not rules in `/status.css`, so the same SVG is legible
+  with no stylesheet. The page's sheet keeps only the grid, the caption and the hover and pinned
+  states, which are properties of the page rather than of the picture.
+- **DEC-185** — a chart can be served on its own: `GET /status/chart?panel=&start=&duration=` returns
+  one panel's SVG under the owner policy, with `no-store` and the global security headers, and
+  addresses panels by catalogue id. The window is an explicit start plus a length, snapped to the
+  step, so a link reproduces the chart it showed; a malformed window is a `400`, an unknown panel a
+  `404`, and an unreachable Prometheus a `503`. The page embeds the same renderer and never fetches
+  the endpoint.
 - `docs/metrics.md` — the one inventory. Add the missing assistant meter table (seven instruments are
   documented nowhere today), add a "The panels" section with the instrument → chart table, and
-  rewrite "Export and the status page" for the grid, the kinds and the identification rules.
+  rewrite "Export and the status page" for the grid, the kinds, the identification rules and the
+  chart URL with its parameters.
 - `docs/jobs/OPS-06.md` — replace the drifting inventory table with a link to `docs/metrics.md`, and
   record the three instruments that arrived after it was written. The job closes when every phase is
   green: the file is deleted and the row moves to Closed in `docs/jobs/README.md`.
 - `docs/glossary.md` — "Panel" gains "exactly one instrument" and loses "one metric may appear in
   several panels", both of which the catalogue now makes checkable.
-- `docs/testing.md` — the metrics paragraph names the catalogue test, the stacked-area suite and the
-  body-size guard.
-- `docs/architecture.md` — the `Core.Charting` row gains the third renderer.
+- `docs/testing.md` — the metrics paragraph names the catalogue test, the stacked-area suite, the
+  endpoint suite and the body-size guard.
+- `docs/architecture.md` — the `Core.Charting` row gains the third renderer, and the shell/metrics
+  boundary keeps its sentence about `/status` being a shell view.
+- `docs/shell.md` — one sentence that `/status` writes body content only, with a link to the chart
+  endpoint as the one thing on the page that is not markup it drew.
 - `deploy/operations.md` — a release note that `/status.css` must be restored from `/edit` on an
-  existing installation, and one sentence on what the page now shows.
+  existing installation, one sentence on what the page now shows, and a hotlink example with a
+  `start` and a `duration`.
 - `docs/jobs/README.md` — the OPS-06 row and its ordering entry go when the job closes, and the plan
   moves to `docs/plans/archive/` (which is frozen by its own README).
 
@@ -394,39 +536,49 @@ Each phase ends with `make test` green and every phase leaves the site working. 
 with `make check`.
 
 1. **Blank page.** Delete the fourteen hand-written panel definitions and the standalone heatmap
-   query; add an empty catalogue; `Dashboard` iterates it and renders nothing; `StatusEndpoint`
-   writes the heading, nav, banner and an optional panel list. Rewrite `DashboardTests`,
-   `StatusEndpointTests` and the integration window test. `/status` now shows a heading and a nav —
-   and that is the point.
+   query; add an empty catalogue; `Dashboard` iterates it and renders nothing. Put `StatusEndpoint`
+   on `ShellDocument` and `PageDocument` for everything around the body — no content type, no cache
+   header, no head, no menu, no footer of its own — and add the test that pins the document to the
+   builder's output. Rewrite `DashboardTests`, `StatusEndpointTests` and the integration window test.
+   `/status` now shows the site's chrome, its heading and its window nav, and no panels — and that is
+   the point.
 2. **The chart is the panel.** `ChartChrome` with the title band, the legend band and the empty state;
-   `LineChart` and `Heatmap` take a title and draw their legend; `StatusPanel` loses `Labels`;
-   `StatusEndpoint` writes figures; `StatusDuration` loses `ChartWidth`. Tests pin the new markup.
+   `LineChart` and `Heatmap` take a title and draw their legend; `StatusPanel` loses `Labels` and
+   gains the caption link; `StatusEndpoint` writes figures; `StatusDuration` loses `ChartWidth`. Tests
+   pin the new markup.
 3. **The markup budget.** Heatmap runs and the 120-column cap, with the tests that prove a busy
    answer stays small; the hit stroke rule for line charts.
-4. **Identification.** Okabe–Ito palette and dash classes in `SvgText` and `status.css`, end-of-line
-   labels, hover dimming, click-to-pin anchors and unique ids. A manual browser pass: hover, click,
-   and the page in forced-colours mode, read as a screen reader sees one chart.
+4. **Identification.** Okabe–Ito palette, four dash patterns and the heat shades as presentation
+   attributes in `SvgText`, `status.css` cut back to layout and interaction, end-of-line labels, hover
+   dimming, click-to-pin anchors and unique ids. A manual browser pass: hover, click, the page in
+   forced-colours mode, one chart opened on its own with no stylesheet, and the page read as a screen
+   reader sees one chart.
 5. **Stacked area.** `StackedAreaChart` and its tests. No panel uses it yet.
-6. **Inventory and catalogue.** `Instrument`, the published inventories, the catalogue's query
-   builder and the drift test. Add the first panel — `page.render.duration` as a heatmap — so the
-   whole path from instrument to drawing is proved before the rest are added.
+6. **Inventory and catalogue.** `Instrument`, the published inventories, the catalogue's ids and
+   query builder, and the drift test. Add the first panel — `page.render.duration` as a heatmap — so
+   the whole path from instrument to drawing is proved before the rest are added.
 7. **Pages group.** The remaining fifteen page panels.
 8. **Assistant group.** The seven assistant panels, and the assistant table in `docs/metrics.md`.
 9. **Host group.** The five host panels.
-10. **Dense layout.** The grid in `status.css`, the group headings, and a pass over sizes and gaps at
+10. **The chart endpoint.** `ChartWindow`, `ChartRenderer`, the `/status/chart` route and its tests,
+    and the per-panel caption links. The page keeps embedding its SVGs, so this is the last thing
+    that can be dropped without touching anything else.
+11. **Dense layout.** The grid in `status.css`, the group headings, and a pass over sizes and gaps at
     three widths. The body-size guard is set from this build.
-11. **Finish.** Docs, decisions, the OPS-06 close-out and the archived plan.
+12. **Finish.** Docs, decisions, the OPS-06 close-out and the archived plan.
 
 Phases 2–5 are chart work and can be done in any order after phase 1, except that the markup budget
-in phase 3 builds on the title and legend in phase 2. Phase 6 depends on 2 and 3, and 7–9 depend on 6.
+in phase 3 builds on the title and legend in phase 2. Phase 6 depends on 2 and 3; 7–9 depend on 6;
+10 depends on 6; 11 depends on 7–9.
 
 ## Deployment
 
 No schema, no migration, no configuration and no new package. `/status` is owner-only and cached for
 fifteen seconds; the first view of a window runs twenty-eight range queries instead of twenty, which
-is the only load change. `/status.css` is seeded (DEC-174): on an existing installation the owner
-restores it from `/edit`, and the release note says so. Until then the charts render full width,
-one per row.
+is the only load change. The new `/status/chart` route sits behind the same owner policy, so it is
+reachable only from a signed-in browser — a hotlink is for the owner's own notes and bookmarks, not a
+public embed. `/status.css` is seeded (DEC-174): on an existing installation the owner restores it
+from `/edit`, and the release note says so. Until then the charts render full width, one per row.
 
 ## Risks
 
@@ -441,6 +593,16 @@ one per row.
 - **Stacked areas need bounded labels.** `result`, `reason`, `kind` and `http_response_status_code`
   are bounded by design; a future tag with unbounded values must not be marked as parts of a whole,
   and the catalogue comment says why.
+- **The palette leaves the stylesheet.** A re-theme now touches `Core.Charting` rather than
+  `status.css`, and the sheet's `--series-*` variables go. That is the price of a chart that stands on
+  its own, and the reason is in DEC-184; a future theme that needs per-site colours would pass a
+  palette into the renderer rather than read one from CSS.
+- **The hotlinked chart is not the page's chart.** It has the same marks and none of the interaction,
+  and a Prometheus failure is a `503` rather than a drawn apology. Anyone pasting the URL should
+  expect a picture, not a dashboard panel.
+- **The chart endpoint is a second way into Prometheus.** It is owner-only and takes no PromQL — a
+  panel id and a window, nothing else — so it cannot become a query console. That constraint is what
+  keeps it an addon.
 
 ## Out of scope
 
@@ -449,6 +611,11 @@ one per row.
   is one the drift guard can no longer verify.
 - **Splitting a heatmap by a tag.** One heatmap per tool, per model or per page is a small-multiples
   grid, with its own layout problem.
+- **Arbitrary PromQL or an ad-hoc query on the chart endpoint.** The endpoint addresses catalogue
+  panels by id and nothing else; a query console is a different feature with a different threat
+  model.
+- **Sizing, theming and format parameters on the chart endpoint.** The SVG scales to whatever it is
+  put in, and it is SVG only: a PNG renderer would be a second drawing pipeline.
 - **Any JavaScript.** DEC-81 keeps `/status` server-rendered and script-free; the interactions here
   are CSS or nothing.
 - **More colours.** Seven is the palette; beyond that, dash and label do the work rather than an
