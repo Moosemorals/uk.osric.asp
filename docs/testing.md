@@ -275,12 +275,14 @@ Warnings are errors (`Directory.Build.props`), so a project that builds locally 
 `make audit` fails on a vulnerable or deprecated NuGet package, and every suite runs under a session
 timeout so a wedged run fails instead of sitting there. The three unit suites get a minute
 (`TEST_FAST_TIMEOUT`, in milliseconds): they answer in seconds, and a run that reaches a minute is
-wedged rather than slow. The integration and browser suites get five (`TEST_HANG_TIMEOUT`), because
-they drive a real host and a browser, and the budget tests burn a wall clock deliberately. Either can
-be overridden on a machine slower than this one. The ceiling is VSTest's
-`RunConfiguration.TestSessionTimeout` rather than `--blame-hang`, because the blame collector warns on
-every run that ends normally that it wrote no sequence file: that is the good outcome said as a
-problem, and a warning nobody can act on is one everybody learns to skip.
+wedged rather than slow. The integration suite gets five (`TEST_HANG_TIMEOUT`), because it drives a
+real host and the budget tests burn a wall clock deliberately; the browser suite gets ten
+(`TEST_BROWSER_TIMEOUT`), because fifty tests that each open a page in Firefox take a little over two
+minutes with the machine to themselves and a deploy runs them right after a full gate, so five was
+close enough to a healthy run to abort one. Each can be overridden on a machine slower than this one.
+The ceiling is VSTest's `RunConfiguration.TestSessionTimeout` rather than `--blame-hang`, because the
+blame collector warns on every run that ends normally that it wrote no sequence file: that is the
+good outcome said as a problem, and a warning nobody can act on is one everybody learns to skip.
 
 ## Parallelism
 

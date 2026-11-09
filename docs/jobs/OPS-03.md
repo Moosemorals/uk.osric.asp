@@ -58,10 +58,13 @@ Supporting changes:
   not wait for `make deploy` to find it.
 - **Hangs fail.** Every suite runs under a `RunConfiguration.TestSessionTimeout`: a minute for the
   three unit suites (`TEST_FAST_TIMEOUT`, in milliseconds), which answer in seconds and are wedged if
-  they reach it, and five for the integration suite (`TEST_HANG_TIMEOUT`), which drives a real host
-  and whose budget tests burn a wall clock on purpose. A run that reaches its ceiling aborts rather
-  than passing the tests it managed. The blame collector would give the same ceiling but warns on
-  every run that ends normally that it wrote no sequence file, which is noise on a green run.
+  they reach it; five for the integration suite (`TEST_HANG_TIMEOUT`), which drives a real host and
+  whose budget tests burn a wall clock on purpose; and ten for the browser suite
+  (`TEST_BROWSER_TIMEOUT`), because its fifty tests measure a little over two minutes and are run by
+  a deploy straight after a full gate, where five was close enough to a healthy run to abort one. A
+  run that reaches its ceiling aborts rather than passing the tests it managed. The blame collector
+  would give the same ceiling but warns on every run that ends normally that it wrote no sequence
+  file, which is noise on a green run.
 - **Deploy is gated and traceable.** `make deploy` runs `deploy-guard` (the host answers, the tree is
   this commit and nothing else, the Caddyfile is not still the placeholder), then `check`, then
   `image`: it refuses an uncommitted tree (an image that cannot be rebuilt from the commit its tag

@@ -194,14 +194,24 @@ test: test-core test-runtime test-web test-integration
 # Waiting a minute for a suite that should answer in seconds is cheaper than waiting ten for one that
 # will never answer. The integration and browser suites drive a real host and a browser, so their
 # ceiling stays generous; both can be overridden, as can the fast one on a machine slower than this.
+#
+# The browser suite has a ceiling of its own because it is the slowest thing here and the least
+# predictable: fifty tests that each open a page in Firefox and wait on a streamed answer take a
+# little over two minutes with the machine to themselves, and a deploy runs them straight after a
+# full gate and a publish, on a machine that was busy a moment ago. Five minutes was only two and a
+# half times that, so a healthy run under a deploy's load reached the ceiling and was aborted for
+# being slow rather than for being wedged. Ten is five times the measured run, which still fails a
+# wedged suite long before anyone would give up on it.
 TEST_FAST_TIMEOUT ?= 60000
 TEST_HANG_TIMEOUT ?= 300000
+TEST_BROWSER_TIMEOUT ?= 600000
 # Test results belong with everything else the build produces. Left to itself the runner creates a
 # TestResults/ folder beside each project, which puts output in the source tree. Everything after the
 # `--` is a runsettings property, which is the only way in from the command line.
 TEST_RESULTS := $(ARTIFACTS)/test-results
 TEST_ARGS := --results-directory $(TEST_RESULTS) -- RunConfiguration.TestSessionTimeout=$(TEST_HANG_TIMEOUT)
 TEST_FAST_ARGS := --results-directory $(TEST_RESULTS) -- RunConfiguration.TestSessionTimeout=$(TEST_FAST_TIMEOUT)
+TEST_BROWSER_ARGS := --results-directory $(TEST_RESULTS) -- RunConfiguration.TestSessionTimeout=$(TEST_BROWSER_TIMEOUT)
 
 # The gate. Cheap checks first, so a formatting mistake fails in seconds rather than after the suites.
 # Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no
@@ -245,12 +255,12 @@ test-integration: build
 # `make deploy` that runs it (DEC-179), before anything is pushed. `make browsers` installs Firefox
 # once; the tests launch the built app themselves on a loopback port.
 test-browser: build
-	$(DOTNET) test $(BROWSER_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
+	$(DOTNET) test $(BROWSER_TESTS) -c $(CONFIGURATION) --no-build $(TEST_BROWSER_ARGS)
 
 # The live tests are [Explicit]: they need deploy/deepseek.token (or ASSISTANT_LIVE_TOKEN) and spend
 # real tokens against the configured provider.
 test-browser-live: build
-	$(DOTNET) test $(BROWSER_TESTS) -c $(CONFIGURATION) --no-build --filter "FullyQualifiedName~AssistantLive" $(TEST_ARGS)
+	$(DOTNET) test $(BROWSER_TESTS) -c $(CONFIGURATION) --no-build --filter "FullyQualifiedName~AssistantLive" $(TEST_BROWSER_ARGS)
 
 # Playwright ships its own Node, and this downloads the single browser the suite drives. The path is
 # the copy the package puts beside the test assembly, so it is the version the tests will use.
