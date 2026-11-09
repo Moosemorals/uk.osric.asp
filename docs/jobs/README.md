@@ -28,7 +28,7 @@ is not part of that flow. IDEA-022 came out of the [page-features
 planning](../plans/archive/page-features.md) of 2026-11-08, and is worth doing now that storage and
 fetch have left `SimpleContext`. ARCH-14 came out of the nullable-pages discussion of 2026-11-08 and
 carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md). ARCH-15 came
-out of the assistant shell-file work of 2026-11-09 (DEC-180).
+out of the assistant shell-file work of 2026-11-09 (DEC-198).
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |

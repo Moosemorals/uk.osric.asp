@@ -17,7 +17,7 @@ The site has two ways to say "this key is not a page to write": `Pages:ReservedP
 shell's own routes and which the editor, the exporter and the assistant's tools all honour, and
 `Assistant:ProtectedPaths`, which only the assistant honours and which no other part of the site can
 see. It was added when the tools had no idea what the shell was, so an operator could keep the
-assistant off a sheet or a script; since DEC-180 the shell's routes are that surface and the shipped
+assistant off a sheet or a script; since DEC-198 the shell's routes are that surface and the shipped
 list is empty, leaving an option with no UI, no page in the docs of its own and a lock that exists in
 one subsystem's configuration. A page can be read-only to the assistant and editable to the owner,
 which is a distinction nothing else in the site can express or explain.
@@ -35,7 +35,7 @@ which is a distinction nothing else in the site can express or explain.
 3. If the answer is a page-level lock: keep `PagePathPolicy` reading it, move the flag into the store,
    give the editor a way to set it, and decide whether import and export carry it — DEC-139 says an
    archive carries source and state only.
-4. Either way, DEC-180 and the assistant docs are amended in the same change, because they name the
+4. Either way, DEC-198 and the assistant docs are amended in the same change, because they name the
    option as the operator's lock.
 5. Tests: no policy test names a removed option; a page-level lock, if it lands, is proved through the
    editor and the assistant rather than through configuration.

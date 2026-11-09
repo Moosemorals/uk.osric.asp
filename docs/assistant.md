@@ -29,7 +29,7 @@ There is no process, filesystem, git, package, or outbound-network tool. The per
 mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on each
 flagged mutation. Unresolved, stale, stopped, or restarted approvals never execute.
 
-The tools also see the shell's own files, which are the site's routes (DEC-180). Every key in
+The tools also see the shell's own files, which are the site's routes (DEC-198). Every key in
 `Pages:ReservedPaths` — `/edit`, `/login`, `/logout`, `/assistant`, `/admin/import`,
 `/admin/export`, `/metrics`, `/status`, `/heath` and `/favicon.ico` — is listed, searched and
 readable: `cat` and `read_page` return a host-written record of the route's methods, access and
