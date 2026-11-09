@@ -50,7 +50,11 @@ Two obstacles, and they are independent:
    the save still lives where it always did.
 3. The full editor needs IDEA-015, a write seam widened from IDEA-016's self-save to a named key,
    the assistant's path policy, and IDEA-014 for the save message. Antiforgery is already handled:
-   `PageEndpoint` refuses an authenticated `POST` without a valid pair before the page runs.
+   `PageEndpoint` refuses an authenticated `POST` without a valid pair before the page runs. Both
+   IDEA-015 and IDEA-016 have landed, so what is left is the key: `PageSaver` takes a `PagePath`
+   already, `IPageWriter` is the handle that pins it to `ctx.Path`, and `PageWriterScope`'s
+   authority rules — a signed-in visitor, no `HEAD`, one save per render — are the ones a named-key
+   seam inherits (DEC-189–DEC-196).
 4. Weigh the bootstrap trap before shipping it. The editor is how a page that does not compile gets
    fixed. If the editor is a page, then a broken compiler, a broken editor page or a bad save locks
    the owner out of the one tool that could repair it. Keep a shell fallback — a minimal save form,

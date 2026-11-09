@@ -5,11 +5,12 @@ SPDX-License-Identifier: MIT
 
 # A page that saves its own source
 
-Status: **proposed, not implemented**. Written 2026-11-09, now that IDEA-015 has landed: review
-chose a capability reached through `ctx.Features` with nothing added to `IContext` for the read
-([page store read](archive/page-store-read.md), DEC-168–DEC-175), and the same shape is used here.
-The authority is deliberately **not** symmetric with the read: the read is as public as the page that
-calls it (DEC-169), and this write requires a signed-in visitor. The job is [IDEA-016](../jobs/IDEA-016.md).
+Status: **implemented** 2026-11-09, in the order the phases below set out. Written 2026-11-09, now
+that IDEA-015 has landed: review chose a capability reached through `ctx.Features` with nothing added
+to `IContext` for the read ([page store read](page-store-read.md), DEC-168–DEC-175), and the same
+shape is used here. The authority is deliberately **not** symmetric with the read: the read is as
+public as the page that calls it (DEC-169), and this write requires a signed-in visitor (DEC-190). The
+job was [IDEA-016](../../jobs/README.md#closed).
 
 ## The short version
 
@@ -17,7 +18,7 @@ calls it (DEC-169), and this write requires a signed-in visitor. The job is [IDE
   saves the calling page's own source. **`IContext` gains nothing** (DEC-168, DEC-189).
 - **One write and no key.** The handle is bound to `ctx.Path`, exactly as `IPageStorage` is
   (DEC-125): isolation is structural, and a page cannot name another page. A page that needs to write
-  a *named* key is [IDEA-017](../jobs/IDEA-017.md).
+  a *named* key is [IDEA-017](../../jobs/IDEA-017.md).
 - **Authority is asymmetric, on purpose.** The read is permissive because a page's output is already
   public; a write changes the site, so it is authority, and authority is the shell's. `SaveAsync`
   refuses an anonymous render **before it compiles or stores anything**, and says so in words the
@@ -48,21 +49,21 @@ calls it (DEC-169), and this write requires a signed-in visitor. The job is [IDE
 - The authority question is answered once, in the capability, in the direction the site already
   answers it: a write needs an identity, a read does not (DEC-190).
 - A page that saves can render its own answer — clean, warnings, or errors with positions — without
-  a second render and without a per-visitor message (that is [IDEA-014](../jobs/IDEA-014.md)).
+  a second render and without a per-visitor message (that is [IDEA-014](../../jobs/IDEA-014.md)).
 - Nothing a page can name comes from `Core` or `Web` (DEC-88).
 
 ## Non-goals
 
 - **A named key.** `SaveAsync` takes no path; a page writes itself and nothing else. Widening it is
-  [IDEA-017](../jobs/IDEA-017.md), which is also where the editor becomes a page.
+  [IDEA-017](../../jobs/IDEA-017.md), which is also where the editor becomes a page.
 - **Delete, scrub, restore a seed, import, export.** The shell keeps every one of them (DEC-175).
 - **A rename.** A save appends a revision at the page's own key; moving a key is not a write.
 - **Conditional saves in the contract.** The editor's `SaveIfRevisionAsync` stays the shell's. A page
   that wants a "somebody else saved this" message compares the hash it read with the head it reads
   again, using the read it already has (D1, D8).
 - **A second render after the save.** A page saves, then answers; the next request serves the new
-  revision (DEC-195). Streaming is [ARCH-13](../jobs/README.md)'s.
-- **A preview, an autosave, or scripted editing.** [IDEA-001](../jobs/IDEA-001.md) covers the
+  revision (DEC-195). Streaming is [ARCH-13](../../jobs/README.md)'s.
+- **A preview, an autosave, or scripted editing.** [IDEA-001](../../jobs/IDEA-001.md) covers the
   editor's client side.
 - **New caps or a `Pages:Write` section.** A save is bounded by limits the site already has (D5).
 - **Speculative widening of the diagnostic value** — no column ranges, no end positions, no fixits.
@@ -73,78 +74,78 @@ Checked against the code on 2026-11-09.
 
 - **The contract is `IContext` plus `Features`, and five capabilities are registered**: `IPageStorage`,
   `IHttpFetch`, `IPageCatalog`, `IPageLayout` and `IMarkdownRenderer`
-  ([IContext.cs](../../src/uk.osric.asp.Sdk/IContext.cs), [pages](../pages.md#page-contract),
+  ([IContext.cs](../../../src/uk.osric.asp.Sdk/IContext.cs), [pages](../../pages.md#page-contract),
   DEC-142). Nothing has been added to `IContext` since the capabilities moved there, and the read did
   not add anything either (DEC-168).
 - **A capability is offered by the host and cannot be added to by a page**, and it is registered or
-  absent, never `null` ([IPageFeatures.cs](../../src/uk.osric.asp.Sdk/IPageFeatures.cs), DEC-143).
+  absent, never `null` ([IPageFeatures.cs](../../../src/uk.osric.asp.Sdk/IPageFeatures.cs), DEC-143).
 - **A capability that does I/O is bound to the render.** `PageStorageScope` is the model: bound to the
   page's key, refuses a write on a `HEAD`, throws when the render was abandoned, and passes the
-  render's deadline into the store call ([PageStorageScope.cs](../../src/uk.osric.asp.Web/Pages/PageStorageScope.cs),
+  render's deadline into the store call ([PageStorageScope.cs](../../../src/uk.osric.asp.Web/Pages/PageStorageScope.cs),
   DEC-123, DEC-125, DEC-126).
 - **`ctx.Path` is canonical and a reserved key never renders.** `PageEndpoint` answers `404` for a key
   `Pages:ReservedPaths` claims, and `PageChain` refuses to use one as a layout, so "a page cannot save
   a reserved key" is structural rather than a check that could drift
-  ([PageEndpoint.cs](../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs),
-  [PageChain.cs](../../src/uk.osric.asp.Web/Pages/PageChain.cs), [ReservedPaths.cs](../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs)).
+  ([PageEndpoint.cs](../../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs),
+  [PageChain.cs](../../../src/uk.osric.asp.Web/Pages/PageChain.cs), [ReservedPaths.cs](../../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs)).
 - **A page runs for `GET`, `POST` and `HEAD`.** A body over 1 MiB is refused with `413` before it is
   read, and an **authenticated** `POST` without a valid antiforgery pair is refused before the page
   runs (`page.form_unverified`); an anonymous `POST` carries no cookie-backed identity to forge and
-  does run ([PageEndpoint.cs](../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs)). So a signed-in
+  does run ([PageEndpoint.cs](../../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs)). So a signed-in
   owner's save is CSRF-checked by the host, and an anonymous one has to be refused by the capability.
 - **`ctx.Request.Form` collapses a repeated field to its first value**
-  ([PageRequest.cs](../../src/uk.osric.asp.Sdk/PageRequest.cs)). The shell's editor refuses a
+  ([PageRequest.cs](../../../src/uk.osric.asp.Sdk/PageRequest.cs)). The shell's editor refuses a
   `template` field with more than one value; a page's save takes the first, which is the snapshot's
   documented rule.
 - **The one save is `PageEditor.SaveAsync`**: build the image (`PageMetrics.ReasonSave`), store the
   revision, record `page.save.duration`, log the outcome, and keep the source when the compiler
   itself faults. `/edit`, seed restore and every assistant save tool reach the store through it
-  ([PageEditor.cs](../../src/uk.osric.asp.Web/Editor/PageEditor.cs),
-  [EditorEndpoint.cs](../../src/uk.osric.asp.Web/Editor/EditorEndpoint.cs),
-  [PageToolExecutor.cs](../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs), DEC-175).
+  ([PageEditor.cs](../../../src/uk.osric.asp.Web/Editor/PageEditor.cs),
+  [EditorEndpoint.cs](../../../src/uk.osric.asp.Web/Editor/EditorEndpoint.cs),
+  [PageToolExecutor.cs](../../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs), DEC-175).
 - **The one insert statement is `SqlitePageStore.WriteRevisionAsync`**: the revision row, then the
   head upsert, in one transaction, used by the single save and by the import batch alike
-  ([SqlitePageStore.cs](../../src/uk.osric.asp.Web/Pages/SqlitePageStore.cs),
-  [SqlitePageBatchStore.cs](../../src/uk.osric.asp.Web/Pages/SqlitePageBatchStore.cs)). The retry that
+  ([SqlitePageStore.cs](../../../src/uk.osric.asp.Web/Pages/SqlitePageStore.cs),
+  [SqlitePageBatchStore.cs](../../../src/uk.osric.asp.Web/Pages/SqlitePageBatchStore.cs)). The retry that
   regenerates a revision id after a unique violation lives in `SavePageAsync` around it.
 - **The save path is scoped, and a page's task is not.** `IPageStore`, `PageEditor`,
   `PageImageBuilder` and `PageRenderer` are scoped; `IPageStateStore` and `IPageReadStore` are
   singletons over `IDbContextFactory<StorageDbContext>` precisely because "a render that was abandoned
   can outlive the request scope, and a page's task must never touch a disposed one"
-  ([Program.cs](../../src/uk.osric.asp.Web/Program.cs),
-  [SqlitePageStateStore.cs](../../src/uk.osric.asp.Web/Pages/SqlitePageStateStore.cs), DEC-172).
+  ([Program.cs](../../../src/uk.osric.asp.Web/Program.cs),
+  [SqlitePageStateStore.cs](../../../src/uk.osric.asp.Web/Pages/SqlitePageStateStore.cs), DEC-172).
 - **A render's deadline does not cancel a compile.** The wait for a compile slot is abandoned at the
   deadline because nothing has been compiled; a compile that has started runs to
   `Pages:Compile:TimeoutSeconds` (10 s) and stores its image, while `Pages:Render:TimeoutSeconds` is
-  5 ([PageImageBuilder.cs](../../src/uk.osric.asp.Web/Pages/PageImageBuilder.cs),
-  [appsettings.json](../../src/uk.osric.asp.Web/appsettings.json), DEC-43).
+  5 ([PageImageBuilder.cs](../../../src/uk.osric.asp.Web/Pages/PageImageBuilder.cs),
+  [appsettings.json](../../../src/uk.osric.asp.Web/appsettings.json), DEC-43).
 - **A save stores what it compiled.** An error is stored and reported, a warning keeps its image, and
   a compiler fault stores the template and rethrows (DEC-20, DEC-23, DEC-178).
 - **`Core.Compilation.PageDiagnostic` is `(Severity, TemplatePosition?, Message)`**, positions are
   1-based template space with unknown as `null`, and the message is `{code}: {text}` — `PAGE001: …`,
   `TEMPLATE001: …`, `SCRIPT002: …`, and Roslyn's `CS####: …`
-  ([PageDiagnostic.cs](../../src/uk.osric.asp.Core/Compilation/PageDiagnostic.cs), DEC-22, DEC-21).
+  ([PageDiagnostic.cs](../../../src/uk.osric.asp.Core/Compilation/PageDiagnostic.cs), DEC-22, DEC-21).
   The code is therefore not a field; it is the prefix of the message, in one form every producer
   writes. The editor shows `PageDiagnostic.ToString()` as a single line.
 - **A page may name only `Sdk` and the allow-listed base types**, and a type in `uk.osric.asp.Sdk` is
   admitted by the namespace rule, so new contract values need no policy change
-  ([PageApiPolicy.cs](../../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs), DEC-88).
+  ([PageApiPolicy.cs](../../../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs), DEC-88).
 - **`Sdk` declares what it publishes**, so four new types — and every member of them — are a
   deliberate edit to `PublicAPI.Unshipped.txt` (DEC-166).
 - **`/help` is the author manual and a seed**, and a change to what a page may do updates it in the
-  same change ([help](../../src/uk.osric.asp.Web/Pages/Seeds/help), DEC-173). The author prompt is
+  same change ([help](../../../src/uk.osric.asp.Web/Pages/Seeds/help), DEC-173). The author prompt is
   `page-author-v11`.
-- **`/scratch` is free**: no seed claims it, and it is not reserved ([Seeds](../../src/uk.osric.asp.Web/Pages/Seeds),
-  [ReservedPaths.cs](../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs)).
+- **`/scratch` is free**: no seed claims it, and it is not reserved ([Seeds](../../../src/uk.osric.asp.Web/Pages/Seeds),
+  [ReservedPaths.cs](../../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs)).
 
 ## What this touches
 
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
-| [IDEA-016](../jobs/IDEA-016.md) | A page cannot save its own source; no write member and no `Sdk` diagnostic; a save bound to `ctx.Path`, compiled before it is stored, answering with diagnostics and the hash; authority stays with the shell | **Implements it**, as a capability rather than an `IContext` member, with the check in the capability rather than in `SimpleContext` (DEC-189, DEC-190) |
-| [IDEA-015](../jobs/README.md) (closed) | The read is a capability, public by default, and the shell keeps every write (DEC-168–DEC-175) | Follows the shape and reverses the authority for the write, on purpose: a disclosure and a change are not the same act (DEC-190) |
-| [IDEA-017](../jobs/IDEA-017.md) | A page cannot edit another page; the full editor is the last of the capability jobs | Hands it the saver and the capability; what it adds is a key (DEC-192) |
-| [IDEA-014](../jobs/IDEA-014.md) | A page cannot keep per-visitor state, so a form cannot redirect and say why | Untouched, and the reason the demo page answers the save in the response it is already writing (DEC-195) |
+| [IDEA-016](../../jobs/README.md#closed) | A page cannot save its own source; no write member and no `Sdk` diagnostic; a save bound to `ctx.Path`, compiled before it is stored, answering with diagnostics and the hash; authority stays with the shell | **Implements it**, as a capability rather than an `IContext` member, with the check in the capability rather than in `SimpleContext` (DEC-189, DEC-190) |
+| [IDEA-015](../../jobs/README.md) (closed) | The read is a capability, public by default, and the shell keeps every write (DEC-168–DEC-175) | Follows the shape and reverses the authority for the write, on purpose: a disclosure and a change are not the same act (DEC-190) |
+| [IDEA-017](../../jobs/IDEA-017.md) | A page cannot edit another page; the full editor is the last of the capability jobs | Hands it the saver and the capability; what it adds is a key (DEC-192) |
+| [IDEA-014](../../jobs/IDEA-014.md) | A page cannot keep per-visitor state, so a form cannot redirect and say why | Untouched, and the reason the demo page answers the save in the response it is already writing (DEC-195) |
 | DEC-168, DEC-169 | The store read is a capability and is public | The pattern, applied with the opposite answer for authority |
 | DEC-175 | The shell keeps every write; IDEA-016 reuses `PageEditor.SaveAsync` rather than opening a second writer | Kept literally: the saver and the insert move, they are not copied (DEC-192) |
 | DEC-125, DEC-126 | `IPageStorage` is bound to the page's key; a `HEAD` reads but never writes | Followed in shape: this handle is bound to `ctx.Path` and refuses a `HEAD` |
@@ -194,7 +195,7 @@ public enum PageDiagnosticSeverity { Warning, Error }
 - **No conditional save.** `IPageStorage` is last-write-wins (DEC-125) and so is this: two tabs on one
   page, the later save wins. A page that wants a conflict message reads the head again before it
   saves — the demo page shows the six lines that costs — rather than widening the contract with the
-  editor's `SaveIfRevisionAsync`. That belongs with [IDEA-017](../jobs/IDEA-017.md)'s editor.
+  editor's `SaveIfRevisionAsync`. That belongs with [IDEA-017](../../jobs/IDEA-017.md)'s editor.
 - **No dedupe.** Saving the template that is already the head appends a revision, as the editor's save
   does. A save is a revision, and the history is the record.
 - **`Task`, no token** (DEC-123). A `null` template is an `ArgumentNullException` at the door
@@ -275,7 +276,7 @@ Three consequences, all of which the plan states rather than smooths over:
   page and the submitted template still in the textarea (the demo page, and the only pattern that
   works without per-visitor state). **Save and redirect** — `ctx.Redirect(ctx.Path, 303)` sends the
   visitor to the page the next request will serve, at the cost of saying nothing about the compile
-  unless the page keeps state ([IDEA-014](../jobs/IDEA-014.md)).
+  unless the page keeps state ([IDEA-014](../../jobs/IDEA-014.md)).
 
 ### D5 — What bounds a save, without a new setting
 
@@ -349,7 +350,7 @@ One seed, a fragment the default layout wraps:
   conditional save".
 - **It writes its own body with `ctx.Write` where it shows source**, because page source is exactly
   what a page that shows source must not run.
-- **It says it is a demonstration** and names [IDEA-017](../jobs/IDEA-017.md), so nobody mistakes it
+- **It says it is a demonstration** and names [IDEA-017](../../jobs/IDEA-017.md), so nobody mistakes it
   for the editor.
 - **One page, not two.** The read had a public and a guarded page because the gate question needed two
   files; the write has one answer, and a second page differing only in a form would be a second demo of
@@ -384,7 +385,7 @@ its source to explain it. Registered, and refusing with a message, is the same r
 the shell would answer with the generic "An unexpected error occurred" text. The session that expired
 is the visitor's to fix, so it gets `UserFacingException` and its own sentence.
 
-**A second capability for a named key now.** Rejected: that is [IDEA-017](../jobs/IDEA-017.md), and
+**A second capability for a named key now.** Rejected: that is [IDEA-017](../../jobs/IDEA-017.md), and
 it needs the editor's view underneath it. One handle bound to one key is the whole of this job.
 
 **A conditional save in the contract.** Rejected: the editor's conflict detection exists because two
@@ -400,7 +401,7 @@ author typed. The site already refuses that loss for compiles (DEC-43) and for c
 render is a revision flood, and a layout is markup (DEC-158).
 
 **Turning the editor's views into the demo page.** Rejected: that is
-[IDEA-017](../jobs/IDEA-017.md). `/scratch` is 60 lines and proves the capability; the editor is a
+[IDEA-017](../../jobs/IDEA-017.md). `/scratch` is 60 lines and proves the capability; the editor is a
 different job with its own markup, accessibility and browser tests.
 
 **A `Pages:Write:MaxTemplateChars` cap.** Rejected: the request cap already binds the only way a
@@ -574,11 +575,10 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 - `docs/glossary.md`: no new term. Page, template, revision and save are already defined, and neither
   "writer" nor "saver" is vocabulary rather than a type name.
 - `deploy/README.md`: nothing to deploy; the demo page is a seed and there is no new setting.
-- **Decision numbering**: the convention allocates above the highest id in `docs/decisions.md` (178),
-  so this plan takes DEC-189–DEC-196 — eight entries: the capability, the authority, the started save,
-  the one writer, the diagnostic, the layout rule, the next request and the demo page — checked against
-  that file before the change lands. The lowest id never allocated at all is DEC-176, which the
-  convention leaves for a correction.
+- **Decision numbering**: the plan was drafted against DEC-189–DEC-196, but other branches held
+  179–188 by the time the work landed (browser-tests 179, ops-06 180–185, assistant-memory-spike
+  186–188), so the eight entries are **DEC-189–DEC-196**: the capability, the authority, the started
+  save, the one writer, the diagnostic, the layout rule, the next request and the demo page.
 
 ## Risks
 
@@ -590,7 +590,7 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
   does a slow fetch before saving can lose the post; a template over the 1 MiB request cap never
   reaches the page; and a browser that drops the connection mid-post loses it as it would anywhere
   else. The demo page keeps the submitted template in the textarea of the response it sends, which is
-  the only mitigation a page without per-visitor state has ([IDEA-014](../jobs/IDEA-014.md)).
+  the only mitigation a page without per-visitor state has ([IDEA-014](../../jobs/IDEA-014.md)).
 - **A save is a compile, and compiles are serialised.** One compile slot means a save queues behind
   every other compile; the slot wait ends at the render deadline, so under load a visitor meets `504`
   while their edit still lands (D6). Worth watching: the page list will show revisions whose authors
@@ -615,11 +615,15 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
   break or delete it. If it goes, `/help`'s link points at a missing page; a seeder test pins the guard
   in the shipped template, because the guard is what makes the demo safe to ship.
 
-## Open questions
+## Settled at review
 
-| Question | Why it is open |
+| Question | Answer |
 | --- | --- |
-| Is `IPageWriter` the right name? | `IPageEditor` would collide with the shell's editor in every conversation about it; `IPageSource` would hide that it writes. The plan uses `IPageWriter`. |
-| Should a layout be offered the writer and refused per call, rather than not offered at all? | Not offering is one line and one honest message from `GetRequired`; offering and refusing would make the rule visible in the capability's docs at the cost of a check that can drift. |
-| Is "a started save is never abandoned" too much? | It is the one place a page's task keeps working after the shell has answered. It is argued from DEC-20, DEC-23 and DEC-43, and it is the difference between a `504` that lost the edit and one that did not. |
-| One demo page or none? | The read shipped two and the site proved the capability through them. This one ships one because the write has one answer; a reviewer who wants it invisible can drop phase 3 without touching 1 and 2. |
+| A capability or more `IContext` | A capability, `IPageWriter`, through `ctx.Features`; `IContext` unchanged (DEC-189) |
+| Is the write gated | Yes, and it is the one place authority is asymmetric: the read stays public (DEC-169) and the write requires a signed-in visitor, refused inside the capability (DEC-190) |
+| Where the gate lives | In the capability, not in `SimpleContext` and not in page code; the page's own `ctx.User` guard is a nicer redirect in front of it |
+| Is a started save cancelled at the deadline | No. The queue for a compile slot ends at the deadline; the compile and the insert finish (DEC-191) |
+| Is there a second writer | No. `PageSaver` and `IPageRevisionStore` move the editor's save and call the same insert the import batch calls (DEC-192) |
+| Layouts | Offered the read and not the write (DEC-194) |
+| A conditional save in the contract | No: the page compares the hash it read with the head, and the demo does (DEC-196) |
+| How it is proven | Unit tests for the capability, the saver and the insert, and the seeded `/scratch` driven through the real host (DEC-196) |

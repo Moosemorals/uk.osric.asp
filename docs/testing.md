@@ -38,6 +38,13 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   `PageCatalogScopeTests` pins the page-store read — its four reads, the three marks, subtree
   prefixes, the row and source caps, abandonment and the deadline — and `SqlitePageReadStoreTests`
   proves the SQL behind it, including an escaped wildcard and that a read writes nothing.
+  `PageWriterScopeTests` pins the page's own save — the signed-in visitor it requires, `HEAD`, an
+  ended render, one save per render, the diagnostics it reports and the revision it answers with —
+  `PageSaverTests` the saver the editor and a page share, and `SqlitePageRevisionStoreTests` the
+  insert behind it, including the retry and the fact that a save lands after the request's context is
+  gone. `Web.IntegrationTests/PageSelfSaveTests` drives the seeded `/scratch` through the real host:
+  an anonymous visit, a save and the request after it, a stale form, and a `POST` with no
+  antiforgery field.
   `Web.IntegrationTests/PageCatalogTests` drives the two seeded demo pages through the real host,
   one public and one guarded, and reads their markup with `MarkupReader`.
   The page-cache tests swap in a counting compiler wrapped around the real one, so "a second request

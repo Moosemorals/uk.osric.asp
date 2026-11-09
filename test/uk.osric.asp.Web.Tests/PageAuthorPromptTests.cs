@@ -145,7 +145,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v11"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v12"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -201,6 +201,27 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void TheSaveSectionSaysTheWriteNeedsASignedInVisitor() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IPageWriter>().SaveAsync(template)"));
+            Assert.That(prompt, Does.Contain("bound"));
+            Assert.That(prompt, Does.Contain("PageSaveResult"));
+            Assert.That(prompt, Does.Contain("PageDiagnostic"));
+            Assert.That(prompt, Does.Contain("needs a signed-in visitor"));
+            Assert.That(prompt, Does.Contain("belongs to the next request"));
+            Assert.That(prompt, Does.Contain("never during a `HEAD`"));
+            Assert.That(prompt, Does.Contain("layout is offered the read and not"));
+        });
+    }
+
+    [Test]
+    public void TheSaveOwnSourceExampleIsPresent() {
+        Assert.That(PageAuthorPrompt.Examples.Select(example => example.Name), Does.Contain("save-own-source"));
+    }
+
+    [Test]
     public void ThePrivatePageExampleIsPresent() {
         Assert.That(PageAuthorPrompt.Examples.Select(example => example.Name), Does.Contain("private-page"));
     }
@@ -219,7 +240,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v11"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v12"));
         });
     }
 

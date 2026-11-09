@@ -43,7 +43,6 @@ carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md)
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-014](IDEA-014.md) | — | M | A page cannot keep per-visitor state, so a form cannot redirect and say why |
-| [IDEA-016](IDEA-016.md) | — | M | A page cannot save its own source |
 | [IDEA-017](IDEA-017.md) | — | L | A page cannot edit another page, so the editor cannot become one |
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
@@ -89,9 +88,9 @@ self-contained comes first, because these are the ones that never get scheduled 
 7. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 8. **IDEA-014 … IDEA-019, page capabilities** — each lets a stored page do something only the shell
    can do today. None is urgent while the shell works; they matter when a view is worth moving.
-   IDEA-015 has landed, so the listing and history views can become fragments the default layout
-   wraps; IDEA-014's save message and IDEA-017's editor are the others in the way, and IDEA-017 is
-   still the one to leave last.
+   IDEA-015 and IDEA-016 have landed, so a page can read the store and save itself; the listing and
+   history views can become fragments the default layout wraps, and IDEA-017's editor is the one this
+   leaves last. IDEA-014's save message is still what stops a page redirecting and saying why.
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
@@ -141,6 +140,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | IDEA-011 | Pages opt into the existing sign-in with `ctx.User`, `ctx.RedirectToLogin()` and `ctx.AntiforgeryField` (DEC-132–DEC-137). See [the plan](../plans/archive/page-authentication.md) |
 | IDEA-012 | The page handler is asynchronous, and `Task`'s starting and blocking members are denied by name (DEC-123, DEC-124). See [the plan](../plans/archive/async-page-contract.md) |
 | IDEA-013 | The site's vocabulary is [the glossary](../glossary.md): one entry per term, with the term it is not and the code that owns it |
+| IDEA-016 | A page saves its own source through `ctx.Features.GetRequired<IPageWriter>()`, bound to `ctx.Path` and answering with the revision hash and the compiler's diagnostics. **Authority is asymmetric**: the read is public (DEC-169) and the write requires a signed-in visitor, refused inside the capability before anything is compiled — IDEA-016 point 3 named that rule and put it in `SimpleContext`, which is where it is not. `PageSaver` and `IPageRevisionStore` move the shell's save rather than copy it, so there is still one writer (DEC-192), a started save finishes even when the render gives up (DEC-191), and a layout is offered the read and not the write (DEC-194). The seeded `/scratch` is a page that edits itself. See [the plan](../plans/archive/page-self-save.md) and DEC-189–DEC-196 |
 | IDEA-018 | `Sdk/PageDocument` owns the document and `ShellDocument` and the seeded layout are adapters over it (DEC-156) |
 | IDEA-021 | The assistant can check the JavaScript it writes without running or storing it (DEC-145, DEC-146). See [the plan](../plans/archive/assistant-script-validation.md) |
 | OPS-01 | `UseForwardedHeaders` trusts `X-Forwarded-Proto`/`X-Forwarded-Host` from any peer, which the loopback-only publish makes safe; HSTS emits |

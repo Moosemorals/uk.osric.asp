@@ -52,7 +52,7 @@ suite.
 
 ## Non-goals
 
-- **A write.** `ctx.SaveAsync` is [IDEA-016](../../jobs/IDEA-016.md), and writing a named key is
+- **A write.** `ctx.SaveAsync` is [IDEA-016](../../jobs/README.md#closed), and writing a named key is
   [IDEA-017](../../jobs/IDEA-017.md). Nothing here creates, saves, deletes, scrubs or restores.
 - **Moving the editor's views.** The listing, history and revision views stay in `EditorEndpoint`.
   This plan is what makes moving them possible; moving them is IDEA-017's cheap half, and it is a
@@ -115,7 +115,7 @@ Checked against the code on 2026-11-09.
 | --- | --- | --- |
 | [IDEA-015](../../jobs/README.md) | A page cannot read the page store; list heads, read a template, list revisions, read a revision's source; **the gate belongs to the shell**; caps and the deadline apply; decide the competing road | **Implements it**, as a capability rather than "on `IContext`", with the shell gate removed by review (DEC-169) and the marks added |
 | [IDEA-017](../../jobs/IDEA-017.md) | The cheap half is the listing, history and revision views; the full editor is later and the shell keeps the save | Unblocks the cheap half; the editor itself is untouched |
-| [IDEA-016](../../jobs/IDEA-016.md) | A page saves its own source; it needs an Sdk diagnostic value | Nothing here; the value shapes this plan adds are what a save's answer will sit beside |
+| [IDEA-016](../../jobs/README.md#closed) | A page saves its own source; it needs an Sdk diagnostic value | Nothing here; the value shapes this plan adds are what a save's answer will sit beside |
 | [IDEA-014](../../jobs/IDEA-014.md) | A page cannot keep per-visitor state | Nothing here; a page that saves from a form and redirects still cannot say why |
 | [Import and export](page-import-export.md) (IDEA-009, closed) and [IDEA-020](../../jobs/IDEA-020.md) | Import and export read and write the same store from the shell behind `Editor`; a reset-to-archive is not part of that flow | The competing road is settled: the shell keeps the write, the page gets a bounded read (DEC-175) |
 | [IDEA-005](../../jobs/IDEA-005.md) | Shared *types* between pages are deferred until a concrete helper needs them | Untouched: this adds values a page may name, not a declaration a second page can use |

@@ -62,7 +62,16 @@ the store holds — live, tombstoned, seeded and reserved — marked `IsDeleted`
 the chain and refuses rather than truncating, and both the deadline and abandonment stop a read. The
 read is as public as the page that calls it: the host adds no gate, a page that wants privacy writes
 the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that
-page. The shell keeps every write — save, delete, scrub, restore, import and export (DEC-175).
+page.
+
+A page may save its own template through `ctx.Features.GetRequired<IPageWriter>()` (DEC-189–DEC-196).
+The write is the shell's save reached from inside a render: `PageSaver` compiles the template and
+`IPageRevisionStore` opens its own context for the insert, because a page's task can outlive the
+request, and both call the same `StoreRevisionAsync` the editor and the import batch use, so there is
+still one writer. Unlike the read, the write requires a signed-in visitor and refuses an anonymous
+render before anything is compiled or stored; a save that has started finishes even if the render
+times out, because losing the author's edit is the worse failure. Delete, scrub, restore a seed,
+import and export stay the shell's alone (DEC-175).
 
 ### Import and export
 
