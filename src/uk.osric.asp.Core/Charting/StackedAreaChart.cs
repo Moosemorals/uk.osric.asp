@@ -29,7 +29,8 @@ public static class StackedAreaChart {
     /// <summary>Renders one stacked area chart.</summary>
     /// <param name="series">The parts; they are stacked in label order, not in the order given.</param>
     /// <param name="x">The time axis; tick positions are seconds after the first sample.</param>
-    /// <param name="y">The value axis title and ticks; the range is taken from the totals.</param>
+    /// <param name="y">The value axis; its title is drawn and its ticks are ignored, because the range
+    /// is the sum of the bands and is chosen here.</param>
     /// <param name="size">The full drawing area, labels included.</param>
     /// <param name="frame">The drawing's title, axis title and words for no data.</param>
     /// <returns>One <c>&lt;svg&gt;</c> element, with every label escaped.</returns>

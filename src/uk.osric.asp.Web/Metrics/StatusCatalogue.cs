@@ -28,31 +28,31 @@ internal static class StatusCatalogue {
     /// <summary>Every panel, in the order the page draws them.</summary>
     public static IReadOnlyList<Panel> Panels { get; } = [
         // Pages: nine histograms, four counters, three gauges.
-        Heatmap(PageMetrics.Instruments[0], "Render duration", "seconds"),
-        Heatmap(PageMetrics.Instruments[1], "Render slot wait", "seconds"),
-        Heatmap(PageMetrics.Instruments[2], "Compile duration", "seconds"),
-        Heatmap(PageMetrics.Instruments[3], "Loaded image duration", "seconds"),
-        Heatmap(PageMetrics.Instruments[4], "Page code duration", "seconds"),
-        Heatmap(PageMetrics.Instruments[5], "Save duration", "seconds"),
-        Heatmap(PageMetrics.Instruments[6], "Fetch duration", "seconds"),
-        Heatmap(PageMetrics.Instruments[7], "Import duration", "seconds"),
-        Heatmap(PageMetrics.Instruments[8], "Assembly size", "bytes"),
-        Line(PageMetrics.Instruments[9], "Abandoned renders", "renders/s", topk: "page_path"),
-        Stacked(PageMetrics.Instruments[10], "Cache lookups", "lookups/s", split: "result"),
-        Stacked(PageMetrics.Instruments[11], "Stale images", "images/s", split: "reason"),
-        Line(PageMetrics.Instruments[12], "Layout fallbacks", "fallbacks/s", topk: "page_path"),
-        Line(PageMetrics.Instruments[13], "Stored payload", "bytes", unit: PanelUnit.Bytes),
-        Line(PageMetrics.Instruments[14], "Database size", "bytes", unit: PanelUnit.Bytes),
-        Line(PageMetrics.Instruments[15], "Volume capacity", "bytes", unit: PanelUnit.Bytes),
+        Heatmap(Page("page.render.duration"), "Render duration", "seconds"),
+        Heatmap(Page("page.render.wait"), "Render slot wait", "seconds"),
+        Heatmap(Page("page.compile.duration"), "Compile duration", "seconds"),
+        Heatmap(Page("page.load.duration"), "Loaded image duration", "seconds"),
+        Heatmap(Page("page.invoke.duration"), "Page code duration", "seconds"),
+        Heatmap(Page("page.save.duration"), "Save duration", "seconds"),
+        Heatmap(Page("page.fetch.duration"), "Fetch duration", "seconds"),
+        Heatmap(Page("page.import.duration"), "Import duration", "seconds"),
+        Heatmap(Page("page.image.size"), "Assembly size", "bytes"),
+        Line(Page("page.render.abandoned"), "Abandoned renders", "renders/s", topk: "page_path"),
+        Stacked(Page("page.cache.lookups"), "Cache lookups", "lookups/s", split: "result"),
+        Stacked(Page("page.cache.staleness"), "Stale images", "images/s", split: "reason"),
+        Line(Page("page.layout.fallback"), "Layout fallbacks", "fallbacks/s", topk: "page_path"),
+        Line(Page("page.storage.payload.size"), "Stored payload", "bytes", unit: PanelUnit.Bytes),
+        Line(Page("page.storage.database.size"), "Database size", "bytes", unit: PanelUnit.Bytes),
+        Line(Page("page.storage.volume.capacity"), "Volume capacity", "bytes", unit: PanelUnit.Bytes),
 
         // Assistant: six histograms and the token counter.
-        Heatmap(AssistantMetrics.Instruments[0], "Run duration", "seconds"),
-        Heatmap(AssistantMetrics.Instruments[1], "Steps per run", "steps"),
-        Heatmap(AssistantMetrics.Instruments[2], "Tool calls per run", "calls"),
-        Heatmap(AssistantMetrics.Instruments[3], "First token latency", "seconds"),
-        Heatmap(AssistantMetrics.Instruments[4], "Provider request duration", "seconds"),
-        Heatmap(AssistantMetrics.Instruments[5], "Tool duration", "seconds"),
-        Stacked(AssistantMetrics.Instruments[6], "Tokens", "tokens/s", split: "kind"),
+        Heatmap(Assistant("assistant.run.duration"), "Run duration", "seconds"),
+        Heatmap(Assistant("assistant.run.steps"), "Steps per run", "steps"),
+        Heatmap(Assistant("assistant.run.tool_calls"), "Tool calls per run", "calls"),
+        Heatmap(Assistant("assistant.provider.first_token.duration"), "First token latency", "seconds"),
+        Heatmap(Assistant("assistant.provider.request.duration"), "Provider request duration", "seconds"),
+        Heatmap(Assistant("assistant.tool.duration"), "Tool duration", "seconds"),
+        Stacked(Assistant("assistant.tokens"), "Tokens", "tokens/s", split: "kind"),
 
         // Host: the framework's meters, which are not instruments this repository registers.
         new Panel {
@@ -111,6 +111,14 @@ internal static class StatusCatalogue {
             PartsOfAWhole = "http_response_status_code",
         },
     ];
+
+    // The inventory is the one place a name is written; the catalogue asks for it by name so a reorder
+    // cannot quietly swap two panels.
+    private static MetricInstrument Page(string name) =>
+        PageMetrics.Instruments.Single(instrument => instrument.Name == name);
+
+    private static MetricInstrument Assistant(string name) =>
+        AssistantMetrics.Instruments.Single(instrument => instrument.Name == name);
 
     /// <summary>Finds a panel by the id a link names.</summary>
     /// <param name="id">The panel id, which is the instrument name for an instrument panel.</param>

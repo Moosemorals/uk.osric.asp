@@ -31,7 +31,7 @@ predict a name instead of grepping for it.
 8. Nothing else on the wire moves — table names, config keys, event names, routes, asset ids and
    Prometheus labels stay exactly as they are. Blast radius: 901 identifier occurrences in `.cs` and
    68 in `.md`, across 68 source files and 5 documents.
-9. What the dashboard *shows* is a separate job, [OPS-06](../../jobs/OPS-06.md): half the instruments the
+9. What the dashboard *shows* is a separate job, [OPS-06](../../jobs/README.md#closed): half the instruments the
    site records never reach a panel.
 
 No behaviour change is intended. Every phase ends with a green build and its suites passing; if a
@@ -286,7 +286,7 @@ Three things are wrong, and only three:
 
 The meter name is only the `otel_scope_name` label, and both call sites in `Program.cs` use
 `MeterName`, so that rename is contained. Neither renamed instrument appears in a panel today —
-which is exactly [OPS-06's](../../jobs/OPS-06.md) complaint — so no PromQL moves with them.
+which is exactly [OPS-06's](../../jobs/README.md#closed) complaint — so no PromQL moves with them.
 
 The two instrument renames are still the sharpest edge in the plan, because `AddView` matches
 instrument names **as strings**, in the views block of
@@ -516,7 +516,7 @@ one row per judgement, and it is easier to argue about once the type names have 
 | The squashed migration and an existing volume disagree | Remove `uk.osric.asp-storage` once and recreate the owner account; `make test-integration` proves a fresh database works |
 | A renamed instrument keeps its old `AddView` key | The two renames and their views are one commit; phase 6 reads the scrape rather than trusting the tests, because the fallback is silent |
 | Old and new metric names coexist for the retention window | Remove `prometheus-data` with the app volume, once, before the new version is deployed |
-| A dashboard query keeps a stale metric name after the rename | `MetricsDashboardTests` pins one query; the rest are read against the scrape in phase 6, and [OPS-06](../../jobs/OPS-06.md) proposes the test that would catch it properly |
+| A dashboard query keeps a stale metric name after the rename | `MetricsDashboardTests` pins one query; the rest are read against the scrape in phase 6, and [OPS-06](../../jobs/README.md#closed) proposes the test that would catch it properly |
 | `HasGeneratedTitle` drifts from the raw SQL copy of the column name | One phase, one commit, and `AssistantConversationStoreTests` covers the title-upgrade path |
 | `IsSuccess` touches five `public` Core types | It is a property rename in one commit; the compiler finds every call site |
 | `Message` and `ChatMessage` read alike where both appear | Only `RunProcessor` uses both, and only in `ToChatMessage(Message message)`, where the mapping is the point |

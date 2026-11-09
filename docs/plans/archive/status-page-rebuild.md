@@ -5,9 +5,9 @@ SPDX-License-Identifier: MIT
 
 # The status page, rebuilt a panel at a time
 
-**Status:** proposed.
+**Status:** implemented (DEC-180–DEC-185).
 
-[OPS-06](../jobs/OPS-06.md) recorded that half of what the site measures never reaches `/status`:
+[OPS-06](../../jobs/README.md#closed) recorded that half of what the site measures never reaches `/status`:
 sixteen of the twenty-three instruments have no panel at all. It also found the reason the gap
 opened. The dashboard's panels are hand-written next to the instruments they read, in a different
 file, in a different shape, with no test tying the two together — so `page.fetch.duration`,
@@ -63,7 +63,7 @@ Two things it also settles:
    when a query names a family that is neither an instrument nor a known runtime one.
 9. The heatmap grows a markup budget, because sixteen heatmaps at one `<rect>` per cell would be
    megabytes. Adjacent cells of the same shade merge into one rect, and columns are capped.
-10. The page, its stylesheet and its docs are updated together: [metrics](../metrics.md) becomes the
+10. The page, its stylesheet and its docs are updated together: [metrics](../../metrics.md) becomes the
     one inventory, OPS-06's copy of the table goes, and the job closes when the page is rebuilt.
 
 ## Delete it, and keep only what is not the dashboard
@@ -387,7 +387,7 @@ presentation attributes (see "Identifying a series without colour"), so the shee
 
 `/status.css` is a seeded page, so an existing installation keeps the old sheet until the owner
 restores it from `/edit` (DEC-174). The release note in
-[operations](../../deploy/operations.md#metrics-and-the-status-page) says so, and the new markup
+[operations](../../../deploy/operations.md#metrics-and-the-status-page) says so, and the new markup
 degrades to one full-width chart per row under the old sheet rather than failing — ugly for one
 deploy, never broken.
 
@@ -433,7 +433,7 @@ Three facts, and one test that ties them together:
    short list) and asserts every remaining identifier is either an instrument's family or on a
    short allow-list of runtime families (`dotnet_*`, `http_server_*`, `kestrel_*`). A renamed
    instrument fails the build instead of emptying a panel, which is the guard
-   [the naming plan](archive/naming-consistency.md) said was missing.
+   [the naming plan](naming-consistency.md) said was missing.
 
 The same test file asserts the type rule: a histogram panel's chart is a heatmap, a gauge panel's is
 a line chart, and a stacked-area panel's instrument is a counter marked as parts of a whole. That is
@@ -523,34 +523,35 @@ what is actually created, because a list can be published without being used.
 
 ## Documentation and decisions
 
-Seven decisions, named here and numbered when they are written. This plan deliberately reserves no
-IDs: `docs/decisions.md` has DEC-179 taken on the browser-tests branch and DEC-186–DEC-188 on the
-assistant-memory-spike branch, so any number picked today is a collision waiting to merge. Allocate
-each one from the highest in the tree at the moment the code lands, and say which is which.
+Six decisions landed with this work (DEC-179 was taken by the browser-tests branch, so the six run
+from DEC-180):
 
-- **One panel per instrument, and the type decides the chart** — histogram → heatmap, counter →
-  line chart, gauge → line chart; a counter whose labels partition one total → stacked area.
-  `Dashboard` holds no queries; the catalogue is the only source of panels.
-- **The chart is the panel** — the page is a dense grid of `<figure>`s under three group headings,
-  and a chart carries its own title and legend inside its SVG, so a panel adds no heading, no legend
-  list and no prose to the document beyond its one caption link.
-- **Identification without colour** — Okabe–Ito palette, a dash pattern, a direct end-of-line label,
-  a hover dim and a click that pins by fragment target, all in CSS because DEC-81 keeps `/status`
-  JavaScript-free. The at-rest cues are the accessible ones.
-- **Stacked areas are for parts of a whole** — a missing sample is zero, bands are ordered by label,
-  and the axis is the sum.
-- **The inventory is the catalogue** — the meters publish their instruments and the catalogue maps
-  them one-to-one, and a test fails when either side gains an entry the other lacks or when a query
-  names a family that is neither an instrument nor a known runtime family.
-- **A drawing is self-contained** — colour, dash, fill and type size are presentation attributes from
-  a palette in `Core.Charting`, not rules in `/status.css`, so the same SVG is legible with no
-  stylesheet. The page's sheet keeps only the grid, the caption and the hover and pinned states,
-  which are properties of the page rather than of the picture.
-- **A chart can be served on its own** — `GET /status/chart?panel=&start=&duration=` returns one
-  panel's SVG under the owner policy, with `no-store` and the global security headers, and addresses
-  panels by catalogue id. The window is an explicit start plus a length, snapped to the step, so a
-  link reproduces the chart it showed; a malformed window is a `400`, an unknown panel a `404`, and an
-  unreachable Prometheus a `503`. The page embeds the same renderer and never fetches the endpoint.
+- **[DEC-180](../../decisions.md#metrics-and-the-status-page)** — one panel per instrument, and the
+  type decides the chart: histogram → heatmap, counter → line chart, gauge → line chart, and a
+  counter whose labels partition one total → stacked area. `Dashboard` holds no queries; the
+  catalogue is the only source of panels.
+- **[DEC-181](../../decisions.md#metrics-and-the-status-page)** — the page is a dense grid of
+  `<figure>`s under three group headings, and a chart carries its own title and legend inside its
+  SVG, so a panel adds no heading, no legend list and no prose beyond its one caption link.
+- **[DEC-182](../../decisions.md#metrics-and-the-status-page)** — identification without colour:
+  Okabe–Ito palette, a dash pattern, a direct end-of-line label, a hover dim and a click that pins by
+  fragment target, all in CSS because DEC-81 keeps `/status` JavaScript-free. The at-rest cues are
+  the accessible ones, and the series anchors are pointer-only.
+- **[DEC-183](../../decisions.md#metrics-and-the-status-page)** — the inventory is the catalogue: the
+  meters publish their instruments and the catalogue maps them one-to-one; a test fails when either
+  side gains an entry the other lacks, when a type disagrees with the chart, or when a query names a
+  family that is neither an instrument nor a known runtime one. The family names are proved against
+  the live `/metrics` body.
+- **[DEC-184](../../decisions.md#metrics-and-the-status-page)** — a drawing is self-contained: colour,
+  dash, fill and type size are presentation attributes from a palette in `Core.Charting`, not rules
+  in `/status.css`, so the same SVG is legible with no stylesheet. The page's sheet keeps only the
+  grid, the caption and the hover and pinned states.
+- **[DEC-185](../../decisions.md#metrics-and-the-status-page)** — a chart can be served on its own:
+  `GET /status/chart?panel=&start=&duration=` returns one panel's SVG under the owner policy, with
+  `no-store` and the global security headers, addressing panels by catalogue id. The window is an
+  explicit start plus a length, snapped to the step, so a link reproduces the chart it showed; a
+  malformed window is a `400`, an unknown panel a `404` and an unreachable Prometheus a `503`. The
+  page embeds the same renderer and never fetches the endpoint.
 - `docs/metrics.md` — the one inventory. Add the missing assistant meter table (seven instruments are
   documented nowhere today), add a "The panels" section with the instrument → chart table, and
   rewrite "Export and the status page" for the grid, the kinds, the identification rules and the

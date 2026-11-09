@@ -28,6 +28,9 @@ drift apart from one view to the next.
   the visually hidden utility, the listing and the form grid. `site.css` owns look and
   comes next, and the view's own sheet is last, so either can override a structural rule without a
   more specific selector. The owner restores a stale seeded sheet from the page list.
+- `/status` writes body content only — its heading, window nav, banner and figures — and its document
+  is the builder's, like every other view's. A chart it draws can also be requested on its own at
+  `/status/chart`, which is a drawing rather than a document and so does not go through this builder.
 - `PageLayout` keeps the editor's fragments: `Gutter` and `Diagnostics` (a `ul` with `role="list"`,
   DEC-108). Everything a document shares — the head with its base sheets and icon, the banner with
   the skip link, `Nav`, `OpenMain`/`CloseMain` and the close — is `Sdk/PageDocument.cs`, so the

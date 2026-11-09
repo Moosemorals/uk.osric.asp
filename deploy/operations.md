@@ -196,6 +196,14 @@ reachable from the internet.
   `ssh -L 9090:127.0.0.1:9090 deploy@<server-ip>` and open `http://localhost:9090`.
 - **No data is a banner, not a failure.** A stopped Prometheus, a slow query, or an unreadable reply
   makes `/status` say so and still render; only a bug in the page itself is a `500`.
+- **One chart can be linked on its own.** `/status/chart?panel=<id>&start=<ISO-8601>&duration=<token>`
+  draws one panel for one window, under the same owner policy: a bridge or a bookmark for the owner,
+  not a public embed. `duration` is a window token (`1h`, `3h`, `8h`, `1d`, `7d`, `30d`) or a whole
+  number of minutes. A malformed window is a `400`, an unknown panel a `404`, and a Prometheus that
+  does not answer a `503` with the reason.
+- **Restore `/status.css` after deploying this page.** The sheet is a seeded page (DEC-174), so an
+  installation that already has one keeps the old rules until the owner restores it from `/edit`.
+  Until then the charts render full width, one per row: usable, but not the intended grid.
 - **Retention is a guess.** 30 days and 4 GB are easy to change in `prometheus.container`; check
   `df -h /` before raising them, because images, page assemblies, the database and the swap file
   share the disk.

@@ -53,7 +53,7 @@ internal static class StatusEndpoint {
 
         foreach (string group in StatusCatalogue.Groups) {
             StatusPanel[] panels = [.. page.Panels.Where(panel => panel.Panel.Group == group)];
-            if (panels.Length == 0 && page.Banner is null) {
+            if (panels.Length == 0) {
                 continue;
             }
 
