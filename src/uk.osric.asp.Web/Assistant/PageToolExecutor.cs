@@ -27,12 +27,12 @@ internal sealed record ToolSpec(
     bool NeedsApproval,
     IReadOnlyList<ToolArgumentSchema> Arguments);
 
-/// <summary>Runs the page tools the model asks for: read, write, list, search, check, delete and
-/// the virtual shell.</summary>
+/// <summary>Runs the tools the model asks for: the page tools, the virtual shell, and the owner's memories.</summary>
 internal sealed class PageToolExecutor(
     IServiceScopeFactory scopeFactory,
     PagePathPolicy paths,
-    AssistantOptions options) {
+    AssistantOptions options,
+    AssistantMetrics metrics) {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -87,6 +87,33 @@ internal sealed class PageToolExecutor(
         new("shell", "Run a read-only virtual-shell command over stored pages and the shell's files. ls and find print one entry per line as mode then key.", false, [
             new("command", ToolArgumentType.String, true),
         ]),
+        new("remember",
+            "Store something durable the owner has told you about themselves, this site or how they want "
+            + "it run: a preference, a fact, a correction, or where something lives. Not page source, not "
+            + "tool output, not this task, and never a secret. Search first, and update a memory rather than "
+            + "adding a second one that contradicts it.",
+            true,
+            [new("kind", ToolArgumentType.String, true), new("content", ToolArgumentType.String, true)]),
+        new("update_memory",
+            "Replace a memory's content when it is out of date or wrong. Carry the version the memory was "
+            + "read at: a stale version is refused with the current content, so read it again rather than "
+            + "guessing. The kind cannot be changed here.",
+            true,
+            [
+                new("id", ToolArgumentType.Integer, true),
+                new("expectedVersion", ToolArgumentType.Integer, true),
+                new("content", ToolArgumentType.String, true),
+            ]),
+        new("forget_memory",
+            "Delete a memory and its history. There is no undo: the owner's page is the other way to do "
+            + "this, and forgetting is the only way a memory stops being recalled.",
+            true,
+            [new("id", ToolArgumentType.Integer, true)]),
+        new("search_memories",
+            "Search the owner's memories by keyword. This is the escape hatch when what you remember does "
+            + "not cover the current turn: search before saying you do not know.",
+            false,
+            [new("query", ToolArgumentType.String, true), new("limit", ToolArgumentType.Integer, false)]),
     ];
 
     public static IReadOnlyList<ToolDefinition> Definitions { get; } =
@@ -102,7 +129,10 @@ internal sealed class PageToolExecutor(
     public async Task<ToolExecutionResult> ExecuteAsync(
         string name,
         string argumentsJson,
+        ToolContext context,
         CancellationToken cancellationToken) {
+        ArgumentNullException.ThrowIfNull(context);
+
         if (!s_specs.TryGetValue(name, out ToolSpec? spec)) {
             string unknown = MessageText.Sanitize(name);
             return Failure($"Unknown tool '{unknown}'.", $"Unknown tool {unknown}");
@@ -114,20 +144,31 @@ internal sealed class PageToolExecutor(
         }
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
-        PageEditor pages = scope.ServiceProvider.GetRequiredService<PageEditor>();
         return name switch {
-            "list_pages" => await ListPagesAsync(parsed.Values, pages, cancellationToken),
-            "read_page" => await ReadPageAsync(parsed.Values, pages, cancellationToken),
-            "edit_page" => await EditPageAsync(parsed.Values, pages, cancellationToken),
-            "write_page" => await WritePageAsync(parsed.Values, pages, cancellationToken),
-            "delete_page" => await DeletePageAsync(parsed.Values, pages, cancellationToken),
-            "search_pages" => await SearchPagesAsync(parsed.Values, pages, cancellationToken),
-            "check_script" => await CheckScriptAsync(parsed.Values, pages, cancellationToken),
-            "check_script_text" => CheckScriptText(parsed.Values),
-            "shell" => await ShellAsync(parsed.Values, pages, cancellationToken),
-            _ => Failure("Unknown tool.", $"Unknown tool {MessageText.Sanitize(name)}"),
+            "remember" => await RememberAsync(parsed.Values, context, scope.ServiceProvider.GetRequiredService<IMemoryStore>(), cancellationToken),
+            "update_memory" => await UpdateMemoryAsync(parsed.Values, context, scope.ServiceProvider.GetRequiredService<IMemoryStore>(), cancellationToken),
+            "forget_memory" => await ForgetMemoryAsync(parsed.Values, context, scope.ServiceProvider.GetRequiredService<IMemoryStore>(), cancellationToken),
+            "search_memories" => await SearchMemoriesAsync(parsed.Values, context, scope.ServiceProvider.GetRequiredService<IMemoryStore>(), cancellationToken),
+            _ => await PageToolAsync(name, parsed.Values, scope.ServiceProvider.GetRequiredService<PageEditor>(), cancellationToken),
         };
     }
+
+    private async Task<ToolExecutionResult> PageToolAsync(
+        string name,
+        IReadOnlyDictionary<string, JsonElement> values,
+        PageEditor pages,
+        CancellationToken cancellationToken) => name switch {
+            "list_pages" => await ListPagesAsync(values, pages, cancellationToken),
+            "read_page" => await ReadPageAsync(values, pages, cancellationToken),
+            "edit_page" => await EditPageAsync(values, pages, cancellationToken),
+            "write_page" => await WritePageAsync(values, pages, cancellationToken),
+            "delete_page" => await DeletePageAsync(values, pages, cancellationToken),
+            "search_pages" => await SearchPagesAsync(values, pages, cancellationToken),
+            "check_script" => await CheckScriptAsync(values, pages, cancellationToken),
+            "check_script_text" => CheckScriptText(values),
+            "shell" => await ShellAsync(values, pages, cancellationToken),
+            _ => Failure("Unknown tool.", $"Unknown tool {MessageText.Sanitize(name)}"),
+        };
 
     /// <summary>The refusal the path policy gives a mutating call, or null when the call may run.</summary>
     /// <remarks>
@@ -406,6 +447,99 @@ internal sealed class PageToolExecutor(
 
         return Success(new { query, matches, truncated }, $"Found {matches.Count} matches");
     }
+
+    private async Task<ToolExecutionResult> RememberAsync(
+        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolContext context,
+        IMemoryStore memories,
+        CancellationToken cancellationToken) {
+        string kindText = String(arguments, "kind")!;
+        if (!MemoryKinds.TryParse(kindText, out MemoryKind kind)) {
+            return RefusedWrite("remember", "Remember", kind: null,
+                $"The kind must be one of {string.Join(", ", MemoryKinds.All.Select(MemoryKinds.Name))}.");
+        }
+
+        MemoryWriteResult written = await memories.RememberAsync(
+            context.Owner, kind, String(arguments, "content")!, context.Source, cancellationToken);
+        return MemoryResult(written, "remember", kind, "Remember", $"Remembered a {MemoryKinds.Name(kind)}");
+    }
+
+    private async Task<ToolExecutionResult> UpdateMemoryAsync(
+        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolContext context,
+        IMemoryStore memories,
+        CancellationToken cancellationToken) {
+        long id = Integer(arguments, "id")!.Value;
+        MemoryWriteResult written = await memories.UpdateAsync(
+            context.Owner,
+            id,
+            Integer(arguments, "expectedVersion")!.Value,
+            String(arguments, "content")!,
+            context.Source,
+            cancellationToken);
+        return MemoryResult(written, "update", kind: null, "Update memory", $"Updated memory {id}");
+    }
+
+    private async Task<ToolExecutionResult> ForgetMemoryAsync(
+        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolContext context,
+        IMemoryStore memories,
+        CancellationToken cancellationToken) {
+        long id = Integer(arguments, "id")!.Value;
+        bool forgotten = await memories.ForgetAsync(context.Owner, id, cancellationToken);
+        if (!forgotten) {
+            metrics.RecordMemoryWrite("forget", kind: null, success: false);
+            return Failure($"No memory with id {id}.", $"Forget memory {id}: not found");
+        }
+
+        metrics.RecordMemoryWrite("forget", kind: null, success: true);
+        return Success(new { id }, $"Forgot memory {id}");
+    }
+
+    private async Task<ToolExecutionResult> SearchMemoriesAsync(
+        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolContext context,
+        IMemoryStore memories,
+        CancellationToken cancellationToken) {
+        string query = String(arguments, "query")!;
+        string terms = MemoryQuery.Terms(query, options.MaxMemoryQueryTerms);
+        if (terms.Length == 0) {
+            return Failure("The query has no word long enough to search for.", "Searched memories: nothing to search for");
+        }
+
+        // The limit is the caller's, bounded by the configured maximum rather than trusted.
+        int limit = Math.Clamp(Integer(arguments, "limit") ?? options.MaxMemorySearchResults, 1, options.MaxMemorySearchResults);
+        IReadOnlyList<MemoryCandidate> found = await memories.RecallAsync(context.Owner, terms, limit, cancellationToken);
+        return Success(new { query, memories = found.Select(MemoryData).ToArray() }, $"Searched memories ({found.Count} found)");
+    }
+
+    // A write is a write whatever it did, so the counter records the outcome and, for a refusal, no
+    // kind at all: the kind a refused call named may be the very thing that was wrong with it.
+    private ToolExecutionResult MemoryResult(
+        MemoryWriteResult written,
+        string operation,
+        MemoryKind? kind,
+        string verb,
+        string summary) {
+        metrics.RecordMemoryWrite(operation, written.IsSuccess ? kind : null, written.IsSuccess);
+        return written.IsSuccess
+            ? Success(MemoryData(written.Memory!), summary)
+            : Failure(written.Error!, $"{verb} refused");
+    }
+
+    private ToolExecutionResult RefusedWrite(string operation, string verb, MemoryKind? kind, string error) {
+        metrics.RecordMemoryWrite(operation, kind, success: false);
+        return Failure(error, $"{verb} refused");
+    }
+
+    private static object MemoryData(MemoryCandidate memory) => new {
+        id = memory.Id,
+        kind = MemoryKinds.Name(memory.Kind),
+        version = memory.Version,
+        content = memory.Content,
+        written = memory.Written,
+        used = memory.RecallCount,
+    };
 
     private async Task<ToolExecutionResult> ShellAsync(
         IReadOnlyDictionary<string, JsonElement> arguments,

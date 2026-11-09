@@ -83,6 +83,9 @@ internal class Program {
             .Bind(builder.Configuration.GetSection("Assistant"))
             .ValidateOnStart();
         builder.Services.AddSingleton<IValidateOptions<AssistantOptions>, AssistantOptionsValidator>();
+        // Bound whether or not the assistant is switched on: the memory store reads its caps from it,
+        // and an account removal sweeps memory even when the assistant is disabled.
+        builder.Services.AddSingleton(services => services.GetRequiredService<IOptions<AssistantOptions>>().Value);
 
         // The upload limits and the framework's form parser come from the same cap, so an oversized
         // body is refused rather than buffered, and a normal one never spills to a temporary file.
@@ -162,6 +165,9 @@ internal class Program {
             services.GetRequiredService<MarkdownRenderer>()));
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
+        // Registered whether or not the assistant is enabled: the tables are migrated either way, and
+        // `users remove` sweeps an account's memories even when the assistant is switched off.
+        builder.Services.AddScoped<IMemoryStore, SqliteMemoryStore>();
         // The listing judges an image's state against the running build, so the store is told which
         // one that is; a page whose image came from an earlier build says Stale until it is requested.
         builder.Services.AddScoped<IPageStore>(services => new SqlitePageStore(
@@ -188,7 +194,6 @@ internal class Program {
             builder.Services.AddHostedService<RunWorker>();
             builder.Services.AddHostedService<RunJournalCleanupService>();
 
-            builder.Services.AddSingleton(services => services.GetRequiredService<IOptions<AssistantOptions>>().Value);
             builder.Services.AddSingleton<AssistantMetrics>();
             builder.Services.AddSingleton<PageToolExecutor>();
             builder.Services.AddSingleton<PagePathPolicy>();
@@ -249,6 +254,8 @@ internal class Program {
             .AddView("assistant.tool.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("assistant.run.steps", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.StepBuckets })
             .AddView("assistant.run.tool_calls", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ToolCallBuckets })
+            .AddView("assistant.memory.recalled", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCountBuckets })
+            .AddView("assistant.memory.chars", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCharBuckets })
             .AddPrometheusExporter());
 
         WebApplication app = builder.Build();

@@ -19,11 +19,15 @@ public sealed class RunProcessorTests {
 
     private static DatabaseTemplate? s_template;
 
+    // The budget has to leave room for a turn beside the system prompt, which grows with the prompt,
+    // so the fixture measures it rather than naming a number that goes stale.
+    private static readonly int ContextChars = PageAuthorPrompt.Build().Length + 8_000;
+
     private readonly AssistantOptions _options = new() {
         RunTimeoutSeconds = 5,
         RequestTimeoutSeconds = 3,
         ToolTimeoutSeconds = 2,
-        MaxContextChars = 20_000,
+        MaxContextChars = ContextChars,
     };
 
     private readonly ToolApprovalCoordinator _approvals = new();
@@ -52,6 +56,10 @@ public sealed class RunProcessorTests {
 
         _storage = new FakePageStore();
         _pages = new PageHarness(_storage);
+        _services = BuildServices();
+    }
+
+    private ServiceProvider BuildServices(IMemoryStore? memories = null) {
         ServiceCollection services = new();
         services.AddDbContext<StorageDbContext>(options => options.UseSqlite(DatabaseTemplate.ConnectionString(_databasePath)));
         services.AddSingleton(TimeProvider.System);
@@ -60,8 +68,16 @@ public sealed class RunProcessorTests {
         services.AddLogging();
         services.AddSingleton<ILoggerFactory>(_logs);
         services.AddScoped<IConversationStore, SqliteConversationStore>();
-        services.AddScoped(_ => _pages.Editor);
-        _services = services.BuildServiceProvider();
+        // The processor recalls memory once per run, so the fixture gives it the real store over the
+        // same database rather than letting every run warn that memory is unavailable.
+        services.AddSingleton(_options);
+        if (memories is null) {
+            services.AddScoped<IMemoryStore, SqliteMemoryStore>();
+        } else {
+            services.AddSingleton(memories);
+        }
+        services.AddScoped(_ => _pages!.Editor);
+        return services.BuildServiceProvider();
     }
 
     [TearDown]
@@ -69,6 +85,28 @@ public sealed class RunProcessorTests {
         _services?.Dispose();
         _pages?.Dispose();
         DatabaseTemplate.DeleteFiles(_databasePath);
+    }
+
+    [Test]
+    public async Task AMemoryStoreThatThrowsCostsTheRunItsMemoryAndNothingElseAsync() {
+        _services!.Dispose();
+        _services = BuildServices(new FailingMemoryStore());
+        ScriptedClient client = new([new ContentDelta("Hello."), new Finished("stop")]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services.CreateAsyncScope();
+        Run run = await scope.ServiceProvider.GetRequiredService<StorageDbContext>().Set<Run>().SingleAsync();
+        RunEvent[] events = await CollectAsync(stream);
+        RunEvent warning = events.Single(item => item.Type == "run.warning");
+
+        Assert.Multiple(() => {
+            Assert.That(run.Status, Is.EqualTo("completed"), "memory is an enhancement and never takes a run down");
+            Assert.That(warning.DataJson, Does.Contain("memory_unavailable"));
+            Assert.That(events[^1].Type, Is.EqualTo("run.completed"));
+        });
     }
 
     [Test]
@@ -198,7 +236,7 @@ public sealed class RunProcessorTests {
         IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
         Run? finished = await store.GetLastRunAsync(conversation.Id, "owner");
         Assert.Multiple(() => {
-            Assert.That(finished?.Status, Is.EqualTo("completed"));
+            Assert.That(finished?.Status, Is.EqualTo("completed"), $"{finished?.ErrorCode}: {finished?.ErrorMessage}");
             Assert.That(finished?.ErrorCode, Is.Null);
         });
     }
@@ -226,7 +264,7 @@ public sealed class RunProcessorTests {
         IReadOnlyList<ToolApproval> pending = await store.GetPendingApprovalsAsync(conversation.Id, "owner");
 
         Assert.Multiple(() => {
-            Assert.That(finished?.Status, Is.EqualTo("completed"));
+            Assert.That(finished?.Status, Is.EqualTo("completed"), $"{finished?.ErrorCode}: {finished?.ErrorMessage}");
             Assert.That(pending, Is.Empty, "an approval the policy has refused is one the owner could only deny");
         });
     }
@@ -365,7 +403,7 @@ public sealed class RunProcessorTests {
         RunTimeoutSeconds = seconds,
         RequestTimeoutSeconds = 3,
         ToolTimeoutSeconds = toolSeconds,
-        MaxContextChars = 20_000,
+        MaxContextChars = ContextChars,
     };
 
     private async Task WaitForPendingApprovalAsync(Conversation conversation) {
@@ -396,7 +434,7 @@ public sealed class RunProcessorTests {
         RunRegistry registry = new(options, TimeProvider.System);
         Assert.That(registry.TryStart(started.RunId!, conversation.Id, out RunStream? stream), Is.True);
         PagePathPolicy paths = new(new ReservedPaths(ReservedPaths.Default), options);
-        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, options);
+        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, options, new AssistantMetrics());
         RunProcessor processor = new(
             services.GetRequiredService<IServiceScopeFactory>(),
             client,
@@ -415,6 +453,38 @@ public sealed class RunProcessorTests {
             events.Add(@event);
         }
         return [.. events];
+    }
+
+    private sealed class FailingMemoryStore : IMemoryStore {
+        public Task<IReadOnlyList<MemoryCandidate>> RecallAsync(string owner, string queryTerms, int limit, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<IReadOnlyList<MemoryCandidate>> StickyAsync(string owner, long conversationId, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<IReadOnlyList<MemoryCandidate>> PinnedAsync(string owner, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<MemoryWriteResult> RememberAsync(string owner, MemoryKind kind, string content, MemorySource source, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<MemoryWriteResult> UpdateAsync(string owner, long id, int expectedVersion, string content, MemorySource source, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<bool> ForgetAsync(string owner, long id, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task TouchAsync(string owner, IReadOnlyList<long> ids, long conversationId, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<int> CountAsync(string owner, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<int> ClearProvenanceAsync(long conversationId, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<int> DeleteForOwnerAsync(string owner, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
     }
 
     private sealed class ScriptedClient(

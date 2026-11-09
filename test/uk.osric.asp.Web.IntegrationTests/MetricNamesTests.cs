@@ -68,6 +68,8 @@ public sealed class MetricNamesTests : IntegrationTest {
             assistant.RecordProviderRequest("test-model", "ok", TimeSpan.FromMilliseconds(90));
             assistant.RecordTool(null, false, TimeSpan.FromMilliseconds(10));
             assistant.RecordUsage(new TokenUsage(12, 4));
+            assistant.RecordMemoryRecall(2, 500);
+            assistant.RecordMemoryWrite("remember", MemoryKind.Fact, success: true);
         }
     }
 }
