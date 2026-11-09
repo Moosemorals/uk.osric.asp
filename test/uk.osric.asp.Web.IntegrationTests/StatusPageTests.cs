@@ -57,7 +57,7 @@ public sealed class StatusPageTests : IntegrationTest {
     }
 
     [Test]
-    public async Task StatusRendersChartsForTheOwner() {
+    public async Task StatusRendersTheShellForTheOwner() {
         using HttpClient client = await CreateSignedInClientAsync();
 
         HttpResponseMessage response = await client.GetAsync("/status");
@@ -65,11 +65,12 @@ public sealed class StatusPageTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(body, Does.Contain("<h1>Status</h1>"));
-        Assert.That(body, Does.Contain("<svg class=\"chart\""));
+        Assert.That(body, Does.Contain("<nav class=\"status-nav\" aria-label=\"Time window\">"));
+        Assert.That(body, Does.Not.Contain("<svg"), "the page has no panels yet");
     }
 
     [Test]
-    public async Task TheDurationParameterWidensTheCharts() {
+    public async Task TheDurationParameterMarksTheCurrentWindow() {
         using HttpClient client = await CreateSignedInClientAsync();
 
         HttpResponseMessage response = await client.GetAsync("/status?duration=7d");
@@ -77,7 +78,7 @@ public sealed class StatusPageTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">7d</span>"));
-        Assert.That(body, Does.Contain("viewBox=\"0 0 1040 200\""));
+        Assert.That(body, Does.Not.Contain("href=\"/status?duration=7d\""));
     }
 
     /// <summary>Answers every query with the same two-sample series; there is no Prometheus to ask.</summary>

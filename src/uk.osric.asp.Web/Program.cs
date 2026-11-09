@@ -217,7 +217,6 @@ internal class Program {
                 },
                 services.GetRequiredService<ILogger<PrometheusSource>>());
         });
-        builder.Services.AddSingleton<Dashboard>();
 
         // Metrics only: registering no instrumentation package means no tracer or logger provider.
         // The exporter serves /metrics on this listener; Caddy refuses that path publicly.
