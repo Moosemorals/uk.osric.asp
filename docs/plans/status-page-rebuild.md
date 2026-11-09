@@ -18,10 +18,11 @@ The dashboard has a second problem, one no test can catch: a series is identifie
 nothing else. The palette holds five colours and some panels draw more series than that, so the sixth
 reuses the first; the shades are adjacent on the wheel; and the reader is colourblind.
 
-This plan does not patch the dashboard. It **blanks it** — keeping `Core.Charting`, the Prometheus
-client and the time-window machinery — and rebuilds the page from the instruments, one panel per
+This plan does not patch the dashboard. It **deletes it** — keeping `Core.Charting`, the Prometheus
+client and the document tools — and rebuilds the page from the instruments, one panel per
 instrument, with the chart kind decided by the instrument's type rather than by hand. A page that
-starts empty cannot keep showing the wrong thing.
+starts empty cannot keep showing the wrong thing, and a file that was deleted cannot keep its old
+shape.
 
 Two things it also settles:
 
@@ -37,9 +38,10 @@ Two things it also settles:
 
 ## The short version
 
-1. `/status` starts blank: `Dashboard` loses every hand-written query, and a new panel catalogue
-   becomes the only way a chart can appear. The endpoint writes body markup inside `ShellDocument`
-   and owns no document of its own.
+1. `/status` is deleted and rebuilt. The dashboard, the endpoint, the panel records, the window type
+   and their tests go in the first phase; the rewrite starts from an empty catalogue, and the
+   endpoint is new code that writes body markup inside `ShellDocument` and owns no document of its
+   own.
 2. **One panel per instrument.** A histogram is a heatmap, a counter is a line chart, a gauge is a
    line chart; a counter whose labels are parts of one total is a stacked area. The inventory is 23
    instruments, so there are 23 panels, and the Host group adds 5 more from the framework's meters.
@@ -63,6 +65,32 @@ Two things it also settles:
    megabytes. Adjacent cells of the same shade merge into one rect, and columns are capped.
 10. The page, its stylesheet and its docs are updated together: [metrics](../metrics.md) becomes the
     one inventory, OPS-06's copy of the table goes, and the job closes when the page is rebuilt.
+
+## Delete it, and keep only what is not the dashboard
+
+The old dashboard is **deleted**, not refactored. Deciding what to keep from `Web/Metrics` line by
+line costs more than rewriting the six hundred lines that hold it, and a patch that leaves a
+half-kept cache or a panel record with a field nobody reads is how the next drift starts. The first
+phase removes the whole surface and leaves a green tree with no dead code; everything after it adds
+something that is new.
+
+| Deleted | Why |
+| --- | --- |
+| `Web/Metrics/Dashboard.cs` | The hand-written panel definitions, the query list and the render helpers are the thing this plan replaces. The cache returns, rewritten and keyed by window. |
+| `Web/Metrics/StatusEndpoint.cs` | Rewritten from scratch: body markup inside `ShellDocument`, figures, group headings, no chrome of its own. A rewrite is clearer than a diff through every write call. |
+| `Web/Metrics/StatusPanel.cs`, `StatusPage.cs` | The old shapes carry `Title` and `Labels`, neither of which the new page has. |
+| `Web/Metrics/StatusDuration.cs` | Its token table and its step rule are real knowledge, and they move into the new `ChartWindow`. The file does not survive; the decisions in it do. |
+| `DashboardTests`, `StatusEndpointTests`, `StatusDurationTests` | Replaced by `StatusEndpointTests` against the new markup, `ChartEndpointTests`, `ChartWindowTests` and `StatusCatalogueTests`. Deleting the tests is what makes the rewrite honest: nothing old can quietly keep passing. |
+
+| Kept | Why |
+| --- | --- |
+| `Core/Charting/*` | The graphing code. It is changed heavily — chrome, presentation attributes, runs, a third renderer — but it is not the dashboard and it works. |
+| `IMetricsSource`, `QueryResult`, `PrometheusSource`, `MetricsOptions` | The Prometheus client, its DTOs and its configuration, with `PrometheusSourceTests` and `FakeMetricsSource`. None of them knows what a panel is. |
+| The `/status` route, its `Editor` policy, `SecurityHeaders`, `ReservedPaths` | Response policy that belongs to the host, not to the page. Three lines of `Program.cs`, unchanged except for the chart route beside them. |
+| `Html/ShellDocument`, `Sdk/PageDocument`, `Html/SiteNavigation` | The document tools of the previous review. The rewrite is what uses them properly. |
+
+The tests go in the same commit as the code. A rewrite that leaves the old suite passing against a
+shim has kept the old contract, which is the one thing this phase is for.
 
 ## What decides a panel
 
@@ -179,8 +207,9 @@ calls and nothing else.
 
 The plan makes that true rather than assumed:
 
-- The endpoint stops setting `Content-Type` and `Cache-Control` itself. It does today, before calling
-  a builder that sets both, and two owners of one header is how they drift.
+- The endpoint sets neither `Content-Type` nor `Cache-Control`: `ShellDocument` owns both. The old
+  one set them before calling a builder that set them again, and two owners of one header is how they
+  drift.
 - The window nav keeps going through `PageDocument.Nav`, the builder the site menu uses too, so the
   landmark and the sheet order cannot become a hand-written copy of the chrome.
 - A test renders `/status` and asserts the document around the body is exactly
@@ -218,9 +247,9 @@ what remains after the title, the legend and the axes.
 Chart sizes are fixed per kind: 420×180 for a line chart, 420×200 for a stacked area and 420×280 for
 a heatmap. A heatmap is the tall one because fifteen bucket labels at 11px need more height than a
 plot of two or three lines, and a label that overlaps its neighbour is worse than a taller chart.
-CSS scales every drawing to its grid column. `StatusDuration.ChartWidth` goes: it made a longer
-window a wider chart, which a responsive grid cannot use. The window keeps choosing the query range
-and the sample step, which is what actually changes the picture.
+CSS scales every drawing to its grid column. The old `ChartWidth`, which made a longer window a
+wider chart, does not come back: a responsive grid cannot use it. The window keeps choosing the query
+range and the sample step, which is what actually changes the picture.
 
 ## Identifying a series without colour
 
@@ -295,10 +324,10 @@ The page embeds its SVGs; it must not fetch its own endpoint to do it. So the dr
 function of a panel and a window, callable from either place:
 
 - **`ChartWindow`** — a start and a length, plus the step the existing rule derives and the end it
-  implies. `StatusDuration` keeps choosing the length from its token list; `ChartWindow` adds the
-  start, which the page takes as "now" and the endpoint takes from the request. Both snap the start
-  down to the step, in whole minutes, so a window is a stable thing: the same start and length are
-  the same chart, which is what makes a link worth keeping.
+  implies. It carries the six window tokens the deleted `StatusDuration` owned, so the nav's choices
+  do not change, and adds the start, which the page takes as "now" and the endpoint takes from the
+  request. Both snap the start down to the step, in whole minutes, so a window is a stable thing: the
+  same start and length are the same chart, which is what makes a link worth keeping.
 - **`ChartRenderer`** — panel + window + `IMetricsSource` → either the SVG or the reason it could not
   be drawn. This is the only code that turns a query into a drawing. `Dashboard` calls it once per
   panel; the endpoint calls it once.
@@ -420,15 +449,32 @@ what is actually created, because a list can be published without being used.
 - `src/uk.osric.asp.Core/Charting/ChartChrome.cs` — the title and legend band, and the empty state,
   shared by the three renderers.
 - `src/uk.osric.asp.Core/Charting/StackedAreaChart.cs`.
+- `src/uk.osric.asp.Web/Metrics/Dashboard.cs` — rewritten: no queries of its own, it runs the
+  catalogue through `ChartRenderer` and caches by window.
+- `src/uk.osric.asp.Web/Metrics/StatusEndpoint.cs` — rewritten: body markup only, inside
+  `ShellDocument`; `<figure>` per panel, group headings, no legend list, no content type or cache
+  header of its own.
+- `src/uk.osric.asp.Web/Metrics/StatusPanel.cs`, `StatusPage.cs` — rewritten: no `Labels`, the SVG is
+  never null, the caption link.
 - `src/uk.osric.asp.Web/Metrics/Instrument.cs` — the inventory record.
 - `src/uk.osric.asp.Web/Metrics/StatusCatalogue.cs` — the panel list, its ids, its query builder and
   its kinds.
-- `src/uk.osric.asp.Web/Metrics/ChartWindow.cs` — a start, a length, the derived step and the end.
+- `src/uk.osric.asp.Web/Metrics/ChartWindow.cs` — a start, a length, the derived step and the end;
+  it carries the six window tokens that `StatusDuration` held.
 - `src/uk.osric.asp.Web/Metrics/ChartRenderer.cs` — panel + window + source → an SVG or the reason.
 - `src/uk.osric.asp.Web/Metrics/ChartEndpoint.cs` — `GET /status/chart`.
 - `test/uk.osric.asp.Core.Tests/StackedAreaChartTests.cs`.
 - `test/uk.osric.asp.Web.Tests/StatusCatalogueTests.cs` — the drift guard and the type rule.
 - `test/uk.osric.asp.Web.Tests/ChartEndpointTests.cs`.
+- `test/uk.osric.asp.Web.Tests/ChartWindowTests.cs` — the tokens, the step rule and the snapping.
+
+**Deleted**
+
+- `Web/Metrics/Dashboard.cs`, `StatusEndpoint.cs`, `StatusPanel.cs`, `StatusPage.cs`,
+  `StatusDuration.cs`.
+- `test/uk.osric.asp.Web.Tests/DashboardTests.cs`, `StatusEndpointTests.cs`, `StatusDurationTests.cs`
+  — `StatusEndpointTests` is re-created under the same name for the new code; the other two are
+  replaced by `StatusCatalogueTests` and `ChartWindowTests`.
 
 **Changed**
 
@@ -438,13 +484,6 @@ what is actually created, because a list can be published without being used.
   attributes for the shades.
 - `Core/Charting/SvgText.cs` — seven-colour palette, four dash patterns, the heat shades and the type
   sizes, all as attribute values rather than classes.
-- `Web/Metrics/Dashboard.cs` — no queries of its own; it runs the catalogue through `ChartRenderer`
-  and caches by window.
-- `Web/Metrics/StatusEndpoint.cs` — body markup only, inside `ShellDocument`; `<figure>` per panel,
-  group headings, no legend list, no content type or cache header of its own.
-- `Web/Metrics/StatusPanel.cs`, `StatusPage.cs` — no `Labels`; the SVG is never null; the caption link.
-- `Web/Metrics/StatusDuration.cs` — no `ChartWidth` and no step; a token names a length, and
-  `ChartWindow` turns a start and that length into a stepped window.
 - `Web/Program.cs` — the `/status/chart` route, behind the same policy as `/status`.
 - `Web/Pages/PageMetrics.cs`, `Web/Assistant/AssistantMetrics.cs` — the published inventory.
 - `Web/Pages/Seeds/status.css` — the grid, the figure and caption, the hover dim; the palette and the
@@ -453,11 +492,11 @@ what is actually created, because a list can be published without being used.
 **Unchanged**
 
 - `Core/Charting/NiceTicks.cs`, `ValueUnit.cs`, `ChartSamples.cs`, `ChartAxis`/`ChartSize`/
-  `ChartSeries`/`ChartPoint`, `PrometheusSource`, `MetricsOptions`, `StatusDuration`'s token list,
+  `ChartSeries`/`ChartPoint`, `PrometheusSource`, `MetricsOptions`, `IMetricsSource`, `QueryResult`,
   the fifteen-second cache lifetime (`CacheFor`), the banner behaviour, `Html/ShellDocument.cs`,
   `Sdk/PageDocument.cs`, `Html/SiteNavigation.cs` and `Pages/ReservedPaths.cs` — `/status/chart` is
-  already reserved by the `/status` prefix. The graphing code and the document tools are the parts
-  that work.
+  already reserved by the `/status` prefix. The graphing code, the Prometheus client and the document
+  tools are the parts that work.
 
 ## Tests
 
@@ -466,14 +505,14 @@ what is actually created, because a list can be published without being used.
   `font-size` and needs no stylesheet to be legible; `StackedAreaChartTests` pins the band order, the
   missing-as-zero rule, the negative-value refusal and the axis; `SvgTextTests` pins seven colours,
   the dash cycle and the heat shades; `NiceTicksTests` and `ValueUnitTests` are untouched.
-- `Web.Tests` — `DashboardTests` keeps the cache, the banner and the window tests — a failed panel,
-  a failed Prometheus, an empty answer and the window-to-step rule — and loses the panel-count
-  assertions; `StatusCatalogueTests` is the drift guard; `StatusEndpointTests` asserts the document
-  around the body is the builder's output, that each panel is a `<figure>` with a caption link, and
-  that ids are unique; `ChartEndpointTests` asserts the content type, a `404` for an unknown panel, a
-  `400` for a malformed window, a `503` when Prometheus is down, and that the bytes for a panel and
-  window equal the ones embedded in the page; `PageMetricsTests` and `AssistantMetricsTests` assert
-  the inventory against the instruments actually created.
+- `Web.Tests` — the three dashboard fixtures are deleted in the first phase and the suite is rebuilt:
+  `ChartWindowTests` pins the tokens, the step rule and the snap; `StatusCatalogueTests` is the drift
+  guard; `StatusEndpointTests` asserts the document around the body is the builder's output, that
+  each panel is a `<figure>` with a caption link, and that ids are unique; `ChartEndpointTests`
+  asserts the content type, a `404` for an unknown panel, a `400` for a malformed window, a `503` when
+  Prometheus is down, and that the bytes for a panel and window equal the ones embedded in the page;
+  `PageMetricsTests` and `AssistantMetricsTests` assert the inventory against the instruments actually
+  created.
 - `Web.IntegrationTests` — `StatusPageTests` keeps the stylesheet and sign-in tests, drops the
   window-widens-the-chart assertion (the window sets the step now), gains the body-size guard, the
   chart route's policy (an anonymous request is redirected to sign-in, as `/status` is) and one
@@ -484,31 +523,34 @@ what is actually created, because a list can be published without being used.
 
 ## Documentation and decisions
 
-- **DEC-179** — `/status` draws one panel per instrument and the instrument's type decides the
-  chart: histogram → heatmap, counter → line chart, gauge → line chart; a counter whose labels
-  partition one total → stacked area. `Dashboard` holds no queries; the catalogue is the only source
-  of panels.
-- **DEC-180** — the page is a dense grid of `<figure>`s under three group headings, and a chart
-  carries its own title and legend inside its SVG, so a panel adds no heading, no legend list and no
-  prose to the document beyond its one caption link.
-- **DEC-181** — a series is identified without colour: Okabe–Ito palette, a dash pattern, a direct
-  end-of-line label, a hover dim and a click that pins by fragment target, all in CSS because DEC-81
-  keeps `/status` JavaScript-free. The at-rest cues are the accessible ones.
-- **DEC-182** — a stacked area is drawn only where the labels are parts of a whole; a missing sample
-  is zero; bands are ordered by label; the axis is the sum.
-- **DEC-183** — the meters publish their instruments and the catalogue maps them one-to-one, and a
-  test fails when either side gains an entry the other lacks or when a query names a family that is
-  neither an instrument nor a known runtime family.
-- **DEC-184** — a drawing is self-contained: colour, dash, fill and type size are presentation
-  attributes from a palette in `Core.Charting`, not rules in `/status.css`, so the same SVG is legible
-  with no stylesheet. The page's sheet keeps only the grid, the caption and the hover and pinned
-  states, which are properties of the page rather than of the picture.
-- **DEC-185** — a chart can be served on its own: `GET /status/chart?panel=&start=&duration=` returns
-  one panel's SVG under the owner policy, with `no-store` and the global security headers, and
-  addresses panels by catalogue id. The window is an explicit start plus a length, snapped to the
-  step, so a link reproduces the chart it showed; a malformed window is a `400`, an unknown panel a
-  `404`, and an unreachable Prometheus a `503`. The page embeds the same renderer and never fetches
-  the endpoint.
+Seven decisions, named here and numbered when they are written. This plan deliberately reserves no
+IDs: `docs/decisions.md` has DEC-179 taken on the browser-tests branch and DEC-186–DEC-188 on the
+assistant-memory-spike branch, so any number picked today is a collision waiting to merge. Allocate
+each one from the highest in the tree at the moment the code lands, and say which is which.
+
+- **One panel per instrument, and the type decides the chart** — histogram → heatmap, counter →
+  line chart, gauge → line chart; a counter whose labels partition one total → stacked area.
+  `Dashboard` holds no queries; the catalogue is the only source of panels.
+- **The chart is the panel** — the page is a dense grid of `<figure>`s under three group headings,
+  and a chart carries its own title and legend inside its SVG, so a panel adds no heading, no legend
+  list and no prose to the document beyond its one caption link.
+- **Identification without colour** — Okabe–Ito palette, a dash pattern, a direct end-of-line label,
+  a hover dim and a click that pins by fragment target, all in CSS because DEC-81 keeps `/status`
+  JavaScript-free. The at-rest cues are the accessible ones.
+- **Stacked areas are for parts of a whole** — a missing sample is zero, bands are ordered by label,
+  and the axis is the sum.
+- **The inventory is the catalogue** — the meters publish their instruments and the catalogue maps
+  them one-to-one, and a test fails when either side gains an entry the other lacks or when a query
+  names a family that is neither an instrument nor a known runtime family.
+- **A drawing is self-contained** — colour, dash, fill and type size are presentation attributes from
+  a palette in `Core.Charting`, not rules in `/status.css`, so the same SVG is legible with no
+  stylesheet. The page's sheet keeps only the grid, the caption and the hover and pinned states,
+  which are properties of the page rather than of the picture.
+- **A chart can be served on its own** — `GET /status/chart?panel=&start=&duration=` returns one
+  panel's SVG under the owner policy, with `no-store` and the global security headers, and addresses
+  panels by catalogue id. The window is an explicit start plus a length, snapped to the step, so a
+  link reproduces the chart it showed; a malformed window is a `400`, an unknown panel a `404`, and an
+  unreachable Prometheus a `503`. The page embeds the same renderer and never fetches the endpoint.
 - `docs/metrics.md` — the one inventory. Add the missing assistant meter table (seven instruments are
   documented nowhere today), add a "The panels" section with the instrument → chart table, and
   rewrite "Export and the status page" for the grid, the kinds, the identification rules and the
@@ -535,17 +577,17 @@ what is actually created, because a list can be published without being used.
 Each phase ends with `make test` green and every phase leaves the site working. The whole job ends
 with `make check`.
 
-1. **Blank page.** Delete the fourteen hand-written panel definitions and the standalone heatmap
-   query; add an empty catalogue; `Dashboard` iterates it and renders nothing. Put `StatusEndpoint`
-   on `ShellDocument` and `PageDocument` for everything around the body — no content type, no cache
-   header, no head, no menu, no footer of its own — and add the test that pins the document to the
-   builder's output. Rewrite `DashboardTests`, `StatusEndpointTests` and the integration window test.
-   `/status` now shows the site's chrome, its heading and its window nav, and no panels — and that is
-   the point.
+1. **Delete it.** Remove `Dashboard`, `StatusEndpoint`, `StatusPanel`, `StatusPage` and
+   `StatusDuration` from `Web/Metrics`, and `DashboardTests`, `StatusEndpointTests` and
+   `StatusDurationTests` with them; keep `IMetricsSource`, `QueryResult`, `PrometheusSource`,
+   `MetricsOptions`, `FakeMetricsSource`, `Core.Charting` and the document tools. The route stays,
+   pointing at a new `StatusEndpoint` that writes the heading and the window nav inside
+   `ShellDocument` and nothing else, and `ChartWindow` carries the six tokens and the step rule the
+   deleted type held. The test that pins the document to the builder's output lands here. `/status`
+   now shows the site's chrome, its heading, its window nav and no panels — and that is the point.
 2. **The chart is the panel.** `ChartChrome` with the title band, the legend band and the empty state;
-   `LineChart` and `Heatmap` take a title and draw their legend; `StatusPanel` loses `Labels` and
-   gains the caption link; `StatusEndpoint` writes figures; `StatusDuration` loses `ChartWidth`. Tests
-   pin the new markup.
+   `LineChart` and `Heatmap` take a title and draw their legend; the new `StatusPanel` is written with
+   the caption link and no labels; `StatusEndpoint` writes figures. Tests pin the new markup.
 3. **The markup budget.** Heatmap runs and the 120-column cap, with the tests that prove a busy
    answer stays small; the hit stroke rule for line charts.
 4. **Identification.** Okabe–Ito palette, four dash patterns and the heat shades as presentation
@@ -595,8 +637,8 @@ from `/edit`, and the release note says so. Until then the charts render full wi
   and the catalogue comment says why.
 - **The palette leaves the stylesheet.** A re-theme now touches `Core.Charting` rather than
   `status.css`, and the sheet's `--series-*` variables go. That is the price of a chart that stands on
-  its own, and the reason is in DEC-184; a future theme that needs per-site colours would pass a
-  palette into the renderer rather than read one from CSS.
+  its own, and it is one of the seven decisions above; a future theme that needs per-site colours
+  would pass a palette into the renderer rather than read one from CSS.
 - **The hotlinked chart is not the page's chart.** It has the same marks and none of the interaction,
   and a Prometheus failure is a `503` rather than a drawn apology. Anyone pasting the URL should
   expect a picture, not a dashboard panel.
