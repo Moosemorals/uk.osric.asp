@@ -6,9 +6,20 @@ SPDX-License-Identifier: MIT
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- The build says what this assembly publishes: a new public symbol is an error until it is
+         declared, and a removed one is an error until its line goes. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="uk.osric.asp.Core.Tests" />
     <InternalsVisibleTo Include="uk.osric.asp.Runtime.Tests" />
     <InternalsVisibleTo Include="uk.osric.asp.Web.Tests" />
+    <!-- The composed-pipeline suite drives the real host and asserts the markup it writes, so it
+         reads the same constants the endpoints do. Without this, narrowing a member breaks it. -->
+    <InternalsVisibleTo Include="uk.osric.asp.Web.IntegrationTests" />
   </ItemGroup>
 
 </Project>

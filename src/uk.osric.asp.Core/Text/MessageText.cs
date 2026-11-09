@@ -28,10 +28,10 @@ using System.Text;
 public static class MessageText {
 
     /// <summary>The longest sanitised value, counting the ellipsis as one text element.</summary>
-    public const int MaximumLength = 32;
+    internal const int MaximumLength = 32;
 
     /// <summary>Appended when a value is shortened to <see cref="MaximumLength"/>.</summary>
-    public const string Ellipsis = "\u2026";
+    internal const string Ellipsis = "\u2026";
 
     private const int MaximumCodeUnits = MaximumLength * 4;
 
