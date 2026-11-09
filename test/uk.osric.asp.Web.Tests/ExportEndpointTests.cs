@@ -27,7 +27,7 @@ public sealed class ExportEndpointTests {
 
         string body = await ListAsync(store);
 
-        Assert.That(Checkboxes(body), Is.EqualTo(new List<string> { "/", "/about", "/gone" }));
+        Assert.That(Checkboxes(body), Is.EqualTo(new List<string> { "/", "/blog", "/gone" }));
         Assert.That(body, Does.Contain("checked"));
         Assert.That(body, Does.Contain("Page administration"));
     }
@@ -40,7 +40,7 @@ public sealed class ExportEndpointTests {
         string body = await ListAsync(store);
 
         int live = body.IndexOf("<h2>Live pages</h2>", StringComparison.Ordinal);
-        int page = body.IndexOf("value=\"/about\"", StringComparison.Ordinal);
+        int page = body.IndexOf("value=\"/blog\"", StringComparison.Ordinal);
         int seeded = body.IndexOf("<h2>Seeded pages</h2>", StringComparison.Ordinal);
         int seed = body.IndexOf("value=\"/editor.css\"", StringComparison.Ordinal);
         Assert.That(live, Is.GreaterThanOrEqualTo(0));
@@ -72,27 +72,27 @@ public sealed class ExportEndpointTests {
 
         string body = await ListAsync(store);
 
-        Assert.That(Checkboxes(body), Is.EqualTo(new List<string> { "/", "/about" }));
+        Assert.That(Checkboxes(body), Is.EqualTo(new List<string> { "/", "/blog" }));
     }
 
     [Test]
     public async Task DownloadWritesThePagesAndStateTablesAsync() {
         FakePageStore store = NewStore();
 
-        DefaultHttpContext context = await DownloadAsync(store, ["/about", "/"]);
+        DefaultHttpContext context = await DownloadAsync(store, ["/blog", "/"]);
 
         PageArchiveReadResult result = Reader().Read(Body(context));
         Assert.That(result.Problems, Is.Empty);
-        Assert.That(result.Pages.Select(page => page.Path.Key), Is.EqualTo(new List<string> { "/", "/about" }));
-        Assert.That(result.Pages[1].Source, Is.EqualTo("About page"));
+        Assert.That(result.Pages.Select(page => page.Path.Key), Is.EqualTo(new List<string> { "/", "/blog" }));
+        Assert.That(result.Pages[1].Source, Is.EqualTo("Blog page"));
     }
 
     [Test]
     public async Task DownloadIncludesStateAsync() {
         FakePageStore store = NewStore();
-        _state.Seed("/about", "visits", "3");
+        _state.Seed("/blog", "visits", "3");
 
-        DefaultHttpContext context = await DownloadAsync(store, ["/about"]);
+        DefaultHttpContext context = await DownloadAsync(store, ["/blog"]);
 
         PageArchiveReadResult result = Reader().Read(Body(context));
         Assert.That(result.Pages.Single().State, Is.EqualTo(new List<PageStateValue> { new("visits", "3") }));
@@ -102,10 +102,10 @@ public sealed class ExportEndpointTests {
     public async Task DownloadSkipsUntickedPagesAsync() {
         FakePageStore store = NewStore();
 
-        DefaultHttpContext context = await DownloadAsync(store, ["/about"]);
+        DefaultHttpContext context = await DownloadAsync(store, ["/blog"]);
 
         Assert.That(Reader().Read(Body(context)).Pages.Select(page => page.Path.Key),
-            Is.EqualTo(new List<string> { "/about" }));
+            Is.EqualTo(new List<string> { "/blog" }));
     }
 
     [Test]
@@ -122,7 +122,7 @@ public sealed class ExportEndpointTests {
     public async Task DownloadSetsTheSqliteContentTypeAndAnIsoTimestampAsync() {
         FakePageStore store = NewStore();
 
-        DefaultHttpContext context = await DownloadAsync(store, ["/about"]);
+        DefaultHttpContext context = await DownloadAsync(store, ["/blog"]);
 
         Assert.That(context.Response.ContentType, Is.EqualTo("application/vnd.sqlite3"));
         string disposition = context.Response.Headers.ContentDisposition.ToString();
@@ -135,7 +135,7 @@ public sealed class ExportEndpointTests {
     public async Task DownloadSetsAContentLengthAsync() {
         FakePageStore store = NewStore();
 
-        DefaultHttpContext context = await DownloadAsync(store, ["/about"]);
+        DefaultHttpContext context = await DownloadAsync(store, ["/blog"]);
 
         Assert.That(context.Response.ContentLength, Is.EqualTo(Body(context).Length));
     }
@@ -192,7 +192,7 @@ public sealed class ExportEndpointTests {
 
     private static FakePageStore NewStore() {
         FakePageStore store = new() {
-            ["/about"] = new PageTemplate(Key("/about"), "About page"),
+            ["/blog"] = new PageTemplate(Key("/blog"), "Blog page"),
             ["/"] = new PageTemplate(Key("/"), "Home page"),
             ["/gone"] = new PageTemplate(Key("/gone"), "Deleted page"),
         };
