@@ -47,7 +47,9 @@ internal static class ChartChrome {
         ArgumentNullException.ThrowIfNull(frame);
         frame.Validate();
 
-        svg.Append("<svg class=\"").Append(cssClass).Append("\" viewBox=\"0 0 ")
+        // The namespace is implied inside an HTML page and required in a standalone document: without
+        // it a browser opening /status/chart on its own shows the markup as a tree, not as a drawing.
+        svg.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"").Append(cssClass).Append("\" viewBox=\"0 0 ")
             .Append(SvgText.Number(size.Width)).Append(' ').Append(SvgText.Number(size.Height))
             .Append("\" role=\"img\">\n");
         svg.Append("<title>").Append(SvgText.Escape(frame.Title)).Append("</title>\n");

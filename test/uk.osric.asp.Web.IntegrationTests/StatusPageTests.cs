@@ -94,8 +94,8 @@ public sealed class StatusPageTests : IntegrationTest {
         Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Assistant</h2>"));
         Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Host</h2>"));
         Assert.That(body.Split("<figure class=\"panel\">").Length - 1, Is.EqualTo(StatusCatalogue.Panels.Count));
-        Assert.That(body, Does.Contain("<svg class=\"chart\""));
-        Assert.That(body, Does.Contain("<svg class=\"heatmap\""));
+        Assert.That(body, Does.Contain("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"chart\""));
+        Assert.That(body, Does.Contain("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"heatmap\""));
     }
 
     [Test]

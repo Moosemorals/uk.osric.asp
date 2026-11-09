@@ -27,7 +27,10 @@ public sealed class ChartEndpointTests {
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
         Assert.That(context.Response.ContentType, Is.EqualTo("image/svg+xml; charset=utf-8"));
         Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
-        Assert.That(await BodyAsync(context), Does.StartWith("<svg "));
+        Assert.That(
+            await BodyAsync(context),
+            Does.StartWith("<svg xmlns=\"http://www.w3.org/2000/svg\" "),
+            "the document declares the namespace a browser needs to draw a standalone SVG");
     }
 
     [Test]

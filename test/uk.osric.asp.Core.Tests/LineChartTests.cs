@@ -165,6 +165,15 @@ public sealed class LineChartTests {
     }
 
     [Test]
+    public void TheDrawingDeclaresTheSvgNamespace() {
+        // Inline in a page the namespace is implied; served on its own it is not, and a browser shows
+        // an element it cannot place as a tree of markup rather than as a drawing.
+        Assert.That(
+            Render(Series("ok", (0, 0), (600, 1))),
+            Does.StartWith("<svg xmlns=\"http://www.w3.org/2000/svg\" "));
+    }
+
+    [Test]
     public void TheTypeIsTenPerCentLargerThanTheFirstDraft() {
         string svg = Render(Series("ok", (0, 0), (600, 1)));
 

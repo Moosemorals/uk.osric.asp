@@ -40,6 +40,24 @@ internal sealed class AssistantMetrics : IDisposable {
     public static readonly double[] RunDurationBuckets =
         [1, 2.5, 5, 10, 30, 60, 120, 180, 300, 600, 900, 1800, 2700, 3600, 5400];
 
+    /// <summary>Buckets for <c>assistant.provider.first_token.duration</c>, in seconds.</summary>
+    /// <remarks>
+    /// The wait before a model says anything is seconds rather than milliseconds, and a reasoning model
+    /// can be quiet for a minute. The page scale stops at ten seconds, which made this panel a wall of
+    /// `+Inf`; two minutes covers the waits worth telling apart.
+    /// </remarks>
+    public static readonly double[] FirstTokenBuckets =
+        [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 60, 120];
+
+    /// <summary>Buckets for <c>assistant.provider.request.duration</c>, in seconds.</summary>
+    /// <remarks>
+    /// A request is bounded by the silence timeout, <c>Assistant:RequestTimeoutSeconds</c>, not by the
+    /// page budget: a thinking model can take minutes to finish. Twice the default timeout is the top
+    /// boundary, so a request that reached its deadline lands in a real bucket.
+    /// </remarks>
+    public static readonly double[] ProviderRequestBuckets =
+        [0.5, 1, 2.5, 5, 10, 20, 30, 60, 120, 300, 600];
+
     /// <summary>The tool tag recorded when a call names no registered tool.</summary>
     /// <remarks>
     /// A tool name is model-supplied, so tagging a made-up or mistyped name verbatim would mint one

@@ -59,6 +59,20 @@ public sealed class AssistantMetricsTests {
     }
 
     [Test]
+    public void TheProviderScalesReachPastTheSilenceTimeout() {
+        Assert.That(AssistantMetrics.FirstTokenBuckets, Is.Ordered);
+        Assert.That(AssistantMetrics.ProviderRequestBuckets, Is.Ordered);
+        Assert.That(
+            AssistantMetrics.ProviderRequestBuckets[^1],
+            Is.GreaterThan(300),
+            "a request that reaches the default silence timeout lands in a real bucket");
+        Assert.That(
+            AssistantMetrics.FirstTokenBuckets[^1],
+            Is.GreaterThan(10),
+            "the wait before a model answers is not page-scale work");
+    }
+
+    [Test]
     public void ThePublishedInventoryIsTheOneTheMeterRegisters() {
         List<(string Name, InstrumentKind Kind)> published = [];
         using MeterListener listener = new();

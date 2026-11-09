@@ -142,7 +142,9 @@ GET /status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration
   a link reproduces what it showed.
 - The response is `image/svg+xml; charset=utf-8` with `Cache-Control: no-store`, under the same owner
   policy as `/status` and the global security headers. It is the owner's data, and the fifteen-second
-  cache is the server's rather than a proxy's.
+  cache is the server's rather than a proxy's. The drawing declares its own SVG namespace, which an
+  inline drawing inherits and a standalone document does not, so a browser opening the link draws it
+  rather than showing its markup.
 - A malformed window is a `400` naming the parameter, an unknown panel a `404`, and a Prometheus that
   does not answer a `503` with the reason as plain text. A broken image is the honest failure for a
   pasted link; the page's banner is where the reason is read in full.
@@ -165,11 +167,12 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   and legends use the underscore.
 - **The buckets are ours, and they follow the work.** The page durations share one explicit scale
   whose top boundary is past the render budget, so a render recorded at its deadline lands in a real
-  bucket rather than `+Inf`; `assistant.run.duration` has its own scale in minutes, because a run is
-  bounded by `Assistant:RunTimeoutSeconds` rather than by that budget — the page scale stops at ten
-  seconds, which put every run in `+Inf`; `page.image.size` has its own byte scale. The SDK's default
-  starts at 0–5 s for a seconds instrument, which would make every render one column and every
-  percentile meaningless.
+  bucket rather than `+Inf`. The assistant's durations are bounded by its own timeouts rather than by
+  that budget, so each has a scale of its own: a run from a second to past an hour, a first token to
+  two minutes, and a provider request to twice the silence timeout. The page scale stops at ten
+  seconds, which put every run, first token and provider request in `+Inf`. `page.image.size` has its
+  own byte scale. The SDK's default starts at 0–5 s for a seconds instrument, which would make every
+  render one column and every percentile meaningless.
 - **Two gates on `/metrics`.** The app publishes on the loopback only (DEC-61), and Caddy answers
   `404` for the path on the public origin. Prometheus scrapes `app:8080` over the shared rootless
   network; see [deployment](../deploy/operations.md#metrics-and-the-status-page).
