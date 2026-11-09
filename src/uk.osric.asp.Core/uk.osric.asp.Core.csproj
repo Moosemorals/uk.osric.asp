@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
   <ItemGroup>
     <!-- The build says what this assembly publishes: a new public symbol is an error until it is
-         declared, and a removed one is an error until its line goes. -->
+         declared, and a removed one is an error until its line goes. The package adds the two files
+         beside this project as AdditionalFiles itself, so they are not listed here: listing them
+         again makes `dotnet format` warn that each is a duplicate source file. -->
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
-    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
-    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
   </ItemGroup>
 
   <ItemGroup>
