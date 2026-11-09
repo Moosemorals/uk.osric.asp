@@ -217,6 +217,7 @@ internal class Program {
                 },
                 services.GetRequiredService<ILogger<PrometheusSource>>());
         });
+        builder.Services.AddSingleton<ChartRenderer>();
         builder.Services.AddSingleton<Dashboard>();
 
         // Metrics only: registering no instrumentation package means no tracer or logger provider.
@@ -332,6 +333,8 @@ internal class Program {
         app.UseAntiforgery();
 
         app.MapGet("/status", StatusEndpoint.HandleAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapGet("/status/chart", ChartEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
 
         app.MapGet("/edit/{**path}", EditorEndpoint.HandleAsync)

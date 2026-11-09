@@ -10,6 +10,7 @@ using uk.osric.asp.Web.Pages;
 internal sealed class MetricCapture : IDisposable {
 
     private readonly List<Measurement> _measurements = [];
+    private readonly Lock _gate = new();
     private readonly MeterListener _listener = new();
 
     private MetricCapture(string meterName) {
@@ -27,19 +28,25 @@ internal sealed class MetricCapture : IDisposable {
 
     /// <summary>Counts the measurements of one instrument carrying a tag value.</summary>
     public int Count(string instrument, string tagName, string tagValue) {
-        return _measurements.Count(measurement => measurement.Instrument == instrument
-            && measurement.HasTag(tagName, tagValue));
+        lock (_gate) {
+            return _measurements.Count(measurement => measurement.Instrument == instrument
+                && measurement.HasTag(tagName, tagValue));
+        }
     }
 
     /// <summary>Counts the measurements of one instrument, whatever its tags.</summary>
     public int Count(string instrument) {
-        return _measurements.Count(measurement => measurement.Instrument == instrument);
+        lock (_gate) {
+            return _measurements.Count(measurement => measurement.Instrument == instrument);
+        }
     }
 
     /// <summary>Returns the measurements of one instrument for one page.</summary>
     public IReadOnlyList<Measurement> For(string instrument, string path) {
-        return [.. _measurements.Where(measurement => measurement.Instrument == instrument
-            && measurement.HasTag("page.path", path))];
+        lock (_gate) {
+            return [.. _measurements.Where(measurement => measurement.Instrument == instrument
+                && measurement.HasTag("page.path", path))];
+        }
     }
 
     public void Dispose() {
@@ -59,7 +66,10 @@ internal sealed class MetricCapture : IDisposable {
     }
 
     private void Add(Instrument instrument, double value, KeyValuePair<string, object?>[] tags) {
-        _measurements.Add(new Measurement(instrument.Name, value, tags));
+        // Another fixture's page meter can record here too, on another thread.
+        lock (_gate) {
+            _measurements.Add(new Measurement(instrument.Name, value, tags));
+        }
     }
 
     internal sealed record Measurement(string Instrument, double Value, IReadOnlyList<KeyValuePair<string, object?>> Tags) {

@@ -199,21 +199,21 @@ internal static class ShellViews {
     }
 
     private static async Task<string> StatusAsync() {
+        MetricsOptions options = new() {
+            PrometheusUrl = new Uri("http://prometheus:9090"),
+            TimeZone = TimeZoneInfo.Utc,
+        };
         Dashboard dashboard = new(
-            new FakeMetricsSource(_ => new MetricsMatrix([
+            new ChartRenderer(new FakeMetricsSource(_ => new MetricsMatrix([
                 new ChartSeries("ok", [
                     new ChartPoint(DateTimeOffset.Parse("2026-11-02T05:30:00Z", CultureInfo.InvariantCulture), 1),
                 ]),
-            ])),
-            new MetricsOptions {
-                PrometheusUrl = new Uri("http://prometheus:9090"),
-                TimeZone = TimeZoneInfo.Utc,
-            },
+            ])), options),
             new TestClock(),
             NullLogger<Dashboard>.Instance);
         DefaultHttpContext context = TestHttp.CreateContext(null);
 
-        await StatusEndpoint.HandleAsync(context, dashboard, CancellationToken.None);
+        await StatusEndpoint.HandleAsync(context, dashboard, new TestClock(), CancellationToken.None);
 
         return await TestHttp.ReadBodyAsync(context);
     }

@@ -6,10 +6,27 @@ namespace uk.osric.asp.Web.Assistant;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Web.Metrics;
 
 /// <summary>The meter and instruments that describe assistant runs.</summary>
 internal sealed class AssistantMetrics : IDisposable {
     public const string MeterName = "uk.osric.asp.Assistant";
+
+    /// <summary>Every instrument this meter registers, in the order the page lists them.</summary>
+    /// <remarks>
+    /// The catalogue maps each of these to exactly one panel, and <c>AssistantMetricsTests</c> listens
+    /// to the meter to prove this list and the registrations below agree.
+    /// </remarks>
+    public static IReadOnlyList<MetricInstrument> Instruments { get; } = [
+        new("assistant.run.duration", InstrumentKind.Histogram, "s"),
+        new("assistant.run.steps", InstrumentKind.Histogram, "{step}"),
+        new("assistant.run.tool_calls", InstrumentKind.Histogram, "{call}"),
+        new("assistant.provider.first_token.duration", InstrumentKind.Histogram, "s"),
+        new("assistant.provider.request.duration", InstrumentKind.Histogram, "s"),
+        new("assistant.tool.duration", InstrumentKind.Histogram, "s"),
+        new("assistant.tokens", InstrumentKind.Counter, "{token}"),
+    ];
+
     public static readonly double[] StepBuckets = [1, 2, 3, 5, 8, 12, 16, 24];
     public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32, 64];
 

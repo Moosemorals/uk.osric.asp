@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Pages;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Metrics;
 
 /// <summary>The meter and instruments that describe compiling and rendering pages.</summary>
 /// <remarks>
@@ -16,6 +17,31 @@ internal sealed class PageMetrics : IDisposable {
 
     /// <summary>The meter every instrument belongs to.</summary>
     public const string MeterName = "uk.osric.asp.Pages";
+
+    /// <summary>Every instrument this meter registers, in the order the page lists them.</summary>
+    /// <remarks>
+    /// The catalogue maps each of these to exactly one panel, and <c>PageMetricsTests</c> listens to the
+    /// meter to prove this list and the registrations below agree. A name renamed in one place and not
+    /// the other then fails a test rather than emptying a panel.
+    /// </remarks>
+    public static IReadOnlyList<MetricInstrument> Instruments { get; } = [
+        new("page.render.duration", InstrumentKind.Histogram, "s"),
+        new("page.render.wait", InstrumentKind.Histogram, "s"),
+        new("page.compile.duration", InstrumentKind.Histogram, "s"),
+        new("page.load.duration", InstrumentKind.Histogram, "s"),
+        new("page.invoke.duration", InstrumentKind.Histogram, "s"),
+        new("page.save.duration", InstrumentKind.Histogram, "s"),
+        new("page.fetch.duration", InstrumentKind.Histogram, "s"),
+        new("page.import.duration", InstrumentKind.Histogram, "s"),
+        new("page.image.size", InstrumentKind.Histogram, "By"),
+        new("page.render.abandoned", InstrumentKind.Counter, "1"),
+        new("page.cache.lookups", InstrumentKind.Counter, "1"),
+        new("page.cache.staleness", InstrumentKind.Counter, "1"),
+        new("page.layout.fallback", InstrumentKind.Counter, "1"),
+        new("page.storage.payload.size", InstrumentKind.Gauge, "By"),
+        new("page.storage.database.size", InstrumentKind.Gauge, "By"),
+        new("page.storage.volume.capacity", InstrumentKind.Gauge, "By"),
+    ];
 
     /// <summary>Buckets for the duration instruments, in seconds.</summary>
     /// <remarks>

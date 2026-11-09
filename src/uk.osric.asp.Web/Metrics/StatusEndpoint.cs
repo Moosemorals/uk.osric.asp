@@ -4,72 +4,97 @@
 namespace uk.osric.asp.Web.Metrics;
 
 using System.Net;
-using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
-using uk.osric.asp.Web.Http;
 
-/// <summary>The owner-only dashboard: queries Prometheus and draws the result as SVG.</summary>
+/// <summary>The owner-only dashboard: queries Prometheus and draws the answer as SVG charts.</summary>
+/// <remarks>
+/// The document around the body is <see cref="ShellDocument"/>'s, so the head, the sheet list, the site
+/// menu, the skip link, the landmark and the close cannot drift from the rest of the site. This type
+/// writes the heading, the window nav, the banner and one figure per panel, and nothing else.
+/// </remarks>
 internal static class StatusEndpoint {
 
+    /// <summary>Answers <c>GET /status</c> for the owner.</summary>
+    /// <param name="context">The response being written.</param>
+    /// <param name="dashboard">Builds the drawings for the window.</param>
+    /// <param name="time">The clock the window ends at.</param>
+    /// <param name="cancellationToken">Aborted when the request is abandoned.</param>
     public static async Task HandleAsync(
         HttpContext context,
         Dashboard dashboard,
+        TimeProvider time,
         CancellationToken cancellationToken) {
+
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(dashboard);
+        ArgumentNullException.ThrowIfNull(time);
 
+        string? requested = context.Request.Query["duration"];
+        string current = ChartWindow.TokenFor(requested);
+        ChartWindow window = ChartWindow.FromToken(current, time.GetUtcNow());
+        StatusPage page = await dashboard.GetAsync(window, cancellationToken);
 
-        StatusDuration duration = StatusDuration.FromToken(context.Request.Query["duration"]);
-        StatusPage page = await dashboard.GetAsync(duration, cancellationToken);
+        await ShellDocument.BeginAsync(
+            context,
+            "Status",
+            SiteNavigation.For(context),
+            stylesheets: ["/status.css"],
+            cancellationToken: cancellationToken);
 
-        context.Response.ContentType = "text/html; charset=utf-8";
-        SecurityHeaders.NoStore(context);
-
-        await ShellDocument.BeginAsync(context, "Status",
-            SiteNavigation.For(context), stylesheets: ["/status.css"], cancellationToken: cancellationToken);
-        await context.Response.WriteAsync("<h1>Status</h1>", cancellationToken: cancellationToken);
-        await WriteNavAsync(context, duration, cancellationToken);
+        await context.Response.WriteAsync("<h1>Status</h1>", cancellationToken);
+        await WriteNavAsync(context, current, cancellationToken);
 
         if (page.Banner is { } banner) {
-            await context.Response.WriteAsync($"<p class=\"banner\">{WebUtility.HtmlEncode(banner)}</p>", cancellationToken: cancellationToken);
+            await context.Response.WriteAsync(
+                $"<p class=\"banner\">{WebUtility.HtmlEncode(banner)}</p>",
+                cancellationToken);
         }
 
-        foreach (StatusPanel panel in page.Panels) {
-            await context.Response.WriteAsync("<section class=\"panel\">", cancellationToken: cancellationToken);
-            await context.Response.WriteAsync($"<h2>{WebUtility.HtmlEncode(panel.Title)}</h2>", cancellationToken: cancellationToken);
-
-            if (panel.Svg is null) {
-                await context.Response.WriteAsync($"<p class=\"empty\">No data in the last {duration.Token}.</p>", cancellationToken: cancellationToken);
-            } else {
-                await context.Response.WriteAsync(panel.Svg, cancellationToken: cancellationToken);
-                await WriteLegendAsync(context, panel.Labels);
+        foreach (string group in StatusCatalogue.Groups) {
+            StatusPanel[] panels = [.. page.Panels.Where(panel => panel.Panel.Group == group)];
+            if (panels.Length == 0) {
+                continue;
             }
 
-            await context.Response.WriteAsync("</section>", cancellationToken: cancellationToken);
+            await context.Response.WriteAsync(
+                $"<section class=\"status-group\"><h2>{WebUtility.HtmlEncode(group)}</h2><div class=\"status-panels\">",
+                cancellationToken);
+
+            foreach (StatusPanel panel in panels) {
+                await WriteFigureAsync(context, panel, cancellationToken);
+            }
+
+            await context.Response.WriteAsync("</div></section>", cancellationToken);
+        }
+
+        if (page.Panels.Count == 0 && page.Banner is null) {
+            await context.Response.WriteAsync(
+                "<p class=\"status-empty\">No panels yet.</p>",
+                cancellationToken);
         }
 
         await ShellDocument.EndAsync(context, cancellationToken);
     }
 
-    private static Task WriteNavAsync(HttpContext context, StatusDuration current, CancellationToken cancellationToken) {
-        // The current window is where you already are, so it is text, not a link to itself.
-        NavLink[] links = [.. StatusDuration.All.Select(duration => new NavLink(
-            "/status?duration=" + Uri.EscapeDataString(duration.Token),
-            duration.Token,
-            duration.Token == current.Token))];
+    private static async Task WriteFigureAsync(HttpContext context, StatusPanel panel, CancellationToken cancellationToken) {
+        string label = WebUtility.HtmlEncode("Open chart: " + panel.Panel.Title);
 
-        return context.Response.WriteAsync(PageDocument.Nav("Time window", links, "status-nav"), cancellationToken);
+        await context.Response.WriteAsync("<figure class=\"panel\">", cancellationToken);
+        await context.Response.WriteAsync(panel.Svg, cancellationToken);
+        await context.Response.WriteAsync(
+            $"<figcaption><a href=\"{WebUtility.HtmlEncode(panel.Href)}\" aria-label=\"{label}\">Open chart</a></figcaption>",
+            cancellationToken);
+        await context.Response.WriteAsync("</figure>", cancellationToken);
     }
 
-    private static async Task WriteLegendAsync(HttpContext context, IReadOnlyList<string> labels) {
-        await context.Response.WriteAsync("<ul class=\"chart-legend\" role=\"list\">");
+    private static Task WriteNavAsync(HttpContext context, string current, CancellationToken cancellationToken) {
+        // The current window is where you already are, so it is text, not a link to itself.
+        NavLink[] links = [.. ChartWindow.Tokens.Select(token => new NavLink(
+            "/status?duration=" + Uri.EscapeDataString(token.Token),
+            token.Token,
+            string.Equals(token.Token, current, StringComparison.Ordinal)))];
 
-        for (int index = 0; index < labels.Count; index++) {
-            string colour = SvgText.SeriesColour(index);
-            await context.Response.WriteAsync(
-                $"<li><span class=\"swatch {colour}\"></span>{WebUtility.HtmlEncode(labels[index])}</li>");
-        }
-
-        await context.Response.WriteAsync("</ul>");
+        return context.Response.WriteAsync(PageDocument.Nav("Time window", links, "status-nav"), cancellationToken);
     }
 }

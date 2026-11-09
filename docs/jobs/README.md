@@ -39,7 +39,6 @@ carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md)
 | [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
-| [OPS-06](OPS-06.md) | Low | M | Half of what the site measures, the dashboard never shows |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-014](IDEA-014.md) | — | M | A page cannot keep per-visitor state, so a form cannot redirect and say why |
@@ -129,6 +128,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-14 | A redirect keeps its query and fragment: `Redirects.To` encodes each part with the type that understands it. See [the plan](../plans/archive/site-navigation.md) |
 | BUG-15 | A page key containing `?` or `#` is refused by both the page and the editor rather than normalised onto another key |
 | BUG-16 | Every view is one document: `ShellDocument` writes the head, `<main id="main">` and the foot, and `AccessibilityTests` applies twelve rules to every view over rendered markup (DEC-110). See [the plan](../plans/archive/semantic-html-and-accessibility.md) |
+| OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and DEC-180–DEC-185 |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
 | IDEA-002 | A page reaches an allow-listed host through `ctx.Features.GetRequired<IHttpFetch>()`; every failure is a value (DEC-128, DEC-129, DEC-143). See [the plan](../plans/archive/page-fetch-and-storage.md) |
 | IDEA-003 | A page keeps state through `ctx.Features.GetRequired<IPageStorage>()` in a `PageState` table with per-page caps (DEC-125, DEC-126, DEC-127, DEC-142). See [the plan](../plans/archive/page-fetch-and-storage.md) |

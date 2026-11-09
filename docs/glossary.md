@@ -147,12 +147,13 @@ the stored forms it is served from or restored from (DEC-114).
 **Owner:** pages — `PageEndpoint`, `IPageStore` and the `PageHeads` table.
 
 ## Panel
-One titled section of `/status`, holding one chart or table and its legend.
+One drawing on `/status`, its title and its legend inside the SVG, and exactly one instrument behind
+it.
 
-**Not** a metric or a series. A panel is a view that may query several series, and one metric may
-appear in several panels.
+**Not** a metric or a series. A panel may draw several series — the label values of one instrument —
+but two panels never draw the same instrument.
 
-**Owner:** observability — `StatusPanel` and `Dashboard`.
+**Owner:** observability — `Panel`, `StatusCatalogue` and `Dashboard`.
 
 ## Path
 The URL path a request carries, which the shell resolves to a page key.

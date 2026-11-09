@@ -106,10 +106,14 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   asserts on the podman restart: that belongs to the supervisor, not to `WebApplicationFactory`.
 - **The metrics export and the dashboard** split the same way. `Web.Tests` proves the Prometheus
   client against recorded `query_range` bodies (values as strings, `NaN`/`±Inf`, empty results, error
-  payloads) and the dashboard against a stubbed `IMetricsSource`, including the fifteen-second cache on
-  a test clock. `Core.Tests` pins the chart markup and the tick tables. `Web.IntegrationTests` renders
-  a page and reads `/metrics`, and asserts that `/status` sends an anonymous visitor to `/login`; no
-  test needs a running Prometheus.
+  payloads), the dashboard and the chart endpoint against a stubbed `IMetricsSource` (including the
+  fifteen-second cache on a test clock, the bounded window map and the endpoint's `400`/`404`/`503`),
+  and the catalogue against the meters: every instrument has one panel, the kind decides the chart,
+  and every family a query names is accounted for. `Core.Tests` pins the chart markup — title, legend,
+  dashes, end labels, heatmap runs — and the tick tables. `Web.IntegrationTests` renders a page and
+  reads `/metrics`, proves the catalogue's family names against it (`MetricNamesTests`), pins the
+  page's markup budget with a synthetic wide answer, and asserts that `/status` and `/status/chart`
+  send an anonymous visitor to `/login`; no test needs a running Prometheus.
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and
   content types set by middleware, startup-seeded page assets and their conditional responses,

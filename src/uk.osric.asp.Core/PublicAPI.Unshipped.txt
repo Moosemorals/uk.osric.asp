@@ -1,3 +1,29 @@
 #nullable enable
-uk.osric.asp.Core.Markdown.LinkPolicy
+override uk.osric.asp.Core.Charting.ChartFrame.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Charting.ChartFrame.GetHashCode() -> int
+override uk.osric.asp.Core.Charting.ChartFrame.ToString() -> string!
+static uk.osric.asp.Core.Charting.ChartFrame.operator !=(uk.osric.asp.Core.Charting.ChartFrame? left, uk.osric.asp.Core.Charting.ChartFrame? right) -> bool
+static uk.osric.asp.Core.Charting.ChartFrame.operator ==(uk.osric.asp.Core.Charting.ChartFrame? left, uk.osric.asp.Core.Charting.ChartFrame? right) -> bool
+*REMOVED*static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartSize size, string! title, string! yTitle, string! valueUnit) -> string!
+static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame, string! valueUnit) -> string!
+*REMOVED*static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size) -> string!
+static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
+static uk.osric.asp.Core.Charting.StackedAreaChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
 static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool
+uk.osric.asp.Core.Charting.ChartFrame
+uk.osric.asp.Core.Charting.ChartFrame.<Clone>$() -> uk.osric.asp.Core.Charting.ChartFrame!
+uk.osric.asp.Core.Charting.ChartFrame.ChartFrame(string! Id, string! Title, string! YTitle, string! EmptyText, System.TimeZoneInfo! Zone) -> void
+uk.osric.asp.Core.Charting.ChartFrame.Deconstruct(out string! Id, out string! Title, out string! YTitle, out string! EmptyText, out System.TimeZoneInfo! Zone) -> void
+uk.osric.asp.Core.Charting.ChartFrame.EmptyText.get -> string!
+uk.osric.asp.Core.Charting.ChartFrame.EmptyText.init -> void
+uk.osric.asp.Core.Charting.ChartFrame.Equals(uk.osric.asp.Core.Charting.ChartFrame? other) -> bool
+uk.osric.asp.Core.Charting.ChartFrame.Id.get -> string!
+uk.osric.asp.Core.Charting.ChartFrame.Id.init -> void
+uk.osric.asp.Core.Charting.ChartFrame.Title.get -> string!
+uk.osric.asp.Core.Charting.ChartFrame.Title.init -> void
+uk.osric.asp.Core.Charting.ChartFrame.YTitle.get -> string!
+uk.osric.asp.Core.Charting.ChartFrame.YTitle.init -> void
+uk.osric.asp.Core.Charting.ChartFrame.Zone.get -> System.TimeZoneInfo!
+uk.osric.asp.Core.Charting.ChartFrame.Zone.init -> void
+uk.osric.asp.Core.Charting.StackedAreaChart
+uk.osric.asp.Core.Markdown.LinkPolicy

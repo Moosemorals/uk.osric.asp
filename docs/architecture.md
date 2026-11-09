@@ -104,7 +104,7 @@ and the logs quote them:
 | The template language and its diagnostics | `Core.Compilation` |
 | The URL rule a restricted Markdown render applies | `Core.Markdown`, as `LinkPolicy` |
 | Markdown parsing and HTML generation | `Runtime`, as `MarkdownRenderer` and its renderers; the page capability is `Sdk/IMarkdownRenderer` |
-| The `/status` charts | `Core.Charting` |
+| The `/status` charts, including the palette and the presentation attributes that make one legible on its own | `Core.Charting`, as `LineChart`, `Heatmap`, `StackedAreaChart` and `ChartChrome` |
 | Text whose case a key ignores — the page key and an account name | `Core.Text`, as `LowercaseText` |
 
 When something in the shell needs a decision from a pure rule, pass the data in and return a value;

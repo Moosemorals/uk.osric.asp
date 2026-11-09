@@ -12,13 +12,19 @@ public sealed class HeatmapTests {
     private static readonly DateTimeOffset Start =
         DateTimeOffset.Parse("2026-11-02T05:00:00Z", CultureInfo.InvariantCulture);
 
-    private static readonly ChartSize Size = new(200, 100);
+    private static readonly ChartSize Size = new(400, 320);
 
-    private static ChartAxis TimeAxis =>
+    private static readonly ChartAxis TimeAxis =
         new("time", [new ChartTick(0, "05:00"), new ChartTick(60, "05:01")]);
+
+    private static readonly ChartFrame Frame =
+        new("test", "Render duration", "seconds", "No data in this window.", TimeZoneInfo.Utc);
 
     private static HeatmapRow Row(string label, params double?[] values) =>
         new(label, [.. values.Select((value, index) => new ChartPoint(Start.AddMinutes(index), value))]);
+
+    private static string Render(params HeatmapRow[] rows) =>
+        Heatmap.Render(rows, TimeAxis, Size, Frame, "renders/s");
 
     [Test]
     public void CumulativeBucketsBecomePerBucketCounts() {
@@ -60,24 +66,31 @@ public sealed class HeatmapTests {
     }
 
     [Test]
-    public void OneCellIsDrawnPerNonEmptySample() {
-        string svg = Heatmap.Render([Row("0.1", 1, 0, (double?)null), Row("0.5", 2, 3, 4)], TimeAxis, Size, "Duration", "seconds", "renders/s");
+    public void EveryNonEmptySampleAppearsInARun() {
+        string svg = Render(Row("0.1", 1, 0, (double?)null), Row("0.5", 2, 3, 4));
 
-        Assert.That(Cells(svg), Is.EqualTo(4), "one title per cell, and none for the legend");
-        Assert.That(svg, Does.Contain("<title>Duration</title>"));
+        Assert.That(Cells(svg), Is.EqualTo(3), "one run in the first row and two in the second");
+        Assert.That(svg, Does.Contain(">0.1: 1 renders/s (05:00)<"));
     }
 
     [Test]
-    public void TheBusiestCellGetsTheDarkestClass() {
-        string svg = Heatmap.Render([Row("0.1", 1, 100)], TimeAxis, Size, "Duration", "seconds", "renders/s");
+    public void NeighbouringCellsOfTheSameShadeMergeIntoOneRun() {
+        string svg = Render(Row("0.5", 4, 4, 4, 0, 4));
 
-        Assert.That(svg, Does.Contain("heat heat-5"));
-        Assert.That(Count(svg, "heat heat-5\""), Is.EqualTo(1), "the darkest cell; the legend swatch comes later");
+        Assert.That(Cells(svg), Is.EqualTo(2), "a run of three and a lone cell");
+        Assert.That(svg, Does.Contain("<title>0.5: 12 renders/s (05:00–05:02)</title>"));
+    }
+
+    [Test]
+    public void TheBusiestRunGetsTheDarkestShade() {
+        string svg = Render(Row("0.1", 1, 100));
+
+        Assert.That(svg, Does.Contain("fill=\"#1e3a8a\""), "the darkest shade is the busiest run");
     }
 
     [Test]
     public void TheSmallestBucketIsDrawnAtTheBottom() {
-        string svg = Heatmap.Render([Row("0.1", 1), Row("0.5", 1), Row("+Inf", 1)], TimeAxis, Size, "Duration", "seconds", "renders/s");
+        string svg = Render(Row("0.1", 1), Row("0.5", 1), Row("+Inf", 1));
 
         double smallest = LabelTop(svg, "0.1");
         double largest = LabelTop(svg, "+Inf");
@@ -86,94 +99,50 @@ public sealed class HeatmapTests {
     }
 
     [Test]
-    public void EveryCellNamesItsValueOnHover() {
-        string svg = Heatmap.Render([Row("0.5", 3)], TimeAxis, Size, "Duration", "seconds", "renders/s");
+    public void TheDrawingCarriesItsOwnTitleAndTheShadeLegend() {
+        string svg = Render(Row("0.5", 3, 12));
 
-        Assert.That(svg, Does.Contain("<title>0.5 seconds: 3 renders/s</title>"));
-    }
-
-    [Test]
-    public void TheLegendSpansZeroToTheBusiestCell() {
-        string svg = Heatmap.Render([Row("0.5", 3, 12)], TimeAxis, Size, "Duration", "seconds", "renders/s");
-
+        Assert.That(svg, Does.Contain("<title>Render duration</title>"));
+        Assert.That(svg, Does.Contain("class=\"chart-title\""));
         Assert.That(svg, Does.Contain(">0</text>"));
         Assert.That(svg, Does.Contain(">12 renders/s</text>"));
-        Assert.That(Count(svg, "legend"), Is.GreaterThanOrEqualTo(5));
+        Assert.That(svg, Does.Contain("legend\""), "the shade swatches are labelled as the legend");
     }
 
     [Test]
     public void RowLabelsAreEscaped() {
-        string svg = Heatmap.Render([Row("<b>", 1)], TimeAxis, Size, "Duration", "seconds", "renders/s");
+        string svg = Render(Row("<b>", 1));
 
         Assert.That(svg, Does.Contain("&lt;b&gt;"));
         Assert.That(svg, Does.Not.Contain("<b>"));
     }
 
     [Test]
-    public void AnEmptyHeatmapDrawsNoCells() {
-        string svg = Heatmap.Render([], TimeAxis, Size, "Duration", "seconds", "renders/s");
+    public void AnEmptyHeatmapDrawsTheEmptyState() {
+        string svg = Render();
 
         Assert.That(Cells(svg), Is.EqualTo(0));
-        Assert.That(svg, Does.Contain("<svg class=\"heatmap\""));
+        Assert.That(svg, Does.Contain("class=\"chart-empty\""));
+        Assert.That(svg, Does.Contain("class=\"heatmap\""));
     }
 
     [Test]
-    public void MissingCumulativeRowsAreRejected() {
-        Assert.That(() => Heatmap.FromCumulative(null!),
-            Throws.ArgumentNullException.With.Property("ParamName").EqualTo("cumulative"));
+    public void ABusyAnswerIsFoldedToTheColumnCap() {
+        IReadOnlyList<HeatmapRow> rows = [Row("0.5", [.. Enumerable.Range(0, 300).Select(index => (double?)index)])];
+
+        IReadOnlyList<HeatmapRow> folded = Heatmap.Fold(rows, Heatmap.MaxColumns);
+
+        Assert.That(folded[0].Points, Has.Count.LessThanOrEqualTo(Heatmap.MaxColumns));
+        Assert.That(folded[0].Points.Sum(point => point.Value), Is.EqualTo(Enumerable.Range(0, 300).Sum()));
     }
 
     [Test]
     public void TicksArePlacedByTheirSecondsFromTheFirstSample() {
-        string svg = Heatmap.Render([Row("0.5", 1, 2)], TimeAxis, Size, "Duration", "seconds", "renders/s");
+        string svg = Render(Row("0.5", 1, 2));
 
         Assert.That(AttributeOf(svg, "05:00", "x"), Is.EqualTo(60), "the left margin");
-        Assert.That(AttributeOf(svg, "05:01", "x"), Is.EqualTo(190), "the whole plot width later");
+        Assert.That(AttributeOf(svg, "05:01", "x"), Is.EqualTo(390), "the whole plot width later");
     }
-
-    [Test]
-    public void TheSpanFollowsTheEarliestAndLatestSamplesWhereverTheyAre() {
-        HeatmapRow outOfOrder = new("0.5", [
-            new ChartPoint(Start.AddMinutes(1), 1),
-            new ChartPoint(Start, 1),
-        ]);
-
-        string svg = Heatmap.Render([outOfOrder], TimeAxis, Size, "Duration", "seconds", "renders/s");
-
-        Assert.That(AttributeOf(svg, "05:00", "x"), Is.EqualTo(60));
-        Assert.That(AttributeOf(svg, "05:01", "x"), Is.EqualTo(190));
-    }
-
-    [Test]
-    public void TheLegendSitsUnderThePlot() {
-        string svg = Heatmap.Render([Row("0.5", 3)], TimeAxis, Size, "Duration", "seconds", "renders/s");
-
-        Assert.That(Swatches(svg).Select(swatch => swatch.Y), Is.All.EqualTo(80), "100 - 24 + 4");
-        Assert.That(AttributeOf(svg, "0", "y"), Is.EqualTo(90), "the swatch's baseline");
-        Assert.That(AttributeOf(svg, "3 renders/s", "y"), Is.EqualTo(90));
-    }
-
-    [Test]
-    public void TheLegendSwatchesStepAcrossFromTheLeftMargin() {
-        string svg = Heatmap.Render([Row("0.5", 3)], TimeAxis, Size, "Duration", "seconds", "renders/s");
-
-        Assert.That(Swatches(svg).Select(swatch => swatch.X), Is.EqualTo((double[])[72, 88, 104, 120, 136]));
-        Assert.That(Swatches(svg).Select(swatch => swatch.Width), Is.All.EqualTo(14));
-        Assert.That(AttributeOf(svg, "3 renders/s", "x"), Is.EqualTo(154), "past the last swatch, plus its gap");
-    }
-
-    [TestCase(0.0125, "0.0125")]
-    [TestCase(12.3456, "12.35")]
-    public void TheLegendLabelsTheTopOfTheRange(double max, string expected) {
-        string svg = Heatmap.Render([Row("0.5", max)], TimeAxis, Size, "Duration", "seconds", "renders/s");
-
-        Assert.That(svg, Does.Contain($">{expected} renders/s</text>"));
-    }
-
-    private static IReadOnlyList<(double X, double Y, double Width)> Swatches(string svg) =>
-        [.. svg.Split('<')
-            .Where(element => element.Contains(" legend\"", StringComparison.Ordinal))
-            .Select(element => (Attribute(element, "x"), Attribute(element, "y"), Attribute(element, "width")))];
 
     private static double AttributeOf(string svg, string text, string attribute) {
         string marker = ">" + text + "</text>";
@@ -205,9 +174,6 @@ public sealed class HeatmapTests {
     private static string Values(HeatmapRow row) =>
         string.Join(' ', row.Points.Select(point => point.Value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "null"));
 
-    // Every cell and the chart itself carry a title; the chart's is the first.
-    private static int Cells(string svg) => Count(svg, "</title>") - 1;
-
-    private static int Count(string text, string value) =>
-        text.Split(value, StringSplitOptions.None).Length - 1;
+    // Cells are the run rects, which carry no class; the shade legend's swatches do.
+    private static int Cells(string svg) => svg.Split("<rect x=\"").Length - 1;
 }

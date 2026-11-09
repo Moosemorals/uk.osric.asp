@@ -3,8 +3,10 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using System.Diagnostics.Metrics;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
@@ -150,6 +152,35 @@ public sealed class PageMetricsTests {
         Assert.That(capture.Count("page.render.duration", "page.path", PageMetrics.NotFoundPath), Is.EqualTo(1));
         Assert.That(capture.For("page.render.duration", "/a-scan-probably-made-this-up"), Is.Empty);
     }
+
+
+    [Test]
+    public void ThePublishedInventoryIsTheOneTheMeterRegisters() {
+        List<(string Name, InstrumentKind Kind)> published = [];
+        using MeterListener listener = new();
+        listener.InstrumentPublished = (instrument, current) => {
+            if (instrument.Meter.Name == PageMetrics.MeterName) {
+                published.Add((instrument.Name, KindOf(instrument)));
+            }
+        };
+        listener.Start();
+        using PageMetrics metrics = new();
+        listener.Dispose();
+
+        Assert.That(
+            published.Distinct().OrderBy(entry => entry.Name, StringComparer.Ordinal).ToArray(),
+            Is.EqualTo(PageMetrics.Instruments
+                .OrderBy(instrument => instrument.Name, StringComparer.Ordinal)
+                .Select(instrument => (instrument.Name, instrument.Kind))
+                .ToArray()));
+    }
+
+    private static InstrumentKind KindOf(System.Diagnostics.Metrics.Instrument instrument) => instrument switch {
+        Histogram<double> or Histogram<long> => InstrumentKind.Histogram,
+        Counter<double> or Counter<long> => InstrumentKind.Counter,
+        ObservableGauge<double> or ObservableGauge<long> => InstrumentKind.Gauge,
+        _ => throw new InvalidOperationException($"{instrument.Name} is a kind the inventory does not know."),
+    };
 
     private static PagePath Key(string path) {
         return PagePath.Normalize(path);
