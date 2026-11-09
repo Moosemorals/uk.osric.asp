@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Area | Sdk, Core, Runtime, Web |
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Pages/PageRenderer.cs`, `src/uk.osric.asp.Web/Html/ShellDocument.cs` |
 
-> **The layout half is done.** Phase 2 landed as [site navigation](../plans/site-navigation.md):
+> **The layout half is done.** Phase 2 landed as [site navigation](../plans/archive/site-navigation.md):
 > every HTML page is wrapped in the stored `/_layout` by default, the slots are on
 > `IPageLayout` reached through `ctx.Features`, the chain renders under one slot and deadline, and
 > the shell keeps its own document (DEC-148–DEC-158). What is left of this item is shared **code**:

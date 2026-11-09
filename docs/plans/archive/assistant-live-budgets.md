@@ -369,7 +369,7 @@ the write-up can land without any visible change.
 
 ## Documentation and decisions
 
-[Site navigation](../site-navigation.md) reserves 148–158, so this plan takes the numbers after it.
+[Site navigation](site-navigation.md) reserves 148–158, so this plan takes the numbers after it.
 
 - **DEC-159**: every assistant budget figure is one pure `BudgetSnapshot` in
   `Core.Assistant`, measured by `ContextTrimmer.MeasureChars` and the transcript's own tool calls and

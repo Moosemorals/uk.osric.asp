@@ -53,7 +53,7 @@ design and an implementation plan; the phases below are what was built.
 - **Wrapping the shell's own views in the stored layout.** Recovery, error, health, sign-in and the
   editor must answer when the page pipeline is broken (IDEA-017's bootstrap trap, DEC-131).
 - **A content menu.** The menu lists the site's *tools*, not its pages; a "pages by title" menu
-  needs the store read of [IDEA-015](../jobs/IDEA-015.md).
+  needs the store read of [IDEA-015](../../jobs/IDEA-015.md).
 - **A nav editor.** The items are written where the document is written: the shell's composition for
   shell views, the stored layout for pages.
 - **Signing out with a `GET` that changes state.** The menu links to a confirmation view; the action
@@ -67,26 +67,26 @@ Checked against the code on 2026-11-08.
 
 - **Nothing wraps a page.** `PageEndpoint` builds one `SimpleContext` over a `StringWriter`, calls
   `PageRenderer.RenderAsync` once and writes the buffer. A page owns its whole response
-  ([PageEndpoint.cs](../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs), DEC-31).
+  ([PageEndpoint.cs](../../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs), DEC-31).
 - **The contract has no document.** `IContext` carries `Request`, `Path`, `User`, `Aborted`, the
   logging and write members, status/content type/header/`AllowScripts`/`Redirect`/
   `RedirectToLogin`/`AntiforgeryField`, and `Features` — no title, no head, no body, no layout
-  ([IContext.cs](../../src/uk.osric.asp.Sdk/IContext.cs)).
+  ([IContext.cs](../../../src/uk.osric.asp.Sdk/IContext.cs)).
 - **Capabilities are a settled seam.** `IPageFeatures` with `TryGet`/`Get`/`GetRequired`; the host
   registers, a capability is present or absent, never null; storage and fetch are the two today
   (DEC-142, DEC-143).
 - **The response value** is status, content type, headers, location and `AllowsScripts`
-  ([PageResponse.cs](../../src/uk.osric.asp.Sdk/PageResponse.cs)).
+  ([PageResponse.cs](../../../src/uk.osric.asp.Sdk/PageResponse.cs)).
 - **A render takes a slot and a deadline per call.** `PageRenderer.RenderAsync` waits on
   `PageBudget.RenderSlots`, creates the request's deadline, renders and releases — so two layers
   would take two slots and two deadlines unless the call is restructured
-  ([PageRenderer.cs](../../src/uk.osric.asp.Web/Pages/PageRenderer.cs)).
+  ([PageRenderer.cs](../../../src/uk.osric.asp.Web/Pages/PageRenderer.cs)).
 - **The body is capped in the writer.** `SimpleContext` refuses a write past
   `RenderOptions.MaxBodyChars` (4 MiB by default), per context.
 - **The document shell** writes the head, the sheet order and `<main id="main">`, and takes at most
   **one** sheet of the view's own, so a view that wants two has nowhere to say so; `main` is the
   body's only element, so there is no skip link
-  ([ShellDocument.cs](../../src/uk.osric.asp.Web/Html/ShellDocument.cs), DEC-107, DEC-116, DEC-121).
+  ([ShellDocument.cs](../../../src/uk.osric.asp.Web/Html/ShellDocument.cs), DEC-107, DEC-116, DEC-121).
 - **Seven named local navs** exist for the shell's own views; nothing is shared.
 - **Two pages nobody can navigate to.** Nothing links to `/` except an error remedy, and nothing
   links to `/status`. The dev database holds one page that writes a document (`/`), one deliberately
@@ -101,13 +101,13 @@ Checked against the code on 2026-11-08.
 
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
-| [IDEA-005](../jobs/IDEA-005.md) | Phase 2 is a layout *page* rendered around a page; `SetLayout`, `WriteBody`, title/head slots; depth limit and seen-set; one budget for the chain; a layout is presentation, not a guard | **Implements phase 2**, with the layout's slots on a capability instead of `IContext`, and the default on. Shared *types* stay deferred |
-| [IDEA-018](../jobs/IDEA-018.md) | The document builder and its fragments should move to `Sdk` | **Implements it** in phase 1, scoped to `PageDocument`, `Nav` and `NavLink` (see "Scope") |
-| [IDEA-015](../jobs/IDEA-015.md) | The listing, history and revision views need a layout to leave the shell | Unblocks it: those views become fragments the default layout wraps. The store read is still its own job |
-| [IDEA-017](../jobs/IDEA-017.md) | The editor is the recovery path; do not let it depend on page code | Preserved: shell views never use the stored layout, so a broken layout cannot lock the owner out |
-| [IDEA-001](../jobs/IDEA-001.md) | The editor is mostly markup | The editor loses its ad-hoc sign-out form; its page menu stays |
-| [IDEA-022](../jobs/IDEA-022.md) | `SimpleContext` does five jobs | Gains a constructor argument (the layout state), not a contract member |
-| [BUG-18](../jobs/BUG-18.md) | Every failure is a document a person can read | Error documents gain the menu above the recovery nav |
+| [IDEA-005](../../jobs/IDEA-005.md) | Phase 2 is a layout *page* rendered around a page; `SetLayout`, `WriteBody`, title/head slots; depth limit and seen-set; one budget for the chain; a layout is presentation, not a guard | **Implements phase 2**, with the layout's slots on a capability instead of `IContext`, and the default on. Shared *types* stay deferred |
+| [IDEA-018](../../jobs/IDEA-018.md) | The document builder and its fragments should move to `Sdk` | **Implements it** in phase 1, scoped to `PageDocument`, `Nav` and `NavLink` (see "Scope") |
+| [IDEA-015](../../jobs/IDEA-015.md) | The listing, history and revision views need a layout to leave the shell | Unblocks it: those views become fragments the default layout wraps. The store read is still its own job |
+| [IDEA-017](../../jobs/IDEA-017.md) | The editor is the recovery path; do not let it depend on page code | Preserved: shell views never use the stored layout, so a broken layout cannot lock the owner out |
+| [IDEA-001](../../jobs/IDEA-001.md) | The editor is mostly markup | The editor loses its ad-hoc sign-out form; its page menu stays |
+| [IDEA-022](../../jobs/IDEA-022.md) | `SimpleContext` does five jobs | Gains a constructor argument (the layout state), not a contract member |
+| [BUG-18](../../jobs/BUG-18.md) | Every failure is a document a person can read | Error documents gain the menu above the recovery nav |
 | DEC-121 | No skip link until chrome precedes `main` | Superseded: the chrome arrives |
 | DEC-107, DEC-116 | One writer owns the head and the landmark; sheet order is fixed | Extended to the banner and the skip link, for both the shell and the layout, and to layers: a page's sheets are last |
 | DEC-132 | Seed restore is a per-page action on `/edit`; `/admin` is not a page surface | `/admin` returns as an *index of tools*, so the objection that retired it (a duplicate page list) does not apply |
@@ -473,7 +473,7 @@ Each phase ends with `make test` green and `make format-check` clean.
 
 1. **The builder.** `Sdk/PageDocument`, `Sdk/NavLink`, `PageLayout.Nav` and `ShellDocument` as
    adapters. Nothing renders differently; a stored page can already write a document. This is
-   [IDEA-018](../jobs/IDEA-018.md).
+   [IDEA-018](../../jobs/IDEA-018.md).
 2. **The layout and the default.** `IPageLayout`, `PageLayoutState`, the chain in `PageEndpoint`,
    the render session, `Pages:Layout` switched on, the shared body budget, the configured depth
    limit, the fallbacks, and the `/_layout` seed with head/`main`/body only. The bundled seeds are

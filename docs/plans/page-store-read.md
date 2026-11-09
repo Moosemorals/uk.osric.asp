@@ -58,7 +58,7 @@ suite.
   This plan is what makes moving them possible; moving them is IDEA-017's cheap half, and it is a
   separate change with its own markup, accessibility and browser tests.
 - **A title, a size or a compile state in the listing.** A title is a compile or a render away, and
-  the listing reads rows. [ARCH-14](page-diagnostics-and-visibility.md) is where image state and
+  the listing reads rows. [ARCH-14](archive/page-diagnostics-and-visibility.md) is where image state and
   staleness get their own column, in the shell.
 - **A content menu.** The menu lists the site's tools; "pages by title" needs a title, which this
   plan deliberately does not read.
@@ -513,7 +513,7 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
   entry added the same day in `eca173d`. The author-manual row is the later one and is cited nowhere
   by ID — `jobs/README.md` states the "Help for authors" rule without one — so it should be
   renumbered to the next free ID after the plans that have already claimed numbers — **DEC-173**,
-  since `page-diagnostics-and-visibility.md` claims up to DEC-166 and this plan takes
+  since `plans/archive/page-diagnostics-and-visibility.md` claims up to DEC-166 and this plan takes
   DEC-167–DEC-172. **DEC-132 is also used twice**, and is left alone here: it is older and cited by
   two plans, so it is a decision of its own rather than a tidy-up.
 - `docs/glossary.md`: no new term. The capability reads terms the glossary already defines — key,
@@ -573,6 +573,6 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 | Demo pages or tests only | Both, and two: a public `/recent` listing and a guarded `/pages` that shows source, so the capability is proven through the real host and the gate question is answered in two files |
 
 **Deferred, so they are not rediscovered.** A title (or an image state) in the listing, which needs a
-compile or [ARCH-14](page-diagnostics-and-visibility.md)'s column; shared types between pages
+compile or [ARCH-14](archive/page-diagnostics-and-visibility.md)'s column; shared types between pages
 ([IDEA-005](../jobs/IDEA-005.md)); and moving the editor's listing, history and revisions into pages,
 which is [IDEA-017](../jobs/IDEA-017.md)'s cheap half and the next job this one unblocks.
