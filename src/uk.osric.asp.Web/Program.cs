@@ -334,6 +334,8 @@ internal class Program {
 
         app.MapGet("/status", StatusEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
+        app.MapGet("/status/chart", ChartEndpoint.HandleAsync)
+            .RequireAuthorization(EditorPolicy.Name);
 
         app.MapGet("/edit/{**path}", EditorEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);

@@ -46,6 +46,30 @@ public sealed class StatusPageTests : IntegrationTest {
     }
 
     [Test]
+    public async Task ChartRedirectsAnAnonymousVisitorToSignIn() {
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/status/chart?panel=page.render.duration&duration=1h");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        Assert.That(response.Headers.Location?.AbsolutePath, Is.EqualTo("/login"));
+    }
+
+    [Test]
+    public async Task TheOwnerFetchesOneChartOnItsOwn() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync("/status/chart?panel=page.render.duration&duration=1h");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content.Headers.ContentType?.ToString(), Is.EqualTo("image/svg+xml; charset=utf-8"));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(body, Does.StartWith("<svg "));
+        Assert.That(body, Does.Not.Contain("<html"), "a chart is a drawing, not a document");
+    }
+
+    [Test]
     public async Task StatusRedirectsAnAnonymousVisitorToSignIn() {
         using HttpClient client = CreateClient();
 

@@ -3,8 +3,8 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using System.Globalization;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Globalization;
 using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Web.Metrics;
 

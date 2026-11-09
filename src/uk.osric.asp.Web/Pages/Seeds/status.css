@@ -1,22 +1,13 @@
 /* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
 /* SPDX-License-Identifier: MIT */
 
-:root {
-    --series-1: #1f77b4;
-    --series-2: #ff7f0e;
-    --series-3: #2ca02c;
-    --series-4: #d62728;
-    --series-5: #9467bd;
-}
+/* What only the page needs. The drawings carry their own colour, dashes and type sizes as
+   presentation attributes, so a chart served on its own is legible with none of this sheet. */
 
 .banner {
     padding: 0.75rem 1rem;
     background-color: #fdf0f0;
     border-left: 0.25rem solid #c00;
-}
-
-.panel {
-    margin-block: 2rem;
 }
 
 .status-nav {
@@ -30,72 +21,57 @@
     font-weight: 600;
 }
 
-.chart {
+.status-empty {
+    color: #555;
+}
+
+.status-group {
+    margin-block: 1.5rem;
+}
+
+.status-group h2 {
+    margin-block: 0 0.5rem;
+    font-size: 1.05rem;
+}
+
+/* Three or four columns on a laptop, two on a tablet, one on a phone. */
+.status-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+    gap: 0.5rem 0.75rem;
+}
+
+.panel {
+    margin: 0;
+}
+
+.panel figcaption {
+    font-size: 0.75rem;
+}
+
+.panel figcaption a {
+    color: #444;
+}
+
+.chart,
+.heatmap,
+.stacked {
     display: block;
     width: 100%;
     height: auto;
 }
 
-.chart .chart-grid {
-    stroke: #ddd;
-    stroke-width: 1;
-    vector-effect: non-scaling-stroke;
+/* Identification beyond colour: hovering or pinning one series dims the others, and the page is
+   still usable without this — every line is also labelled and dashed. `:has` is supported by every
+   browser this page is read in; without it only the dimming is lost. */
+svg:has(.series-link:hover) .series-link:not(:hover) .series,
+svg:has(.series-link:focus) .series-link:not(:focus) .series,
+svg:has(.series-link:target) .series-link:not(:target) .series {
+    opacity: 0.25;
 }
 
-.chart-label,
-.chart-axis-title {
-    fill: #444;
-    font-size: 11px;
+.series-link:hover .series,
+.series-link:focus .series,
+.series-link:target .series {
+    stroke-width: 3;
 }
-
-.chart-axis-title {
-    fill: #666;
-}
-
-.series-1 { --series: var(--series-1); }
-.series-2 { --series: var(--series-2); }
-.series-3 { --series: var(--series-3); }
-.series-4 { --series: var(--series-4); }
-.series-5 { --series: var(--series-5); }
-
-.chart .series {
-    fill: none;
-    stroke: var(--series, currentColor);
-    stroke-width: 2;
-    vector-effect: non-scaling-stroke;
-}
-
-.chart circle.series {
-    fill: var(--series, currentColor);
-    stroke: none;
-}
-
-.chart-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin: 0.5rem 0 0;
-    padding: 0;
-    list-style: none;
-    font-size: 0.875rem;
-}
-
-.chart-legend .swatch {
-    display: inline-block;
-    width: 0.75rem;
-    height: 0.75rem;
-    margin-right: 0.35rem;
-    background-color: var(--series, currentColor);
-}
-
-.heatmap {
-    display: block;
-    width: 100%;
-    height: auto;
-}
-
-.heat-1 { fill: #dbeafe; }
-.heat-2 { fill: #93c5fd; }
-.heat-3 { fill: #3b82f6; }
-.heat-4 { fill: #1d4ed8; }
-.heat-5 { fill: #1e3a8a; }
