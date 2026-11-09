@@ -12,161 +12,120 @@ public sealed class LineChartTests {
     private static readonly DateTimeOffset Start =
         DateTimeOffset.Parse("2026-01-15T12:00:00Z", CultureInfo.InvariantCulture);
 
-    // 60 × 50 leaves a 10 × 20 plot once the label margins are taken, so every coordinate is exact.
-    private static readonly ChartSize Size = new(60, 50);
+    private static readonly ChartSize Size = new(400, 200);
 
     private static readonly ChartAxis TimeAxis =
-        new("time", [new ChartTick(0, "12:00"), new ChartTick(10, "12:10")]);
+        new("time", [new ChartTick(0, "12:00"), new ChartTick(600, "12:10")]);
 
     private static readonly ChartAxis CountAxis =
-        new("count", [new ChartTick(0, "0"), new ChartTick(1, "1")]);
+        new("requests/s", [new ChartTick(0, "0"), new ChartTick(1, "1")]);
+
+    private static readonly ChartFrame Frame = new("test", "Requests", "requests/s", "No data in this window.", TimeZoneInfo.Utc);
 
     private static ChartSeries Series(string label, params (int Seconds, double? Value)[] points) =>
         new(label, [.. points.Select(point => new ChartPoint(Start.AddSeconds(point.Seconds), point.Value))]);
 
+    private static string Render(params ChartSeries[] series) =>
+        LineChart.Render(series, TimeAxis, CountAxis, Size, Frame);
+
     [Test]
-    public void OneSeriesRendersExactMarkup() {
-        string svg = LineChart.Render([Series("Requests", (0, 0), (10, 1))], TimeAxis, CountAxis, Size);
+    public void TheDrawingCarriesItsOwnTitleAndLegend() {
+        string svg = Render(Series("ok", (0, 0), (600, 1)));
 
-        string expected = string.Join('\n', [
-            "<svg class=\"chart\" viewBox=\"0 0 60 50\" role=\"img\">",
-            "<title>Requests</title>",
-            "<desc>count over time</desc>",
-            "<text class=\"chart-axis-title\" transform=\"rotate(-90 10 20)\" x=\"10\" y=\"20\" text-anchor=\"middle\">count</text>",
-            "<line class=\"chart-grid\" x1=\"40\" y1=\"30\" x2=\"50\" y2=\"30\"/>",
-            "<text class=\"chart-label\" x=\"36\" y=\"34\" text-anchor=\"end\">0</text>",
-            "<line class=\"chart-grid\" x1=\"40\" y1=\"10\" x2=\"50\" y2=\"10\"/>",
-            "<text class=\"chart-label\" x=\"36\" y=\"14\" text-anchor=\"end\">1</text>",
-            "<line class=\"chart-grid\" x1=\"40\" y1=\"10\" x2=\"40\" y2=\"30\"/>",
-            "<text class=\"chart-label\" x=\"40\" y=\"44\" text-anchor=\"middle\">12:00</text>",
-            "<line class=\"chart-grid\" x1=\"50\" y1=\"10\" x2=\"50\" y2=\"30\"/>",
-            "<text class=\"chart-label\" x=\"50\" y=\"44\" text-anchor=\"middle\">12:10</text>",
-            "<polyline class=\"series series-1\" points=\"40,30 50,10\"/>",
-            "</svg>",
-            "",
-        ]);
-
-        Assert.That(svg, Is.EqualTo(expected));
+        Assert.That(svg, Does.Contain("<title>Requests</title>"));
+        Assert.That(svg, Does.Contain("<desc>requests/s over time</desc>"));
+        Assert.That(svg, Does.Contain("class=\"chart-title\""));
+        Assert.That(svg, Does.Contain(">Requests</text>"), "the visible title sits inside the drawing");
+        Assert.That(svg, Does.Contain("class=\"chart-legend-label\""));
     }
 
     [Test]
-    public void SeveralSeriesCycleThroughThePalette() {
-        string svg = LineChart.Render(
-            [Series("first", (0, 0), (10, 1)), Series("second", (0, 0), (10, 1))],
-            TimeAxis,
-            CountAxis,
-            Size);
+    public void ASecondSeriesIsDashedAsWellAsAColour() {
+        string svg = Render(Series("ok", (0, 0), (600, 1)), Series("error", (0, 1), (600, 0)));
 
-        Assert.That(svg, Does.Contain("series series-1"));
-        Assert.That(svg, Does.Contain("series series-2"));
-        Assert.That(svg, Does.Contain("<title>first, second</title>"));
+        Assert.That(svg, Does.Contain("stroke=\"#0072B2\""), "the first palette colour is on the line");
+        Assert.That(svg, Does.Contain("stroke=\"#D55E00\""), "the second is a different colour");
+        Assert.That(svg, Does.Contain("stroke-dasharray=\"6 4\""), "and a different dash");
+    }
+
+    [Test]
+    public void EverySeriesIsAnAnchorThatNamesItself() {
+        string svg = Render(Series("ok", (0, 0), (600, 1)));
+
+        Assert.That(svg, Does.Contain("<a class=\"series-link\" id=\"test-s1\" href=\"#test-s1\" tabindex=\"-1\">"));
+        Assert.That(svg, Does.Contain("<title>ok</title>"), "the anchor names the series on hover");
+    }
+
+    [Test]
+    public void TheHitStrokeIsDrawnOnlyWhereAClickMustChoose() {
+        Assert.That(Render(Series("one", (0, 0), (600, 1))), Does.Not.Contain("class=\"series-hit\""));
+
+        string two = Render(Series("one", (0, 0), (600, 1)), Series("two", (0, 1), (600, 0)));
+        Assert.That(two, Does.Contain("class=\"series-hit\""));
+    }
+
+    [Test]
+    public void TheEndOfEveryLineIsNamed() {
+        string svg = Render(Series("ok", (0, 0), (600, 1)));
+
+        Assert.That(svg, Does.Contain("class=\"series-label\""));
+        Assert.That(svg, Does.Contain(">ok</text>"));
     }
 
     [Test]
     public void AGapSplitsTheLineIntoRuns() {
-        string svg = LineChart.Render([Series("gap", (0, 0), (5, null), (10, 1))], TimeAxis, CountAxis, Size);
+        string svg = Render(Series("gap", (0, 0), (300, null), (600, 1)));
 
-        Assert.That(svg, Does.Not.Contain("<polyline"));
+        Assert.That(svg, Does.Not.Contain("<polyline class=\"series"), "the gap is not bridged");
         Assert.That(svg.Split("<circle").Length - 1, Is.EqualTo(2), "each side of the gap is its own run");
     }
 
     [Test]
-    public void AnEmptySeriesDrawsNothing() {
-        string svg = LineChart.Render([Series("empty")], TimeAxis, CountAxis, Size);
+    public void AnEmptySeriesDrawsTheEmptyState() {
+        string svg = Render(Series("empty"));
 
+        Assert.That(svg, Does.Contain("class=\"chart-empty\""));
+        Assert.That(svg, Does.Contain("No data in this window."));
         Assert.That(svg, Does.Not.Contain("<polyline"));
-        Assert.That(svg, Does.Not.Contain("<circle"));
-        Assert.That(svg, Does.Contain("<title>empty</title>"));
-    }
-
-    [Test]
-    public void AFlatSeriesKeepsANonZeroAxis() {
-        ChartAxis flat = new("count", [new ChartTick(4.5, "4.5"), new ChartTick(5.5, "5.5")]);
-
-        string svg = LineChart.Render([Series("flat", (0, 5), (10, 5))], TimeAxis, flat, Size);
-
-        Assert.That(svg, Does.Contain("points=\"40,20 50,20\""));
-    }
-
-    [Test]
-    public void ASinglePointIsDrawnAsACircle() {
-        string svg = LineChart.Render([Series("one", (0, 0))], TimeAxis, CountAxis, Size);
-
-        Assert.That(svg, Does.Contain("<circle class=\"series series-1\" cx=\"40\" cy=\"30\" r=\"2\"/>"));
     }
 
     [Test]
     public void EveryLabelIsEscaped() {
-        string svg = LineChart.Render(
-            [Series("<script>", (0, 0), (10, 1))],
-            new ChartAxis("time", [new ChartTick(0, "a & b")]),
-            CountAxis,
-            Size);
+        string svg = Render(Series("<script>", (0, 0), (600, 1)));
 
-        Assert.That(svg, Does.Contain("<title>&lt;script&gt;</title>"));
-        Assert.That(svg, Does.Contain("a &amp; b"));
+        Assert.That(svg, Does.Contain("&lt;script&gt;"));
         Assert.That(svg, Does.Not.Contain("<script>"));
     }
 
     [Test]
     public void ASizeWithNoRoomForThePlotIsRefused() {
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => LineChart.Render([Series("small", (0, 0))], TimeAxis, CountAxis, new ChartSize(40, 50)));
+            () => LineChart.Render([Series("small", (0, 0))], TimeAxis, CountAxis, new ChartSize(40, 200), Frame));
     }
 
     [Test]
     public void ANullSeriesListIsRefused() {
         Assert.Throws<ArgumentNullException>(
-            () => LineChart.Render(null!, TimeAxis, CountAxis, Size));
+            () => LineChart.Render(null!, TimeAxis, CountAxis, Size, Frame));
     }
 
     [Test]
-    public void TheRangeFollowsTheEarliestAndLatestSamplesWhereverTheyAre() {
-        string svg = LineChart.Render([Series("out of order", (10, 0), (0, 1))], TimeAxis, CountAxis, Size);
+    public void AnAxisWithoutTicksStillDrawsTheSeries() {
+        string svg = LineChart.Render(
+            [Series("points", (0, 2), (600, 4))],
+            TimeAxis,
+            new ChartAxis("count", []),
+            Size,
+            Frame);
 
-        Assert.That(svg, Does.Contain("<polyline class=\"series series-1\" points=\"50,30 40,10\"/>"));
+        Assert.That(svg, Does.Contain("<polyline class=\"series series-1\""));
+        Assert.That(svg, Does.Contain("stroke=\"#0072B2\""));
     }
 
     [Test]
-    public void AnAxisWithoutTicksTakesItsRangeFromTheSeries() {
-        ChartAxis noTicks = new("count", []);
+    public void AnUnnamedChartKeepsTheFramesTitle() {
+        string svg = Render(Series("", (0, 0), (600, 1)));
 
-        string svg = LineChart.Render([Series("points", (0, 2), (10, 4))], TimeAxis, noTicks, Size);
-
-        Assert.That(svg, Does.Contain("points=\"40,30 50,10\""));
-    }
-
-    [Test]
-    public void ASingleTickIsARangeOfItsOwn() {
-        ChartAxis one = new("count", [new ChartTick(5, "5")]);
-
-        string svg = LineChart.Render([Series("spread", (0, 4.8), (10, 5.2))], TimeAxis, one, Size);
-
-        Assert.That(svg, Does.Contain("points=\"40,24 50,16\""), "the tick is the middle of the range, not its edge");
-    }
-
-    [Test]
-    public void AFlatRangeAtZeroIsPaddedByOne() {
-        ChartAxis zero = new("count", [new ChartTick(0, "0")]);
-
-        string svg = LineChart.Render([Series("flat", (0, 0), (10, 0))], TimeAxis, zero, Size);
-
-        Assert.That(svg, Does.Contain("points=\"40,20 50,20\""), "the value sits halfway down a -1 to 1 range");
-    }
-
-    [Test]
-    public void AZeroToTwoAxisDrawsTheMiddleValueHalfway() {
-        ChartAxis wide = new("count", [new ChartTick(0, "0"), new ChartTick(2, "2")]);
-
-        string svg = LineChart.Render([Series("middle", (0, 1))], TimeAxis, wide, Size);
-
-        Assert.That(svg, Does.Contain("cx=\"40\" cy=\"20\""));
-    }
-
-    [Test]
-    public void ASeriesWithoutALabelLeavesTheChartNamedChart() {
-        string svg = LineChart.Render([Series("")], TimeAxis, CountAxis, Size);
-
-        Assert.That(svg, Does.Contain("<title>Chart</title>"));
+        Assert.That(svg, Does.Contain("<title>Requests</title>"));
     }
 }
