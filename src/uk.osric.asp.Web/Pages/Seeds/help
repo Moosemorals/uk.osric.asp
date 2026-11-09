@@ -185,6 +185,11 @@ response, and nothing else:</p>
 <code>TryGet&lt;T&gt;(out T?)</code> reports whether it is there, <code>Get&lt;T&gt;()</code> returns
 <code>null</code> when it is not, and <code>GetRequired&lt;T&gt;()</code> throws naming the
 interface. The host decides what is offered.</p>
+<p><code>IBuildInfo</code> says which build is answering. <code>Commit</code> is the full git commit
+hash, or <code>null</code> when the build did not come from a checkout:</p>
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.Features.GetRequired&lt;IBuildInfo&gt;().Commit is { } commit) { %&gt;
+&lt;a href="https://github.com/Moosemorals/uk.osric.asp/commit/&lt;%= commit %&gt;"&gt;&lt;%= commit %&gt;&lt;/a&gt;
+&lt;% } %&gt;</code></pre>
 <p><code>IPageStorage</code> is the page's own key/value store. Every visitor shares it, a write is
 last-write-wins, and a page cannot reach another page's keys:</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageStorage storage = ctx.Features.GetRequired&lt;IPageStorage&gt;();

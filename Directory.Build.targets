@@ -31,4 +31,27 @@ SPDX-License-Identifier: MIT
     </AssemblyAttribute>
   </ItemGroup>
 
+  <!--
+    The about page names the commit it is serving. Git is the source of truth, and only the one
+    assembly that serves pages needs it; a build that is not from a checkout records no commit, and
+    the page says so rather than showing a guess.
+  -->
+  <Target Name="ReadGitCommit"
+          BeforeTargets="GetAssemblyAttributes"
+          Condition="'$(MSBuildProjectName)' == 'uk.osric.asp.Web' and Exists('$(RepoRoot).git')">
+    <Exec Command="git rev-parse HEAD"
+          WorkingDirectory="$(RepoRoot)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommit" />
+    </Exec>
+    <ItemGroup Condition="'$(GitCommit.Trim())' != ''">
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>GitCommit</_Parameter1>
+        <_Parameter2>$(GitCommit.Trim())</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
+
 </Project>
