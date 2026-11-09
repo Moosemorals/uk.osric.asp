@@ -14,7 +14,7 @@ internal sealed record CompileOptions {
     public const int DefaultSlots = 1;
 
     /// <summary>The budget for one compile, in seconds, when none is configured.</summary>
-    public const double DefaultTimeoutSeconds = 10;
+    public const double DefaultTimeoutSeconds = 5;
 
     /// <summary>Compiles allowed to run at once.</summary>
     public int Slots { get; init; } = DefaultSlots;

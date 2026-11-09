@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.Extensions.Configuration;
 using System.Diagnostics.Metrics;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
@@ -153,6 +154,17 @@ public sealed class PageMetricsTests {
         Assert.That(capture.For("page.render.duration", "/a-scan-probably-made-this-up"), Is.Empty);
     }
 
+
+    [Test]
+    public void TheDurationScaleReachesPastTheShippedCompileDeadline() {
+        double cap = ShippedConfiguration.Read().GetValue<double>("Pages:Compile:TimeoutSeconds");
+
+        Assert.That(PageMetrics.SecondsBuckets, Is.Ordered);
+        Assert.That(
+            PageMetrics.SecondsBuckets[^1],
+            Is.GreaterThan(cap),
+            $"the compile deadline is {cap} s, so a compile recorded at it must land in a real bucket (DEC-202)");
+    }
 
     [Test]
     public void ThePublishedInventoryIsTheOneTheMeterRegisters() {

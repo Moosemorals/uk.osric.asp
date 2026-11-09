@@ -165,14 +165,16 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   what `MetricNamesTests` and the family test exist to catch. Tag names are sanitised the same way —
   the tag `page.path` is the label `page_path` — and PromQL will not parse the dotted form, so queries
   and legends use the underscore.
-- **The buckets are ours, and they follow the work.** The page durations share one explicit scale
-  whose top boundary is past the render budget, so a render recorded at its deadline lands in a real
-  bucket rather than `+Inf`. The assistant's durations are bounded by its own timeouts rather than by
-  that budget, so each has a scale of its own: a run from a second to past an hour, a first token to
-  two minutes, and a provider request to twice the silence timeout. The page scale stops at ten
-  seconds, which put every run, first token and provider request in `+Inf`. `page.image.size` has its
-  own byte scale. The SDK's default starts at 0–5 s for a seconds instrument, which would make every
-  render one column and every percentile meaningless.
+- **The buckets are ours, and they reach past the cap.** Each scale's top boundary is larger than the
+  cap its series measures, so a sample recorded at its deadline is a real bucket rather than `+Inf`
+  (DEC-202) — the sample a panel is opened for. The page durations share one scale to 10 s, past the
+  five-second compile deadline a save keeps too; a tool call has one to 20 s, past
+  `Assistant:ToolTimeoutSeconds`; the two provider waits one to 240 s, past
+  `Assistant:RequestTimeoutSeconds`; and the run's step and tool-call counts one each to 48 and 32,
+  past `Assistant:MaxSteps` and `Assistant:MaxToolCalls`. A run's own length has no cap — its timeout
+  bounds silence, not duration (DEC-119) — so that scale is sized for the work, up to an hour.
+  `page.image.size` has its own byte scale. The SDK's default starts at 0–5 s for a seconds
+  instrument, which would make every render one column and every percentile meaningless.
 - **Two gates on `/metrics`.** The app publishes on the loopback only (DEC-61), and Caddy answers
   `404` for the path on the public origin. Prometheus scrapes `app:8080` over the shared rootless
   network; see [deployment](../deploy/operations.md#metrics-and-the-status-page).

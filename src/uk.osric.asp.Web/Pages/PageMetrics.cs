@@ -45,9 +45,10 @@ internal sealed class PageMetrics : IDisposable {
 
     /// <summary>Buckets for the duration instruments, in seconds.</summary>
     /// <remarks>
-    /// One scale for every duration: they are all page-scale work. The top boundary is past the
-    /// render budget on purpose, so a render recorded at its deadline lands in a real bucket instead
-    /// of `+Inf` — a `504` is exactly the sample the status page is looking for.
+    /// One scale for every page duration: they are all page-scale work. The top boundary is past the
+    /// longest deadline these instruments run under — the compile deadline of five seconds, which a
+    /// save keeps too (DEC-43, DEC-191) — so a sample recorded at its deadline lands in a real bucket
+    /// instead of `+Inf`, and a `504` is exactly the sample the status page is looking for (DEC-202).
     /// </remarks>
     public static readonly double[] SecondsBuckets =
         [0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];

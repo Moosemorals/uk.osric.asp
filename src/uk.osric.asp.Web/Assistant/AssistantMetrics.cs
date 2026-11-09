@@ -27,36 +27,43 @@ internal sealed class AssistantMetrics : IDisposable {
         new("assistant.tokens", InstrumentKind.Counter, "{token}"),
     ];
 
-    public static readonly double[] StepBuckets = [1, 2, 3, 5, 8, 12, 16, 24];
-    public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32, 64];
+    /// <summary>Buckets for <c>assistant.run.steps</c>, in steps.</summary>
+    /// <remarks>
+    /// A run cannot take more steps than <c>Assistant:MaxSteps</c>, and the top boundary is past it, so
+    /// the run that exhausted its steps is drawn rather than counted under `+Inf` (DEC-202).
+    /// </remarks>
+    public static readonly double[] StepBuckets = [1, 2, 3, 5, 8, 12, 16, 24, 32, 48];
+
+    /// <summary>Buckets for <c>assistant.run.tool_calls</c>, in calls.</summary>
+    /// <remarks>The top boundary is past <c>Assistant:MaxToolCalls</c> for the same reason (DEC-202).</remarks>
+    public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32];
 
     /// <summary>Buckets for <c>assistant.run.duration</c>, in seconds.</summary>
     /// <remarks>
-    /// A run is bounded by <c>Assistant:RunTimeoutSeconds</c> rather than by the page render budget, so
-    /// it gets its own scale in minutes. The page scale stops at ten seconds, which is why every run
-    /// used to land in `+Inf`; the top boundary is past an hour, so a run that reaches a generous
-    /// timeout is still drawn as a real bucket.
+    /// A run's length has no cap: <c>Assistant:RunTimeoutSeconds</c> bounds the provider going quiet,
+    /// not the run (DEC-119), so this scale is sized for the work — minutes, up to an hour. The page
+    /// scale stops at ten seconds, which is why every run used to land in `+Inf`.
     /// </remarks>
     public static readonly double[] RunDurationBuckets =
         [1, 2.5, 5, 10, 30, 60, 120, 180, 300, 600, 900, 1800, 2700, 3600, 5400];
 
-    /// <summary>Buckets for <c>assistant.provider.first_token.duration</c>, in seconds.</summary>
+    /// <summary>Buckets for the provider waits, in seconds: the first token and the whole request.</summary>
     /// <remarks>
-    /// The wait before a model says anything is seconds rather than milliseconds, and a reasoning model
-    /// can be quiet for a minute. The page scale stops at ten seconds, which made this panel a wall of
-    /// `+Inf`; two minutes covers the waits worth telling apart.
+    /// Both waits are bounded by the same silence timeout, <c>Assistant:RequestTimeoutSeconds</c>, so
+    /// they share one scale whose top boundary is past it (DEC-202): a wait that reached the deadline
+    /// is a real bucket, and the row that says so is the one worth reading.
     /// </remarks>
-    public static readonly double[] FirstTokenBuckets =
-        [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 60, 120];
+    public static readonly double[] ProviderBuckets =
+        [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 60, 120, 240];
 
-    /// <summary>Buckets for <c>assistant.provider.request.duration</c>, in seconds.</summary>
+    /// <summary>Buckets for <c>assistant.tool.duration</c>, in seconds.</summary>
     /// <remarks>
-    /// A request is bounded by the silence timeout, <c>Assistant:RequestTimeoutSeconds</c>, not by the
-    /// page budget: a thinking model can take minutes to finish. Twice the default timeout is the top
-    /// boundary, so a request that reached its deadline lands in a real bucket.
+    /// A tool call is usually a few milliseconds of our own work, and bounded by
+    /// <c>Assistant:ToolTimeoutSeconds</c> when it is not; the top boundary is past that cap
+    /// (DEC-202).
     /// </remarks>
-    public static readonly double[] ProviderRequestBuckets =
-        [0.5, 1, 2.5, 5, 10, 20, 30, 60, 120, 300, 600];
+    public static readonly double[] ToolDurationBuckets =
+        [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20];
 
     /// <summary>The tool tag recorded when a call names no registered tool.</summary>
     /// <remarks>

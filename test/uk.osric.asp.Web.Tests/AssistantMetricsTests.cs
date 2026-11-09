@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.Extensions.Configuration;
 using System.Diagnostics.Metrics;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
@@ -49,27 +50,31 @@ public sealed class AssistantMetricsTests {
     }
 
 
+    /// <summary>DEC-202: a sample that reached its cap is the one the panel was opened for.</summary>
     [Test]
-    public void TheRunDurationScaleReachesPastAnHour() {
-        Assert.That(AssistantMetrics.RunDurationBuckets, Is.Ordered);
-        Assert.That(
-            AssistantMetrics.RunDurationBuckets[^1],
-            Is.GreaterThan(3600),
-            "a run is measured in minutes, so the top boundary is past an hour rather than at the page budget");
+    public void EveryScaleReachesPastTheCapTheSiteShips() {
+        IConfiguration shipped = ShippedConfiguration.Read();
+
+        (string Key, double[] Buckets)[] scales = [
+            ("Assistant:RequestTimeoutSeconds", AssistantMetrics.ProviderBuckets),
+            ("Assistant:ToolTimeoutSeconds", AssistantMetrics.ToolDurationBuckets),
+            ("Assistant:MaxSteps", AssistantMetrics.StepBuckets),
+            ("Assistant:MaxToolCalls", AssistantMetrics.ToolCallBuckets),
+        ];
+
+        foreach ((string key, double[] buckets) in scales) {
+            double cap = shipped.GetValue<double>(key);
+
+            Assert.That(buckets, Is.Ordered, key);
+            Assert.That(buckets[^1], Is.GreaterThan(cap), $"{key} is {cap}, so a sample recorded at it would be +Inf");
+        }
     }
 
     [Test]
-    public void TheProviderScalesReachPastTheSilenceTimeout() {
-        Assert.That(AssistantMetrics.FirstTokenBuckets, Is.Ordered);
-        Assert.That(AssistantMetrics.ProviderRequestBuckets, Is.Ordered);
-        Assert.That(
-            AssistantMetrics.ProviderRequestBuckets[^1],
-            Is.GreaterThan(300),
-            "a request that reaches the default silence timeout lands in a real bucket");
-        Assert.That(
-            AssistantMetrics.FirstTokenBuckets[^1],
-            Is.GreaterThan(10),
-            "the wait before a model answers is not page-scale work");
+    public void TheRunDurationScaleCoversAnHourOfWork() {
+        // A run's length has no cap: its timeout bounds the provider going quiet, not the run (DEC-119).
+        Assert.That(AssistantMetrics.RunDurationBuckets, Is.Ordered);
+        Assert.That(AssistantMetrics.RunDurationBuckets[^1], Is.GreaterThanOrEqualTo(3600));
     }
 
     [Test]

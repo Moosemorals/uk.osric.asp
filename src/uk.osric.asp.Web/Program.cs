@@ -244,9 +244,9 @@ internal class Program {
             .AddView("page.fetch.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.image.size", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.ImageBuckets })
             .AddView("assistant.run.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.RunDurationBuckets })
-            .AddView("assistant.provider.first_token.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.FirstTokenBuckets })
-            .AddView("assistant.provider.request.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ProviderRequestBuckets })
-            .AddView("assistant.tool.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("assistant.provider.first_token.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ProviderBuckets })
+            .AddView("assistant.provider.request.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ProviderBuckets })
+            .AddView("assistant.tool.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ToolDurationBuckets })
             .AddView("assistant.run.steps", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.StepBuckets })
             .AddView("assistant.run.tool_calls", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ToolCallBuckets })
             .AddPrometheusExporter());

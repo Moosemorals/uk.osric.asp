@@ -57,7 +57,7 @@ The feature bounds run duration, concurrency, queue depth, steps, tool calls, ar
 results, context and event replay, and bounds each provider request by silence rather than by duration:
 the deadline is re-armed for every event the provider sends, so a model that reasons for minutes is not
 cut off, while a stalled stream ends the step with `provider_timeout`. The whole run uses the same
-five-minute silence rule, re-armed per streamed event; keep-alive comments are not events, and the
+two-minute silence rule, re-armed per streamed event; keep-alive comments are not events, and the
 clock stops while a tool runs or an approval waits for its owner, because neither is the run going
 quiet. An approval the owner never answers leaves the run `awaiting_approval` until they stop the run
 or delete the conversation, or the host restarts. A run that stops leaves its reason in the
