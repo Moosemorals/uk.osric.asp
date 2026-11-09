@@ -120,6 +120,12 @@ internal sealed class PageChain {
             .Add<IPageLayout>(layout)
             .Add<IMarkdownRenderer>(_environment.Markdown);
 
+        // A layout is markup, so it is offered the read and not the write: one that saved itself
+        // would append a revision on every render it wraps (DEC-194).
+        if (!isLayout) {
+            features.Add<IPageWriter>(new PageWriterScope(key, _environment.Saver, _user, writable: !_isHead));
+        }
+
         return new SimpleContext(
             _loggerFactory,
             _request,

@@ -30,9 +30,9 @@ returns it or throws naming the interface, so the page decides whether absence i
 decides what is registered — a page cannot add or replace a capability — and a capability is either
 registered or absent, never `null` (DEC-142).
 
-Six capabilities are registered today — three that do I/O and are bounded by the render, one that
-is the page's slots in its document, one that is a pure renderer, and one that is a fact about the
-build:
+Seven capabilities are registered today — four that do I/O and are bounded by the render, one that
+is the page's slots in its document, one that is a pure renderer, and one that is a fact about 
+the build:
 
 - `IBuildInfo` says which build is answering: `Commit` is the full git commit hash, or `null` when
   the build did not come from a checkout. It is a capability because the page API denies both the
@@ -51,6 +51,15 @@ build:
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets
   bound it (DEC-168–DEC-175). See [source storage](storage.md#source-storage).
+- `IPageWriter` saves the calling page's own source: `SaveAsync(template)` answers with a
+  `PageSaveResult` — the new revision's hash and the compiler's diagnostics as `PageDiagnostic`
+  values — and the handle is bound to `ctx.Path`, so a page writes itself and nothing else. It
+  compiles before it stores, so an error is stored and reported and a warning still serves. **The
+  write requires a signed-in visitor**: unlike the read, it refuses an anonymous render before it
+  stores anything, and a `HEAD`, an ended render or a second save in one render is a page bug. A
+  save belongs to the next request, and a save that has started finishes even if the render times
+  out. A layout is offered the read and not the write (DEC-189–DEC-196). See
+  [source storage](storage.md#source-storage).
 - `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
   `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
@@ -102,9 +111,10 @@ answer for are listed in `Pages:ReservedPaths`, refused by the editor and never 
 ## Compiled pages
 
 Compiling is the expensive part of serving a page, so it happens when a page is saved rather than
-when it is viewed. `EditorEndpoint` hands the template to `PageEditor`, which compiles it through
-`PageImageBuilder` and stores the emitted assembly beside the template in the same row; `PageEndpoint`
-then reads the image and runs it through `PageRenderer`. Four derived columns carry the result: `TemplateHash`, `RuntimeId`, `Image` and `Diagnostics`.
+when it is viewed. A save — from `EditorEndpoint`, from the assistant's tools, or from a page saving
+itself — goes through `PageSaver`, which compiles the template through `PageImageBuilder` and stores
+the emitted assembly beside the template in the same row; `PageEndpoint` then reads the image and runs
+it through `PageRenderer`. Four derived columns carry the result: `TemplateHash`, `RuntimeId`, `Image` and `Diagnostics`.
 
 A stored image is trusted only when both keys match:
 

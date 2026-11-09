@@ -6,6 +6,8 @@
 (<code>IPageCatalog</code>), and the worked example for the editor's history and revision views
 (<a href="/edit">IDEA-017</a>). Every value below is written with <code>ctx.Write</code>, because page
 source is exactly what a view like this must not run.</p>
+<p><a href="/scratch">Scratch</a> is this read with a write on top: a page that shows and saves its
+own source.</p>
 <p><a href="/recent">Recent changes</a> is the same read without the guard: it lists keys and times,
 this page shows source, and the one line of difference between them is
 <code>if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }</code>.</p>

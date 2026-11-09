@@ -63,6 +63,22 @@ internal static class PageAuthorPrompt {
             <% } %>
             </ul>
             """),
+        ("save-own-source", """
+            <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+            <% IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+               PageSource? current = await catalog.ReadAsync(ctx.Path);
+               string draft = current?.Source ?? "";
+               PageSaveResult? saved = null;
+               if (ctx.Request.Method == "POST" && ctx.Request.Form.TryGetValue("template", out string? submitted) && submitted is not null) {
+                   draft = submitted;
+                   saved = await ctx.Features.GetRequired<IPageWriter>().SaveAsync(submitted);
+               } %>
+            <h1>Draft</h1>
+            <% if (saved is not null) { %><p>Saved revision <%= saved.Hash %>. Reload to see it.</p><% } %>
+            <form method="post" class="form"><%== ctx.AntiforgeryField %>
+                <fieldset><legend>Source</legend><textarea name="template" id="template"><%= draft %></textarea></fieldset>
+                <button>Save</button></form>
+            """),
         ("json-fetch", """
             <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
                HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/status");
@@ -227,6 +243,29 @@ internal static class PageAuthorPrompt {
         at most 512 KiB of template across the page and its layouts; both are
         refusals, not truncations. The seeded `/recent` is a public listing and
         the seeded `/pages` guards the same read.
+
+        ## Saving the page itself
+        `ctx.Features.GetRequired<IPageWriter>().SaveAsync(template)` saves the
+        source of the page that calls it, and nothing else: the handle is bound
+        to `ctx.Path` and takes no key. It answers with a `PageSaveResult` —
+        `Hash` for the new revision and `Diagnostics`, which are
+        `PageDiagnostic` values with `Severity`, `Line`, `Column`, `Code` and
+        `Message`. `HasErrors` means the page cannot be served until the errors
+        are fixed; `HasWarnings` does not stop it. A save compiles before it
+        stores, so a template with an error is saved and reported.
+
+        The write needs a signed-in visitor. An anonymous render is refused
+        before anything is stored, so a page with a save form must also guard
+        its own view with the ordinary `ctx.User` check, and must carry
+        `<%== ctx.AntiforgeryField %>` in the form. Save on a `POST`, never on a
+        `GET`, and never during a `HEAD`. The save belongs to the next request:
+        the response in hand is still the page as it was, so show the result the
+        save returned and let a reload serve the new source. One render saves
+        once. A page that shows its own source reads it with
+        `IPageCatalog.ReadAsync(ctx.Path)`, and compares that hash with the one
+        the form carried when it wants to refuse a stale form. The seeded
+        `/scratch` is the worked example. A layout is offered the read and not
+        the write.
 
         ## Markdown
         A page renders Markdown through `ctx.Features.GetRequired<IMarkdownRenderer>()`

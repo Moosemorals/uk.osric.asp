@@ -14,6 +14,8 @@ using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
+// The page contract has a diagnostic value of its own, so this file names the compiler's.
+using PageDiagnostic = uk.osric.asp.Core.Compilation.PageDiagnostic;
 
 /// <summary>
 /// The endpoint that serves pages, and the only one that does so.

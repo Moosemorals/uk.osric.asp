@@ -27,6 +27,7 @@ internal sealed class PageHarness : IDisposable {
         FakePageStateStore? state = null,
         FakePageFetcher? fetch = null,
         FakePageReadStore? readStore = null,
+        FakePageRevisionStore? revisionStore = null,
         PageStorageOptions? storageOptions = null,
         ILogger<PageRenderer>? rendererLogger = null,
         PageFetchOptions? fetchOptions = null,
@@ -47,6 +48,8 @@ internal sealed class PageHarness : IDisposable {
         Metrics = new PageMetrics();
 
         Images = new PageImageBuilder(Compiler, Budget, Metrics, NullLogger<PageImageBuilder>.Instance);
+        Revisions = revisionStore ?? new FakePageRevisionStore(storage);
+        Saver = new PageSaver(Revisions, Images, Metrics, NullLogger<PageSaver>.Instance);
         Renderer = new PageRenderer(
             storage,
             Compiler,
@@ -55,7 +58,7 @@ internal sealed class PageHarness : IDisposable {
             Budget,
             Health,
             rendererLogger ?? NullLogger<PageRenderer>.Instance);
-        Editor = new PageEditor(storage, Images, Metrics, NullLogger<PageEditor>.Instance);
+        Editor = new PageEditor(storage, Images, Saver);
     }
 
     public RenderOptions Options { get; }
@@ -91,6 +94,12 @@ internal sealed class PageHarness : IDisposable {
     public PageMetrics Metrics { get; }
 
     public PageImageBuilder Images { get; }
+
+    /// <summary>Where every save in this harness is written.</summary>
+    public FakePageRevisionStore Revisions { get; }
+
+    /// <summary>The one save path every caller in this harness shares.</summary>
+    public PageSaver Saver { get; }
 
     public PageRenderer Renderer { get; }
 
@@ -134,7 +143,8 @@ internal sealed class PageHarness : IDisposable {
         ReadBudget? readBudget = null,
         bool withFetch = true,
         bool withStorage = true,
-        bool withCatalog = true) {
+        bool withCatalog = true,
+        bool withWriter = true) {
         PageFeatures features = new();
 
         if (withStorage) {
@@ -166,6 +176,11 @@ internal sealed class PageHarness : IDisposable {
                 new ReservedPaths(ReservedPaths.Default),
                 ContentTypes);
             features.Add<IPageCatalog>(catalog);
+        }
+
+        if (withWriter) {
+            PageWriterScope writer = new(path, Saver, user, writable: !isHead);
+            features.Add<IPageWriter>(writer);
         }
 
         return new SimpleContext(

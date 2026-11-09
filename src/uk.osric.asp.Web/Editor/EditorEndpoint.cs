@@ -17,6 +17,9 @@ using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
+// The page contract has a diagnostic value of its own, so this file names the compiler's.
+using PageDiagnostic = uk.osric.asp.Core.Compilation.PageDiagnostic;
+using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSeverity;
 
 /// <summary>Serves the editor: templates, revisions, save, rename, delete and seed restore.</summary>
 internal sealed class EditorEndpoint {

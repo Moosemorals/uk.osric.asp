@@ -62,3 +62,44 @@ uk.osric.asp.Sdk.PageSource.Source.init -> void
 ~override uk.osric.asp.Sdk.PageEntry.ToString() -> string
 ~override uk.osric.asp.Sdk.PageRevisionInfo.Equals(object obj) -> bool
 ~override uk.osric.asp.Sdk.PageRevisionInfo.ToString() -> string
+override uk.osric.asp.Sdk.PageDiagnostic.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSaveResult.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageSaveResult.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSaveResult.ToString() -> string!
+static uk.osric.asp.Sdk.PageDiagnostic.operator !=(uk.osric.asp.Sdk.PageDiagnostic left, uk.osric.asp.Sdk.PageDiagnostic right) -> bool
+static uk.osric.asp.Sdk.PageDiagnostic.operator ==(uk.osric.asp.Sdk.PageDiagnostic left, uk.osric.asp.Sdk.PageDiagnostic right) -> bool
+static uk.osric.asp.Sdk.PageSaveResult.operator !=(uk.osric.asp.Sdk.PageSaveResult? left, uk.osric.asp.Sdk.PageSaveResult? right) -> bool
+static uk.osric.asp.Sdk.PageSaveResult.operator ==(uk.osric.asp.Sdk.PageSaveResult? left, uk.osric.asp.Sdk.PageSaveResult? right) -> bool
+uk.osric.asp.Sdk.IPageWriter
+uk.osric.asp.Sdk.IPageWriter.SaveAsync(string! template) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSaveResult!>!
+uk.osric.asp.Sdk.PageDiagnostic
+uk.osric.asp.Sdk.PageDiagnostic.Code.get -> string!
+uk.osric.asp.Sdk.PageDiagnostic.Code.init -> void
+uk.osric.asp.Sdk.PageDiagnostic.Column.get -> int?
+uk.osric.asp.Sdk.PageDiagnostic.Column.init -> void
+uk.osric.asp.Sdk.PageDiagnostic.Deconstruct(out uk.osric.asp.Sdk.PageDiagnosticSeverity Severity, out int? Line, out int? Column, out string! Code, out string! Message) -> void
+uk.osric.asp.Sdk.PageDiagnostic.Equals(uk.osric.asp.Sdk.PageDiagnostic other) -> bool
+uk.osric.asp.Sdk.PageDiagnostic.Line.get -> int?
+uk.osric.asp.Sdk.PageDiagnostic.Line.init -> void
+uk.osric.asp.Sdk.PageDiagnostic.Message.get -> string!
+uk.osric.asp.Sdk.PageDiagnostic.Message.init -> void
+uk.osric.asp.Sdk.PageDiagnostic.PageDiagnostic() -> void
+uk.osric.asp.Sdk.PageDiagnostic.PageDiagnostic(uk.osric.asp.Sdk.PageDiagnosticSeverity Severity, int? Line, int? Column, string! Code, string! Message) -> void
+uk.osric.asp.Sdk.PageDiagnostic.Severity.get -> uk.osric.asp.Sdk.PageDiagnosticSeverity
+uk.osric.asp.Sdk.PageDiagnostic.Severity.init -> void
+uk.osric.asp.Sdk.PageDiagnosticSeverity
+uk.osric.asp.Sdk.PageDiagnosticSeverity.Error = 1 -> uk.osric.asp.Sdk.PageDiagnosticSeverity
+uk.osric.asp.Sdk.PageDiagnosticSeverity.Warning = 0 -> uk.osric.asp.Sdk.PageDiagnosticSeverity
+uk.osric.asp.Sdk.PageSaveResult
+uk.osric.asp.Sdk.PageSaveResult.<Clone>$() -> uk.osric.asp.Sdk.PageSaveResult!
+uk.osric.asp.Sdk.PageSaveResult.Deconstruct(out string! Hash, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
+uk.osric.asp.Sdk.PageSaveResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>!
+uk.osric.asp.Sdk.PageSaveResult.Diagnostics.init -> void
+uk.osric.asp.Sdk.PageSaveResult.Equals(uk.osric.asp.Sdk.PageSaveResult? other) -> bool
+uk.osric.asp.Sdk.PageSaveResult.HasErrors.get -> bool
+uk.osric.asp.Sdk.PageSaveResult.HasWarnings.get -> bool
+uk.osric.asp.Sdk.PageSaveResult.Hash.get -> string!
+uk.osric.asp.Sdk.PageSaveResult.Hash.init -> void
+uk.osric.asp.Sdk.PageSaveResult.PageSaveResult(string! Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
+~override uk.osric.asp.Sdk.PageDiagnostic.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageDiagnostic.ToString() -> string

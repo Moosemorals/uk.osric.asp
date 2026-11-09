@@ -144,9 +144,29 @@ internal sealed class SqlitePageStore(
                 revision.Template);
     }
 
-    public async Task SavePageAsync(PageTemplate template, CancellationToken cancellationToken = default) {
+    public Task SavePageAsync(PageTemplate template, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(template);
 
+        return StoreRevisionAsync(database, template, logger, cancellationToken);
+    }
+
+    /// <summary>Stores one revision and its head, retrying a revision id another writer took.</summary>
+    /// <param name="database">The context to write through.</param>
+    /// <param name="template">The revision to store.</param>
+    /// <param name="logger">Where a retry is recorded.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <returns>The revision that was stored, which is a retry when another writer took the id.</returns>
+    /// <remarks>
+    /// The editor's save, an imported batch and a page saving its own source all end here, so the
+    /// transaction, the row shape and the retry cannot drift apart (DEC-192). The single save passes
+    /// the request's context; a page's save opens one of its own, because its task can outlive the
+    /// request (DEC-172).
+    /// </remarks>
+    internal static async Task<PageTemplate> StoreRevisionAsync(
+        StorageDbContext database,
+        PageTemplate template,
+        ILogger logger,
+        CancellationToken cancellationToken) {
         PageTemplate revision = template;
         for (int attempt = 0; ; attempt++) {
             try {
@@ -154,7 +174,7 @@ internal sealed class SqlitePageStore(
                 await WriteRevisionAsync(database, revision, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
-                return;
+                return revision;
             } catch (DbUpdateException exception) when (attempt + 1 < SqliteErrors.RetryCount && SqliteErrors.IsUniqueViolation(exception)) {
                 // Expected and retried: another writer took the revision id between the read and the
                 // write. Debug because it is the store being correct, not a failure.

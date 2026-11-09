@@ -10,6 +10,8 @@ using System.Security.Claims;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>What happens when a page is wrapped in a layout, and when it is not.</summary>
@@ -524,6 +526,50 @@ public sealed class PageLayoutChainTests {
     }
 
     [Test]
+    public async Task EveryContentLayerIsOfferedTheWriterAsync() {
+        Store("/page", """
+            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %>
+            <span id="page-writer"><%= (ctx.Features.Get<IPageWriter>() is null ? "no" : "yes") %></span>
+            """);
+
+        Rendered rendered = await RenderAsync("/page");
+
+        Assert.That(rendered.Body, Does.Contain("<span id=\"page-writer\">yes</span>"));
+    }
+
+    [Test]
+    public async Task ALayoutIsNotOfferedTheWriterAsync() {
+        Store("/_layout", """
+            <% var layout = ctx.Features.GetRequired<IPageLayout>(); %>
+            <%== PageDocument.Head(layout.Title) %><span id="layout-writer"><%= (ctx.Features.Get<IPageWriter>() is null ? "no" : "yes") %></span><%== layout.Body %>
+            """);
+        Store("/page", """
+            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            """);
+
+        Rendered rendered = await RenderAsync("/page");
+
+        Assert.That(rendered.Body, Does.Contain("<span id=\"layout-writer\">no</span>"), "a layout is markup, not a writer");
+    }
+
+    [Test]
+    public async Task ALayoutThatAsksForTheWriterIsRefusedAsync() {
+        Store("/_layout", """
+            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+               _ = ctx.Features.GetRequired<IPageWriter>(); %>
+            <%== PageDocument.Head(layout.Title) %><%== layout.Body %>
+            """);
+        Store("/page", """
+            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            """);
+
+        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => RenderAsync("/page"));
+
+        Assert.That(refused?.Message, Does.Contain(nameof(IPageWriter)));
+    }
+
+    [Test]
     public async Task ALayoutMayReadTheStoreAsync() {
         _readStore.Save("/blog", "<h1>From the store</h1>");
         Store("/_layout", """
@@ -599,6 +645,7 @@ public sealed class PageLayoutChainTests {
             read ?? new PageReadOptions(),
             _state,
             _readStore,
+            CreateSaver(options),
             _fetcher,
             _metrics,
             _antiforgery,
@@ -607,6 +654,13 @@ public sealed class PageLayoutChainTests {
         await PageEndpoint.HandleAsync(context, CreateRenderer(options), NullLoggerFactory.Instance, environment);
 
         return new Rendered(context, await TestHttp.ReadBodyAsync(context));
+    }
+
+    private PageSaver CreateSaver(RenderOptions options) {
+        PageBudget budget = new(options, new CompileOptions());
+        PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
+
+        return new PageSaver(new FakePageRevisionStore(_storage), images, _metrics, NullLogger<PageSaver>.Instance);
     }
 
     private PageRenderer CreateRenderer(RenderOptions options) {

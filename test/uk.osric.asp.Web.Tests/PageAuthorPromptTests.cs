@@ -9,6 +9,8 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Pages;
+// The page contract has a diagnostic value of its own, so this file names the compiler's.
+using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSeverity;
 
 [TestFixture]
 public sealed class PageAuthorPromptTests {
@@ -223,6 +225,26 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IBuildInfo>()"));
             Assert.That(prompt, Does.Contain("full git commit hash"));
         });
+    }
+
+    public void TheSaveSectionSaysTheWriteNeedsASignedInVisitor() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IPageWriter>().SaveAsync(template)"));
+            Assert.That(prompt, Does.Contain("bound"));
+            Assert.That(prompt, Does.Contain("PageSaveResult"));
+            Assert.That(prompt, Does.Contain("PageDiagnostic"));
+            Assert.That(prompt, Does.Contain("needs a signed-in visitor"));
+            Assert.That(prompt, Does.Contain("belongs to the next request"));
+            Assert.That(prompt, Does.Contain("never during a `HEAD`"));
+            Assert.That(prompt, Does.Contain("layout is offered the read and not"));
+        });
+    }
+
+    [Test]
+    public void TheSaveOwnSourceExampleIsPresent() {
+        Assert.That(PageAuthorPrompt.Examples.Select(example => example.Name), Does.Contain("save-own-source"));
     }
 
     [Test]
