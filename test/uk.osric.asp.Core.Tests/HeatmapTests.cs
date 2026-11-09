@@ -70,7 +70,7 @@ public sealed class HeatmapTests {
         string svg = Render(Row("0.1", 1, 0, (double?)null), Row("0.5", 2, 3, 4));
 
         Assert.That(Cells(svg), Is.EqualTo(3), "one run in the first row and two in the second");
-        Assert.That(svg, Does.Contain(">0.1 seconds: 1 renders/s (05:00)<"));
+        Assert.That(svg, Does.Contain(">0.1: 1 renders/s (05:00)<"));
     }
 
     [Test]
@@ -78,15 +78,14 @@ public sealed class HeatmapTests {
         string svg = Render(Row("0.5", 4, 4, 4, 0, 4));
 
         Assert.That(Cells(svg), Is.EqualTo(2), "a run of three and a lone cell");
-        Assert.That(svg, Does.Contain("<title>0.5 seconds: 12 renders/s (05:00–05:02)</title>"));
+        Assert.That(svg, Does.Contain("<title>0.5: 12 renders/s (05:00–05:02)</title>"));
     }
 
     [Test]
     public void TheBusiestRunGetsTheDarkestShade() {
         string svg = Render(Row("0.1", 1, 100));
 
-        Assert.That(svg, Does.Contain("heat heat-5"));
-        Assert.That(svg, Does.Contain("fill=\"#1e3a8a\""));
+        Assert.That(svg, Does.Contain("fill=\"#1e3a8a\""), "the darkest shade is the busiest run");
     }
 
     [Test]
@@ -175,7 +174,6 @@ public sealed class HeatmapTests {
     private static string Values(HeatmapRow row) =>
         string.Join(' ', row.Points.Select(point => point.Value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "null"));
 
-    // Cells are the run rects; the shade legend's swatches carry the same classes plus "legend".
-    private static int Cells(string svg) =>
-        (svg.Split("<rect class=\"heat heat-").Length - 1) - (svg.Split(" legend\"").Length - 1);
+    // Cells are the run rects, which carry no class; the shade legend's swatches do.
+    private static int Cells(string svg) => svg.Split("<rect x=\"").Length - 1;
 }

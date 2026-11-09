@@ -57,7 +57,7 @@ public sealed class StatusPageTests : IntegrationTest {
     }
 
     [Test]
-    public async Task StatusRendersTheShellForTheOwner() {
+    public async Task StatusRendersTheShellAndEveryPanelForTheOwner() {
         using HttpClient client = await CreateSignedInClientAsync();
 
         HttpResponseMessage response = await client.GetAsync("/status");
@@ -66,7 +66,12 @@ public sealed class StatusPageTests : IntegrationTest {
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(body, Does.Contain("<h1>Status</h1>"));
         Assert.That(body, Does.Contain("<nav class=\"status-nav\" aria-label=\"Time window\">"));
-        Assert.That(body, Does.Not.Contain("<svg"), "the page has no panels yet");
+        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Pages</h2>"));
+        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Assistant</h2>"));
+        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Host</h2>"));
+        Assert.That(body.Split("<figure class=\"panel\">").Length - 1, Is.EqualTo(StatusCatalogue.Panels.Count));
+        Assert.That(body, Does.Contain("<svg class=\"chart\""));
+        Assert.That(body, Does.Contain("<svg class=\"heatmap\""));
     }
 
     [Test]
@@ -79,6 +84,17 @@ public sealed class StatusPageTests : IntegrationTest {
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">7d</span>"));
         Assert.That(body, Does.Not.Contain("href=\"/status?duration=7d\""));
+    }
+
+    [Test]
+    public async Task AFortnightOfSamplesStillFitsTheMarkupBudget() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync("/status?duration=30d");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(body.Length, Is.LessThan(1_500_000), $"the page is {body.Length} bytes");
     }
 
     /// <summary>Answers every query with the same two-sample series; there is no Prometheus to ask.</summary>

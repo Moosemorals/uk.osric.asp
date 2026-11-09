@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Tests;
 using System.Diagnostics.Metrics;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
+using uk.osric.asp.Web.Metrics;
 
 [TestFixture]
 [NonParallelizable]
@@ -46,6 +47,35 @@ public sealed class AssistantMetricsTests {
         Assert.That(measurements.Select(item => item.Tags), Has.None.Contain("runId"));
         Assert.That(measurements.Select(item => item.Tags), Has.None.Contain("conversationId"));
     }
+
+
+    [Test]
+    public void ThePublishedInventoryIsTheOneTheMeterRegisters() {
+        List<(string Name, InstrumentKind Kind)> published = [];
+        using MeterListener listener = new();
+        listener.InstrumentPublished = (instrument, current) => {
+            if (instrument.Meter.Name == AssistantMetrics.MeterName) {
+                published.Add((instrument.Name, KindOf(instrument)));
+            }
+        };
+        listener.Start();
+        using AssistantMetrics metrics = new();
+        listener.Dispose();
+
+        Assert.That(
+            published.Distinct().OrderBy(entry => entry.Name, StringComparer.Ordinal).ToArray(),
+            Is.EqualTo(AssistantMetrics.Instruments
+                .OrderBy(instrument => instrument.Name, StringComparer.Ordinal)
+                .Select(instrument => (instrument.Name, instrument.Kind))
+                .ToArray()));
+    }
+
+    private static InstrumentKind KindOf(System.Diagnostics.Metrics.Instrument instrument) => instrument switch {
+        Histogram<double> or Histogram<long> => InstrumentKind.Histogram,
+        Counter<double> or Counter<long> => InstrumentKind.Counter,
+        ObservableGauge<double> or ObservableGauge<long> => InstrumentKind.Gauge,
+        _ => throw new InvalidOperationException($"{instrument.Name} is a kind the inventory does not know."),
+    };
 
     private static string FormatTags(ReadOnlySpan<KeyValuePair<string, object?>> tags) =>
         string.Join(',', tags.ToArray().Select(tag => $"{tag.Key}={tag.Value}"));

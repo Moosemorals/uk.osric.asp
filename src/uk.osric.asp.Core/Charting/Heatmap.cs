@@ -31,7 +31,11 @@ public static class Heatmap {
     private const double SwatchGap = 2;
 
     /// <summary>The most columns one heatmap draws.</summary>
-    internal const int MaxColumns = 120;
+    /// <remarks>
+    /// A distribution over time does not need one column per scrape: sixty columns still show the
+    /// shape of a day and keep sixteen heatmaps inside the page's markup budget.
+    /// </remarks>
+    internal const int MaxColumns = 60;
 
     /// <summary>Converts cumulative series into per-bucket values.</summary>
     /// <param name="cumulative">The <c>le</c> series, in any order.</param>
@@ -249,13 +253,13 @@ public static class Heatmap {
             ? ChartChrome.Instant(from, frame.Zone, span)
             : ChartChrome.Instant(from, frame.Zone, span) + "–" + ChartChrome.Instant(to, frame.Zone, span);
 
-        svg.Append("<rect class=\"heat heat-").Append(level)
-            .Append("\" x=\"").Append(SvgText.Number(left + CellGap))
+        // No class: the fill attribute carries the shade, and the run's title carries its meaning.
+        svg.Append("<rect x=\"").Append(SvgText.Number(left + CellGap))
             .Append("\" y=\"").Append(SvgText.Number(y + CellGap))
             .Append("\" width=\"").Append(SvgText.Number(width))
             .Append("\" height=\"").Append(SvgText.Number(cellHeight - (CellGap * 2)))
             .Append("\" fill=\"").Append(SvgText.HeatFill(level))
-            .Append("\"><title>").Append(SvgText.Escape($"{label} {frame.YTitle}: {Format(total)} {valueUnit} ({when})"))
+            .Append("\"><title>").Append(SvgText.Escape($"{label}: {Format(total)} {valueUnit} ({when})"))
             .Append("</title></rect>\n");
     }
 
