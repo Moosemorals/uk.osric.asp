@@ -96,12 +96,12 @@ or does not, and the way back is another import.
 
 Built-in page templates live in `src/uk.osric.asp.Web/Pages/Seeds`, included as content in build and
 publish output. Each file is a complete page template and its filename becomes the page path. The
-response type follows that name's extension through `Pages:ContentTypes`, so the scripts and
-stylesheets are pure source with no directive of their own; `/rocket.svg` sets `image/svg+xml`
-itself because `.svg` is not in the map. `/site.css` holds the site's look, `/layout.css` the
-rules the document shell's markup needs (see [the document shell](shell.md#the-document-shell)),
-while `/status.css` holds
-dashboard styles and is linked only by `/status`. Editing a seed file changes the initial content for
+response type follows that name's extension through `Pages:ContentTypes`, so the scripts,
+stylesheets and SVG are pure source with no directive of their own; the seeded `/rocket.svg` sets
+`image/svg+xml` explicitly as well, which is the same answer the map gives. `/site.css` holds the
+site's look, `/layout.css` the rules the document shell's markup needs (see [the document
+shell](shell.md#the-document-shell)), while `/status.css` holds dashboard styles and is linked only
+by `/status`. Editing a seed file changes the initial content for
 a never-created page, not an existing database page. The authenticated restore action applies the
 bundled source to an existing or tombstoned page as a new revision. `/edit` lists every page, with the
 seeded ones under their own heading below the owner's; a seeded row carries a restore button that is
