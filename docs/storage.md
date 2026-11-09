@@ -50,6 +50,20 @@ archives, backups or filesystem snapshots. Rotate exposed secrets and clean exte
 separately. Runtime-change cleanup of obsolete images and symbols is future work; source and
 revision identity are retained unless explicitly scrubbed.
 
+A stored page may read the same store through `ctx.Features.GetRequired<IPageCatalog>()`
+(DEC-168–DEC-175). The read is a capability of its own rather than `IPageStore` because the latter
+is scoped to the request's context and a page's task can outlive the request: `IPageReadStore` is a
+read-only singleton over the context factory, it answers with small `Web` records and never with a
+`PagePath`, and `PageCatalogScope` maps them to the three `Sdk` values. A listing returns every head
+the store holds — live, tombstoned, seeded and reserved — marked `IsDeleted`, `IsReserved` and
+`IsHtml`, and a prefix selects a subtree rather than a string prefix. `Pages:Read:MaxRowsPerList`
+(500 default) is enforced in the statement and refuses one row past the cap,
+`Pages:Read:MaxSourceCharsPerRender` (512 KiB default) is one `ReadBudget` shared by every layer of
+the chain and refuses rather than truncating, and both the deadline and abandonment stop a read. The
+read is as public as the page that calls it: the host adds no gate, a page that wants privacy writes
+the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that
+page. The shell keeps every write — save, delete, scrub, restore, import and export (DEC-175).
+
 ### Import and export
 
 A site's pages can leave it and come back. `/admin/export` lists every live page that is addressable

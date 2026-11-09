@@ -12,6 +12,7 @@ can improve it at <a href="/edit/help">/edit/help</a>.</p>
         <li><a href="#head-and-scripts">Stylesheets, head and scripts</a></li>
         <li><a href="#syntax">Template syntax</a></li>
         <li><a href="#context">Context and capabilities</a></li>
+        <li><a href="#catalog">Reading the page store</a></li>
         <li><a href="#markdown">Markdown</a></li>
         <li><a href="#private">Private pages and forms</a></li>
         <li><a href="#assets">Assets, seeds and recovery</a></li>
@@ -205,6 +206,43 @@ LINQ helpers, the explicit base types the contract uses, and the system exceptio
 catch. <code>System.IO</code>, <code>System.Net</code>, <code>System.Reflection</code>,
 <code>System.Diagnostics</code>, regular expressions, expression trees, interop, threading beyond
 <code>CancellationToken</code>, <code>Microsoft.*</code> and host namespaces are not available.</p>
+
+<h2 id="catalog">Reading the page store</h2>
+<p><code>IPageCatalog</code> is a read-only view of the site's page store: list the heads under a
+prefix, read a live page's template, list a page's history, and read one retained revision by its
+key and hash. It never meets an image, a symbol or a write; saving is a separate capability.</p>
+<pre class="source" tabindex="0"><code>&lt;% IPageCatalog catalog = ctx.Features.GetRequired&lt;IPageCatalog&gt;();
+   System.Collections.Generic.IReadOnlyList&lt;PageEntry&gt; pages = await catalog.ListAsync("/blog");
+   PageSource? page = await catalog.ReadAsync("/blog");
+   System.Collections.Generic.IReadOnlyList&lt;PageRevisionInfo&gt; history = await catalog.RevisionsAsync("/blog"); %&gt;
+&lt;ul&gt;
+&lt;% foreach (PageEntry entry in pages) { %&gt;
+    &lt;li&gt;&lt;%= entry.Key %&gt; — &lt;%= entry.IsDeleted ? "deleted" : "live" %&gt;&lt;/li&gt;
+&lt;% } %&gt;
+&lt;/ul&gt;</code></pre>
+<p>A prefix is a subtree, not a string prefix: <code>"/blog"</code> lists <code>/blog</code> and
+<code>/blog/post</code>, never <code>/blogroll</code>. The listing returns every head the store
+holds — live pages, tombstones, seeded assets and reserved keys — each marked with
+<code>IsDeleted</code>, <code>IsReserved</code> and <code>IsHtml</code>, so a view filters rather than
+re-deriving the host's rules. A tombstone has no source: it is listed as deleted and reads as absent,
+while its history stays readable.</p>
+<p><strong>The read is as public as the page that calls it.</strong> There is no gate in the host: an
+anonymous visitor gets the same answers a signed-in one does. A page that wants its listing or its
+source private writes the ordinary guard at the top of its own source, exactly as any private page
+does:</p>
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;</code></pre>
+<p>The trade is worth stating plainly: a page that calls <code>ReadAsync</code> or
+<code>ReadRevisionAsync</code> publishes the source it reads to whoever can reach that page, including
+a template whose own guard hides its output, and including the history of a deleted page until it is
+scrubbed. The seeded <a href="/recent">/recent</a> is a public listing and the seeded
+<a href="/pages">/pages</a> is a guarded source and history view: the same capability, with and
+without that one line. Both are demonstrations of this capability and of the editor's cheap half
+(IDEA-017), not the editor itself.</p>
+<p>The read is bounded. One listing returns at most 500 rows and refuses rather than truncating, and
+one render may pull in at most 512 KiB of template across the page and its layouts, which is also a
+refusal rather than half a page. A listing charges nothing, because its rows are metadata and the
+body cap bounds what a page can write out of them. Both limits are set under
+<code>Pages:Read</code>.</p>
 
 <h2 id="markdown">Markdown</h2>
 <p><code>IMarkdownRenderer</code> renders Markdown to HTML. Write its result raw:</p>

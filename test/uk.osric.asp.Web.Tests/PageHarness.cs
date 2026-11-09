@@ -26,6 +26,7 @@ internal sealed class PageHarness : IDisposable {
         PageHealth? health = null,
         FakePageStateStore? state = null,
         FakePageFetcher? fetch = null,
+        FakePageReadStore? readStore = null,
         PageStorageOptions? storageOptions = null,
         ILogger<PageRenderer>? rendererLogger = null,
         PageFetchOptions? fetchOptions = null,
@@ -33,10 +34,12 @@ internal sealed class PageHarness : IDisposable {
         MarkdownRenderer? markdown = null) {
         State = state ?? new FakePageStateStore();
         Fetch = fetch ?? new FakePageFetcher();
+        ReadStore = readStore ?? new FakePageReadStore();
         ContentTypes = contentTypes ?? TestContentTypes.Shipped;
         Markdown = markdown ?? new MarkdownRenderer();
         StorageOptions = storageOptions ?? new PageStorageOptions();
         FetchOptions = fetchOptions ?? new PageFetchOptions();
+        ReadOptions = new PageReadOptions();
         Options = options ?? new RenderOptions();
         Budget = budget ?? new PageBudget(Options, new CompileOptions());
         Health = health ?? new PageHealth(Options.AbandonedLimit);
@@ -62,6 +65,12 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>Where every fetch in this harness goes.</summary>
     public FakePageFetcher Fetch { get; }
+
+    /// <summary>Where every catalog read in this harness goes.</summary>
+    public FakePageReadStore ReadStore { get; }
+
+    /// <summary>The caps every catalog read in this harness uses.</summary>
+    public PageReadOptions ReadOptions { get; }
 
     /// <summary>The content-type map every context in this harness renders against.</summary>
     public PageContentTypes ContentTypes { get; }
@@ -122,8 +131,10 @@ internal sealed class PageHarness : IDisposable {
         bool isHead = false,
         PageUser? user = null,
         RenderFetchBudget? budget = null,
+        ReadBudget? readBudget = null,
         bool withFetch = true,
-        bool withStorage = true) {
+        bool withStorage = true,
+        bool withCatalog = true) {
         PageFeatures features = new();
 
         if (withStorage) {
@@ -145,6 +156,17 @@ internal sealed class PageHarness : IDisposable {
         }
 
         features.Add<IMarkdownRenderer>(Markdown);
+
+        if (withCatalog) {
+            PageCatalogScope catalog = new(
+                path,
+                ReadStore,
+                ReadOptions,
+                readBudget ?? new ReadBudget(ReadOptions.MaxSourceCharsPerRender),
+                new ReservedPaths(ReservedPaths.Default),
+                ContentTypes);
+            features.Add<IPageCatalog>(catalog);
+        }
 
         return new SimpleContext(
             NullLoggerFactory.Instance,

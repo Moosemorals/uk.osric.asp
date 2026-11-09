@@ -1,0 +1,94 @@
+<%! using System.Collections.Generic; %>
+<% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+<% ctx.Features.GetRequired<IPageLayout>().Title = "Pages"; %>
+<h1>Pages</h1>
+<p>Signed in as <%= user.Name %>. This is a demonstration page for the page-store read capability
+(<code>IPageCatalog</code>), and the worked example for the editor's history and revision views
+(<a href="/edit">IDEA-017</a>). Every value below is written with <code>ctx.Write</code>, because page
+source is exactly what a view like this must not run.</p>
+<p><a href="/recent">Recent changes</a> is the same read without the guard: it lists keys and times,
+this page shows source, and the one line of difference between them is
+<code>if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }</code>.</p>
+<%
+    IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+    string? requested = ctx.Request.Query.TryGetValue("page", out string? given) ? given : null;
+    string? revisionHash = ctx.Request.Query.TryGetValue("rev", out string? rev) ? rev : null;
+%>
+<% if (requested is null) { %>
+<p>Choose a page to read its history and its current source.</p>
+<% IReadOnlyList<PageEntry> entries = await catalog.ListAsync(""); %>
+<table>
+    <caption>Every stored page</caption>
+    <thead>
+        <tr>
+            <th scope="col">Page</th>
+            <th scope="col">Last saved</th>
+            <th scope="col">Kind</th>
+        </tr>
+    </thead>
+    <tbody>
+<% foreach (PageEntry entry in entries) {
+       var marks = new List<string>();
+       if (entry.IsDeleted) { marks.Add("deleted"); }
+       if (entry.IsReserved) { marks.Add("reserved"); }
+       if (!entry.IsHtml) { marks.Add("asset"); }
+       string mark = marks.Count == 0 ? "live" : string.Join(", ", marks); %>
+        <tr>
+            <th scope="row"><a href="/pages?page=<%= System.Uri.EscapeDataString(entry.Key) %>"><%= entry.Key %></a></th>
+            <td><time datetime="<%= entry.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture) %>"><%= entry.SavedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) %></time></td>
+            <td><%= mark %></td>
+        </tr>
+<% } %>
+    </tbody>
+</table>
+<% } else {
+       IReadOnlyList<PageRevisionInfo> history = System.Array.Empty<PageRevisionInfo>();
+       PageSource? source = null;
+       string? problem = null;
+       try {
+           history = await catalog.RevisionsAsync(requested);
+           source = revisionHash is null
+               ? await catalog.ReadAsync(requested)
+               : await catalog.ReadRevisionAsync(requested, revisionHash);
+       } catch (System.ArgumentException exception) {
+           problem = exception.Message;
+       }
+%>
+<p><a href="/pages">All pages</a> · <a href="/recent">Recent changes</a></p>
+<% if (problem is not null) { %>
+<p class="error">That is not a page key: <%= problem %></p>
+<% } else { %>
+<h2><%= requested %></h2>
+<p><a href="/edit">Open the editor</a></p>
+<% if (history.Count > 0) { %>
+<h3>History</h3>
+<table>
+    <caption>Saved revisions of <%= requested %>, newest first</caption>
+    <thead>
+        <tr>
+            <th scope="col">Revision</th>
+            <th scope="col">Saved</th>
+            <th scope="col">Current</th>
+        </tr>
+    </thead>
+    <tbody>
+<% foreach (PageRevisionInfo revision in history) { %>
+        <tr>
+            <th scope="row"><a href="/pages?page=<%= System.Uri.EscapeDataString(requested) %>&amp;rev=<%= System.Uri.EscapeDataString(revision.Hash) %>"><code><%= revision.Hash %></code></a></th>
+            <td><time datetime="<%= revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture) %>"><%= revision.SavedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) %></time></td>
+            <td><%= revision.IsCurrent ? "current" : "" %></td>
+        </tr>
+<% } %>
+    </tbody>
+</table>
+<% } else { %>
+<p>This page has no history. It may never have been saved, or it may have been scrubbed.</p>
+<% } %>
+<% if (source is not null) { %>
+<h3><%= revisionHash is null ? "Current source" : "Revision " + source.Hash %></h3>
+<pre class="source" tabindex="0" aria-label="<%= revisionHash is null ? "Current source of" : "Source of revision " + source.Hash + " of" %> <%= requested %>"><code><%= source.Source %></code></pre>
+<% } else { %>
+<p>There is no source to show<%= revisionHash is null ? ": the page is deleted or does not exist" : " for that revision" %>.</p>
+<% } %>
+<% } %>
+<% } %>

@@ -8,6 +8,12 @@ SPDX-License-Identifier: MIT
 > **Still the recovery path.** The layout work (DEC-149) did not move the editor into a page, and it
 > must not: the shell's own document is deliberately never the stored layout, so a broken layout
 > cannot lock the owner out. A page editor would still need its own recovery story.
+>
+> **The cheap half is unblocked.** A page can now read the page store through
+> `ctx.Features.GetRequired<IPageCatalog>()`: list heads, read a page's source, list its history and
+> read a revision (DEC-168–DEC-172, DEC-175, [the plan](../plans/archive/page-store-read.md)). Moving the listing,
+> history and revision views into pages is what is left; the save, delete, scrub and restore stay in
+> the shell.
 
 | | |
 | --- | --- |
@@ -38,10 +44,10 @@ Two obstacles, and they are independent:
    and makes the edited path a query value the page validates with the same rules `PagePath` already
    applies. Teaching the catch-all to hand a subtree to one page is the other option, and it changes
    what a page key means for every page, not just this one.
-2. Take the cheap half first. With IDEA-015 and IDEA-018 a page can render the listing, history,
-   revision and confirmation views, and the shell keeps `/edit` for save, compile, delete and scrub.
-   The shell loses markup, not authority — and there is no bootstrap risk, because the save still
-   lives where it always did.
+2. Take the cheap half first. IDEA-015 has landed: a page can render the listing, history, revision
+   and confirmation views through `IPageCatalog`, and the shell keeps `/edit` for save, compile,
+   delete and scrub. The shell loses markup, not authority — and there is no bootstrap risk, because
+   the save still lives where it always did.
 3. The full editor needs IDEA-015, a write seam widened from IDEA-016's self-save to a named key,
    the assistant's path policy, and IDEA-014 for the save message. Antiforgery is already handled:
    `PageEndpoint` refuses an authenticated `POST` without a valid pair before the page runs.

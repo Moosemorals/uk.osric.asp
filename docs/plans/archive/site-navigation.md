@@ -53,7 +53,7 @@ design and an implementation plan; the phases below are what was built.
 - **Wrapping the shell's own views in the stored layout.** Recovery, error, health, sign-in and the
   editor must answer when the page pipeline is broken (IDEA-017's bootstrap trap, DEC-131).
 - **A content menu.** The menu lists the site's *tools*, not its pages; a "pages by title" menu
-  needs the store read of [IDEA-015](../../jobs/IDEA-015.md).
+  needs the store read of [IDEA-015](../../jobs/README.md#closed).
 - **A nav editor.** The items are written where the document is written: the shell's composition for
   shell views, the stored layout for pages.
 - **Signing out with a `GET` that changes state.** The menu links to a confirmation view; the action
@@ -103,7 +103,7 @@ Checked against the code on 2026-11-08.
 | --- | --- | --- |
 | [IDEA-005](../../jobs/IDEA-005.md) | Phase 2 is a layout *page* rendered around a page; `SetLayout`, `WriteBody`, title/head slots; depth limit and seen-set; one budget for the chain; a layout is presentation, not a guard | **Implements phase 2**, with the layout's slots on a capability instead of `IContext`, and the default on. Shared *types* stay deferred |
 | [IDEA-018](../../jobs/README.md) | The document builder and its fragments should move to `Sdk` | **Implements it** in phase 1, scoped to `PageDocument`, `Nav` and `NavLink` (see "Scope") |
-| [IDEA-015](../../jobs/IDEA-015.md) | The listing, history and revision views need a layout to leave the shell | Unblocks it: those views become fragments the default layout wraps. The store read is still its own job |
+| [IDEA-015](../../jobs/README.md#closed) | The listing, history and revision views need a layout to leave the shell | Unblocks it: those views become fragments the default layout wraps. The store read is still its own job |
 | [IDEA-017](../../jobs/IDEA-017.md) | The editor is the recovery path; do not let it depend on page code | Preserved: shell views never use the stored layout, so a broken layout cannot lock the owner out |
 | [IDEA-001](../../jobs/IDEA-001.md) | The editor is mostly markup | The editor loses its ad-hoc sign-out form; its page menu stays |
 | [IDEA-022](../../jobs/IDEA-022.md) | `SimpleContext` does five jobs | Gains a constructor argument (the layout state), not a contract member |

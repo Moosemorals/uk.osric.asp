@@ -131,7 +131,9 @@ internal class Program {
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Pages.ContentTypes")));
         builder.Services.AddSingleton(PageStorageOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton(ArchiveOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(PageReadOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
+        builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
         builder.Services.AddSingleton(PageFetchOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddHttpClient(PageFetcher.ClientName)
             .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
@@ -149,7 +151,9 @@ internal class Program {
             services.GetRequiredService<PageContentTypes>(),
             services.GetRequiredService<PageStorageOptions>(),
             services.GetRequiredService<PageFetchOptions>(),
+            services.GetRequiredService<PageReadOptions>(),
             services.GetRequiredService<IPageStateStore>(),
+            services.GetRequiredService<IPageReadStore>(),
             services.GetRequiredService<IPageFetcher>(),
             services.GetRequiredService<PageMetrics>(),
             services.GetRequiredService<IAntiforgery>(),

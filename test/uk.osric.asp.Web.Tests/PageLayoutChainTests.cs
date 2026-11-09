@@ -25,6 +25,7 @@ public sealed class PageLayoutChainTests {
 
     private readonly RecordingCompiler _compiler = new(new PageCompiler());
     private readonly FakePageFetcher _fetcher = new();
+    private readonly FakePageReadStore _readStore = new();
     private readonly FakePageStateStore _state = new();
     private readonly FakePageStore _storage = new();
     private readonly TestAntiforgery _antiforgery = new();
@@ -499,6 +500,65 @@ public sealed class PageLayoutChainTests {
         Assert.That(rendered.Body, Does.Contain("<span id=\"page-request\">/page</span>"));
     }
 
+    [Test]
+    public async Task EveryLayerIsOfferedTheCatalogAsync() {
+        Store("/_layout", """
+            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+               System.Collections.Generic.IReadOnlyList<PageEntry> entries =
+                   await ctx.Features.GetRequired<IPageCatalog>().ListAsync(""); %>
+            <%== PageDocument.Head(layout.Title) %><span id="layout-count"><%= entries.Count.ToString() %></span><%== layout.Body %>
+            """);
+        Store("/page", """
+            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+               layout.Title = "Page";
+               System.Collections.Generic.IReadOnlyList<PageEntry> entries =
+                   await ctx.Features.GetRequired<IPageCatalog>().ListAsync(""); %>
+            <span id="page-count"><%= entries.Count.ToString() %></span>
+            """);
+        _readStore.Save("/blog", "blog");
+
+        Rendered rendered = await RenderAsync("/page");
+
+        Assert.That(rendered.Body, Does.Contain("<span id=\"page-count\">1</span>"));
+        Assert.That(rendered.Body, Does.Contain("<span id=\"layout-count\">1</span>"));
+    }
+
+    [Test]
+    public async Task ALayoutMayReadTheStoreAsync() {
+        _readStore.Save("/blog", "<h1>From the store</h1>");
+        Store("/_layout", """
+            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+               PageSource source = (await ctx.Features.GetRequired<IPageCatalog>().ReadAsync("/blog"))!; %>
+            <%== PageDocument.Head(layout.Title) %><span id="layout-source"><%= source.Source %></span><%== layout.Body %>
+            """);
+        Store("/page", """
+            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            """);
+
+        Rendered rendered = await RenderAsync("/page");
+
+        Assert.That(rendered.Body, Does.Contain("<span id=\"layout-source\">&lt;h1&gt;From the store&lt;/h1&gt;</span>"));
+    }
+
+    [Test]
+    public async Task TheChainSharesOneReadBudgetAsync() {
+        _readStore.Save("/blog", new string('x', 8));
+        Store("/_layout", """
+            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+               _ = await ctx.Features.GetRequired<IPageCatalog>().ReadAsync("/blog"); %>
+            <%== PageDocument.Head(layout.Title) %><%== layout.Body %>
+            """);
+        Store("/page", """
+            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page";
+               _ = await ctx.Features.GetRequired<IPageCatalog>().ReadAsync("/blog"); %><h1>Page</h1>
+            """);
+
+        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => RenderAsync("/page", read: new PageReadOptions { MaxSourceCharsPerRender = 12 }));
+
+        Assert.That(refused?.Message, Does.Contain("MaxSourceCharsPerRender"));
+    }
+
     private void Store(string path, string template) {
         _storage[path] = new PageTemplate(PagePath.Normalize(path), template);
         _state.LivePages.Add(PagePath.Normalize(path).Key);
@@ -518,7 +578,8 @@ public sealed class PageLayoutChainTests {
         string path,
         RenderOptions? render = null,
         bool signedIn = false,
-        string query = "") {
+        string query = "",
+        PageReadOptions? read = null) {
 
         RenderOptions options = render ?? new RenderOptions();
         DefaultHttpContext context = TestHttp.CreateContext(path.TrimStart('/'), "GET", path);
@@ -535,7 +596,9 @@ public sealed class PageLayoutChainTests {
             TestContentTypes.Shipped,
             new PageStorageOptions(),
             new PageFetchOptions(),
+            read ?? new PageReadOptions(),
             _state,
+            _readStore,
             _fetcher,
             _metrics,
             _antiforgery,

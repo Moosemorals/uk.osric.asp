@@ -43,7 +43,6 @@ carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md)
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-014](IDEA-014.md) | — | M | A page cannot keep per-visitor state, so a form cannot redirect and say why |
-| [IDEA-015](IDEA-015.md) | — | M | A page cannot read the page store, so the listing and history are shell views; the listing is now a table with a State column |
 | [IDEA-016](IDEA-016.md) | — | M | A page cannot save its own source |
 | [IDEA-017](IDEA-017.md) | — | L | A page cannot edit another page, so the editor cannot become one |
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
@@ -90,9 +89,9 @@ self-contained comes first, because these are the ones that never get scheduled 
 7. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 8. **IDEA-014 … IDEA-019, page capabilities** — each lets a stored page do something only the shell
    can do today. None is urgent while the shell works; they matter when a view is worth moving.
-   The layout IDEA-015 needed now exists, so the listing and history views can become fragments the
-   default layout wraps; IDEA-014's save message and IDEA-017's editor are the others in the way,
-   and IDEA-017 is still the one to leave last.
+   IDEA-015 has landed, so the listing and history views can become fragments the default layout
+   wraps; IDEA-014's save message and IDEA-017's editor are the others in the way, and IDEA-017 is
+   still the one to leave last.
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
@@ -153,3 +152,4 @@ Resolved jobs; the files were deleted and their history is in git.
 | STYLE-02 | `IStorage.ListFilesAsync` returned a list; the query was later removed as unused with ARCH-06 |
 | STYLE-03 | `Token` and `TokenType` have their own files; `Token` is a `readonly record struct` carrying a `TemplatePosition` |
 | STYLE-04 | Exception tests assert with `await Assert.ThrowsAsync`/`Assert.CatchAsync`; the convention is in [testing](../testing.md) |
+| IDEA-015 | A page reads the page store through `ctx.Features.GetRequired<IPageCatalog>()`: `ListAsync(prefix)`, `ReadAsync(key)`, `RevisionsAsync(key)` and `ReadRevisionAsync(key, hash)`, with `PageEntry`, `PageSource` and `PageRevisionInfo` as the values it may name. The listing returns every head marked deleted, reserved and HTML; a prefix is a subtree; `Pages:Read` bounds the rows and one render's source, and both refuse rather than truncate. The read is as public as the page that calls it — **point 3 of the job, which put the gate in the shell, was overruled** in favour of the ordinary `ctx.User` guard in the page's own source (DEC-169) — and the shell keeps every write (DEC-175). The seeded `/recent` is a public listing and `/pages` a guarded source view. See [the plan](../plans/archive/page-store-read.md) and DEC-168–DEC-172, DEC-175 |

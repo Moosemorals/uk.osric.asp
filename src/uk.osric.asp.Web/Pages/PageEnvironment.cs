@@ -18,7 +18,9 @@ using uk.osric.asp.Runtime;
 /// <param name="ContentTypes">The media type each page key's extension names.</param>
 /// <param name="Storage">The storage caps.</param>
 /// <param name="Fetch">The fetch allow-list and caps.</param>
+/// <param name="Read">The caps on a page's read of the page store.</param>
 /// <param name="StateStore">Where a page's state is read and written.</param>
+/// <param name="ReadStore">Where a page's catalog reads the page store.</param>
 /// <param name="Fetcher">Where a page's outbound request goes.</param>
 /// <param name="Metrics">Where the endpoint's own refusals are recorded.</param>
 /// <param name="Antiforgery">Validates a page's post and mints the field a form carries.</param>
@@ -30,7 +32,9 @@ internal sealed record PageEnvironment(
     PageContentTypes ContentTypes,
     PageStorageOptions Storage,
     PageFetchOptions Fetch,
+    PageReadOptions Read,
     IPageStateStore StateStore,
+    IPageReadStore ReadStore,
     IPageFetcher Fetcher,
     PageMetrics Metrics,
     IAntiforgery Antiforgery,

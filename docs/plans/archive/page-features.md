@@ -48,7 +48,7 @@ change.
 - Layout, title, head and body slots. See [IDEA-005](../../jobs/IDEA-005.md); that plan is written
   against this one, once this has bedded in.
 - Per-visitor state ([IDEA-014](../../jobs/IDEA-014.md)) or page-store access
-  ([IDEA-015](../../jobs/IDEA-015.md)). Both become features later; neither is built here.
+  ([IDEA-015](../../jobs/README.md#closed)). Both become features later; neither is built here.
 - Cutting the rest of `IContext` into capability interfaces. The request, the response, logging and
   the identity are what a page *is*; moving them behind lookups is churn a page pays for on every
   line and gains nothing from.
@@ -350,4 +350,4 @@ schema and migrations.
 the title, the head slot and the body slot are all "state one layer has and another layer reads",
 which is what a feature is. [IDEA-014](../../jobs/IDEA-014.md) then lands as `IPageSession` from
 `ctx.Features` instead of another member on `IContext`, and
-[IDEA-015](../../jobs/IDEA-015.md)'s page-store access lands the same way.
+[IDEA-015](../../jobs/README.md#closed)'s page-store access lands the same way.

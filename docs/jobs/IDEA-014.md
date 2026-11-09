@@ -46,9 +46,9 @@ that the [page-features plan](../plans/archive/page-features.md) has landed.
 4. Fail closed on the shell's own cookies. A page may not name `.uk.osric.asp.session`,
    `.uk.osric.asp.antiforgery` or the authentication ticket, and signing out has to clear the page
    session as well as delete the ticket row.
-5. What it unlocks: the editor's listing, history and confirmation views once IDEA-015 exists, and
-   any page that answers a form with a redirect. What it does not: the assistant's conversations,
-   which are durable per-owner data rather than a transient message.
+5. What it unlocks: the editor's listing, history and confirmation views now that IDEA-015 has
+   landed, and any page that answers a form with a redirect. What it does not: the assistant's
+   conversations, which are durable per-owner data rather than a transient message.
 6. Tests: one visitor's value is invisible to another; sign-out clears it; `HEAD` cannot write; the
    caps and the sweep; the cookie carries `HttpOnly`, `SameSite=Strict` and the same `SecurePolicy`
    as the others.
