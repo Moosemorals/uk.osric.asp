@@ -100,10 +100,26 @@ internal sealed class SqliteConversationStore(
     public async Task<bool> DeleteAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
+        // A memory outlives the conversation that wrote it, so the delete drops the provenance rather
+        // than the memory: the rows keep their content and say where they came from no longer. Both
+        // statements are one transaction, so a delete that turns out not to be this owner's changes
+        // nothing at all.
+        await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        _ = await database.Set<MemoryEntry>()
+            .Where(memory => memory.SourceConversationId == id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(memory => memory.SourceConversationId, (long?)null)
+                .SetProperty(memory => memory.SourceRunId, (string?)null), cancellationToken);
         int deleted = await database.Set<Conversation>()
             .Where(conversation => conversation.Id == id && conversation.Owner == owner)
             .ExecuteDeleteAsync(cancellationToken);
-        return deleted > 0;
+        if (deleted == 0) {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return true;
     }
 
     public async Task<RunStartResult> StartRunAsync(

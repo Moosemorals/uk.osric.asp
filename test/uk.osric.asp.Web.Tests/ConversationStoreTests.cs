@@ -298,6 +298,37 @@ public sealed class ConversationStoreTests {
         });
     }
 
+    [Test]
+    public async Task DeletingAConversationKeepsItsMemoriesAndDropsTheirProvenanceAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        database.Add(new MemoryEntry {
+            Owner = "owner",
+            Kind = "fact",
+            Content = "The site runs on Podman.",
+            Version = 1,
+            SourceConversationId = conversation.Id,
+            SourceRunId = "run-1",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await database.SaveChangesAsync();
+
+        Assert.That(await conversations.DeleteAsync(conversation.Id, "other"), Is.False);
+        Assert.That((await database.Set<MemoryEntry>().AsNoTracking().SingleAsync()).SourceConversationId,
+            Is.EqualTo(conversation.Id), "a refused delete changes nothing");
+
+        Assert.That(await conversations.DeleteAsync(conversation.Id, "owner"), Is.True);
+
+        MemoryEntry orphan = await database.Set<MemoryEntry>().AsNoTracking().SingleAsync();
+        Assert.Multiple(() => {
+            Assert.That(orphan.SourceConversationId, Is.Null);
+            Assert.That(orphan.SourceRunId, Is.Null);
+            Assert.That(orphan.Content, Is.EqualTo("The site runs on Podman."));
+        });
+    }
+
     private static IConversationStore NewStore(StorageDbContext database) =>
         new SqliteConversationStore(database, TimeProvider.System, NullLogger<SqliteConversationStore>.Instance);
 }

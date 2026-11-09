@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Web.Users;
 
+using uk.osric.asp.Web.Assistant;
+
 /// <summary>The account command that runs before the web host starts.</summary>
 internal static class UserCommands {
 
@@ -30,6 +32,7 @@ internal static class UserCommands {
             scope.ServiceProvider.GetRequiredService<IUserStore>(),
             scope.ServiceProvider.GetRequiredService<IPasswordService>(),
             scope.ServiceProvider.GetRequiredService<IUserConsole>(),
+            scope.ServiceProvider.GetRequiredService<IMemoryStore>(),
             cancellationToken);
     }
 
@@ -38,6 +41,7 @@ internal static class UserCommands {
         IUserStore users,
         IPasswordService passwords,
         IUserConsole console,
+        IMemoryStore memories,
         CancellationToken cancellationToken) {
 
         if (args.Length == 0) {
@@ -52,7 +56,7 @@ internal static class UserCommands {
                 "add" => await AddAsync(rest, users, passwords, console, cancellationToken),
                 "passwd" => await PasswdAsync(rest, users, passwords, console, cancellationToken),
                 "list" => await ListAsync(rest, users, console, cancellationToken),
-                "remove" => await RemoveAsync(rest, users, console, cancellationToken),
+                "remove" => await RemoveAsync(rest, users, memories, console, cancellationToken),
                 _ => Usage(console),
             };
         } catch (ArgumentException exception) {
@@ -163,6 +167,7 @@ internal static class UserCommands {
     private static async Task<int> RemoveAsync(
         string[] args,
         IUserStore users,
+        IMemoryStore memories,
         IUserConsole console,
         CancellationToken cancellationToken) {
 
@@ -171,6 +176,16 @@ internal static class UserCommands {
         }
 
         string normalized = UserName.Normalize(name);
+
+        if (await users.FindAsync(normalized, cancellationToken) is null) {
+            console.WriteError($"No account named '{normalized}'.");
+            return 1;
+        }
+
+        // The account's memory goes before the account does, so a removal leaves none of the personal
+        // data the assistant accumulated behind. The owner is read from the command line, never from a
+        // model, so the sweep cannot be pointed at somebody else's memories.
+        _ = await memories.DeleteForOwnerAsync(normalized, cancellationToken);
 
         if (!await users.RemoveAsync(normalized, cancellationToken)) {
             console.WriteError($"No account named '{normalized}'.");

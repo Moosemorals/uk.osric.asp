@@ -14,6 +14,7 @@ public sealed class UserCommandsTests {
     private readonly FakeUserStore _users = new();
     private readonly FakePasswordService _passwords = new();
     private readonly ScriptedUserConsole _console = new();
+    private readonly FakeMemoryStore _memories = new();
 
     [Test]
     public async Task AddStoresTheNormalisedAccountAsync() {
@@ -116,14 +117,17 @@ public sealed class UserCommandsTests {
     }
 
     [Test]
-    public async Task RemoveDeletesTheAccountAsync() {
+    public async Task RemoveDeletesTheAccountAndSweepsItsMemoryAsync() {
         _users.Users["owner"] = User("owner");
 
         int exit = await RunAsync("remove", "owner");
 
-        Assert.That(exit, Is.Zero);
-        Assert.That(_users.Users, Is.Empty);
-        Assert.That(_console.Output, Has.Some.Contains("Removed 'owner'."));
+        Assert.Multiple(() => {
+            Assert.That(exit, Is.Zero);
+            Assert.That(_users.Users, Is.Empty);
+            Assert.That(_console.Output, Has.Some.Contains("Removed 'owner'."));
+            Assert.That(_memories.Swept, Is.EqualTo(["owner"]));
+        });
     }
 
     [Test]
@@ -132,6 +136,7 @@ public sealed class UserCommandsTests {
 
         Assert.That(exit, Is.EqualTo(1));
         Assert.That(_console.Errors, Has.Some.Contains("No account named 'missing'."));
+        Assert.That(_memories.Swept, Is.Empty, "a missing account has no memory to sweep");
     }
 
     [TestCase("add")]
@@ -160,7 +165,7 @@ public sealed class UserCommandsTests {
     }
 
     private Task<int> RunAsync(params string[] args) {
-        return UserCommands.RunAsync(args, _users, _passwords, _console, CancellationToken.None);
+        return UserCommands.RunAsync(args, _users, _passwords, _console, _memories, CancellationToken.None);
     }
 
     private void QueuePassword(string password) {
