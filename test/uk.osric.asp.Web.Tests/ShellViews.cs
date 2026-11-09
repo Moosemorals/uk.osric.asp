@@ -53,6 +53,8 @@ internal static class ShellViews {
         "assistant-chat",
         "assistant-chat-reasoning",
         "assistant-delete",
+        "assistant-memory",
+        "assistant-memory-forget",
         "admin-export",
         "admin-import",
         "admin-import-failed",
@@ -83,6 +85,8 @@ internal static class ShellViews {
         "assistant-chat" => RenderAsync(name, () => AssistantChatAsync(withReasoning: false)),
         "assistant-chat-reasoning" => RenderAsync(name, () => AssistantChatAsync(withReasoning: true)),
         "assistant-delete" => RenderAsync(name, AssistantDeleteAsync),
+        "assistant-memory" => RenderAsync(name, AssistantMemoryAsync),
+        "assistant-memory-forget" => RenderAsync(name, AssistantMemoryForgetAsync),
         "admin-export" => RenderAsync(name, AdminExportAsync),
         "admin-import" => RenderAsync(name, AdminImportAsync),
         "admin-import-failed" => RenderAsync(name, AdminImportFailedAsync),
@@ -330,6 +334,19 @@ internal static class ShellViews {
     private static async Task<string> AssistantDeleteAsync() {
         DefaultHttpContext context = AuthenticatedContext("/assistant/1/delete");
         await AssistantEndpoint.DeleteConfirmationAsync(context, 1, new ShellConversationStore(), new TestAntiforgery());
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AssistantMemoryAsync() {
+        DefaultHttpContext context = AuthenticatedContext(AssistantMemoryEndpoint.Path);
+        await AssistantMemoryEndpoint.ListAsync(context, new ShellMemoryStore(), new TestAntiforgery(),
+            new AssistantOptions { MaxMemoriesPerOwner = 200, MaxMemoryChars = 1_000 });
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AssistantMemoryForgetAsync() {
+        DefaultHttpContext context = AuthenticatedContext(AssistantMemoryEndpoint.Path + "/1/forget");
+        await AssistantMemoryEndpoint.ForgetConfirmationAsync(context, 1, new ShellMemoryStore(), new TestAntiforgery());
         return await TestHttp.ReadBodyAsync(context);
     }
 

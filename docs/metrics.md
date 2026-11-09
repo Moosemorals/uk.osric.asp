@@ -42,6 +42,9 @@ the other half of the same question and live in [logging](logging.md).
 | `assistant.provider.request.duration` | histogram | s | `model`, `outcome` |
 | `assistant.tool.duration` | histogram | s | `tool` (a registered tool's name, or `(unknown)`), `outcome` |
 | `assistant.tokens` | counter | {token} | `kind` (`prompt`, `cached`, `completion`, `reasoning`) |
+| `assistant.memory.recalled` | histogram | {memory} | `outcome` (`hit`, `empty`) — how many memories one run was given |
+| `assistant.memory.chars` | histogram | {char} | `outcome` — what the memory block cost the run's context |
+| `assistant.memory.writes` | counter | {write} | `op` (`remember`, `update`, `forget`), `kind` (one of the four, or `(none)` for a refusal), `outcome` (`ok`, `refused`) |
 
 A miss is tagged `page.path="(not-found)"`. The requested path is unauthenticated and unbounded, so
 tagging it verbatim would let a scan mint one time series per URL; the real path is in the access log.
@@ -79,16 +82,17 @@ instrument, and the instrument's type decides the chart (DEC-180).
 
 `StatusCatalogue` holds the list: sixteen Pages panels (nine heatmaps for the duration and size
 histograms, stacked areas for cache lookups and staleness, line charts for abandoned renders, layout
-fallbacks and the three storage gauges), seven Assistant panels (six heatmaps and the token counter
-as a line chart), and five Host panels from the framework's own meters — process memory, process
-CPU, connections and active requests, request duration and the HTTP status mix. The Host panels are
-not instruments this repository registers, so a combined panel there is allowed where three series
-answer one question.
+fallbacks and the three storage gauges), ten Assistant panels (eight heatmaps, the token counter as a
+line chart and memory writes as a stacked area), and five Host panels from the framework's own meters
+— process memory, process CPU, connections and active requests, request duration and the HTTP status
+mix. The Host panels are not instruments this repository registers, so a combined panel there is
+allowed where three series answer one question.
 
 `assistant.tokens` is a line chart, not a stacked area, because its labels do not partition one
 total: cached tokens are already inside prompt tokens and reasoning tokens inside completion tokens.
 The four lines answer "how many of each did the provider report" without drawing the same token
-twice.
+twice. `assistant.memory.writes` is the other way round: every write carries one `op` and one
+`outcome`, so the stack's top edge is the writes the run made.
 
 A heatmap aggregates every tag but `le`: `assistant.tool.duration` merges every tool into one
 distribution, exactly as `page.render.duration` merges every path. The panel's title says so, and
@@ -112,7 +116,7 @@ renamed instrument or a changed unit fails a test rather than emptying a panel.
 
 **A heatmap draws runs, not cells.** Neighbouring samples of the same shade merge into one `rect` with
 one hover title, and an answer with more samples than the cap allows is folded into at most sixty
-columns before it is drawn. Sixteen heatmaps of a busy thirty-day window then fit in the page's
+columns before it is drawn. Seventeen heatmaps of a busy thirty-day window then fit in the page's
 markup budget, which `StatusPageSizeTests` pins.
 
 ### Identifying a series without colour

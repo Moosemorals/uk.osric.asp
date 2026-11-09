@@ -120,6 +120,28 @@ call.
 
 **Owner:** assistant — `ObservationMasker` and `ContextPlanner` (DEC-201, DEC-202).
 
+## Memory
+One owner's note to the assistant: a preference, a fact about this site, a correction or a reference
+to where something lives, stored in SQLite and read back into the system prompt at the start of a run.
+
+**Not** page state and not a page. Page state is one key/value store per page path, shared by every
+visitor; a memory belongs to one account, and the page store stays the authority on anything a page can
+answer. It is written only by a `remember` call the transcript shows, never by a background pass
+(DEC-185).
+
+**Owner:** assistant — `MemoryEntry`, `MemoryCandidate`, the `AssistantMemories` table, the
+`AssistantMemoryEdits` history, `SqliteMemoryStore` and `Assistant:MaxMemoriesPerOwner`.
+
+## Memory page
+The owner's own view of the assistant's memory: `/assistant/memory`, where every note is listed by
+kind, corrected, pinned or forgotten.
+
+**Not** a stored page. It is shell code under the reserved `/assistant` prefix, server-rendered like
+the editor and `/status`, so a page cannot claim the key and the assistant reads it as a shell file it
+may not save.
+
+**Owner:** assistant — `AssistantMemoryEndpoint`, `/assistant.css` and DEC-205–DEC-209.
+
 ## Message
 One row of a conversation's transcript, with role `user`, `assistant` or `tool`, a per-conversation
 `Sequence`, and the `RunId` that produced it.
@@ -174,6 +196,27 @@ raw request path.
 
 **Owner:** pages — the `path` route value and `HttpRequest.Path` in `PageEndpoint`; the resolved
 value is `PagePath.Key`.
+
+## Recall
+The one moment a run is given memory: its newest user message becomes FTS5 terms, the owner's pinned
+and already-used memories are mixed with the ranked matches by a pure rule, and the chosen notes are
+appended to the system prompt inside the character budget.
+
+**Not** a search the model makes. `search_memories` is the model asking; recall is the run deciding
+before the first step, once per run, with the block frozen for the rest of it (DEC-186).
+
+**Owner:** assistant — `MemoryRecall`, `MemoryQuery`, `MemorySelection`, `IMemoryStore.RecallAsync`,
+`Assistant:MaxMemoriesPerRun` and `Assistant:MaxMemoryCharsPerRun`.
+
+## Pin
+The owner's "always use this": a flag on a memory that puts it first in recall, whatever the turn
+happens to be about.
+
+**Not** something the assistant can set. No tool has an argument for it; only `EditAsync`, reached
+from the memory page, changes it (DEC-206).
+
+**Owner:** assistant — `MemoryCandidate.Pinned`, the `AssistantMemories.Pinned` column,
+`IMemoryStore.PinnedAsync` and `MemoryRecall.Select`.
 
 ## Revision
 An immutable saved row holding one template, the image built from it, its hash and the runtime id

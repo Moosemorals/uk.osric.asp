@@ -45,7 +45,7 @@ internal static class StatusCatalogue {
         Line(Page("page.storage.database.size"), "Database size", "bytes", unit: PanelUnit.Bytes),
         Line(Page("page.storage.volume.capacity"), "Volume capacity", "bytes", unit: PanelUnit.Bytes),
 
-        // Assistant: six histograms and the token counter.
+        // Assistant: eight histograms and the two counters.
         Heatmap(Assistant("assistant.run.duration"), "Run duration", "seconds"),
         Heatmap(Assistant("assistant.run.steps"), "Steps per run", "steps"),
         Heatmap(Assistant("assistant.run.tool_calls"), "Tool calls per run", "calls"),
@@ -53,6 +53,9 @@ internal static class StatusCatalogue {
         Heatmap(Assistant("assistant.provider.request.duration"), "Provider request duration", "seconds"),
         Heatmap(Assistant("assistant.tool.duration"), "Tool duration", "seconds"),
         Line(Assistant("assistant.tokens"), "Tokens", "tokens/s", topk: "kind"),
+        Heatmap(Assistant("assistant.memory.recalled"), "Memories per run", "memories"),
+        Heatmap(Assistant("assistant.memory.chars"), "Memory characters per run", "chars"),
+        Stacked(Assistant("assistant.memory.writes"), "Memory writes", "writes/s", split: "outcome"),
 
         // Host: the framework's meters, which are not instruments this repository registers.
         new Panel {

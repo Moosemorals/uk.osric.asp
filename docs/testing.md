@@ -72,7 +72,20 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   and compares the last `budget.updated` a run published — its budgets and its usage — with the page
   the reload renders. The browser suite watches a budget figure and the usage list move while the run
   is still busy, and watches a scripted Markdown reply become formatted when its step completes.
-  No suite contacts a real model provider.
+  Memory is covered at the same boundaries:
+  `Core.Tests` pins the query terms, the selection rule and the block, content normalisation and the
+  secret rules; `Web.Tests` runs `SqliteMemoryStore` against a migrated file for owner scope, the
+  duplicate and cap rules, the version check, a forget that takes the history and the index with it,
+  the provenance sweep and the account sweep, applies `AddAssistantMemory` up, down and up again, and
+  drives the four tools; `Web.IntegrationTests` proves a memory crossing from one conversation to the
+  next through the real host, another owner's request without it, a denial that stores nothing and a
+  store that throws leaving the run whole. The owner's memory page adds `MemoryListingTests` for the
+  grouping rule, `AssistantMemoryStoreTests`' `ListAsync`, `GetAsync` and `EditAsync` cases,
+  `AssistantMemoryPageTests` for the view and every refusal over a hand-built `HttpContext`, and the
+  same name in `Web.IntegrationTests` for two accounts against the real host; `ShellViews` renders the
+  page and the forget confirmation so the accessibility sweep covers both, and
+  `AssistantMemoryBrowserTests` walks the round trip: see, correct, pin, forget. No suite contacts a
+  real model provider.
 - **Markdown** is split by what each suite owns: `Core.Tests` pins `LinkPolicy`; `Runtime.Tests`
   drives both renderer profiles, including the table renderer's `scope="col"` and refusal of inline
   styles; `Web.Tests` renders a real page through `IMarkdownRenderer`, renders the transcript and
@@ -81,13 +94,14 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   real authenticated host. `Pages/Seeds/help` and `PageAuthorPrompt` are updated with the API, so
   the author manual and the model learn the same rule.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
-  `ShellViews` renders all twenty-five shell views once each — the sign-in form and its failure, the
+  `ShellViews` renders all twenty-seven shell views once each — the sign-in form and its failure, the
   sign-out confirmation, the listing with an edited seed and a matching one so its restore buttons
   are swept too, the editor clean and with diagnostics, history, a saved revision, the delete
   confirmation, status, the error page, the error page with details, a not-found page, the compile
-  failure, the assistant list, chat, reasoning chat, delete confirmation, the export list, the
-  upload form, a rejected archive, the import review, the import progress, the stored
-  administration index and the help page as the layout wraps them — and `AccessibilityTests` applies twelve shared rules to every document: one
+  failure, the assistant list, chat, reasoning chat, delete confirmation, the memory page and its
+  forget confirmation, the export list, the upload form, a rejected archive, the import review, the
+  import progress, the stored administration index and the help page as the layout wraps them — and
+  `AccessibilityTests` applies twelve shared rules to every document: one
   `main`, one `h1`, no skipped heading level, a distinct name on every `nav`, `scope` on every `th`, a
   label on every control, every `form.form` field in its `dd` with its label in a `dt` (or a
   textarea's label in a fieldset legend), no role that repeats an implicit one (bar the documented

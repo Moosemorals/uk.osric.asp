@@ -44,6 +44,49 @@ page, which still reads as its own source. `RequireApproval` asks the path polic
 owner, so a save it has already refused never becomes an approval nobody can grant. `check_script`
 stays a page-source check, so a shell file is refused there.
 
+The assistant has a small memory of its own, one owner's and nobody else's (DEC-184–DEC-188). A memory
+is a note — a preference, a fact about this site, a correction, a reference to where something lives —
+stored in SQLite beside the transcript and read back into the system prompt at the start of a run. Four
+tools reach it: `remember`, `update_memory` and `forget_memory` are approval-gated under
+`RequireApproval` and run immediately under the default `AlwaysApprove`, and `search_memories` is a
+read. The owner is taken from the signed-in conversation and never from the model's arguments, so
+there is no path by which a tool call names somebody else's memory.
+
+`/assistant/memory` is the owner's view of all of it (DEC-205–DEC-209): every memory the signed-in
+account holds, grouped by kind with the pinned ones first inside a kind, each row a form that saves
+the content, the kind and the pin, and a count against `Assistant:MaxMemoriesPerOwner` so "the
+assistant is full" is visible before a run fails to remember something. The row carries the version it
+was rendered from: a save from a stale page is refused with the content the assistant left behind
+rather than overwriting it, and an invalid, too long or secret note re-renders the row with the text
+the owner typed still in it. Forgetting asks on a page of its own first, and says what the delete
+cannot reach. The page is server-rendered and script-free, it is a shell file the assistant may read
+and never save (DEC-198), and it is the only place a memory can be pinned: no tool has an argument
+for that (DEC-206).
+
+Recall happens once per run, on the first step, and the block it builds is frozen for the rest of the
+run: a memory the model writes mid-run reaches the next run, not the turn that wrote it. The newest
+user message becomes quoted FTS5 prefix terms, the owner's pinned memories and the memories this
+conversation has already used are mixed with the ranked matches by a pure rule, and the selection
+stops at `Assistant:MaxMemoriesPerRun` and `Assistant:MaxMemoryCharsPerRun`. The block is appended to
+the system prompt rather than sent as its own message, so the context row counts it with everything
+else and the invariant part of the prompt stays the prefix the provider's cache keys on. It declares
+itself data rather than instructions, its content is HTML-escaped inside a labelled element, and it
+carries each memory's id, kind, written date and use count. A recall that finds nothing adds nothing.
+
+Nothing is remembered unless a tool call says so: there is no extraction pass and no derived profile,
+so every memory is attributable to a conversation and a run. A write is refused rather than truncated
+when it is too long, when the owner holds `Assistant:MaxMemoriesPerOwner` memories already, when it
+duplicates a note the owner already holds (the existing id is returned instead), and when it looks
+like a secret — `MemorySecrets` refuses a private-key block, a password or key assignment, a
+provider-shaped key and a long encoded value, and lets a sentence *about* a secret through. An update
+carries the version it read, and a stale one is refused with the current content, the same rule
+`edit_page` uses for a revision hash. Memory is an enhancement, so a store that throws costs the run
+its memory and a `memory_unavailable` warning in the transcript, and nothing else.
+
+The provider receives memory and page source alike; enabling the assistant sends both. Memory is never
+in a log line and never a metric tag: a recall line has the run, the count and the characters, and a
+write line has the operation, the kind and the outcome.
+
 An assistant reply is Markdown and the transcript renders it. The restricted profile is the second
 `MarkdownRenderer` profile (DEC-164): no raw HTML, images, autolinks or unsafe URL schemes;
 site-relative or `http(s)` links with `rel="nofollow noopener noreferrer"`; pipe tables through the
@@ -73,7 +116,8 @@ measured once. The page renders it, and the run publishes it as `budget.updated`
 page already listens to, at the start of each step, when that step's usage is stored and around each
 tool call. A figure a reader watches move is therefore the figure the reload will show. The request
 row is the provider request as sent: the system prompt, the tool definitions and the messages after
-masking and trimming, measured in estimated tokens against `Assistant:MaxContextTokens`. `ChatRequestJson` measures the exact UTF-8 body,
+masking and trimming, measured in estimated tokens against `Assistant:MaxContextTokens`.
+`ChatRequestJson` measures the exact UTF-8 body,
 and `TokenEstimator` turns that into tokens with the bytes-per-token ratio the provider's last
 `prompt_tokens` report calibrated, a ten-percent margin and a conservative default before the first
 report. `ContextPlanner` elides old tool results and long old tool-call arguments first, and drops

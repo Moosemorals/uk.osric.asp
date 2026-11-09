@@ -35,6 +35,18 @@ internal sealed class AssistantOptions {
     public int MaxContextTokens { get; init; } = 90_000;
     /// <summary>The model's whole context window, used to check the prompt and output budgets fit.</summary>
     public int ModelContextTokens { get; init; } = 131_072;
+    /// <summary>The most memories one owner may hold; past this <c>remember</c> refuses.</summary>
+    public int MaxMemoriesPerOwner { get; init; } = 200;
+    /// <summary>The longest memory, in characters. One longer is refused, never truncated.</summary>
+    public int MaxMemoryChars { get; init; } = 1_000;
+    /// <summary>The most memories one run may be given.</summary>
+    public int MaxMemoriesPerRun { get; init; } = 12;
+    /// <summary>The most characters a run's memory block may cost.</summary>
+    public int MaxMemoryCharsPerRun { get; init; } = 4_000;
+    /// <summary>The most candidates a memory search ranks, for recall and for the tool.</summary>
+    public int MaxMemorySearchResults { get; init; } = 50;
+    /// <summary>The most terms one message contributes to a recall query.</summary>
+    public int MaxMemoryQueryTerms { get; init; } = 12;
     public int HeartbeatSeconds { get; init; } = 15;
     public int JournalMaxEvents { get; init; } = 20_000;
     public int JournalMaxBytes { get; init; } = 4_194_304;
@@ -97,6 +109,17 @@ internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOpti
             failures.Add(
                 $"Assistant:MaxContextTokens plus Assistant:MaxOutputTokens must not exceed Assistant:ModelContextTokens "
                 + $"({options.MaxContextTokens} + {options.MaxOutputTokens} > {options.ModelContextTokens}).");
+        }
+        if (options.MaxMemoriesPerOwner <= 0 || options.MaxMemoryChars <= 0
+            || options.MaxMemoriesPerRun <= 0 || options.MaxMemoryCharsPerRun <= 0
+            || options.MaxMemorySearchResults <= 0) {
+            failures.Add("Assistant memory limits must be positive.");
+        }
+        if (options.MaxMemoryChars > options.MaxMemoryCharsPerRun) {
+            failures.Add("Assistant:MaxMemoryChars must not exceed Assistant:MaxMemoryCharsPerRun.");
+        }
+        if (options.MaxMemoryQueryTerms < 2) {
+            failures.Add("Assistant:MaxMemoryQueryTerms must be at least 2, so a query is not a single letter.");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

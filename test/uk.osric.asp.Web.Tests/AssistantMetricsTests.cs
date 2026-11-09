@@ -35,12 +35,18 @@ public sealed class AssistantMetricsTests {
         metrics.RecordTool(writePage, true, TimeSpan.FromMilliseconds(10));
         metrics.RecordTool(null, false, TimeSpan.FromMilliseconds(10));
         metrics.RecordUsage(new TokenUsage(12, 4, 5, 1));
+        metrics.RecordMemoryRecall(3, 1_200);
+        metrics.RecordMemoryRecall(0, 0);
+        metrics.RecordMemoryWrite("remember", MemoryKind.Preference, success: true);
+        metrics.RecordMemoryWrite("remember", kind: null, success: false);
 
         Assert.That(measurements.Select(item => item.Name), Is.EquivalentTo([
             "assistant.run.duration", "assistant.run.steps", "assistant.run.tool_calls",
             "assistant.provider.first_token.duration", "assistant.provider.request.duration",
             "assistant.tool.duration", "assistant.tool.duration",
             "assistant.tokens", "assistant.tokens", "assistant.tokens", "assistant.tokens",
+            "assistant.memory.recalled", "assistant.memory.chars", "assistant.memory.recalled", "assistant.memory.chars",
+            "assistant.memory.writes", "assistant.memory.writes",
         ]));
         Assert.That(
             measurements.Where(item => item.Name == "assistant.tokens").Select(item => item.Tags),
@@ -52,6 +58,18 @@ public sealed class AssistantMetricsTests {
             Is.EquivalentTo(["tool=write_page,outcome=ok", $"tool={AssistantMetrics.UnknownTool},outcome=error"]));
         Assert.That(measurements.Select(item => item.Tags), Has.None.Contain("runId"));
         Assert.That(measurements.Select(item => item.Tags), Has.None.Contain("conversationId"));
+
+        // A recall is tagged with whether it found anything, a write with what it did and whether it
+        // was allowed; no memory's text, and no id, ever becomes a label.
+        Assert.That(
+            measurements.Where(item => item.Name == "assistant.memory.recalled").Select(item => item.Tags),
+            Is.EquivalentTo(["outcome=hit", "outcome=empty"]));
+        Assert.That(
+            measurements.Where(item => item.Name == "assistant.memory.writes").Select(item => item.Tags),
+            Is.EquivalentTo([
+                "op=remember,kind=preference,outcome=ok",
+                $"op=remember,kind={AssistantMetrics.NoKind},outcome=refused",
+            ]));
     }
 
 

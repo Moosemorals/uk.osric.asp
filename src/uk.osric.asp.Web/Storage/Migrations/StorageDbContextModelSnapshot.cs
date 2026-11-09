@@ -59,6 +59,93 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.ToTable("AssistantConversations", (string)null);
                 });
 
+            modelBuilder.Entity("uk.osric.asp.Web.Assistant.MemoryEdit", b =>
+                {
+                    b.Property<long>("MemoryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("EditedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("SourceConversationId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("MemoryId", "Version");
+
+                    b.ToTable("AssistantMemoryEdits", (string)null);
+                });
+
+            modelBuilder.Entity("uk.osric.asp.Web.Assistant.MemoryEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("LastRecalledAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("LastRecalledConversationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .UseCollation("BINARY");
+
+                    b.Property<bool>("Pinned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RecallCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("SourceConversationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SourceRunId")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT")
+                        .UseCollation("BINARY");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Owner", "UpdatedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("IX_AssistantMemories_Owner");
+
+                    b.ToTable("AssistantMemories", (string)null);
+                });
+
             modelBuilder.Entity("uk.osric.asp.Web.Assistant.Message", b =>
                 {
                     b.Property<long>("Id")
@@ -382,6 +469,15 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.HasKey("UserName");
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("uk.osric.asp.Web.Assistant.MemoryEdit", b =>
+                {
+                    b.HasOne("uk.osric.asp.Web.Assistant.MemoryEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MemoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("uk.osric.asp.Web.Assistant.Message", b =>

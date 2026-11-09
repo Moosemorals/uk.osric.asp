@@ -73,6 +73,43 @@ render before anything is compiled or stored; a save that has started finishes e
 times out, because losing the author's edit is the worse failure. Delete, scrub, restore a seed,
 import and export stay the shell's alone (DEC-175).
 
+### Assistant memory
+
+The assistant's memory is three tables in the same database, added by one migration (DEC-184–DEC-187).
+`AssistantMemories` is one row per memory — the owner, one of four kinds, the content, a version, the
+owner's `Pinned` flag, the conversation and run that wrote it, and the usage columns recall updates.
+`AssistantMemoryEdits` is the history: the key is the memory and the version that was replaced, and
+its foreign key to the head cascades, so forgetting a memory takes its history with it.
+`AssistantMemorySearch` is an FTS5 virtual table over the heads — external content, so it stores no
+copy of the text and reads a memory by its rowid, with `Owner` and `Kind` as unindexed columns and the
+porter tokenizer. Three triggers keep it: an insert, a delete, and an update that names only
+`Content`, `Owner` and `Kind`, so the per-recall touch of `LastRecalledAt`, `LastRecalledConversationId`
+and `RecallCount` does not reindex the row.
+
+EF Core models the two ordinary tables and the migration writes the virtual table and its triggers as
+raw SQL, because EF cannot model a virtual table: the model snapshot does not mention them, so a later
+migration will not drop them, and the hand-written `Down` drops the triggers and the table before the
+two tables. `AssistantMemoryMigrationTests` applies the migration up, down and up again, and checks
+the schema names either side. The index over `("Owner", "UpdatedAt")` backs the owner's listing and
+the pinned tier.
+
+Provenance is not a foreign key, because a memory outlives the conversation that wrote it: deleting a
+conversation nulls `SourceConversationId` and `SourceRunId` in the same transaction as the delete, and
+`users remove` deletes the account's memories before the account. A forget is a delete — no tombstone,
+because a memory is personal data rather than a page revision — and the index row goes with it through
+the delete trigger. As with a page scrub, deleting the row is not forensic erasure: WAL frames,
+backups and snapshots are the operator's.
+
+`EditAsync` is the owner's write, reached from `/assistant/memory` and from nothing else: it
+normalises and checks the content exactly as the tools do, appends the version it replaces to
+`AssistantMemoryEdits`, bumps the head and — the one thing no tool can do — sets `Pinned`. It keeps the
+head's provenance, because an owner's edit does not make the conversation that wrote the memory
+untrue, and a stale `expectedVersion` is refused with the content that is stored now (DEC-206,
+DEC-207).
+
+Nothing in `Sdk`, `Runtime` or the page contract reaches memory: a stored page is public to whoever
+can reach it, and a memory belongs to one owner (DEC-184).
+
 ### Import and export
 
 A site's pages can leave it and come back. `/admin/export` lists every live page that is addressable

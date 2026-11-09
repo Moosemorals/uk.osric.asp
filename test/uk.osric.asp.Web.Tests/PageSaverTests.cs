@@ -9,7 +9,12 @@ using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>The one save path, shared by the editor and by a page saving its own source.</summary>
+/// <remarks>
+/// Not parallel: one test counts measurements on the pages meter, which every other fixture's save
+/// also writes to, so a save running beside it would be counted as this test's.
+/// </remarks>
 [TestFixture]
+[NonParallelizable]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public sealed class PageSaverTests {
 

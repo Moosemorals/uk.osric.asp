@@ -126,6 +126,27 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
                 .HasForeignKey(row => row.RunId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<MemoryEntry>(memory => {
+            memory.ToTable("AssistantMemories");
+            memory.HasKey(row => row.Id);
+            memory.Property(row => row.Owner).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
+            memory.Property(row => row.Kind).HasMaxLength(32);
+            memory.Property(row => row.SourceRunId).HasMaxLength(32).UseCollation("BINARY");
+            // The plan's name, so the index reads the same in the migration, the schema document and
+            // a query plan; EF's own name for two columns would be IX_AssistantMemories_Owner_UpdatedAt.
+            memory.HasIndex(row => new { row.Owner, row.UpdatedAt }).IsDescending(false, true).HasDatabaseName("IX_AssistantMemories_Owner");
+        });
+
+        modelBuilder.Entity<MemoryEdit>(edit => {
+            edit.ToTable("AssistantMemoryEdits");
+            edit.HasKey(row => new { row.MemoryId, row.Version });
+            edit.Property(row => row.Kind).HasMaxLength(32);
+            edit.HasOne<MemoryEntry>()
+                .WithMany()
+                .HasForeignKey(row => row.MemoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     private sealed class RevisionHashInterceptor : DbConnectionInterceptor {

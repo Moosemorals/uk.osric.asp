@@ -59,6 +59,9 @@ internal sealed class RunProcessor(
         int step = 0;
         string? activeToolCallId = null;
         string? activeToolName = null;
+        // Recall happens once, on the first step, and the block is frozen for the rest of the run: a
+        // memory the model writes mid-run is visible to the next run, not this one.
+        string memoryBlock = string.Empty;
 
         try {
             Run? run = await StoreAsync(store => store.GetActiveRunAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
@@ -86,10 +89,16 @@ internal sealed class RunProcessor(
             // a hundred steps that all masked an old result are one fact, not a hundred.
             bool maskedWarningSent = false;
             bool trimmedWarningSent = false;
+            ToolContext toolContext = new(queued.Owner, queued.ConversationId, queued.RunId);
             for (step = 1; step <= options.MaxSteps; step++) {
                 IReadOnlyList<Message> transcript = await StoreAsync(
                     store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
-                List<ChatMessage> messages = [new ChatMessage("system", PageAuthorPrompt.Build())];
+                if (step == 1) {
+                    memoryBlock = await RecallMemoryAsync(queued, stream, transcript, runTimeout.Token);
+                }
+                string prompt = PageAuthorPrompt.Build();
+                string systemPrompt = memoryBlock.Length == 0 ? prompt : $"{prompt}\n\n{memoryBlock}";
+                List<ChatMessage> messages = [new ChatMessage("system", systemPrompt)];
                 messages.AddRange(transcript.Select(message => message.ToChatMessage()));
                 ChatRequest request = new(
                     run.Model,
@@ -211,7 +220,7 @@ internal sealed class RunProcessor(
                     string status = response.FinishReason == "length" ? "truncated" : "complete";
                     await PersistAssistantAsync(queued, stream, step, response, status, includeToolCalls: false, runTimeout.Token);
                     partial = null;
-                    await CompleteAsync(queued, stream, step, budgets, usageTotals, run.Model, calibration);
+                    await CompleteAsync(queued, stream, step, budgets, usageTotals, run.Model, systemPrompt, calibration);
                     return;
                 }
 
@@ -256,10 +265,10 @@ internal sealed class RunProcessor(
                         result = refused;
                     } else if (requiresApproval) {
                         result = await WhilePaused(() =>
-                            ResolveApprovalAsync(queued, stream, step, call, definition!, runTimeout.Token));
+                            ResolveApprovalAsync(queued, stream, step, call, definition!, toolContext, runTimeout.Token));
                     } else {
                         result = await WhilePaused(() =>
-                            ExecuteToolAsync(call, stream, runTimeout.Token));
+                            ExecuteToolAsync(call, toolContext, stream, runTimeout.Token));
                     }
 
                     toolCallCount++;
@@ -361,12 +370,61 @@ internal sealed class RunProcessor(
         }
     }
 
+    // Recall is an enhancement, so nothing here can take the run down: a store that throws costs the
+    // run its memory and a line in the transcript, and a lost use count is not worth a failed run.
+    private async Task<string> RecallMemoryAsync(
+        QueuedRun queued,
+        RunStream stream,
+        IReadOnlyList<Message> transcript,
+        CancellationToken cancellationToken) {
+        Message? newest = transcript.LastOrDefault(message => message.Role == "user");
+        string terms = newest is null ? string.Empty : MemoryQuery.Terms(newest.Content, options.MaxMemoryQueryTerms);
+
+        try {
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            IMemoryStore memories = scope.ServiceProvider.GetRequiredService<IMemoryStore>();
+
+            IReadOnlyList<MemoryCandidate> matched = terms.Length == 0
+                ? []
+                : await memories.RecallAsync(queued.Owner, terms, options.MaxMemorySearchResults, cancellationToken);
+            IReadOnlyList<MemoryCandidate> used = await memories.StickyAsync(queued.Owner, queued.ConversationId, cancellationToken);
+            IReadOnlyList<MemoryCandidate> pinned = await memories.PinnedAsync(queued.Owner, cancellationToken);
+
+            MemorySelection selection = MemoryRecall.Select(
+                pinned, used, matched, options.MaxMemoriesPerRun, options.MaxMemoryCharsPerRun);
+            metrics.RecordMemoryRecall(selection.Memories.Count, selection.Characters);
+            if (selection.IsEmpty) {
+                return string.Empty;
+            }
+
+            logger.LogInformation("Assistant run {RunId} recalled {Memories} memories ({Chars} chars)",
+                queued.RunId, selection.Memories.Count, selection.Characters);
+            try {
+                await memories.TouchAsync(
+                    queued.Owner, [.. selection.Memories.Select(memory => memory.Id)], queued.ConversationId, cancellationToken);
+            } catch (Exception exception) when (exception is not OperationCanceledException) {
+                logger.LogWarning(exception, "Assistant run {RunId} could not record which memories it used", queued.RunId);
+            }
+
+            return MemoryRecall.Build(selection);
+        } catch (Exception exception) when (exception is not OperationCanceledException) {
+            logger.LogWarning(exception, "Assistant run {RunId} could not recall memories", queued.RunId);
+            metrics.RecordMemoryRecall(0, 0);
+            stream.Publish("run.warning", new {
+                code = "memory_unavailable",
+                message = "Memory could not be read, so this run continues without it.",
+            });
+            return string.Empty;
+        }
+    }
+
     private async Task<ToolExecutionResult> ResolveApprovalAsync(
         QueuedRun queued,
         RunStream stream,
         int step,
         PreparedToolCall call,
         ToolDefinition definition,
+        ToolContext context,
         CancellationToken cancellationToken) {
         using CancellationTokenSource waiterCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         Task<ApprovalResolutionResult> wait = approvals.WaitAsync(queued.RunId, call.Id, waiterCancellation.Token);
@@ -395,18 +453,19 @@ internal sealed class RunProcessor(
         stream.Publish("approval.resolved", new { step, toolCallId = call.Id, decision = decision == ApprovalResolutionResult.Approved ? "approved" : "denied" });
 
         return decision == ApprovalResolutionResult.Approved
-            ? await ExecuteToolAsync(call, stream, cancellationToken)
+            ? await ExecuteToolAsync(call, context, stream, cancellationToken)
             : ToolFailure("The owner denied this tool call.", $"{call.DisplayName}: denied");
     }
 
     private async Task<ToolExecutionResult> ExecuteToolAsync(
         PreparedToolCall call,
+        ToolContext context,
         RunStream stream,
         CancellationToken cancellationToken) {
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(options.ToolTimeoutSeconds));
         try {
-            return await tools.ExecuteAsync(call.Name, call.Arguments, timeout.Token);
+            return await tools.ExecuteAsync(call.Name, call.Arguments, context, timeout.Token);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
             return ToolFailure("The tool exceeded its configured time limit.", $"{call.DisplayName}: timeout");
         } catch (OperationCanceledException) {
@@ -491,6 +550,7 @@ internal sealed class RunProcessor(
         BudgetSnapshot budgets,
         RunUsage usage,
         string model,
+        string systemPrompt,
         TokenCalibration? calibration) {
         await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "completed"));
         // The last live figure is the request the next step would send, built from the transcript as
@@ -499,7 +559,7 @@ internal sealed class RunProcessor(
         // `run.completed`.
         IReadOnlyList<Message> transcript = await StoreAsync(
             store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, CancellationToken.None));
-        List<ChatMessage> messages = [new ChatMessage("system", PageAuthorPrompt.Build())];
+        List<ChatMessage> messages = [new ChatMessage("system", systemPrompt)];
         messages.AddRange(transcript.Select(message => message.ToChatMessage()));
         ChatRequest request = new(
             model,
