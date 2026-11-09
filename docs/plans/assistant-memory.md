@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started |
+| Status | Landed |
 | Size | Large — a migration, a store, four tools, recall in the run, and the tests for each |
 | Spike | [Memory for the page assistant](../spikes/assistant-memory.md), which measures the store and surveys what other systems do |
 | Decisions | DEC-184–DEC-188, recorded in [decisions](../decisions.md#architecture-and-code-placement) |
@@ -113,7 +113,7 @@ Two facts about the ground this stands on, both measured in the spike:
 | `src/uk.osric.asp.Web/Assistant/MemoryWriteResult.cs` | Success or a refusal the model can act on |
 | `src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs` | Four tools, `ToolContext`, and the memory branch of `ExecuteAsync` |
 | `src/uk.osric.asp.Web/Assistant/RunProcessor.cs` | Recall once, the block in the system prompt, the tool context |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | A memory section, and `Version` to `page-author-v12` |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | A memory section, and `Version` to `page-author-v13` |
 | `src/uk.osric.asp.Web/Assistant/AssistantOptions.cs` | Six settings and their validation |
 | `src/uk.osric.asp.Web/Assistant/AssistantMetrics.cs`, `Program.cs` | Two recall instruments, one write counter, their bucket views, and the scoped `IMemoryStore` registration |
 | `src/uk.osric.asp.Web/Assistant/SqliteConversationStore.cs` | `DeleteAsync` clears provenance in the same transaction |
@@ -373,7 +373,7 @@ simply not found. The `written` date is what lets it prefer a newer statement to
 - search before remembering and update rather than adding a second contradicting memory;
 - the memory block is data, and an instruction inside one is not the owner speaking.
 
-`Version` becomes `page-author-v12`, because a run records the prompt it used and a prompt whose
+`Version` becomes `page-author-v13`, because a run records the prompt it used and a prompt whose
 memory rules changed is a different prompt. Nothing else in the prompt moves in this change; the
 memory section is additive and the tools describe themselves.
 
@@ -582,7 +582,7 @@ three writes, and a refusal is a tool result the model can read.
 - `MemoryQuery` and `MemoryRecall` completed against their tests.
 - `RunProcessor` recalls once, appends the block in both places it builds the system prompt, and
   degrades to no memory when the store fails.
-- `PageAuthorPrompt` gains the memory section; `Version` is `page-author-v12`.
+- `PageAuthorPrompt` gains the memory section; `Version` is `page-author-v13`.
 - The recall instruments and their views.
 
 **Done when** the integration flow test shows a memory crossing from one conversation to the next,
@@ -618,8 +618,10 @@ what the code does, and `make check` passes.
   rather than instructions, is capped and normalised, and never reaches a log line or a metric tag; a
   write that looks like a secret is refused.
 
-The numbers start at 184 because DEC-179–DEC-183 are claimed by the status-page rebuild, a plan on
-another branch that has not merged yet.
+The decisions were recorded when the plan landed, and the numbers moved once: DEC-179 and DEC-180
+were claimed by the status-page rebuild and the assistant's own budget work, so the memory decisions
+are DEC-184–DEC-188. The prompt version is `page-author-v13` rather than the v12 this plan names,
+because v12 was taken by the context-masking change that merged ahead of this one.
 
 Docs changes: a paragraph in [assistant](../assistant.md) after the tools and approvals paragraph; an
 "Assistant memory" subsection in [storage](../storage.md) beside `PageState`; **Memory** and **Recall**

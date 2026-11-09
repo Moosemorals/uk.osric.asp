@@ -42,6 +42,9 @@ the other half of the same question and live in [logging](logging.md).
 | `assistant.provider.request.duration` | histogram | s | `model`, `outcome` |
 | `assistant.tool.duration` | histogram | s | `tool` (a registered tool's name, or `(unknown)`), `outcome` |
 | `assistant.tokens` | counter | {token} | `kind` (`prompt`, `completion`) |
+| `assistant.memory.recalled` | histogram | {memory} | `outcome` (`hit`, `empty`) — how many memories one run was given |
+| `assistant.memory.chars` | histogram | {char} | `outcome` — what the memory block cost the run's context |
+| `assistant.memory.writes` | counter | {write} | `op` (`remember`, `update`, `forget`), `kind` (one of the four, or `(none)` for a refusal), `outcome` (`ok`, `refused`) |
 
 A miss is tagged `page.path="(not-found)"`. The requested path is unauthenticated and unbounded, so
 tagging it verbatim would let a scan mint one time series per URL; the real path is in the access log.

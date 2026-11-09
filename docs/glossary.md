@@ -110,6 +110,18 @@ to `IMarkdownRenderer`, and the assistant's reply is Markdown only in the transc
 assistant profile, `LinkPolicy` and `AccessibleTableRenderer` are the rules that differ from the
 page profile (DEC-163, DEC-164).
 
+## Memory
+One owner's note to the assistant: a preference, a fact about this site, a correction or a reference
+to where something lives, stored in SQLite and read back into the system prompt at the start of a run.
+
+**Not** page state and not a page. Page state is one key/value store per page path, shared by every
+visitor; a memory belongs to one account, and the page store stays the authority on anything a page can
+answer. It is written only by a `remember` call the transcript shows, never by a background pass
+(DEC-185).
+
+**Owner:** assistant — `MemoryEntry`, `MemoryCandidate`, the `AssistantMemories` table, the
+`AssistantMemoryEdits` history, `SqliteMemoryStore` and `Assistant:MaxMemoriesPerOwner`.
+
 ## Message
 One row of a conversation's transcript, with role `user`, `assistant` or `tool`, a per-conversation
 `Sequence`, and the `RunId` that produced it.
@@ -164,6 +176,17 @@ raw request path.
 
 **Owner:** pages — the `path` route value and `HttpRequest.Path` in `PageEndpoint`; the resolved
 value is `PagePath.Key`.
+
+## Recall
+The one moment a run is given memory: its newest user message becomes FTS5 terms, the owner's pinned
+and already-used memories are mixed with the ranked matches by a pure rule, and the chosen notes are
+appended to the system prompt inside the character budget.
+
+**Not** a search the model makes. `search_memories` is the model asking; recall is the run deciding
+before the first step, once per run, with the block frozen for the rest of it (DEC-186).
+
+**Owner:** assistant — `MemoryRecall`, `MemoryQuery`, `MemorySelection`, `IMemoryStore.RecallAsync`,
+`Assistant:MaxMemoriesPerRun` and `Assistant:MaxMemoryCharsPerRun`.
 
 ## Revision
 An immutable saved row holding one template, the image built from it, its hash and the runtime id

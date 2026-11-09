@@ -69,8 +69,14 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   scripted provider to verify disabled routing, conversation streaming, approval gating and writes,
   and compares the last `budget.updated` a run published with the page the reload renders. The
   browser suite watches a budget figure move while the run is still busy, and watches a scripted
-  Markdown reply become formatted when its step completes.
-  No suite contacts a real model provider.
+  Markdown reply become formatted when its step completes. Memory is covered at the same boundaries:
+  `Core.Tests` pins the query terms, the selection rule and the block, content normalisation and the
+  secret rules; `Web.Tests` runs `SqliteMemoryStore` against a migrated file for owner scope, the
+  duplicate and cap rules, the version check, a forget that takes the history and the index with it,
+  the provenance sweep and the account sweep, applies `AddAssistantMemory` up, down and up again, and
+  drives the four tools; `Web.IntegrationTests` proves a memory crossing from one conversation to the
+  next through the real host, another owner's request without it, a denial that stores nothing and a
+  store that throws leaving the run whole. No suite contacts a real model provider.
 - **Markdown** is split by what each suite owns: `Core.Tests` pins `LinkPolicy`; `Runtime.Tests`
   drives both renderer profiles, including the table renderer's `scope="col"` and refusal of inline
   styles; `Web.Tests` renders a real page through `IMarkdownRenderer`, renders the transcript and
