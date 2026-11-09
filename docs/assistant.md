@@ -50,9 +50,18 @@ stored in SQLite beside the transcript and read back into the system prompt at t
 tools reach it: `remember`, `update_memory` and `forget_memory` are approval-gated under
 `RequireApproval` and run immediately under the default `AlwaysApprove`, and `search_memories` is a
 read. The owner is taken from the signed-in conversation and never from the model's arguments, so
-there is no path by which a tool call names somebody else's memory. The tools are the owner interface
-until the page that lists, edits and pins memory lands (IDEA-023); the transcript shows every write,
-and `forget_memory` is how a memory is removed.
+there is no path by which a tool call names somebody else's memory.
+
+`/assistant/memory` is the owner's view of all of it (DEC-200–DEC-204): every memory the signed-in
+account holds, grouped by kind with the pinned ones first inside a kind, each row a form that saves
+the content, the kind and the pin, and a count against `Assistant:MaxMemoriesPerOwner` so "the
+assistant is full" is visible before a run fails to remember something. The row carries the version it
+was rendered from: a save from a stale page is refused with the content the assistant left behind
+rather than overwriting it, and an invalid, too long or secret note re-renders the row with the text
+the owner typed still in it. Forgetting asks on a page of its own first, and says what the delete
+cannot reach. The page is server-rendered and script-free, it is a shell file the assistant may read
+and never save (DEC-198), and it is the only place a memory can be pinned: no tool has an argument
+for that (DEC-201).
 
 Recall happens once per run, on the first step, and the block it builds is frozen for the rest of the
 run: a memory the model writes mid-run reaches the next run, not the turn that wrote it. The newest

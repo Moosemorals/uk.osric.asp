@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Answered | 2026-11-09 |
 | Evidence | The memory literature and vendor documentation of 2023–2026 (linked below), and an FTS5 trial on `Microsoft.Data.Sqlite` 10.0.14 (SQLite 3.53.3) with 5,000 synthetic memories |
 | Verdict | Yes, in SQLite and nothing else: one owner-scoped table plus its edit history, an FTS5 index with porter stemming, and recall by BM25 mixed with pinned and already-used memories into a fixed character budget. Writes happen only through explicit tools the transcript shows. No embeddings, no vector store, no extraction pass, no graph. |
-| Recorded | Planned. [The plan](../plans/assistant-memory.md) carries DEC-184–DEC-188, the phases and the tests; the owner's page is [IDEA-023](../jobs/IDEA-023.md), deliberately outside it |
+| Recorded | Planned. [The plan](../plans/assistant-memory.md) carries DEC-184–DEC-188, the phases and the tests; the owner's page is [IDEA-023](../plans/assistant-memory-page.md), deliberately outside it |
 
 ## The answer
 
@@ -370,7 +370,7 @@ the model to fill it in.
 
 ### The memory page
 
-The page is not part of this design; it is [IDEA-023](../jobs/IDEA-023.md) in the backlog, and the
+The page is not part of this design; it is [IDEA-023](../plans/assistant-memory-page.md), planned after it, and the
 plan leaves the transcript as the owner's view in the meantime. What follows is what that job would
 build, kept here because it is the half of the feature that makes the store the owner's rather than
 the assistant's.
@@ -499,7 +499,7 @@ rather than its own.
 ## What adopting would change
 
 [The plan](../plans/assistant-memory.md) turns this list into phases; the page below is
-[IDEA-023](../jobs/IDEA-023.md) and is not part of it.
+[IDEA-023](../plans/assistant-memory-page.md) and is not part of it.
 
 Code:
 
@@ -514,7 +514,7 @@ Code:
   instruments and `Program` their bucket views.
 - `SqliteConversationStore.DeleteAsync` nulls provenance in the same transaction;
   `SqliteUserStore.RemoveAsync` deletes the owner's memories.
-- [IDEA-023](../jobs/IDEA-023.md), the page: `AssistantEndpoint` grows the list, the edit form and
+- [IDEA-023](../plans/assistant-memory-page.md), the page: `AssistantEndpoint` grows the list, the edit form and
   the forget confirmation, with a link from the conversation view.
 
 Docs: a "Memory" section in [assistant](../assistant.md), an "Assistant memory" subsection in

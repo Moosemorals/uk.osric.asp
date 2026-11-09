@@ -29,9 +29,9 @@ planning](../plans/archive/page-features.md) of 2026-11-08, and is worth doing n
 fetch have left `SimpleContext`. ARCH-14 came out of the nullable-pages discussion of 2026-11-08 and
 carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md). ARCH-15 came
 out of the assistant shell-file work of 2026-11-09 (DEC-198). IDEA-023 came out of the
-[assistant-memory planning](../plans/assistant-memory.md) of 2026-11-09: the plan gives the
-assistant a memory, and the page that shows it to its owner is deliberately left behind. It has
-[its own plan](../plans/assistant-memory-page.md) now.
+[assistant-memory planning](../plans/assistant-memory.md) of 2026-11-09: that plan gave the assistant
+a memory and left the page that shows it to its owner behind, and [its own plan](../plans/assistant-memory-page.md)
+has now built it.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -49,7 +49,6 @@ assistant a memory, and the page that shows it to its owner is deliberately left
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
-| [IDEA-023](IDEA-023.md) | — | M | The assistant remembers, but only the transcript shows it |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -97,9 +96,6 @@ self-contained comes first, because these are the ones that never get scheduled 
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
-10. **IDEA-023, the memory page** — [the plan](../plans/assistant-memory-page.md) is written and
-    nothing has started: until the owner can read and prune what it believes, a bad memory is
-    correctable only by asking the assistant nicely.
 
 ## Closed
 
@@ -140,6 +136,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and DEC-180–DEC-185 |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
 | IDEA-002 | A page reaches an allow-listed host through `ctx.Features.GetRequired<IHttpFetch>()`; every failure is a value (DEC-128, DEC-129, DEC-143). See [the plan](../plans/archive/page-fetch-and-storage.md) |
+| IDEA-023 | `/assistant/memory` lists every memory the owner holds, grouped by kind with the pinned ones first, each row a form that saves content, kind and pin under the version it was rendered from, with a count against the cap and a forget that asks on its own page first (DEC-200–DEC-204). See [the plan](../plans/assistant-memory-page.md) |
 | IDEA-003 | A page keeps state through `ctx.Features.GetRequired<IPageStorage>()` in a `PageState` table with per-page caps (DEC-125, DEC-126, DEC-127, DEC-142). See [the plan](../plans/archive/page-fetch-and-storage.md) |
 | IDEA-004 | The page contract is its own reference-free assembly, `uk.osric.asp.Sdk`. See [the plan](../plans/archive/page-sdk-split.md) |
 | IDEA-006 | `/site.css` is a seeded page rather than a static file, so the site's look is edited like any other page. See [the plan](../plans/archive/non-html-pages.md) |

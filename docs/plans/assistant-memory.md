@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a migration, a store, four tools, recall in the run, and the tests for each |
 | Spike | [Memory for the page assistant](../spikes/assistant-memory.md), which measures the store and surveys what other systems do |
 | Decisions | DEC-184–DEC-188, recorded in [decisions](../decisions.md#architecture-and-code-placement) |
-| Backlog | [IDEA-023](../jobs/IDEA-023.md) — the page that shows, edits and pins memory. Deliberately not part of this plan |
+| Backlog | [IDEA-023](../jobs/README.md#closed) — the page that shows, edits and pins memory, now built by [its own plan](assistant-memory-page.md) |
 
 ## The short version
 
@@ -36,7 +36,7 @@ run.
   under a millisecond.
 
 The owner's view of all this — a page that lists, edits, forgets and pins — is
-[IDEA-023](../jobs/IDEA-023.md). This plan stores the `Pinned` flag and honours it in the selector so
+[IDEA-023](../jobs/README.md#closed). This plan stores the `Pinned` flag and honours it in the selector so
 that the job is a page rather than a migration, but until the job lands nothing sets it except a
 test. The assistant's own tools are the whole owner interface in the meantime: the transcript shows
 every write, and `forget_memory` is how a memory is removed.
@@ -59,7 +59,8 @@ every write, and `forget_memory` is how a memory is removed.
 ## Non-goals
 
 - **An owner-facing page.** Listing, editing, forgetting and pinning from the browser is
-  [IDEA-023](../jobs/IDEA-023.md). This plan is the assistant side.
+  [IDEA-023](../jobs/README.md#closed), built by [the memory page plan](assistant-memory-page.md). This
+  plan is the assistant side.
 - **Embeddings, a vector store or a reranker.** The provider client speaks chat completions only,
   and the measured recall at this size does not need them.
 - **Background extraction or a derived profile.** No pass reads the conversation afterwards and
@@ -217,7 +218,7 @@ The decisions inside the schema, one at a time:
 - **`Kind` is four values.** `preference`, `fact`, `feedback`, `reference` — enough to group the
   prompt block and to make a later page useful, and not a taxonomy that has to be maintained.
 - **`Pinned` is an owner control.** The assistant may not set it. The column and the selector's
-  pinned tier exist so [IDEA-023](../jobs/IDEA-023.md) adds a toggle rather than a migration; until
+  pinned tier exist so [IDEA-023](../plans/assistant-memory-page.md) adds a toggle rather than a migration; until
   then it is always 0 and the tier is proved by test alone.
 - **Provenance is not a foreign key.** A memory outlives the conversation that produced it, so
   `SourceConversationId` and `SourceRunId` are plain nullable values, nulled explicitly when the
@@ -626,7 +627,7 @@ because v12 was taken by the context-masking change that merged ahead of this on
 Docs changes: a paragraph in [assistant](../assistant.md) after the tools and approvals paragraph; an
 "Assistant memory" subsection in [storage](../storage.md) beside `PageState`; **Memory** and **Recall**
 entries in [glossary](../glossary.md); a clause in [testing](../testing.md) naming the memory suites;
-the six settings in `appsettings.json`; and [IDEA-023](../jobs/IDEA-023.md) for the page.
+the six settings in `appsettings.json`; and [IDEA-023](../jobs/README.md#closed) for the page.
 
 ## Risks
 

@@ -76,7 +76,13 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   the provenance sweep and the account sweep, applies `AddAssistantMemory` up, down and up again, and
   drives the four tools; `Web.IntegrationTests` proves a memory crossing from one conversation to the
   next through the real host, another owner's request without it, a denial that stores nothing and a
-  store that throws leaving the run whole. No suite contacts a real model provider.
+  store that throws leaving the run whole. The owner's memory page adds `MemoryListingTests` for the
+  grouping rule, `AssistantMemoryStoreTests`' `ListAsync`, `GetAsync` and `EditAsync` cases,
+  `AssistantMemoryPageTests` for the view and every refusal over a hand-built `HttpContext`, and the
+  same name in `Web.IntegrationTests` for two accounts against the real host; `ShellViews` renders the
+  page and the forget confirmation so the accessibility sweep covers both, and
+  `AssistantMemoryBrowserTests` walks the round trip: see, correct, pin, forget. No suite contacts a
+  real model provider.
 - **Markdown** is split by what each suite owns: `Core.Tests` pins `LinkPolicy`; `Runtime.Tests`
   drives both renderer profiles, including the table renderer's `scope="col"` and refusal of inline
   styles; `Web.Tests` renders a real page through `IMarkdownRenderer`, renders the transcript and

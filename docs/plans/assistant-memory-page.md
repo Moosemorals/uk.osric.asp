@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started |
+| Status | Landed |
 | Size | Medium — two store operations, four routes, a list-and-form view, one seed's styles and the tests for each |
 | Spike | None. [The memory spike](../spikes/assistant-memory.md) already settled the store; this plan only reads and writes it |
 | Decisions | DEC-200–DEC-204, recorded when this lands |
-| Backlog | [IDEA-023](../jobs/IDEA-023.md), which this plan closes |
+| Backlog | [IDEA-023](../jobs/README.md#closed), which this plan closed |
 
 ## The short version
 
@@ -110,7 +110,7 @@ re-render the row, because the textarea's content is the owner's work.
 | `test/uk.osric.asp.Core.Tests/MemoryListingTests.cs` | The grouping rule |
 | `test/uk.osric.asp.Web.Tests/AssistantMemoryStoreTests.cs` | `ListAsync` and `EditAsync` against `DatabaseTemplate` |
 | `test/uk.osric.asp.Web.Tests/AssistantMemoryPageTests.cs` | The view and every refusal, over a hand-built `HttpContext` |
-| `test/uk.osric.asp.Web.Tests/ShellViews.cs` | The page as a shell view, so the accessibility sweep covers it |
+| `test/uk.osric.asp.Web.Tests/ShellViews.cs`, `ShellMemoryStore.cs` | The page and the forget confirmation as shell views, so the accessibility sweep covers both |
 | `test/uk.osric.asp.Web.IntegrationTests/AssistantMemoryPageTests.cs` | Two accounts against the real host, and the page's effect on the next run |
 | `test/uk.osric.asp.Web.BrowserTests/AssistantMemoryBrowserTests.cs` | The round trip in a browser |
 | `docs/assistant.md`, `docs/storage.md`, `docs/testing.md`, `docs/glossary.md` | The page, the owner's write, the suites, the terms |
@@ -137,7 +137,9 @@ Task<MemoryWriteResult> EditAsync(
     CancellationToken cancellationToken = default);
 ```
 
-`ListAsync` is a read: every row the owner holds, mapped to `MemoryCandidate`. It does not filter by
+`GetAsync` reads one row for the confirmation page and for deciding which refusal a failed save is;
+it is the same owner-filtered lookup, so an id that is not the owner's is not there. `ListAsync` is a
+read: every row the owner holds, mapped to `MemoryCandidate`. It does not filter by
 kind or by pinned, because the page draws all of it and the grouping decides the order; it does not
 page, because `MaxMemoriesPerOwner` is the page's own limit. The rows are ordered in C# by `Written`
 descending and then by id descending, for the same reason `SqliteConversationStore.GetLastRunAsync`
@@ -217,10 +219,11 @@ Page list. Then:
   Reference — and nothing for a kind with none;
 - one article per memory, each holding a form.
 
-A row shows four things before its fields: the content, whether it is pinned, when it was written and
-how often it has been used, and where it came from — a link to the conversation while that
-conversation exists, and "from a deleted conversation" when `SourceConversationId` is null, which is
-what the conversation delete leaves behind (DEC-184). The use count reads "never used" or "used 4
+A row's meta line says whether the memory is pinned, when it was written and how often it has been
+used, and where it came from — a link to the conversation while that conversation exists, and "from a
+deleted conversation" when `SourceConversationId` is null, which is what the conversation delete
+leaves behind (DEC-184). The note itself is the row's textarea, so the page shows it once: a second,
+read-only copy above an editable one is the same text twice. The use count reads "never used" or "used 4
 times, last on 2026-11-06". The content is written as text, HTML-encoded by the view: a memory is
 data that goes into a prompt, and the page that shows it draws a `<script>` in it as characters, not
 as an element (DEC-200).
@@ -431,9 +434,9 @@ The order is the repository's: the pure rule first, then the store, then the com
   changed; a `POST` the antiforgery check refused is `400`; the forget `GET` shows the content and
   deletes nothing, the `POST` deletes the row, its history and its index entry and answers `303`; an
   empty list says so rather than drawing four headings.
-- `ShellViews` gains an `assistant-memory` view, so `AccessibilityTests` applies its twelve rules to
-  the page: one `main`, one `h1`, no skipped heading level, a label on every control, every
-  `form.form` field in a `dd` or a fieldset legend, and the rest.
+- `ShellViews` gains `assistant-memory` and `assistant-memory-forget`, so `AccessibilityTests` applies
+  its twelve rules to both: one `main`, one `h1`, no skipped heading level, a label on every control,
+  every `form.form` field in a `dd` or a fieldset legend, and the rest.
 
 **`Web.IntegrationTests`**
 
@@ -502,7 +505,7 @@ trip edits, pins and forgets a memory.
 - [storage](../storage.md): the owner's write and the pin.
 - [testing](../testing.md): the suites.
 - [glossary](../glossary.md): **Memory page** and **Pin**.
-- Delete [IDEA-023](../jobs/IDEA-023.md) and add its row to [the closed jobs](../jobs/README.md#closed).
+- Delete `docs/jobs/IDEA-023.md` and add its row to [the closed jobs](../jobs/README.md#closed).
 - The plan's status row moved to landed; link and anchor check.
 
 **Done when** the docs describe what the code does, IDEA-023 is closed with its outcome, and

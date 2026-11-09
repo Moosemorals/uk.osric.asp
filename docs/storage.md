@@ -100,6 +100,13 @@ because a memory is personal data rather than a page revision — and the index 
 the delete trigger. As with a page scrub, deleting the row is not forensic erasure: WAL frames,
 backups and snapshots are the operator's.
 
+`EditAsync` is the owner's write, reached from `/assistant/memory` and from nothing else: it
+normalises and checks the content exactly as the tools do, appends the version it replaces to
+`AssistantMemoryEdits`, bumps the head and — the one thing no tool can do — sets `Pinned`. It keeps the
+head's provenance, because an owner's edit does not make the conversation that wrote the memory
+untrue, and a stale `expectedVersion` is refused with the content that is stored now (DEC-201,
+DEC-202).
+
 Nothing in `Sdk`, `Runtime` or the page contract reaches memory: a stored page is public to whoever
 can reach it, and a memory belongs to one owner (DEC-184).
 

@@ -122,6 +122,16 @@ answer. It is written only by a `remember` call the transcript shows, never by a
 **Owner:** assistant — `MemoryEntry`, `MemoryCandidate`, the `AssistantMemories` table, the
 `AssistantMemoryEdits` history, `SqliteMemoryStore` and `Assistant:MaxMemoriesPerOwner`.
 
+## Memory page
+The owner's own view of the assistant's memory: `/assistant/memory`, where every note is listed by
+kind, corrected, pinned or forgotten.
+
+**Not** a stored page. It is shell code under the reserved `/assistant` prefix, server-rendered like
+the editor and `/status`, so a page cannot claim the key and the assistant reads it as a shell file it
+may not save.
+
+**Owner:** assistant — `AssistantMemoryEndpoint`, `/assistant.css` and DEC-200–DEC-204.
+
 ## Message
 One row of a conversation's transcript, with role `user`, `assistant` or `tool`, a per-conversation
 `Sequence`, and the `RunId` that produced it.
@@ -187,6 +197,16 @@ before the first step, once per run, with the block frozen for the rest of it (D
 
 **Owner:** assistant — `MemoryRecall`, `MemoryQuery`, `MemorySelection`, `IMemoryStore.RecallAsync`,
 `Assistant:MaxMemoriesPerRun` and `Assistant:MaxMemoryCharsPerRun`.
+
+## Pin
+The owner's "always use this": a flag on a memory that puts it first in recall, whatever the turn
+happens to be about.
+
+**Not** something the assistant can set. No tool has an argument for it; only `EditAsync`, reached
+from the memory page, changes it (DEC-201).
+
+**Owner:** assistant — `MemoryCandidate.Pinned`, the `AssistantMemories.Pinned` column,
+`IMemoryStore.PinnedAsync` and `MemoryRecall.Select`.
 
 ## Revision
 An immutable saved row holding one template, the image built from it, its hash and the runtime id
