@@ -54,7 +54,12 @@ public sealed class LineChartTests {
 
         Assert.That(svg, Does.Contain("<a class=\"series-link series-1\" id=\"test-s1\" href=\"#test-s1\" tabindex=\"-1\">"));
         Assert.That(svg, Does.Contain("<title>ok</title>"), "the anchor names the series on hover");
-        Assert.That(svg, Does.Contain("class=\"chart-legend-label\""), "and holds the series' legend entry");
+
+        int open = svg.IndexOf("<a class=\"series-link series-1\"", StringComparison.Ordinal);
+        string anchor = svg[open..svg.IndexOf("</a>", open, StringComparison.Ordinal)];
+
+        Assert.That(anchor, Does.Contain("chart-legend-label"), "the legend entry lives in the series' anchor");
+        Assert.That(anchor, Does.Contain("<polyline class=\"series series-1\""), "and so does the line");
     }
 
     [Test]
