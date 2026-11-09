@@ -178,7 +178,8 @@ internal class Program {
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
         builder.Services.AddScoped<PageEditor>();
         // The save is a singleton because a page's save can outlive the request that started it, and
-        // the image builder has no per-request state: a compiler, the compile budget and the metrics.
+        // the image builder has no per-request state: a compiler, the compile budget and the meters,
+        // all singletons already.
         builder.Services.AddSingleton<PageSaver>();
         builder.Services.AddSingleton<PageImageBuilder>();
         builder.Services.AddScoped<PageRenderer>();
