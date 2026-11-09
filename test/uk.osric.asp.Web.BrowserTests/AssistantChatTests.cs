@@ -22,6 +22,19 @@ internal sealed class AssistantChatTests : BrowserTest {
     }
 
     [Test]
+    public async Task AMarkdownReplyIsFormattedWhenTheStepCompletesAsync() {
+        await NewConversationAsync();
+        Provider.Script(StubResponse.Words("**Bold** and [about](/about).", TimeSpan.Zero));
+
+        await SendAsync("Use markdown");
+
+        await Assertions.Expect(Page.Locator(".assistant-content strong"))
+            .ToHaveTextAsync("Bold", new() { Timeout = 30_000 });
+        await Assertions.Expect(Page.Locator(".assistant-content a[href='/about']"))
+            .ToHaveTextAsync("about", new() { Timeout = 30_000 });
+    }
+
+    [Test]
     public async Task TheConversationTakesItsTitleFromTheFirstMessageAsync() {
         long id = await NewConversationAsync();
         Provider.Script(StubResponse.Words("Noted.", TimeSpan.Zero));

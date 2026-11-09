@@ -158,6 +158,69 @@
     display: none;
 }
 
+/* The rendered form is a document inside the card, so its own margins belong to the card edge. */
+.assistant-content > :first-child {
+    margin-block-start: 0;
+}
+
+.assistant-content > :last-child {
+    margin-block-end: 0;
+}
+
+.assistant-content p,
+.assistant-content ul,
+.assistant-content ol,
+.assistant-content blockquote,
+.assistant-content table {
+    margin-block: 0.35rem;
+}
+
+.assistant-content ul,
+.assistant-content ol {
+    padding-inline-start: 1.25rem;
+}
+
+.assistant-content h3 {
+    margin-block: 0.5rem 0.25rem;
+    font-size: 1rem;
+}
+
+.assistant-content blockquote {
+    padding-inline-start: 0.5rem;
+    border-inline-start: 0.2rem solid var(--assistant-muted);
+    color: #414b48;
+}
+
+.assistant-content code {
+    padding: 0.05rem 0.2rem;
+    background: #e2e7e5;
+}
+
+.assistant-content pre {
+    padding: 0.35rem 0.5rem;
+    background: #e2e7e5;
+}
+
+/* A table stays inside the card and wraps long cell text rather than becoming a nested scroll area
+   a keyboard reader cannot reach. */
+.assistant-content table {
+    max-width: 100%;
+    border-collapse: collapse;
+}
+
+.assistant-content th,
+.assistant-content td {
+    padding: 0.2rem 0.4rem;
+    border: 1px solid var(--assistant-rule);
+    text-align: start;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+}
+
+.assistant-content th {
+    background: #e2e7e5;
+}
+
 .assistant-message pre,
 .assistant-approval pre,
 .assistant-tool pre {

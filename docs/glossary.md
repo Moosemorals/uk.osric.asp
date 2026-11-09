@@ -100,6 +100,16 @@ a key containing `?` or `#` is not addressable at all.
 **Owner:** pages — `PagePath.Key` and `PagePath.Normalize`; the `Path` and `PagePath` columns in
 `PageHeads`, `PageRevisions` and `PageState`; `Pages:ReservedPaths`.
 
+## Markdown
+The source format a page may render to HTML, and the format an assistant reply is written in.
+
+**Not** the page template. A template is HTML and C# blocks; Markdown is one value a page can pass
+to `IMarkdownRenderer`, and the assistant's reply is Markdown only in the transcript.
+
+**Owner:** pages and assistant — `IMarkdownRenderer` and `MarkdownRenderer`; the restricted
+assistant profile, `LinkPolicy` and `AccessibleTableRenderer` are the rules that differ from the
+page profile (DEC-163, DEC-164).
+
 ## Message
 One row of a conversation's transcript, with role `user`, `assistant` or `tool`, a per-conversation
 `Sequence`, and the `RunId` that produced it.

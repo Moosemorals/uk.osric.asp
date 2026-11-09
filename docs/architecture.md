@@ -27,8 +27,10 @@ can enforce it.
   compiled handler in a collectible `AssemblyLoadContext`. It also applies the page API policy
   (`PageApiChecker`) before emitting, and hands each image a `PageLoadContext` that refuses the
   shell's assemblies. It also parses page JavaScript (`JavaScriptValidator`) so the assistant can
-  check a script without running it. It references `Core`, `Sdk`, Roslyn and Acornima, and nothing
-  else — in particular no ASP.NET, storage or logging types, because it is not built on the Web SDK.
+  check a script without running it, and renders Markdown through `MarkdownRenderer` (Markdig) for
+  stored pages and the assistant transcript. It references `Core`, `Sdk`, Roslyn, Acornima and
+  Markdig, and nothing else — in particular no ASP.NET, storage or logging types, because it is not
+  built on the Web SDK.
 - **`src/uk.osric.asp.Web`** owns HTTP endpoints, hosting, configuration, `SimpleContext`, and source
   storage. EF Core, SQLite, database migrations and `IPageStore` belong here.
 
@@ -99,6 +101,8 @@ and the logs quote them:
 | Which media type a page's key names, and what an unmapped key falls back to | `Core.Pages`, as `PageContentTypes` beside `PagePath`; `Web` reads the section |
 | The Roslyn walk that applies the page policy | `Runtime` |
 | The template language and its diagnostics | `Core.Compilation` |
+| The URL rule a restricted Markdown render applies | `Core.Markdown`, as `LinkPolicy` |
+| Markdown parsing and HTML generation | `Runtime`, as `MarkdownRenderer` and its renderers; the page capability is `Sdk/IMarkdownRenderer` |
 | The `/status` charts | `Core.Charting` |
 | Text whose case a key ignores — the page key and an account name | `Core.Text`, as `LowercaseText` |
 
@@ -148,8 +152,8 @@ returns it or throws naming the interface, so the page decides whether absence i
 decides what is registered — a page cannot add or replace a capability — and a capability is either
 registered or absent, never `null` (DEC-142).
 
-Three capabilities are registered today — two that do I/O and are bounded by the render, and one
-that is the page's slots in its document:
+Four capabilities are registered today — two that do I/O and are bounded by the render, one that is
+the page's slots in its document, and one that is a pure renderer:
 
 - `IPageStorage` is the page's own key/value store. It is bound to the page's key, so a page cannot
   name another page's state; the handle is the isolation. Values are JSON round-tripped by the
@@ -163,6 +167,11 @@ that is the page's slots in its document:
   `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
   layout never meets one (DEC-148). See "Layouts" below.
+- `IMarkdownRenderer` renders Markdown to HTML with `ToHtml`. It is pure and needs no `await`; its
+  result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus pipe
+  tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
+  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (DEC-163). A table's header
+  cells carry `scope="col"` and no inline style.
 
 A page's log entries are filed under the single `uk.osric.asp.Pages` category, with the page's key on
 a `Path` scope property, so one page can be filtered or levelled without touching another. That
@@ -339,6 +348,15 @@ checks that parse a stored page or a supplied complete template as an ES module 
 There is no process, filesystem, git, package, or outbound-network tool. The per-conversation approval
 mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on each
 flagged mutation. Unresolved, stale, stopped, or restarted approvals never execute.
+
+An assistant reply is Markdown and the transcript renders it. The restricted profile is the second
+`MarkdownRenderer` profile (DEC-164): no raw HTML, images, autolinks or unsafe URL schemes;
+site-relative or `http(s)` links with `rel="nofollow noopener noreferrer"`; pipe tables through the
+site's table renderer; and every heading flattened to `h3`, because the transcript's own heading is
+an `h2`. A step streams as plain text and becomes formatted when `message.completed` arrives: the
+page asks `GET /assistant/{id}/messages/{messageId}/content`, which renders the stored message with
+the same profile as the reload, so the live step and the page after the run cannot disagree. The
+route is behind the same `Editor` policy and owner filter as every other conversation operation.
 
 The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
 results, context and event replay, and bounds each provider request by silence rather than by duration:

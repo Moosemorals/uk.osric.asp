@@ -130,10 +130,11 @@ public interface IContext {
 
     /// <summary>The capabilities this render offers.</summary>
     /// <remarks>
-    /// Storage and outbound HTTP live here rather than on the context, because a page that needs
-    /// neither should never meet them. A capability the render does not offer is absent rather than
-    /// <see langword="null"/>; a page decides whether that is fatal with
-    /// <see cref="IPageFeatures.Get{T}"/> or <see cref="IPageFeatures.GetRequired{T}"/>.
+    /// Storage, outbound HTTP, the document's slots and Markdown live here rather than on the
+    /// context, because a page that needs none of them should never meet them. A capability the
+    /// render does not offer is absent rather than <see langword="null"/>; a page decides whether
+    /// that is fatal with <see cref="IPageFeatures.Get{T}"/> or
+    /// <see cref="IPageFeatures.GetRequired{T}"/>.
     /// </remarks>
     public IPageFeatures Features { get; }
 }

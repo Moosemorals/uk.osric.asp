@@ -103,7 +103,8 @@ internal sealed class PageChain {
         PageFeatures features = new PageFeatures()
             .Add<IPageStorage>(storage)
             .Add<IHttpFetch>(fetch)
-            .Add<IPageLayout>(layout);
+            .Add<IPageLayout>(layout)
+            .Add<IMarkdownRenderer>(_environment.Markdown);
 
         return new SimpleContext(
             _loggerFactory,

@@ -29,10 +29,12 @@ internal sealed class PageHarness : IDisposable {
         PageStorageOptions? storageOptions = null,
         ILogger<PageRenderer>? rendererLogger = null,
         PageFetchOptions? fetchOptions = null,
-        PageContentTypes? contentTypes = null) {
+        PageContentTypes? contentTypes = null,
+        MarkdownRenderer? markdown = null) {
         State = state ?? new FakePageStateStore();
         Fetch = fetch ?? new FakePageFetcher();
         ContentTypes = contentTypes ?? TestContentTypes.Shipped;
+        Markdown = markdown ?? new MarkdownRenderer();
         StorageOptions = storageOptions ?? new PageStorageOptions();
         FetchOptions = fetchOptions ?? new PageFetchOptions();
         Options = options ?? new RenderOptions();
@@ -63,6 +65,9 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>The content-type map every context in this harness renders against.</summary>
     public PageContentTypes ContentTypes { get; }
+
+    /// <summary>The Markdown renderer every context in this harness offers.</summary>
+    public MarkdownRenderer Markdown { get; }
 
     public PageStorageOptions StorageOptions { get; }
 
@@ -138,6 +143,8 @@ internal sealed class PageHarness : IDisposable {
                 NullLoggerFactory.Instance.CreateLogger(SimpleContext.PageCategory));
             features.Add<IHttpFetch>(fetch);
         }
+
+        features.Add<IMarkdownRenderer>(Markdown);
 
         return new SimpleContext(
             NullLoggerFactory.Instance,

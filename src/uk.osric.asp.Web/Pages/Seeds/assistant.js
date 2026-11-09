@@ -118,6 +118,35 @@ if (root) {
         return message;
     }
 
+    // A delta is plain text until the step ends, then the server's own restricted renderer turns
+    // the stored message into the same HTML the reload will show. If the fetch fails the plain text
+    // stays, because losing the answer would be worse than showing it unformatted.
+    async function renderCompleted(message, messageId) {
+        if (!message || message.rendered || !messageId) {
+            return;
+        }
+
+        message.rendered = true;
+        const wasNear = nearBottom();
+        try {
+            const response = await fetch(
+                `/assistant/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/content`,
+                { headers: { Accept: 'text/html' } });
+            if (!response.ok) {
+                return;
+            }
+
+            const rendered = document.createElement('div');
+            rendered.className = 'assistant-content';
+            rendered.innerHTML = await response.text();
+            message.content.replaceWith(rendered);
+            message.content = rendered;
+            keepNearBottom(wasNear);
+        } catch {
+            // The plain text already in the transcript is the fallback.
+        }
+    }
+
     function element(tag, className, text) {
         const created = document.createElement(tag);
         if (className) {
@@ -268,6 +297,7 @@ if (root) {
                 message.article.removeAttribute('aria-busy');
                 message.reasoning.open = false;
             }
+            void renderCompleted(message, data.messageId);
             statusLine.textContent = 'Response step complete';
         });
         source.addEventListener('budget.updated', event => applyBudgets(JSON.parse(event.data).budgets));

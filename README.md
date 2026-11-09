@@ -48,6 +48,10 @@ own key/value state, and `ctx.Features.GetRequired<IHttpFetch>()` reaches an all
 the server. The [architecture notes](docs/architecture.md#page-contract) list the rest of the
 surface.
 
+`ctx.Features.GetRequired<IMarkdownRenderer>()` renders Markdown to HTML for a page; write the
+result with `<%== %>`. It passes raw HTML through, so it is the author's renderer rather than a
+sanitiser. The [help page](src/uk.osric.asp.Web/Pages/Seeds/help) has the detail.
+
 A `<%! %>` block holds declarations rather than statements: `using` directives and types of the
 page's own. They are hoisted above the handler and are usable from every `<% %>` block, before or
 after the block that declares them.

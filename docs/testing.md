@@ -53,8 +53,16 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   streams for the run processor. `Web.IntegrationTests` runs the real authenticated host with a
   scripted provider to verify disabled routing, conversation streaming, approval gating and writes,
   and compares the last `budget.updated` a run published with the page the reload renders. The
-  browser suite watches a budget figure move while the run is still busy.
+  browser suite watches a budget figure move while the run is still busy, and watches a scripted
+  Markdown reply become formatted when its step completes.
   No suite contacts a real model provider.
+- **Markdown** is split by what each suite owns: `Core.Tests` pins `LinkPolicy`; `Runtime.Tests`
+  drives both renderer profiles, including the table renderer's `scope="col"` and refusal of inline
+  styles; `Web.Tests` renders a real page through `IMarkdownRenderer`, renders the transcript and
+  the live content route, and the assistant fixture in `ShellViews` gives the accessibility sweep a
+  rendered heading and table. `Web.IntegrationTests` fetches a completed step's content through the
+  real authenticated host. `Pages/Seeds/help` and `PageAuthorPrompt` are updated with the API, so
+  the author manual and the model learn the same rule.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
   `ShellViews` renders all twenty-four shell views once each — the sign-in form and its failure, the
   sign-out confirmation, the listing with an edited seed and a matching one so its restore buttons

@@ -119,6 +119,7 @@ internal class Program {
         builder.Services.AddSingleton(TimeProvider.System);
 
         builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
+        builder.Services.AddSingleton<MarkdownRenderer>();
         builder.Services.AddSingleton<IPasswordService, PasswordService>();
         builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
         builder.Services.AddSingleton<PageBudget>();
@@ -151,7 +152,8 @@ internal class Program {
             services.GetRequiredService<IPageStateStore>(),
             services.GetRequiredService<IPageFetcher>(),
             services.GetRequiredService<PageMetrics>(),
-            services.GetRequiredService<IAntiforgery>()));
+            services.GetRequiredService<IAntiforgery>(),
+            services.GetRequiredService<MarkdownRenderer>()));
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         builder.Services.AddScoped<IPageStore, SqlitePageStore>();
@@ -371,6 +373,8 @@ internal class Program {
             app.MapPost("/assistant/{id:long}/messages", AssistantEndpoint.MessagesAsync)
                 .RequireAuthorization(EditorPolicy.Name)
                 .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+            app.MapGet("/assistant/{id:long}/messages/{messageId:long}/content", AssistantEndpoint.MessageContentAsync)
+                .RequireAuthorization(EditorPolicy.Name);
             app.MapGet("/assistant/{id:long}/events", AssistantEndpoint.EventsAsync)
                 .RequireAuthorization(EditorPolicy.Name);
             app.MapPost("/assistant/{id:long}/stop", AssistantEndpoint.StopAsync)

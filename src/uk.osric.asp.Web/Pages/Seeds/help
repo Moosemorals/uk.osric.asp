@@ -12,6 +12,7 @@ can improve it at <a href="/edit/help">/edit/help</a>.</p>
         <li><a href="#head-and-scripts">Stylesheets, head and scripts</a></li>
         <li><a href="#syntax">Template syntax</a></li>
         <li><a href="#context">Context and capabilities</a></li>
+        <li><a href="#markdown">Markdown</a></li>
         <li><a href="#private">Private pages and forms</a></li>
         <li><a href="#assets">Assets, seeds and recovery</a></li>
         <li><a href="#keeping-current">Keeping this page current</a></li>
@@ -188,6 +189,17 @@ LINQ helpers, the explicit base types the contract uses, and the system exceptio
 catch. <code>System.IO</code>, <code>System.Net</code>, <code>System.Reflection</code>,
 <code>System.Diagnostics</code>, regular expressions, expression trees, interop, threading beyond
 <code>CancellationToken</code>, <code>Microsoft.*</code> and host namespaces are not available.</p>
+
+<h2 id="markdown">Markdown</h2>
+<p><code>IMarkdownRenderer</code> renders Markdown to HTML. Write its result raw:</p>
+<pre class="source" tabindex="0"><code>&lt;% IMarkdownRenderer markdown = ctx.Features.GetRequired&lt;IMarkdownRenderer&gt;(); %&gt;
+&lt;%== markdown.ToHtml("## Today\n\n- one\n- two") %&gt;</code></pre>
+<p>It understands CommonMark, pipe tables, auto-links, links and images. Raw HTML in the
+Markdown passes through, exactly like <code>&lt;%== %&gt;</code>: the renderer is not a
+sanitiser, so escape a visitor's or a fetched value with <code>ctx.Write</code> rather than
+rendering it. An image must be served by this site, because the response's policy allows images
+only from the same origin. A table's header cells are written with <code>scope="col"</code>, and
+column alignment markers are ignored because the site's policy forbids inline styles.</p>
 
 <h2 id="private">Private pages and forms</h2>
 <p>Pages are public unless their own code checks <code>ctx.User</code>. Put the guard at the top and

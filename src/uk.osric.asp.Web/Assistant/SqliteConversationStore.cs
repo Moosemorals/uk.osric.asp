@@ -244,6 +244,23 @@ internal sealed class SqliteConversationStore(
             .ToArrayAsync(cancellationToken);
     }
 
+    public async Task<Message?> GetMessageAsync(
+        long conversationId,
+        string owner,
+        long messageId,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        bool owned = await OwnsConversationAsync(conversationId, owner, cancellationToken);
+        if (!owned) {
+            return null;
+        }
+
+        return await database.Set<Message>().AsNoTracking()
+            .FirstOrDefaultAsync(
+                message => message.Id == messageId && message.ConversationId == conversationId,
+                cancellationToken);
+    }
+
     public async Task<Run?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 

@@ -146,6 +146,30 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
             "a step that only calls a tool must not render an empty assistant row");
     }
 
+    [Test]
+    public async Task ACompletedStepIsAvailableAsRestrictedHtmlAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        string conversation = await CreateConversationAsync(client);
+        string eventStream = await RunAsync(client, conversation);
+
+        long messageId = ParseEvents(eventStream)
+            .Last(item => item.Type == "message.completed"
+                && item.Data.GetProperty("status").GetString() == "complete")
+            .Data.GetProperty("messageId").GetInt64();
+
+        using HttpResponseMessage content = await client.GetAsync(
+            $"{conversation}/messages/{messageId}/content");
+        string html = await content.Content.ReadAsStringAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(content.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(content.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
+            Assert.That(html, Does.Contain("<p>I read the page.</p>"));
+            Assert.That(html, Does.Contain("<th scope=\"col\">Name</th>"));
+            Assert.That(html, Does.Not.Contain("style="));
+        });
+    }
+
     private static async Task<string> RunAndReloadAsync(HttpClient client, string conversation) {
         await RunAsync(client, conversation);
         using HttpResponseMessage reloaded = await client.GetAsync(conversation);
@@ -207,7 +231,10 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
             // The fixture's host is shared, so requests alternate tool call, answer, tool call, answer.
             IReadOnlyList<ChatStreamEvent> events = Interlocked.Increment(ref _request) % 2 == 1
                 ? [new ToolCallDelta(0, "layout-call", "read_page", arguments), new Finished("tool_calls")]
-                : [new ContentDelta("I read the page."), new Finished("stop")];
+                : [
+                    new ContentDelta("I read the page.\n\n| Name | Value |\n| --- | --- |\n| one | 1 |"),
+                    new Finished("stop"),
+                ];
             foreach (ChatStreamEvent @event in events) {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return @event;

@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using Microsoft.AspNetCore.Antiforgery;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Runtime;
 
 /// <summary>What the page endpoint needs beyond the renderer, gathered in one place.</summary>
 /// <remarks>
@@ -21,6 +22,7 @@ using uk.osric.asp.Core.Pages;
 /// <param name="Fetcher">Where a page's outbound request goes.</param>
 /// <param name="Metrics">Where the endpoint's own refusals are recorded.</param>
 /// <param name="Antiforgery">Validates a page's post and mints the field a form carries.</param>
+/// <param name="Markdown">The renderer every page layer offers as <c>IMarkdownRenderer</c>.</param>
 internal sealed record PageEnvironment(
     ReservedPaths Reserved,
     PageLayoutConfiguration Layout,
@@ -31,4 +33,5 @@ internal sealed record PageEnvironment(
     IPageStateStore StateStore,
     IPageFetcher Fetcher,
     PageMetrics Metrics,
-    IAntiforgery Antiforgery);
+    IAntiforgery Antiforgery,
+    MarkdownRenderer Markdown);

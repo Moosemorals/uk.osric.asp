@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v9";
+    public const string Version = "page-author-v10";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -46,6 +46,11 @@ internal static class PageAuthorPrompt {
                 <dl><dt><label for="note">Note</label></dt><dd><input id="note" name="note"></dd></dl>
                 <button>Save</button>
             </form>
+            """),
+        ("markdown-body", """
+            <% IMarkdownRenderer markdown = ctx.Features.GetRequired<IMarkdownRenderer>(); %>
+            <h1>Notes</h1>
+            <%== markdown.ToHtml("## Today\n\n- one\n- two\n\n| Name | Value |\n| --- | --- |\n| one | 1 |") %>
             """),
         ("json-fetch", """
             <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
@@ -172,6 +177,22 @@ internal static class PageAuthorPrompt {
         await storage.TryGetValueAsync<int>("visits")`. A `HEAD` render may
         read but never write. Never start a storage write and leave the task
         unawaited: that is a dropped write.
+
+        ## Markdown
+        A page renders Markdown through `ctx.Features.GetRequired<IMarkdownRenderer>()`
+        and `ToHtml`; write the result raw with `<%== … %>`. It supports
+        CommonMark, pipe tables, auto-links, links and images. An image must
+        be served by this site, because the response's policy allows images only
+        from the same origin. Raw HTML in the Markdown passes through, exactly
+        like `<%== %>`, so it is not a sanitiser: never render a visitor's
+        input or a fetched value without escaping it first.
+
+        Your own replies are rendered as Markdown with a smaller set:
+        paragraphs, emphasis, strong, inline and fenced code, lists,
+        blockquotes, headings, pipe tables and links. Headings are drawn as
+        h3. Links must stay on this site or be http(s); images, raw HTML,
+        autolinks and every other scheme are shown as text. Write Markdown, not
+        HTML, and give a table a header row and its separator row.
 
         ## Outbound fetch
         `ctx.Features.GetRequired<IHttpFetch>()` makes one bounded HTTP

@@ -67,6 +67,28 @@ public sealed class ConversationStoreTests {
     }
 
     [Test]
+    public async Task MessageReadsAreScopedToTheOwnerAndConversationAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        Conversation other = await conversations.CreateAsync("owner");
+        await conversations.StartRunAsync(conversation.Id, "owner", "Hello", "model", "prompt");
+        Message stored = (await conversations.GetMessagesAsync(conversation.Id, "owner")).Single();
+        Message? found = await conversations.GetMessageAsync(conversation.Id, "owner", stored.Id);
+        Message? wrongOwner = await conversations.GetMessageAsync(conversation.Id, "other", stored.Id);
+        Message? wrongConversation = await conversations.GetMessageAsync(other.Id, "owner", stored.Id);
+        Message? missing = await conversations.GetMessageAsync(conversation.Id, "owner", stored.Id + 1);
+
+        Assert.Multiple(() => {
+            Assert.That(found, Is.Not.Null);
+            Assert.That(found!.Id, Is.EqualTo(stored.Id));
+            Assert.That(wrongOwner, Is.Null);
+            Assert.That(wrongConversation, Is.Null);
+            Assert.That(missing, Is.Null);
+        });
+    }
+
+    [Test]
     public async Task RenameAndApprovalModeUpdateOnlyTheOwnedConversationAsync() {
         await using StorageDbContext database = new(_options);
         IConversationStore conversations = NewStore(database);

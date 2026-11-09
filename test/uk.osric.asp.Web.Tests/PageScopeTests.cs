@@ -50,6 +50,18 @@ public sealed class PageScopeTests {
     }
 
     [Test]
+    public void TheMarkdownParserIsDeniedByThePagePolicy() {
+        CompileResult result = Compiler.Compile(
+            TestTemplates.Generate("<% Markdig.MarkdownPipeline pipeline = null; %>"));
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("PAGE001", StringComparison.Ordinal)
+                && diagnostic.Message.Contains("Markdig", StringComparison.Ordinal)));
+    }
+
+    [Test]
     public void SdkTypesAreStillReferenced() {
         CompileResult result = Compiler.Compile(
             TestTemplates.Generate("<% IContext page = ctx; page.Write(page.Path); %>"));

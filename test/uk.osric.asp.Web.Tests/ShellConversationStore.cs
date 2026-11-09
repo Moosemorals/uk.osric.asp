@@ -49,6 +49,11 @@ internal sealed class ShellConversationStore(
     public Task<IReadOnlyList<Message>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult(messages ?? []);
 
+    public Task<Message?> GetMessageAsync(long conversationId, string owner, long messageId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(conversationId == 1 && owner == "owner"
+            ? (messages ?? []).FirstOrDefault(message => message.Id == messageId)
+            : null);
+
     public Task<Run?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult(activeRun);
 

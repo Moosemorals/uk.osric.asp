@@ -13,6 +13,7 @@ using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
+using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
@@ -94,7 +95,8 @@ internal static class AssistantEndpoint {
         IConversationStore conversations,
         IAntiforgery antiforgery,
         RunRegistry registry,
-        AssistantOptions options) {
+        AssistantOptions options,
+        MarkdownRenderer markdown) {
         string? owner = Owner(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
@@ -139,7 +141,7 @@ internal static class AssistantEndpoint {
         // still going has not changed anything yet as far as a reader is concerned.
         foreach (IGrouping<string, Message> turn in visibleMessages.GroupBy(message => message.RunId)) {
             foreach (Message message in turn) {
-                await WriteMessageAsync(context, message, calls);
+                await WriteMessageAsync(context, message, calls, markdown);
             }
             if (!string.Equals(turn.Key, activeRun?.Id, StringComparison.Ordinal)) {
                 await WriteChangedPagesAsync(context, turn);
@@ -516,10 +518,41 @@ internal static class AssistantEndpoint {
         Redirect.SeeOther(context, "/assistant");
     }
 
+    /// <summary>Serves one stored assistant message as the restricted HTML the transcript shows.</summary>
+    /// <remarks>
+    /// The live transcript streams plain text because a delta is not a document, then asks for this
+    /// route when the step completes. The renderer is the only writer, so a live step and the reload
+    /// that follows the run cannot disagree about what Markdown is allowed.
+    /// </remarks>
+    public static async Task MessageContentAsync(
+        HttpContext context,
+        long id,
+        long messageId,
+        IConversationStore conversations,
+        MarkdownRenderer markdown) {
+        string? owner = Owner(context);
+        Message? message = owner is null
+            ? null
+            : await conversations.GetMessageAsync(id, owner, messageId, context.RequestAborted);
+        if (message is null || !string.Equals(message.Role, "assistant", StringComparison.Ordinal)) {
+            await ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, new ErrorMessage(
+                "assistant.message_not_found",
+                "That message is not available",
+                "It may have been deleted, or it belongs to another account.",
+                [new($"/assistant/{id}", "Conversation")]));
+            return;
+        }
+
+        SecurityHeaders.NoStore(context);
+        context.Response.ContentType = "text/html; charset=utf-8";
+        await context.Response.WriteAsync(markdown.ToRestrictedHtml(message.Content));
+    }
+
     private static async Task WriteMessageAsync(
         HttpContext context,
         Message message,
-        IReadOnlyDictionary<string, (string Name, string Arguments)> calls) {
+        IReadOnlyDictionary<string, (string Name, string Arguments)> calls,
+        MarkdownRenderer markdown) {
         if (message.Role == "user") {
             await context.Response.WriteAsync($"<article class=\"assistant-message user-message\"><h2 class=\"visually-hidden\">You</h2><pre>{Encode(message.Content)}</pre></article>");
             return;
@@ -535,7 +568,8 @@ internal static class AssistantEndpoint {
                 await context.Response.WriteAsync($"<details class=\"assistant-reasoning\"><summary>Thinking</summary><pre>{Encode(message.Reasoning)}</pre></details>");
             }
             if (!string.IsNullOrEmpty(message.Content)) {
-                await context.Response.WriteAsync($"<pre class=\"assistant-content\">{Encode(message.Content)}</pre>");
+                await context.Response.WriteAsync(
+                    $"<div class=\"assistant-content\">{markdown.ToRestrictedHtml(message.Content)}</div>");
             }
             if (message.Status != "complete") {
                 await context.Response.WriteAsync($"<p class=\"assistant-incomplete\">{Encode(Describe(message.Status))}</p>");

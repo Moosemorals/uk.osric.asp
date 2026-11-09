@@ -16,6 +16,7 @@ internal interface IConversationStore {
     Task<RunStartResult> StartRunAsync(long id, string owner, string content, string model, string promptVersion, CancellationToken cancellationToken = default);
     Task<long?> AppendMessageAsync(long conversationId, string runId, MessageInput message, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Message>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default);
+    Task<Message?> GetMessageAsync(long conversationId, string owner, long messageId, CancellationToken cancellationToken = default);
     Task<Run?> GetActiveRunAsync(long id, string owner, CancellationToken cancellationToken = default);
     Task<Run?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default);
     Task<Run?> GetRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default);

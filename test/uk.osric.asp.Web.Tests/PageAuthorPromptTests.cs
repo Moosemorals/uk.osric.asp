@@ -159,7 +159,24 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v9"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v10"));
+        });
+    }
+
+    [Test]
+    public void TheMarkdownSectionTeachesThePageCapabilityAndTheReplySet() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Markdown"));
+            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IMarkdownRenderer>()"));
+            Assert.That(prompt, Does.Contain("ToHtml"));
+            Assert.That(prompt, Does.Contain("passes through"));
+            Assert.That(prompt, Does.Contain("not a"));
+            Assert.That(prompt, Does.Contain("sanitiser"));
+            Assert.That(prompt, Does.Contain("pipe tables"), "the assistant may use tables");
+            Assert.That(prompt, Does.Contain("images, raw HTML,"));
+            Assert.That(prompt, Does.Contain("h3"));
         });
     }
 }

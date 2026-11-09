@@ -12,6 +12,7 @@ using System.Security.Claims;
 using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
@@ -148,7 +149,8 @@ internal static class ShellViews {
                 new FakePageStateStore(),
                 new FakePageFetcher(),
                 metrics,
-                new TestAntiforgery()));
+                new TestAntiforgery(),
+                new MarkdownRenderer()));
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -255,7 +257,8 @@ internal static class ShellViews {
                 new FakePageStateStore(),
                 new FakePageFetcher(),
                 new PageMetrics(),
-                new TestAntiforgery()));
+                new TestAntiforgery(),
+                new MarkdownRenderer()));
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -279,7 +282,7 @@ internal static class ShellViews {
                     RunId = "run-1",
                     Sequence = 1,
                     Role = "assistant",
-                    Content = "Answer",
+                    Content = "## Answer\n\nA **table**:\n\n| Name | Value |\n| --- | --- |\n| one | 1 |",
                     Reasoning = "Reasoning",
                     ToolCallsJson = """[{"id":"call-1","type":"function","function":{"name":"read_page","arguments":"{\"path\":\"/blog\"}"}}]""",
                     CreatedAt = DateTimeOffset.UtcNow,
@@ -307,7 +310,8 @@ internal static class ShellViews {
             ]
             : []);
         await AssistantEndpoint.ConversationAsync(context, 1, conversations, new TestAntiforgery(),
-            new RunRegistry(new AssistantOptions(), TimeProvider.System), new AssistantOptions());
+            new RunRegistry(new AssistantOptions(), TimeProvider.System), new AssistantOptions(),
+            new MarkdownRenderer());
         return await TestHttp.ReadBodyAsync(context);
     }
 
