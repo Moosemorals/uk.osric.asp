@@ -7,7 +7,9 @@ SPDX-License-Identifier: MIT
 
 > **Unblocked.** The layout these views needed now exists (DEC-149, [site
 > navigation](../plans/site-navigation.md)), so a listing or history page can be a fragment the
-> default layout wraps. The store read this item asks for is still its own job.
+> default layout wraps. The store read this item asks for is still its own job. The listing is now a
+> table with a **State** column and the assistant reads the same word per page (DEC-165), so the
+> shape this job would take over is settled rather than in flux.
 
 | | |
 | --- | --- |

@@ -48,6 +48,11 @@ own key/value state, and `ctx.Features.GetRequired<IHttpFetch>()` reaches an all
 the server. The [architecture notes](docs/architecture.md#page-contract) list the rest of the
 surface.
 
+A page is compiled with nullable analysis on, so a reference that may be null says so: `ctx.User` is
+a `PageUser?`, and a guard binds it to a local (`ctx.User is not { } user`) before the page reads it.
+A page that compiles with warnings is served normally; it is listed as "Compiled with warnings" until
+the warnings are fixed, and it is not a failure.
+
 A `<%! %>` block holds declarations rather than statements: `using` directives and types of the
 page's own. They are hoisted above the handler and are usable from every `<% %>` block, before or
 after the block that declares them.
