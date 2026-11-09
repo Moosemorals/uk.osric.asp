@@ -5,8 +5,8 @@ namespace uk.osric.asp.Web.Pages;
 
 /// <summary>Counts the page renders that outran their budget and were abandoned.</summary>
 /// <remarks>
-/// A render that never returns cannot be reclaimed, but it can be noticed: past <see cref="Limit"/> the site stops
-/// reporting healthy and the supervisor restarts the container. That is the only kill this design
+/// A render that never returns cannot be reclaimed, but it can be noticed: once <see cref="Limit"/>
+/// renders are outstanding the site stops reporting healthy and the supervisor restarts the container. That is the only kill this design
 /// has, so the count is what makes it happen. A page may still finish after it was given up on, which
 /// is why the count can go down again.
 /// </remarks>

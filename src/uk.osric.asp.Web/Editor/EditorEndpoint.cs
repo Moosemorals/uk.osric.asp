@@ -301,7 +301,8 @@ internal sealed class EditorEndpoint {
         IAntiforgery antiforgery,
         bool assistantEnabled,
         PagePath path) {
-        // The only page on the site that loads a script, so the only response that widens its policy.
+        // The editor loads a module, so it is one of the responses that widens the policy; the assistant,
+        // the admin views and a page that calls ctx.AllowScripts() do the same.
         SecurityHeaders.AllowScripts(context);
 
         PageTemplate? page = await pages.GetAsync(path, context.RequestAborted);

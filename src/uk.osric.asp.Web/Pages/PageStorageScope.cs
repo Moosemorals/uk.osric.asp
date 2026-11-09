@@ -17,7 +17,7 @@ using uk.osric.asp.Sdk;
 /// in the same statement as the write.
 /// </para>
 /// <para>
-/// A page's task and the abandoning thread no longer share a thread, so the abandoned flag is read
+/// A page's task and the abandoning thread can be different threads, so the abandoned flag is read
 /// with <see cref="Volatile"/> rather than relying on the body lock.
 /// </para>
 /// </remarks>

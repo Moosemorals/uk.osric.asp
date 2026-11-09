@@ -15,8 +15,7 @@ using uk.osric.asp.Web.Assistant;
 public sealed class AssistantProviderClientTests {
 
     // The timeout bounds silence between events, so the gaps in a test stream have to be well under
-    // it: half a second of silence against 200 ms gaps leaves the same room a whole second left for
-    // 600 ms ones, for half the wall clock. Four gaps make 800 ms of stream instead of 2.4 s.
+    // it: half a second of silence against 200 ms gaps. Four gaps make 800 ms of stream.
     private const double TimeoutSeconds = 0.5;
 
     [Test]

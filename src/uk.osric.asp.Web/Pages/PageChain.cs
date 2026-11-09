@@ -200,8 +200,8 @@ internal sealed class PageChain {
             RenderResult rendered = await session.RenderAsync(key, context);
 
             if (rendered.Status != RenderStatus.Rendered) {
-                // A default that will not serve degrades to today's behaviour rather than taking the
-                // site down; a layout the page chose is an error, because silence would be worse.
+                // A default that will not serve degrades to serving the page unwrapped rather than
+                // taking the site down; a layout the page chose is an error, because silence would be worse.
                 if (string.Equals(_environment.Layout.Default, key.Key, StringComparison.Ordinal)) {
                     _environment.Metrics.RecordLayoutFallback(path);
                     _logger.LogWarning(

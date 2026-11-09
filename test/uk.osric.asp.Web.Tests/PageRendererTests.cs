@@ -29,8 +29,8 @@ public sealed class PageRendererTests {
     private const string SlowPage =
         "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600); while (System.DateTime.UtcNow < until) { } %>";
 
-    // A whole-second budget left 400 ms of room for the deadline continuation to be scheduled; the
-    // same room is kept here, because what it absorbs is a busy machine rather than a slow page.
+    // The deadline continuation has to be scheduled after a 250 ms budget, so the grace is 400 ms;
+    // what it absorbs is a busy machine rather than a slow page.
     private static readonly TimeSpan BudgetWithGrace = TimeSpan.FromMilliseconds(650);
 
     [Test]

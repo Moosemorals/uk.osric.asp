@@ -31,11 +31,11 @@ public sealed class PageCompiler : IPageCompiler {
         _references = PageReferenceSet.ForPages();
     }
 
-    /// <summary>Identifies the build and the page policy that produced a compiled image.</summary>
+    /// <inheritdoc/>
     /// <remarks>
-    /// Both module version ids are in the value. The SDK's covers what a page binds against; Core's
-    /// covers the generator, so a change that alters the generated source invalidates an image even
-    /// when the contract is unchanged.
+    /// The SDK's module version id covers what a page binds against; Core's covers the generator, so
+    /// a change that alters the generated source invalidates an image even when the contract is
+    /// unchanged.
     /// </remarks>
     internal static string RuntimeId { get; } =
         $"{FormatVersion}:{PolicyVersion}"
@@ -62,8 +62,7 @@ public sealed class PageCompiler : IPageCompiler {
             references: _references,
             // A page is analysed exactly as the product's own code is, so `ctx.User` is `PageUser?`
             // in a page too. The generated scaffold disables nullable analysis around every line it
-            // wrote itself, so a warning here can only be about the page. The promise is held by
-            // ScaffoldTests, not by runtime policy.
+            // wrote itself, so a warning here can only be about the page.
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
                 .WithNullableContextOptions(NullableContextOptions.Enable)
         );

@@ -13,10 +13,9 @@ using uk.osric.asp.Sdk;
 /// One instance is cheap to create from stored bytes and safe to invoke repeatedly; each invocation
 /// still gets a fresh handler instance so page fields cannot leak between requests.
 /// <para>
-/// Nothing here suppresses inlining. <c>MethodInfo.Invoke</c> throws its wrapper whether or not the
-/// caller was inlined, and <see cref="ExceptionDispatchInfo"/> restores the original stack, so the
-/// attribute that used to sit on these members protected nothing. If unloading a collectible context
-/// ever appears to hang, that attribute is the knob to revisit.
+/// Nothing here suppresses inlining: <c>MethodInfo.Invoke</c> throws its wrapper whether or not the
+/// caller was inlined, and <see cref="ExceptionDispatchInfo"/> restores the original stack. If
+/// unloading a collectible context ever appears to hang, inlining is the knob to revisit.
 /// </para>
 /// </remarks>
 public sealed class LoadedPage : IDisposable {
@@ -67,7 +66,7 @@ public sealed class LoadedPage : IDisposable {
         } catch (TargetInvocationException ex) when (ex.InnerException is not null) {
             // The runtime owns the reflection, so it owns the reflection's wrapper: callers get the
             // exception the page threw, with the page's own stack rather than a nested one. An async
-            // method hands its exception to the task instead, so this is now nearly unreachable - it
+            // method hands its exception to the task instead, so this is nearly unreachable - it
             // stays as the guard that keeps the wrapper out of the shell's catch blocks.
             ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
             throw;

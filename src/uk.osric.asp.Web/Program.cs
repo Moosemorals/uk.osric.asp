@@ -317,7 +317,7 @@ internal class Program {
 
         app.UseSession();
         // Order matters: routing first, so the limiter and identity read endpoint metadata, then
-        // authorization, then the antiforgery check that guards the safe verbs.
+        // authorization, then the antiforgery check that guards the unsafe ones.
         app.UseRouting();
         app.UseRateLimiter();
         app.UseAuthentication();
@@ -404,7 +404,7 @@ internal class Program {
         // The scrape target is Prometheus inside the podman network; /metrics is reserved so a page
         // cannot claim the key, and Caddy answers 404 for it on the public origin.
         app.MapPrometheusScrapingEndpoint("/metrics");
-        // Pages run for the safe verbs only; anything else is answered 405 by routing rather than
+        // Pages run for GET, POST and HEAD only; anything else is answered 405 by routing rather than
         // by page code that never expected it.
         app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.HandleAsync);
 

@@ -158,7 +158,7 @@ internal sealed class PageHarness : IDisposable {
     }
 
     // The timeout tests measure the page, not the compiler: a page compiled on its first request
-    // spends part of a one-second budget on a cold Roslyn and would be dropped before it starts.
+    // would spend the beginning of a short budget on a cold Roslyn and be dropped before it starts.
     public Task StoreCompiledAsync(string path, string content) {
         return Editor.SaveAsync(Key(path), content);
     }

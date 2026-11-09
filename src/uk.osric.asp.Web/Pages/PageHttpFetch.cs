@@ -41,8 +41,7 @@ internal sealed class PageHttpFetch(
             throw new InvalidOperationException($"The render of {path.Key} was abandoned; it cannot fetch.");
         }
 
-        // A HEAD runs to produce the representation and its validators, so a POST would mutate a
-        // remote system once per validator.
+        // A HEAD render may read but never POST; PageEndpoint says why a HEAD runs at all.
         if (request.Method == HttpFetchMethod.Post && isHead) {
             return Refuse(PageMetrics.FetchInvalid, "a POST during a HEAD request");
         }

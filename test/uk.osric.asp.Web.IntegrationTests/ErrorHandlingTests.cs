@@ -91,8 +91,8 @@ public sealed class ErrorHandlingTests : IntegrationTest {
 
     [Test]
     public async Task ThrowingPostIsAnsweredByTheErrorPage() {
-        // The page route accepts every verb, so this reproduces BUG-01: a failed POST used to fall
-        // through the router and be answered with a 404 instead of the error page.
+        // The page route accepts every verb, so a throwing POST must reach the exception handler and
+        // be answered with the error page rather than falling through the router.
         await SavePageAsync("/throw", ThrowingPage);
         using HttpClient client = CreateClient();
 

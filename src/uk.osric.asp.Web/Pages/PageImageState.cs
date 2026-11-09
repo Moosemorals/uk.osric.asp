@@ -7,7 +7,7 @@ namespace uk.osric.asp.Web.Pages;
 /// <remarks>
 /// An image with an assembly carries warnings only, because emit either succeeds or reports an
 /// error, so <see cref="CompiledWithWarnings"/> is the worst a stored and runnable page can be. The
-/// state is a value rather than a string so a view cannot invent a fourth way of saying the same
+/// state is a value rather than a string so a view cannot invent another way of saying the same
 /// thing; <see cref="PageImageStatus.Describe(PageImageState)"/> is the only spelling of the words.
 /// </remarks>
 internal enum PageImageState {

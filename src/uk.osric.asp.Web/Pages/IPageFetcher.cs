@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Sdk;
 
-/// <summary>The seam <see cref="SimpleContext"/> calls for an outbound fetch.</summary>
+/// <summary>The seam <see cref="PageHttpFetch"/> calls for an outbound fetch.</summary>
 /// <remarks>
 /// A test replaces this to prove the page contract without a socket, and the integration suite
 /// replaces it to prove the wiring; the real implementation is the only thing that opens one.

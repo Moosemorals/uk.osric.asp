@@ -11,8 +11,8 @@ using uk.osric.asp.Web.Users;
 /// <summary>A hasher fast enough that a sign-in does not dominate the test that needs it.</summary>
 /// <remarks>
 /// The real <c>PasswordService</c> spends about half a second per verification at 600,000 PBKDF2
-/// iterations, which is right for production and wrong for the twenty-odd sign-ins these fixtures
-/// make to reach the page they are actually about. <c>EditorAuthenticationTests</c> keeps the real
+/// iterations, which is right for production and wrong for the many sign-ins these fixtures make to
+/// reach the page they are actually about. <c>EditorAuthenticationTests</c> keeps the real
 /// hasher, because proving it is wired into the host is what that fixture is for.
 /// </remarks>
 internal sealed class FastPasswordService : IPasswordService {

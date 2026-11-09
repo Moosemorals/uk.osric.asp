@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Admin;
 
 /// <summary>Runs approved imports one at a time, each in its own scope.</summary>
 /// <remarks>
-/// One at a time because <c>CompileSlots</c> is one: a second import would only wait behind the
+/// One at a time because <c>CompileSlots</c> defaults to one: a second import would only wait behind the
 /// first, and serialising the compiles keeps the progress page honest. The processor is scoped
 /// because <see cref="Pages.PageImageBuilder"/> and the batch store are.
 /// </remarks>

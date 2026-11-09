@@ -29,7 +29,7 @@ internal static class SecurityHeaders {
     /// <summary>The policy every response gets: no script at all.</summary>
     public static string Default => Policy("'none'");
 
-    /// <summary>The policy for the editor: its own module, and nothing else.</summary>
+    /// <summary>The policy for a response that loads a same-origin script, and nothing else.</summary>
     public static string WithScripts => Policy("'self'");
 
     /// <summary>Writes the header set for a response that has not set one of its own.</summary>

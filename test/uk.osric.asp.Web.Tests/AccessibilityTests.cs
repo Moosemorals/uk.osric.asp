@@ -9,7 +9,8 @@ using System.Collections.Concurrent;
 /// <remarks>
 /// The rules are applied to the markup the endpoints actually write, read by
 /// <see cref="MarkupReader"/>. What a string cannot show - the accessibility tree, tab order, colour
-/// contrast, reflow - stays a manual pass and is recorded in the plan.
+/// contrast, reflow - stays a manual pass and is recorded in
+/// <c>docs/plans/archive/semantic-html-and-accessibility.md</c>.
 /// </remarks>
 [TestFixture]
 public sealed class AccessibilityTests {

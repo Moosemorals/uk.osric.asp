@@ -27,7 +27,8 @@ internal sealed record ToolSpec(
     bool NeedsApproval,
     IReadOnlyList<ToolArgumentSchema> Arguments);
 
-/// <summary>Runs the page tools the model asks for: read, write, list, check and delete.</summary>
+/// <summary>Runs the page tools the model asks for: read, write, list, search, check, delete and
+/// the virtual shell.</summary>
 internal sealed class PageToolExecutor(
     IServiceScopeFactory scopeFactory,
     PagePathPolicy paths,

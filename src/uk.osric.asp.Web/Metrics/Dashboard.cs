@@ -8,7 +8,8 @@ using uk.osric.asp.Core.Charting;
 /// <summary>Runs the dashboard's queries and turns the answers into charts.</summary>
 /// <remarks>
 /// The whole page is cached for a few seconds, because the page is refreshed by a person and every
-/// view is eight queries; a refresh loop must not become a load test. A remote failure is a banner,
+/// view runs about twenty queries; a refresh loop must not become a load test. A remote failure is
+/// a banner,
 /// never an exception, so the page still renders when Prometheus does not.
 /// </remarks>
 internal sealed class Dashboard {

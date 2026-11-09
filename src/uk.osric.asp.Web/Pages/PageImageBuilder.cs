@@ -32,8 +32,8 @@ internal sealed class PageImageBuilder(
     // already holds - for as long as the compiler stays busy, with nothing to shed the request.
     //
     // A wait for a slot is abandoned at the render's deadline too when there is one: nothing has been
-    // compiled, so nothing is lost and the next request tries again. The compile itself is not: it is
-    // left to finish and store its image, because throwing the work away leaves the page unservable.
+    // compiled, so nothing is lost and the next request tries again. The compile itself is left to
+    // finish and store its image (DEC-43).
     public PageImage Build(
         PagePath path,
         string template,

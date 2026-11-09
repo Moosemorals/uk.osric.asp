@@ -16,7 +16,7 @@ internal interface IPageStore {
 
     /// <summary>Lists every page, live and deleted, with the state of its current image.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>The pages in no particular order, ordered by the caller.</returns>
+    /// <returns>Every page, ordered by key.</returns>
     /// <remarks>
     /// The state is judged against the running build, so a page whose image came from an earlier one
     /// says so: after a deploy that is every page, until each is next requested.

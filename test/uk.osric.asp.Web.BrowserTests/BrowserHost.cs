@@ -12,7 +12,8 @@ using System.Text;
 /// <summary>The assistant limits a browser test host runs with.</summary>
 internal sealed record BrowserHostSettings {
 
-    /// <summary>The provider deadline for one step, measured as silence; small to prove a stall matters.</summary>
+    /// <summary>The provider deadline for one step, measured as silence. A test that needs a stall to
+    /// matter sets it low.</summary>
     public int RequestTimeoutSeconds { get; init; } = 120;
 
     /// <summary>The whole-run deadline.</summary>

@@ -15,9 +15,8 @@ using IMarkdownRenderer = uk.osric.asp.Sdk.IMarkdownRenderer;
 /// <summary>The host's Markdown renderer: one author-facing profile and one restricted profile.</summary>
 /// <remarks>
 /// <para>
-/// The page profile is CommonMark with pipe tables and auto-links, and raw HTML passes through. It
-/// is the author's renderer, not a sanitiser: a page author can already write HTML in the template
-/// and with <c>&lt;%== %&gt;</c> (DEC-163).
+/// The page profile is CommonMark with pipe tables and auto-links, and raw HTML passes through:
+/// <see cref="IMarkdownRenderer"/> says what that means for a page author (DEC-163).
 /// </para>
 /// <para>
 /// The restricted profile is for model output. Raw HTML is rendered as text, there are no autolinks

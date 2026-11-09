@@ -34,8 +34,8 @@ internal sealed class BrowserSuite {
         StorageStatePath = await SignInOnceAsync();
     }
 
-    // The suite signs in through the real form once; every test starts from that state, which keeps
-    // ten tests from spending the sign-in throttle's whole allowance on the suite itself.
+    // The suite signs in through the real form once; every test starts from that state, so the suite
+    // does not spend the sign-in throttle's whole allowance on itself.
     private static async Task<string> SignInOnceAsync() {
         await using IBrowserContext context = await Browser.NewContextAsync(new BrowserNewContextOptions {
             BaseURL = Host.BaseAddress.ToString(),

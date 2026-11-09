@@ -16,10 +16,8 @@ using uk.osric.asp.Web.Http;
 /// handler has returned and a page that throws leaves nothing half-sent.
 /// </para>
 /// <para>
-/// This is the only type a page's logging goes through. Every entry is filed under the one
-/// <c>uk.osric.asp.Pages</c> category with the page's key on a <c>Path</c> scope property, so a page
-/// can be filtered or levelled on its own. That category is operator-facing: changing it breaks
-/// configured filters and log queries.
+/// This is the only type a page's logging goes through, and the category and its scope are
+/// operator-facing: changing them breaks configured filters and log queries.
 /// </para>
 /// </remarks>
 internal sealed class SimpleContext : IContext {
@@ -58,8 +56,8 @@ internal sealed class SimpleContext : IContext {
     // its cookie are a pair, and minting a second would leave the first unverifiable.
     private string? _antiforgeryField;
 
-    // Read from the page's task and written by the abandoning thread, which no longer share one, so
-    // the flag is volatile rather than merely lock-protected.
+    // Written by the abandoning thread and read by the page's task, so the flag is volatile rather than
+    // merely lock-protected.
     private volatile bool _abandoned;
     private bool _allowsScripts;
     private string _contentType;
@@ -124,7 +122,7 @@ internal sealed class SimpleContext : IContext {
         _writer = writer;
         User = user;
 
-        // The extension decides the initial value; SetContentType is still the page's override.
+        // The extension decides the initial value; SetContentType overrides it.
         _contentType = contentTypes.ForPath(_path.Key);
     }
 

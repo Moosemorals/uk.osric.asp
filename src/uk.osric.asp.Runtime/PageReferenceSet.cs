@@ -8,8 +8,8 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The assemblies a page is compiled against.</summary>
 /// <remarks>
-/// Built once per process: re-reading and re-creating the references was a large part of the cost of
-/// compiling a small page. A runtime that cannot supply the set has no working reference set at all,
+/// Built once per process, because re-reading and re-creating the platform references is the
+/// expensive part of compiling a small page. A runtime that cannot supply the set has no working reference set at all,
 /// so it fails here rather than in the first page that is compiled.
 /// </remarks>
 internal static class PageReferenceSet {
@@ -80,9 +80,9 @@ internal static class PageReferenceSet {
     // CS0246 before any analysis runs, so the shell, the web stack and Roslyn cannot even be named.
     // It cannot remove System.IO or System.Environment, which live in or forward from
     // System.Private.CoreLib, and it cannot stop reflection by name - PageApiPolicy and the load
-    // context do that. A post-emit scan of the image's type references was considered and dropped: it
-    // could only catch what the semantic walk already reports, at the cost of false rejections for
-    // compiler-emitted helpers such as DefaultInterpolatedStringHandler.
+    // context do that. A post-emit scan of the image's type references would only catch what the
+    // semantic walk already reports, at the cost of false rejections for compiler-emitted helpers such
+    // as DefaultInterpolatedStringHandler (DEC-38).
     private static bool IsReachableFromPages(string assemblyName) {
         return !assemblyName.StartsWith("uk.osric.asp.", StringComparison.OrdinalIgnoreCase)
             && !assemblyName.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase);

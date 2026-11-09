@@ -11,16 +11,18 @@ namespace uk.osric.asp.Sdk;
 /// concurrency.
 /// </para>
 /// <para>
-/// A misuse is a page bug rather than a normal outcome, so it throws when the returned task is
-/// awaited: a key that is too long, a value that cannot be serialised as JSON, a value over its cap,
-/// a page over its total cap, a write on a <c>HEAD</c> request, or a write to a page that was deleted
-/// while the render was running. The failure is detected before the row is written.
+/// A misuse is a page bug rather than a normal outcome, so it throws: a write validates before it
+/// returns, and a read fails when its task is awaited. A key that is too long, a value that cannot be
+/// serialised as JSON, a value over its cap, a page over its total cap, a write on a <c>HEAD</c>
+/// request, or a write to a page that was deleted while the render was running. The failure is
+/// detected before the row is written.
 /// </para>
 /// </remarks>
 public interface IPageStorage {
     /// <summary>Reads a value and reports whether the key exists.</summary>
     /// <typeparam name="T">The type to deserialise the stored JSON as.</typeparam>
-    /// <param name="key">The key; ordinal, 1 to 200 characters, no control characters.</param>
+    /// <param name="key">The key; ordinal, 1 to <c>Pages:Storage:MaxKeyChars</c> characters, no
+    /// control characters.</param>
     /// <returns>
     /// Whether the key was found, and the value when it was. A missing key is not found with the
     /// default value. A stored JSON <c>null</c> is found with a null value, which is how a
@@ -32,7 +34,8 @@ public interface IPageStorage {
 
     /// <summary>Stores a value, replacing any value already under the key.</summary>
     /// <typeparam name="T">The type to serialise.</typeparam>
-    /// <param name="key">The key; ordinal, 1 to 200 characters, no control characters.</param>
+    /// <param name="key">The key; ordinal, 1 to <c>Pages:Storage:MaxKeyChars</c> characters, no
+    /// control characters.</param>
     /// <param name="value">The value; a null is stored as JSON <c>null</c>.</param>
     /// <returns>A task that completes when the write is committed.</returns>
     /// <exception cref="ArgumentException">The key or the value breaks a cap.</exception>
