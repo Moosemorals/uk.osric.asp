@@ -331,15 +331,26 @@ public sealed class RunProcessorTests {
 
     [Test]
     public async Task AToolNameTheProviderInventedBecomesOneMetricLabelAsync() {
-        ScriptedClient client = new([
-            new ToolCallDelta(0, "call-1", "make_up_a_tool", "{}"),
-            new Finished("tool_calls"),
-        ]);
+        // The run has to be given a turn that ends: a script that only ever asks for the tool would
+        // step until the tool-call budget paused it for a continuation this test never sends, and the
+        // await below would never return.
+        SteppedClient client = new(
+            [
+                new ToolCallDelta(0, "call-1", "make_up_a_tool", "{}"),
+                new Finished("tool_calls"),
+            ],
+            [
+                new ContentDelta("I cannot use that tool."),
+                new Finished("stop"),
+            ]);
         using MetricCapture capture = MetricCapture.Start(AssistantMetrics.MeterName);
-        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
             await StartRunAsync(client);
 
-        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        Assert.That(await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(10))), Is.SameAs(run),
+            "a run that parks itself fails this test rather than hanging the fixture");
+        await run;
 
         Assert.Multiple(() => {
             Assert.That(capture.Count("assistant.tool.duration", "tool", "make_up_a_tool"), Is.Zero);
