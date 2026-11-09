@@ -185,7 +185,7 @@ editor for a page called `import`. The editor's command query (`/edit/foo?cmd=hi
 it, but a site-wide operation hidden in a per-page query string reads wrong, and the import needs
 two more routes of its own. `/admin` is the honest prefix.
 
-DEC-132 removed `/admin` from the reserved list when the seed-restore admin surface went away. This
+DEC-174 removed `/admin` from the reserved list when the seed-restore admin surface went away. This
 plan puts the prefix back, which is a deliberate reversal: the shell now answers `/admin/*` again.
 `ReservedPaths.Default` and `Pages:ReservedPaths` in `appsettings.json` both gain `/admin`; the
 configured list wins, so changing only the default would do nothing in a running deployment.

@@ -74,7 +74,7 @@ Caddy 2.11 and would mean shipping a custom image for one rule.
 ### 2. Logger cache grows without bound from anonymous URLs — Medium — *fixed*
 
 `SimpleContext` built its logger as `PageCategoryPrefix + request.Path` using the caller-supplied
-path, and `PageEndpoint.Handle` constructs a context for every canonical, non-reserved URL
+path, and `PageEndpoint.HandleAsync` constructs a context for every canonical, non-reserved URL
 (`PageEndpoint.cs:60`) *before* the page lookup — so `GET /<random>` from an anonymous client
 created a cache entry even though no page exists.
 
@@ -97,11 +97,11 @@ private void LogAt(LogLevel level, string message) {
 ```
 
 The cache now holds exactly one category however many URLs are requested. The scope keeps the page
-filterable — Serilog surfaces it as a `Path` property, so the same per-page alerting still works —
+filterable — the JSON formatter writes it as a `Path` field, so the same per-page alerting works —
 while making the operator-facing category a constant and removing the request path from anything
 that is cached. `TheCategoryDoesNotVaryWithThePath` in `SimpleContextTests` pins the property.
 Recorded as DEC-24 in [the decisions](./docs/decisions.md) and updated in
-[the architecture](./docs/architecture.md#page-contract); `IContext`'s doc comment says the same.
+[pages](./docs/pages.md#page-contract); `IContext`'s doc comment says the same.
 
 ### 3. Page code can blank the shell's `X-` security headers — Low — *fixed*
 
@@ -151,7 +151,7 @@ durations stay public, because the container health check needs them, and the ex
 Both are already reasoned about and accepted in
 [the auth cookie review](./docs/security/auth-cookie-review.md):
 
-- Accepted risk 9 — `AgentConversation.ApprovalMode` defaults to `AlwaysApprove`, so model-driven
+- Accepted risk 9 — `Conversation.ApprovalMode` defaults to `AlwaysApprove`, so model-driven
   page writes execute without approval. The agent is off by default and owner scoped. Defaulting new
   conversations to `RequireApproval` remains cheap defence in depth.
 - `Pages:Render` abandons work by design (SEC-03): an authenticated page author can wedge render
@@ -179,7 +179,8 @@ cannot regress.
   `PRAGMA`/UDF text. No concatenation, no identifiers or ordering from input.
 - **Output encoding.** Shell views encode with `WebUtility.HtmlEncode`; the single raw sink is
   app-generated SVG with escaped labels; the assistant script uses `textContent` only. CSP is
-  `default-src 'none'`, widened to `script-src 'self'` on the two script-bearing views only.
+  `default-src 'none'`, widened to `script-src 'self'` only on a response that loads a module: the editor,
+  the assistant, both admin views and a page that calls `ctx.AllowScripts()`.
 - **Page compiler.** Default-deny `PageApiPolicy`, a semantic walk over every identifier, creation,
   cast, attribute and `typeof`, a shape rule confining code to the handler, banned `dynamic`,
   `unsafe`, `stackalloc` and pointers, `#line` mapping, trimmed references, and a load context that

@@ -75,7 +75,7 @@ Checked against the code on 2026-11-09.
   abandonment, logging, the body, status/content type/header/`AllowScripts`, the two redirects, the
   antiforgery field and `Features`; three capabilities are registered today — `IPageStorage`,
   `IHttpFetch` and `IPageLayout` ([IContext.cs](../../src/uk.osric.asp.Sdk/IContext.cs),
-  [architecture.md](../architecture.md#page-contract), DEC-142).
+  [pages](../pages.md#page-contract), DEC-142).
 - **A capability is offered or absent, never `null`,** and the host decides; the Sdk cannot reach
   `Core` or `Web` (DEC-88, DEC-142).
 - **A capability that does I/O is bound to the render.** `PageStorageScope` is the model: it is bound
@@ -388,7 +388,7 @@ instead of a paragraph.
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | **changed** — `page-author-v10`: the capability exists, it reads, and it is as public as the page that calls it |
 | `test/uk.osric.asp.Web.Tests/PageEndpointTests.cs`, `ShellViews.cs`, `PageHarness.cs` | **changed** — the new `PageEnvironment` members, with a fake read store |
 | `test/uk.osric.asp.Web.Tests/FakePageReadStore.cs` | **new** — an in-memory seam for the capability tests |
-| `docs/architecture.md`, `docs/decisions.md`, `docs/jobs/`, `docs/testing.md` | **changed** — see "Documentation and decisions" |
+| `docs/pages.md`, `docs/storage.md`, `docs/decisions.md`, `docs/jobs/`, `docs/testing.md` | **changed** — see "Documentation and decisions" |
 
 ## Tests
 
@@ -467,7 +467,7 @@ Each phase ends with `make test` green and `make format-check` clean.
    phase** and it is worth landing on its own, with the unit tests and nothing else changed.
 3. **The demo pages.** `Seeds/recent`, `Seeds/pages`, `/help`, the integration tests, the seed-list
    tests.
-4. **Teach and record.** `PageAuthorPrompt` to `page-author-v10`; `architecture.md`; decisions; the
+4. **Teach and record.** `PageAuthorPrompt` to `page-author-v10`; the page and storage docs; decisions; the
    jobs (IDEA-015 closed, IDEA-017's note updated); `testing.md`.
 
 Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; phase 3 is another.
@@ -499,23 +499,20 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 - **DEC-172**: the shell keeps every write of the page store — save, delete, scrub, restore, import
   and export, and the assistant's bounded tools — and a page gets a bounded read; there is no second
   writer, and IDEA-016 will reuse `PageEditor.SaveAsync` rather than open one.
-- `docs/architecture.md`: "Page contract" lists four capabilities, and a short paragraph under "Source
-  storage" says what a page may read, what bounds it, and that it is as public as the page that calls
-  it.
+- `docs/pages.md`: "Page contract" lists four capabilities. `docs/storage.md`: a short paragraph
+  under "Source storage" says what a page may read, what bounds it, and that it is as public as the
+  page that calls it.
 - `docs/testing.md`: one sentence naming `PageCatalogScopeTests`, `SqlitePageReadStoreTests` and the
   integration suite.
 - `docs/jobs/IDEA-015.md`: deleted; its row leaves the table and it joins "Closed" with a pointer
   here, and the Closed entry says point 3 (a shell gate) was overruled in favour of DEC-168, so the
   record does not read as though it was quietly dropped. `docs/jobs/README.md`: IDEA-017's note says
   the read exists and its cheap half is unblocked.
-- **A collision to fix while in the file.** `docs/decisions.md` uses **DEC-160 twice** — the budget
-  entry of 2026-11-08 (which `plans/archive/assistant-live-budgets.md` cites) and the author-manual
-  entry added the same day in `eca173d`. The author-manual row is the later one and is cited nowhere
-  by ID — `jobs/README.md` states the "Help for authors" rule without one — so it should be
-  renumbered to the next free ID after the plans that have already claimed numbers — **DEC-173**,
-  since `plans/archive/page-diagnostics-and-visibility.md` claims up to DEC-166 and this plan takes
-  DEC-167–DEC-172. **DEC-132 is also used twice**, and is left alone here: it is older and cited by
-  two plans, so it is a decision of its own rather than a tidy-up.
+- **Collisions already fixed.** `docs/decisions.md` used **DEC-160 twice** and **DEC-132 twice**.
+  The author-manual row is now **DEC-173** and the seed-restore row **DEC-174**; the budget row keeps
+  DEC-160, which `plans/archive/assistant-live-budgets.md` cites. The two rows this plan's numbering
+  collided with are now DEC-177 (nullable pages) and DEC-178 (a warning never stops a page), so
+  DEC-167–DEC-172 in this plan are free.
 - `docs/glossary.md`: no new term. The capability reads terms the glossary already defines — key,
   head, revision, tombstone, seed — and "catalog" would be a type name rather than vocabulary.
 - `deploy/README.md`: nothing to deploy; the demo pages are seeds and their settings have defaults.

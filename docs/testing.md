@@ -19,8 +19,8 @@ core stays pure and the shell stays thin.
 | `test/uk.osric.asp.Web.BrowserTests` | NUnit + Playwright | The real host driven in Firefox: the shell pages and the assistant | Seconds to a minute |
 
 - **Core tests** cover one rule at a time and exercise `Core` directly. `Sdk` has no suite of its
-own: it is five declarations with documentation and no behaviour, and what depends on it is asserted
-by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScopeTests`,
+own: it is the page contract — interfaces and plain values with documentation and no host behaviour —
+and what depends on it is asserted by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScopeTests`,
 `PageLoadContextTests`, `PageReferenceSetTests`).
 - **Runtime tests** cover what the core cannot: Roslyn emitting a handler, loading the assembly and
   invoking it. `ScaffoldTests` compiles the generated wrapper for every token shape under the
@@ -67,13 +67,13 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   real authenticated host. `Pages/Seeds/help` and `PageAuthorPrompt` are updated with the API, so
   the author manual and the model learn the same rule.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
-  `ShellViews` renders all twenty-four shell views once each — the sign-in form and its failure, the
+  `ShellViews` renders all twenty-five shell views once each — the sign-in form and its failure, the
   sign-out confirmation, the listing with an edited seed and a matching one so its restore buttons
   are swept too, the editor clean and with diagnostics, history, a saved revision, the delete
   confirmation, status, the error page, the error page with details, a not-found page, the compile
   failure, the assistant list, chat, reasoning chat, delete confirmation, the export list, the
-  upload form, a rejected archive, the import review, the import progress, and the stored
-  administration index as the layout wraps it — and `AccessibilityTests` applies twelve shared rules to every document: one
+  upload form, a rejected archive, the import review, the import progress, the stored
+  administration index and the help page as the layout wraps them — and `AccessibilityTests` applies twelve shared rules to every document: one
   `main`, one `h1`, no skipped heading level, a distinct name on every `nav`, `scope` on every `th`, a
   label on every control, every `form.form` field in its `dd` with its label in a `dt` (or a
   textarea's label in a fieldset legend), no role that repeats an implicit one (bar the documented

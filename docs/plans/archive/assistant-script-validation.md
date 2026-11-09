@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 # Checking the JavaScript the assistant writes
 
 Status: **implemented 2026-11-08**. Written 2026-11-08 as the implementation plan for
-[IDEA-021](../../jobs/IDEA-021.md), with that job's open questions answered. The decisions are DEC-145
+[IDEA-021](../../jobs/README.md), with that job's open questions answered. The decisions are DEC-145
 and DEC-146, and the behaviour is recorded in [architecture](../../architecture.md). The backlog
 follow-up it promised — Language Server Protocol support for the human editor — is recorded as
 [WHIM-01](../../jobs/WHIMS.md), not built here.

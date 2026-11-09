@@ -1,0 +1,263 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+SPDX-License-Identifier: MIT
+-->
+
+# Pages
+
+A page is compiled when it is saved, loaded into a collectible context when it is requested, and run
+under a budget the host owns. These are the rules that keep that safe: what a page may call, what it
+may not reach, and what happens when it does not finish. [Architecture](architecture.md) explains
+where this code lives and why; [the shell](shell.md) is what wraps a page's answer.
+
+## Page contract
+
+A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it
+touches is a plain record in `Sdk`. `IContext` is the surface every page has — `Request` (method,
+path, query, form, headers, cookies), `Path`, `User`, `Aborted`, `Log`/`LogWarning`/`LogError`,
+`Write`/`WriteRaw`, `SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect`,
+`RedirectToLogin`, `AntiforgeryField` and `Features`.
+
+The handler is asynchronous: `IHandler.HandleAsync` returns a `Task`, the generator always emits an
+`async` method, and `await` is therefore an ordinary expression in a code block and inside a write
+expression. Any member that does I/O — on `IContext` or on a capability — returns a `Task` and takes
+no cancellation token: the context owns `Aborted` and the render's deadline, and an implementation
+links them per call (DEC-123).
+
+`IContext.Features` is how a page asks for a capability this render may or may not offer.
+`TryGet<T>` reports whether one is there, `Get<T>` returns it or `null`, and `GetRequired<T>`
+returns it or throws naming the interface, so the page decides whether absence is fatal. The host
+decides what is registered — a page cannot add or replace a capability — and a capability is either
+registered or absent, never `null` (DEC-142).
+
+Four capabilities are registered today — two that do I/O and are bounded by the render, one that is
+the page's slots in its document, and one that is a pure renderer:
+
+- `IPageStorage` is the page's own key/value store. It is bound to the page's key, so a page cannot
+  name another page's state; the handle is the isolation. Values are JSON round-tripped by the
+  host, keys are ordinal, and writes are last-write-wins. A `HEAD` render may read but never write
+  (DEC-125, DEC-126, DEC-127).
+- `IHttpFetch` makes one outbound HTTP request from the host, not the browser, and only to hosts the
+  operator has allow-listed. `GetAsync` and `PostAsync` sit over `SendAsync(HttpFetchRequest)`;
+  every failure is a value rather than an exception, and the render's shared request count, the
+  deadline and abandonment all bound it (DEC-128, DEC-129, DEC-143).
+- `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
+  `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
+  `IContext` because it is a set of slots a render offers, and because a page that never wants a
+  layout never meets one (DEC-148). See [layouts](shell.md#layouts).
+- `IMarkdownRenderer` renders Markdown to HTML with `ToHtml`. It is pure and needs no `await`; its
+  result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus pipe
+  tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
+  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (DEC-163). A table's header
+  cells carry `scope="col"` and no inline style.
+
+A page's log entries are filed under the single `uk.osric.asp.Pages` category with the page's key on
+a `Path` scope, and `SimpleContext` is where that enters the shell, so `Core` never names a logging
+type. [Logging](logging.md#scopes) has the category rule and why it cannot name the path.
+
+Two rules keep the response safe:
+
+- The body is buffered. Status, content type and headers are applied after `HandleAsync` completes,
+  so a page that throws sends the error page rather than half a document.
+- Headers are bounded by an allow-list in `SimpleContext`: `Cache-Control`, `Content-Language`,
+  `ETag`, `Expires`, `Vary` and any `X-` name. `Set-Cookie`, `Location`, `Content-Type` and the
+  framing headers are refused, so a page cannot clobber the editor's authentication, antiforgery or
+  session cookie. Redirects go through `Redirect`; content type through `SetContentType`, and the
+  script permission through `AllowScripts` — the `Content-Security-Policy` header itself stays
+  shell-owned. The extension is only a default: a key's last segment selects the initial content
+  type through `Pages:ContentTypes` (DEC-144), and `SetContentType` always wins. Every rendered page
+  also starts with `Cache-Control: no-cache`, and a page opts out by setting its own header.
+
+Successful page responses receive a strong `ETag` computed from the UTF-8 bytes of the rendered
+body. The host also sets `Content-Length` from those encoded bytes for responses that may carry a
+body; `HEAD` retains the representation length, while `304` has no body or length. `GET` and `HEAD`
+honor `If-None-Match` with a bodyless `304`; the page still runs to produce the representation, so
+this is HTTP revalidation rather than an execution cache. The host writes the validator after page
+headers, so a page cannot preserve a stale one after an edit.
+
+A response rendered for a signed-in visitor is the exception: it is sent `Cache-Control: no-store`
+and without an `ETag`, and every page redirect is `no-store` too. The identity is known before the
+page runs and the body is already per-request, so the risk being closed is a shared cache or a
+conditional request turning one owner's render into another visitor's answer. The page's own headers
+are copied first and `Cache-Control` is then overridden for that response, so a page cannot weaken
+it. Public pages keep their strong validator and their revalidation.
+
+Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
+over 1 MiB is refused with 413 before it is read. A page that outruns its execution budget is answered
+`504` with the same document every other failure uses — see [error responses](shell.md#error-responses)
+and [the execution budget](#page-execution-budget) for the deadline itself. Keys the site's own routes
+answer for are listed in `Pages:ReservedPaths`, refused by the editor and never served.
+
+## Compiled pages
+
+Compiling is the expensive part of serving a page, so it happens when a page is saved rather than
+when it is viewed. `EditorEndpoint` hands the template to `PageEditor`, which compiles it through
+`PageImageBuilder` and stores the emitted assembly beside the template in the same row; `PageEndpoint`
+then reads the image and runs it through `PageRenderer`. Four derived columns carry the result: `TemplateHash`, `RuntimeId`, `Image` and `Diagnostics`.
+
+A stored image is trusted only when both keys match:
+
+- `TemplateHash` is the SHA-256 of the template (`TemplateFingerprint` in `Core`), so an edit that
+  bypasses the editor cannot be answered with stale code.
+- `RuntimeId` is the compile format version, the page policy version and the module version ids of
+  `uk.osric.asp.Sdk` and `uk.osric.asp.Core`, so a build with a different page contract, a changed
+  generator, or a tightened policy never runs an image it did not produce. Debug and Release builds
+  differ, as they should.
+
+A page whose image is missing or stale — a row written before images existed, a direct database
+write, or every row after an upgrade that touched `Sdk` or `Core` — is compiled on its next request and
+stored. That is the only compile outside a save: there is no startup warm-up, so the first visitor
+after a deploy pays one compile per page. A failure is stored too, so a broken page serves its
+diagnostics without recompiling, and the editor shows them after the save instead of losing the
+edit. `Diagnostics` is a JSON array of positioned, severity-tagged `PageDiagnostic` values; a
+warning-only page stores its image and reports "Saved with warnings." A compiler fault stores only
+the source, so the author's edit survives and the next request retries.
+
+**A compiled page is nullable-enabled and its generated scaffold is not.** `PageCompiler` sets
+`NullableContextOptions.Enable`, so a page is analysed exactly as the product's own code is and
+`ctx.User` is `PageUser?` in a page. `TemplateSourceGenerator` wraps every line it wrote itself in
+`#nullable disable` and every region it mapped to the template in `#nullable enable`, with the
+directive outside the `#line` region so the author's line and column do not move. The scaffold is
+oblivious because `PageCompiler.MapDiagnostics` drops an unmapped warning: without the wrapper, a
+warning from generated code would reach nobody, and a page would lose a diagnosis rather than gain
+one. The promise is held by `ScaffoldTests` in `Runtime.Tests`, which compiles every token shape
+under the production options and fails the build if the wrapper starts warning; making an unmapped
+warning fatal instead would turn a new Roslyn release into a `500` on a working page. A page may
+still write `#nullable disable` in its own code, and within its own block that wins.
+
+**A warning never stops a page.** Emit either succeeds or reports an error, so `CompileResult.Image`
+is null exactly when the page did not compile and a stored image with bytes carries warnings only.
+A page that compiles with warnings is served, stored and hashed exactly as a clean one; the editor,
+the history and the assistant all say `Compiled with warnings`, and no path treats it as a failure.
+
+A page's state is one of five values, described in one place (`PageImageState` in `Web`): `Not
+compiled` (no image record), `Stale` (an image from another `RuntimeId`), `Compile failed` (a record
+with no assembly), `Compiled with warnings` and `Compiled`. The `/edit` listing shows it in a State
+column, and the assistant's `list_pages` carries the same word per page. Staleness is judged on
+`RuntimeId` alone — hashing every template to answer a listing is not worth it — and a retained
+revision is history rather than stale, so only the listing and the assistant pass the running build.
+
+Compilation happens before the database write, so the lazy path stores its result only while the
+page still holds the content it compiled, and re-reads the page when a save landed in between. A
+page that keeps changing is served from the last compile rather than failing.
+
+`IPageStore` owns both halves: `GetPageAsync`, `SavePageAsync` and the conditional
+`TrySetCompilationAsync`. `Runtime` knows only how to turn generated source into bytes and bytes into
+a loaded handler (`IPageCompiler`, `LoadedPage`); it never sees a page.
+
+## Page API policy
+
+Stored pages are C#, so the surface they may touch is constrained twice.
+
+- `PageApiPolicy` in `Core` is the default-deny allow-list: the SDK namespace, a short list of base
+  class library types, and any `System.*` type whose name ends in `Exception`, because catching one
+  should not need an entry of its own. Each entry is checked against the symbol the page actually
+  resolved. It is data plus a pure function, so the list is readable and the diagnostic names the
+  API to add. `System.Object` is deliberately absent: allowing it would allow `GetType()`.
+- `System.Threading.Tasks.Task` is admitted by *type*, and ten of its members are denied by name —
+  `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`
+  and `Yield` — because each starts work the render deadline cannot stop or turns an `await` back
+  into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`,
+  `Parallel` and `ValueTask` are `PAGE001` without being named (DEC-124).
+- A narrow set of `System.Text.Json` types is allowed, so a fetched JSON body can be parsed:
+  `JsonDocument`, `JsonElement`, `JsonSerializer`, `JsonSerializerOptions`,
+  `JsonSerializerDefaults`, `JsonValueKind` and `JsonException`. The
+  `System.Text.Json.Serialization` attributes are not, and `System.Net` stays denied — `IHttpFetch`
+  is the page's only egress (DEC-130).
+- `PageApiChecker` in `Runtime` walks the generated syntax tree, projects Roslyn symbols onto
+  `ApiReference` values, rejects `stackalloc`, `dynamic`, pointers, function pointers and `unsafe`,
+  and enforces the shape rule: the generated `GeneratedPage`, last, plus the page's own type
+  declarations ahead of it. That rule is what stops a page closing the method to declare statics,
+  its own entry point or a module initializer. A declaration block that holds a namespace, an
+  assembly attribute, a statement or a member outside a type, or that names its type `GeneratedPage`,
+  is `PAGE002` with the specific message and, where the node has one, the template position.
+  Declarations are not a way around the list: a banned type named inside a declared type is
+  `PAGE001`, and a `using` directive grants nothing by itself.
+
+The compiler's reference set is the page SDK plus the base class library: every other
+`uk.osric.asp.*` assembly and `Microsoft.*` is left out, so naming the shell, the host's compiler
+support or Roslyn fails with CS02xx before the policy runs. The trim
+cannot remove `System.IO` or `System.Environment`, which live in `System.Private.CoreLib`; that is the
+policy's job. A post-emit scan of the image's type references was considered and dropped, because it
+could only find what the semantic walk already reports, at the price of false rejections for
+compiler-emitted helpers.
+
+The set is built from the runtime's `TRUSTED_PLATFORM_ASSEMBLIES` when the compiler is constructed,
+and `Program` constructs it before the host listens. A runtime that does not describe its platform
+assemblies — a single-file or trimmed deployment — therefore fails the start with a message naming
+the value, instead of compiling every page against nothing.
+
+The policy is versioned, because it is applied when a page compiles. `RuntimeId` is
+`{FormatVersion}:{PolicyVersion}:{SdkMvid}:{CoreMvid}`, so tightening the list invalidates every
+stored image and each page is rechecked on its next request. Both module version ids are in the
+value: the SDK's covers what a page binds against, and Core's covers the generator, so a change
+to the generated source invalidates an image even when the contract is unchanged.
+
+## Load isolation
+
+`LoadedPage` loads each image into a `PageLoadContext`, a collectible `AssemblyLoadContext`
+that refuses `uk.osric.asp.Core`, `uk.osric.asp.Runtime`, `uk.osric.asp.Web`,
+`Microsoft.AspNetCore*`, `Microsoft.EntityFrameworkCore*` and `Microsoft.Data.Sqlite`, and lets
+everything else resolve through the default context. The SDK is allowed through on purpose: the
+fallback hands the page the same `IContext` type the host is using. It throws rather than returning `null`, because `null` means "ask the
+default context" — the exact escape the type exists to close.
+
+This is isolation from the site's internals, not a sandbox: a page still runs in-process with the
+site's identity and the whole base class library. The process boundary is [SEC-03](jobs/SEC-03.md),
+and it is deliberately not built — see "Page execution budget" below for what stands in its place.
+
+## Page execution budget
+
+A page is arbitrary C#, and .NET cannot interrupt arbitrary C#: `Thread.Abort` does not exist. So the
+budget bounds the *response*, not the page. `PageRenderer.RenderAsync` runs the handler on a worker and
+waits for it against one deadline that covers both queueing and running:
+
+- `Pages:Render:Slots` renders may run at once; further requests wait asynchronously, holding no
+  thread. A request that waits past the deadline is shed: it answers `504` immediately without ever
+  running the page.
+- `Pages:Render:TimeoutSeconds` is the whole budget, and may be fractional: the deadline is honoured
+  in milliseconds, and the configuration is clamped at `PageBudget.MinimumTimeoutSeconds` so a zero
+  cannot switch the limit off. When it expires the site answers `504`, calls
+  `SimpleContext.Abandon` so the still-running page cannot write any more, and gives up on it. A
+  render that never returns cannot be reclaimed: it is counted, logged with the page's path and the
+  elapsed time, and recorded on `page.render.abandoned`. A page that is *waiting* on an `await`
+  returns its thread to the pool while it waits, so abandonment costs a task rather than a thread;
+  when the deadline fires its next `await` throws and it unwinds. A page that blocks synchronously is
+  unchanged, and is escaped only by abandonment and the container's restart. A request that spends the budget before the page
+  starts — waiting on storage, or waiting for a compile slot — answers `504` the same way, but
+  nothing is abandoned because nothing ran.
+- Compiling has its own slot and deadline (`Pages:Compile:Slots`, `Pages:Compile:TimeoutSeconds`).
+  Waiting for a slot is bounded by that deadline, because an unbounded wait would park a request
+  thread — and the render slot it already holds — behind the compiler. In a render the wait also ends
+  at the render's deadline, since nothing has been compiled yet and the next request can try again; on
+  a save it ends with a `PAGE003` error instead. Roslyn observes a cancellation token between
+  operations rather than inside one, so the deadline is a coarse bound, and a compile that trips it is
+  stored as a `PAGE004` error so the editor shows it and the page is not recompiled on every request.
+- A compile is *not* cancelled by the render's deadline. Throwing the work away would leave the page
+  unservable — every request would pay the same compile — so it finishes, stores its image, and the
+  request answers `504` without starting the page. The next request is served from the store.
+- `Pages:Render:MaxBodyChars` caps the buffered body, so a page that writes in a loop fails quickly
+  instead of growing the process.
+
+The handler still runs in the site's process, and the `IContext` it writes to is unchanged, so a page
+can still mutate process-wide state; that is the residual SEC-03 records.
+
+## Health and restarts
+
+The budget cannot reclaim a lost thread, so the supervisor is the kill switch.
+
+`/heath` reports two checks: `storage`, and `pages`, which is unhealthy once
+`Pages:Render:AbandonedLimit` renders have been abandoned and are still running. A page that returns
+late decrements the count, so a one-off stall does not ask for a restart.
+
+The quadlet runs the same probe as podman's health check
+(`wget -q -O /dev/null -T 3 http://127.0.0.1:8080/heath`, every 10 s, three failures) with
+`HealthOnFailure=restart`, so a wedged process is restarted within about 35 s. That turns the two
+worst outcomes into a short outage instead of a permanent one: a page that loops forever against a
+thread pool, and a page that calls `Environment.Exit`. The container is also capped
+(`--memory=2g` with `--memory-swap=2g`, `--pids-limit=512`, `--cpus=3`), so a page that
+allocates without bound meets the OOM killer inside the container rather than paging or taking the
+host.
+
+`StartLimitBurst=3` in 60 s still applies: a page that wedges on every request restarts the container
+three times and then leaves the unit failed until it is reset and the page is fixed.

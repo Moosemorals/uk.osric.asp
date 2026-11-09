@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 
 ## Problem
 
-The Makefile has `format-check` and `license-check` targets, and `docs/architecture.md` says schema
+The Makefile has `format-check` and `license-check` targets, and [the storage notes](../storage.md) say schema
 changes are tested with `make test-web`, but nothing runs automatically. There are no GitHub Actions
 workflows at all. As a result:
 

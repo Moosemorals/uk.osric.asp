@@ -519,23 +519,23 @@ review can see the surface change apart from the guards.
 
 ## Documentation and decisions
 
-- **DEC-162**: a compiled page is nullable-enabled and its generated scaffold is not. The generator
+- **DEC-177**: a compiled page is nullable-enabled and its generated scaffold is not. The generator
   writes `#nullable enable` outside each mapped region and `#nullable disable` around every line it
   wrote itself, so a diagnostic the author sees is always about the author's code. `Core` and `Sdk`
   do not change; the promise is held by a compiler test rather than by runtime policy, because
   an unmapped warning is dropped and making one fatal would turn a Roslyn change into a `500`.
-- **DEC-163**: a warning never stops a page. A stored image with bytes carries warnings only; the
+- **DEC-178**: a warning never stops a page. A stored image with bytes carries warnings only; the
   page is served, listed and hashed exactly as one that compiles cleanly. The editor, the history and
   the assistant all say "Compiled with warnings", and no path treats it as a failure.
-- **DEC-164**: a page has a state — `Not compiled`, `Stale`, `Compile failed`, `Compiled with
+- **DEC-165**: a page has a state — `Not compiled`, `Stale`, `Compile failed`, `Compiled with
   warnings`, `Compiled` — and the `/edit` listing shows it in a State column. Staleness is judged on
   `RuntimeId` alone, because hashing every template to answer a listing is not worth it, and a
   retained revision is history rather than stale.
-- **DEC-165**: nothing is `public` unless another product assembly binds to it, and the build
+- **DEC-166**: nothing is `public` unless another product assembly binds to it, and the build
   enforces it. The narrowing loop is "make it `internal`, build, and let the compiler name the
   hidden caller"; the guarantee is `Microsoft.CodeAnalysis.PublicApiAnalyzers` with an empty
   `PublicAPI.Shipped.txt` in `Web`. `Sdk` is the exception and is declared shipped in full.
-- **DEC-166**: an argument is validated where it enters the assembly — public members of public
+- **DEC-167**: an argument is validated where it enters the assembly — public members of public
   types, the `Sdk` implementations, and the endpoint handlers — and trusted everywhere after that.
   `internal` and `private` members do not validate, and a DI-injected constructor does not either,
   because the container is the only caller and it does not pass null.

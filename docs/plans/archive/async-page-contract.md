@@ -145,7 +145,7 @@ written, which is the outcome the idea asks for.
 The alternative — folding this into fetch and storage Phase 1 — buys one deploy instead of two, and
 one lazy recompile instead of two. It costs a bigger change to review, and it parks a contract
 decision behind the largest piece of unimplemented work in the backlog. Pages recompile lazily on
-their next request after any deploy (see [deployment](../../../deploy/README.md#storage-and-migrations)),
+their next request after any deploy (see [deployment](../../../deploy/operations.md#storage-and-migrations)),
 so the second recompile is the same work, not extra work. Not worth it.
 
 ### D2 — `Task`, admitted as a type, not the namespace
@@ -776,5 +776,5 @@ file carries its SPDX header; `make license-check` is part of the gate.
   its file was deleted into git history, following the IDEA-004 and ARCH-10 convention.
 - The rough order in `docs/jobs/README.md` no longer carries the async step, because it shipped;
   fetch and storage is next.
-- [IDEA-002](../../jobs/IDEA-002.md) and [IDEA-003](../../jobs/IDEA-003.md) are untouched here. Their plan
+- [IDEA-002](../../jobs/README.md) and [IDEA-003](../../jobs/README.md) are untouched here. Their plan
   changes shape, not scope, and their job files already defer to it.

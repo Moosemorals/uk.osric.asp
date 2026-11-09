@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 Status: **implemented 2026-11-08**. Written 2026-11-07; revised 2026-11-08 so that the map and
 the fallback are configuration rather than a table in code, and so that caching is one default with
 a per-page opt-out. This is now the record of that work: the decision is DEC-144 and the behaviour is
-recorded in [architecture](../../architecture.md#page-contract). It changed the page contract, so
+recorded in [pages](../../pages.md#page-contract). It changed the page contract, so
 every stored image is recompiled on its next request (DEC-26); it did not change the page SDK, the
 template language, the compiler or the page store schema. One thing here was not built: nothing
 consumes the source-language kind decision 4 proposed, so `ForPath` returns the media type string and
@@ -41,7 +41,7 @@ seeded scripts and stylesheets already ask for, so they stop asking.
 
 The extension is also a **source-language signal**: it says the author intends the literal text to
 be JavaScript, CSS or JSON. It is not a promise that the text is valid, and it does not validate
-anything. [IDEA-021](../jobs/IDEA-021.md) is the separate idea for using the signal in the
+anything. [IDEA-021](../../jobs/README.md) is the separate idea for using the signal in the
 assistant's validator.
 
 ## Goals and non-goals
@@ -66,7 +66,7 @@ Non-goals:
 - MIME sniffing, `Content-Disposition`, content negotiation on `Accept`, or a second static-file
   pipeline.
 - Inferring `Content-Security-Policy` or `AllowScripts` from the extension.
-- Validating the page source. That is [IDEA-021](../jobs/IDEA-021.md).
+- Validating the page source. That is [IDEA-021](../../jobs/README.md).
 - A general MIME database: the section is a short, hand-maintained map for a text page store, not a
   copy of `/etc/mime.types` and not `FileExtensionContentTypeProvider` in another shape.
 - A cache policy per type or per row. Caching is one default and one page-level opt-out
@@ -120,7 +120,7 @@ source of defaults, not a policy: nothing in the file can stop a page choosing i
 
 The source language and the response type are separate facts. A `.js` page that overrides its
 response type is still JavaScript source for validation; a page at `/notes` that sets
-`text/javascript` is still HTML source by convention. [IDEA-021](../jobs/IDEA-021.md) uses the key,
+`text/javascript` is still HTML source by convention. [IDEA-021](../../jobs/README.md) uses the key,
 not the final header.
 
 ### 2. The map is configuration in `appsettings.json`
@@ -270,7 +270,7 @@ applies `no-store` and removes the ETag after the page's headers, so opting in t
 make a signed-in render a shared cache's answer. A redirect is already `no-store` whoever asked.
 
 A page that opts out takes responsibility for the body being safe to share: it is the author's
-statement that this response is the same for every visitor. [IDEA-010](../jobs/IDEA-010.md)
+statement that this response is the same for every visitor. [IDEA-010](../../jobs/IDEA-010.md)
 immutable assets is where a long lifetime gets designed; this decision only makes room for it.
 
 The rule is applied where a stored page's response is assembled, so the shell's own documents —
@@ -314,7 +314,7 @@ by the validator in the common case.
 
 ### 10. Record the decision when it is implemented
 
-This plan proposes the rule; [docs/decisions.md](../decisions.md) should gain the corresponding
+This plan proposes the rule; [docs/decisions.md](../../decisions.md) should gain the corresponding
 entry when the code lands. Take the next free id, under "Page contract and threat model". It has to
 name the two keys, the fact that the map is ordinary configuration rather than a file of its own,
 the startup-fatal validation, the `no-cache` default with its per-page opt-out, the `.svg` exclusion,

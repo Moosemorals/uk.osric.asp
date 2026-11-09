@@ -45,7 +45,7 @@ values explicitly, for example with `.ToString()`. Statement blocks can still ca
 `ctx.WriteRaw` or `ctx.Log` directly. The handler is asynchronous, so `await` is an ordinary
 expression in a block and inside `<%= %>`: `ctx.Features.GetRequired<IPageStorage>()` keeps a page's
 own key/value state, and `ctx.Features.GetRequired<IHttpFetch>()` reaches an allow-listed host from
-the server. The [architecture notes](docs/architecture.md#page-contract) list the rest of the
+the server. The [page contract](docs/pages.md#page-contract) list the rest of the
 surface.
 
 `ctx.Features.GetRequired<IMarkdownRenderer>()` renders Markdown to HTML for a page; write the
@@ -101,6 +101,8 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | `make build` | Build the solution, but only when a source or project file changed (the default) |
 | `make restore` | Force a NuGet restore; `build` only restores when an input changed |
 | `make test` | All four suites: core, runtime, web, integration |
+| `make check` | The gate: formatting, licences, package audit, the four suites and a Release publish |
+| `make ci` | `make check` from a clean tree, plus the reproducible-image check |
 | `make test-core` | Core tests only |
 | `make test-runtime` | Runtime tests only |
 | `make test-web` | Web shell and storage tests only |
@@ -147,10 +149,17 @@ the C# extension, which has a launch configuration in `.vscode/launch.json`.
 
 ## More detail
 
-- [Architecture](docs/architecture.md) — the core/shell split and where new code belongs.
+- [Architecture](docs/architecture.md) — the core/shell split, where new code belongs, and the map of
+  the rest.
+- [Pages](docs/pages.md) — the page contract, the API policy, the execution budget and compiled pages.
+- [The shell](docs/shell.md) — the document shell, layouts, error responses and authentication.
+- [Storage](docs/storage.md) — revisions, page state, and import and export.
+- [Metrics](docs/metrics.md) — the instruments and the `/status` dashboard.
+- [Assistant](docs/assistant.md) — the optional `/assistant` subsystem.
 - [Glossary](docs/glossary.md) — the site's own words, each with the neighbouring term it is not.
 - [Logging](docs/logging.md) — what gets logged, at which level, and with which scope.
 - [Decisions](docs/decisions.md) — the policy choices behind the site, and what each one replaced.
-- [Testing](docs/testing.md) — the four suites and what each one is allowed to prove.
+- [Testing](docs/testing.md) — the five suites and what each one is allowed to prove.
 - [Spikes](docs/spikes/README.md) — questions answered with measurements, and what they ruled out.
-- [Deployment](deploy/README.md) — quadlets, Caddy, the storage volume and migrations.
+- [Deployment](deploy/README.md) — quadlets, Caddy, the first release and rollback.
+- [Running it](deploy/operations.md) — limits, storage, backups, metrics and proxy trust.

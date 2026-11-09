@@ -102,7 +102,7 @@ Checked against the code on 2026-11-08.
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
 | [IDEA-005](../../jobs/IDEA-005.md) | Phase 2 is a layout *page* rendered around a page; `SetLayout`, `WriteBody`, title/head slots; depth limit and seen-set; one budget for the chain; a layout is presentation, not a guard | **Implements phase 2**, with the layout's slots on a capability instead of `IContext`, and the default on. Shared *types* stay deferred |
-| [IDEA-018](../../jobs/IDEA-018.md) | The document builder and its fragments should move to `Sdk` | **Implements it** in phase 1, scoped to `PageDocument`, `Nav` and `NavLink` (see "Scope") |
+| [IDEA-018](../../jobs/README.md) | The document builder and its fragments should move to `Sdk` | **Implements it** in phase 1, scoped to `PageDocument`, `Nav` and `NavLink` (see "Scope") |
 | [IDEA-015](../../jobs/IDEA-015.md) | The listing, history and revision views need a layout to leave the shell | Unblocks it: those views become fragments the default layout wraps. The store read is still its own job |
 | [IDEA-017](../../jobs/IDEA-017.md) | The editor is the recovery path; do not let it depend on page code | Preserved: shell views never use the stored layout, so a broken layout cannot lock the owner out |
 | [IDEA-001](../../jobs/IDEA-001.md) | The editor is mostly markup | The editor loses its ad-hoc sign-out form; its page menu stays |
@@ -110,7 +110,7 @@ Checked against the code on 2026-11-08.
 | [BUG-18](../../jobs/BUG-18.md) | Every failure is a document a person can read | Error documents gain the menu above the recovery nav |
 | DEC-121 | No skip link until chrome precedes `main` | Superseded: the chrome arrives |
 | DEC-107, DEC-116 | One writer owns the head and the landmark; sheet order is fixed | Extended to the banner and the skip link, for both the shell and the layout, and to layers: a page's sheets are last |
-| DEC-132 | Seed restore is a per-page action on `/edit`; `/admin` is not a page surface | `/admin` returns as an *index of tools*, so the objection that retired it (a duplicate page list) does not apply |
+| DEC-174 | Seed restore is a per-page action on `/edit`; `/admin` is not a page surface | `/admin` returns as an *index of tools*, so the objection that retired it (a duplicate page list) does not apply |
 | DEC-02, DEC-132, DEC-133, DEC-135, DEC-136 | Pages are public unless they guard themselves; identity is shell-supplied; authenticated POSTs need a field; authenticated responses are `no-store` | Unchanged: the layout is not a guard, and the menu's links are content, not authority |
 | DEC-26 | `RuntimeId` includes the Sdk module version id | One deliberate bump from the builder and the capability; every stored image recompiles on its next request |
 | DEC-142, DEC-143 | Capabilities are for what a render may or may not offer; always-present things stay on `IContext` | Extended: the layout is a capability because it is a set of *slots a render offers*, which is what the page-features review already expected |
@@ -473,7 +473,7 @@ Each phase ends with `make test` green and `make format-check` clean.
 
 1. **The builder.** `Sdk/PageDocument`, `Sdk/NavLink`, `PageLayout.Nav` and `ShellDocument` as
    adapters. Nothing renders differently; a stored page can already write a document. This is
-   [IDEA-018](../../jobs/IDEA-018.md).
+   [IDEA-018](../../jobs/README.md).
 2. **The layout and the default.** `IPageLayout`, `PageLayoutState`, the chain in `PageEndpoint`,
    the render session, `Pages:Layout` switched on, the shared body budget, the configured depth
    limit, the fallbacks, and the `/_layout` seed with head/`main`/body only. The bundled seeds are
@@ -522,7 +522,7 @@ landing on its own.
   document is not the stored layout, because the recovery routes must not depend on page code.
 - **DEC-152**: `/admin` is a seeded fragment page linking import, export and `/status`; `/_layout` is
   an ordinary page (editable, restorable, not reserved), and only `/admin/import` and `/admin/export`
-  stay reserved beneath `/admin`. This is a partial reversal of DEC-132, which retired a *duplicate
+  stay reserved beneath `/admin`. This is a partial reversal of DEC-174, which retired a *duplicate
   page list*, not an index of tools.
 - **DEC-153**: sign-out is a `POST` from a confirmation view reached by a `GET`.
 - **DEC-154**: the skip link and the banner return, superseding DEC-121 and extending DEC-107.

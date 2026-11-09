@@ -429,7 +429,7 @@ that rename. With a database that has never held anything worth keeping, that is
 two costs.
 
 The deployment consequence needs a line in
-[deploy/README.md](../../../deploy/README.md#storage-and-migrations), and it now covers two volumes:
+[deploy/README.md](../../../deploy/operations.md#storage-and-migrations), and it now covers two volumes:
 
 - **`uk.osric.asp-storage`** has to be removed once, because its `__EFMigrationsHistory` does not know
   about `InitialCreate` and startup will find tables it did not create. It also holds the owner
@@ -504,7 +504,7 @@ one row per judgement, and it is easier to argue about once the type names have 
   and [BUG-17](../../jobs/BUG-17.md) name types too. These describe work that is already finished, so
   they get one line under their status saying the type names predate DEC-122, rather than a rewrite
   that would misrepresent what was implemented.
-- [deploy/README.md](../../../deploy/README.md#storage-and-migrations) — the once-only removal of both
+- [deploy/README.md](../../../deploy/operations.md#storage-and-migrations) — the once-only removal of both
   volumes and the account recreation after the squash.
 - [jobs/README.md](../../jobs/README.md) — the OPS-06 row, and the provenance sentence that says
   where it came from.

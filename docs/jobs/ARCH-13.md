@@ -55,5 +55,5 @@ first page that wants to stream starts from the right shape.
 7. Tests: a flushing page delivers bytes before the handler returns; a page that sets a header after
    flushing fails; a buffered page behaves exactly as it does today; a streamed page that throws mid-
    body yields a truncated response and a logged error; the deadline still ends the request.
-8. Update `docs/architecture.md`'s "Page contract" section, which currently states flatly that the
+8. Update [the page contract](../pages.md#page-contract), which currently states flatly that the
    body is buffered, and the README's page writing notes.

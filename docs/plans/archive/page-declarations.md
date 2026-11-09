@@ -187,7 +187,7 @@ invalidates every stored image.
 
 `PageRenderer` loads an image per request, so a `static` field in a page-declared type lives for one
 request. That is a property to document, not a feature to build on: structure now, persistence is
-[IDEA-003](../../jobs/IDEA-003.md).
+[IDEA-003](../../jobs/README.md).
 
 ## Implementation sequence
 

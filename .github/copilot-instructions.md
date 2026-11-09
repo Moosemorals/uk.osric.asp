@@ -15,7 +15,9 @@ assume Linux tooling, paths and scripts, with `/` separators.
 - `src/uk.osric.asp.Web` — imperative shell: endpoints, hosting, storage, configuration.
 - `test/` — one NUnit project per product project with behaviour, plus `Web.IntegrationTests`
   against the real host. `Sdk` has no suite of its own.
-- `docs/` — architecture, decisions and testing notes. `deploy/` — cloud-init, quadlets, Caddyfile.
+- `docs/` — architecture and its subsystems ([pages](../docs/pages.md), [the shell](../docs/shell.md),
+  [storage](../docs/storage.md), [metrics](../docs/metrics.md), [assistant](../docs/assistant.md)), plus
+  decisions, testing and logging. `deploy/` — cloud-init, quadlets, Caddyfile.
 
 Dependency direction is `Web` → `Runtime` → `Core`, `Runtime` → `Sdk` and `Web` → `Sdk`; keep `Core`
 and `Sdk` reference-free.

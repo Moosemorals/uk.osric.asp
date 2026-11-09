@@ -1,0 +1,257 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+SPDX-License-Identifier: MIT
+-->
+
+# Running it
+
+The host's limits, storage, backups, metrics and proxy trust: what to check when the site is up and
+something is wrong. [Deployment](README.md) is how a release gets there in the first place.
+
+## Content types
+
+A stored page's default response type comes from the last extension in its key:
+`Pages:ContentTypes:Extensions` maps an extension to a media type and `Pages:ContentTypes:Fallback`
+covers every other key (`text/html; charset=utf-8` by default). The shipped map lives in the image's
+`appsettings.json`; `ctx.SetContentType` overrides it.
+
+A host that wants a different map edits `~/.config/uk.osric.asp/appsettings.Production.json`, which
+`make deploy` seeds once with `{}` and the quadlet mounts read-only over
+`/app/appsettings.Production.json`. Providers merge key by key, so the file lists only what it
+changes — a new extension, a replacement row, or the fallback — and mapping a row to the fallback
+retracts it. Restart the service to apply an edit; that is not a redeploy:
+
+```bash
+ssh deploy@<server-ip> systemctl --user restart uk.osric.asp.service
+```
+
+A malformed row is fatal: the container does not come up and the journal names the offending key
+(`journalctl --user -u uk.osric.asp.service`). Check a response with `curl -sI` for both headers:
+
+```bash
+curl -sI https://moosemorals.com/site.css | grep -iE '^(content-type|cache-control):'
+```
+
+Every rendered page is `Cache-Control: no-cache` unless the page sets its own, and an authenticated
+response is `no-store` whatever the page set. `.svg` is deliberately not in the shipped map because
+it is active content; `/rocket.svg` sets `image/svg+xml` itself. The mount is read-only on purpose:
+no page, editor or assistant can change the map.
+
+## Memory and swap
+
+The VM has 8 GB of RAM, which is enough for the app, Caddy, Prometheus, podman and the kernel to
+share, so the 4 GiB swap file at `/swapfile` is a cushion rather than part of the memory budget
+(DEC-87). The arrangement is still deliberately lopsided:
+
+- **The app cannot use it.** The quadlet passes `--memory-swap=2g` beside `--memory=2g`, which sets
+  that container's `memory.swap.max` to zero. A page that allocates without bound still meets the OOM
+  killer, and the health check still restarts the container in about 35 s; the failure stays fast and
+  deterministic instead of becoming minutes of thrash that outlast the probe.
+- **Everything else can.** Caddy, Prometheus, podman and the kernel sit outside that cgroup, and the
+  swap is what stops a burst — an image pull beside an app restart, an `unattended-upgrades` run —
+  from ending in a kill of whichever process scored highest. Paging out an idle proxy costs nothing
+  measurable; killing it costs a restart, and for the app, every request in flight.
+- **Swappiness is left alone.** With the app excluded, the pages that move are the idle ones, which
+  is exactly right. Lowering `vm.swappiness` would make the kernel drop page cache instead and reach
+  the OOM killer sooner, not later.
+- **Swap is not capacity.** If `podman stats` shows the app's working set at its 2 GB limit, the
+  answer is a bigger VM — or a higher limit with the memory behind it — never more swap.
+- **The swap file is 5% of the disk.** The 80 GB is shared with the image store, the previous image
+  tag kept for rollback, `storage.db` and Prometheus's 4 GB retention. Check `df -h /` before raising
+  any of them.
+
+## Resource limits and restarts
+
+The app container is the only thing that can stop a page: .NET cannot interrupt arbitrary C#, so a
+page that loops forever is answered `504` and its thread is lost, and the app stops reporting healthy
+rather than pretending otherwise. [Pages](../docs/pages.md#health-and-restarts) has the reasoning;
+this is what podman does about it.
+
+- **Limits.** `--memory=2g` means a page that allocates without bound gets the OOM killer, and
+  `--memory-swap=2g` keeps the container from paging instead of dying ([memory and
+  swap](#memory-and-swap)). `--pids-limit=512` stops a thread or process storm taking the host with
+  it, and `--cpus=3` leaves a whole one of the four vCPUs for the host-side Caddy and for the probe.
+  `StopTimeout=35` is longer than the host's 30 s graceful-shutdown budget, so a normal stop finishes
+  cleanly and only a stuck page is `SIGKILL`ed.
+- **Probe.** `HealthCmd` runs
+  `wget -q -O /dev/null -T 3 http://127.0.0.1:8080/heath` every 10 s; three consecutive failures make
+  the container unhealthy, and `HealthOnFailure=restart` restarts it. Detection plus restart is about
+  35 s, which is the cost of the design: nothing else can interrupt a page.
+- **`/heath` reports two things.** Storage reachability, and how many page renders have been
+  abandoned. Two abandoned renders at once is the limit; a page that hangs deterministically therefore
+  costs one restart per attempt, not a permanently wedged site.
+- **The start limit still applies.** `StartLimitBurst=3` in 60 s means a page that wedges on every
+  request will restart three times and leave the unit failed — the intended "stop crash-looping"
+  behaviour, but it needs a fix and `systemctl --user reset-failed uk.osric.asp.service` rather than
+  waiting. `journalctl --user -u uk.osric.asp.service` names the page path in the warning line.
+- **Tuning.** `podman stats` shows the real working set; the memory limit is the knob to raise first if
+  the site is OOM-killed under load rather than because of a page. There is room on an 8 GB host, but
+  raising it without leaving memory for the page cache only moves the kill from the container to the
+  kernel's choice of victim.
+
+## Storage and migrations
+
+Source storage uses EF Core with SQLite. The local default is `ConnectionStrings:Storage` set to
+`Data Source=data/storage.db`; the app quadlet overrides it with
+`ConnectionStrings__Storage='Data Source=/data/storage.db'`. Route-to-script lookup, the compiled
+image of each page and editor persistence all read and write this database; nothing else in the
+deployment depends on it.
+
+Each page row carries the assembly emitted when it was last saved, so the database grows by roughly
+the size of each page's assembly (tens of kilobytes per page) on top of its source. A release that
+changes `uk.osric.asp.Sdk` or `uk.osric.asp.Core` changes the runtime id stored beside every image,
+so each page is compiled again on its next request: the first visit after such a deploy is slower,
+once, and the row is rewritten in place. There is no startup warm-up, so a page nobody visits is
+not recompiled until someone asks for it.
+
+The rootless named volume `uk.osric.asp-storage` is mounted read-write at `/data`. Podman creates it
+on first use and reuses it when the container or image is replaced. It belongs to the `deploy` user's
+Podman storage, not root's. Removing the volume (including pruning unused volumes) or deleting the
+host's storage destroys the data; container replacement is not a backup strategy.
+
+The database also holds the local accounts the editor signs in with: a normalised user name, a
+PBKDF2 password hash and a revocation stamp. Treat a backup of `storage.db` as a credential store.
+There is no registration page and no user management in the site; accounts are created and changed
+only by the `users` command.
+
+Every save creates a retained revision, deleting a page only tombstones its head, and scrub removes
+one path's head and revisions: [storage](../docs/storage.md#source-storage) has the rules. Startup
+seeding will not restore a tombstoned `/site.css` or `/rocket.svg`, so saving at that path recreates
+it in the same history. Runtime-change cleanup of obsolete images and symbols is deferred. The
+editor's history view shows a retained revision, and restoring a selected revision is
+[ARCH-07](../docs/jobs/ARCH-07.md).
+
+Scrubbing is best effort, not forensic erasure: it does not reach running code, browser or CDN
+copies, archives, backups or filesystem snapshots. Keep backups outside the storage volume and treat
+them as credential-bearing data.
+
+The second rootless volume, `uk.osric.asp-keys`, is mounted at
+`/home/app/.aspnet/DataProtection-Keys`. It holds the data-protection key ring used by the auth,
+antiforgery and session cookies. Without it, every restart would invalidate the long-term login and
+any form that was already open.
+
+### One-off: the squashed migration
+
+**Done on the CAX21 on 2026-11-07.** This is kept as the record of what the DEC-122 deploy cost, and
+as the procedure if a second host ever holds a pre-squash volume; a fresh host needs none of it.
+
+The migration history was squashed into a single `InitialCreate` for DEC-122, which renamed the
+assistant's EF entities. `__EFMigrationsHistory` in an existing `uk.osric.asp-storage` volume does not
+know about `InitialCreate`, so startup finds tables it did not create and the app fails. It costs two
+volumes and one account, and the order matters: when the release has already been deployed, the app is
+crash-looping against the old schema and both volumes are still held by running containers. The podman
+commands run on the host as `deploy`; the last line runs from the repository.
+
+```bash
+# Stopping both units releases both volumes; the app may be in the start-limit failed state already.
+systemctl --user stop uk.osric.asp.service prometheus.service
+systemctl --user reset-failed uk.osric.asp.service prometheus.service
+# If podman still reports a volume in use, remove the stopped containers and retry the next line.
+podman volume rm uk.osric.asp-storage prometheus-data
+
+systemctl --user start uk.osric.asp.service prometheus.service
+# The app applies InitialCreate before it serves, so wait for health before creating the account.
+until curl -fsS -o /dev/null http://127.0.0.1:8080/heath; do sleep 2; done
+make remote-user-add HOST=deploy@<server-ip> ACCOUNT=osric
+```
+
+Only these two volumes go. `uk.osric.asp-keys` holds the data-protection keys and is not disposable;
+`caddy-data` and `caddy-config` are untouched by the schema. Once the new image is already on the host
+a redeploy is unnecessary — starting the units recreates the schema from `InitialCreate`, and
+`make deploy` would only restart the same two units after rebuilding and pushing.
+
+`uk.osric.asp-storage` goes because the schema no longer replays from the old history, and it takes
+the owner account with it — hence the `remote-user-add` afterwards. `prometheus-data` goes because
+DEC-122 also renamed the page meter to `uk.osric.asp.Pages` and two instruments to
+`page.load.duration` and `page.invoke.duration`: with 30 days of retention, the old and new series
+would otherwise sit side by side for a month and any panel that sums without filtering by name would
+count both. Nothing in either volume is worth keeping.
+
+### Backups
+
+Run storage maintenance as `deploy`. Either stop `uk.osric.asp.service` with `systemctl --user stop`
+and back up the entire volume while no process has the database open, or use SQLite's online backup
+API against the database — `sqlite3` is installed on the host by `cloud-init.yaml`, so
+`sqlite3 storage.db '.backup /tmp/storage-backup.db'` works from inside `podman unshare`. Do not
+simply copy `storage.db` while the app is running: committed data may still be in the WAL, and
+copying database files individually can produce an inconsistent backup.
+
+Use `podman volume inspect uk.osric.asp-storage` as `deploy` to locate the volume. Its files are
+owned by mapped subordinate IDs, so offline file access may require `podman unshare`. Keep backups
+outside the volume and off-host, and test restoration. Restore only with the app stopped, retain
+the correct mapped ownership, and start an image compatible with the restored schema. For the
+stop-and-copy approach, keep the app stopped until the backup finishes, then start it again with
+`systemctl --user start uk.osric.asp.service`.
+
+## Metrics and the status page
+
+Prometheus scrapes `app:8080/metrics` every 15 s over the shared network and keeps 30 days or 4 GB,
+whichever comes first; the container is capped at 512 MB of RAM so runaway cardinality fails a scrape
+instead of the host. `/status` is owner-only and queries Prometheus by name, so neither service is
+reachable from the internet.
+
+- **Two gates on `/metrics`.** The app publishes on the loopback only (the control DEC-61 describes),
+  and Caddy answers `404` for the path on the public origin. Keep both.
+- **Prometheus is never proxied.** It has no authentication; reach it with
+  `ssh -L 9090:127.0.0.1:9090 deploy@<server-ip>` and open `http://localhost:9090`.
+- **No data is a banner, not a failure.** A stopped Prometheus, a slow query, or an unreadable reply
+  makes `/status` say so and still render; only a bug in the page itself is a `500`.
+- **Retention is a guess.** 30 days and 4 GB are easy to change in `prometheus.container`; check
+  `df -h /` before raising them, because images, page assemblies, the database and the swap file
+  share the disk.
+- **Page storage gauges mean different things.** Payload is logical UTF-8 bytes, database size is
+  the whole file and capacity is the volume; [metrics](../docs/metrics.md#instrumentation) has the
+  definitions and the sampling rule. Review retention manually when payload exceeds half the volume
+  capacity: revisions are not pruned automatically.
+- **Container DNS.** `cloud-init.yaml` installs `aardvark-dns`, which resolves `app` and `prometheus`
+  by name on the shared network. A host without it shows `/status` saying Prometheus "did not
+  answer" and a down scrape target: `sudo apt-get install -y aardvark-dns`, then restart both units.
+  `make deploy` refuses to run on such a host.
+
+## Proxy trust and forwarded headers
+
+Caddy terminates TLS, so without help the app sees a plain-HTTP request arriving from the loopback
+proxy: `Request.IsHttps` is false and `UseHsts` emits nothing. It therefore calls `UseForwardedHeaders`
+for `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-For`, which Caddy sets by default, and
+trusts those headers from any peer. Caddy replaces these headers rather than passing a client's own
+values through, and the middleware reads the rightmost entry, so none of the three can be chosen by
+the request.
+
+That is safe only because of the topology. The quadlet publishes the port on `127.0.0.1` alone, so
+nothing off the machine can reach the app, and the only client that can send those headers is the local
+Caddy. **The loopback-only publish is the control:** do not widen `PublishPort`, and do not place
+another proxy in front that rewrites the headers without revisiting this decision.
+
+What it changes:
+
+- HSTS works: `UseHsts` only sends `Strict-Transport-Security` for requests it believes are HTTPS.
+- `Request.Scheme`, `Request.Host` and `Request.IsHttps` describe the browser's request, so cookies,
+  absolute URLs and redirects derived from them are correct.
+- `Connection.RemoteIpAddress` is the browser's address, which is what the sign-in throttle counts
+  against, so one client spending its attempts cannot deny sign-in to anyone else.
+- Caddy redirects HTTP to HTTPS itself; the app deliberately has no `UseHttpsRedirection`, which behind
+  a proxy is a redirect loop waiting to happen.
+
+If the app ever runs somewhere else — another proxy, a load balancer, or a directly published port —
+replace the cleared `KnownProxies`/`KnownIPNetworks` with that proxy's address instead of trusting
+every peer.
+
+## Image layout and size
+
+Every image goes through `registry.osric.uk`, so the layout is chosen for layers:
+
+| base | app layer per deploy | image |
+| --- | --- | --- |
+| `mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra` | 177 kB (framework-dependent) | 160 MB |
+
+The base is a manifest list, and `--platform linux/arm64` selects the arm64 variant that the CAX21
+needs; the same digest also carries amd64, so a build on an x86 machine uses the same pin. The
+~160 MB .NET runtime lives in the base image's layers, which are pulled once and cached by both
+the registry and the host. Each release therefore pushes and pulls only the app layer. The `-extra`
+flavour costs about 38 MB over plain alpine and is chosen for its `/usr/share/zoneinfo`: the status
+page labels its time axis in Europe/London, and `TimeZoneInfo` throws for a zone the image does not
+know. Building it as a self-contained single file instead would make the image smaller (64 MB) but
+would move ~52 MB on every release, which is the wrong trade when a registry is available.
+
+Trimming would reach ~29 MB, but ASP.NET Core does not support trimming a hosted web app here: the
+trimmed image dies at startup with `TypeLoadException`. It is deliberately off.

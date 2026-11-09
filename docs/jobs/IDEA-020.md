@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 
 ## Idea
 
-The import in [IDEA-009](IDEA-009.md) is additive on purpose: every page in the archive is saved,
+The import in [IDEA-009](README.md) is additive on purpose: every page in the archive is saved,
 every page absent from it is untouched, and nothing is deleted. That is the safe default, but it
 means an archive cannot put a site into a known position — pages the archive does not mention
 survive, so "this is now exactly what the archive says" is not something the import can promise.
@@ -70,5 +70,5 @@ If it is ever built, these decisions come first.
 
 [The import and export plan](../plans/archive/page-import-export.md) keeps import additive on purpose. The
 deployment guide's backup story is the volume, not the archive: see
-[deploy/README.md](../../deploy/README.md#backups). If this ever ships, it should point at that story
+[deploy/README.md](../../deploy/operations.md#backups). If this ever ships, it should point at that story
 rather than compete with it.

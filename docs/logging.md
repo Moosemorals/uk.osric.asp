@@ -87,12 +87,19 @@ Route values are trimmed to the id-ish ones on purpose: a scope with a dozen key
 nobody reads. They are also title-cased, so the route's `{runId}` is the field `RunId` like every
 other scope key.
 
+**One category per page, and it is fixed.** A page logs under `uk.osric.asp.Pages` with its key on a
+`Path` scope, never under a category per path: `ILoggerFactory` caches a logger for each distinct
+category for the life of the process and never evicts one, and a not-found request chooses its own
+URL, so a category per path would let an anonymous client grow that cache one unique path at a time
+(DEC-24). `appsettings.json` turns on `IncludeScopes` for the console formatter so the path still
+shows in the line.
+
 **Work scopes.** Background work is not a request and has no `RequestId`; it pushes its own scope for
 the unit of work, so a line from a worker is as attributable as a line from a request:
 
 - `RunWorker`/`RunProcessor`: `RunId`, `ConversationId`, `UserName`, and `Model` once known.
 - `ImportWorker`/`ImportProcessor`: `StageId`.
-- `SimpleContext` (page code): `Page {Path}` around each message, unchanged.
+- `SimpleContext` (page code): `Page {Path}` around each message.
 
 **What does not go in a scope.** A scope is not a dumping ground for the request: bodies, headers,
 query strings, page source, prompts and reasoning are never in one. Nor is anything that identifies a

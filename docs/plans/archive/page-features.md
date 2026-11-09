@@ -9,7 +9,7 @@ Status: **implemented 2026-11-08**. Written as a design and an implementation pl
 record of that work. It changed the page contract, so every stored image is recompiled on its next
 request (DEC-26); it did not change the template language, the generator, the page store schema or
 the API policy. The decisions are DEC-142 and DEC-143, and the behaviour is recorded in
-[architecture](../../architecture.md#page-contract).
+[pages](../../pages.md#page-contract).
 
 ## The short version
 

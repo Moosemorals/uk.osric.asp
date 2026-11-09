@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Page authentication: one guard at the top of a page
 
-Implementation plan for [IDEA-011](../../jobs/IDEA-011.md) — pages cannot opt into the sign-in that the
+Implementation plan for [IDEA-011](../../jobs/README.md) — pages cannot opt into the sign-in that the
 editor already has. DEC-02 makes every page public, which is right for the shop window but leaves no
 place for a draft, a personal dashboard or anything else that is only for the owner.
 
@@ -31,7 +31,7 @@ Implemented 2026-11-07. Every phase shipped: `IContext` gained `User`, `Redirect
 decisions are DEC-132 to DEC-137 with DEC-02 amended, and IDEA-011 is in the closed table in
 [the job index](../../jobs/README.md#closed).
 
-The sketch in [IDEA-011](../../jobs/IDEA-011.md) recommended a template directive or a metadata
+The sketch in [IDEA-011](../../jobs/README.md) recommended a template directive or a metadata
 column; this plan deliberately chose neither, for the reasons in
 [D1](#d1--the-opt-in-is-ordinary-page-code).
 
@@ -242,7 +242,7 @@ and its own query string; no other value from the request becomes a destination.
 
 A fragment is not preserved: the browser never sends `#...` to the server, so the shell has nothing
 to carry across the sign-in. A page that needs to restore a fragment does it in the browser after the
-return, which is outside this plan. [IDEA-011](../../jobs/IDEA-011.md) item 5 asked for both; only the
+return, which is outside this plan. [IDEA-011](../../jobs/README.md) item 5 asked for both; only the
 query is server-side possible.
 
 ### `AntiforgeryField`
@@ -521,7 +521,7 @@ Add `test/uk.osric.asp.Web.IntegrationTests/PageAuthenticationTests.cs` using th
 4. `docs/testing.md`: add the new Web and integration coverage to the suite descriptions.
 5. `docs/security/auth-cookie-review.md`: re-check the existing rows against page responses; the new
    surface is cacheability and CSRF, not a new cookie or a new secret.
-6. Update [IDEA-011](../../jobs/IDEA-011.md) and [the job index](../../jobs/README.md) with the plan link
+6. Update [IDEA-011](../../jobs/README.md) and [the job index](../../jobs/README.md) with the plan link
    now; fold the idea into the closed table when the work lands (see below).
 7. Move this plan to `docs/plans/archive/page-authentication.md` on completion and point the closed
    IDEA-011 row at it.
