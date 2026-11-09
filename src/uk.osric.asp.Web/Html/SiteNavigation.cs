@@ -65,7 +65,10 @@ internal static class SiteNavigation {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(query);
 
-        List<NavLink> links = [new("/", "Home", At(path, "/"))];
+        List<NavLink> links = [
+            new("/", "Home", At(path, "/")),
+            new("/about", "About", At(path, "/about")),
+        ];
 
         if (!authenticated) {
             links.Add(new(SignIn(path, query), "Sign in", At(path, "/login")));

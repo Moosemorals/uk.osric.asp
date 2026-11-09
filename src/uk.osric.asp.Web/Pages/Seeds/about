@@ -1,0 +1,153 @@
+<% // The credits and licence texts below mirror THIRD-PARTY-NOTICES.md, LICENSES/MIT.txt and
+   // LICENSES/ISC.txt; update this page in the same change as any of them.
+   ctx.Features.GetRequired<IPageLayout>().Title = "About"; %>
+<h1>About</h1>
+<p><strong>uk.osric.asp</strong> is a small web server whose pages are C# and can edit themselves.
+Every page is a row in SQLite, compiled with Roslyn when it is saved, and the site ships with an
+editor, a Markdown renderer, a status dashboard and an optional AI assistant.</p>
+
+<h2>Credits</h2>
+<ul>
+    <li><strong>Osric Wilkinson</strong> — author, designer and maintainer.</li>
+    <li><strong>DeepSeek</strong> — AI pair programmer. Much of the code, tests and documentation
+    was written with DeepSeek in the loop, and DeepSeek is the model behind the optional
+    assistant.</li>
+</ul>
+
+<h2>Copyright and licences</h2>
+<p>Each file carries its copyright and licence in SPDX tags, and <code>make license-check</code>
+checks them. The site's own source is MIT licensed, the rocket icon is ISC licensed, and the
+third-party software the site ships is under the BSD licences recorded below.</p>
+
+<h3 id="mit">MIT — the site's source</h3>
+<p>Copyright 2026 Osric Wilkinson &lt;<a href="mailto:osric@fluffypeople.com">osric@fluffypeople.com</a>&gt;.</p>
+<details>
+    <summary>The MIT licence</summary>
+    <pre class="source" tabindex="0" aria-label="MIT licence text">MIT License
+
+Copyright 2026 Osric Wilkinson &lt;osric@fluffypeople.com&gt;
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre>
+</details>
+
+<h3 id="isc">ISC — the rocket icon</h3>
+<p>The rocket icon at <a href="/rocket.svg">/rocket.svg</a> is Copyright (c) 2020 Osric Wilkinson
+(<a href="mailto:osric@fluffypeople.com">osric@fluffypeople.com</a>).</p>
+<details>
+    <summary>The ISC licence</summary>
+    <pre class="source" tabindex="0" aria-label="ISC licence text">ISC License
+
+Copyright (c) 2020 Osric Wilkinson (osric@fluffypeople.com)
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.</pre>
+</details>
+
+<h3 id="third-party">Third-party notices</h3>
+<p>This site ships the following third-party software.</p>
+
+<h4>Acornima 1.9.1</h4>
+<p>A standard-compliant ECMAScript parser, used by <code>uk.osric.asp.Runtime</code> to check the
+JavaScript a stored page serves. It parses and does not execute.</p>
+<ul>
+    <li>Project: <a href="https://github.com/adams85/acornima">github.com/adams85/acornima</a></li>
+    <li>Copyright (c) Adam Simon. All rights reserved.</li>
+    <li>Licence: BSD 3-Clause.</li>
+</ul>
+<p>Acornima is a fork of <a href="https://github.com/sebastienros/esprima-dotnet">Esprima.NET</a>,
+copyright (c) Sebastien Ros, distributed under the same BSD 3-Clause licence. It also adopts ideas
+from <a href="https://github.com/acornjs/acorn">acorn</a> and
+<a href="https://github.com/MatthewSmit/AcornSharp">AcornSharp</a>, both distributed under the MIT
+licence.</p>
+<details>
+    <summary>The BSD 3-Clause licence</summary>
+    <pre class="source" tabindex="0" aria-label="Acornima BSD 3-Clause licence text">BSD 3-Clause License
+
+Copyright (c) Adam Simon. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of Acornima nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</pre>
+</details>
+
+<h4>Markdig 1.6.0</h4>
+<p>A CommonMark implementation, used by <code>uk.osric.asp.Runtime</code> to render Markdown for
+stored pages and for the assistant transcript. It parses and renders; it does not execute
+anything.</p>
+<ul>
+    <li>Project: <a href="https://github.com/xoofx/markdig">github.com/xoofx/markdig</a></li>
+    <li>Copyright (c) 2016-2026, Alexandre Mutel. All rights reserved.</li>
+    <li>Licence: BSD 2-Clause.</li>
+</ul>
+<details>
+    <summary>The BSD 2-Clause licence</summary>
+    <pre class="source" tabindex="0" aria-label="Markdig BSD 2-Clause licence text">BSD 2-Clause License
+
+Copyright (c) 2016-2026, Alexandre Mutel
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions
+   and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of
+   conditions and the following disclaimer in the documentation and/or other materials provided
+   with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</pre>
+</details>

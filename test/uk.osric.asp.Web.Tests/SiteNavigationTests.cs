@@ -16,21 +16,21 @@ using uk.osric.asp.Web.Html;
 public sealed class SiteNavigationTests {
 
     [Test]
-    public void AnAnonymousVisitorIsOfferedHomeAndSignIn() {
-        Assert.That(Texts(anonymous: true), Is.EqualTo((string[])["Home", "Sign in"]));
+    public void AnAnonymousVisitorIsOfferedHomeAboutAndSignIn() {
+        Assert.That(Texts(anonymous: true), Is.EqualTo((string[])["Home", "About", "Sign in"]));
     }
 
     [Test]
     public void ASignedInVisitorIsOfferedEveryTool() {
         Assert.That(Texts(anonymous: false, assistant: true),
-            Is.EqualTo((string[])["Home", "Assistant", "Pages", "Admin", "Sign out"]));
+            Is.EqualTo((string[])["Home", "About", "Assistant", "Pages", "Admin", "Sign out"]));
     }
 
     [Test]
     public void TheAssistantIsOfferedOnlyWhenItIsEnabled() {
         Assert.That(Texts(anonymous: false, assistant: false),
-            Is.EqualTo((string[])["Home", "Pages", "Admin", "Sign out"]));
-        Assert.That(Texts(anonymous: true, assistant: true), Is.EqualTo((string[])["Home", "Sign in"]));
+            Is.EqualTo((string[])["Home", "About", "Pages", "Admin", "Sign out"]));
+        Assert.That(Texts(anonymous: true, assistant: true), Is.EqualTo((string[])["Home", "About", "Sign in"]));
     }
 
     [Test]
@@ -49,6 +49,13 @@ public sealed class SiteNavigationTests {
         Assert.That(Current("/", "Home"), Is.True);
         Assert.That(Current("/blog", "Home"), Is.False);
         Assert.That(Current("/edit", "Home"), Is.False);
+    }
+
+    [Test]
+    public void TheAboutItemIsCurrentOnlyAtAbout() {
+        Assert.That(Current("/about", "About"), Is.True);
+        Assert.That(Current("/about/", "About"), Is.False);
+        Assert.That(Current("/", "About"), Is.False);
     }
 
     [TestCase("/edit")]

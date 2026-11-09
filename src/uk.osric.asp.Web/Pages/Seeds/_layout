@@ -4,7 +4,10 @@
    if (ctx.Path == ctx.Request.Path) { layout.Title = "Site"; }
    bool At(string href) => ctx.Request.Path == href;
    bool Under(string href) => At(href) || ctx.Request.Path.StartsWith(href + "/", System.StringComparison.Ordinal);
-   var links = new System.Collections.Generic.List<NavLink> { new("/", "Home", At("/")) };
+   var links = new System.Collections.Generic.List<NavLink> {
+       new("/", "Home", At("/")),
+       new("/about", "About", At("/about")),
+   };
    if (ctx.User is null) {
        links.Add(new("/login", "Sign in", At("/login")));
    } else {

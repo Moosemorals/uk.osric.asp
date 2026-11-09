@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/layout.css", "/pages", "/recent", "/rocket.svg", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/_layout", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/layout.css", "/pages", "/recent", "/rocket.svg", "/site.css", "/status.css"];
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {
@@ -95,6 +95,20 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("<h1>Help</h1>"));
         Assert.That(template, Does.Contain("id=\"layout\"").And.Contain("id=\"syntax\"").And.Contain("id=\"context\""));
         Assert.That(template, Does.Contain("href=\"/edit/help\""));
+    }
+
+    [Test]
+    public async Task TheAboutPageIsAReachableFragment() {
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/about"));
+
+        Assert.That(template, Is.Not.Null);
+        Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
+        Assert.That(template, Does.Contain("Title = \"About\""));
+        Assert.That(template, Does.Contain("<h1>About</h1>"));
+        Assert.That(template, Does.Contain("Osric Wilkinson").And.Contain("DeepSeek"));
+        Assert.That(template, Does.Contain("The MIT licence").And.Contain("The ISC licence"));
+        Assert.That(template, Does.Contain("Acornima 1.9.1").And.Contain("Markdig 1.6.0"));
+        Assert.That(template, Does.Not.Contain("RedirectToLogin"), "the about page is public");
     }
 
     [Test]

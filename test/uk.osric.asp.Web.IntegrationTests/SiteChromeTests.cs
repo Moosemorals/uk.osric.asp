@@ -46,7 +46,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
 
         IReadOnlyList<string> items = await MenuAsync(client, "/public-chrome");
 
-        Assert.That(items, Is.EqualTo((string[])["Home", "Sign in"]));
+        Assert.That(items, Is.EqualTo((string[])["Home", "About", "Sign in"]));
     }
 
     [Test]
@@ -56,7 +56,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
 
         IReadOnlyList<string> items = await MenuAsync(client, "/private-chrome");
 
-        Assert.That(items, Is.EqualTo((string[])["Home", "Assistant", "Pages", "Admin", "Sign out"]));
+        Assert.That(items, Is.EqualTo((string[])["Home", "About", "Assistant", "Pages", "Admin", "Sign out"]));
     }
 
     [Test]
@@ -98,6 +98,24 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         Assert.That(body, Does.Contain("<h1>Help</h1>"));
         Assert.That(body, Does.Contain("id=\"layout\"").And.Contain("id=\"keeping-current\""));
         Assert.That(body, Does.Contain("href=\"/edit/help\""));
+    }
+
+    [Test]
+    public async Task TheAboutPageIsPublicAndNamesItsCreditsAndLicences() {
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/about");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(body, Does.StartWith("<!DOCTYPE html>"));
+        Assert.That(body, Does.Contain("<title>About</title>"));
+        Assert.That(body, Does.Contain("Osric Wilkinson"));
+        Assert.That(body, Does.Contain("DeepSeek"));
+        Assert.That(body, Does.Contain("The MIT licence"));
+        Assert.That(body, Does.Contain("The ISC licence"));
+        Assert.That(body, Does.Contain("Acornima 1.9.1"));
+        Assert.That(body, Does.Contain("Markdig 1.6.0"));
     }
 
     [Test]
@@ -144,7 +162,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         HttpResponseMessage logout = await client.PostAsync("/logout", Form(("__RequestVerificationToken", token)));
         Assert.That(logout.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
 
-        Assert.That(await MenuAsync(client, "/signed-out"), Is.EqualTo((string[])["Home", "Sign in"]));
+        Assert.That(await MenuAsync(client, "/signed-out"), Is.EqualTo((string[])["Home", "About", "Sign in"]));
     }
 
     [Test]
