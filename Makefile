@@ -183,17 +183,25 @@ $(BUILD_STAMP): $(BUILD_INPUTS) $(RESTORE_STAMP)
 test: test-core test-runtime test-web test-integration
 
 # A suite that wedges should fail the gate rather than sit in it. NUnit's own timeout would not help
-# here: the budget tests burn a wall clock on purpose, so only a generous whole-run ceiling is safe.
+# here: the budget tests burn a wall clock on purpose, so only a whole-run ceiling is safe.
 # The ceiling is VSTest's session timeout, in milliseconds because that is how runsettings counts.
 # It is not `--blame-hang`: that reports a warning on every run that ends normally — that it wrote no
 # sequence file, which is the good outcome — and a warning nobody can act on is one everybody learns
 # to skip.
+#
+# The three unit suites are supposed to be fast — core under a second, runtime a couple, web about
+# fifteen — so a minute is several times a full run and a suite that reaches it is wedged, not slow.
+# Waiting a minute for a suite that should answer in seconds is cheaper than waiting ten for one that
+# will never answer. The integration and browser suites drive a real host and a browser, so their
+# ceiling stays generous; both can be overridden, as can the fast one on a machine slower than this.
+TEST_FAST_TIMEOUT ?= 60000
 TEST_HANG_TIMEOUT ?= 300000
 # Test results belong with everything else the build produces. Left to itself the runner creates a
 # TestResults/ folder beside each project, which puts output in the source tree. Everything after the
 # `--` is a runsettings property, which is the only way in from the command line.
 TEST_RESULTS := $(ARTIFACTS)/test-results
 TEST_ARGS := --results-directory $(TEST_RESULTS) -- RunConfiguration.TestSessionTimeout=$(TEST_HANG_TIMEOUT)
+TEST_FAST_ARGS := --results-directory $(TEST_RESULTS) -- RunConfiguration.TestSessionTimeout=$(TEST_FAST_TIMEOUT)
 
 # The gate. Cheap checks first, so a formatting mistake fails in seconds rather than after the suites.
 # Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no
@@ -219,13 +227,13 @@ ci: clean
 	@$(MAKE) --no-print-directory image-check
 
 test-core: build
-	$(DOTNET) test $(CORE_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
+	$(DOTNET) test $(CORE_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
 
 test-runtime: build
-	$(DOTNET) test $(RUNTIME_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
+	$(DOTNET) test $(RUNTIME_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
 
 test-web: build
-	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
+	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
 
 # The host is real: routing, middleware order, exception handling and startup migrations. Slower
 # than the other suites, which is why it has its own target rather than living in the unit tests.
