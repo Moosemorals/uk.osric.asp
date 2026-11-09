@@ -73,11 +73,17 @@ internal sealed class FakePageStore : IPageStore {
         return Task.FromResult(_heads.GetValueOrDefault(path.Key) ? null : _pages.GetValueOrDefault(path.Key)?.Template);
     }
 
-    public Task<IReadOnlyList<PageHeadSummary>> ListPagesAsync(CancellationToken cancellationToken = default) {
+    /// <summary>The build the listing is judged against, or null to leave staleness unjudged.</summary>
+    public string? CurrentRuntimeId { get; set; }
+
+    public Task<IReadOnlyList<PageListing>> ListPagesAsync(CancellationToken cancellationToken = default) {
         Check(cancellationToken);
-        IReadOnlyList<PageHeadSummary> result = [.. _heads
+        IReadOnlyList<PageListing> result = [.. _heads
             .OrderBy(item => item.Key, StringComparer.Ordinal)
-            .Select(item => new PageHeadSummary(PagePath.Normalize(item.Key), item.Value))];
+            .Select(item => new PageListing(
+                PagePath.Normalize(item.Key),
+                item.Value,
+                StateOf(_pages.GetValueOrDefault(item.Key)?.Image)))];
         return Task.FromResult(result);
     }
 
@@ -104,7 +110,7 @@ internal sealed class FakePageStore : IPageStore {
                 page.Hash,
                 page.SavedAt,
                 page.CreationRuntimeId,
-                page.Image is null ? "Not compiled" : page.Image.Bytes is null ? "Compile failed" : "Compiled",
+                StateOf(page.Image),
                 page.RevisionId == currentRevisionId))];
         return Task.FromResult(revisions);
     }
@@ -115,7 +121,7 @@ internal sealed class FakePageStore : IPageStore {
         return Task.FromResult(page is null
             ? null
             : new PageRevisionTemplate(page.Path, page.Hash, page.SavedAt, page.CreationRuntimeId,
-                page.Image is null ? "Not compiled" : page.Image.Bytes is null ? "Compile failed" : "Compiled",
+                StateOf(page.Image),
                 page.Template));
     }
 
@@ -219,6 +225,9 @@ internal sealed class FakePageStore : IPageStore {
         }
         return Task.FromResult(removed);
     }
+
+    private PageImageState StateOf(PageImage? image) => PageImageStatus.Describe(
+        image?.RuntimeId, image?.Bytes is not null, image?.Diagnostics.Count > 0, CurrentRuntimeId);
 
     private void Check(CancellationToken cancellationToken) {
         LastCancellationToken = cancellationToken;

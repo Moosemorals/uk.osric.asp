@@ -236,14 +236,26 @@ public sealed class AccessibilityTests {
     [Test]
     public async Task EveryListingActionNamesItsPageAsync() {
         MarkupReader listing = MarkupReader.Parse((await ViewAsync("listing")).Html);
-        MarkupElement[] lists = [.. listing.Root.Descendants().Where(element => element.HasClass("pages"))];
+        MarkupElement[] tables = [.. listing.Root.Descendants().Where(element => element.HasClass("pages"))];
 
-        Assert.That(lists, Is.Not.Empty);
-        foreach (MarkupElement link in lists.SelectMany(list => list.Descendants()).Where(element => element.Name == "a")) {
-            bool isThePageItself = link.Parent is { Name: "li" } row && row.Children[0] == link;
-
-            Assert.That(isThePageItself || NameOf(listing, link)?.Contains('/') == true, Is.True,
+        Assert.That(tables, Is.Not.Empty);
+        foreach (MarkupElement link in tables.SelectMany(table => table.Descendants()).Where(element => element.Name == "a")) {
+            Assert.That(NameOf(listing, link)?.Contains('/') == true, Is.True,
                 $"a listing action that does not name its page: {link.Attribute("href")}");
+        }
+    }
+
+    [Test]
+    public async Task EveryListingStateCellSaysWhichStateItIsAsync() {
+        MarkupReader listing = MarkupReader.Parse((await ViewAsync("listing")).Html);
+        MarkupElement[] cells = [.. listing.Root.Descendants().Where(element => element.HasClass("page-state"))];
+
+        Assert.That(cells, Is.Not.Empty);
+        foreach (MarkupElement cell in cells) {
+            Assert.That(cell.Text.Trim(), Is.Not.Empty, "a state cell with no words");
+            Assert.That((cell.Attribute("class") ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Any(name => name.StartsWith("state-", StringComparison.Ordinal)), Is.True,
+                $"a state cell with no state class: {cell.Text}");
         }
     }
 

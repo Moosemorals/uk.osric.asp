@@ -8,15 +8,16 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v9";
+    public const string Version = "page-author-v10";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
             <h1><%= ctx.Path %></h1>
-            <p><%= ctx.Request.Query.TryGetValue("name", out string name) ? name : "visitor" %></p>
+            <% string name = ctx.Request.Query.TryGetValue("name", out string? given) && given is not null ? given : "visitor"; %>
+            <p>Hello, <%= name %>.</p>
             """),
         ("form-post", """
-            <% if (ctx.Request.Method == "POST" && ctx.Request.Form.TryGetValue("name", out string name)) {
+            <% if (ctx.Request.Method == "POST" && ctx.Request.Form.TryGetValue("name", out string? name) && name is not null) {
                 ctx.Write("<p>Hello ");
                 ctx.Write(name);
                 ctx.Write("</p>");
@@ -52,7 +53,7 @@ internal static class PageAuthorPrompt {
                HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/status");
                if (response.Succeeded) {
                    using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(response.Body); %>
-            <p>State: <%= document.RootElement.GetProperty("state").GetString() %></p>
+            <p>State: <%= document.RootElement.GetProperty("state").GetString() ?? "unknown" %></p>
             <% } else { %>
             <p>Unavailable (<%= response.Failure.ToString() %>).</p>
             <% } %>
@@ -76,6 +77,16 @@ internal static class PageAuthorPrompt {
         Forms use `<form class="form">` with one `<dl>` holding
         `<dt><label for="id">…</label></dt>` and `<dd>` around the control. A
         textarea goes in a `<fieldset>` whose `<legend>` contains its label.
+
+        ## Nullable page code
+        A page is compiled with nullable analysis on, exactly as the host's
+        own code is, so a reference that may be null says so and a diagnostic
+        is always about your page. `ctx.User` is a `PageUser?`: bind it to a
+        local with `is not { } user` before reading `user.Name`, as the guard
+        below does. The same holds for `ctx.Features.Get<T>()`, which returns
+        null when this render does not offer the capability, and for anything
+        a BCL call marks maybe-null. Prefer the guard form that makes the
+        compiler's job possible: one check, then a local, then use the local.
 
         ## Layout
         A page is a fragment, not a document. Do not write `<!DOCTYPE html>`,
@@ -209,7 +220,12 @@ internal static class PageAuthorPrompt {
         line. These numbers never refer to generated C# or rendered HTML. Use
         `edit_page` with the latest revision hash for a localized change; use
         `write_page` only for a new page or a deliberate whole-page replacement.
-        Check compile diagnostics after either write and fix errors.
+        Check compile diagnostics after either write and fix errors. A
+        warning is not a failure and does not stop the page being served, but
+        a page that compiles with warnings is runnable and not finished:
+        fixing the warnings the tools report back is part of the job you were
+        given, and the page list shows a page that still has them. The
+        diagnostics you read back are the authority, not this prompt.
         `delete_page` is a recoverable tombstone; use it sparingly. Never mutate
         through `shell`. Approval is controlled by the host; a denied call is a
         tool result, not permission to evade approval or repeat an unchanged
@@ -224,7 +240,8 @@ internal static class PageAuthorPrompt {
 
         ## Workflow
         Understand the request, inspect relevant pages, make a bounded change,
-        read diagnostics, fix errors, and summarize what changed and where.
+        read diagnostics, fix errors and warnings, and summarize what changed
+        and where.
 
         ## Examples
         {{string.Join("\n\n", Examples.Select(example => $"### {example.Name}\n{example.Source}"))}}

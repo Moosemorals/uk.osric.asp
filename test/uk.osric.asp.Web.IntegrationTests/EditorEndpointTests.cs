@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.IntegrationTests;
 
 using System.Net;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
@@ -158,10 +159,48 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(deleted.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
         Assert.That(deleted.Headers.Location?.ToString(), Is.EqualTo("/edit"));
         Assert.That((await client.GetAsync("/archive")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-        Assert.That(await (await client.GetAsync("/edit")).Content.ReadAsStringAsync(), Does.Contain("/archive (history retained)"));
+        string listing = await (await client.GetAsync("/edit")).Content.ReadAsStringAsync();
+        int deletedSection = listing.IndexOf("<h2>Deleted pages</h2>", StringComparison.Ordinal);
+        Assert.That(deletedSection, Is.GreaterThanOrEqualTo(0));
+        Assert.That(listing[deletedSection..], Does.Contain("<th scope=\"row\">/archive</th>"));
         HttpResponseMessage history = await client.GetAsync("/edit/archive?cmd=history");
         Assert.That(history.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await history.Content.ReadAsStringAsync(), Does.Contain("This page is deleted. Its revisions remain available here."));
+    }
+
+    [Test]
+    public async Task APageWithWarningsIsServedAndItsDiagnosticsAreStoredAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        await PostEditorAsync(client, "loud", "<% int unused = 1; %>");
+        HttpResponseMessage served = await client.GetAsync("/loud");
+        PageTemplate stored = (await ReadPageAsync("/loud"))!;
+
+        Assert.Multiple(() => {
+            Assert.That(served.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(stored.Image?.Bytes, Is.Not.Null.And.Not.Empty, "a warning never stops an image being emitted");
+            Assert.That(stored.Image?.Diagnostics.Select(diagnostic => diagnostic.Severity),
+                Is.All.EqualTo(PageDiagnosticSeverity.Warning));
+        });
+    }
+
+    [Test]
+    public async Task APageThatGuardsTheIdentityIsServedUnderNullableAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        await PostEditorAsync(client, "private", """
+            <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+            <p>Signed in as <%= user.Name %>.</p>
+            """);
+        HttpResponseMessage served = await client.GetAsync("/private");
+        PageTemplate stored = (await ReadPageAsync("/private"))!;
+        string body = await served.Content.ReadAsStringAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(served.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(stored.Image?.Diagnostics, Is.Empty);
+            Assert.That(body, Does.Contain("Signed in as owner."));
+        });
     }
 
     [Test]

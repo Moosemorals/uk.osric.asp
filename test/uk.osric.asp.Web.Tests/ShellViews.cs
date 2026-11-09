@@ -172,10 +172,16 @@ internal static class ShellViews {
         return await TestHttp.ReadBodyAsync(context);
     }
 
-    // Two live pages and one deleted, so the listing shows a row with every action and a row with the
-    // shorter set: the ragged shape the listing keeps as a list.
+    // A live page with an action of each kind, a page that compiled with warnings, and a tombstone,
+    // so the listing shows every state the table can say as well as both action sets.
     private static async Task<string> ListingAsync() {
         FakePageStore storage = NewStore();
+        storage["/blog"] = new PageTemplate(PageHarness.Key("/blog"), Source, new PageImage(
+            TemplateFingerprint.Of(Source),
+            "1:3:elsewhere",
+            [1],
+            [2],
+            [new PageDiagnostic(PageDiagnosticSeverity.Warning, new TemplatePosition(1, 4), "CS0219: unused variable")]));
         await storage.DeletePageAsync(PageHarness.Key("/notes"));
 
         return await EditorAsync(storage, path: null);

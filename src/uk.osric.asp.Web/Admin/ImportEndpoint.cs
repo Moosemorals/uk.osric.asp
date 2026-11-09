@@ -155,8 +155,8 @@ internal sealed class ImportEndpoint {
             return;
         }
 
-        Dictionary<string, PageHeadSummary> heads = new(StringComparer.Ordinal);
-        foreach (PageHeadSummary head in await pages.ListPagesAsync(context.RequestAborted)) {
+        Dictionary<string, PageListing> heads = new(StringComparer.Ordinal);
+        foreach (PageListing head in await pages.ListPagesAsync(context.RequestAborted)) {
             heads[head.Path.Key] = head;
         }
 
@@ -372,7 +372,7 @@ internal sealed class ImportEndpoint {
         _ => "not compiled",
     };
 
-    private static string Tag(PageHeadSummary? head) => head switch {
+    private static string Tag(PageListing? head) => head switch {
         null => "new",
         { IsDeleted: true } => "restore",
         _ => "overwrite",

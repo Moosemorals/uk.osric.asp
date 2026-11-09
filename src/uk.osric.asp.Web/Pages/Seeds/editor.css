@@ -91,6 +91,50 @@ body.editor-page {
     text-decoration: underline dotted;
 }
 
+/* The page list. The words are the state; the class is what lets the two that want attention read
+   as such. An installation that kept an older copy of this sheet shows plain text, which is why the
+   words are written for that case. */
+.pages {
+    border-collapse: collapse;
+}
+
+.pages th,
+.pages td {
+    padding: 0.25rem 0.75rem 0.25rem 0;
+    text-align: left;
+    vertical-align: top;
+}
+
+.pages tbody th {
+    font-weight: normal;
+}
+
+.page-actions {
+    white-space: nowrap;
+}
+
+.page-actions form {
+    display: inline;
+}
+
+.state-compiled-with-warnings,
+.state-stale,
+.state-compile-failed {
+    font-weight: bold;
+}
+
+.state-compiled-with-warnings {
+    color: #7a4a00;
+}
+
+.state-stale {
+    color: #4a4a4a;
+}
+
+.state-compile-failed {
+    color: #a00000;
+}
+
 .source {
     max-width: 100%;
     overflow-x: auto;

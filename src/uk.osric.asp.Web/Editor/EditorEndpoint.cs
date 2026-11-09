@@ -140,13 +140,13 @@ internal sealed class EditorEndpoint {
     }
 
     private static async Task WriteListingAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, IAntiforgery antiforgery) {
-        IReadOnlyList<PageHeadSummary> heads = await pages.ListAsync(context.RequestAborted);
-        PageHeadSummary[] live = [.. heads.Where(head => !head.IsDeleted).OrderBy(head => head.Path.Key, StringComparer.Ordinal)];
-        PageHeadSummary[] deleted = [.. heads.Where(head => head.IsDeleted).OrderBy(head => head.Path.Key, StringComparer.Ordinal)];
+        IReadOnlyList<PageListing> listings = await pages.ListAsync(context.RequestAborted);
+        PageListing[] live = [.. listings.Where(row => !row.IsDeleted).OrderBy(row => row.Path.Key, StringComparer.Ordinal)];
+        PageListing[] deleted = [.. listings.Where(row => row.IsDeleted).OrderBy(row => row.Path.Key, StringComparer.Ordinal)];
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         HashSet<string> seeds = new(PageAssetSeeder.SeedPaths().Select(seed => seed.Key), StringComparer.Ordinal);
-        PageHeadSummary[] ownPages = [.. live.Where(head => !seeds.Contains(head.Path.Key))];
-        PageHeadSummary[] seededPages = [.. live.Where(head => seeds.Contains(head.Path.Key))];
+        PageListing[] ownPages = [.. live.Where(row => !seeds.Contains(row.Path.Key))];
+        PageListing[] seededPages = [.. live.Where(row => seeds.Contains(row.Path.Key))];
 
         await ShellDocument.BeginAsync(context, "Pages",
             SiteNavigation.For(context));
@@ -165,80 +165,76 @@ internal sealed class EditorEndpoint {
             <h2>Live pages</h2>
             """);
 
-        await WriteLivePagesAsync(context, ownPages, "No live pages.", pages, seeds, tokens, reserved);
+        await WritePageTableAsync(context, ownPages, "No live pages.", pages, seeds, tokens, reserved, deleted: false);
 
         await context.Response.WriteAsync("<h2>Seeded pages</h2>");
-        await WriteLivePagesAsync(context, seededPages, "No seeded pages.", pages, seeds, tokens, reserved);
+        await WritePageTableAsync(context, seededPages, "No seeded pages.", pages, seeds, tokens, reserved, deleted: false);
 
         await context.Response.WriteAsync("<h2>Deleted pages</h2>");
-        if (deleted.Length == 0) {
-            await context.Response.WriteAsync("<p>No deleted pages.</p>");
-        } else {
-            await context.Response.WriteAsync("<ul class=\"pages\" role=\"list\">");
-            foreach (PageHeadSummary head in deleted) {
-                if (!await WriteUnavailableAsync(context, head, reserved)) {
-                    continue;
-                }
-
-                string key = KeyOf(head);
-                string recreateUrl = WebUtility.HtmlEncode(PageUrls.Editor(head.Path));
-                string historyUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "history"));
-                string scrubUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "scrub"));
-                string restore = await RestoreFormAsync(pages, head.Path, seeds, tokens, context.RequestAborted);
-                await context.Response.WriteAsync($"<li>{key} (history retained) <a href=\"{recreateUrl}\" aria-label=\"Recreate {key}\">Recreate</a> <a href=\"{historyUrl}\" aria-label=\"History of {key}\">History</a> <a href=\"{scrubUrl}\" aria-label=\"Scrub history of {key}\">Scrub history</a> {restore}</li>");
-            }
-            await context.Response.WriteAsync("</ul>");
-        }
+        await WritePageTableAsync(context, deleted, "No deleted pages.", pages, seeds, tokens, reserved, deleted: true);
 
         await ShellDocument.EndAsync(context);
     }
 
-    // The owner's pages and the bundled seeds are both live; only the heading and the empty state
-    // differ between them.
-    private static async Task WriteLivePagesAsync(
+    // The owner's pages, the bundled seeds and the tombstones are all one table: the heading and the
+    // empty state are what differ, plus the action a deleted row offers in place of a delete.
+    private static async Task WritePageTableAsync(
         HttpContext context,
-        IReadOnlyList<PageHeadSummary> heads,
+        IReadOnlyList<PageListing> rows,
         string empty,
         PageEditor pages,
         IReadOnlySet<string> seeds,
         AntiforgeryTokenSet tokens,
-        ReservedPaths reserved) {
-        if (heads.Count == 0) {
+        ReservedPaths reserved,
+        bool deleted) {
+        if (rows.Count == 0) {
             await context.Response.WriteAsync($"<p>{empty}</p>");
             return;
         }
 
-        await context.Response.WriteAsync("<ul class=\"pages\" role=\"list\">");
-        foreach (PageHeadSummary head in heads) {
-            if (!await WriteUnavailableAsync(context, head, reserved)) {
+        await context.Response.WriteAsync("""
+            <table class="pages">
+                <thead><tr><th scope="col">Page</th><th scope="col">State</th><th scope="col">Actions</th></tr></thead>
+                <tbody>
+            """);
+
+        foreach (PageListing row in rows) {
+            string key = WebUtility.HtmlEncode(row.Path.Key);
+            string state = $"<td class=\"page-state {row.State.Class()}\">{WebUtility.HtmlEncode(row.State.Describe())}</td>";
+            string restore = await RestoreFormAsync(pages, row.Path, seeds, tokens, context.RequestAborted);
+
+            if (!row.Path.IsAddressable || reserved.IsReserved(row.Path)) {
+                // A key the site's routes already answer for is not a page the editor can offer, and
+                // both the live and the deleted table have to say so the same way.
+                await context.Response.WriteAsync($"<tr><th scope=\"row\">{key}: unavailable</th>{state}<td></td></tr>");
                 continue;
             }
 
-            string key = KeyOf(head);
-            string editorUrl = WebUtility.HtmlEncode(PageUrls.Editor(head.Path));
-            string historyUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "history"));
-            string deleteUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(head.Path, "delete"));
-            string restore = await RestoreFormAsync(pages, head.Path, seeds, tokens, context.RequestAborted);
-            await context.Response.WriteAsync($"<li><a href=\"{WebUtility.HtmlEncode(PageUrls.Page(head.Path))}\">{key}</a> <a href=\"{editorUrl}\" aria-label=\"Edit {key}\">Edit</a> <a href=\"{historyUrl}\" aria-label=\"History of {key}\">History</a> <a href=\"{deleteUrl}\" aria-label=\"Delete {key}\">Delete</a> {restore}</li>");
-        }
-        await context.Response.WriteAsync("</ul>");
-    }
-
-    // A key the site's routes already answer for is not a page the editor can offer, and both the
-    // live and the deleted list have to say so the same way.
-    private static async Task<bool> WriteUnavailableAsync(
-        HttpContext context,
-        PageHeadSummary head,
-        ReservedPaths reserved) {
-        if (head.Path.IsAddressable && !reserved.IsReserved(head.Path)) {
-            return true;
+            string page = deleted
+                ? $"<th scope=\"row\">{key}</th>"
+                : $"<th scope=\"row\"><a href=\"{WebUtility.HtmlEncode(PageUrls.Page(row.Path))}\" aria-label=\"View {key}\">{key}</a></th>";
+            await context.Response.WriteAsync($"<tr>{page}{state}<td class=\"page-actions\">{ActionsOf(row, key, deleted)} {restore}</td></tr>");
         }
 
-        await context.Response.WriteAsync($"<li>{KeyOf(head)}: unavailable</li>");
-        return false;
+        await context.Response.WriteAsync("</tbody></table>");
     }
 
-    private static string KeyOf(PageHeadSummary head) => WebUtility.HtmlEncode(head.Path.Key);
+    private static string ActionsOf(PageListing row, string key, bool deleted) {
+        string historyUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(row.Path, "history"));
+        string history = $"<a href=\"{historyUrl}\" aria-label=\"History of {key}\">History</a>";
+
+        if (deleted) {
+            string recreateUrl = WebUtility.HtmlEncode(PageUrls.Editor(row.Path));
+            string scrubUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(row.Path, "scrub"));
+            return $"<a href=\"{recreateUrl}\" aria-label=\"Recreate {key}\">Recreate</a> {history} "
+                + $"<a href=\"{scrubUrl}\" aria-label=\"Scrub history of {key}\">Scrub history</a>";
+        }
+
+        string editorUrl = WebUtility.HtmlEncode(PageUrls.Editor(row.Path));
+        string deleteUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(row.Path, "delete"));
+        return $"<a href=\"{editorUrl}\" aria-label=\"Edit {key}\">Edit</a> {history} "
+            + $"<a href=\"{deleteUrl}\" aria-label=\"Delete {key}\">Delete</a>";
+    }
 
     // A seeded row offers the restore; a page that already carries its seed offers it disabled, so
     // the listing shows what could be restored without offering a no-op write. A tombstoned page has
@@ -685,7 +681,7 @@ internal sealed class EditorEndpoint {
                 string hash = WebUtility.HtmlEncode(revision.Hash);
                 string url = WebUtility.HtmlEncode(PageUrls.EditorRevision(path, revision.Hash));
                 string state = revision.IsCurrent ? "<strong>Current</strong>" : string.Empty;
-                await context.Response.WriteAsync($"<tr><td>{WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}</td><td><a href=\"{url}\">{hash}</a></td><td>{state}</td><td>{WebUtility.HtmlEncode(revision.ImageStatus)}</td><td>{WebUtility.HtmlEncode(revision.CreationRuntimeId)}</td></tr>");
+                await context.Response.WriteAsync($"<tr><td>{WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}</td><td><a href=\"{url}\">{hash}</a></td><td>{state}</td><td>{WebUtility.HtmlEncode(revision.ImageState.Describe())}</td><td>{WebUtility.HtmlEncode(revision.CreationRuntimeId)}</td></tr>");
             }
             await context.Response.WriteAsync("</tbody></table>");
         }
@@ -702,7 +698,7 @@ internal sealed class EditorEndpoint {
         await ShellDocument.BeginAsync(context, "Saved revision",
             SiteNavigation.For(context), stylesheets: ["/editor.css"]);
         await context.Response.WriteAsync($"<h1>Saved revision for {WebUtility.HtmlEncode(path.Key)}</h1>");
-        await context.Response.WriteAsync($"<p>Saved {WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}; {WebUtility.HtmlEncode(revision.ImageStatus)}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}.</p>");
+        await context.Response.WriteAsync($"<p>Saved {WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}; {WebUtility.HtmlEncode(revision.ImageState.Describe())}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}.</p>");
         await context.Response.WriteAsync(PageDocument.Nav("Revision navigation", [
             new(PageUrls.EditorCommand(path, "history"), "Back to history"),
         ], "editor-menu"));

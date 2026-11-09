@@ -141,6 +141,50 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void ThePromptIsVersionedForNullablePages() {
+        Assert.Multiple(() => {
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v10"));
+            Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
+        });
+    }
+
+    [Test]
+    public void ThePromptSaysAWarningIsUnfinishedWork() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("runnable and not finished"));
+            Assert.That(prompt, Does.Contain("fixing the warnings"));
+            Assert.That(prompt, Does.Contain("does not stop the page being served"));
+        });
+    }
+
+    [Test]
+    public void ThePromptNamesTheNullableGuardIdiom() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("nullable analysis on"));
+            Assert.That(prompt, Does.Contain("`ctx.User` is a `PageUser?`"));
+            Assert.That(prompt, Does.Contain("ctx.User is not { } user"));
+            Assert.That(prompt, Does.Contain("one check, then a local"));
+        });
+    }
+
+    [Test]
+    public void TheExamplesCompileWithoutWarningsUnderNullableAnalysis() {
+        using PageHarness pages = new(new FakePageStore());
+
+        foreach ((string name, string source) in PageAuthorPrompt.Examples) {
+            PageImage compilation = pages.Images.Build(
+                PagePath.Normalize("/prompt-" + name), source, PageMetrics.ReasonSave, CancellationToken.None);
+
+            Assert.That(compilation.Diagnostics, Is.Empty,
+                $"{name}: {string.Join("; ", compilation.Diagnostics.Select(item => item.Message))}");
+        }
+    }
+
+    [Test]
     public void ThePrivatePageExampleIsPresent() {
         Assert.That(PageAuthorPrompt.Examples.Select(example => example.Name), Does.Contain("private-page"));
     }
@@ -159,7 +203,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v9"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v10"));
         });
     }
 }

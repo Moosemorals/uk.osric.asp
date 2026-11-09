@@ -232,13 +232,71 @@ public sealed class SqlitePageStoreTests {
         string[] expectedHashes = [second.Hash, first.Hash];
 
         Assert.That(history.Select(revision => revision.Hash), Is.EqualTo(expectedHashes));
-        Assert.That(history[0].ImageStatus, Is.EqualTo("Not compiled"));
-        Assert.That(history[1].ImageStatus, Is.EqualTo("Compiled"));
+        Assert.That(history[0].ImageState, Is.EqualTo(PageImageState.NotCompiled));
+        Assert.That(history[1].ImageState, Is.EqualTo(PageImageState.Compiled));
         Assert.That(history[0].IsCurrent, Is.True);
         Assert.That(history[1].IsCurrent, Is.False);
         Assert.That(selected?.Path, Is.EqualTo(path));
         Assert.That(selected?.Template, Is.EqualTo("first version"));
         Assert.That(await storage.GetRevisionTemplateByHashAsync("missing"), Is.Null);
+    }
+
+    [Test]
+    public async Task TheListingCarriesTheCurrentRevisionsStateAsync() {
+        PagePath path = Key("/loud");
+        PageImage warning = new(TemplateFingerprint.Of("Loud."), "1:build", [1], [2], [
+            new PageDiagnostic(PageDiagnosticSeverity.Warning, new TemplatePosition(1, 1), "CS0219: unused"),
+        ]);
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance, currentRuntimeId: "1:build");
+        await storage.SavePageAsync(new PageTemplate(path, "Loud.", warning));
+
+        IReadOnlyList<PageListing> listing = await storage.ListPagesAsync();
+
+        Assert.That(listing.Single().State, Is.EqualTo(PageImageState.CompiledWithWarnings));
+    }
+
+    [Test]
+    public async Task TheListingSaysNotCompiledForAPageWithNoImageAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        await storage.SavePageAsync(new PageTemplate(Key("/plain"), "plain"));
+
+        IReadOnlyList<PageListing> listing = await storage.ListPagesAsync();
+
+        Assert.That(listing.Single().State, Is.EqualTo(PageImageState.NotCompiled));
+    }
+
+    [Test]
+    public async Task TheListingSaysStaleForAnImageFromAnotherBuildAsync() {
+        PagePath path = Key("/blog");
+        PageImage previous = new(TemplateFingerprint.Of("Blog."), "1:build", [1], [2], []);
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance, currentRuntimeId: "2:build");
+        await storage.SavePageAsync(new PageTemplate(path, "Blog.", previous));
+
+        IReadOnlyList<PageListing> listing = await storage.ListPagesAsync();
+
+        Assert.That(listing.Single().State, Is.EqualTo(PageImageState.Stale));
+    }
+
+    [Test]
+    public async Task ADeletedPagesListingStillCarriesItsStateAsync() {
+        PagePath path = Key("/gone");
+        PageImage failed = new(TemplateFingerprint.Of("Gone."), "1:build", null, null, [
+            new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(1, 1), "CS1525: broken"),
+        ]);
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        await storage.SavePageAsync(new PageTemplate(path, "Gone.", failed));
+        await storage.DeletePageAsync(path);
+
+        PageListing row = (await storage.ListPagesAsync()).Single();
+
+        Assert.Multiple(() => {
+            Assert.That(row.IsDeleted, Is.True);
+            Assert.That(row.State, Is.EqualTo(PageImageState.CompileFailed));
+        });
     }
 
     [Test]

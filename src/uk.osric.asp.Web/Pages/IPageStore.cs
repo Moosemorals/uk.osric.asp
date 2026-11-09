@@ -14,7 +14,14 @@ internal interface IPageStore {
     /// <returns>The stored page, or <see langword="null"/> when no page has that key.</returns>
     Task<PageTemplate?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<PageHeadSummary>> ListPagesAsync(CancellationToken cancellationToken = default);
+    /// <summary>Lists every page, live and deleted, with the state of its current image.</summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The pages in no particular order, ordered by the caller.</returns>
+    /// <remarks>
+    /// The state is judged against the running build, so a page whose image came from an earlier one
+    /// says so: after a deploy that is every page, until each is next requested.
+    /// </remarks>
+    Task<IReadOnlyList<PageListing>> ListPagesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Reads a live page's template text only, without the image stored beside it.</summary>
     /// <param name="path">The canonical key to read.</param>
