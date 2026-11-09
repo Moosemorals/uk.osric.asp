@@ -233,8 +233,8 @@ test-integration: build
 	$(DOTNET) test $(INTEGRATION_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
 
 # A browser engine is an external dependency with its own download, so this suite is opt-in and out
-# of `check`: a suite that takes a minute and can flake is a suite people stop running. `make
-# browsers` installs Firefox once; the tests launch the built app themselves on a loopback port.
+# of `check`: a suite that takes a couple of minutes and can flake is a suite people stop running.
+# `make browsers` installs Firefox once; the tests launch the built app themselves on a loopback port.
 test-browser: build
 	$(DOTNET) test $(BROWSER_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
 

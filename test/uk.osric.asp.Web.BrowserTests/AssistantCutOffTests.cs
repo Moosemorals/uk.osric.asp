@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
-using System.Text.RegularExpressions;
 
 /// <summary>
 /// What happens when a model thinks for a long time. A step that keeps streaming has to be allowed to

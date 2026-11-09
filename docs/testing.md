@@ -16,7 +16,7 @@ core stays pure and the shell stays thin.
 | `test/uk.osric.asp.Runtime.Tests` | NUnit | The page compiler: emit, load and run | Milliseconds to seconds |
 | `test/uk.osric.asp.Web.Tests` | NUnit | The endpoints and storage of the web shell | Milliseconds to seconds |
 | `test/uk.osric.asp.Web.IntegrationTests` | NUnit + `WebApplicationFactory` | The composed pipeline: routing, middleware, error handling, startup | Seconds |
-| `test/uk.osric.asp.Web.BrowserTests` | NUnit + Playwright | The real host driven in Firefox: the shell pages and the assistant | Seconds to a minute |
+| `test/uk.osric.asp.Web.BrowserTests` | NUnit + Playwright | The real host driven in Firefox: the shell pages, the editor and the assistant | Seconds to a couple of minutes |
 
 - **Core tests** cover one rule at a time and exercise `Core` directly. `Sdk` has no suite of its
 own: it is the page contract — interfaces and plain values with documentation and no host behaviour —
@@ -169,16 +169,18 @@ Every suite writes its results under `artifacts/test-results`, so a run leaves t
 **No browser needed** covers what the four suites assert, not everything the site does. Alignment of
 the gutter numbers with the text rows, the native resize handle, the caret coming back after a save, a
 clean console under the policy and an answer that arrives one delta at a time are browser behaviour:
-the modules are seeded pages, and no assertion in those suites can prove them.
+the modules are seeded pages, and no assertion in those suites can prove them. The browser suite
+asserts the gutter, the caret and a save with scripts blocked; the console is clean under every test
+there.
 
 ## The browser suite
 
 `test/uk.osric.asp.Web.BrowserTests` is opt-in and out of `make check`, for the same reason
-`image-check` is: it needs a downloaded browser, it takes about a minute, and a suite that can flake is
-a suite people stop running. It references neither the app nor the test doubles the other suites use.
-Instead it starts the built app as a child process on a loopback port, with a throwaway SQLite file and
-a scripted provider, and drives the pages it serves with Playwright and Firefox — the browser the site
-is read in.
+`image-check` is: it needs a downloaded browser, it takes a couple of minutes, and a suite that can
+flake is a suite people stop running. It references neither the app nor the test doubles the other
+suites use. Instead it starts the built app as a child process on a loopback port, with a throwaway
+SQLite file and a scripted provider, and drives the pages it serves with Playwright and Firefox — the
+browser the site is read in.
 
 - `BrowserHost` starts the app, reads the port it bound, waits for `/heath` and seeds one account
   through the real `users` command. It runs the host as `Staging`: not `Production`, so the auth and
@@ -190,9 +192,14 @@ is read in.
   server sent.
 - `BrowserTest` gives each test its own context, page and script, and fails it on any console error or
   page error the browser reported while it ran — which is how the seeded icon was found rendering as a
-  black silhouette under the page content security policy.
+  black silhouette under the page content security policy. `PageTemplate` writes the title the default
+  layout requires, so a page the suite saves is one the site will serve.
 - `PageScriptTests` saves a JavaScript page and an HTML page that calls `ctx.AllowScripts()`, then
   proves the browser loaded the script. That is the enforcement the header alone cannot show.
+- `EditorBrowserTests` drives the editor's module: a typed line adds a number to the gutter and a
+  deleted one takes it away, the numbers stay right-aligned and step with the text's own rows, a
+  diagnostic's link scrolls its row to the top, a save puts the caret and selection back, the gutter is
+  clipped to the rows the textarea shows, and the form still saves with scripts blocked.
 - Fixtures that need different assistant limits start their own `BrowserHost`; the shared one signs in
   once and every test starts from that browser state, so a suite run does not spend the sign-in
   throttle's allowance on itself.

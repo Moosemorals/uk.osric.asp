@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
-using System.Text.RegularExpressions;
 
 /// <summary>
 /// The stream over a slow model: answers that arrive for longer than a heartbeat, answers that keep
@@ -55,7 +54,7 @@ internal sealed class AssistantStreamTests : BrowserTest {
         string path = UniquePath("written-by-the-assistant");
         await NewConversationAsync();
         Provider.Script(
-            StubResponse.Tool("call_1", "write_page", $$"""{"path":"{{path}}","content":"<p>written by the stub</p>"}"""),
+            StubResponse.Tool("call_1", "write_page", $$"""{"path":"{{path}}","content":"<% ctx.Features.GetRequired<IPageLayout>().Title = \"Written by the stub\"; %><h1>Written by the stub</h1><p>written by the stub</p>"}"""),
             StubResponse.Words("I wrote the page.", TimeSpan.Zero));
 
         await SendAsync($"Write {path}");

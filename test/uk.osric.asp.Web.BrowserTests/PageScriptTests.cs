@@ -16,11 +16,8 @@ internal sealed class PageScriptTests : BrowserTest {
             window.__pageScriptRan = true;
             export {};
             """);
-        await SavePageAsync(page, $"""
-            <% ctx.AllowScripts(); %>
-            <p>Scripted page</p>
-            <script type="module" src="{script}"></script>
-            """);
+        await SavePageAsync(page, "<% ctx.AllowScripts(); %>" + PageTemplate("Scripted page",
+            $"<script type=\"module\" src=\"{script}\"></script>"));
 
         await Page.GotoAsync(page);
 

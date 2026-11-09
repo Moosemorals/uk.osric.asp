@@ -25,7 +25,7 @@ internal sealed class EditorFlowTests : BrowserTest {
     public async Task SavingATemplateRendersItAsAPageAsync() {
         string path = UniquePath("saved");
 
-        await SavePageAsync(path, "<h1>Saved by a browser</h1><p><%= ctx.Path %></p>");
+        await SavePageAsync(path, PageTemplate("Saved by a browser", "<p><%= ctx.Path %></p>"));
         IResponse? response = await Page.GotoAsync(path.TrimStart('/'));
 
         Assert.That(response?.Status, Is.EqualTo(200));
@@ -38,7 +38,7 @@ internal sealed class EditorFlowTests : BrowserTest {
         string path = UniquePath("save-and-view");
 
         await Page.GotoAsync($"edit/{path.TrimStart('/')}");
-        await Page.FillAsync("#template", "<h1>Saved and shown</h1>");
+        await Page.FillAsync("#template", PageTemplate("Saved and shown"));
         await Page.ClickAsync("button[name=cmd][value=save-and-view]");
 
         await Page.WaitForURLAsync($"**/{path.TrimStart('/')}");
@@ -95,7 +95,7 @@ internal sealed class EditorFlowTests : BrowserTest {
         await Page.ClickAsync("button[type=submit]");
         await Page.WaitForURLAsync("**/edit");
 
-        await SavePageAsync(path, "<p>after the delete</p>");
+        await SavePageAsync(path, PageTemplate("Restored", "<p>after the delete</p>"));
         IResponse? live = await Page.GotoAsync(path.TrimStart('/'));
         Assert.That(live?.Status, Is.EqualTo(200));
         await Assertions.Expect(Page.Locator("p")).ToHaveTextAsync("after the delete");

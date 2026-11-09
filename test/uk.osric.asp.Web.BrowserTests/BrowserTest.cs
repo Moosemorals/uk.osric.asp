@@ -30,6 +30,9 @@ internal abstract partial class BrowserTest {
 
     [SetUp]
     public async Task OpenPageAsync() {
+        // NUnit runs every test in one instance here, so a complaint from the last page would
+        // otherwise fail this test too, and one real console error would cascade through the suite.
+        _problems.Clear();
         Context = await BrowserSuite.Browser.NewContextAsync(new BrowserNewContextOptions {
             BaseURL = Host.BaseAddress.ToString(),
             IgnoreHTTPSErrors = true,
@@ -114,6 +117,16 @@ internal abstract partial class BrowserTest {
 
     /// <summary>A page path that belongs to this test alone.</summary>
     protected static string UniquePath(string stem) => $"/{stem}-{Guid.NewGuid():N}";
+
+    /// <summary>
+    /// A template a stored page can be served from: the default layout wraps every HTML page and
+    /// refuses one that never sets a title, and the layout draws the chrome but not the heading, so
+    /// the page writes its own.
+    /// </summary>
+    /// <param name="title">The document title and the page's heading, as plain text.</param>
+    /// <param name="body">Markup the test asserts on, appended after the heading.</param>
+    protected static string PageTemplate(string title, params string[] body) =>
+        $"<% ctx.Features.GetRequired<IPageLayout>().Title = \"{title}\"; %><h1>{title}</h1>{string.Concat(body)}";
 
     [GeneratedRegex(@"/assistant/\d+$")]
     protected static partial Regex AssistantUrl();
