@@ -82,13 +82,15 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         string body = await RunAndReloadAsync(client, conversation);
 
         Assert.That(body, Does.Contain("<dt>Message</dt>"));
+        Assert.That(body, Does.Contain("<dt>Request</dt>"));
         Assert.That(body, Does.Contain("<span id=\"assistant-budget-message\">0</span> / 16k chars</span>"));
-        Assert.That(body, Does.Contain(" / 500k chars</span>"), "the context budget is missing");
+        Assert.That(body, Does.Contain(" / 500k bytes</span>"), "the request budget is missing");
         Assert.That(body, Does.Contain(" / 512 steps</span>"), "the step budget is missing");
         Assert.That(body, Does.Contain(" / 1k calls</span>"), "the tool-call budget is missing");
         Assert.That(body, Does.Contain(" / 33k tokens</span>"), "the output budget is missing");
 
-        // The system prompt alone is already spent, and the run's own steps are counted from the store.
+        // The system prompt and tool definitions alone are already spent, and the run's own steps are
+        // counted from the store.
         Assert.That(body, Does.Match("<meter id=\"assistant-budget-context-meter\" aria-hidden=\"true\" min=\"0\" max=\"500000\" value=\"[1-9][0-9]*\""));
         Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-steps\">2</span> / 512 steps</span>"),
             "the answered run took two steps: the tool call and the answer");
@@ -116,6 +118,27 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
             Assert.That(budgets.GetProperty("tool-result").GetInt32(), Is.GreaterThan(0));
             Assert.That(budgets.GetProperty("context").GetInt64(), Is.GreaterThan(0), "the system prompt alone is already spent");
             Assert.That(budgets.TryGetProperty("message", out _), Is.False, "the textarea owns the message row");
+        });
+    }
+
+    [Test]
+    public async Task TheStepBudgetIsTheRequestThatStepSent() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        string conversation = await CreateConversationAsync(client);
+        int before = _provider.Requests.Count;
+
+        string eventStream = await RunAsync(client, conversation);
+        long[] figures = [.. ParseEvents(eventStream)
+            .Where(item => item.Type == "budget.updated")
+            .Select(item => item.Data.GetProperty("budgets").GetProperty("context").GetInt64())];
+        IReadOnlyList<ChatRequest> sent = [.. _provider.Requests.Skip(before)];
+
+        Assert.Multiple(() => {
+            Assert.That(sent, Has.Count.EqualTo(2));
+            foreach (ChatRequest request in sent) {
+                Assert.That(figures, Does.Contain(ChatRequestJson.MeasureBytes(request)),
+                    "the request row is the request the step sent");
+            }
         });
     }
 
@@ -223,11 +246,23 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
     }
 
     private sealed class ToolCallingClient(string arguments) : IChatCompletionClient {
+        private readonly List<ChatRequest> _requests = [];
         private int _request;
+
+        public IReadOnlyList<ChatRequest> Requests {
+            get {
+                lock (_requests) {
+                    return [.. _requests];
+                }
+            }
+        }
 
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
             ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
+            lock (_requests) {
+                _requests.Add(request);
+            }
             // The fixture's host is shared, so requests alternate tool call, answer, tool call, answer.
             IReadOnlyList<ChatStreamEvent> events = Interlocked.Increment(ref _request) % 2 == 1
                 ? [new ToolCallDelta(0, "layout-call", "read_page", arguments), new Finished("tool_calls")]

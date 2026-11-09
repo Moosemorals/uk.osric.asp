@@ -60,8 +60,9 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   ids — and `RunProcessorTests` proves a provider failure is logged at Warning with its exception and
   the run's scope. `Web.IntegrationTests/ErrorHandlingTests` proves the framework's own
   unhandled-exception line carries the request scope, which is what fixes the order of the middleware.
-- **The assistant** is covered at the same boundaries: `Core.Tests` checks transcript trimming,
-  stream accumulation, strict tool arguments, virtual-shell parsing, title generation, authored
+- **The assistant** is covered at the same boundaries: `Core.Tests` checks request planning — observation
+  masking, whole-turn trimming and the byte measure the page and the stream share — stream
+  accumulation, strict tool arguments, virtual-shell parsing, title generation, authored
   template-source line edits and the `BudgetSnapshot` the page and the stream both read.
   `Web.Tests` uses migrated SQLite files for conversations, sequence
   allocation, approvals and restart repair; fake HTTP handlers for provider SSE; and scripted model

@@ -529,17 +529,17 @@ Phase 2 depends on phase 1. Phase 3 depends on both. Phase 1 alone is a complete
 
 New decisions:
 
-- **DEC-163** — The context row measures the provider request as sent: the UTF-8 bytes of the body
+- **DEC-200** — The context row measures the provider request as sent: the UTF-8 bytes of the body
   from the one serializer the client uses, including the system prompt, tool definitions and the
   messages after masking and trimming. It supersedes DEC-159's untrimmed-transcript rule and
   DEC-141's "context" wording; the row key stays `context`, the label becomes "Request", the unit
   becomes "bytes", and `MaxContextChars` becomes `MaxRequestBytes`.
-- **DEC-164** — Before any whole turn is dropped, `ObservationMasker` replaces old tool results and
+- **DEC-201** — Before any whole turn is dropped, `ObservationMasker` replaces old tool results and
   long tool-call argument strings with deterministic placeholders, keeping the newest eight tool
   results, the last two tool-call messages, and every user or assistant word. The mask is derived
   per request, never stored, so the transcript stays complete and the changed-pages card still reads
   real results.
-- **DEC-165** — Masking is attempted one old message at a time, oldest first, and only when the
+- **DEC-202** — Masking is attempted one old message at a time, oldest first, and only when the
   request is over budget; a tool result or an assistant message's long arguments are masked as one
   payload, and `ContextTrimmer` drops whole user turns only after masking is exhausted. The newest
   turn is never dropped, and a request that still does not fit fails with `context_too_long` naming

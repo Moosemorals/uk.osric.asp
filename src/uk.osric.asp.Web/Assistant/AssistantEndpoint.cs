@@ -171,8 +171,21 @@ internal static class AssistantEndpoint {
                     </form>
                 </fieldset>
             """);
+        // The page builds the plan the next step would send, from the same stored transcript and the
+        // same options the run uses, so the figure a reader reloads is the one the run just published.
+        List<ChatMessage> stored = [new ChatMessage("system", PageAuthorPrompt.Build()), .. messages.Select(message => message.ToChatMessage())];
+        ChatRequest request = new(
+            options.Model,
+            stored,
+            PageToolExecutor.Definitions,
+            options.Temperature,
+            options.MaxOutputTokens,
+            options.ReasoningField,
+            options.IncludeUsage);
+        ContextPlan plan = ContextPlanner.Build(request, options.MaxRequestBytes);
         BudgetSnapshot budgets = BudgetSnapshot.Measure(
-            [new ChatMessage("system", PageAuthorPrompt.Build()), .. messages.Select(message => message.ToChatMessage())],
+            plan,
+            stored,
             lastRun?.StepCount ?? 0,
             lastRun?.ToolCallCount ?? 0,
             lastRun?.CompletionTokens);
@@ -672,7 +685,7 @@ internal static class AssistantEndpoint {
                 <dl class="assistant-budget-list">
             """);
         await WriteBudgetAsync(context, "message", "Message", 0, options.MaxMessageChars, "chars");
-        await WriteBudgetAsync(context, "context", "Context", snapshot.ContextChars, options.MaxContextChars, "chars");
+        await WriteBudgetAsync(context, "context", "Request", snapshot.SentBytes, options.MaxRequestBytes, "bytes");
         await WriteBudgetAsync(context, "steps", "Steps", snapshot.Steps, options.MaxSteps, "steps");
         await WriteBudgetAsync(context, "tool-calls", "Tool calls", snapshot.ToolCalls, options.MaxToolCalls, "calls");
         await WriteBudgetAsync(context, "tool-arguments", "Tool arguments", snapshot.LongestArguments, options.MaxToolArgumentChars, "chars");
@@ -680,7 +693,7 @@ internal static class AssistantEndpoint {
         await WriteBudgetAsync(context, "output", "Output", snapshot.CompletionTokens, options.MaxOutputTokens, "tokens");
         await context.Response.WriteAsync("""
                 </dl>
-                <p class="assistant-budget-note">Steps, tool calls and output count the current or most recent run; the rest are this conversation.</p>
+                <p class="assistant-budget-note">Request is the provider request as sent: the system prompt, the tool definitions and the messages after masking and trimming. The transcript above is complete. Steps, tool calls and output count the current or most recent run.</p>
             </fieldset>
             """);
     }

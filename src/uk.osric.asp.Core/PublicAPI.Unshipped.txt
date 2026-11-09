@@ -32,3 +32,56 @@ uk.osric.asp.Core.Charting.ChartFrame.Zone.get -> System.TimeZoneInfo!
 uk.osric.asp.Core.Charting.ChartFrame.Zone.init -> void
 uk.osric.asp.Core.Charting.StackedAreaChart
 uk.osric.asp.Core.Markdown.LinkPolicy
+override uk.osric.asp.Core.Assistant.ContextPlan.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ContextPlan.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ContextPlan.ToString() -> string!
+static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(uk.osric.asp.Core.Assistant.ContextPlan! plan, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! stored, int steps, int toolCalls, int? completionTokens) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
+*REMOVED*static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! messages, int steps, int toolCalls, int? completionTokens) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
+static uk.osric.asp.Core.Assistant.ChatRequestJson.MeasureBytes(uk.osric.asp.Core.Assistant.ChatRequest! request) -> long
+static uk.osric.asp.Core.Assistant.ChatRequestJson.Serialize(uk.osric.asp.Core.Assistant.ChatRequest! request) -> string!
+static uk.osric.asp.Core.Assistant.ContextPlanner.Build(uk.osric.asp.Core.Assistant.ChatRequest! request, long maximumBytes) -> uk.osric.asp.Core.Assistant.ContextPlan!
+static uk.osric.asp.Core.Assistant.ContextPlan.operator !=(uk.osric.asp.Core.Assistant.ContextPlan? left, uk.osric.asp.Core.Assistant.ContextPlan? right) -> bool
+static uk.osric.asp.Core.Assistant.ContextPlan.operator ==(uk.osric.asp.Core.Assistant.ContextPlan? left, uk.osric.asp.Core.Assistant.ContextPlan? right) -> bool
+static uk.osric.asp.Core.Assistant.ContextTrimmer.Trim(uk.osric.asp.Core.Assistant.ChatRequest! request, long maximumBytes) -> uk.osric.asp.Core.Assistant.ContextTrimResult!
+*REMOVED*static uk.osric.asp.Core.Assistant.ContextTrimmer.Trim(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! messages, int maximumChars) -> uk.osric.asp.Core.Assistant.ContextTrimResult!
+uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long SentBytes, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int CompletionTokens) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long ContextChars, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int CompletionTokens) -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long SentBytes, out int Steps, out int ToolCalls, out int LongestArguments, out int LongestResult, out int CompletionTokens) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long ContextChars, out int Steps, out int ToolCalls, out int LongestArguments, out int LongestResult, out int CompletionTokens) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.ContextChars.get -> long
+*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.ContextChars.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.SentBytes.get -> long
+uk.osric.asp.Core.Assistant.BudgetSnapshot.SentBytes.init -> void
+uk.osric.asp.Core.Assistant.ChatRequestJson
+uk.osric.asp.Core.Assistant.ContextPlan
+uk.osric.asp.Core.Assistant.ContextPlan.<Clone>$() -> uk.osric.asp.Core.Assistant.ContextPlan!
+uk.osric.asp.Core.Assistant.ContextPlan.ContextPlan(uk.osric.asp.Core.Assistant.ChatRequest! Request, int MaskedToolResults, int MaskedArguments, int DroppedMessages, long OriginalBytes, long SentBytes, string? Error) -> void
+uk.osric.asp.Core.Assistant.ContextPlan.Deconstruct(out uk.osric.asp.Core.Assistant.ChatRequest! Request, out int MaskedToolResults, out int MaskedArguments, out int DroppedMessages, out long OriginalBytes, out long SentBytes, out string? Error) -> void
+uk.osric.asp.Core.Assistant.ContextPlan.DroppedMessages.get -> int
+uk.osric.asp.Core.Assistant.ContextPlan.DroppedMessages.init -> void
+uk.osric.asp.Core.Assistant.ContextPlan.Equals(uk.osric.asp.Core.Assistant.ContextPlan? other) -> bool
+uk.osric.asp.Core.Assistant.ContextPlan.Error.get -> string?
+uk.osric.asp.Core.Assistant.ContextPlan.Error.init -> void
+uk.osric.asp.Core.Assistant.ContextPlan.IsMasked.get -> bool
+uk.osric.asp.Core.Assistant.ContextPlan.IsTrimmed.get -> bool
+uk.osric.asp.Core.Assistant.ContextPlan.MaskedArguments.get -> int
+uk.osric.asp.Core.Assistant.ContextPlan.MaskedArguments.init -> void
+uk.osric.asp.Core.Assistant.ContextPlan.MaskedToolResults.get -> int
+uk.osric.asp.Core.Assistant.ContextPlan.MaskedToolResults.init -> void
+uk.osric.asp.Core.Assistant.ContextPlan.OriginalBytes.get -> long
+uk.osric.asp.Core.Assistant.ContextPlan.OriginalBytes.init -> void
+uk.osric.asp.Core.Assistant.ContextPlan.Request.get -> uk.osric.asp.Core.Assistant.ChatRequest!
+uk.osric.asp.Core.Assistant.ContextPlan.Request.init -> void
+uk.osric.asp.Core.Assistant.ContextPlan.SentBytes.get -> long
+uk.osric.asp.Core.Assistant.ContextPlan.SentBytes.init -> void
+uk.osric.asp.Core.Assistant.ContextPlanner
+uk.osric.asp.Core.Assistant.ContextTrimResult.ContextTrimResult(uk.osric.asp.Core.Assistant.ChatRequest! Request, int DroppedMessages, long SentBytes, string? Error) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.ContextTrimResult.ContextTrimResult(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, int DroppedMessages, string? Error) -> void
+uk.osric.asp.Core.Assistant.ContextTrimResult.Deconstruct(out uk.osric.asp.Core.Assistant.ChatRequest! Request, out int DroppedMessages, out long SentBytes, out string? Error) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.ContextTrimResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, out int DroppedMessages, out string? Error) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.ContextTrimResult.Messages.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>!
+*REMOVED*uk.osric.asp.Core.Assistant.ContextTrimResult.Messages.init -> void
+uk.osric.asp.Core.Assistant.ContextTrimResult.Request.get -> uk.osric.asp.Core.Assistant.ChatRequest!
+uk.osric.asp.Core.Assistant.ContextTrimResult.Request.init -> void
+uk.osric.asp.Core.Assistant.ContextTrimResult.SentBytes.get -> long
+uk.osric.asp.Core.Assistant.ContextTrimResult.SentBytes.init -> void

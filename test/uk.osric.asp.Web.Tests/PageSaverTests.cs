@@ -82,7 +82,10 @@ public sealed class PageSaverTests {
     }
 
     [Test]
+    [NonParallelizable]
     public async Task TheSaveIsRecordedAsASaveAsync() {
+        // A meter listener hears every save in the process, so another fixture saving a page in this
+        // window would be counted here. The counting cases opt out of the fixture-level parallelism.
         FakePageStore storage = new();
         using MetricCapture capture = MetricCapture.Start();
         using PageHarness pages = new(storage);

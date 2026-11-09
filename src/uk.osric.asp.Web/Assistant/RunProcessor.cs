@@ -79,43 +79,61 @@ internal sealed class RunProcessor(
             int toolCallsRecorded = 0;
             int? completionTokens = null;
             BudgetSnapshot budgets = BudgetSnapshot.Empty;
+            // The warnings describe what the run as a whole did, so each is published at most once:
+            // a hundred steps that all masked an old result are one fact, not a hundred.
+            bool maskedWarningSent = false;
+            bool trimmedWarningSent = false;
             for (step = 1; step <= options.MaxSteps; step++) {
                 IReadOnlyList<Message> transcript = await StoreAsync(
                     store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
                 List<ChatMessage> messages = [new ChatMessage("system", PageAuthorPrompt.Build())];
                 messages.AddRange(transcript.Select(message => message.ToChatMessage()));
-                ContextTrimResult trimmed = ContextTrimmer.Trim(messages, options.MaxContextChars);
-                if (trimmed.Error is not null) {
-                    await FailAsync(queued, stream, "context_too_long", trimmed.Error, partial, step, runTimeout.Token);
-                    return;
-                }
-                if (trimmed.IsTrimmed) {
-                    stream.Publish("run.warning", new {
-                        code = "context_trimmed",
-                        message = trimmed.TrimmingNote,
-                    });
-                }
-
-                // The step is spent as it starts, and the context row counts the whole conversation
-                // the loop has just read rather than the trimmed request, so it is measured here.
-                budgets = BudgetSnapshot.Measure(messages, step, toolCallsRecorded, completionTokens);
-                stream.Publish("message.started", new { step });
-                PublishBudgets(stream, budgets);
-                partial = new ChatStreamAccumulator();
                 ChatRequest request = new(
                     run.Model,
-                    trimmed.Messages,
+                    messages,
                     PageToolExecutor.Definitions,
                     options.Temperature,
                     options.MaxOutputTokens,
                     options.ReasoningField,
                     options.IncludeUsage);
+                ContextPlan plan = ContextPlanner.Build(request, options.MaxRequestBytes);
+                if (plan.Error is not null) {
+                    await FailAsync(queued, stream, "context_too_long", plan.Error, partial, step, runTimeout.Token);
+                    return;
+                }
+                if (plan.IsMasked && !maskedWarningSent) {
+                    stream.Publish("run.warning", new {
+                        code = "context_masked",
+                        message = "Earlier tool output and arguments were shortened to fit the request budget.",
+                    });
+                    maskedWarningSent = true;
+                }
+                if (plan.IsTrimmed && !trimmedWarningSent) {
+                    stream.Publish("run.warning", new {
+                        code = "context_trimmed",
+                        message = "Earlier conversation history was omitted to fit the request budget.",
+                    });
+                    trimmedWarningSent = true;
+                }
+                if (plan.IsMasked || plan.IsTrimmed) {
+                    logger.LogInformation(
+                        "Assistant step {Step} shaped the request: {MaskedResults} results and {MaskedArguments} arguments elided, {DroppedMessages} messages dropped, {OriginalBytes} bytes became {SentBytes}",
+                        step, plan.MaskedToolResults, plan.MaskedArguments, plan.DroppedMessages,
+                        plan.OriginalBytes, plan.SentBytes);
+                }
+
+                // The budget row counts the request the planner built, and the counters are what the
+                // loop has already spent, so the live figure is the one the page will reload.
+                budgets = BudgetSnapshot.Measure(plan, messages, step, toolCallsRecorded, completionTokens);
+                stream.Publish("message.started", new { step });
+                PublishBudgets(stream, budgets);
+                partial = new ChatStreamAccumulator();
 
                 long providerStart = Stopwatch.GetTimestamp();
                 bool firstTokenRecorded = false;
                 string providerOutcome = "ok";
                 try {
-                    await foreach (ChatStreamEvent @event in client.StreamAsync(request, runTimeout.Token)) {
+                    await foreach (ChatStreamEvent @event in client.StreamAsync(plan.Request, runTimeout.Token)) {
                         // The run deadline is an inactivity limit, not a duration: an event the
                         // provider actually streamed re-arms it. The SSE parser drops keep-alive
                         // comments, so a heartbeat cannot keep a stalled run alive.
@@ -187,7 +205,7 @@ internal sealed class RunProcessor(
                     string status = response.FinishReason == "length" ? "truncated" : "complete";
                     await PersistAssistantAsync(queued, stream, step, response, status, includeToolCalls: false, runTimeout.Token);
                     partial = null;
-                    await CompleteAsync(queued, stream, step, response, budgets);
+                    await CompleteAsync(queued, stream, step, response, budgets, run.Model);
                     return;
                 }
 
@@ -465,16 +483,27 @@ internal sealed class RunProcessor(
         RunStream stream,
         int steps,
         ChatResponse response,
-        BudgetSnapshot budgets) {
+        BudgetSnapshot budgets,
+        string model) {
         await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "completed"));
-        // The page measures the stored transcript, so the last live figure is measured the same way:
-        // anything else would make the reload a correction of what a reader just watched. `Publish`
-        // throws once the stream is complete, so nothing may follow `run.completed`.
+        // The last live figure is the request the next step would send, built from the transcript as
+        // stored. The reload builds the same plan the same way, so it cannot correct what a reader
+        // just watched. `Publish` throws once the stream is complete, so nothing may follow
+        // `run.completed`.
         IReadOnlyList<Message> transcript = await StoreAsync(
             store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, CancellationToken.None));
         List<ChatMessage> messages = [new ChatMessage("system", PageAuthorPrompt.Build())];
         messages.AddRange(transcript.Select(message => message.ToChatMessage()));
-        PublishBudgets(stream, BudgetSnapshot.Measure(messages, steps, budgets.ToolCalls, budgets.CompletionTokens));
+        ChatRequest request = new(
+            model,
+            messages,
+            PageToolExecutor.Definitions,
+            options.Temperature,
+            options.MaxOutputTokens,
+            options.ReasoningField,
+            options.IncludeUsage);
+        ContextPlan plan = ContextPlanner.Build(request, options.MaxRequestBytes);
+        PublishBudgets(stream, BudgetSnapshot.Measure(plan, messages, steps, budgets.ToolCalls, budgets.CompletionTokens));
         stream.Publish("run.completed", new {
             runId = queued.RunId,
             steps,
@@ -486,7 +515,7 @@ internal sealed class RunProcessor(
     // `message` is absent: the textarea is that row's only source.
     private static void PublishBudgets(RunStream stream, BudgetSnapshot budgets) => stream.Publish("budget.updated", new {
         budgets = new Dictionary<string, long>(StringComparer.Ordinal) {
-            ["context"] = budgets.ContextChars,
+            ["context"] = budgets.SentBytes,
             ["steps"] = budgets.Steps,
             ["tool-calls"] = budgets.ToolCalls,
             ["tool-arguments"] = budgets.LongestArguments,

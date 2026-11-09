@@ -60,6 +60,22 @@ public sealed class AssistantOptionsTests {
         Assert.That(Validate(options).Failed, Is.True);
     }
 
+    [Test]
+    public void ABudgetBelowTheFloorNamesMaxRequestBytes() {
+        AssistantOptions options = new() {
+            Enabled = true,
+            ApiKey = "configured",
+            MaxRequestBytes = 1_000,
+        };
+
+        ValidateOptionsResult result = Validate(options);
+
+        Assert.Multiple(() => {
+            Assert.That(result.Failed, Is.True);
+            Assert.That(result.FailureMessage, Does.Contain("Assistant:MaxRequestBytes"));
+        });
+    }
+
     private void AssertValid(AssistantOptions options) {
         ValidateOptionsResult result = Validate(options);
 

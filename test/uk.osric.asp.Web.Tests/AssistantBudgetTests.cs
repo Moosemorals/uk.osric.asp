@@ -21,8 +21,8 @@ public sealed class AssistantBudgetTests {
             StoredCall("call-2", """{"path":"/a-longer-one","nested":{"value":1}}"""),
         ];
 
-        BudgetSnapshot snapshot = BudgetSnapshot.Measure(
-            [.. messages.Select(message => message.ToChatMessage())], 1, 2, null);
+        ChatMessage[] stored = [.. messages.Select(message => message.ToChatMessage())];
+        BudgetSnapshot snapshot = BudgetSnapshot.Measure(Plan(stored), stored, 1, 2, null);
         Dictionary<string, (string Name, string Arguments)> calls = AssistantEndpoint.ReadToolCalls(messages);
 
         Assert.Multiple(() => {
@@ -30,6 +30,11 @@ public sealed class AssistantBudgetTests {
             Assert.That(snapshot.LongestArguments, Is.EqualTo(calls.Values.Max(call => call.Arguments.Length)),
                 "the budget row and the transcript must count the same arguments");
         });
+    }
+
+    private static ContextPlan Plan(IReadOnlyList<ChatMessage> messages) {
+        ChatRequest request = new("model", messages, [], 0.2, 20, "reasoning_content", IncludeUsage: true);
+        return ContextPlanner.Build(request, ChatRequestJson.MeasureBytes(request));
     }
 
     private static Message StoredCall(string id, string arguments) => new() {

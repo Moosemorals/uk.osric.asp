@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v12";
+    public const string Version = "page-author-v13";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -325,6 +325,12 @@ internal static class PageAuthorPrompt {
         and the rest — are ordinary pages you may edit, and so is any page the
         host has not locked in `Assistant:ProtectedPaths`; a locked page still
         reads as its own source.
+
+        ## Elided values
+        When the conversation is long, an old tool result may be shown as
+        `[tool result elided: N chars]` and a large old tool-call argument may
+        be shown as `[elided N chars]`. Treat an elided value as unavailable,
+        not as empty, and call the tool again if you need the detail.
 
         ## Tool rules
         Read before writing; list or search before inventing a key. Use

@@ -110,6 +110,16 @@ to `IMarkdownRenderer`, and the assistant's reply is Markdown only in the transc
 assistant profile, `LinkPolicy` and `AccessibleTableRenderer` are the rules that differ from the
 page profile (DEC-163, DEC-164).
 
+## Masking
+Replacing old observations in a provider request with deterministic placeholders while the stored
+transcript keeps the whole value.
+
+**Not** trimming. Masking keeps the message and its tool name, id and short arguments; trimming drops
+whole old turns. **Not** summarisation: a placeholder only says how much was there, and costs no model
+call.
+
+**Owner:** assistant — `ObservationMasker` and `ContextPlanner` (DEC-201, DEC-202).
+
 ## Message
 One row of a conversation's transcript, with role `user`, `assistant` or `tool`, a per-conversation
 `Sequence`, and the `RunId` that produced it.
@@ -223,6 +233,17 @@ through the ordinary revision path.
 
 **Owner:** pages — `src/uk.osric.asp.Web/Pages/Seeds`, `PageAssetSeeder` and `PageAssetSeeder.SeedPaths`.
 
+## Sent bytes
+The size of a provider request as sent: the UTF-8 byte count of the body `ChatRequestJson` builds
+from the model, system prompt, tool definitions, messages and envelope.
+
+**Not** the untrimmed transcript's size, and not a character count. Characters undercount the JSON
+envelope and escaping, and the provider decodes the body before tokenising it, so bytes are a
+conservative upper bound on the input.
+
+**Owner:** assistant — `ChatRequestJson.MeasureBytes`, `ContextPlan.SentBytes` and
+`BudgetSnapshot.SentBytes`; `Assistant:MaxRequestBytes` is the budget it is spent against (DEC-200).
+
 ## Shell file
 A key the site's own routes answer — `/edit`, `/login`, `/assistant`, `/metrics` and the rest of
 `Pages:ReservedPaths` — which the assistant may list and read but never save over.
@@ -315,4 +336,5 @@ The durable, ordered messages of a conversation, which are rebuilt into each pro
 and dropped after `Assistant:JournalTtlMinutes`.
 
 **Owner:** assistant — `Message`, the `AssistantMessages` table and `IConversationStore`;
-`ContextTrimmer` selects what is sent.
+`ContextPlanner` selects what is sent, and `ObservationMasker` shortens old payloads in the request
+without changing the stored rows.

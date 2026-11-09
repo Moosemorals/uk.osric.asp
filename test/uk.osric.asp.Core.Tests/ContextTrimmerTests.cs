@@ -10,172 +10,166 @@ public sealed class ContextTrimmerTests {
 
     [Test]
     public void KeepsTheSystemPromptAndNewestUserTurn() {
-        ChatMessage[] messages = [
+        ChatRequest request = Request([
             new("system", "prompt"),
             new("user", "old"),
             new("assistant", "old answer"),
             new("user", "latest"),
-        ];
+        ]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 20);
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([
+            new("system", "prompt"),
+            new("user", "latest"),
+        ])));
 
-        Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["prompt", "latest"]));
+        Assert.That(result.Request.Messages.Select(message => message.Content), Is.EqualTo(["prompt", "latest"]));
         Assert.That(result.IsTrimmed, Is.True);
+        Assert.That(result.Error, Is.Null);
     }
 
     [Test]
     public void DropsToolCallTurnsAsAUnit() {
-        ChatMessage[] messages = [
+        ChatRequest request = Request([
             new("system", "s"),
             new("user", "old"),
-            new("assistant", "", "[{\"id\":\"call-1\"}]"),
+            new("assistant", "", """[{"id":"call-1"}]"""),
             new("tool", "result", ToolCallId: "call-1"),
             new("assistant", "old answer"),
             new("user", "new"),
-        ];
+        ]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 10);
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([
+            new("system", "s"),
+            new("user", "new"),
+        ])));
 
-        Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["s", "new"]));
-        Assert.That(result.Messages.Any(message => message.Role == "tool"), Is.False);
+        Assert.That(result.Request.Messages.Select(message => message.Content), Is.EqualTo(["s", "new"]));
+        Assert.That(result.Request.Messages.Any(message => message.Role == "tool"), Is.False);
     }
 
     [Test]
     public void ReportsWhenTheNewestTurnCannotFit() {
-        ChatMessage[] messages = [new("system", "prompt"), new("user", "too long")];
+        ChatRequest request = Request([new("system", "prompt"), new("user", "too long")]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 5);
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([new("system", "prompt")])));
 
-        Assert.That(result.Error, Is.Not.Null);
-        Assert.That(result.Messages, Is.Empty);
+        Assert.Multiple(() => {
+            Assert.That(result.Error, Is.Not.Null);
+            Assert.That(result.Request.Messages.Select(message => message.Role), Is.EqualTo(["system", "user"]),
+                "the smallest request is still reported so the page can show its size");
+            Assert.That(result.SentBytes, Is.EqualTo(Bytes(result.Request)));
+        });
     }
 
     [Test]
     public void KeepsTheNewestWholeTurnWhenAnOlderTurnMustBeDropped() {
-        ChatMessage[] messages = [
+        ChatRequest request = Request([
             new("system", "s"),
             new("user", "a"), new("assistant", "b"),
             new("user", "c"), new("assistant", "d"),
-        ];
+        ]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 3);
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([
+            new("system", "s"),
+            new("user", "c"), new("assistant", "d"),
+        ])));
 
-        Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["s", "c", "d"]));
-        Assert.That(result.DroppedMessages, Is.EqualTo(2));
-    }
-
-    [Test]
-    public void ATightBudgetIsNotANoteUntilSomethingWasDropped() {
-        ChatMessage[] messages = [new("system", "s"), new("user", "a")];
-
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 100);
-
-        Assert.That(result.DroppedMessages, Is.Zero);
-        Assert.That(result.IsTrimmed, Is.False);
-        Assert.That(result.TrimmingNote, Is.Null);
-    }
-
-    [Test]
-    public void ADroppedTurnIsExplainedInTheNote() {
-        ChatMessage[] messages = [new("system", "s"), new("user", "a"), new("assistant", "b"), new("user", "c")];
-
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 2);
-
-        Assert.That(result.IsTrimmed, Is.True);
-        Assert.That(result.TrimmingNote, Is.Not.Null.And.Contains("omitted"));
+        Assert.Multiple(() => {
+            Assert.That(result.Request.Messages.Select(message => message.Content), Is.EqualTo(["s", "c", "d"]));
+            Assert.That(result.DroppedMessages, Is.EqualTo(2));
+        });
     }
 
     [Test]
     public void KeepsEveryTurnWhenTheBudgetAllows() {
-        ChatMessage[] messages = [
+        ChatRequest request = Request([
             new("system", "s"),
             new("user", "a"), new("assistant", "b"),
-        ];
+        ]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 100);
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(request));
 
-        Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["s", "a", "b"]));
+        Assert.Multiple(() => {
+            Assert.That(result.Request.Messages.Select(message => message.Content), Is.EqualTo(["s", "a", "b"]));
+            Assert.That(result.Error, Is.Null);
+            Assert.That(result.DroppedMessages, Is.Zero);
+            Assert.That(result.IsTrimmed, Is.False);
+            Assert.That(result.TrimmingNote, Is.Null);
+        });
     }
 
     [Test]
     public void ATranscriptWithoutASystemPromptKeepsTheNewestTurn() {
-        ChatMessage[] messages = [new("assistant", "a"), new("user", "b")];
+        ChatRequest request = Request([new("assistant", "a"), new("user", "b")]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 1);
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([new("user", "b")])));
 
-        Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["b"]));
-        Assert.That(result.Error, Is.Null);
+        Assert.Multiple(() => {
+            Assert.That(result.Request.Messages.Select(message => message.Content), Is.EqualTo(["b"]));
+            Assert.That(result.Error, Is.Null);
+        });
     }
 
     [Test]
     public void ReportsWhenTheSystemPromptAloneIsTooLong() {
-        ChatMessage[] messages = [new("system", "prompt")];
+        ChatRequest request = Request([new("system", "prompt")]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 5);
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(request) - 1);
 
-        Assert.That(result.Error, Is.Not.Null);
-    }
-
-    [Test]
-    public void KeepsASystemPromptThatExactlyFillsTheBudget() {
-        ChatMessage[] messages = [new("system", "prompt")];
-
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 6);
-
-        Assert.That(result.Error, Is.Null);
-        Assert.That(result.Messages.Select(message => message.Content), Is.EqualTo(["prompt"]));
+        Assert.That(result.Error, Is.Not.Null.And.Contains("needs").And.Contains("bytes"));
     }
 
     [Test]
     public void ReportsWhenTheSystemFitsButTheNewestTurnDoesNot() {
-        ChatMessage[] messages = [new("system", "s"), new("user", "too long")];
+        ChatRequest request = Request([new("system", "s"), new("user", "too long")]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 5);
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([new("system", "s")])));
 
-        Assert.That(result.Error, Is.Not.Null);
+        Assert.That(result.Error, Is.Not.Null, "the newest turn may not be split from its result");
     }
 
     [Test]
-    public void ToolCallJsonCountsTowardsTheBudget() {
-        ChatMessage[] messages = [new("system", "s"), new("user", "a"), new("assistant", "", "0123456789")];
+    public void TheBudgetIsMeasuredInBytes() {
+        ChatRequest request = Request([new("system", "s"), new("user", "0123456789")]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(messages, 11);
-
-        Assert.That(result.Error, Is.Not.Null, "one character over once the tool-call JSON is counted");
+        Assert.Multiple(() => {
+            Assert.That(ContextTrimmer.Trim(request, Bytes(request) - 1).Error, Is.Not.Null);
+            Assert.That(ContextTrimmer.Trim(request, Bytes(request)).Error, Is.Null);
+        });
     }
 
     [Test]
-    public void MeasureCountsContentAndToolCallJson() {
-        ChatMessage[] messages = [
-            new("system", "prompt"),
-            new("assistant", "", "0123456789"),
-            new("tool", "result", ToolCallId: "call-1"),
-        ];
+    public void TheEnvelopeCountsTowardsTheBudget() {
+        ChatRequest request = Request([new("system", "s"), new("user", "0123456789")]);
+        long contentCharacters = request.Messages.Sum(message => message.Content.Length);
 
-        Assert.That(ContextTrimmer.MeasureChars(messages), Is.EqualTo(6 + 10 + 6));
-    }
-
-    [Test]
-    public void MeasureOfNothingIsNothing() {
-        Assert.That(ContextTrimmer.MeasureChars([]), Is.Zero);
-    }
-
-    [Test]
-    public void MeasureAgreesWithTheBudgetThatRefusesATranscript() {
-        ChatMessage[] messages = [new("system", "s"), new("user", "0123456789")];
-
-        Assert.That(ContextTrimmer.MeasureChars(messages), Is.EqualTo(11));
-        Assert.That(ContextTrimmer.Trim(messages, 10).Error, Is.Not.Null);
-        Assert.That(ContextTrimmer.Trim(messages, 11).Error, Is.Null);
+        Assert.Multiple(() => {
+            Assert.That(Bytes(request), Is.GreaterThan(contentCharacters), "the JSON envelope is part of the request");
+            Assert.That(ContextTrimmer.Trim(request, contentCharacters).Error, Is.Not.Null);
+        });
     }
 
     [Test]
     public void ANullTranscriptIsRefused() {
-        Assert.That(() => ContextTrimmer.Trim(null!, 10), Throws.ArgumentNullException);
+        ChatRequest request = Request([new("user", "a")]) with { Messages = null! };
+
+        Assert.That(() => ContextTrimmer.Trim(request, 10), Throws.ArgumentNullException);
     }
 
     [Test]
-    public void ABudgetOfNothingIsRefused() {
-        Assert.That(() => ContextTrimmer.Trim([new("user", "a")], 0), Throws.TypeOf<ArgumentOutOfRangeException>());
+    public void ANonPositiveBudgetIsRefused() {
+        Assert.That(() => ContextTrimmer.Trim(Request([new("user", "a")]), 0),
+            Throws.TypeOf<ArgumentOutOfRangeException>());
     }
+
+    private static ChatRequest Request(IReadOnlyList<ChatMessage> messages) => new(
+        "model",
+        messages,
+        [],
+        0.2,
+        20,
+        "reasoning_content",
+        IncludeUsage: true);
+
+    private static long Bytes(ChatRequest request) => ChatRequestJson.MeasureBytes(request);
 }

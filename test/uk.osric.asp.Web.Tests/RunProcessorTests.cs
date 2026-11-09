@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Pages;
@@ -23,7 +24,7 @@ public sealed class RunProcessorTests {
         RunTimeoutSeconds = 5,
         RequestTimeoutSeconds = 3,
         ToolTimeoutSeconds = 2,
-        MaxContextChars = 20_000,
+        MaxRequestBytes = 500_000,
     };
 
     private readonly ToolApprovalCoordinator _approvals = new();
@@ -347,6 +348,146 @@ public sealed class RunProcessorTests {
         }
     }
 
+    [Test]
+    public async Task TheStepBudgetIsTheRequestThatStepSent() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("There is no such page."),
+            new Finished("stop"),
+        ]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        RunEvent[] events = await CollectAsync(stream);
+        long[] figures = [.. events
+            .Where(@event => @event.Type == "budget.updated")
+            .Select(@event => ContextFigure(@event.DataJson))];
+
+        Assert.Multiple(() => {
+            Assert.That(client.Requests, Has.Count.EqualTo(2));
+            foreach (ChatRequest request in client.Requests) {
+                Assert.That(figures, Does.Contain(ChatRequestJson.MeasureBytes(request)),
+                    "the figure a step published is the request it sent");
+            }
+        });
+    }
+
+    [Test]
+    public async Task AnOverBudgetRunFailsBeforeTheProviderIsCalled() {
+        AssistantOptions options = new() {
+            RunTimeoutSeconds = 5,
+            RequestTimeoutSeconds = 3,
+            ToolTimeoutSeconds = 2,
+            MaxRequestBytes = 1_000,
+        };
+        ScriptedClient client = new([new ContentDelta("Never sent."), new Finished("stop")]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client, options);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Run? run = await store.GetLastRunAsync(conversation.Id, "owner");
+        RunEvent[] events = await CollectAsync(stream);
+
+        Assert.Multiple(() => {
+            Assert.That(run?.Status, Is.EqualTo("failed"));
+            Assert.That(run?.ErrorCode, Is.EqualTo("context_too_long"));
+            Assert.That(client.Requests, Is.Empty, "a request that cannot fit is never sent");
+            Assert.That(events, Has.Some.Matches<RunEvent>(@event => @event is { Type: "run.failed" }
+                && @event.DataJson.Contains("context_too_long", StringComparison.Ordinal)));
+        });
+    }
+
+    [Test]
+    public async Task AnOverBudgetRunRaisesTheMaskedWarningOnce() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-new", "read_page", """{"path":"/missing"}"""),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("Done."),
+            new Finished("stop"),
+        ]);
+        List<(string Id, string Content)> seeds = [.. Enumerable.Range(0, 9)
+            .Select(index => ($"call-{index}", new string('x', 1_000)))];
+
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) = await StartRunAsync(
+            client,
+            seed: (store, created, runId) => SeedAsync(store, created.Id, runId, seeds),
+            measureOptions: (_, _, _) => Task.FromResult(new AssistantOptions {
+                RunTimeoutSeconds = 5,
+                RequestTimeoutSeconds = 3,
+                ToolTimeoutSeconds = 2,
+                MaxRequestBytes = (int)MaskedBudget(seeds),
+            }));
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        RunEvent[] events = await CollectAsync(stream);
+        int warnings = events.Count(@event => @event.Type == "run.warning"
+            && WarningCode(@event.DataJson) == "context_masked");
+
+        Assert.Multiple(() => {
+            Assert.That(client.Requests, Has.Count.EqualTo(2), "both steps had to make the request fit");
+            Assert.That(client.Requests[1].Messages.Count(message => message.Content.StartsWith("[tool result elided:", StringComparison.Ordinal)),
+                Is.GreaterThanOrEqualTo(2));
+            Assert.That(warnings, Is.EqualTo(1), "a hundred steps that masked are one fact, not a hundred");
+        });
+    }
+
+    private static long ContextFigure(string dataJson) {
+        using JsonDocument document = JsonDocument.Parse(dataJson);
+        return document.RootElement.GetProperty("budgets").GetProperty("context").GetInt64();
+    }
+
+    private static string? WarningCode(string dataJson) {
+        using JsonDocument document = JsonDocument.Parse(dataJson);
+        return document.RootElement.GetProperty("code").GetString();
+    }
+
+    private static async Task SeedAsync(
+        IConversationStore store,
+        long conversationId,
+        string runId,
+        IReadOnlyList<(string Id, string Content)> seeds) {
+        foreach ((string id, string content) in seeds) {
+            await store.AppendMessageAsync(conversationId, runId,
+                new MessageInput("assistant", "", ToolCallsJson: Call(id)), CancellationToken.None);
+            await store.AppendMessageAsync(conversationId, runId,
+                new MessageInput("tool", content, ToolCallId: id, ToolName: "read_page"), CancellationToken.None);
+        }
+    }
+
+    // The budget that fails unless the oldest of nine results is masked: it is the one that has fallen
+    // out of the eight-result window.
+    private static long MaskedBudget(IReadOnlyList<(string Id, string Content)> seeds) {
+        List<ChatMessage> messages = [new("system", PageAuthorPrompt.Build()), new("user", "Say hello")];
+        foreach ((string id, string content) in seeds) {
+            messages.Add(new("assistant", "", Call(id)));
+            messages.Add(new("tool", content, ToolCallId: id, ToolName: "read_page"));
+        }
+        int oldest = messages.FindIndex(message => message.Role == "tool");
+        messages[oldest] = ObservationMasker.MaskMessage(messages[oldest]).Message;
+        ChatRequest request = new(
+            "test-model",
+            messages,
+            PageToolExecutor.Definitions,
+            0.2,
+            32_768,
+            "reasoning_content",
+            IncludeUsage: true);
+        return ChatRequestJson.MeasureBytes(request);
+    }
+
+    private static string Call(string id) => JsonSerializer.Serialize(new[] {
+        new { id, type = "function", function = new { name = "read_page", arguments = """{"path":"/missing"}""" } },
+    }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
     private async Task<RecordingLoggerFactory.Entry> WaitForEntryAsync(Func<RecordingLoggerFactory.Entry, bool> matches) {
         for (int attempt = 0; attempt < 250; attempt++) {
             RecordingLoggerFactory.Entry? found = _logs.Entries.LastOrDefault(matches);
@@ -365,7 +506,7 @@ public sealed class RunProcessorTests {
         RunTimeoutSeconds = seconds,
         RequestTimeoutSeconds = 3,
         ToolTimeoutSeconds = toolSeconds,
-        MaxContextChars = 20_000,
+        MaxRequestBytes = 500_000,
     };
 
     private async Task WaitForPendingApprovalAsync(Conversation conversation) {
@@ -383,8 +524,9 @@ public sealed class RunProcessorTests {
     private async Task<(Conversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunAsync(
         IChatCompletionClient client,
         AssistantOptions? options = null,
-        ApprovalMode? approvalMode = null) {
-        options ??= _options;
+        ApprovalMode? approvalMode = null,
+        Func<IConversationStore, Conversation, string, Task>? seed = null,
+        Func<IConversationStore, Conversation, string, Task<AssistantOptions>>? measureOptions = null) {
         ServiceProvider services = _services!;
         await using AsyncServiceScope scope = services.CreateAsyncScope();
         IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
@@ -393,6 +535,10 @@ public sealed class RunProcessorTests {
             Assert.That(await store.SetApprovalModeAsync(conversation.Id, "owner", approvalMode.Value), Is.True);
         }
         RunStartResult started = await store.StartRunAsync(conversation.Id, "owner", "Say hello", "test-model", PageAuthorPrompt.Version);
+        if (seed is not null) {
+            await seed(store, conversation, started.RunId!);
+        }
+        options ??= measureOptions is null ? _options : await measureOptions(store, conversation, started.RunId!);
         RunRegistry registry = new(options, TimeProvider.System);
         Assert.That(registry.TryStart(started.RunId!, conversation.Id, out RunStream? stream), Is.True);
         PagePathPolicy paths = new(new ReservedPaths(ReservedPaths.Default), options);
@@ -422,9 +568,14 @@ public sealed class RunProcessorTests {
         Exception? error = null,
         int delayMilliseconds = 0) : IChatCompletionClient {
 
+        private readonly List<ChatRequest> _requests = [];
+
+        public IReadOnlyList<ChatRequest> Requests => _requests;
+
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
             ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
+            _requests.Add(request);
             foreach (ChatStreamEvent @event in events) {
                 if (delayMilliseconds > 0) {
                     await Task.Delay(delayMilliseconds, cancellationToken);
@@ -441,11 +592,15 @@ public sealed class RunProcessorTests {
 
     /// <summary>A client that answers each provider request with the next script in the list.</summary>
     private sealed class SteppedClient(params IReadOnlyList<ChatStreamEvent>[] scripts) : IChatCompletionClient {
+        private readonly List<ChatRequest> _requests = [];
         private int _next;
+
+        public IReadOnlyList<ChatRequest> Requests => _requests;
 
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
             ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
+            _requests.Add(request);
             IReadOnlyList<ChatStreamEvent> script = scripts[Math.Min(_next, scripts.Length - 1)];
             _next++;
             foreach (ChatStreamEvent @event in script) {

@@ -31,7 +31,7 @@ internal sealed class AssistantOptions {
     public int MaxPageChars { get; init; } = 262_144;
     public int MaxToolArgumentChars { get; init; } = 131_072;
     public int MaxToolResultChars { get; init; } = 32_768;
-    public int MaxContextChars { get; init; } = 120_000;
+    public int MaxRequestBytes { get; init; } = 120_000;
     public int HeartbeatSeconds { get; init; } = 15;
     public int JournalMaxEvents { get; init; } = 20_000;
     public int JournalMaxBytes { get; init; } = 4_194_304;
@@ -45,7 +45,7 @@ internal sealed class AssistantOptions {
 
 /// <summary>Rejects an assistant configuration its client could not use.</summary>
 internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOptions> {
-    private const int MinimumContextChars = 16_384;
+    private const int MinimumRequestBytes = 16_384;
 
     public ValidateOptionsResult Validate(string? name, AssistantOptions options) {
         ArgumentNullException.ThrowIfNull(options);
@@ -86,8 +86,8 @@ internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOpti
             || options.JournalMaxBytes <= 0 || options.JournalTtlMinutes <= 0) {
             failures.Add("Assistant limits and timeouts must be positive; MaxProviderRetries may be zero.");
         }
-        if (options.MaxContextChars < MinimumContextChars) {
-            failures.Add($"Assistant:MaxContextChars must be at least {MinimumContextChars}.");
+        if (options.MaxRequestBytes < MinimumRequestBytes) {
+            failures.Add($"Assistant:MaxRequestBytes must be at least {MinimumRequestBytes}.");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
