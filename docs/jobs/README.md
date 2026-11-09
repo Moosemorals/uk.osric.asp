@@ -43,7 +43,6 @@ carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md)
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-014](IDEA-014.md) | — | M | A page cannot keep per-visitor state, so a form cannot redirect and say why |
-| [IDEA-015](IDEA-015.md) | — | M | A page cannot read the page store, so the listing and history are shell views; the listing is now a table with a State column |
 | [IDEA-016](IDEA-016.md) | — | M | A page cannot save its own source |
 | [IDEA-017](IDEA-017.md) | — | L | A page cannot edit another page, so the editor cannot become one |
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
@@ -90,9 +89,9 @@ self-contained comes first, because these are the ones that never get scheduled 
 7. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 8. **IDEA-014 … IDEA-019, page capabilities** — each lets a stored page do something only the shell
    can do today. None is urgent while the shell works; they matter when a view is worth moving.
-   The layout IDEA-015 needed now exists, so the listing and history views can become fragments the
-   default layout wraps; IDEA-014's save message and IDEA-017's editor are the others in the way,
-   and IDEA-017 is still the one to leave last.
+   IDEA-015 has landed, so the listing and history views can become fragments the default layout
+   wraps; IDEA-014's save message and IDEA-017's editor are the others in the way, and IDEA-017 is
+   still the one to leave last.
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
@@ -153,3 +152,4 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-08 | The page reference set is built from `TRUSTED_PLATFORM_ASSEMBLIES` when `TemplateCompiler` is constructed, and `Program` constructs it before the host listens, so a missing or empty value stops startup with a message naming the AppContext key instead of compiling every page against nothing |
 | BUG-16 | Every view the site serves is one document. `ShellDocument` writes the head, `<main id="main">` and the foot, so a view writes body content and nothing else; the duplication went with it — one nav renderer, one antiforgery field, one URL builder, one diagnostics renderer, and eight hand-written preambles gone. The listing's actions name the page they act on, the editor's textarea has a label, a failed sign-in is an alert that describes both fields, every `th` is scoped, the gutter is out of the accessibility tree while its diagnostic links give the position in words, charts are named by `<title>`/`<desc>`, and diagnostics are a list wherever they appear. `/layout.css` is a new seeded page carrying the rules the new markup needs so they reach an installation that has been running since before it existed (DEC-109; linked first since DEC-116). `AccessibilityTests` applies eleven rules to every view over rendered markup (DEC-110), and the contrast was measured rather than eyeballed: the gutter's grey was below AA and is now 6.42:1. A skip link followed and then went, because `main` was already the first thing in the body (DEC-121). See [the plan](../plans/archive/semantic-html-and-accessibility.md) |
 | IDEA-021 | The assistant can check the JavaScript it writes without running or storing it: `check_script` parses a stored page by path and `check_script_text` parses a complete template supplied before a write, both as an ES module and both read-only. See [the script validation plan](../plans/archive/assistant-script-validation.md) and DEC-145/DEC-146 |
+| IDEA-015 | A page reads the page store through `ctx.Features.GetRequired<IPageCatalog>()`: `ListAsync(prefix)`, `ReadAsync(key)`, `RevisionsAsync(key)` and `ReadRevisionAsync(key, hash)`, with `PageEntry`, `PageSource` and `PageRevisionInfo` as the values it may name. The listing returns every head marked deleted, reserved and HTML; a prefix is a subtree; `Pages:Read` bounds the rows and one render's source, and both refuse rather than truncate. The read is as public as the page that calls it — **point 3 of the job, which put the gate in the shell, was overruled** in favour of the ordinary `ctx.User` guard in the page's own source (DEC-169) — and the shell keeps every write (DEC-173). The seeded `/recent` is a public listing and `/pages` a guarded source view. See [the plan](../plans/archive/page-store-read.md) and DEC-168–DEC-173 |

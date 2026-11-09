@@ -102,8 +102,9 @@ internal sealed class PageEndpoint() {
         // verifiable against the same token, and a second would leave the first unverifiable.
         string? antiforgeryField = null;
 
-        // One body and one fetch allowance for the whole chain: the chrome is part of the response,
-        // so a layout must not be able to buffer or fetch beside the page's own budgets.
+        // One body, one fetch allowance and one template allowance for the whole chain: the chrome is
+        // part of the response, so a layout must not be able to buffer, fetch or read beside the
+        // page's own budgets.
         PageChain chain = new(
             environment,
             loggerFactory,
@@ -113,6 +114,7 @@ internal sealed class PageEndpoint() {
             context.RequestAborted,
             new BodyBudget(environment.Render.MaxBodyChars),
             new RenderFetchBudget(environment.Fetch.MaxRequestsPerRender),
+            new ReadBudget(environment.Read.MaxSourceCharsPerRender),
             LoginRedirect.For(path, context.Request.QueryString),
             () => antiforgeryField ??= AntiforgeryField.Hidden(environment.Antiforgery.GetAndStoreTokens(context)));
 

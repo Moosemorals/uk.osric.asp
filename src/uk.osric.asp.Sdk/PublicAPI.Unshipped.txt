@@ -1,0 +1,62 @@
+#nullable enable
+override uk.osric.asp.Sdk.PageEntry.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageRevisionInfo.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSource.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageSource.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSource.ToString() -> string!
+static uk.osric.asp.Sdk.PageEntry.operator !=(uk.osric.asp.Sdk.PageEntry left, uk.osric.asp.Sdk.PageEntry right) -> bool
+static uk.osric.asp.Sdk.PageEntry.operator ==(uk.osric.asp.Sdk.PageEntry left, uk.osric.asp.Sdk.PageEntry right) -> bool
+static uk.osric.asp.Sdk.PageRevisionInfo.operator !=(uk.osric.asp.Sdk.PageRevisionInfo left, uk.osric.asp.Sdk.PageRevisionInfo right) -> bool
+static uk.osric.asp.Sdk.PageRevisionInfo.operator ==(uk.osric.asp.Sdk.PageRevisionInfo left, uk.osric.asp.Sdk.PageRevisionInfo right) -> bool
+static uk.osric.asp.Sdk.PageSource.operator !=(uk.osric.asp.Sdk.PageSource? left, uk.osric.asp.Sdk.PageSource? right) -> bool
+static uk.osric.asp.Sdk.PageSource.operator ==(uk.osric.asp.Sdk.PageSource? left, uk.osric.asp.Sdk.PageSource? right) -> bool
+uk.osric.asp.Sdk.IPageCatalog
+uk.osric.asp.Sdk.IPageCatalog.ListAsync(string! prefix) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageEntry>!>!
+uk.osric.asp.Sdk.IPageCatalog.ReadAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSource?>!
+uk.osric.asp.Sdk.IPageCatalog.ReadRevisionAsync(string! key, string! hash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSource?>!
+uk.osric.asp.Sdk.IPageCatalog.RevisionsAsync(string! key) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageRevisionInfo>!>!
+uk.osric.asp.Sdk.PageEntry
+uk.osric.asp.Sdk.PageEntry.Deconstruct(out string! Key, out System.DateTimeOffset SavedAt, out string! Hash, out bool IsDeleted, out bool IsReserved, out bool IsHtml) -> void
+uk.osric.asp.Sdk.PageEntry.Equals(uk.osric.asp.Sdk.PageEntry other) -> bool
+uk.osric.asp.Sdk.PageEntry.Hash.get -> string!
+uk.osric.asp.Sdk.PageEntry.Hash.init -> void
+uk.osric.asp.Sdk.PageEntry.IsDeleted.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsDeleted.init -> void
+uk.osric.asp.Sdk.PageEntry.IsHtml.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsHtml.init -> void
+uk.osric.asp.Sdk.PageEntry.IsReserved.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsReserved.init -> void
+uk.osric.asp.Sdk.PageEntry.Key.get -> string!
+uk.osric.asp.Sdk.PageEntry.Key.init -> void
+uk.osric.asp.Sdk.PageEntry.PageEntry() -> void
+uk.osric.asp.Sdk.PageEntry.PageEntry(string! Key, System.DateTimeOffset SavedAt, string! Hash, bool IsDeleted, bool IsReserved, bool IsHtml) -> void
+uk.osric.asp.Sdk.PageEntry.SavedAt.get -> System.DateTimeOffset
+uk.osric.asp.Sdk.PageEntry.SavedAt.init -> void
+uk.osric.asp.Sdk.PageRevisionInfo
+uk.osric.asp.Sdk.PageRevisionInfo.Deconstruct(out string! Hash, out System.DateTimeOffset SavedAt, out bool IsCurrent) -> void
+uk.osric.asp.Sdk.PageRevisionInfo.Equals(uk.osric.asp.Sdk.PageRevisionInfo other) -> bool
+uk.osric.asp.Sdk.PageRevisionInfo.Hash.get -> string!
+uk.osric.asp.Sdk.PageRevisionInfo.Hash.init -> void
+uk.osric.asp.Sdk.PageRevisionInfo.IsCurrent.get -> bool
+uk.osric.asp.Sdk.PageRevisionInfo.IsCurrent.init -> void
+uk.osric.asp.Sdk.PageRevisionInfo.PageRevisionInfo() -> void
+uk.osric.asp.Sdk.PageRevisionInfo.PageRevisionInfo(string! Hash, System.DateTimeOffset SavedAt, bool IsCurrent) -> void
+uk.osric.asp.Sdk.PageRevisionInfo.SavedAt.get -> System.DateTimeOffset
+uk.osric.asp.Sdk.PageRevisionInfo.SavedAt.init -> void
+uk.osric.asp.Sdk.PageSource
+uk.osric.asp.Sdk.PageSource.<Clone>$() -> uk.osric.asp.Sdk.PageSource!
+uk.osric.asp.Sdk.PageSource.Deconstruct(out string! Key, out string! Hash, out System.DateTimeOffset SavedAt, out string! Source) -> void
+uk.osric.asp.Sdk.PageSource.Equals(uk.osric.asp.Sdk.PageSource? other) -> bool
+uk.osric.asp.Sdk.PageSource.Hash.get -> string!
+uk.osric.asp.Sdk.PageSource.Hash.init -> void
+uk.osric.asp.Sdk.PageSource.Key.get -> string!
+uk.osric.asp.Sdk.PageSource.Key.init -> void
+uk.osric.asp.Sdk.PageSource.PageSource(string! Key, string! Hash, System.DateTimeOffset SavedAt, string! Source) -> void
+uk.osric.asp.Sdk.PageSource.SavedAt.get -> System.DateTimeOffset
+uk.osric.asp.Sdk.PageSource.SavedAt.init -> void
+uk.osric.asp.Sdk.PageSource.Source.get -> string!
+uk.osric.asp.Sdk.PageSource.Source.init -> void
+~override uk.osric.asp.Sdk.PageEntry.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageEntry.ToString() -> string
+~override uk.osric.asp.Sdk.PageRevisionInfo.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageRevisionInfo.ToString() -> string

@@ -143,7 +143,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v10"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v11"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -185,6 +185,20 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void ThePageStoreReadSectionSaysItIsPublic() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Page store read"));
+            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IPageCatalog>()"));
+            Assert.That(prompt, Does.Contain("ListAsync"));
+            Assert.That(prompt, Does.Contain("ReadRevisionAsync"));
+            Assert.That(prompt, Does.Contain("as public as the page that calls it"));
+            Assert.That(prompt, Does.Contain("publishes the source it reads"));
+        });
+    }
+
+    [Test]
     public void ThePrivatePageExampleIsPresent() {
         Assert.That(PageAuthorPrompt.Examples.Select(example => example.Name), Does.Contain("private-page"));
     }
@@ -203,7 +217,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v10"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v11"));
         });
     }
 

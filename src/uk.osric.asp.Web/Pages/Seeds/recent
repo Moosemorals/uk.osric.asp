@@ -1,0 +1,45 @@
+<%! using System.Collections.Generic;
+
+sealed class RecentOrder : IComparer<PageEntry> {
+    public int Compare(PageEntry left, PageEntry right) {
+        int byTime = right.SavedAt.CompareTo(left.SavedAt);
+        return byTime != 0 ? byTime : string.CompareOrdinal(left.Key, right.Key);
+    }
+} %>
+<% ctx.Features.GetRequired<IPageLayout>().Title = "Recent changes"; %>
+<h1>Recent changes</h1>
+<p>Every page this site stores, most recently saved first. This is a demonstration page for the
+page-store read capability (<code>IPageCatalog</code>), and the worked example for the listing the
+editor is heading towards (<a href="/edit">IDEA-017</a>). It reads keys and head times, and never a
+template.</p>
+<p>Signed in? <a href="/pages">Browse a page's source and history</a>.</p>
+<%
+    IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+    IReadOnlyList<PageEntry> entries = await catalog.ListAsync("");
+    var ordered = new List<PageEntry>(entries);
+    ordered.Sort(new RecentOrder());
+%>
+<table>
+    <caption>Stored pages, most recently saved first</caption>
+    <thead>
+        <tr>
+            <th scope="col">Page</th>
+            <th scope="col">Last saved</th>
+            <th scope="col">Kind</th>
+        </tr>
+    </thead>
+    <tbody>
+<% foreach (PageEntry entry in ordered) {
+       var marks = new List<string>();
+       if (entry.IsDeleted) { marks.Add("deleted"); }
+       if (entry.IsReserved) { marks.Add("reserved"); }
+       if (!entry.IsHtml) { marks.Add("asset"); }
+       string mark = marks.Count == 0 ? "live" : string.Join(", ", marks); %>
+        <tr>
+            <th scope="row"><a href="/pages?page=<%= System.Uri.EscapeDataString(entry.Key) %>"><%= entry.Key %></a></th>
+            <td><time datetime="<%= entry.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture) %>"><%= entry.SavedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) %></time></td>
+            <td><%= mark %></td>
+        </tr>
+<% } %>
+    </tbody>
+</table>

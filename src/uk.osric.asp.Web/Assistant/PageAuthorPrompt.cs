@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v10";
+    public const string Version = "page-author-v11";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -52,6 +52,16 @@ internal static class PageAuthorPrompt {
             <% IMarkdownRenderer markdown = ctx.Features.GetRequired<IMarkdownRenderer>(); %>
             <h1>Notes</h1>
             <%== markdown.ToHtml("## Today\n\n- one\n- two\n\n| Name | Value |\n| --- | --- |\n| one | 1 |") %>
+            """),
+        ("catalog-listing", """
+            <% IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+               System.Collections.Generic.IReadOnlyList<PageEntry> pages = await catalog.ListAsync("/blog"); %>
+            <h1>Pages under /blog</h1>
+            <ul>
+            <% foreach (PageEntry entry in pages) { %>
+                <li><%= entry.Key %> — <%= entry.IsDeleted ? "deleted" : "live" %></li>
+            <% } %>
+            </ul>
             """),
         ("json-fetch", """
             <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
@@ -188,6 +198,32 @@ internal static class PageAuthorPrompt {
         await storage.TryGetValueAsync<int>("visits")`. A `HEAD` render may
         read but never write. Never start a storage write and leave the task
         unawaited: that is a dropped write.
+
+        ## Page store read
+        `ctx.Features.GetRequired<IPageCatalog>()` reads the site's page store
+        and never writes. `ListAsync(prefix)` lists the heads under a subtree
+        and returns `PageEntry` rows with `Key`, `SavedAt`, `Hash` and three
+        marks: `IsDeleted`, `IsReserved` and `IsHtml`. A prefix is a subtree,
+        not a string prefix: `/blog` lists `/blog` and `/blog/post`, never
+        `/blogroll`; `""` and `/` are the whole store. `ReadAsync(key)` reads a
+        live page's template as a `PageSource`, or null when there is none;
+        a deleted page is listed as deleted and reads as absent.
+        `RevisionsAsync(key)` lists a page's history newest first as
+        `PageRevisionInfo` rows, including the history of a deleted page, and
+        `ReadRevisionAsync(key, hash)` reads one of those revisions. All four
+        are awaited.
+
+        The read is as public as the page that calls it: there is no host
+        gate, so an anonymous visitor gets the same answers as a signed-in
+        one. A page that wants its listing or its source private puts the
+        ordinary guard at the top of its own source, exactly as any private
+        page does. Say so when the owner asks for privacy, and do not add the
+        guard to every page. A page that calls `ReadAsync` or
+        `ReadRevisionAsync` publishes the source it reads to whoever can reach
+        that page. A listing returns at most 500 rows and one render may read
+        at most 512 KiB of template across the page and its layouts; both are
+        refusals, not truncations. The seeded `/recent` is a public listing and
+        the seeded `/pages` guards the same read.
 
         ## Markdown
         A page renders Markdown through `ctx.Features.GetRequired<IMarkdownRenderer>()`

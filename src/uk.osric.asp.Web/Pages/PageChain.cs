@@ -31,6 +31,7 @@ internal sealed class PageChain {
     private readonly ILogger _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly string _loginRedirect;
+    private readonly ReadBudget _readBudget;
     private readonly PageRequest _request;
     private readonly PageUser? _user;
 
@@ -42,6 +43,7 @@ internal sealed class PageChain {
     /// <param name="isHead">Whether the request is a HEAD, which renders but never writes state.</param>
     /// <param name="bodyBudget">The allowance the whole chain shares.</param>
     /// <param name="fetchBudget">The fetch allowance the whole chain shares.</param>
+    /// <param name="readBudget">The template allowance the whole chain shares.</param>
     /// <param name="loginRedirect">Where a guard sends an anonymous visitor.</param>
     /// <param name="antiforgeryField">
     /// Mints the antiforgery pair once per request, so every layer's form is verifiable against the
@@ -57,6 +59,7 @@ internal sealed class PageChain {
         CancellationToken aborted,
         BodyBudget bodyBudget,
         RenderFetchBudget fetchBudget,
+        ReadBudget readBudget,
         string loginRedirect,
         Func<string> antiforgeryField) {
         ArgumentNullException.ThrowIfNull(environment);
@@ -64,6 +67,7 @@ internal sealed class PageChain {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(bodyBudget);
         ArgumentNullException.ThrowIfNull(fetchBudget);
+        ArgumentNullException.ThrowIfNull(readBudget);
         ArgumentNullException.ThrowIfNull(antiforgeryField);
 
         _environment = environment;
@@ -75,6 +79,7 @@ internal sealed class PageChain {
         _aborted = aborted;
         _bodyBudget = bodyBudget;
         _fetchBudget = fetchBudget;
+        _readBudget = readBudget;
         _loginRedirect = loginRedirect;
         _antiforgeryField = antiforgeryField;
     }
@@ -99,10 +104,18 @@ internal sealed class PageChain {
             _fetchBudget,
             _environment.Metrics,
             _loggerFactory.CreateLogger(SimpleContext.PageCategory));
+        PageCatalogScope catalog = new(
+            key,
+            _environment.ReadStore,
+            _environment.Read,
+            _readBudget,
+            _environment.Reserved,
+            _environment.ContentTypes);
 
         PageFeatures features = new PageFeatures()
             .Add<IPageStorage>(storage)
             .Add<IHttpFetch>(fetch)
+            .Add<IPageCatalog>(catalog)
             .Add<IPageLayout>(layout)
             .Add<IMarkdownRenderer>(_environment.Markdown);
 

@@ -18,4 +18,11 @@ SPDX-License-Identifier: MIT
     <ProjectReference Include="../../src/uk.osric.asp.Web/uk.osric.asp.Web.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The two stored demo pages are content, so their markup is read with the same reader the
+         accessibility suite uses rather than with a second, weaker copy of it. -->
+    <Compile Include="../uk.osric.asp.Web.Tests/MarkupElement.cs" Link="MarkupElement.cs" />
+    <Compile Include="../uk.osric.asp.Web.Tests/MarkupReader.cs" Link="MarkupReader.cs" />
+  </ItemGroup>
+
 </Project>

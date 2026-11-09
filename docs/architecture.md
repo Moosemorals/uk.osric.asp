@@ -192,7 +192,7 @@ returns it or throws naming the interface, so the page decides whether absence i
 decides what is registered — a page cannot add or replace a capability — and a capability is either
 registered or absent, never `null` (DEC-142).
 
-Four capabilities are registered today — two that do I/O and are bounded by the render, one that is
+Five capabilities are registered today — three that do I/O and are bounded by the render, one that is
 the page's slots in its document, and one that is a pure renderer:
 
 - `IPageStorage` is the page's own key/value store. It is bound to the page's key, so a page cannot
@@ -203,6 +203,12 @@ the page's slots in its document, and one that is a pure renderer:
   operator has allow-listed. `GetAsync` and `PostAsync` sit over `SendAsync(HttpFetchRequest)`;
   every failure is a value rather than an exception, and the render's shared request count, the
   deadline and abandonment all bound it (DEC-128, DEC-129, DEC-143).
+- `IPageCatalog` reads the page store: `ListAsync(prefix)` lists the heads under a subtree,
+  `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a page's history and
+  `ReadRevisionAsync(key, hash)` reads one retained revision. It reads and never writes. The read is
+  as public as the page that calls it — there is no gate, and a page that wants privacy writes the
+  ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets
+  bound it (DEC-168–DEC-173). See "Source storage" below.
 - `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
   `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
@@ -664,6 +670,20 @@ cleanup, not forensic erasure: it cannot revoke running code or erase browser/CD
 archives, backups or filesystem snapshots. Rotate exposed secrets and clean external copies
 separately. Runtime-change cleanup of obsolete images and symbols is future work; source and
 revision identity are retained unless explicitly scrubbed.
+
+A stored page may read the same store through `ctx.Features.GetRequired<IPageCatalog>()`
+(DEC-168–DEC-173). The read is a capability of its own rather than `IPageStore` because the latter is
+scoped to the request's context and a page's task can outlive the request: `IPageReadStore` is a
+read-only singleton over the context factory, it answers with small `Web` records and never with a
+`PagePath`, and `PageCatalogScope` maps them to the three `Sdk` values. A listing returns every head
+the store holds — live, tombstoned, seeded and reserved — marked `IsDeleted`, `IsReserved` and
+`IsHtml`, and a prefix selects a subtree rather than a string prefix. `Pages:Read:MaxRowsPerList`
+(500 default) is enforced in the statement and refuses one row past the cap,
+`Pages:Read:MaxSourceCharsPerRender` (512 KiB default) is one `ReadBudget` shared by every layer of
+the chain and refuses rather than truncating, and both the deadline and abandonment stop a read. The
+read is as public as the page that calls it: the host adds no gate, a page that wants privacy writes
+the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that
+page. The shell keeps every write — save, delete, scrub, restore, import and export (DEC-173).
 
 ### Import and export
 

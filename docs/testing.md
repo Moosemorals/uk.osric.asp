@@ -35,6 +35,11 @@ by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScop
   and their classes are pinned, so the editor, the history and the assistant cannot drift apart. Storage tests cover legacy migration, append-only revision
   identity, concurrent saves, tombstones, scrub and SQLite cleanup. `PageStorageMetricsTests` checks
   logical payload accounting, cached observable gauges, failed-sample retention and bounded sampling.
+  `PageCatalogScopeTests` pins the page-store read — its four reads, the three marks, subtree
+  prefixes, the row and source caps, abandonment and the deadline — and `SqlitePageReadStoreTests`
+  proves the SQL behind it, including an escaped wildcard and that a read writes nothing.
+  `Web.IntegrationTests/PageCatalogTests` drives the two seeded demo pages through the real host,
+  one public and one guarded, and reads their markup with `MarkupReader`.
   The page-cache tests swap in a counting compiler wrapped around the real one, so "a second request
   does not compile" is asserted rather than inferred.
   `PageScopeTests` lives here because it names the shell's own types — and `Core`'s — to prove the
