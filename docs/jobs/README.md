@@ -27,7 +27,9 @@ not write. IDEA-020 came out of the import and export planning, and records why 
 is not part of that flow. IDEA-022 came out of the [page-features
 planning](../plans/archive/page-features.md) of 2026-11-08, and is worth doing now that storage and
 fetch have left `SimpleContext`. ARCH-14 came out of the nullable-pages discussion of 2026-11-08 and
-carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md).
+carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md). IDEA-023 came out
+of the [assistant-memory planning](../plans/assistant-memory.md) of 2026-11-09: the plan gives the
+assistant a memory, and the page that shows it to its owner is deliberately left behind.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -48,6 +50,7 @@ carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md)
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
+| [IDEA-023](IDEA-023.md) | — | M | The assistant remembers, but only the transcript shows it |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -95,6 +98,9 @@ self-contained comes first, because these are the ones that never get scheduled 
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
+10. **IDEA-023, the memory page** — once [the assistant-memory plan](../plans/assistant-memory.md)
+    has landed, and before the assistant uses memory in earnest: until the owner can read and prune
+    what it believes, a bad memory is correctable only by asking the assistant nicely.
 
 ## Closed
 

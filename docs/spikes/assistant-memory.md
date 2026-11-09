@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Answered | 2026-11-09 |
 | Evidence | The memory literature and vendor documentation of 2023–2026 (linked below), and an FTS5 trial on `Microsoft.Data.Sqlite` 10.0.14 (SQLite 3.53.3) with 5,000 synthetic memories |
 | Verdict | Yes, in SQLite and nothing else: one owner-scoped table plus its edit history, an FTS5 index with porter stemming, and recall by BM25 mixed with pinned and already-used memories into a fixed character budget. Writes happen only through explicit tools the transcript shows. No embeddings, no vector store, no extraction pass, no graph. |
-| Recorded | Nothing decided. Adopting it needs a plan, five `DEC-` entries and a bump of `PageAuthorPrompt.Version`; this spike measures the store and names the decisions. |
+| Recorded | Planned. [The plan](../plans/assistant-memory.md) carries DEC-184–DEC-188, the phases and the tests; the owner's page is [IDEA-023](../jobs/IDEA-023.md), deliberately outside it |
 
 ## The answer
 
@@ -198,19 +198,19 @@ edits table is what an owner and a debugging session read.
 
 ```sql
 CREATE TABLE "AssistantMemories" (
-    "Id"                      INTEGER NOT NULL CONSTRAINT "PK_AssistantMemories" PRIMARY KEY AUTOINCREMENT,
-    "Owner"                   TEXT    NOT NULL COLLATE BINARY,
-    "Kind"                    TEXT    NOT NULL,          -- preference | fact | feedback | reference
-    "Content"                 TEXT    NOT NULL,
-    "Version"                 INTEGER NOT NULL,
-    "Pinned"                  INTEGER NOT NULL,
-    "SourceConversationId"    INTEGER NULL,
-    "SourceRunId"             TEXT    NULL,
-    "CreatedAt"               TEXT    NOT NULL,
-    "UpdatedAt"               TEXT    NOT NULL,
-    "LastRecalledAt"          TEXT    NULL,
+    "Id"                         INTEGER NOT NULL CONSTRAINT "PK_AssistantMemories" PRIMARY KEY AUTOINCREMENT,
+    "Owner"                      TEXT    NOT NULL COLLATE BINARY,
+    "Kind"                       TEXT    NOT NULL,          -- preference | fact | feedback | reference
+    "Content"                    TEXT    NOT NULL,
+    "Version"                    INTEGER NOT NULL,
+    "Pinned"                     INTEGER NOT NULL,
+    "SourceConversationId"       INTEGER NULL,
+    "SourceRunId"                TEXT    NULL,
+    "CreatedAt"                  TEXT    NOT NULL,
+    "UpdatedAt"                  TEXT    NOT NULL,
+    "LastRecalledAt"             TEXT    NULL,
     "LastRecalledConversationId" INTEGER NULL,
-    "RecallCount"             INTEGER NOT NULL
+    "RecallCount"                INTEGER NOT NULL
 );
 
 CREATE INDEX "IX_AssistantMemories_Owner" ON "AssistantMemories" ("Owner", "UpdatedAt" DESC);
@@ -370,6 +370,11 @@ the model to fill it in.
 
 ### The memory page
 
+The page is not part of this design; it is [IDEA-023](../jobs/IDEA-023.md) in the backlog, and the
+plan leaves the transcript as the owner's view in the meantime. What follows is what that job would
+build, kept here because it is the half of the feature that makes the store the owner's rather than
+the assistant's.
+
 `/assistant/memory` — host code, behind the same `Editor` policy and owner filter as the rest of
 `/assistant`, linked from the conversations page and the conversation header. It is server-rendered
 and JavaScript-free, like `/status`, because it is a form and a list, and every POST carries the
@@ -395,7 +400,7 @@ users ask and most products answer badly.
 | `MaxMemoriesPerOwner` | 200 | ~110 KiB at the measured size; past this the store is a hoard, not a memory |
 | `MaxMemoryChars` | 1,000 | one memory is a sentence or three |
 | `MaxMemoriesPerRun` | 12 | the block stays legible and the model can still ignore it deliberately |
-| `MaxMemoryCharsPerRun` | 4,000 | 3.3% of `MaxContextChars`; memory may not crowd out the transcript |
+| `MaxMemoryCharsPerRun` | 4,000 | 3.3% of the 120,000-character default (0.8% of the 500,000 shipped); memory may not crowd out the transcript |
 | `MaxMemorySearchResults` | 50 | what `search_memories` returns |
 | `MaxMemoryQueryTerms` | 12 | a longer user message is a question, not a keyword list |
 
@@ -493,14 +498,15 @@ rather than its own.
 
 ## What adopting would change
 
+[The plan](../plans/assistant-memory.md) turns this list into phases; the page below is
+[IDEA-023](../jobs/IDEA-023.md) and is not part of it.
+
 Code:
 
 - `AssistantMemories` and `AssistantMemoryEdits` entities, their `StorageDbContext` mapping and one
   migration with the raw FTS5 SQL, in `Storage`.
 - `IMemoryStore` / `SqliteMemoryStore` in `Assistant`, beside `IConversationStore`.
 - `MemoryQuery`, `MemoryRecall` and their values in `Core.Assistant`, pure and testable.
-- `AssistantEndpoint` grows the memory page and its POST actions, and a link from the conversation
-  view; `Program` registers the routes inside the existing `assistantEnabled` block.
 - `PageToolExecutor` gains four tools and a `ToolContext`; `RunProcessor` recalls once and appends
   the block in both places it builds the system prompt; `ToolApproval` already covers the gated
   writes.
@@ -508,6 +514,8 @@ Code:
   instruments and `Program` their bucket views.
 - `SqliteConversationStore.DeleteAsync` nulls provenance in the same transaction;
   `SqliteUserStore.RemoveAsync` deletes the owner's memories.
+- [IDEA-023](../jobs/IDEA-023.md), the page: `AssistantEndpoint` grows the list, the edit form and
+  the forget confirmation, with a link from the conversation view.
 
 Docs: a "Memory" section in [assistant](../assistant.md), an "Assistant memory" subsection in
 [storage](../storage.md) beside `PageState`, two glossary entries (**Memory**, **Recall**) in
@@ -515,25 +523,22 @@ Docs: a "Memory" section in [assistant](../assistant.md), an "Assistant memory" 
 untouched: [import and export](../storage.md#import-and-export) carry page source and state and
 nothing else, and a memory is neither.
 
-### The decisions it needs
+### The decisions
 
-Five, in the shape the repository keeps them; ids are not allocated here.
+They are DEC-184–DEC-188 in [decisions](../decisions.md#architecture-and-code-placement), and
+[the plan](../plans/assistant-memory.md#documentation-and-decisions) carries them in full. In one
+line each:
 
-1. **Memory is owner-scoped and outlives its conversation.** Every query filters on the signed-in
-   owner in SQL; provenance is a nullable reference cleared when the conversation is deleted, not a
-   foreign key, because a memory that dies with its source is not a memory.
-2. **Memory is written only by an explicit tool call, and memory writes are approval-gated under
-   `RequireApproval`.** There is no background extraction pass, no derived profile, and no write
-   the transcript does not show.
-3. **Retrieval is FTS5 keyword search with porter stemming, ranked by BM25 and mixed with pinned and
-   already-used memories by a pure rule; there are no embeddings and no vector store.** The index is
-   external-content, maintained by triggers, and recall is once per run.
-4. **A memory has an id and a version; an update keeps the previous content as history; a forget
-   deletes the memory and its history in one transaction.** Removing an account removes its
-   memories.
-5. **Memory content enters the prompt inside a labelled block that declares it data rather than
-   instructions, is capped, and is never written to a log line or a metric tag; obvious secrets are
-   refused.**
+1. **DEC-184** — a memory is owner-scoped and outlives its conversation; provenance is nullable, not
+   a foreign key.
+2. **DEC-185** — memory is written only by an explicit tool call, and the writes are approval-gated
+   under `RequireApproval`; there is no extraction pass and no derived profile.
+3. **DEC-186** — recall is FTS5 with porter stemming, BM25 plus already-used memories selected by a
+   pure rule; no embeddings, no vector store, once per run.
+4. **DEC-187** — a memory has an id and a version; an update keeps the history; a forget deletes the
+   memory and its history in one transaction.
+5. **DEC-188** — memory content is data inside a labelled, escaped block: capped, never logged, and
+   refused when it looks like a secret.
 
 ## What this deliberately does not build
 
