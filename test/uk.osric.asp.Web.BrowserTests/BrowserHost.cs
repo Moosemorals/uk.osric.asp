@@ -59,6 +59,9 @@ internal sealed class BrowserHost : IAsyncDisposable {
     private readonly Lock _logLock = new();
     private readonly string _directory;
 
+    /// <summary>The watcher that takes the host down if this process dies without a teardown.</summary>
+    private Process? _reaper;
+
     private BrowserHost(string directory) => _directory = directory;
 
     /// <summary>The host every fixture uses unless it needs different limits.</summary>
@@ -134,6 +137,8 @@ internal sealed class BrowserHost : IAsyncDisposable {
         } catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException) {
         }
         _process.Dispose();
+        // Killed above, so the watcher finds nothing to do and exits on its next poll.
+        _reaper?.Dispose();
         if (Provider is not null) {
             await Provider.DisposeAsync();
         }
@@ -188,6 +193,9 @@ internal sealed class BrowserHost : IAsyncDisposable {
         _process.Start();
         _process.BeginOutputReadLine();
         _process.BeginErrorReadLine();
+        // Before the wait, so a host that fails to come up is still covered: the suite's own teardown
+        // is not the only thing that can end this process.
+        _reaper = HostReaper.Watch(_process);
 
         await WaitUntilListeningAsync();
     }

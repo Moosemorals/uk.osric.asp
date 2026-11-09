@@ -213,7 +213,12 @@ serves with Playwright and Firefox — the browser the site is read in.
 - `BrowserHost` starts the app, reads the port it bound, waits for `/heath` and seeds one account
   through the real `users` command. It runs the host as `Staging`: not `Production`, so the auth and
   antiforgery cookies are accepted over plain HTTP, and not `Development`, so a failure is answered by
-  the error page the public site would show.
+  the error page the public site would show. Every host gets a watcher beside it (`HostReaper`): a
+  teardown ends the host on a failure or on a timeout the runner still controls, but a run the runner
+  kills — or a ceiling that aborts one — leaves nobody to run that teardown, and the app would outlive
+  the suite holding a port, a database file and a model queue. The watcher waits for this process's
+  pid to go, checks the host's pid still names the app, and kills it; it sends its output to /dev/null
+  so it never holds the runner's pipe open itself.
 - `StubProvider` is a local, OpenAI-compatible server that streams server-sent events on request. A
   test scripts it: words per delta, a delay between them, a tool call, a token-limit finish, or a stall
   long enough to outlive a deadline. It records the request bodies, so a test can also assert what the
