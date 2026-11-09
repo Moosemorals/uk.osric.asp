@@ -30,7 +30,8 @@ fetch have left `SimpleContext`. ARCH-14 came out of the nullable-pages discussi
 carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md). ARCH-15 came
 out of the assistant shell-file work of 2026-11-09 (DEC-198). IDEA-023 came out of the
 [assistant-memory planning](../plans/assistant-memory.md) of 2026-11-09: the plan gives the
-assistant a memory, and the page that shows it to its owner is deliberately left behind.
+assistant a memory, and the page that shows it to its owner is deliberately left behind. It has
+[its own plan](../plans/assistant-memory-page.md) now.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -96,9 +97,9 @@ self-contained comes first, because these are the ones that never get scheduled 
 9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
-10. **IDEA-023, the memory page** — once [the assistant-memory plan](../plans/assistant-memory.md)
-    has landed, and before the assistant uses memory in earnest: until the owner can read and prune
-    what it believes, a bad memory is correctable only by asking the assistant nicely.
+10. **IDEA-023, the memory page** — [the plan](../plans/assistant-memory-page.md) is written and
+    nothing has started: until the owner can read and prune what it believes, a bad memory is
+    correctable only by asking the assistant nicely.
 
 ## Closed
 

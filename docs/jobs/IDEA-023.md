@@ -16,6 +16,8 @@ SPDX-License-Identifier: MIT
 [The assistant-memory plan](../plans/assistant-memory.md) gives the assistant a small, owner-scoped
 memory in SQLite: it remembers a preference or a fact about this site, and reads it back into the
 system prompt at the start of a later run. What it does not give the owner is a way to look at it.
+That work is still to be done, and [the memory page plan](../plans/assistant-memory-page.md) is the
+plan for it.
 
 Today the only view of a memory is the transcript of the conversation that wrote it, somewhere
 between a tool call and its result, and the only ways to change one are to ask the assistant (which
