@@ -17,10 +17,6 @@ internal sealed class OpenAiChatCompletionClient(
     AssistantOptions options,
     ILogger<OpenAiChatCompletionClient> logger) : IChatCompletionClient {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new() {
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-    };
-
     public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         ChatRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken) {
@@ -34,7 +30,9 @@ internal sealed class OpenAiChatCompletionClient(
         HttpResponseMessage response;
         Stream body;
         try {
-            response = await SendWithRetriesAsync(request, silence.Token);
+            // The body is built once, outside the retry loop: the meter the planner used and the bytes
+            // that go on the wire are the same string, and a retry resends it unchanged.
+            response = await SendWithRetriesAsync(ChatRequestJson.Serialize(request), silence.Token);
             if (!response.IsSuccessStatusCode) {
                 // The status is the whole diagnosis for a rejected request - a wrong model name, a
                 // revoked key, a quota - and the body that would say more is never logged, because a
@@ -83,11 +81,11 @@ internal sealed class OpenAiChatCompletionClient(
         "provider_timeout",
         "The provider stopped sending before the answer was complete.");
 
-    private async Task<HttpResponseMessage> SendWithRetriesAsync(ChatRequest request, CancellationToken cancellationToken) {
+    private async Task<HttpResponseMessage> SendWithRetriesAsync(string body, CancellationToken cancellationToken) {
         Uri endpoint = new(options.BaseUrl.TrimEnd('/') + "/" + options.ChatCompletionsPath.TrimStart('/'));
         for (int attempt = 0; ; attempt++) {
             using HttpRequestMessage message = new(HttpMethod.Post, endpoint) {
-                Content = new StringContent(SerializeRequest(request), Encoding.UTF8, "application/json"),
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
             };
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
             if (options.RequireApiKey && !string.IsNullOrWhiteSpace(options.ApiKey)) {
@@ -111,53 +109,6 @@ internal sealed class OpenAiChatCompletionClient(
             response.Dispose();
             await Task.Delay(delay, cancellationToken);
         }
-    }
-
-    private static string SerializeRequest(ChatRequest request) {
-        List<Dictionary<string, object?>> messages = [];
-        foreach (ChatMessage source in request.Messages) {
-            Dictionary<string, object?> message = new(StringComparer.Ordinal) {
-                ["role"] = source.Role,
-                ["content"] = source.Content,
-            };
-            if (source.ToolCallId is not null) {
-                message["tool_call_id"] = source.ToolCallId;
-            }
-            if (source.ToolName is not null) {
-                message["name"] = source.ToolName;
-            }
-            if (source.ToolCallsJson is not null) {
-                using JsonDocument calls = JsonDocument.Parse(source.ToolCallsJson);
-                message["tool_calls"] = calls.RootElement.Clone();
-            }
-            messages.Add(message);
-        }
-
-        object[] tools = [.. request.Tools.Select(tool => {
-            using JsonDocument parameters = JsonDocument.Parse(tool.ParametersJson);
-            return (object)new {
-                type = "function",
-                function = new {
-                    name = tool.Name,
-                    description = tool.Description,
-                    parameters = parameters.RootElement.Clone(),
-                },
-            };
-        })];
-        Dictionary<string, object?> body = new(StringComparer.Ordinal) {
-            ["model"] = request.Model,
-            ["messages"] = messages,
-            ["stream"] = true,
-            ["tools"] = tools,
-            ["tool_choice"] = "auto",
-            ["temperature"] = request.Temperature,
-            ["max_tokens"] = request.MaxOutputTokens,
-        };
-        if (request.IncludeUsage) {
-            body["stream_options"] = new { include_usage = true };
-        }
-
-        return JsonSerializer.Serialize(body, s_jsonOptions);
     }
 
     private static IReadOnlyList<ChatStreamEvent> ParsePayload(string data, string reasoningField) {
@@ -219,9 +170,16 @@ internal sealed class OpenAiChatCompletionClient(
             }
 
             if (root.TryGetProperty("usage", out JsonElement usage) && usage.ValueKind == JsonValueKind.Object) {
+                // DeepSeek reports the cache hit at the top level; OpenAI reports it under
+                // prompt_tokens_details. Both count the cached part of prompt_tokens.
+                int? cached = IntProperty(usage, "prompt_cache_hit_tokens")
+                    ?? NestedIntProperty(usage, "prompt_tokens_details", "cached_tokens");
+                int? reasoning = NestedIntProperty(usage, "completion_tokens_details", "reasoning_tokens");
                 events.Add(new UsageEvent(new TokenUsage(
                     IntProperty(usage, "prompt_tokens"),
-                    IntProperty(usage, "completion_tokens"))));
+                    IntProperty(usage, "completion_tokens"),
+                    cached,
+                    reasoning)));
             }
             return events;
         }
@@ -243,6 +201,11 @@ internal sealed class OpenAiChatCompletionClient(
     private static int? IntProperty(JsonElement element, string property) =>
         element.TryGetProperty(property, out JsonElement value) && value.TryGetInt32(out int parsed)
             ? parsed
+            : null;
+
+    private static int? NestedIntProperty(JsonElement element, string parent, string property) =>
+        element.TryGetProperty(parent, out JsonElement nested) && nested.ValueKind == JsonValueKind.Object
+            ? IntProperty(nested, property)
             : null;
 
     private static bool IsRetryable(HttpStatusCode status) =>

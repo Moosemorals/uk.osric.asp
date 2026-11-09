@@ -31,7 +31,22 @@ internal sealed class AssistantOptions {
     public int MaxPageChars { get; init; } = 262_144;
     public int MaxToolArgumentChars { get; init; } = 131_072;
     public int MaxToolResultChars { get; init; } = 32_768;
-    public int MaxContextChars { get; init; } = 120_000;
+    /// <summary>The estimated prompt tokens one request may spend.</summary>
+    public int MaxContextTokens { get; init; } = 90_000;
+    /// <summary>The model's whole context window, used to check the prompt and output budgets fit.</summary>
+    public int ModelContextTokens { get; init; } = 131_072;
+    /// <summary>The most memories one owner may hold; past this <c>remember</c> refuses.</summary>
+    public int MaxMemoriesPerOwner { get; init; } = 200;
+    /// <summary>The longest memory, in characters. One longer is refused, never truncated.</summary>
+    public int MaxMemoryChars { get; init; } = 1_000;
+    /// <summary>The most memories one run may be given.</summary>
+    public int MaxMemoriesPerRun { get; init; } = 12;
+    /// <summary>The most characters a run's memory block may cost.</summary>
+    public int MaxMemoryCharsPerRun { get; init; } = 4_000;
+    /// <summary>The most candidates a memory search ranks, for recall and for the tool.</summary>
+    public int MaxMemorySearchResults { get; init; } = 50;
+    /// <summary>The most terms one message contributes to a recall query.</summary>
+    public int MaxMemoryQueryTerms { get; init; } = 12;
     public int HeartbeatSeconds { get; init; } = 15;
     public int JournalMaxEvents { get; init; } = 20_000;
     public int JournalMaxBytes { get; init; } = 4_194_304;
@@ -45,7 +60,7 @@ internal sealed class AssistantOptions {
 
 /// <summary>Rejects an assistant configuration its client could not use.</summary>
 internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOptions> {
-    private const int MinimumContextChars = 16_384;
+    private const int MinimumContextTokens = 16_384;
 
     public ValidateOptionsResult Validate(string? name, AssistantOptions options) {
         ArgumentNullException.ThrowIfNull(options);
@@ -82,12 +97,29 @@ internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOpti
             || options.RequestTimeoutSeconds <= 0 || options.RunTimeoutSeconds <= 0 || options.ToolTimeoutSeconds <= 0
             || options.MaxProviderRetries < 0 || options.MaxMessageChars <= 0 || options.MaxPageChars <= 0
             || options.MaxToolArgumentChars <= 0 || options.MaxToolResultChars <= 0
+            || options.MaxContextTokens <= 0 || options.ModelContextTokens <= 0
             || options.HeartbeatSeconds <= 0 || options.JournalMaxEvents <= 0
             || options.JournalMaxBytes <= 0 || options.JournalTtlMinutes <= 0) {
             failures.Add("Assistant limits and timeouts must be positive; MaxProviderRetries may be zero.");
         }
-        if (options.MaxContextChars < MinimumContextChars) {
-            failures.Add($"Assistant:MaxContextChars must be at least {MinimumContextChars}.");
+        if (options.MaxContextTokens < MinimumContextTokens) {
+            failures.Add($"Assistant:MaxContextTokens must be at least {MinimumContextTokens}.");
+        }
+        if ((long)options.MaxContextTokens + options.MaxOutputTokens > options.ModelContextTokens) {
+            failures.Add(
+                $"Assistant:MaxContextTokens plus Assistant:MaxOutputTokens must not exceed Assistant:ModelContextTokens "
+                + $"({options.MaxContextTokens} + {options.MaxOutputTokens} > {options.ModelContextTokens}).");
+        }
+        if (options.MaxMemoriesPerOwner <= 0 || options.MaxMemoryChars <= 0
+            || options.MaxMemoriesPerRun <= 0 || options.MaxMemoryCharsPerRun <= 0
+            || options.MaxMemorySearchResults <= 0) {
+            failures.Add("Assistant memory limits must be positive.");
+        }
+        if (options.MaxMemoryChars > options.MaxMemoryCharsPerRun) {
+            failures.Add("Assistant:MaxMemoryChars must not exceed Assistant:MaxMemoryCharsPerRun.");
+        }
+        if (options.MaxMemoryQueryTerms < 2) {
+            failures.Add("Assistant:MaxMemoryQueryTerms must be at least 2, so a query is not a single letter.");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

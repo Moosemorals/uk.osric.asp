@@ -32,6 +32,77 @@
     margin: 0;
 }
 
+/* The owner's memory: one section per kind and one row per memory. A row is the shell's own form, so
+   the only new work is the box it sits in, the line that says whether it is worth keeping, and the
+   error line a refused save leaves behind. */
+.assistant-memory-count {
+    margin: 0 0 0.5rem;
+    color: #555;
+}
+
+.assistant-memories {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.assistant-memories > section {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.assistant-memories h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.assistant-memory {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--assistant-rule);
+    border-radius: 4px;
+    background: var(--assistant-paper);
+}
+
+.assistant-memory-meta {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #444;
+}
+
+.assistant-memory-pinned {
+    display: inline-block;
+    padding: 0 0.4rem;
+    border-radius: 3px;
+    background: var(--assistant-accent);
+    color: #fff;
+    font-size: 0.85rem;
+}
+
+.assistant-memory-error {
+    margin: 0;
+    padding: 0.4rem 0.6rem;
+    border-left: 3px solid #a4571f;
+    background: var(--assistant-alert);
+}
+
+.assistant-memory textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.assistant-memory-forget {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.assistant-memory-content {
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid var(--assistant-accent);
+    background: var(--assistant-paper);
+}
+
 .assistant-chat {
     display: grid;
     gap: 0.5rem;
@@ -121,6 +192,36 @@
 }
 
 .assistant-budget-note {
+    margin: 0.35rem 0 0;
+    color: #414b48;
+    font-size: 0.75rem;
+}
+
+/* The usage list is read, not enforced: two label/value pairs per row, the same compact scale as the
+   budgets, and no meter because nothing here has a limit. */
+.assistant-usage-list {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+    gap: 0.15rem 1.25rem;
+    align-items: baseline;
+    margin: 0;
+    font-size: 0.8rem;
+}
+
+.assistant-usage-list > div {
+    display: contents;
+}
+
+.assistant-usage-list dt {
+    font-weight: 600;
+}
+
+.assistant-usage-list dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.assistant-usage-note {
     margin: 0.35rem 0 0;
     color: #414b48;
     font-size: 0.75rem;

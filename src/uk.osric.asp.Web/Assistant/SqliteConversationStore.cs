@@ -101,10 +101,26 @@ internal sealed class SqliteConversationStore(
     public async Task<bool> DeleteAsync(long id, string owner, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
+        // A memory outlives the conversation that wrote it, so the delete drops the provenance rather
+        // than the memory: the rows keep their content and say where they came from no longer. Both
+        // statements are one transaction, so a delete that turns out not to be this owner's changes
+        // nothing at all.
+        await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        _ = await database.Set<MemoryEntry>()
+            .Where(memory => memory.SourceConversationId == id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(memory => memory.SourceConversationId, (long?)null)
+                .SetProperty(memory => memory.SourceRunId, (string?)null), cancellationToken);
         int deleted = await database.Set<Conversation>()
             .Where(conversation => conversation.Id == id && conversation.Owner == owner)
             .ExecuteDeleteAsync(cancellationToken);
-        return deleted > 0;
+        if (deleted == 0) {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return true;
     }
 
     public async Task<RunStartResult> StartRunAsync(
@@ -148,6 +164,16 @@ internal sealed class SqliteConversationStore(
         string approvalMode = reader.GetString(1);
         await reader.DisposeAsync();
 
+        // A conversation's content mixture is stable, so a previous run's calibration is a better
+        // first estimate than the conservative default. A different model may tokenise differently,
+        // so only a run of the same model is copied. Any matching run will do; SQLite cannot order by
+        // a DateTimeOffset, and the ratio is a property of the conversation's content rather than of
+        // the moment it was measured.
+        Run? previous = await database.Set<Run>().AsNoTracking()
+            .Where(item => item.ConversationId == id && item.Model == model
+                && item.RequestBytes != null && item.LastPromptTokens != null)
+            .FirstOrDefaultAsync(cancellationToken);
+
         Run run = new() {
             Id = runId,
             ConversationId = id,
@@ -156,6 +182,8 @@ internal sealed class SqliteConversationStore(
             ApprovalMode = approvalMode,
             PromptVersion = promptVersion,
             CreatedAt = now,
+            RequestBytes = previous?.RequestBytes,
+            LastPromptTokens = previous?.LastPromptTokens,
         };
         Message userMessage = new() {
             ConversationId = id,
@@ -515,6 +543,7 @@ internal sealed class SqliteConversationStore(
     public async Task<bool> RecordStepAsync(
         string runId,
         int toolCallCount,
+        long requestBytes,
         TokenUsage? usage,
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
@@ -528,8 +557,13 @@ internal sealed class SqliteConversationStore(
             : await run.ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.StepCount, item => item.StepCount + 1)
                 .SetProperty(item => item.ToolCallCount, item => item.ToolCallCount + toolCallCount)
-                .SetProperty(item => item.PromptTokens, item => usage.PromptTokens ?? item.PromptTokens)
-                .SetProperty(item => item.CompletionTokens, item => usage.CompletionTokens ?? item.CompletionTokens), cancellationToken);
+                .SetProperty(item => item.PromptTokens, item => (item.PromptTokens ?? 0) + (usage.PromptTokens ?? 0))
+                .SetProperty(item => item.CompletionTokens, item => (item.CompletionTokens ?? 0) + (usage.CompletionTokens ?? 0))
+                .SetProperty(item => item.CachedTokens, item => (item.CachedTokens ?? 0) + (usage.CachedTokens ?? 0))
+                .SetProperty(item => item.ReasoningTokens, item => (item.ReasoningTokens ?? 0) + (usage.ReasoningTokens ?? 0))
+                .SetProperty(item => item.OutputTokens, item => usage.CompletionTokens ?? item.OutputTokens)
+                .SetProperty(item => item.RequestBytes, item => requestBytes)
+                .SetProperty(item => item.LastPromptTokens, item => usage.PromptTokens ?? item.LastPromptTokens), cancellationToken);
         return updated > 0;
     }
 

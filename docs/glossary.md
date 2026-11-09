@@ -110,6 +110,38 @@ to `IMarkdownRenderer`, and the assistant's reply is Markdown only in the transc
 assistant profile, `LinkPolicy` and `AccessibleTableRenderer` are the rules that differ from the
 page profile (DEC-163, DEC-164).
 
+## Masking
+Replacing old observations in a provider request with deterministic placeholders while the stored
+transcript keeps the whole value.
+
+**Not** trimming. Masking keeps the message and its tool name, id and short arguments; trimming drops
+whole old turns. **Not** summarisation: a placeholder only says how much was there, and costs no model
+call.
+
+**Owner:** assistant — `ObservationMasker` and `ContextPlanner` (DEC-201, DEC-202).
+
+## Memory
+One owner's note to the assistant: a preference, a fact about this site, a correction or a reference
+to where something lives, stored in SQLite and read back into the system prompt at the start of a run.
+
+**Not** page state and not a page. Page state is one key/value store per page path, shared by every
+visitor; a memory belongs to one account, and the page store stays the authority on anything a page can
+answer. It is written only by a `remember` call the transcript shows, never by a background pass
+(DEC-185).
+
+**Owner:** assistant — `MemoryEntry`, `MemoryCandidate`, the `AssistantMemories` table, the
+`AssistantMemoryEdits` history, `SqliteMemoryStore` and `Assistant:MaxMemoriesPerOwner`.
+
+## Memory page
+The owner's own view of the assistant's memory: `/assistant/memory`, where every note is listed by
+kind, corrected, pinned or forgotten.
+
+**Not** a stored page. It is shell code under the reserved `/assistant` prefix, server-rendered like
+the editor and `/status`, so a page cannot claim the key and the assistant reads it as a shell file it
+may not save.
+
+**Owner:** assistant — `AssistantMemoryEndpoint`, `/assistant.css` and DEC-205–DEC-209.
+
 ## Message
 One row of a conversation's transcript, with role `user`, `assistant` or `tool`, a per-conversation
 `Sequence`, and the `RunId` that produced it.
@@ -164,6 +196,27 @@ raw request path.
 
 **Owner:** pages — the `path` route value and `HttpRequest.Path` in `PageEndpoint`; the resolved
 value is `PagePath.Key`.
+
+## Recall
+The one moment a run is given memory: its newest user message becomes FTS5 terms, the owner's pinned
+and already-used memories are mixed with the ranked matches by a pure rule, and the chosen notes are
+appended to the system prompt inside the character budget.
+
+**Not** a search the model makes. `search_memories` is the model asking; recall is the run deciding
+before the first step, once per run, with the block frozen for the rest of it (DEC-186).
+
+**Owner:** assistant — `MemoryRecall`, `MemoryQuery`, `MemorySelection`, `IMemoryStore.RecallAsync`,
+`Assistant:MaxMemoriesPerRun` and `Assistant:MaxMemoryCharsPerRun`.
+
+## Pin
+The owner's "always use this": a flag on a memory that puts it first in recall, whatever the turn
+happens to be about.
+
+**Not** something the assistant can set. No tool has an argument for it; only `EditAsync`, reached
+from the memory page, changes it (DEC-206).
+
+**Owner:** assistant — `MemoryCandidate.Pinned`, the `AssistantMemories.Pinned` column,
+`IMemoryStore.PinnedAsync` and `MemoryRecall.Select`.
 
 ## Revision
 An immutable saved row holding one template, the image built from it, its hash and the runtime id
@@ -223,6 +276,17 @@ through the ordinary revision path.
 
 **Owner:** pages — `src/uk.osric.asp.Web/Pages/Seeds`, `PageAssetSeeder` and `PageAssetSeeder.SeedPaths`.
 
+## Sent bytes
+The size of a provider request as sent: the UTF-8 byte count of the body `ChatRequestJson` builds
+from the model, system prompt, tool definitions, messages and envelope.
+
+**Not** the budget any more, and not a character count. Characters undercount the JSON envelope and
+escaping, so bytes are the honest measure of the wire body; `TokenEstimator` converts that count to
+estimated tokens, which is what `Assistant:MaxContextTokens` bounds (DEC-204).
+
+**Owner:** assistant — `ChatRequestJson.MeasureBytes` and `ContextPlan.RequestBytes`; the token
+estimate is `TokenEstimator` and `ContextPlan.EstimatedTokens` (DEC-204).
+
 ## Shell file
 A key the site's own routes answer — `/edit`, `/login`, `/assistant`, `/metrics` and the rest of
 `Pages:ReservedPaths` — which the assistant may list and read but never save over.
@@ -271,6 +335,18 @@ many steps, bounded by `Assistant:MaxSteps`.
 **Owner:** assistant — no row; `Run.StepCount`, the `step` field on every run event and the
 `assistant.run.steps` instrument; `Assistant:MaxSteps`.
 
+## Token estimate
+The assistant's estimate of a provider request in tokens: `ChatRequestJson` measures the exact UTF-8
+body, and `TokenEstimator` divides it by the bytes-per-token ratio the provider's last `prompt_tokens`
+report calibrated, with a ten-percent margin and a conservative default before the first report.
+
+**Not** the provider's exact count. The usage list shows the exact prompt, completion, cache and
+reasoning tokens the provider reported; the request row is an estimate, and the provider's own limit
+is the backstop.
+
+**Owner:** assistant — `TokenEstimator`, `ContextPlan.EstimatedTokens` and
+`BudgetSnapshot.ContextTokens`; `Assistant:MaxContextTokens` (DEC-204).
+
 ## Template
 The text an author edits and saves: markup plus C# in `<% %>` blocks and declarations in `<%! %>`
 blocks.
@@ -315,4 +391,15 @@ The durable, ordered messages of a conversation, which are rebuilt into each pro
 and dropped after `Assistant:JournalTtlMinutes`.
 
 **Owner:** assistant — `Message`, the `AssistantMessages` table and `IConversationStore`;
-`ContextTrimmer` selects what is sent.
+`ContextPlanner` selects what is sent, and `ObservationMasker` shortens old payloads in the request
+without changing the stored rows.
+
+## Usage
+The prompt, completion, cache-hit and reasoning token counts a provider reports for a step,
+accumulated by `RunUsage` and stored on the run.
+
+**Not** a budget. Usage says what was spent; the budgets say what a run may spend, and the two are
+shown separately. Cached is part of prompt and reasoning part of completion, so the figures overlap.
+
+**Owner:** assistant — `TokenUsage`, `RunUsage`, the `AssistantRuns` totals and
+`AssistantMetrics.RecordUsage` (DEC-203).

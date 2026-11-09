@@ -43,6 +43,38 @@ public sealed class AssistantProviderClientTests {
     }
 
     [Test]
+    public async Task ReadsTheCacheAndReasoningCountsDeepSeekReportsAsync() {
+        string payload = """
+            data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":2,"total_tokens":9,"prompt_cache_hit_tokens":5,"prompt_cache_miss_tokens":2,"prompt_tokens_details":{"cached_tokens":5},"completion_tokens_details":{"reasoning_tokens":1}}}
+
+            data: [DONE]
+
+            """;
+        using HttpClient client = Client(_ => Task.FromResult(Response(HttpStatusCode.OK, payload)));
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
+
+        List<ChatStreamEvent> events = await CollectAsync(provider);
+
+        Assert.That(events.OfType<UsageEvent>().Single().Usage, Is.EqualTo(new TokenUsage(7, 2, 5, 1)));
+    }
+
+    [Test]
+    public async Task ReadsAnOpenAiStyleCachedCountAsync() {
+        string payload = """
+            data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":2,"prompt_tokens_details":{"cached_tokens":5}}}
+
+            data: [DONE]
+
+            """;
+        using HttpClient client = Client(_ => Task.FromResult(Response(HttpStatusCode.OK, payload)));
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
+
+        List<ChatStreamEvent> events = await CollectAsync(provider);
+
+        Assert.That(events.OfType<UsageEvent>().Single().Usage, Is.EqualTo(new TokenUsage(7, 2, 5)));
+    }
+
+    [Test]
     public async Task RequestUsesOpenAiCompatibleWireShapeAndDoesNotSendAnOptionalKeyAsync() {
         HttpRequestMessage? captured = null;
         string? body = null;
@@ -159,6 +191,60 @@ public sealed class AssistantProviderClientTests {
         });
     }
 
+    [Test]
+    public async Task TheBodySentIsTheOneChatRequestJsonSerialises() {
+        ChatRequest request = new(
+            "model",
+            [
+                new ChatMessage("system", "prompt"),
+                new ChatMessage("tool", "result", ToolCallId: "call-1", ToolName: "read_page"),
+                new ChatMessage("assistant", "", """[{"id":"call-1","type":"function","function":{"name":"read_page","arguments":"{}"}}]"""),
+            ],
+            [new ToolDefinition("read_page", "Reads a page.", false, """{"type":"object"}""")],
+            0.2,
+            20,
+            "reasoning_content",
+            IncludeUsage: true);
+        string? body = null;
+        using HttpClient client = Client(async (message, cancellationToken) => {
+            body = await message.Content!.ReadAsStringAsync(cancellationToken);
+            return Response(HttpStatusCode.OK, "data: [DONE]\n\n");
+        });
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
+
+        await CollectAsync(provider, request);
+
+        Assert.Multiple(() => {
+            Assert.That(body, Is.EqualTo(ChatRequestJson.Serialize(request)),
+                "the meter and the sender must build one body, not two");
+            Assert.That(Encoding.UTF8.GetByteCount(body!), Is.EqualTo(ChatRequestJson.MeasureBytes(request)));
+        });
+    }
+
+    [Test]
+    public async Task TheMeasuredBytesAreTheBodyBytes() {
+        ChatRequest request = StandardRequest();
+        byte[]? sent = null;
+        using HttpClient client = Client(async (message, cancellationToken) => {
+            sent = await message.Content!.ReadAsByteArrayAsync(cancellationToken);
+            return Response(HttpStatusCode.OK, "data: [DONE]\n\n");
+        });
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
+
+        await CollectAsync(provider, request);
+
+        Assert.That(sent!.Length, Is.EqualTo(ChatRequestJson.MeasureBytes(request)));
+    }
+
+    private static ChatRequest StandardRequest() => new(
+        "model",
+        [new ChatMessage("system", "prompt with 🙂")],
+        [new ToolDefinition("read_page", "Reads a page.", false, """{"type":"object"}""")],
+        0.2,
+        20,
+        "reasoning_content",
+        IncludeUsage: true);
+
     private static HttpClient Client(Func<HttpRequestMessage, Task<HttpResponseMessage>> send) =>
         new(new RecordingHandler((request, _) => send(request))) { Timeout = Timeout.InfiniteTimeSpan };
 
@@ -169,8 +255,8 @@ public sealed class AssistantProviderClientTests {
         Content = new StringContent(body, Encoding.UTF8, "text/event-stream"),
     };
 
-    private static async Task<List<ChatStreamEvent>> CollectAsync(IChatCompletionClient provider) {
-        ChatRequest request = new("model", [new ChatMessage("system", "prompt")], [], 0.2, 20, "reasoning_content", true);
+    private static async Task<List<ChatStreamEvent>> CollectAsync(IChatCompletionClient provider, ChatRequest? request = null) {
+        request ??= new("model", [new ChatMessage("system", "prompt")], [], 0.2, 20, "reasoning_content", true);
         List<ChatStreamEvent> events = [];
         await foreach (ChatStreamEvent @event in provider.StreamAsync(request, CancellationToken.None)) {
             events.Add(@event);

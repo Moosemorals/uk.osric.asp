@@ -6,41 +6,48 @@ namespace uk.osric.asp.Core.Assistant;
 using System.Text.Json;
 
 /// <summary>What a conversation has spent of each assistant budget the page shows.</summary>
-/// <param name="ContextChars">The characters the whole transcript needs, counted as the trimmer counts them.</param>
+/// <param name="ContextTokens">The estimated tokens of the provider request the plan would send.</param>
 /// <param name="Steps">The steps the current or most recent run has taken.</param>
 /// <param name="ToolCalls">The tool calls that run has made.</param>
 /// <param name="LongestArguments">The longest serialized tool-call arguments in the transcript.</param>
 /// <param name="LongestResult">The longest stored tool result in the transcript.</param>
-/// <param name="CompletionTokens">The most recent completion tokens the provider reported.</param>
+/// <param name="OutputTokens">The most recent completion tokens the provider reported.</param>
 public sealed record BudgetSnapshot(
-    long ContextChars,
+    long ContextTokens,
     int Steps,
     int ToolCalls,
     int LongestArguments,
     int LongestResult,
-    int CompletionTokens) {
+    int OutputTokens) {
 
     /// <summary>The figures before anything has been spent.</summary>
     public static BudgetSnapshot Empty { get; } = new(0, 0, 0, 0, 0, 0);
 
-    /// <summary>Measures a transcript, so the page and the run stream cannot disagree.</summary>
-    /// <param name="messages">The transcript to measure, with the system prompt first when present.</param>
+    /// <summary>Measures a plan against the transcript it was built from.</summary>
+    /// <param name="plan">The request plan whose <see cref="ContextPlan.EstimatedTokens"/> the row shows.</param>
+    /// <param name="stored">The complete stored transcript, which the argument and result rows still measure.</param>
     /// <param name="steps">The steps the current or most recent run has taken.</param>
     /// <param name="toolCalls">The tool calls that run has made.</param>
-    /// <param name="completionTokens">The most recent completion tokens, or null when the provider has not reported any.</param>
+    /// <param name="outputTokens">The most recent completion tokens, or null when the provider has not reported any.</param>
     /// <returns>The figures, with the counters carried through unchanged.</returns>
+    /// <remarks>
+    /// Masking changes the request, not the cap a stored call or result had to satisfy, so the longest
+    /// argument and result rows read the stored transcript and keep showing the real stored values.
+    /// </remarks>
     public static BudgetSnapshot Measure(
-        IReadOnlyList<ChatMessage> messages,
+        ContextPlan plan,
+        IReadOnlyList<ChatMessage> stored,
         int steps,
         int toolCalls,
-        int? completionTokens) {
-        ArgumentNullException.ThrowIfNull(messages);
+        int? outputTokens) {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(stored);
         ArgumentOutOfRangeException.ThrowIfNegative(steps);
         ArgumentOutOfRangeException.ThrowIfNegative(toolCalls);
 
         int longestArguments = 0;
         int longestResult = 0;
-        foreach (ChatMessage message in messages) {
+        foreach (ChatMessage message in stored) {
             longestArguments = Math.Max(longestArguments, LongestArgumentsIn(message.ToolCallsJson));
             if (message.Role == "tool") {
                 longestResult = Math.Max(longestResult, message.Content.Length);
@@ -48,12 +55,12 @@ public sealed record BudgetSnapshot(
         }
 
         return new BudgetSnapshot(
-            ContextTrimmer.MeasureChars(messages),
+            plan.EstimatedTokens,
             steps,
             toolCalls,
             longestArguments,
             longestResult,
-            completionTokens ?? 0);
+            outputTokens ?? 0);
     }
 
     private static int LongestArgumentsIn(string? toolCallsJson) {

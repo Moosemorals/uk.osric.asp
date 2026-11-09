@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Pages;
@@ -23,7 +24,7 @@ public sealed class RunProcessorTests {
         RunTimeoutSeconds = 5,
         RequestTimeoutSeconds = 3,
         ToolTimeoutSeconds = 2,
-        MaxContextChars = 20_000,
+        MaxContextTokens = 90_000,
     };
 
     private readonly ToolApprovalCoordinator _approvals = new();
@@ -54,6 +55,10 @@ public sealed class RunProcessorTests {
 
         _storage = new FakePageStore();
         _pages = new PageHarness(_storage);
+        _services = BuildServices();
+    }
+
+    private ServiceProvider BuildServices(IMemoryStore? memories = null) {
         ServiceCollection services = new();
         services.AddDbContext<StorageDbContext>(options => options.UseSqlite(DatabaseTemplate.ConnectionString(_databasePath)));
         services.AddSingleton(TimeProvider.System);
@@ -62,8 +67,16 @@ public sealed class RunProcessorTests {
         services.AddLogging();
         services.AddSingleton<ILoggerFactory>(_logs);
         services.AddScoped<IConversationStore, SqliteConversationStore>();
-        services.AddScoped(_ => _pages.Editor);
-        _services = services.BuildServiceProvider();
+        // The processor recalls memory once per run, so the fixture gives it the real store over the
+        // same database rather than letting every run warn that memory is unavailable.
+        services.AddSingleton(_options);
+        if (memories is null) {
+            services.AddScoped<IMemoryStore, SqliteMemoryStore>();
+        } else {
+            services.AddSingleton(memories);
+        }
+        services.AddScoped(_ => _pages!.Editor);
+        return services.BuildServiceProvider();
     }
 
     [TearDown]
@@ -71,6 +84,28 @@ public sealed class RunProcessorTests {
         _services?.Dispose();
         _pages?.Dispose();
         DatabaseTemplate.DeleteFiles(_databasePath);
+    }
+
+    [Test]
+    public async Task AMemoryStoreThatThrowsCostsTheRunItsMemoryAndNothingElseAsync() {
+        _services!.Dispose();
+        _services = BuildServices(new FailingMemoryStore());
+        ScriptedClient client = new([new ContentDelta("Hello."), new Finished("stop")]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services.CreateAsyncScope();
+        Run run = await scope.ServiceProvider.GetRequiredService<StorageDbContext>().Set<Run>().SingleAsync();
+        RunEvent[] events = await CollectAsync(stream);
+        RunEvent warning = events.Single(item => item.Type == "run.warning");
+
+        Assert.Multiple(() => {
+            Assert.That(run.Status, Is.EqualTo("completed"), "memory is an enhancement and never takes a run down");
+            Assert.That(warning.DataJson, Does.Contain("memory_unavailable"));
+            Assert.That(events[^1].Type, Is.EqualTo("run.completed"));
+        });
     }
 
     [Test]
@@ -101,6 +136,48 @@ public sealed class RunProcessorTests {
             Assert.That(events.Select(item => item.Type), Does.Contain("content.delta"));
             Assert.That(events[^1].Type, Is.EqualTo("run.completed"));
         });
+    }
+
+    [Test]
+    public async Task ASteppedRunSumsItsUsageAndKeepsTheLastStepsOutputAsync() {
+        SteppedClient client = new([
+            [
+                new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+                new UsageEvent(new TokenUsage(1_000, 20, 600, 5)),
+                new Finished("tool_calls"),
+            ],
+            [
+                new ContentDelta("Done."),
+                new UsageEvent(new TokenUsage(2_000, 30, 1_200, 7)),
+                new Finished("stop"),
+            ],
+        ]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
+        Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
+        RunEvent[] events = await CollectAsync(stream);
+        JsonDocument usage = JsonDocument.Parse(events.Last(@event => @event.Type == "budget.updated").DataJson);
+        JsonElement totals = usage.RootElement.GetProperty("usage");
+
+        Assert.Multiple(() => {
+            Assert.That(run.PromptTokens, Is.EqualTo(3_000));
+            Assert.That(run.CompletionTokens, Is.EqualTo(50));
+            Assert.That(run.CachedTokens, Is.EqualTo(1_800));
+            Assert.That(run.ReasoningTokens, Is.EqualTo(12));
+            Assert.That(run.OutputTokens, Is.EqualTo(30));
+            Assert.That(run.RequestBytes, Is.GreaterThan(0));
+            Assert.That(run.LastPromptTokens, Is.EqualTo(2_000));
+            Assert.That(totals.GetProperty("prompt").GetInt32(), Is.EqualTo(3_000));
+            Assert.That(totals.GetProperty("cached").GetInt32(), Is.EqualTo(1_800));
+            Assert.That(totals.GetProperty("completion").GetInt32(), Is.EqualTo(50));
+            Assert.That(totals.GetProperty("reasoning").GetInt32(), Is.EqualTo(12));
+        });
+        usage.Dispose();
     }
 
     [Test]
@@ -200,7 +277,7 @@ public sealed class RunProcessorTests {
         IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
         Run? finished = await store.GetLastRunAsync(conversation.Id, "owner");
         Assert.Multiple(() => {
-            Assert.That(finished?.Status, Is.EqualTo("completed"));
+            Assert.That(finished?.Status, Is.EqualTo("completed"), $"{finished?.ErrorCode}: {finished?.ErrorMessage}");
             Assert.That(finished?.ErrorCode, Is.Null);
         });
     }
@@ -228,7 +305,7 @@ public sealed class RunProcessorTests {
         IReadOnlyList<ToolApproval> pending = await store.GetPendingApprovalsAsync(conversation.Id, "owner");
 
         Assert.Multiple(() => {
-            Assert.That(finished?.Status, Is.EqualTo("completed"));
+            Assert.That(finished?.Status, Is.EqualTo("completed"), $"{finished?.ErrorCode}: {finished?.ErrorMessage}");
             Assert.That(pending, Is.Empty, "an approval the policy has refused is one the owner could only deny");
         });
     }
@@ -349,6 +426,146 @@ public sealed class RunProcessorTests {
         }
     }
 
+    [Test]
+    public async Task TheStepBudgetIsTheRequestThatStepSent() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("There is no such page."),
+            new Finished("stop"),
+        ]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        RunEvent[] events = await CollectAsync(stream);
+        long[] figures = [.. events
+            .Where(@event => @event.Type == "budget.updated")
+            .Select(@event => ContextFigure(@event.DataJson))];
+
+        Assert.Multiple(() => {
+            Assert.That(client.Requests, Has.Count.EqualTo(2));
+            foreach (ChatRequest request in client.Requests) {
+                Assert.That(figures, Does.Contain(TokenEstimator.For(null).Estimate(ChatRequestJson.MeasureBytes(request))),
+                    "the figure a step published is the request it sent");
+            }
+        });
+    }
+
+    [Test]
+    public async Task AnOverBudgetRunFailsBeforeTheProviderIsCalled() {
+        AssistantOptions options = new() {
+            RunTimeoutSeconds = 5,
+            RequestTimeoutSeconds = 3,
+            ToolTimeoutSeconds = 2,
+            MaxContextTokens = 1_000,
+        };
+        ScriptedClient client = new([new ContentDelta("Never sent."), new Finished("stop")]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client, options);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Run? run = await store.GetLastRunAsync(conversation.Id, "owner");
+        RunEvent[] events = await CollectAsync(stream);
+
+        Assert.Multiple(() => {
+            Assert.That(run?.Status, Is.EqualTo("failed"));
+            Assert.That(run?.ErrorCode, Is.EqualTo("context_too_long"));
+            Assert.That(client.Requests, Is.Empty, "a request that cannot fit is never sent");
+            Assert.That(events, Has.Some.Matches<RunEvent>(@event => @event is { Type: "run.failed" }
+                && @event.DataJson.Contains("context_too_long", StringComparison.Ordinal)));
+        });
+    }
+
+    [Test]
+    public async Task AnOverBudgetRunRaisesTheMaskedWarningOnce() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-new", "read_page", """{"path":"/missing"}"""),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("Done."),
+            new Finished("stop"),
+        ]);
+        List<(string Id, string Content)> seeds = [.. Enumerable.Range(0, 9)
+            .Select(index => ($"call-{index}", new string('x', 1_000)))];
+
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) = await StartRunAsync(
+            client,
+            seed: (store, created, runId) => SeedAsync(store, created.Id, runId, seeds),
+            measureOptions: (_, _, _) => Task.FromResult(new AssistantOptions {
+                RunTimeoutSeconds = 5,
+                RequestTimeoutSeconds = 3,
+                ToolTimeoutSeconds = 2,
+                MaxContextTokens = (int)TokenEstimator.For(null).Estimate(MaskedBudget(seeds)),
+            }));
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        RunEvent[] events = await CollectAsync(stream);
+        int warnings = events.Count(@event => @event.Type == "run.warning"
+            && WarningCode(@event.DataJson) == "context_masked");
+
+        Assert.Multiple(() => {
+            Assert.That(client.Requests, Has.Count.EqualTo(2), "both steps had to make the request fit");
+            Assert.That(client.Requests[1].Messages.Count(message => message.Content.StartsWith("[tool result elided:", StringComparison.Ordinal)),
+                Is.GreaterThanOrEqualTo(2));
+            Assert.That(warnings, Is.EqualTo(1), "a hundred steps that masked are one fact, not a hundred");
+        });
+    }
+
+    private static long ContextFigure(string dataJson) {
+        using JsonDocument document = JsonDocument.Parse(dataJson);
+        return document.RootElement.GetProperty("budgets").GetProperty("context").GetInt64();
+    }
+
+    private static string? WarningCode(string dataJson) {
+        using JsonDocument document = JsonDocument.Parse(dataJson);
+        return document.RootElement.GetProperty("code").GetString();
+    }
+
+    private static async Task SeedAsync(
+        IConversationStore store,
+        long conversationId,
+        string runId,
+        IReadOnlyList<(string Id, string Content)> seeds) {
+        foreach ((string id, string content) in seeds) {
+            await store.AppendMessageAsync(conversationId, runId,
+                new MessageInput("assistant", "", ToolCallsJson: Call(id)), CancellationToken.None);
+            await store.AppendMessageAsync(conversationId, runId,
+                new MessageInput("tool", content, ToolCallId: id, ToolName: "read_page"), CancellationToken.None);
+        }
+    }
+
+    // The budget that fails unless the oldest of nine results is masked: it is the one that has fallen
+    // out of the eight-result window.
+    private static long MaskedBudget(IReadOnlyList<(string Id, string Content)> seeds) {
+        List<ChatMessage> messages = [new("system", PageAuthorPrompt.Build()), new("user", "Say hello")];
+        foreach ((string id, string content) in seeds) {
+            messages.Add(new("assistant", "", Call(id)));
+            messages.Add(new("tool", content, ToolCallId: id, ToolName: "read_page"));
+        }
+        int oldest = messages.FindIndex(message => message.Role == "tool");
+        messages[oldest] = ObservationMasker.MaskMessage(messages[oldest]).Message;
+        ChatRequest request = new(
+            "test-model",
+            messages,
+            PageToolExecutor.Definitions,
+            0.2,
+            32_768,
+            "reasoning_content",
+            IncludeUsage: true);
+        return ChatRequestJson.MeasureBytes(request);
+    }
+
+    private static string Call(string id) => JsonSerializer.Serialize(new[] {
+        new { id, type = "function", function = new { name = "read_page", arguments = """{"path":"/missing"}""" } },
+    }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
     private async Task<RecordingLoggerFactory.Entry> WaitForEntryAsync(Func<RecordingLoggerFactory.Entry, bool> matches) {
         for (int attempt = 0; attempt < 250; attempt++) {
             RecordingLoggerFactory.Entry? found = _logs.Entries.LastOrDefault(matches);
@@ -361,6 +578,68 @@ public sealed class RunProcessorTests {
 
         Assert.Fail("The run never wrote the line the test waited for.");
         throw new InvalidOperationException("unreachable");
+    }
+
+    private static AssistantOptions RunTimeout(
+        int seconds,
+        int toolSeconds = 2,
+        int steps = 40,
+        int calls = 16,
+        int callsPerStep = 8) => new() {
+            RunTimeoutSeconds = seconds,
+            RequestTimeoutSeconds = 3,
+            ToolTimeoutSeconds = toolSeconds,
+            MaxContextTokens = 90_000,
+            MaxSteps = steps,
+            MaxToolCalls = calls,
+            MaxToolCallsPerStep = callsPerStep,
+        };
+
+    private async Task WaitForPendingApprovalAsync(Conversation conversation) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        for (int attempt = 0; attempt < 100; attempt++) {
+            if ((await store.GetPendingApprovalsAsync(conversation.Id, "owner")).Count > 0) {
+                return;
+            }
+            await Task.Delay(50);
+        }
+        Assert.Fail("The run never asked for approval.");
+    }
+
+    private async Task<(Conversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunAsync(
+        IChatCompletionClient client,
+        AssistantOptions? options = null,
+        ApprovalMode? approvalMode = null,
+        Func<IConversationStore, Conversation, string, Task>? seed = null,
+        Func<IConversationStore, Conversation, string, Task<AssistantOptions>>? measureOptions = null) {
+        ServiceProvider services = _services!;
+        await using AsyncServiceScope scope = services.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Conversation conversation = await store.CreateAsync("owner");
+        if (approvalMode is not null) {
+            Assert.That(await store.SetApprovalModeAsync(conversation.Id, "owner", approvalMode.Value), Is.True);
+        }
+        RunStartResult started = await store.StartRunAsync(conversation.Id, "owner", "Say hello", "test-model", PageAuthorPrompt.Version);
+        if (seed is not null) {
+            await seed(store, conversation, started.RunId!);
+        }
+        options ??= measureOptions is null ? _options : await measureOptions(store, conversation, started.RunId!);
+        RunRegistry registry = new(options, TimeProvider.System);
+        Assert.That(registry.TryStart(started.RunId!, conversation.Id, out RunStream? stream), Is.True);
+        PagePathPolicy paths = new(new ReservedPaths(ReservedPaths.Default), options);
+        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, options, new AssistantMetrics());
+        RunProcessor processor = new(
+            services.GetRequiredService<IServiceScopeFactory>(),
+            client,
+            tools,
+            registry,
+            _approvals,
+            _continuation,
+            new AssistantMetrics(),
+            options,
+            _logs.CreateLogger<RunProcessor>());
+        return (conversation, started, stream!, processor);
     }
 
     [Test]
@@ -509,21 +788,6 @@ public sealed class RunProcessorTests {
         Assert.That((await RunAsync(conversation)).Status, Is.EqualTo("cancelled"));
     }
 
-    private static AssistantOptions RunTimeout(
-        int seconds,
-        int toolSeconds = 2,
-        int steps = 40,
-        int calls = 16,
-        int callsPerStep = 8) => new() {
-            RunTimeoutSeconds = seconds,
-            RequestTimeoutSeconds = 3,
-            ToolTimeoutSeconds = toolSeconds,
-            MaxContextChars = 20_000,
-            MaxSteps = steps,
-            MaxToolCalls = calls,
-            MaxToolCallsPerStep = callsPerStep,
-        };
-
     private async Task WaitForPauseAsync(string runId) {
         await using AsyncServiceScope scope = _services!.CreateAsyncScope();
         StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
@@ -563,48 +827,6 @@ public sealed class RunProcessorTests {
         return (await store.GetLastRunAsync(conversation.Id, "owner"))!;
     }
 
-    private async Task WaitForPendingApprovalAsync(Conversation conversation) {
-        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
-        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
-        for (int attempt = 0; attempt < 100; attempt++) {
-            if ((await store.GetPendingApprovalsAsync(conversation.Id, "owner")).Count > 0) {
-                return;
-            }
-            await Task.Delay(50);
-        }
-        Assert.Fail("The run never asked for approval.");
-    }
-
-    private async Task<(Conversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunAsync(
-        IChatCompletionClient client,
-        AssistantOptions? options = null,
-        ApprovalMode? approvalMode = null) {
-        options ??= _options;
-        ServiceProvider services = _services!;
-        await using AsyncServiceScope scope = services.CreateAsyncScope();
-        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
-        Conversation conversation = await store.CreateAsync("owner");
-        if (approvalMode is not null) {
-            Assert.That(await store.SetApprovalModeAsync(conversation.Id, "owner", approvalMode.Value), Is.True);
-        }
-        RunStartResult started = await store.StartRunAsync(conversation.Id, "owner", "Say hello", "test-model", PageAuthorPrompt.Version);
-        RunRegistry registry = new(options, TimeProvider.System);
-        Assert.That(registry.TryStart(started.RunId!, conversation.Id, out RunStream? stream), Is.True);
-        PagePathPolicy paths = new(new ReservedPaths(ReservedPaths.Default), options);
-        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, options);
-        RunProcessor processor = new(
-            services.GetRequiredService<IServiceScopeFactory>(),
-            client,
-            tools,
-            registry,
-            _approvals,
-            _continuation,
-            new AssistantMetrics(),
-            options,
-            _logs.CreateLogger<RunProcessor>());
-        return (conversation, started, stream!, processor);
-    }
-
     private static async Task<RunEvent[]> CollectAsync(RunStream stream) {
         List<RunEvent> events = [];
         await foreach (RunEvent @event in stream.ReadAfterAsync(0, CancellationToken.None)) {
@@ -613,14 +835,60 @@ public sealed class RunProcessorTests {
         return [.. events];
     }
 
+    private sealed class FailingMemoryStore : IMemoryStore {
+        public Task<IReadOnlyList<MemoryCandidate>> RecallAsync(string owner, string queryTerms, int limit, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<IReadOnlyList<MemoryCandidate>> StickyAsync(string owner, long conversationId, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<IReadOnlyList<MemoryCandidate>> PinnedAsync(string owner, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<IReadOnlyList<MemoryCandidate>> ListAsync(string owner, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<MemoryCandidate?> GetAsync(string owner, long id, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<MemoryWriteResult> EditAsync(string owner, long id, int expectedVersion, MemoryKind kind, string content, bool pinned, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<MemoryWriteResult> RememberAsync(string owner, MemoryKind kind, string content, MemorySource source, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<MemoryWriteResult> UpdateAsync(string owner, long id, int expectedVersion, string content, MemorySource source, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<bool> ForgetAsync(string owner, long id, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task TouchAsync(string owner, IReadOnlyList<long> ids, long conversationId, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<int> CountAsync(string owner, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<int> ClearProvenanceAsync(long conversationId, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+
+        public Task<int> DeleteForOwnerAsync(string owner, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The memory database is unavailable.");
+    }
+
     private sealed class ScriptedClient(
         IReadOnlyList<ChatStreamEvent> events,
         Exception? error = null,
         int delayMilliseconds = 0) : IChatCompletionClient {
 
+        private readonly List<ChatRequest> _requests = [];
+
+        public IReadOnlyList<ChatRequest> Requests => _requests;
+
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
             ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
+            _requests.Add(request);
             foreach (ChatStreamEvent @event in events) {
                 if (delayMilliseconds > 0) {
                     await Task.Delay(delayMilliseconds, cancellationToken);
@@ -637,11 +905,15 @@ public sealed class RunProcessorTests {
 
     /// <summary>A client that answers each provider request with the next script in the list.</summary>
     private sealed class SteppedClient(params IReadOnlyList<ChatStreamEvent>[] scripts) : IChatCompletionClient {
+        private readonly List<ChatRequest> _requests = [];
         private int _next;
+
+        public IReadOnlyList<ChatRequest> Requests => _requests;
 
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
             ChatRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
+            _requests.Add(request);
             IReadOnlyList<ChatStreamEvent> script = scripts[Math.Min(_next, scripts.Length - 1)];
             _next++;
             foreach (ChatStreamEvent @event in script) {

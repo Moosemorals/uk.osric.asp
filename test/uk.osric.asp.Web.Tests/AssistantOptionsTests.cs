@@ -60,6 +60,111 @@ public sealed class AssistantOptionsTests {
         Assert.That(Validate(options).Failed, Is.True);
     }
 
+    [Test]
+    public void ABudgetBelowTheFloorNamesMaxContextTokens() {
+        AssistantOptions options = new() {
+            Enabled = true,
+            ApiKey = "configured",
+            MaxContextTokens = 1_000,
+        };
+
+        ValidateOptionsResult result = Validate(options);
+
+        Assert.Multiple(() => {
+            Assert.That(result.Failed, Is.True);
+            Assert.That(result.FailureMessage, Does.Contain("Assistant:MaxContextTokens"));
+        });
+    }
+
+    [Test]
+    public void ABudgetAndOutputOverTheModelWindowAreRejected() {
+        AssistantOptions options = new() {
+            Enabled = true,
+            ApiKey = "configured",
+            MaxContextTokens = 100_000,
+            MaxOutputTokens = 40_000,
+            ModelContextTokens = 131_072,
+        };
+
+        ValidateOptionsResult result = Validate(options);
+
+        Assert.Multiple(() => {
+            Assert.That(result.Failed, Is.True);
+            Assert.That(result.FailureMessage, Does.Contain("Assistant:ModelContextTokens"));
+        });
+    }
+
+    [Test]
+    public void TheDefaultBudgetFitsTheDefaultModelWindow() {
+        AssistantOptions options = new() {
+            Enabled = true,
+            ApiKey = "configured",
+        };
+
+        AssertValid(options);
+    }
+
+    [Test]
+    public void TheShippedMemoryLimitsAreValid() {
+        AssertValid(Configured(maximumMemoriesPerOwner: 200, maximumMemoryChars: 1_000,
+            maximumMemoriesPerRun: 12, maximumMemoryCharsPerRun: 4_000,
+            maximumMemorySearchResults: 50, maximumMemoryQueryTerms: 12));
+    }
+
+    [TestCase(0, 1_000, 12, 4_000, 50, 12)]
+    [TestCase(200, 0, 12, 4_000, 50, 12)]
+    [TestCase(200, 1_000, 0, 4_000, 50, 12)]
+    [TestCase(200, 1_000, 12, 0, 50, 12)]
+    [TestCase(200, 1_000, 12, 4_000, 0, 12)]
+    public void EveryMemoryLimitMustBePositive(
+        int maximumMemoriesPerOwner,
+        int maximumMemoryChars,
+        int maximumMemoriesPerRun,
+        int maximumMemoryCharsPerRun,
+        int maximumMemorySearchResults,
+        int maximumMemoryQueryTerms) {
+        Assert.That(Validate(Configured(maximumMemoriesPerOwner, maximumMemoryChars, maximumMemoriesPerRun,
+            maximumMemoryCharsPerRun, maximumMemorySearchResults, maximumMemoryQueryTerms)).Failed, Is.True);
+    }
+
+    [Test]
+    public void AMemoryLongerThanTheWholeRunBlockIsRefused() {
+        AssistantOptions options = Configured(maximumMemoriesPerOwner: 200, maximumMemoryChars: 5_000,
+            maximumMemoriesPerRun: 12, maximumMemoryCharsPerRun: 4_000,
+            maximumMemorySearchResults: 50, maximumMemoryQueryTerms: 12);
+
+        ValidateOptionsResult result = Validate(options);
+
+        Assert.That(result.Failed, Is.True);
+        Assert.That(result.FailureMessage, Does.Contain("MaxMemoryCharsPerRun"));
+    }
+
+    [Test]
+    public void AQueryOfASingleLetterIsRefused() {
+        AssistantOptions options = Configured(maximumMemoriesPerOwner: 200, maximumMemoryChars: 1_000,
+            maximumMemoriesPerRun: 12, maximumMemoryCharsPerRun: 4_000,
+            maximumMemorySearchResults: 50, maximumMemoryQueryTerms: 1);
+
+        Assert.That(Validate(options).FailureMessage, Does.Contain("MaxMemoryQueryTerms"));
+    }
+
+    private static AssistantOptions Configured(
+        int maximumMemoriesPerOwner,
+        int maximumMemoryChars,
+        int maximumMemoriesPerRun,
+        int maximumMemoryCharsPerRun,
+        int maximumMemorySearchResults,
+        int maximumMemoryQueryTerms) => new() {
+            Enabled = true,
+            ApiKey = "configured",
+            MaxMemoriesPerOwner = maximumMemoriesPerOwner,
+            MaxMemoryChars = maximumMemoryChars,
+            MaxMemoriesPerRun = maximumMemoriesPerRun,
+            MaxMemoryCharsPerRun = maximumMemoryCharsPerRun,
+            MaxMemorySearchResults = maximumMemorySearchResults,
+            MaxMemoryQueryTerms = maximumMemoryQueryTerms,
+        };
+
     private void AssertValid(AssistantOptions options) {
         ValidateOptionsResult result = Validate(options);
 

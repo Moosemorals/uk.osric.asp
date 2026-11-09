@@ -32,7 +32,7 @@ public sealed class PageToolExecutorTests {
             replacement = "changed",
         });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
         Assert.That(storage["/notes"]?.Template, Is.EqualTo("first\r\nchanged\r\nthird"));
@@ -50,7 +50,7 @@ public sealed class PageToolExecutorTests {
 
         ToolExecutionResult result = await tools.ExecuteAsync(
             "edit_page",
-            "{\"path\":\"/notes\",\"startLine\":1,\"endLine\":1,\"expectedRevisionHash\":\"stale\",\"replacement\":\"changed\"}",
+            "{\"path\":\"/notes\",\"startLine\":1,\"endLine\":1,\"expectedRevisionHash\":\"stale\",\"replacement\":\"changed\"}", Context,
             CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
@@ -68,7 +68,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/editor.js\"}", CancellationToken.None);
+            "read_page", "{\"path\":\"/editor.js\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -87,7 +87,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/login\"}", CancellationToken.None);
+            "read_page", "{\"path\":\"/login\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -110,7 +110,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/login\",\"startLine\":3,\"endLine\":3}", CancellationToken.None);
+            "read_page", "{\"path\":\"/login\",\"startLine\":3,\"endLine\":3}", Context, CancellationToken.None);
 
         Assert.That(Data(result).GetProperty("source").GetString(), Does.StartWith("methods: "));
     }
@@ -123,7 +123,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/edit/anything\"}", CancellationToken.None);
+            "read_page", "{\"path\":\"/edit/anything\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.False);
@@ -140,7 +140,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "write_page", "{\"path\":\"/new\",\"content\":\"<% int value = ; %>\"}", CancellationToken.None);
+            "write_page", "{\"path\":\"/new\",\"content\":\"<% int value = ; %>\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True);
         Assert.That(storage["/new"]?.Template, Is.EqualTo("<% int value = ; %>"));
@@ -158,7 +158,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "delete_page", "{\"path\":\"/notes\"}", CancellationToken.None);
+            "delete_page", "{\"path\":\"/notes\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True);
         Assert.That(await storage.GetPageAsync(PageHarness.Key("/notes")), Is.Null);
@@ -176,7 +176,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/template\",\"startLine\":5,\"endLine\":5}", CancellationToken.None);
+            "read_page", "{\"path\":\"/template\",\"startLine\":5,\"endLine\":5}", Context, CancellationToken.None);
 
         using JsonDocument document = JsonDocument.Parse(result.Content);
         JsonElement data = document.RootElement.GetProperty("data");
@@ -196,7 +196,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "list_pages", "{\"prefix\":\"/a\"}", CancellationToken.None);
+            "list_pages", "{\"prefix\":\"/a\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
         Assert.That(PagePaths(result), Is.EqualTo<string[]>(["/a", "/a/child"]));
@@ -211,7 +211,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", Context, CancellationToken.None);
 
         Dictionary<string, (string Kind, string Mode, bool Deleted, string? Status)> rows = Data(result)
             .GetProperty("pages").EnumerateArray()
@@ -270,9 +270,9 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult live = await tools.ExecuteAsync("list_pages", "{}", CancellationToken.None);
+        ToolExecutionResult live = await tools.ExecuteAsync("list_pages", "{}", Context, CancellationToken.None);
         ToolExecutionResult all = await tools.ExecuteAsync(
-            "list_pages", "{\"includeDeleted\":true}", CancellationToken.None);
+            "list_pages", "{\"includeDeleted\":true}", Context, CancellationToken.None);
 
         Assert.That(PagePaths(live), Is.EqualTo<string[]>(["/live"]));
         Assert.That(PagePaths(all), Is.EqualTo<string[]>(["/gone", "/live"]));
@@ -286,7 +286,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "list_pages", "{\"prefix\":\"/a?b\"}", CancellationToken.None);
+            "list_pages", "{\"prefix\":\"/a?b\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("not an addressable page path"));
@@ -307,7 +307,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", Context, CancellationToken.None);
 
         Assert.That(States(result), Is.EqualTo(new Dictionary<string, string> {
             ["/borked"] = "Compile failed",
@@ -327,7 +327,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", Context, CancellationToken.None);
 
         Assert.That(States(result)["/blog"], Is.EqualTo("Stale"));
     }
@@ -344,7 +344,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/loud\"}", CancellationToken.None);
+            "read_page", "{\"path\":\"/loud\"}", Context, CancellationToken.None);
 
         Assert.That(Data(result).GetProperty("compileStatus").GetString(), Is.EqualTo("Compiled with warnings"));
     }
@@ -357,7 +357,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "write_page", "{\"path\":\"/site.css\",\"content\":\"body { color: red; }\"}", CancellationToken.None);
+            "write_page", "{\"path\":\"/site.css\",\"content\":\"body { color: red; }\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -375,7 +375,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "write_page", "{\"path\":\"/loud\",\"content\":\"<% int unused = 1; %>\"}", CancellationToken.None);
+            "write_page", "{\"path\":\"/loud\",\"content\":\"<% int unused = 1; %>\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
         Assert.That(storage["/loud"]?.Image?.Bytes, Is.Not.Null);
@@ -393,7 +393,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "search_pages", "{\"query\":\"alpha\"}", CancellationToken.None);
+            "search_pages", "{\"query\":\"alpha\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
         Assert.That(Matches(result), Is.EqualTo<string[]>(["/a:1:alpha", "/a:3:Alpha"]));
@@ -408,7 +408,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "search_pages", "{\"query\":\"Alpha\",\"caseSensitive\":true}", CancellationToken.None);
+            "search_pages", "{\"query\":\"Alpha\",\"caseSensitive\":true}", Context, CancellationToken.None);
 
         Assert.That(Matches(result), Is.EqualTo<string[]>(["/a:3:Alpha"]));
     }
@@ -422,7 +422,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "search_pages", "{\"query\":\"hit\"}", CancellationToken.None);
+            "search_pages", "{\"query\":\"hit\"}", Context, CancellationToken.None);
 
         Assert.That(Data(result).GetProperty("matches").GetArrayLength(), Is.EqualTo(100));
         Assert.That(Data(result).GetProperty("truncated").GetBoolean(), Is.False);
@@ -437,7 +437,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "search_pages", "{\"query\":\"hit\"}", CancellationToken.None);
+            "search_pages", "{\"query\":\"hit\"}", Context, CancellationToken.None);
 
         Assert.That(Data(result).GetProperty("matches").GetArrayLength(), Is.EqualTo(100));
         Assert.That(Data(result).GetProperty("truncated").GetBoolean(), Is.True);
@@ -451,7 +451,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "search_pages", "{\"query\":\"\"}", CancellationToken.None);
+            "search_pages", "{\"query\":\"\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("must not be empty"));
@@ -470,7 +470,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"ls /a\"}", CancellationToken.None);
+            "shell", "{\"command\":\"ls /a\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
         Assert.That(Output(result), Is.EqualTo("-rw-r--r-- /a\n-rw-r--r-- /a/child"));
@@ -484,8 +484,8 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult root = await tools.ExecuteAsync("shell", "{\"command\":\"ls /\"}", CancellationToken.None);
-        ToolExecutionResult route = await tools.ExecuteAsync("shell", "{\"command\":\"ls /edit\"}", CancellationToken.None);
+        ToolExecutionResult root = await tools.ExecuteAsync("shell", "{\"command\":\"ls /\"}", Context, CancellationToken.None);
+        ToolExecutionResult route = await tools.ExecuteAsync("shell", "{\"command\":\"ls /edit\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(Output(root).Split('\n'), Does.Contain("-r--r--r-- /edit"));
@@ -503,7 +503,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"cat /login\"}", CancellationToken.None);
+            "shell", "{\"command\":\"cat /login\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -521,7 +521,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"cat /notes\"}", CancellationToken.None);
+            "shell", "{\"command\":\"cat /notes\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
         Assert.That(Output(result), Is.EqualTo("<h1>Title</h1>"));
@@ -536,7 +536,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"grep -i alpha /a\"}", CancellationToken.None);
+            "shell", "{\"command\":\"grep -i alpha /a\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
         Assert.That(Output(result), Is.EqualTo("/a:1: Alpha"));
@@ -550,7 +550,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"rm /notes\"}", CancellationToken.None);
+            "shell", "{\"command\":\"rm /notes\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("not supported"));
@@ -565,7 +565,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/notes\",\"startLine\":1,\"endLine\":3}", CancellationToken.None);
+            "read_page", "{\"path\":\"/notes\",\"startLine\":1,\"endLine\":3}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("outside the page"));
@@ -581,7 +581,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/long\"}", CancellationToken.None);
+            "read_page", "{\"path\":\"/long\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
         using JsonDocument document = JsonDocument.Parse(result.Content);
@@ -600,7 +600,7 @@ public sealed class PageToolExecutorTests {
 
         ToolExecutionResult result = await tools.ExecuteAsync(
             "edit_page",
-            "{\"path\":\"/missing\",\"startLine\":1,\"endLine\":1,\"expectedRevisionHash\":\"none\",\"replacement\":\"x\"}",
+            "{\"path\":\"/missing\",\"startLine\":1,\"endLine\":1,\"expectedRevisionHash\":\"none\",\"replacement\":\"x\"}", Context,
             CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
@@ -624,7 +624,7 @@ public sealed class PageToolExecutorTests {
             replacement = "x",
         });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("outside the page"));
@@ -643,7 +643,7 @@ public sealed class PageToolExecutorTests {
         });
         string arguments = JsonSerializer.Serialize(new { path = "/big", content = new string('x', 2000) });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("write_page", arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("write_page", arguments, Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("MaxPageChars"));
@@ -657,7 +657,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync("read_page", "{}", CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("read_page", "{}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("Required tool argument").And.Contain("is missing"));
@@ -673,7 +673,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync(tool, arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync(tool, arguments, Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.False);
@@ -692,7 +692,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync(tool, arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync(tool, arguments, Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.False);
@@ -710,7 +710,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "search_pages", "{\"query\":\"x\",\"prefix\":\"/a?b\"}", CancellationToken.None);
+            "search_pages", "{\"query\":\"x\",\"prefix\":\"/a?b\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Summary, Is.EqualTo("Search refused"));
@@ -727,7 +727,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "search_pages", "{\"query\":\"the owner\"}", CancellationToken.None);
+            "search_pages", "{\"query\":\"the owner\"}", Context, CancellationToken.None);
 
         string[] matches = Matches(result);
         Assert.Multiple(() => {
@@ -745,7 +745,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"grep sign-in\"}", CancellationToken.None);
+            "shell", "{\"command\":\"grep sign-in\"}", Context, CancellationToken.None);
 
         Assert.That(Output(result), Does.Contain("/login:5: description:"));
     }
@@ -758,7 +758,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"ls /a?b\"}", CancellationToken.None);
+            "shell", "{\"command\":\"ls /a?b\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Summary, Is.EqualTo("Shell command refused"));
@@ -772,7 +772,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"cat /a?b\"}", CancellationToken.None);
+            "shell", "{\"command\":\"cat /a?b\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Summary, Is.EqualTo("Shell path refused"));
@@ -786,7 +786,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"cat /missing\"}", CancellationToken.None);
+            "shell", "{\"command\":\"cat /missing\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("was not found"));
@@ -801,9 +801,9 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult head = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"head -n 2 /notes\"}", CancellationToken.None);
+            "shell", "{\"command\":\"head -n 2 /notes\"}", Context, CancellationToken.None);
         ToolExecutionResult tail = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"tail -n 2 /notes\"}", CancellationToken.None);
+            "shell", "{\"command\":\"tail -n 2 /notes\"}", Context, CancellationToken.None);
 
         Assert.That(Output(head), Is.EqualTo("one\ntwo"));
         Assert.That(Output(tail), Is.EqualTo("two\nthree"));
@@ -818,7 +818,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"wc -l /notes\"}", CancellationToken.None);
+            "shell", "{\"command\":\"wc -l /notes\"}", Context, CancellationToken.None);
 
         Assert.That(Output(result), Is.EqualTo("3"));
     }
@@ -833,7 +833,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"stat /notes\"}", CancellationToken.None);
+            "shell", "{\"command\":\"stat /notes\"}", Context, CancellationToken.None);
 
         Assert.That(Output(result), Does.Contain("/notes\n-rw-r--r--\n3 chars\n").And.Contain(page.Hash));
     }
@@ -846,7 +846,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"stat /login\"}", CancellationToken.None);
+            "shell", "{\"command\":\"stat /login\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -868,7 +868,7 @@ public sealed class PageToolExecutorTests {
         });
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"cat /long\"}", CancellationToken.None);
+            "shell", "{\"command\":\"cat /long\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
         Assert.That(Output(result), Does.EndWith("[truncated]"));
@@ -884,7 +884,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/notes\"}", CancellationToken.None);
+            "read_page", "{\"path\":\"/notes\"}", Context, CancellationToken.None);
 
         Assert.That(Data(result).GetProperty("totalLines").GetInt32(), Is.EqualTo(3));
     }
@@ -906,7 +906,7 @@ public sealed class PageToolExecutorTests {
             replacement = "edited",
         });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("changed while the edit was being saved"));
@@ -949,7 +949,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -968,7 +968,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", Context, CancellationToken.None);
 
         JsonElement diagnostics = Data(result).GetProperty("diagnostics");
         Assert.Multiple(() => {
@@ -991,7 +991,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -1009,7 +1009,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/page\"}", CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/page\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -1026,7 +1026,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "check_script", "{\"path\":\"/script.html\"}", CancellationToken.None);
+            "check_script", "{\"path\":\"/script.html\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -1042,7 +1042,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "check_script", "{\"path\":\"/login\"}", CancellationToken.None);
+            "check_script", "{\"path\":\"/login\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.False);
@@ -1061,7 +1061,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "check_script", "{\"path\":\"/editor.js\"}", CancellationToken.None);
+            "check_script", "{\"path\":\"/editor.js\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -1077,7 +1077,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "check_script", "{\"path\":\"/missing\"}", CancellationToken.None);
+            "check_script", "{\"path\":\"/missing\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.False);
@@ -1093,7 +1093,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new { content = "export const answer = 42;\n" });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -1115,7 +1115,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new { content = "const a = { x: 1 y: 2 };" });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, Context, CancellationToken.None);
 
         JsonElement diagnostics = Data(result).GetProperty("diagnostics");
         JsonElement error = diagnostics.EnumerateArray()
@@ -1138,7 +1138,7 @@ public sealed class PageToolExecutorTests {
         string content = "<% var when = DateTime.UtcNow; %>\nexport const label = \"<%= when %>\";\n";
         string arguments = JsonSerializer.Serialize(new { content });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -1154,7 +1154,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new { content = "return 1;" });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
@@ -1195,8 +1195,11 @@ public sealed class PageToolExecutorTests {
     private static ServiceProvider Services(PageEditor editor) =>
         new ServiceCollection().AddScoped(_ => editor).BuildServiceProvider();
 
+    private static readonly ToolContext Context = new("owner", ConversationId: 1, RunId: "run-1");
+
     private static PageToolExecutor CreateTools(ServiceProvider services, AssistantOptions? options = null) => new(
         services.GetRequiredService<IServiceScopeFactory>(),
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions { ProtectedPaths = ["/editor.js"] }),
-        options ?? new AssistantOptions { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 });
+        options ?? new AssistantOptions { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
+        new AssistantMetrics());
 }

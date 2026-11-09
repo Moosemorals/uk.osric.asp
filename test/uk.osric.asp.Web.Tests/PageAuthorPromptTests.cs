@@ -145,7 +145,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v12"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v15"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -253,6 +253,18 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void TheMemorySectionSaysWhatToStoreAndWhatNotTo() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Memory"));
+            Assert.That(prompt, Does.Contain("never a secret"));
+            Assert.That(prompt, Does.Contain("Search before you remember"));
+            Assert.That(prompt, Does.Contain("/assistant/memory"));
+        });
+    }
+
+    [Test]
     public void PromptVersionIsStableAndPresentInThePrompt() {
         Assert.That(PageAuthorPrompt.Build(), Does.Contain(PageAuthorPrompt.Version));
     }
@@ -266,7 +278,19 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v12"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v15"));
+        });
+    }
+
+    [Test]
+    public void ThePromptTeachesWhatAnElidedValueMeans() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Elided values"));
+            Assert.That(prompt, Does.Contain("[tool result elided: N chars]"));
+            Assert.That(prompt, Does.Contain("[elided N chars]"));
+            Assert.That(prompt, Does.Contain("call the tool again"));
         });
     }
 

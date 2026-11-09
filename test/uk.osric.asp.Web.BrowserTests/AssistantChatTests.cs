@@ -82,6 +82,21 @@ internal sealed class AssistantChatTests : BrowserTest {
     }
 
     [Test]
+    public async Task TheUsageListShowsWhatTheProviderReportedAsync() {
+        await NewConversationAsync();
+        Provider.Script(StubResponse.Words("Done.", TimeSpan.Zero));
+
+        await SendAsync("Say something");
+
+        await Assertions.Expect(Page.Locator("#assistant-usage-prompt")).ToHaveTextAsync("1k", new() { Timeout = 30_000 });
+        await Assertions.Expect(Page.Locator("#assistant-usage-cached")).ToHaveTextAsync("600");
+        await Assertions.Expect(Page.Locator("#assistant-usage-cached-share")).ToHaveTextAsync("(60%)");
+        await Assertions.Expect(Page.Locator("#assistant-usage-completion")).ToHaveTextAsync("20");
+        await Assertions.Expect(Page.Locator("#assistant-usage-reasoning")).ToHaveTextAsync("5");
+        await Assertions.Expect(Page.Locator("#assistant-usage-total")).ToHaveTextAsync("1k");
+    }
+
+    [Test]
     public async Task TheButtonsLeadTheCountsLineAndTheCountTrailsItAsync() {
         await NewConversationAsync();
         Provider.Script(StubResponse.Words(string.Join(' ', Enumerable.Repeat("word", 200)), TimeSpan.FromMilliseconds(100)));

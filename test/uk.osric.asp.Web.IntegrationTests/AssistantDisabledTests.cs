@@ -19,6 +19,15 @@ public sealed class AssistantDisabledTests : IntegrationTest {
     }
 
     [Test]
+    public async Task MemoryRouteIsNotFoundWhenFeatureIsDisabledAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        using HttpResponseMessage response = await client.GetAsync("/assistant/memory");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
     public async Task EditorDoesNotLinkToDisabledAssistantAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
 

@@ -58,10 +58,10 @@ internal sealed class RunProcessor(
 
         // Stops the run on a budget it has spent, and returns the limit a continuation grants. The
         // transcript is deliberately untouched: no message is written for the pause, so the next
-        // request is the one the run would have made and the model never learns it was interrupted. The
-        // run's silence clock is stopped for the wait, because waiting for the owner is not the provider
-        // going quiet. The store is the record the reloaded page reads, and the arithmetic here is the
-        // one the store applied, so the two agree.
+        // request is the one the run would have made and the model never learns it was interrupted.
+        // The run's silence clock is stopped for the wait, because waiting for the owner is not the
+        // provider going quiet. The store is the record the reloaded page reads, and the arithmetic
+        // here is the one the store applied, so the two agree.
         Task<int> PauseAsync(
             QueuedRun queued,
             RunStream stream,
@@ -89,6 +89,9 @@ internal sealed class RunProcessor(
         int step = 1;
         string? activeToolCallId = null;
         string? activeToolName = null;
+        // Recall happens once, on the first step, and the block is frozen for the rest of the run: a
+        // memory the model writes mid-run is visible to the next run, not this one.
+        string memoryBlock = string.Empty;
 
         try {
             Run? run = await StoreAsync(store => store.GetActiveRunAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
@@ -105,53 +108,80 @@ internal sealed class RunProcessor(
             logger.LogInformation("Assistant run {RunId} in conversation {ConversationId} started with model {Model}",
                 queued.RunId, queued.ConversationId, run.Model);
 
-            // The limits a run starts with, and the ones a continuation widens: the stored value is null
-            // until the owner continues, which keeps a run started before this feature meaningful.
+            int toolCallCount = 0;
+            int toolCallsRecorded = 0;
+            RunUsage usageTotals = run.ToUsage();
+            TokenCalibration? calibration = run.RequestBytes is { } calibratedBytes && run.LastPromptTokens is { } calibratedPrompt
+                ? new TokenCalibration(calibratedBytes, calibratedPrompt)
+                : null;
+            BudgetSnapshot budgets = BudgetSnapshot.Empty;
+            // The warnings describe what the run as a whole did, so each is published at most once:
+            // a hundred steps that all masked an old result are one fact, not a hundred.
+            bool maskedWarningSent = false;
+            bool trimmedWarningSent = false;
+            ToolContext toolContext = new(queued.Owner, queued.ConversationId, queued.RunId);
+            // The limits a run starts with, and the ones a continuation widens: the stored value is
+            // null until the owner continues, which keeps a run started before this feature meaningful.
             int stepLimit = run.StepLimit ?? options.MaxSteps;
             int toolCallLimit = run.ToolCallLimit ?? options.MaxToolCalls;
             int perStepLimit = options.MaxToolCallsPerStep;
-            int toolCallCount = 0;
-            int toolCallsRecorded = 0;
-            int? completionTokens = null;
-            BudgetSnapshot budgets = BudgetSnapshot.Empty;
             while (true) {
                 for (; step <= stepLimit; step++) {
                     IReadOnlyList<Message> transcript = await StoreAsync(
                         store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
-                    List<ChatMessage> messages = [new ChatMessage("system", PageAuthorPrompt.Build())];
+                    if (step == 1) {
+                        memoryBlock = await RecallMemoryAsync(queued, stream, transcript, runTimeout.Token);
+                    }
+                    string prompt = PageAuthorPrompt.Build();
+                    string systemPrompt = memoryBlock.Length == 0 ? prompt : $"{prompt}\n\n{memoryBlock}";
+                    List<ChatMessage> messages = [new ChatMessage("system", systemPrompt)];
                     messages.AddRange(transcript.Select(message => message.ToChatMessage()));
-                    ContextTrimResult trimmed = ContextTrimmer.Trim(messages, options.MaxContextChars);
-                    if (trimmed.Error is not null) {
-                        await FailAsync(queued, stream, "context_too_long", trimmed.Error, partial, step, runTimeout.Token);
-                        return;
-                    }
-                    if (trimmed.IsTrimmed) {
-                        stream.Publish("run.warning", new {
-                            code = "context_trimmed",
-                            message = trimmed.TrimmingNote,
-                        });
-                    }
-
-                    // The step is spent as it starts, and the context row counts the whole conversation
-                    // the loop has just read rather than the trimmed request, so it is measured here.
-                    budgets = BudgetSnapshot.Measure(messages, step, toolCallsRecorded, completionTokens);
-                    stream.Publish("message.started", new { step });
-                    PublishBudgets(stream, budgets, stepLimit, toolCallLimit);
-                    partial = new ChatStreamAccumulator();
                     ChatRequest request = new(
                         run.Model,
-                        trimmed.Messages,
+                        messages,
                         PageToolExecutor.Definitions,
                         options.Temperature,
                         options.MaxOutputTokens,
                         options.ReasoningField,
                         options.IncludeUsage);
+                    ContextPlan plan = ContextPlanner.Build(request, options.MaxContextTokens, TokenEstimator.For(calibration));
+                    if (plan.Error is not null) {
+                        await FailAsync(queued, stream, "context_too_long", plan.Error, partial, step, runTimeout.Token);
+                        return;
+                    }
+                    if (plan.IsMasked && !maskedWarningSent) {
+                        stream.Publish("run.warning", new {
+                            code = "context_masked",
+                            message = "Earlier tool output and arguments were shortened to fit the request budget.",
+                        });
+                        maskedWarningSent = true;
+                    }
+                    if (plan.IsTrimmed && !trimmedWarningSent) {
+                        stream.Publish("run.warning", new {
+                            code = "context_trimmed",
+                            message = "Earlier conversation history was omitted to fit the request budget.",
+                        });
+                        trimmedWarningSent = true;
+                    }
+                    if (plan.IsMasked || plan.IsTrimmed) {
+                        logger.LogInformation(
+                            "Assistant step {Step} shaped the request: {MaskedResults} results and {MaskedArguments} arguments elided, {DroppedMessages} messages dropped, {OriginalTokens} estimated tokens became {EstimatedTokens} ({RequestBytes} bytes)",
+                            step, plan.MaskedToolResults, plan.MaskedArguments, plan.DroppedMessages,
+                            plan.OriginalTokens, plan.EstimatedTokens, plan.RequestBytes);
+                    }
+
+                    // The budget row counts the request the planner built, and the counters are what the
+                    // loop has already spent, so the live figure is the one the page will reload.
+                    budgets = BudgetSnapshot.Measure(plan, messages, step, toolCallsRecorded, usageTotals.OutputTokens);
+                    stream.Publish("message.started", new { step });
+                    PublishBudgets(stream, budgets, usageTotals, stepLimit, toolCallLimit);
+                    partial = new ChatStreamAccumulator();
 
                     long providerStart = Stopwatch.GetTimestamp();
                     bool firstTokenRecorded = false;
                     string providerOutcome = "ok";
                     try {
-                        await foreach (ChatStreamEvent @event in client.StreamAsync(request, runTimeout.Token)) {
+                        await foreach (ChatStreamEvent @event in client.StreamAsync(plan.Request, runTimeout.Token)) {
                             // The run deadline is an inactivity limit, not a duration: an event the
                             // provider actually streamed re-arms it. The SSE parser drops keep-alive
                             // comments, so a heartbeat cannot keep a stalled run alive.
@@ -189,10 +219,13 @@ internal sealed class RunProcessor(
                     ChatResponse response = partial.Complete();
                     if (response.Usage is { } usage) {
                         metrics.RecordUsage(usage);
-                        // The store keeps the last non-null count, so the loop does the same.
-                        completionTokens = usage.CompletionTokens ?? completionTokens;
+                        usageTotals = usageTotals.Add(usage);
+                        if (usage.PromptTokens is > 0) {
+                            calibration = new TokenCalibration(plan.RequestBytes, usage.PromptTokens.Value);
+                        }
                     }
-                    await StoreAsync(store => store.RecordStepAsync(queued.RunId, response.ToolCalls.Count, response.Usage, runTimeout.Token));
+                    await StoreAsync(store => store.RecordStepAsync(
+                        queued.RunId, response.ToolCalls.Count, plan.RequestBytes, response.Usage, runTimeout.Token));
                     toolCallsRecorded += response.ToolCalls.Count;
                     if (response.FinishReason == "content_filter") {
                         await PersistAssistantAsync(queued, stream, step, response, "failed", includeToolCalls: false, CancellationToken.None);
@@ -209,9 +242,9 @@ internal sealed class RunProcessor(
                     budgets = budgets with {
                         Steps = step,
                         ToolCalls = toolCallsRecorded,
-                        CompletionTokens = completionTokens ?? 0,
+                        OutputTokens = usageTotals.OutputTokens,
                     };
-                    PublishBudgets(stream, budgets, stepLimit, toolCallLimit);
+                    PublishBudgets(stream, budgets, usageTotals, stepLimit, toolCallLimit);
 
                     if (response.FinishReason == "length") {
                         stream.Publish("run.warning", new { code = "length", message = "The response reached the provider token limit." });
@@ -223,7 +256,7 @@ internal sealed class RunProcessor(
                         string status = response.FinishReason == "length" ? "truncated" : "complete";
                         await PersistAssistantAsync(queued, stream, step, response, status, includeToolCalls: false, runTimeout.Token);
                         partial = null;
-                        await CompleteAsync(queued, stream, step, response, budgets, stepLimit, toolCallLimit);
+                        await CompleteAsync(queued, stream, step, budgets, usageTotals, run.Model, systemPrompt, calibration, stepLimit, toolCallLimit);
                         return;
                     }
 
@@ -265,7 +298,7 @@ internal sealed class RunProcessor(
                         // can wait a long time and a slow tool would otherwise hide it.
                         if (call.Arguments.Length > budgets.LongestArguments) {
                             budgets = budgets with { LongestArguments = call.Arguments.Length };
-                            PublishBudgets(stream, budgets, stepLimit, toolCallLimit);
+                            PublishBudgets(stream, budgets, usageTotals, stepLimit, toolCallLimit);
                         }
 
                         long toolStart = Stopwatch.GetTimestamp();
@@ -278,10 +311,10 @@ internal sealed class RunProcessor(
                             result = refused;
                         } else if (requiresApproval) {
                             result = await WhilePaused(() =>
-                                ResolveApprovalAsync(queued, stream, step, call, definition!, runTimeout.Token));
+                                ResolveApprovalAsync(queued, stream, step, call, definition!, toolContext, runTimeout.Token));
                         } else {
                             result = await WhilePaused(() =>
-                                ExecuteToolAsync(call, stream, runTimeout.Token));
+                                ExecuteToolAsync(call, toolContext, stream, runTimeout.Token));
                         }
 
                         toolCallCount++;
@@ -305,7 +338,7 @@ internal sealed class RunProcessor(
                         // The stored result is what the page measures, so a longer one moves the row now.
                         if (result.Content.Length > budgets.LongestResult) {
                             budgets = budgets with { LongestResult = result.Content.Length };
-                            PublishBudgets(stream, budgets, stepLimit, toolCallLimit);
+                            PublishBudgets(stream, budgets, usageTotals, stepLimit, toolCallLimit);
                         }
                         activeToolCallId = null;
                         activeToolName = null;
@@ -316,7 +349,7 @@ internal sealed class RunProcessor(
                 // run's silence clock stops while the question is on the page.
                 stepLimit = await PauseAsync(
                     queued, stream, RunBudget.Steps, step - 1, stepLimit, options.MaxSteps, runTimeout.Token);
-                PublishBudgets(stream, budgets, stepLimit, toolCallLimit);
+                PublishBudgets(stream, budgets, usageTotals, stepLimit, toolCallLimit);
             }
         } catch (ProviderException exception) {
             // The exception, not just its code: the inner exception is the socket, TLS or parse
@@ -388,12 +421,61 @@ internal sealed class RunProcessor(
         }
     }
 
+    // Recall is an enhancement, so nothing here can take the run down: a store that throws costs the
+    // run its memory and a line in the transcript, and a lost use count is not worth a failed run.
+    private async Task<string> RecallMemoryAsync(
+        QueuedRun queued,
+        RunStream stream,
+        IReadOnlyList<Message> transcript,
+        CancellationToken cancellationToken) {
+        Message? newest = transcript.LastOrDefault(message => message.Role == "user");
+        string terms = newest is null ? string.Empty : MemoryQuery.Terms(newest.Content, options.MaxMemoryQueryTerms);
+
+        try {
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            IMemoryStore memories = scope.ServiceProvider.GetRequiredService<IMemoryStore>();
+
+            IReadOnlyList<MemoryCandidate> matched = terms.Length == 0
+                ? []
+                : await memories.RecallAsync(queued.Owner, terms, options.MaxMemorySearchResults, cancellationToken);
+            IReadOnlyList<MemoryCandidate> used = await memories.StickyAsync(queued.Owner, queued.ConversationId, cancellationToken);
+            IReadOnlyList<MemoryCandidate> pinned = await memories.PinnedAsync(queued.Owner, cancellationToken);
+
+            MemorySelection selection = MemoryRecall.Select(
+                pinned, used, matched, options.MaxMemoriesPerRun, options.MaxMemoryCharsPerRun);
+            metrics.RecordMemoryRecall(selection.Memories.Count, selection.Characters);
+            if (selection.IsEmpty) {
+                return string.Empty;
+            }
+
+            logger.LogInformation("Assistant run {RunId} recalled {Memories} memories ({Chars} chars)",
+                queued.RunId, selection.Memories.Count, selection.Characters);
+            try {
+                await memories.TouchAsync(
+                    queued.Owner, [.. selection.Memories.Select(memory => memory.Id)], queued.ConversationId, cancellationToken);
+            } catch (Exception exception) when (exception is not OperationCanceledException) {
+                logger.LogWarning(exception, "Assistant run {RunId} could not record which memories it used", queued.RunId);
+            }
+
+            return MemoryRecall.Build(selection);
+        } catch (Exception exception) when (exception is not OperationCanceledException) {
+            logger.LogWarning(exception, "Assistant run {RunId} could not recall memories", queued.RunId);
+            metrics.RecordMemoryRecall(0, 0);
+            stream.Publish("run.warning", new {
+                code = "memory_unavailable",
+                message = "Memory could not be read, so this run continues without it.",
+            });
+            return string.Empty;
+        }
+    }
+
     private async Task<ToolExecutionResult> ResolveApprovalAsync(
         QueuedRun queued,
         RunStream stream,
         int step,
         PreparedToolCall call,
         ToolDefinition definition,
+        ToolContext context,
         CancellationToken cancellationToken) {
         using CancellationTokenSource waiterCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         Task<ApprovalResolutionResult> wait = approvals.WaitAsync(queued.RunId, call.Id, waiterCancellation.Token);
@@ -422,18 +504,19 @@ internal sealed class RunProcessor(
         stream.Publish("approval.resolved", new { step, toolCallId = call.Id, decision = decision == ApprovalResolutionResult.Approved ? "approved" : "denied" });
 
         return decision == ApprovalResolutionResult.Approved
-            ? await ExecuteToolAsync(call, stream, cancellationToken)
+            ? await ExecuteToolAsync(call, context, stream, cancellationToken)
             : ToolFailure("The owner denied this tool call.", $"{call.DisplayName}: denied");
     }
 
     private async Task<ToolExecutionResult> ExecuteToolAsync(
         PreparedToolCall call,
+        ToolContext context,
         RunStream stream,
         CancellationToken cancellationToken) {
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(options.ToolTimeoutSeconds));
         try {
-            return await tools.ExecuteAsync(call.Name, call.Arguments, timeout.Token);
+            return await tools.ExecuteAsync(call.Name, call.Arguments, context, timeout.Token);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
             return ToolFailure("The tool exceeded its configured time limit.", $"{call.DisplayName}: timeout");
         } catch (OperationCanceledException) {
@@ -515,47 +598,72 @@ internal sealed class RunProcessor(
         QueuedRun queued,
         RunStream stream,
         int steps,
-        ChatResponse response,
         BudgetSnapshot budgets,
+        RunUsage usage,
+        string model,
+        string systemPrompt,
+        TokenCalibration? calibration,
         int stepLimit,
         int toolCallLimit) {
         await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "completed"));
-        // The page measures the stored transcript, so the last live figure is measured the same way:
-        // anything else would make the reload a correction of what a reader just watched. `Publish`
-        // throws once the stream is complete, so nothing may follow `run.completed`.
+        // The last live figure is the request the next step would send, built from the transcript as
+        // stored. The reload builds the same plan the same way, so it cannot correct what a reader
+        // just watched. `Publish` throws once the stream is complete, so nothing may follow
+        // `run.completed`.
         IReadOnlyList<Message> transcript = await StoreAsync(
             store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, CancellationToken.None));
-        List<ChatMessage> messages = [new ChatMessage("system", PageAuthorPrompt.Build())];
+        List<ChatMessage> messages = [new ChatMessage("system", systemPrompt)];
         messages.AddRange(transcript.Select(message => message.ToChatMessage()));
+        ChatRequest request = new(
+            model,
+            messages,
+            PageToolExecutor.Definitions,
+            options.Temperature,
+            options.MaxOutputTokens,
+            options.ReasoningField,
+            options.IncludeUsage);
+        ContextPlan plan = ContextPlanner.Build(request, options.MaxContextTokens, TokenEstimator.For(calibration));
         PublishBudgets(
             stream,
-            BudgetSnapshot.Measure(messages, steps, budgets.ToolCalls, budgets.CompletionTokens),
+            BudgetSnapshot.Measure(plan, messages, steps, budgets.ToolCalls, usage.OutputTokens),
+            usage,
             stepLimit,
             toolCallLimit);
         stream.Publish("run.completed", new {
             runId = queued.RunId,
             steps,
-            usage = response.Usage,
+            usage,
         });
     }
 
     // The keys are the row names the page's markup carries, so the browser needs no translation and
-    // `message` is absent: the textarea is that row's only source. The limits travel with the figures
-    // because a continuation widens one of them, and a live row must not call a spent budget exceeded.
-    private static void PublishBudgets(RunStream stream, BudgetSnapshot budgets, int stepLimit, int toolCallLimit) => stream.Publish("budget.updated", new {
-        budgets = new Dictionary<string, long>(StringComparer.Ordinal) {
-            ["context"] = budgets.ContextChars,
-            ["steps"] = budgets.Steps,
-            ["tool-calls"] = budgets.ToolCalls,
-            ["tool-arguments"] = budgets.LongestArguments,
-            ["tool-result"] = budgets.LongestResult,
-            ["output"] = budgets.CompletionTokens,
-        },
-        limits = new Dictionary<string, long>(StringComparer.Ordinal) {
-            ["steps"] = stepLimit,
-            ["tool-calls"] = toolCallLimit,
-        },
-    });
+    // `message` is absent: the textarea is that row's only source.
+    private static void PublishBudgets(
+        RunStream stream,
+        BudgetSnapshot budgets,
+        RunUsage usage,
+        int stepLimit,
+        int toolCallLimit) => stream.Publish("budget.updated", new {
+            budgets = new Dictionary<string, long>(StringComparer.Ordinal) {
+                ["context"] = budgets.ContextTokens,
+                ["steps"] = budgets.Steps,
+                ["tool-calls"] = budgets.ToolCalls,
+                ["tool-arguments"] = budgets.LongestArguments,
+                ["tool-result"] = budgets.LongestResult,
+                ["output"] = budgets.OutputTokens,
+            },
+            limits = new Dictionary<string, long>(StringComparer.Ordinal) {
+                ["steps"] = stepLimit,
+                ["tool-calls"] = toolCallLimit,
+            },
+            usage = new {
+                prompt = usage.PromptTokens,
+                cached = usage.CachedTokens,
+                completion = usage.CompletionTokens,
+                reasoning = usage.ReasoningTokens,
+                total = usage.TotalTokens,
+            },
+        });
 
     private async Task<T> StoreAsync<T>(Func<IConversationStore, Task<T>> action) {
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();

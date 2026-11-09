@@ -163,7 +163,7 @@ public sealed class PageMetricsTests {
         Assert.That(
             PageMetrics.SecondsBuckets[^1],
             Is.GreaterThan(cap),
-            $"the compile deadline is {cap} s, so a compile recorded at it must land in a real bucket (DEC-202)");
+            $"the compile deadline is {cap} s, so a compile recorded at it must land in a real bucket (DEC-214)");
     }
 
     [Test]

@@ -307,6 +307,27 @@ if (root) {
         statusLine.textContent = 'Run paused: it needs your answer';
     }
 
+    // The usage list is a different question from the budgets: what the provider reported, not what
+    // a limit allows. The totals are already summed by the host, so the page only formats them.
+    function applyUsage(usage) {
+        if (!usage) {
+            return;
+        }
+        for (const name of ['prompt', 'cached', 'completion', 'reasoning', 'total']) {
+            const element = document.getElementById(`assistant-usage-${name}`);
+            if (element) {
+                element.textContent = formatAmount(usage[name] ?? 0);
+            }
+        }
+        const prompt = usage.prompt ?? 0;
+        const cached = usage.cached ?? 0;
+        const share = prompt === 0 ? 0 : Math.max(0, Math.min(100, Math.round(100 * cached / prompt)));
+        const shareElement = document.getElementById('assistant-usage-cached-share');
+        if (shareElement) {
+            shareElement.textContent = `(${share}%)`;
+        }
+    }
+
     function connect(runId, after) {
         source?.close();
         const url = `/assistant/${encodeURIComponent(conversationId)}/events?run=${encodeURIComponent(runId)}&after=${encodeURIComponent(after)}`;
@@ -354,6 +375,7 @@ if (root) {
         source.addEventListener('budget.updated', event => {
             const data = JSON.parse(event.data);
             applyBudgets(data.budgets, data.limits);
+            applyUsage(data.usage);
         });
         source.addEventListener('tool.started', event => showTool(JSON.parse(event.data)));
         source.addEventListener('approval.required', event => addApproval(JSON.parse(event.data)));

@@ -10,6 +10,9 @@ public sealed class BudgetAmountTests {
 
     [TestCase(0, "0")]
     [TestCase(5, "5")]
+    [TestCase(10, "10")]
+    [TestCase(100, "100")]
+    [TestCase(600, "600")]
     [TestCase(999, "999")]
     [TestCase(1_000, "1k")]
     [TestCase(1_249, "1.2k")]
