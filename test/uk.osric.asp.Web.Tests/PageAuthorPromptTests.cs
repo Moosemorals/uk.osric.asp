@@ -145,7 +145,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v13"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v14"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -260,7 +260,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("## Memory"));
             Assert.That(prompt, Does.Contain("never a secret"));
             Assert.That(prompt, Does.Contain("Search before you remember"));
-            Assert.That(prompt, Does.Contain("Only the\nowner pins a memory"));
+            Assert.That(prompt, Does.Contain("/assistant/memory"));
         });
     }
 
@@ -278,7 +278,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v13"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v14"));
         });
     }
 

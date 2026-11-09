@@ -59,6 +59,7 @@ internal static class AssistantEndpoint {
         await context.Response.WriteAsync("<h1>Assistant</h1>");
         await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations", true),
+            new(AssistantMemoryEndpoint.Path, "Memory"),
             new("/edit", "Page list"),
         ]));
         await context.Response.WriteAsync($"""
@@ -129,6 +130,7 @@ internal static class AssistantEndpoint {
         await context.Response.WriteAsync($"<h1>{Encode(conversation.Title)}</h1>");
         await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations"),
+            new(AssistantMemoryEndpoint.Path, "Memory"),
             new("/edit", "Page list"),
         ]));
 

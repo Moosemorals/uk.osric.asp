@@ -417,6 +417,18 @@ internal class Program {
             app.MapPost("/assistant/{id:long}/delete", AssistantEndpoint.DeleteAsync)
                 .RequireAuthorization(EditorPolicy.Name)
                 .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+            // The owner's memory: a page of its own beside the conversations. `{id:long}` binds digits,
+            // so `/assistant/memory` never competes with `/assistant/{id:long}`.
+            app.MapGet(AssistantMemoryEndpoint.Path, AssistantMemoryEndpoint.ListAsync)
+                .RequireAuthorization(EditorPolicy.Name);
+            app.MapPost("/assistant/memory/{id:long}", AssistantMemoryEndpoint.SaveAsync)
+                .RequireAuthorization(EditorPolicy.Name)
+                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+            app.MapGet("/assistant/memory/{id:long}/forget", AssistantMemoryEndpoint.ForgetConfirmationAsync)
+                .RequireAuthorization(EditorPolicy.Name);
+            app.MapPost("/assistant/memory/{id:long}/forget", AssistantMemoryEndpoint.ForgetAsync)
+                .RequireAuthorization(EditorPolicy.Name)
+                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         } else {
             app.MapMethods("/assistant", ["GET", "POST", "HEAD"], AssistantDisabled);
             app.MapMethods("/assistant/{**path}", ["GET", "POST", "HEAD"], AssistantDisabled);
