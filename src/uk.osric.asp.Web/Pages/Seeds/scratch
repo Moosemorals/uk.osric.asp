@@ -81,7 +81,9 @@ has this page's history and a <strong>Restore from seed</strong> button.</p>
         <legend>This page's own source</legend>
         <textarea name="template" id="template" rows="24" cols="70" wrap="off" spellcheck="false" aria-describedby="template-hint"><%= draft %></textarea>
         <p id="template-hint">Saving compiles before it stores, so a template with an error is still
-        saved and reported above. This is a demonstration page, not the editor.</p>
+        saved and reported above. The page is wrapped in the site's layout, so whatever you save must
+        set a title: <code>&lt;% ctx.Features.GetRequired&lt;IPageLayout&gt;().Title = "Scratch"; %&gt;</code>.
+        This is a demonstration page, not the editor.</p>
     </fieldset>
     <button type="submit">Save this page</button>
 </form>
