@@ -31,7 +31,9 @@ carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md)
 out of the assistant shell-file work of 2026-11-09 (DEC-198). IDEA-023 came out of the
 [assistant-memory planning](../plans/assistant-memory.md) of 2026-11-09: that plan gave the assistant
 a memory and left the page that shows it to its owner behind, and [its own plan](../plans/assistant-memory-page.md)
-has now built it.
+has now built it. IDEA-024 and IDEA-025 came out of [the page-first plan](../plans/page-first.md) of
+2026-11-09 (DEC-205): the rule that anything a page can serve is a page, and the two things the shell
+still does because a page cannot (an archive, and a live run).
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -49,6 +51,8 @@ has now built it.
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
+| [IDEA-024](IDEA-024.md) | — | L | `/admin/import` and `/admin/export` are shell code because an archive is not a form |
+| [IDEA-025](IDEA-025.md) | — | L | The assistant's conversation is a stream and a set of host actions, not a page |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
