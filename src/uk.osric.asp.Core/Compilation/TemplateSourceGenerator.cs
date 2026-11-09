@@ -10,6 +10,15 @@ public static class TemplateSourceGenerator {
 
     private const string TemplateName = "page";
 
+    // The scaffold is compiled with nullable analysis on, so page code sees `ctx.User` as `PageUser?`
+    // the way the product's own code does. Every line the generator wrote is wrapped in the disabled
+    // context and every mapped region in the enabled one, so a diagnostic can only ever be about the
+    // page: an unmapped warning is dropped by PageCompiler.MapDiagnostics, and a generator bug would
+    // then be invisible. The directive is outside the region on purpose - inside it, `#line` would map
+    // the directive's own line onto the author's, shifting every position after it.
+    private const string NullableEnable = "#nullable enable";
+    private const string NullableDisable = "#nullable disable";
+
     // The page contract's namespace, as text: Core references nothing, so it cannot name the SDK at
     // compile time. PageApiPolicy reads this one rather than keeping a second copy.
     internal const string SdkNamespace = "uk.osric.asp.Sdk";
@@ -48,6 +57,11 @@ public static class TemplateSourceGenerator {
         }
 
         StringBuilder result = new();
+
+        // The scaffold is nullable-oblivious from its first line: the compilation enables nullable
+        // analysis, and only a mapped region turns it back on.
+        result.Append(NullableDisable);
+        result.Append(Environment.NewLine);
 
         // The generated using stays for the page's own convenience; the generated signature names the
         // SDK explicitly below, so a page type called IContext or IHandler cannot shadow it.
@@ -114,12 +128,16 @@ public static class TemplateSourceGenerator {
     private static void AppendMapped(StringBuilder result, Token token) {
         // Token.Position is template space, which is exactly what #line expects. Padding the first
         // line to the token's template column makes Roslyn's column match the author's column too.
+        result.Append(NullableEnable);
+        result.Append(Environment.NewLine);
         result.Append($"#line {token.Position.Line} \"{TemplateName}\"");
         result.Append(Environment.NewLine);
         result.Append(' ', token.Position.Column - 1);
         result.Append(token.Value);
         result.Append(Environment.NewLine);
         result.Append("#line default");
+        result.Append(Environment.NewLine);
+        result.Append(NullableDisable);
         result.Append(Environment.NewLine);
     }
 
@@ -132,6 +150,10 @@ public static class TemplateSourceGenerator {
             token.Position,
             token.Value[..leadingWhitespaceLength]);
 
+        // Both mapped regions in a write - the opener's `ctx.Write(` and the expression - belong to
+        // the page, so one enable covers them and one disable closes them.
+        result.Append(NullableEnable);
+        result.Append(Environment.NewLine);
         result.Append($"#line {opener.Line} \"{TemplateName}\"");
         result.Append(Environment.NewLine);
         result.Append(' ', opener.Column - 1);
@@ -144,6 +166,8 @@ public static class TemplateSourceGenerator {
         result.Append(expression);
         result.Append(Environment.NewLine);
         result.Append("#line default");
+        result.Append(Environment.NewLine);
+        result.Append(NullableDisable);
         result.Append(Environment.NewLine);
         result.Append(");");
         result.Append(Environment.NewLine);

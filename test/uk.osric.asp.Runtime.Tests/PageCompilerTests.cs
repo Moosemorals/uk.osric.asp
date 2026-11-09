@@ -130,6 +130,78 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
+    public void APageThatDereferencesTheIdentityWithoutAGuardWarns() {
+        CompileResult result = Compile("<% ctx.Write(ctx.User.Name); %>");
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Warning
+                && diagnostic.Message.Contains("CS8602", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void APageThatGuardsTheIdentityIntoALocalDoesNotWarn() {
+        CompileResult result = Compile("""
+            <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+            <p><%= user.Name %></p>
+            """);
+
+        Assert.That(result.Diagnostics, Is.Empty, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Image, Is.Not.Null);
+    }
+
+    [Test]
+    public void AWarningDoesNotStopTheImageBeingEmitted() {
+        CompileResult result = Compile("<% ctx.Write(ctx.User.Name); %>");
+
+        Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
+        Assert.That(result.Symbols, Is.Not.Null.And.Not.Empty);
+        Assert.That(result.Diagnostics.Select(diagnostic => diagnostic.Severity),
+            Is.All.EqualTo(PageDiagnosticSeverity.Warning));
+    }
+
+    [Test]
+    public void AWarningIsReportedAtTheTemplateLineTheAuthorWrote() {
+        CompileResult result = Compile("first\nsecond\n<% ctx.Write(ctx.User.Name); %>");
+
+        PageDiagnostic warning = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS8602", StringComparison.Ordinal));
+
+        Assert.That(warning.Position?.Line, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void ADiagnosticFromTheGeneratedScaffoldIsNotReportedAsThePages() {
+        const string source = """
+            #nullable disable
+            using uk.osric.asp.Sdk;
+            public class GeneratedPage : uk.osric.asp.Sdk.IHandler {
+            public async global::System.Threading.Tasks.Task HandleAsync(uk.osric.asp.Sdk.IContext ctx) {
+            int unused = 1;
+            }}
+            """;
+
+        CompileResult result = Compiler.Compile(new GeneratedSource(source));
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Diagnostics, Is.Empty);
+    }
+
+    [Test]
+    public void AnObliviousPageStillCompiles() {
+        CompileResult result = Compile("""
+            <%
+            #nullable disable
+            ctx.Write(ctx.User.Name);
+            %>
+            """);
+
+        Assert.That(result.Diagnostics, Is.Empty, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Image, Is.Not.Null);
+    }
+
+    [Test]
     public void AnUnclosedBlockIsReportedAtTheEndOfTheTemplate() {
         CompileResult result = Compile("<% if (true) { %>");
 
@@ -327,7 +399,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void RuntimeIdStartsWithTheFormatAndPolicyVersions() {
-        Assert.That(PageCompiler.RuntimeId, Does.StartWith("5:3:"));
+        Assert.That(PageCompiler.RuntimeId, Does.StartWith("6:3:"));
     }
 
     [Test]

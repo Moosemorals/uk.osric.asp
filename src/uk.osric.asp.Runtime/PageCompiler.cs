@@ -15,7 +15,7 @@ public sealed class PageCompiler : IPageCompiler {
     // Bump this when a change outside the SDK and Core invalidates stored images: the compiler
     // options, the reference set, or how a compiled handler is invoked. The SDK's module version id
     // covers the page contract; Core's covers the generated source and its diagnostics.
-    private const string FormatVersion = "5";
+    private const string FormatVersion = "6";
 
     // Bump this whenever PageApiPolicy changes. The policy is applied when a page compiles, so an
     // image built under different rules would otherwise keep being served without ever being rechecked.
@@ -60,7 +60,12 @@ public sealed class PageCompiler : IPageCompiler {
             assemblyName: $"Dynamic_{Guid.NewGuid():N}",
             syntaxTrees: [tree],
             references: _references,
+            // A page is analysed exactly as the product's own code is, so `ctx.User` is `PageUser?`
+            // in a page too. The generated scaffold disables nullable analysis around every line it
+            // wrote itself, so a warning here can only be about the page. The promise is held by
+            // ScaffoldTests, not by runtime policy.
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+                .WithNullableContextOptions(NullableContextOptions.Enable)
         );
 
         // The policy runs before emit, so a page that may not use an API never becomes an image that
@@ -101,6 +106,12 @@ public sealed class PageCompiler : IPageCompiler {
 
     // Mapped diagnostics belong to the page. Unmapped ones belong to generated code; they are a
     // fault unless a mapped error already explains the broken parse. Unmapped warnings are dropped.
+    //
+    // Dropping them silently is only safe because the scaffold is nullable-oblivious: the generator
+    // wraps every line it wrote in `#nullable disable`, so a warning from generated code cannot
+    // happen in the first place. Making an unmapped warning fatal instead would turn a new Roslyn
+    // release into a 500 on a working page; ScaffoldTests is where that promise is checked, at build
+    // time rather than at request time.
     private static List<PageDiagnostic> MapDiagnostics(IEnumerable<Diagnostic> diagnostics) {
         List<PageDiagnostic> mapped = [];
         List<Diagnostic> unmappedErrors = [];

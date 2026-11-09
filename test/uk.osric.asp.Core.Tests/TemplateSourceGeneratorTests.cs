@@ -43,7 +43,7 @@ public sealed class TemplateSourceGeneratorTests {
         string source = Generate(template);
 
         Assert.That(source, Does.Contain($"{call}{Environment.NewLine}"));
-        Assert.That(source, Does.Contain($"{expression}{Environment.NewLine}#line default{Environment.NewLine});"));
+        Assert.That(source, Does.Contain($"{expression}{Environment.NewLine}#line default{Environment.NewLine}#nullable disable{Environment.NewLine});"));
     }
 
     [Test]
@@ -61,14 +61,14 @@ public sealed class TemplateSourceGeneratorTests {
         string source = Generate(template);
 
         Assert.That(source, Does.Contain($"{call}{Environment.NewLine}"));
-        Assert.That(source, Does.Contain($"{expression}{Environment.NewLine}#line default{Environment.NewLine});"));
+        Assert.That(source, Does.Contain($"{expression}{Environment.NewLine}#line default{Environment.NewLine}#nullable disable{Environment.NewLine});"));
     }
 
     [Test]
     public void OnlyOneTrailingSemicolonIsRemoved() {
         string source = Generate("<%== ctx.Path; ; %>");
 
-        Assert.That(source, Does.Contain($"ctx.Path; {Environment.NewLine}#line default{Environment.NewLine});"));
+        Assert.That(source, Does.Contain($"ctx.Path; {Environment.NewLine}#line default{Environment.NewLine}#nullable disable{Environment.NewLine});"));
     }
 
     [Test]
@@ -85,7 +85,7 @@ public sealed class TemplateSourceGeneratorTests {
 
         Assert.That(source, Does.Contain(
             $"#line 1 \"page\"{Environment.NewLine}  ctx.Write({Environment.NewLine}"
-            + $"#line 2 \"page\"{Environment.NewLine}    ctx.Path{Environment.NewLine}#line default{Environment.NewLine});"));
+            + $"#line 2 \"page\"{Environment.NewLine}    ctx.Path{Environment.NewLine}#line default{Environment.NewLine}#nullable disable{Environment.NewLine});"));
     }
 
     [TestCase("<%=   %>", 1, 1)]
@@ -267,7 +267,7 @@ public sealed class TemplateSourceGeneratorTests {
             $"ctx.Write({Environment.NewLine}"
             + $"#line 1 \"page\"{Environment.NewLine}"));
         Assert.That(source, Does.Contain(
-            $"await ctx.Path.ToStringAsync(){Environment.NewLine}#line default{Environment.NewLine});"));
+            $"await ctx.Path.ToStringAsync(){Environment.NewLine}#line default{Environment.NewLine}#nullable disable{Environment.NewLine});"));
     }
 
     [Test]
@@ -304,5 +304,36 @@ public sealed class TemplateSourceGeneratorTests {
 
         Assert.That(result.Source, Is.Not.Null);
         Assert.That(result.Errors, Is.Empty);
+    }
+
+    [Test]
+    public void TheScaffoldStartsNullableOblivious() {
+        string source = Generate("Hello");
+
+        Assert.That(source, Does.StartWith("#nullable disable" + Environment.NewLine));
+    }
+
+    [Test]
+    public void TheNullableDirectiveIsWrittenOutsideTheMappedRegion() {
+        string source = Generate("first\n<% int value = 1; %>");
+
+        // Inside a region, `#line` would map the directive's own line onto the author's, moving every
+        // position after it. Outside, the directive's line is the generator's own.
+        Assert.That(source, Does.Contain(
+            $"#nullable enable{Environment.NewLine}#line 2 \"page\"{Environment.NewLine}"));
+        Assert.That(source, Does.Contain(
+            $"#line default{Environment.NewLine}#nullable disable{Environment.NewLine}"));
+    }
+
+    [Test]
+    public void APageThatDisablesNullableForItselfKeepsItDisabled() {
+        string source = Generate("<%\n#nullable disable\nctx.Write(ctx.User.Name);\n%>");
+
+        // The generator's directive is the one before the region; the page's own is the first line of
+        // its code, copied through untouched. Inside the region the last directive wins, which is how
+        // a page that wants to be oblivious says so.
+        Assert.That(source, Does.Contain(
+            $"#nullable enable{Environment.NewLine}#line 1 \"page\"{Environment.NewLine}"
+            + $"  {Environment.NewLine}#nullable disable{Environment.NewLine}ctx.Write(ctx.User.Name);"));
     }
 }
