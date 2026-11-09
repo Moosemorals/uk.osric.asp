@@ -56,6 +56,17 @@ ul.diagnostics {
     outline-offset: 2px;
 }
 
+/* A <th> in the body is the row's own name — a page key, a revision — so it reads from the same edge
+   as the cells beside it; only a column header keeps the centring a bare <th> gets from the browser.
+   The listing tables, and the read-only ones on /pages and /recent, are all written this way. */
+th {
+    text-align: start;
+}
+
+thead th {
+    text-align: center;
+}
+
 /* The listing: one line per page, with the actions in a column after the name. A table would need
    a header for each of those verbs and an empty cell for every row that has fewer of them. */
 .pages {
