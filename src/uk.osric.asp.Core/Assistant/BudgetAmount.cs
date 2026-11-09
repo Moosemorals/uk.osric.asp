@@ -22,27 +22,57 @@ public static class BudgetAmount {
     /// <returns>The figure with a unit letter only when it is at least a thousand.</returns>
     public static string Format(long value) {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
-        if (value < 1_000) {
-            return value.ToString(CultureInfo.InvariantCulture);
+
+        return Format((double)value);
+    }
+
+    /// <summary>Formats a measured value as at most three significant figures and a unit letter.</summary>
+    /// <param name="value">The figure to format; it may be negative.</param>
+    /// <returns>
+    /// The figure with a unit letter from a thousand upwards, and up to three significant figures
+    /// below it, so an axis tick reads <c>1.2k</c> or <c>0.25</c> rather than <c>1.048576e+06</c>.
+    /// </returns>
+    public static string Format(double value) {
+        if (!double.IsFinite(value)) {
+            return "0";
         }
 
-        decimal scaled = value;
+        string sign = value < 0 ? "-" : string.Empty;
+        double magnitude = Math.Abs(value);
+
+        if (magnitude < 1_000) {
+            return sign + Significant(magnitude);
+        }
+
         int unit = -1;
-        while (scaled >= 1_000 && unit < Units.Length - 1) {
-            scaled /= 1_000;
+        while (magnitude >= 1_000 && unit < Units.Length - 1) {
+            magnitude /= 1_000;
             unit++;
         }
 
-        scaled = scaled < 10
-            ? Math.Round(scaled, 1, MidpointRounding.AwayFromZero)
-            : Math.Round(scaled, 0, MidpointRounding.AwayFromZero);
+        magnitude = magnitude < 10
+            ? Math.Round(magnitude, 1, MidpointRounding.AwayFromZero)
+            : Math.Round(magnitude, 0, MidpointRounding.AwayFromZero);
 
         // Rounding 999.6k up would print a fourth digit, so it rolls over to the next unit instead.
-        if (scaled >= 1_000 && unit < Units.Length - 1) {
-            scaled /= 1_000;
+        if (magnitude >= 1_000 && unit < Units.Length - 1) {
+            magnitude /= 1_000;
             unit++;
         }
 
-        return scaled.ToString("0.#", CultureInfo.InvariantCulture) + Units[unit];
+        return sign + magnitude.ToString("0.#", CultureInfo.InvariantCulture) + Units[unit];
+    }
+
+    // Three significant figures, without an exponent and without trailing zeros.
+    private static string Significant(double value) {
+        if (value == 0) {
+            return "0";
+        }
+
+        int decimals = Math.Clamp(2 - (int)Math.Floor(Math.Log10(value)), 0, 9);
+
+        return value.ToString("F" + decimals.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)
+            .TrimEnd('0')
+            .TrimEnd('.');
     }
 }

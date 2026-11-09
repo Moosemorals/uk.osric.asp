@@ -27,11 +27,11 @@ internal static class ChartChrome {
     /// <summary>The size of the title.</summary>
     internal const double TitleFontSize = 12;
 
-    private const double LeftPad = 6;
-    private const double RightPad = 6;
-    private const double KeyWidth = 14;
-    private const double KeyGap = 4;
-    private const double ItemGap = 12;
+    internal const double LeftPad = 6;
+    internal const double RightPad = 6;
+    internal const double KeyWidth = 14;
+    internal const double KeyGap = 4;
+    internal const double ItemGap = 12;
 
     /// <summary>Writes the opening element, the names and the visible title, and returns the band's foot.</summary>
     /// <param name="svg">The drawing being written.</param>
@@ -49,28 +49,41 @@ internal static class ChartChrome {
             .Append("\" role=\"img\">\n");
         svg.Append("<title>").Append(SvgText.Escape(frame.Title)).Append("</title>\n");
         svg.Append("<desc>").Append(SvgText.Escape(description)).Append("</desc>\n");
+
+        // The title is what a reader reaches for, so it is the link that opens the chart on its own.
+        if (frame.TitleHref is { Length: > 0 } href) {
+            svg.Append("<a class=\"chart-title-link\" href=\"").Append(SvgText.Escape(href)).Append("\">");
+        }
+
         svg.Append("<text class=\"chart-title\" x=\"").Append(SvgText.Number(LeftPad))
             .Append("\" y=\"").Append(SvgText.Number(TitleFontSize + 2))
             .Append("\" font-size=\"").Append(SvgText.Number(TitleFontSize))
             .Append("\" fill=\"#222222\" text-anchor=\"start\">").Append(SvgText.Escape(frame.Title))
-            .Append("</text>\n");
+            .Append("</text>");
+
+        if (frame.TitleHref is { Length: > 0 }) {
+            svg.Append("</a>");
+        }
+
+        svg.Append('\n');
 
         return TitleHeight;
     }
 
-    /// <summary>Writes a swatch, a dash sample and a label for each series, and returns the plot's top.</summary>
-    /// <param name="svg">The drawing being written.</param>
+    /// <summary>Lays out a legend band and returns the plot's top.</summary>
     /// <param name="size">The full drawing area.</param>
     /// <param name="top">The band's foot, from <see cref="Begin"/>.</param>
     /// <param name="labels">The series labels, in series order.</param>
-    internal static double Legend(StringBuilder svg, ChartSize size, double top, IReadOnlyList<string> labels) {
-        ArgumentNullException.ThrowIfNull(svg);
+    /// <param name="plotTop">Where the plot starts once the legend has wrapped.</param>
+    internal static IReadOnlyList<LegendEntry> LayoutLegend(
+        ChartSize size,
+        double top,
+        IReadOnlyList<string> labels,
+        out double plotTop) {
+
         ArgumentNullException.ThrowIfNull(labels);
 
-        if (labels.Count == 0) {
-            return top;
-        }
-
+        List<LegendEntry> entries = [];
         double x = LeftPad;
         double y = top;
 
@@ -81,27 +94,42 @@ internal static class ChartChrome {
                 y += LegendRowHeight;
             }
 
-            string dash = SvgText.SeriesDash(index) is { } pattern
-                ? " stroke-dasharray=\"" + pattern + "\""
-                : string.Empty;
-
-            svg.Append("<line class=\"chart-legend-key ").Append(SvgText.SeriesColour(index))
-                .Append("\" x1=\"").Append(SvgText.Number(x))
-                .Append("\" y1=\"").Append(SvgText.Number(y + 4))
-                .Append("\" x2=\"").Append(SvgText.Number(x + KeyWidth))
-                .Append("\" y2=\"").Append(SvgText.Number(y + 4))
-                .Append("\" stroke=\"").Append(SvgText.SeriesStroke(index))
-                .Append("\" stroke-width=\"2\"").Append(dash).Append("/>\n");
-            svg.Append("<text class=\"chart-legend-label\" x=\"").Append(SvgText.Number(x + KeyWidth + KeyGap))
-                .Append("\" y=\"").Append(SvgText.Number(y + 8))
-                .Append("\" font-size=\"").Append(SvgText.Number(FontSize))
-                .Append("\" fill=\"#444444\" text-anchor=\"start\">").Append(SvgText.Escape(labels[index]))
-                .Append("</text>\n");
-
+            entries.Add(new LegendEntry(index, x, y));
             x += width;
         }
 
-        return y + LegendRowHeight + 2;
+        plotTop = labels.Count == 0 ? top : y + LegendRowHeight + 2;
+
+        return entries;
+    }
+
+    /// <summary>Writes one legend entry: the series' dash sample and its label.</summary>
+    /// <param name="svg">The drawing being written.</param>
+    /// <param name="entry">Where the entry goes.</param>
+    /// <param name="label">The series label.</param>
+    /// <remarks>
+    /// The caller writes this inside the series' own anchor, so hovering or clicking the legend entry
+    /// has the same effect as hovering or clicking the line it names.
+    /// </remarks>
+    internal static void WriteLegendItem(StringBuilder svg, LegendEntry entry, string label) {
+        ArgumentNullException.ThrowIfNull(svg);
+
+        string dash = SvgText.SeriesDash(entry.Index) is { } pattern
+            ? " stroke-dasharray=\"" + pattern + "\""
+            : string.Empty;
+
+        svg.Append("<line class=\"chart-legend-key ").Append(SvgText.SeriesColour(entry.Index))
+            .Append("\" x1=\"").Append(SvgText.Number(entry.X))
+            .Append("\" y1=\"").Append(SvgText.Number(entry.Y + 4))
+            .Append("\" x2=\"").Append(SvgText.Number(entry.X + KeyWidth))
+            .Append("\" y2=\"").Append(SvgText.Number(entry.Y + 4))
+            .Append("\" stroke=\"").Append(SvgText.SeriesStroke(entry.Index))
+            .Append("\" stroke-width=\"2\"").Append(dash).Append("/>\n");
+        svg.Append("<text class=\"chart-legend-label\" x=\"").Append(SvgText.Number(entry.X + KeyWidth + KeyGap))
+            .Append("\" y=\"").Append(SvgText.Number(entry.Y + 8))
+            .Append("\" font-size=\"").Append(SvgText.Number(FontSize))
+            .Append("\" fill=\"#444444\" text-anchor=\"start\">").Append(SvgText.Escape(label))
+            .Append("</text>\n");
     }
 
     /// <summary>Writes the empty state in place of a plot.</summary>
@@ -121,6 +149,25 @@ internal static class ChartChrome {
             .Append("</text>\n");
     }
 
+    /// <summary>Draws the plot's border: the axes at the edges of the drawn area.</summary>
+    /// <param name="svg">The drawing being written.</param>
+    /// <param name="left">The plot's left edge.</param>
+    /// <param name="top">The plot's top edge.</param>
+    /// <param name="width">The plot's width.</param>
+    /// <param name="height">The plot's height.</param>
+    /// <remarks>
+    /// Drawn after the grid and before the series, so it is a frame rather than a line across the data.
+    /// </remarks>
+    internal static void Border(StringBuilder svg, double left, double top, double width, double height) {
+        ArgumentNullException.ThrowIfNull(svg);
+
+        svg.Append("<rect class=\"chart-frame\" x=\"").Append(SvgText.Number(left))
+            .Append("\" y=\"").Append(SvgText.Number(top))
+            .Append("\" width=\"").Append(SvgText.Number(width))
+            .Append("\" height=\"").Append(SvgText.Number(height))
+            .Append("\" fill=\"none\" stroke=\"#999999\" stroke-width=\"1\" vector-effect=\"non-scaling-stroke\"/>\n");
+    }
+
     /// <summary>Describes a time series for the drawing's <c>desc</c>.</summary>
     /// <param name="x">The time axis.</param>
     /// <param name="y">The value axis.</param>
@@ -138,3 +185,9 @@ internal static class ChartChrome {
             : local.ToString("HH:mm", CultureInfo.InvariantCulture);
     }
 }
+
+/// <summary>Where one legend entry sits.</summary>
+/// <param name="Index">The series position, which decides the colour and the dash.</param>
+/// <param name="X">The left edge of the key sample.</param>
+/// <param name="Y">The top of the entry.</param>
+internal readonly record struct LegendEntry(int Index, double X, double Y);

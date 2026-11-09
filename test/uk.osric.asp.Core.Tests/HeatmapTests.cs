@@ -99,6 +99,44 @@ public sealed class HeatmapTests {
     }
 
     [Test]
+    public void EveryRowIsAnAnchorSoHoveringOrClickingItWorksLikeASeries() {
+        string svg = Render(Row("0.5", 3), Row("+Inf", 4));
+
+        Assert.That(svg, Does.Contain("<a class=\"heat-row\" id=\"test-r1\" href=\"#test-r1\" tabindex=\"-1\">"));
+        Assert.That(svg, Does.Contain("<a class=\"heat-row\" id=\"test-r2\""));
+        Assert.That(svg, Does.Contain("<title>0.5 seconds</title>"), "the row names itself on hover");
+    }
+
+    [Test]
+    public void TheBlocksTouch() {
+        string svg = Render(Row("0.5", 1, 100));
+
+        // Two differently shaded columns fill the plot width exactly: no gap between neighbours.
+        Assert.That(svg, Does.Contain("width=\"165\""), "half of a 330-wide plot");
+    }
+
+    [Test]
+    public void ABucketBoundaryIsWrittenWithoutAnExponent() {
+        string svg = Render(Row("1.048576e+06", 3));
+
+        Assert.That(svg, Does.Contain(">1M</text>"), "the row label");
+        Assert.That(svg, Does.Contain(">1M: 3 renders/s"));
+        Assert.That(svg, Does.Not.Contain("1.048576e+06"));
+    }
+
+    [Test]
+    public void TheShadeLegendSitsUnderTheTitleRatherThanOnTheAxis() {
+        string svg = Render(Row("0.5", 3));
+
+        int legend = svg.IndexOf(" legend\"", StringComparison.Ordinal);
+        int axisLabel = svg.IndexOf(">05:00</text>", StringComparison.Ordinal);
+
+        Assert.That(legend, Is.GreaterThanOrEqualTo(0));
+        Assert.That(axisLabel, Is.GreaterThan(legend), "the shade legend comes before the time axis");
+        Assert.That(LabelTop(svg, "0.5"), Is.GreaterThan(30), "and above the plot, not over the axis");
+    }
+
+    [Test]
     public void TheDrawingCarriesItsOwnTitleAndTheShadeLegend() {
         string svg = Render(Row("0.5", 3, 12));
 

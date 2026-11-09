@@ -43,7 +43,8 @@ public sealed class StackedAreaChartTests {
     public void EveryBandIsAnAnchorThatNamesItself() {
         string svg = Render(Series("hit", (0, 1), (60, 1)));
 
-        Assert.That(svg, Does.Contain("<a class=\"series-link\" id=\"test-s1\" href=\"#test-s1\" tabindex=\"-1\">"));
+        Assert.That(svg, Does.Contain("<a class=\"series-link series-1\" id=\"test-s1\" href=\"#test-s1\" tabindex=\"-1\">"));
+        Assert.That(svg, Does.Contain("class=\"chart-legend-label\""), "the legend entry lives in the band's anchor");
         Assert.That(svg, Does.Contain("<path class=\"series area series-1\""));
     }
 

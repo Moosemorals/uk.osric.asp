@@ -47,13 +47,13 @@ public sealed class StatusEndpointTests {
     }
 
     [Test]
-    public async Task EveryPanelIsAFigureWithOneCaptionLink() {
+    public async Task EveryPanelIsAFigureWhoseTitlesLinkToTheChart() {
         string body = await RenderAsync("");
 
         Assert.That(Count(body, "<figure class=\"panel\">"), Is.EqualTo(StatusCatalogue.Panels.Count));
-        Assert.That(Count(body, "<figcaption>"), Is.EqualTo(StatusCatalogue.Panels.Count));
+        Assert.That(Count(body, "class=\"chart-title-link\""), Is.EqualTo(StatusCatalogue.Panels.Count));
         Assert.That(Count(body, "href=\"/status/chart?panel="), Is.EqualTo(StatusCatalogue.Panels.Count));
-        Assert.That(body, Does.Contain("aria-label=\"Open chart: Render duration\""));
+        Assert.That(body, Does.Not.Contain("<figcaption>"));
     }
 
     [Test]
