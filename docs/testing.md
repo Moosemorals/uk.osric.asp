@@ -156,7 +156,7 @@ make test-runtime      # runtime tests only
 make test-web          # web tests only
 make test-integration  # the composed pipeline only, against a throwaway database
 make browsers          # download the Firefox build the browser suite drives, once
-make test-browser      # the real host in Firefox, with a scripted provider
+make test-browser      # the real host in Firefox, with a scripted provider; `make deploy` runs it too
 make test-browser-live # the tests that call the configured provider and cost tokens
 make mutation-core     # mutation-test Core: does the suite notice a change in the code?
 make mutation-runtime  # the same for the page compiler
@@ -175,12 +175,13 @@ there.
 
 ## The browser suite
 
-`test/uk.osric.asp.Web.BrowserTests` is opt-in and out of `make check`, for the same reason
-`image-check` is: it needs a downloaded browser, it takes a couple of minutes, and a suite that can
-flake is a suite people stop running. It references neither the app nor the test doubles the other
-suites use. Instead it starts the built app as a child process on a loopback port, with a throwaway
-SQLite file and a scripted provider, and drives the pages it serves with Playwright and Firefox — the
-browser the site is read in.
+`test/uk.osric.asp.Web.BrowserTests` is out of `make check`, for the same reason `image-check` is: it
+needs a downloaded browser, it takes a couple of minutes, and a suite that can flake is a suite people
+stop running. `make deploy` runs it before the image is built (DEC-179), because a deploy is where two
+minutes is cheap and where "the site serves a page in a browser" has to be true. It references neither
+the app nor the test doubles the other suites use. Instead it starts the built app as a child process
+on a loopback port, with a throwaway SQLite file and a scripted provider, and drives the pages it
+serves with Playwright and Firefox — the browser the site is read in.
 
 - `BrowserHost` starts the app, reads the port it bound, waits for `/heath` and seeds one account
   through the real `users` command. It runs the host as `Staging`: not `Production`, so the auth and
@@ -233,9 +234,10 @@ local tool, so a fresh checkout needs `dotnet tool restore` (the targets do it).
 ## The gate
 
 There is no CI service in this repository: `make check` is the gate, run on demand. `make deploy` runs
-it before the image is built, and `make ci` adds a clean tree at both ends — nothing left over from an
-earlier run may hide a missing input, and a build that rewrites a tracked file fails rather than being
-noticed weeks later (BUG-11).
+it before the image is built, plus the browser suite, which is the one check too slow for the gate a
+change is run against all day (DEC-179). `make ci` adds a clean tree at both ends — nothing left over
+from an earlier run may hide a missing input, and a build that rewrites a tracked file fails rather
+than being noticed weeks later (BUG-11).
 
 `make ci` also runs `image-check`: two fresh publishes and two uncached builds of one commit must
 produce one image id, because a reproducible image is the only reason a commit tag can stand for the

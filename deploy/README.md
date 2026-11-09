@@ -86,16 +86,17 @@ and applies them.
    ```
 
    That runs the same gate as a commit (`make check`: formatting, licences, package audit, all four
-   suites and a Release publish), builds and pushes the image, pulls it as `deploy`, installs the
-   network and the app's user quadlet, restarts the app, writes the Prometheus config and quadlet and
-   restarts that, then writes the Caddyfile to `/etc/caddy/` with sudo, installs the Caddy unit,
-   reloads systemd and restarts Caddy. Caddy obtains a certificate on first request, so the site is
-   reachable a few seconds later.
+   suites and a Release publish), then the browser suite in Firefox — two minutes, and `make browsers`
+   installs Firefox the first time — before it builds and pushes the image, pulls it as `deploy`,
+   installs the network and the app's user quadlet, restarts the app, writes the Prometheus config and
+   quadlet and restarts that, then writes the Caddyfile to `/etc/caddy/` with sudo, installs the Caddy
+   unit, reloads systemd and restarts Caddy. Caddy obtains a certificate on first request, so the site
+   is reachable a few seconds later.
 
    The target refuses to run from a tree with uncommitted changes, because the image is tagged with
    its commit and that tag is only meaningful if the commit is the tree (`ALLOW_DIRTY=1` overrides,
-   for a deliberate one-off). It runs the gate (`make check`) before the image is built, pushes the
-   commit tag alongside `IMAGE_TAG`, and it does not report success until
+   for a deliberate one-off). It runs the gate and the browser suite before the image is built, pushes
+   the commit tag alongside `IMAGE_TAG`, and it does not report success until
    `http://127.0.0.1:8080/heath` answers: a restart that leaves the unit failed is a failed deploy,
    not a quiet one.
 
@@ -105,11 +106,11 @@ and applies them.
 ## Day-to-day
 
 - **New code:** commit it, then back up storage, then `make deploy HOST=deploy@<server-ip>`
-  (guards, checks, builds, pushes, pulls, restarts, waits for `/heath`).
-- **The gate:** `make check`, run by hand when you want it — `make deploy` runs it anyway. `make ci`
-  is the slower version that starts from `make clean` and fails if the build dirties the tree; run it
-  before a release, or from any machine that is asked to prove the tree. Neither needs a CI service,
-  an account or a secret, and nothing runs them behind a `git push`.
+  (guards, checks, runs the browser suite, builds, pushes, pulls, restarts, waits for `/heath`).
+- **The gate:** `make check`, run by hand when you want it — `make deploy` runs it anyway, with the
+  browser suite after it. `make ci` is the slower version that starts from `make clean` and fails if
+  the build dirties the tree; run it before a release, or from any machine that is asked to prove the
+  tree. Neither needs a CI service, an account or a secret, and nothing runs them behind a `git push`.
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
 - **Page assistant:** disabled by default. `make deploy` keeps an empty, mode `0600`
   `~/.config/uk.osric.asp/assistant.env` for the `deploy` user, because the container cannot start

@@ -107,6 +107,7 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | `make test-runtime` | Runtime tests only |
 | `make test-web` | Web shell and storage tests only |
 | `make test-integration` | The composed pipeline against a throwaway database |
+| `make test-browser` | The real host in Firefox, with a scripted provider (`make browsers` installs Firefox once) |
 | `make user-add ACCOUNT=...` | Create a local editor account |
 | `make user-passwd ACCOUNT=...` | Change a password and sign out every existing session |
 | `make user-list` | List local accounts |
@@ -122,7 +123,7 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | `make license-check` | Fail if the tree is not REUSE compliant |
 | `make migration NAME=...` | Add a storage migration |
 | `make image` | Build the OCI image into podman |
-| `make deploy HOST=deploy@server` | Build, push and restart on the server |
+| `make deploy HOST=deploy@server` | The gate plus the browser suite, build, push and restart on the server |
 | `make clean` | Delete `artifacts/` |
 
 ## Dependencies
