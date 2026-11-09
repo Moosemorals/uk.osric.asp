@@ -90,9 +90,7 @@ public static class ContextTrimmer {
     /// <summary>Measures a transcript, so a page can show a budget the trimmer agrees with.</summary>
     /// <param name="messages">The transcript, in provider order.</param>
     /// <returns>The characters the transcript needs, counted exactly as <see cref="Trim"/> counts them.</returns>
-    public static long MeasureChars(IReadOnlyList<ChatMessage> messages) {
-        ArgumentNullException.ThrowIfNull(messages);
-
+    internal static long MeasureChars(IReadOnlyList<ChatMessage> messages) {
         long total = 0;
         foreach (ChatMessage message in messages) {
             total += MessageLength(message);

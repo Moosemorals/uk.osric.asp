@@ -27,7 +27,7 @@ not write. IDEA-020 came out of the import and export planning, and records why 
 is not part of that flow. IDEA-022 came out of the [page-features
 planning](../plans/archive/page-features.md) of 2026-11-08, and is worth doing now that storage and
 fetch have left `SimpleContext`. ARCH-14 came out of the nullable-pages discussion of 2026-11-08 and
-carries a [plan of its own](../plans/page-diagnostics-and-visibility.md).
+carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md).
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -36,15 +36,14 @@ carries a [plan of its own](../plans/page-diagnostics-and-visibility.md).
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore action |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
-| [ARCH-14](ARCH-14.md) | Low | L | Pages compile without nullable analysis, and the assembly surface is wider than the rule |
 | [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [OPS-06](OPS-06.md) | Low | M | Half of what the site measures, the dashboard never shows |
-| [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter and linked diagnostics |
+| [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-014](IDEA-014.md) | — | M | A page cannot keep per-visitor state, so a form cannot redirect and say why |
-| [IDEA-015](IDEA-015.md) | — | M | A page cannot read the page store, so the listing and history are shell views |
+| [IDEA-015](IDEA-015.md) | — | M | A page cannot read the page store, so the listing and history are shell views; the listing is now a table with a State column |
 | [IDEA-016](IDEA-016.md) | — | M | A page cannot save its own source |
 | [IDEA-017](IDEA-017.md) | — | L | A page cannot edit another page, so the editor cannot become one |
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
@@ -107,6 +106,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | ARCH-06 | The authenticated `/edit` listing shows live pages and tombstones, offers new-page navigation, and avoids loading revision bodies for the listing. See [the implementation plan](../plans/archive/editor-tools-and-immutable-assets.md) |
 | ARCH-10 | Delete tombstones a page while retaining its revisions; saving recreates it in the same history. Explicit scrub removes the path's revisions with bounded SQLite secure-delete/WAL cleanup and clearly documented limitations. Startup seeding respects tombstones. See [the implementation plan](../plans/archive/editor-tools-and-immutable-assets.md) and [deployment guidance](../../deploy/README.md#storage-and-migrations) |
 | ARCH-11 | The authenticated editor generates C# from the saved template without compiling, rendering or saving it; output is encoded and parse errors show diagnostics. See [the implementation plan](../plans/archive/editor-tools-and-immutable-assets.md) |
+| ARCH-14 | Pages compile with nullable analysis on and a generated scaffold that is oblivious, so a warning is always about page code; a warning never stops a page. A stored image's state is one of five values, shown in a State column on the page list and carried by `list_pages`. The assembly surface is the smallest the product binds to, held by `Microsoft.CodeAnalysis.PublicApiAnalyzers` with an empty `PublicAPI.Shipped.txt` in `Web`; arguments are validated at the boundary and trusted after it. See [the implementation plan](../plans/archive/page-diagnostics-and-visibility.md) |
 | ARCH-12 | `<%= %>` writes an escaped value and `<%== %>` a raw one; the tokenizer carries `Write`/`WriteRaw`, the generated expression keeps its template position, and an empty expression is `TEMPLATE002`. See [the implementation plan](../plans/archive/template-value-output.md) |
 | IDEA-011 | Pages opt into the existing sign-in with `ctx.User` and `ctx.RedirectToLogin()`. A signed-out visitor returns to the canonical path and raw query; an authenticated `POST` carries `ctx.AntiforgeryField` and is checked by the host before the page runs; an authenticated response is `no-store` with no validator. See [the implementation plan](../plans/archive/page-authentication.md) |
 | IDEA-004 | The page contract moved to its own reference-free assembly, `uk.osric.asp.Sdk`. `Core` is host support again, the policy allows the SDK namespace and nothing else, the load context refuses `Core`, and `RuntimeId` carries both module version ids. See [the plan](../plans/archive/page-sdk-split.md) |

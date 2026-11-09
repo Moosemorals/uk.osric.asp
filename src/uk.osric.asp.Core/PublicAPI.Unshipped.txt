@@ -1,0 +1,3 @@
+#nullable enable
+uk.osric.asp.Core.Markdown.LinkPolicy
+static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool

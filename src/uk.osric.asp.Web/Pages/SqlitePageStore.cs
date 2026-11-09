@@ -17,7 +17,8 @@ using uk.osric.asp.Web.Storage;
 internal sealed class SqlitePageStore(
     StorageDbContext database,
     ILogger<SqlitePageStore> logger,
-    PageStorageRefresh? storageRefresh = null) : IPageStore {
+    PageStorageRefresh? storageRefresh = null,
+    string? currentRuntimeId = null) : IPageStore {
 
     private const int CheckpointAttempts = 3;
 
@@ -37,13 +38,27 @@ internal sealed class SqlitePageStore(
         return revision is null ? null : ToPage(revision);
     }
 
-    public async Task<IReadOnlyList<PageHeadSummary>> ListPagesAsync(CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<PageListing>> ListPagesAsync(CancellationToken cancellationToken = default) {
+        // The head's current revision is joined the way ListRevisionsAsync joins it, and the state is
+        // decided client-side because PageImageState cannot be translated into SQL.
         var rows = await database.Set<PageHead>().AsNoTracking()
-            .Select(head => new { head.Path, head.IsDeleted })
+            .Join(database.Set<PageRevision>().AsNoTracking(),
+                head => new { head.RevisionId, head.Path },
+                revision => new { revision.RevisionId, revision.Path },
+                (head, revision) => new {
+                    head.Path,
+                    head.IsDeleted,
+                    revision.RuntimeId,
+                    HasImage = revision.Image != null,
+                    HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
+                })
             .ToArrayAsync(cancellationToken);
 
         return [.. rows.OrderBy(row => row.Path, StringComparer.Ordinal)
-            .Select(row => new PageHeadSummary(PagePath.Normalize(row.Path), row.IsDeleted))];
+            .Select(row => new PageListing(
+                PagePath.Normalize(row.Path),
+                row.IsDeleted,
+                PageImageStatus.Describe(row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId)))];
     }
 
     public async Task<string?> GetSourceAsync(PagePath path, CancellationToken cancellationToken = default) {

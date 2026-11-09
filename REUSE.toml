@@ -23,6 +23,13 @@ path = [
 SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
 SPDX-License-Identifier = "MIT"
 
+# The PublicAPI files are read by an analyzer that owns their format: a comment line is parsed as an
+# entry for a symbol called "# SPDX-License-Identifier", so the licence tags cannot live in them.
+[[annotations]]
+path = ["src/uk.osric.asp.*/PublicAPI.Shipped.txt", "src/uk.osric.asp.*/PublicAPI.Unshipped.txt"]
+SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
+SPDX-License-Identifier = "MIT"
+
 # EF generates migrations and snapshots from our model.
 [[annotations]]
 path = ["src/uk.osric.asp.Web/Storage/Migrations/*.cs"]

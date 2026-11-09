@@ -1,0 +1,5 @@
+#nullable enable
+uk.osric.asp.Runtime.MarkdownRenderer
+uk.osric.asp.Runtime.MarkdownRenderer.MarkdownRenderer() -> void
+uk.osric.asp.Runtime.MarkdownRenderer.ToHtml(string! markdown) -> string!
+uk.osric.asp.Runtime.MarkdownRenderer.ToRestrictedHtml(string! markdown) -> string!

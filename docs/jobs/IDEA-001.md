@@ -12,6 +12,9 @@ SPDX-License-Identifier: MIT
 | Location | `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` |
 | Spike | [Ace evaluated as the editor](../spikes/ace-editor.md) |
 
+> **Partly done.** The page list is a table with a **State** column (DEC-165), so a page that
+> compiles with warnings is visible without opening it. What is left here is the editor itself.
+
 ## Idea
 
 The editor is a form around a ten-row `<textarea>` with a Save button. There is no syntax

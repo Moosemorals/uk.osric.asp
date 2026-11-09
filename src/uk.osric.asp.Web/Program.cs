@@ -156,7 +156,13 @@ internal class Program {
             services.GetRequiredService<MarkdownRenderer>()));
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
-        builder.Services.AddScoped<IPageStore, SqlitePageStore>();
+        // The listing judges an image's state against the running build, so the store is told which
+        // one that is; a page whose image came from an earlier build says Stale until it is requested.
+        builder.Services.AddScoped<IPageStore>(services => new SqlitePageStore(
+            services.GetRequiredService<StorageDbContext>(),
+            services.GetRequiredService<ILogger<SqlitePageStore>>(),
+            services.GetRequiredService<PageStorageRefresh>(),
+            services.GetRequiredService<IPageCompiler>().RuntimeId));
         builder.Services.AddScoped<IPageBatchStore, SqlitePageBatchStore>();
         builder.Services.AddScoped<PageArchiveReader>();
         builder.Services.AddScoped<ImportProcessor>();

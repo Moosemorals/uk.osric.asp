@@ -132,6 +132,46 @@ EF Core generated migrations come back `public`: change the new `partial class .
 `internal` to keep the rule. The designer and snapshot halves are already `internal` by default, and
 the EF tools discover internal migrations and an internal `StorageDbContext` without trouble.
 
+**The rule is a build failure, not a paragraph.** Each product assembly carries
+`Microsoft.CodeAnalysis.PublicApiAnalyzers` and a `PublicAPI.Shipped.txt`. `Web`'s is empty, which is
+the application-assembly rule in one file: a public type or member there fails the build (RS0016)
+until someone declares it, and removing a declared one fails it too (RS0017). `Core` and `Runtime`
+declare what they publish, and `Sdk` declares its whole contract shipped, because widening the page
+contract should be a deliberate edit to a file rather than an accident. `PublicAPI.Unshipped.txt`
+holds entries for API added since the last release; an entry moves to the shipped file when it lands.
+The files also carry `#nullable enable` so the analyzer records annotations, and because the analyzer
+parses every line as an entry they can carry no licence header: they are named in `REUSE.toml`
+instead. `Web` keeps that marker in its unshipped file, which is why its shipped file is empty.
+
+The narrowing loop is mechanical and compiler-checked: make a member `internal`, build, and the
+compiler names the one caller that needs it. `InternalsVisibleTo` keeps the test projects compiling,
+so only a genuine cross-assembly use fails. The public surface that remains is the smallest the
+product's own assemblies and tests bind to; nothing was narrowed because it looked unused.
+
+### Validation
+
+An argument is validated where it enters the assembly, and trusted everywhere after that.
+
+- **Public methods and constructors** of public types in `Core`, `Runtime` and `Sdk` validate their
+  arguments: `ArgumentNullException.ThrowIfNull` for a reference, and
+  `ArgumentException.ThrowIfNullOrWhiteSpace` for a string that must carry something. Values a page
+  constructs, such as `NavLink` and `HttpFetchRequest`, are checked at construction for the same
+  reason: a page is compiled outside the product's boundary and can pass `null` to anything.
+- **The `Sdk` implementations** in `Web` — `SimpleContext` and the capability classes — validate the
+  same way, because a page calls them with its own values.
+- **Endpoint handlers** validate what they bind from the request. `HandleAsync(HttpContext, …)` and
+  its siblings check `context` and any value they read out of it; ASP.NET is a boundary the compiler
+  does not type.
+- **`internal` and `private` members do not validate.** The compiler has checked the call, and a
+  guard there only fires for a `null!` or a reflective caller; the members that carried one had it
+  removed. A member reached by a test through `InternalsVisibleTo` is not a reason to keep one.
+- **A DI-injected constructor does not validate.** The container is the only caller and does not
+  pass null. Guards stay where a constructor is also reached with data the container did not supply.
+
+A record's positional parameters are the one place the rule reads differently: the record is a value
+the product passes around, its properties are set through `init`, and the member that consumes the
+value is where it is checked. A record a page builds is the exception, and is checked on construction.
+
 ## Page contract
 
 A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it
@@ -692,6 +732,30 @@ diagnostics without recompiling, and the editor shows them after the save instea
 edit. `Diagnostics` is a JSON array of positioned, severity-tagged `PageDiagnostic` values; a
 warning-only page stores its image and reports "Saved with warnings." A compiler fault stores only
 the source, so the author's edit survives and the next request retries.
+
+**A compiled page is nullable-enabled and its generated scaffold is not.** `PageCompiler` sets
+`NullableContextOptions.Enable`, so a page is analysed exactly as the product's own code is and
+`ctx.User` is `PageUser?` in a page. `TemplateSourceGenerator` wraps every line it wrote itself in
+`#nullable disable` and every region it mapped to the template in `#nullable enable`, with the
+directive outside the `#line` region so the author's line and column do not move. The scaffold is
+oblivious because `PageCompiler.MapDiagnostics` drops an unmapped warning: without the wrapper, a
+warning from generated code would reach nobody, and a page would lose a diagnosis rather than gain
+one. The promise is held by `ScaffoldTests` in `Runtime.Tests`, which compiles every token shape
+under the production options and fails the build if the wrapper starts warning; making an unmapped
+warning fatal instead would turn a new Roslyn release into a `500` on a working page. A page may
+still write `#nullable disable` in its own code, and within its own block that wins.
+
+**A warning never stops a page.** Emit either succeeds or reports an error, so `CompileResult.Image`
+is null exactly when the page did not compile and a stored image with bytes carries warnings only.
+A page that compiles with warnings is served, stored and hashed exactly as a clean one; the editor,
+the history and the assistant all say `Compiled with warnings`, and no path treats it as a failure.
+
+A page's state is one of five values, described in one place (`PageImageState` in `Web`): `Not
+compiled` (no image record), `Stale` (an image from another `RuntimeId`), `Compile failed` (a record
+with no assembly), `Compiled with warnings` and `Compiled`. The `/edit` listing shows it in a State
+column, and the assistant's `list_pages` carries the same word per page. Staleness is judged on
+`RuntimeId` alone — hashing every template to answer a listing is not worth it — and a retained
+revision is history rather than stale, so only the listing and the assistant pass the running build.
 
 Compilation happens before the database write, so the lazy path stores its result only while the
 page still holds the content it compiled, and re-reads the page when a save landed in between. A

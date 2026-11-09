@@ -1,0 +1,577 @@
+#nullable enable
+abstract uk.osric.asp.Core.Assistant.ChatStreamEvent.<Clone>$() -> uk.osric.asp.Core.Assistant.ChatStreamEvent!
+const uk.osric.asp.Core.Assistant.ConversationTitle.MaximumLength = 200 -> int
+const uk.osric.asp.Core.Assistant.ConversationTitle.NewConversation = "New conversation" -> string!
+override sealed uk.osric.asp.Core.Assistant.ContentDelta.Equals(uk.osric.asp.Core.Assistant.ChatStreamEvent? other) -> bool
+override sealed uk.osric.asp.Core.Assistant.Finished.Equals(uk.osric.asp.Core.Assistant.ChatStreamEvent? other) -> bool
+override sealed uk.osric.asp.Core.Assistant.ReasoningDelta.Equals(uk.osric.asp.Core.Assistant.ChatStreamEvent? other) -> bool
+override sealed uk.osric.asp.Core.Assistant.ToolCallDelta.Equals(uk.osric.asp.Core.Assistant.ChatStreamEvent? other) -> bool
+override sealed uk.osric.asp.Core.Assistant.UsageEvent.Equals(uk.osric.asp.Core.Assistant.ChatStreamEvent? other) -> bool
+override uk.osric.asp.Core.Assistant.BudgetSnapshot.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.BudgetSnapshot.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.BudgetSnapshot.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ChatMessage.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ChatMessage.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ChatMessage.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ChatRequest.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ChatRequest.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ChatRequest.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ChatResponse.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ChatResponse.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ChatResponse.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ChatStreamEvent.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ChatStreamEvent.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ChatStreamEvent.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ContentDelta.<Clone>$() -> uk.osric.asp.Core.Assistant.ContentDelta!
+override uk.osric.asp.Core.Assistant.ContentDelta.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ContentDelta.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ContentDelta.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ContextTrimResult.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ContextTrimResult.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ContextTrimResult.ToString() -> string!
+override uk.osric.asp.Core.Assistant.Finished.<Clone>$() -> uk.osric.asp.Core.Assistant.Finished!
+override uk.osric.asp.Core.Assistant.Finished.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.Finished.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.Finished.ToString() -> string!
+override uk.osric.asp.Core.Assistant.PageRangeEditResult.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.PageRangeEditResult.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.PageRangeEditResult.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ReasoningDelta.<Clone>$() -> uk.osric.asp.Core.Assistant.ReasoningDelta!
+override uk.osric.asp.Core.Assistant.ReasoningDelta.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ReasoningDelta.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ReasoningDelta.ToString() -> string!
+override uk.osric.asp.Core.Assistant.TokenUsage.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.TokenUsage.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.TokenUsage.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ToolArgumentSchema.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ToolArgumentSchema.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ToolArgumentSchema.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ToolArgumentsResult.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ToolArgumentsResult.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ToolArgumentsResult.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ToolCall.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ToolCall.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ToolCall.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ToolCallDelta.<Clone>$() -> uk.osric.asp.Core.Assistant.ToolCallDelta!
+override uk.osric.asp.Core.Assistant.ToolCallDelta.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ToolCallDelta.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ToolCallDelta.ToString() -> string!
+override uk.osric.asp.Core.Assistant.ToolDefinition.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.ToolDefinition.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ToolDefinition.ToString() -> string!
+override uk.osric.asp.Core.Assistant.UsageEvent.<Clone>$() -> uk.osric.asp.Core.Assistant.UsageEvent!
+override uk.osric.asp.Core.Assistant.UsageEvent.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.UsageEvent.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.UsageEvent.ToString() -> string!
+override uk.osric.asp.Core.Assistant.VirtualShellCommand.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.VirtualShellCommand.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.VirtualShellCommand.ToString() -> string!
+override uk.osric.asp.Core.Assistant.VirtualShellParseResult.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.VirtualShellParseResult.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.VirtualShellParseResult.ToString() -> string!
+override uk.osric.asp.Core.Charting.ChartAxis.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Charting.ChartAxis.GetHashCode() -> int
+override uk.osric.asp.Core.Charting.ChartAxis.ToString() -> string!
+override uk.osric.asp.Core.Charting.ChartPoint.GetHashCode() -> int
+override uk.osric.asp.Core.Charting.ChartScale.GetHashCode() -> int
+override uk.osric.asp.Core.Charting.ChartSeries.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Charting.ChartSeries.GetHashCode() -> int
+override uk.osric.asp.Core.Charting.ChartSeries.ToString() -> string!
+override uk.osric.asp.Core.Charting.ChartSize.GetHashCode() -> int
+override uk.osric.asp.Core.Charting.ChartTick.GetHashCode() -> int
+override uk.osric.asp.Core.Charting.HeatmapRow.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Charting.HeatmapRow.GetHashCode() -> int
+override uk.osric.asp.Core.Charting.HeatmapRow.ToString() -> string!
+override uk.osric.asp.Core.Compilation.ApiReference.GetHashCode() -> int
+override uk.osric.asp.Core.Compilation.GeneratedSource.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Compilation.GeneratedSource.GetHashCode() -> int
+override uk.osric.asp.Core.Compilation.GeneratedSource.ToString() -> string!
+override uk.osric.asp.Core.Compilation.PageDiagnostic.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Compilation.PageDiagnostic.GetHashCode() -> int
+override uk.osric.asp.Core.Compilation.PageDiagnostic.ToString() -> string!
+override uk.osric.asp.Core.Compilation.ScriptSkeletonResult.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Compilation.ScriptSkeletonResult.GetHashCode() -> int
+override uk.osric.asp.Core.Compilation.ScriptSkeletonResult.ToString() -> string!
+override uk.osric.asp.Core.Compilation.TemplateGenerationResult.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Compilation.TemplateGenerationResult.GetHashCode() -> int
+override uk.osric.asp.Core.Compilation.TemplateGenerationResult.ToString() -> string!
+override uk.osric.asp.Core.Compilation.TemplatePosition.GetHashCode() -> int
+override uk.osric.asp.Core.Compilation.TemplatePosition.ToString() -> string!
+override uk.osric.asp.Core.Pages.PagePath.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Pages.PagePath.GetHashCode() -> int
+override uk.osric.asp.Core.Pages.PagePath.ToString() -> string!
+static uk.osric.asp.Core.Assistant.BudgetAmount.Format(long value) -> string!
+static uk.osric.asp.Core.Assistant.BudgetSnapshot.Empty.get -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
+static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! messages, int steps, int toolCalls, int? completionTokens) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
+static uk.osric.asp.Core.Assistant.BudgetSnapshot.operator !=(uk.osric.asp.Core.Assistant.BudgetSnapshot? left, uk.osric.asp.Core.Assistant.BudgetSnapshot? right) -> bool
+static uk.osric.asp.Core.Assistant.BudgetSnapshot.operator ==(uk.osric.asp.Core.Assistant.BudgetSnapshot? left, uk.osric.asp.Core.Assistant.BudgetSnapshot? right) -> bool
+static uk.osric.asp.Core.Assistant.ChatMessage.operator !=(uk.osric.asp.Core.Assistant.ChatMessage? left, uk.osric.asp.Core.Assistant.ChatMessage? right) -> bool
+static uk.osric.asp.Core.Assistant.ChatMessage.operator ==(uk.osric.asp.Core.Assistant.ChatMessage? left, uk.osric.asp.Core.Assistant.ChatMessage? right) -> bool
+static uk.osric.asp.Core.Assistant.ChatRequest.operator !=(uk.osric.asp.Core.Assistant.ChatRequest? left, uk.osric.asp.Core.Assistant.ChatRequest? right) -> bool
+static uk.osric.asp.Core.Assistant.ChatRequest.operator ==(uk.osric.asp.Core.Assistant.ChatRequest? left, uk.osric.asp.Core.Assistant.ChatRequest? right) -> bool
+static uk.osric.asp.Core.Assistant.ChatResponse.operator !=(uk.osric.asp.Core.Assistant.ChatResponse? left, uk.osric.asp.Core.Assistant.ChatResponse? right) -> bool
+static uk.osric.asp.Core.Assistant.ChatResponse.operator ==(uk.osric.asp.Core.Assistant.ChatResponse? left, uk.osric.asp.Core.Assistant.ChatResponse? right) -> bool
+static uk.osric.asp.Core.Assistant.ChatStreamEvent.operator !=(uk.osric.asp.Core.Assistant.ChatStreamEvent? left, uk.osric.asp.Core.Assistant.ChatStreamEvent? right) -> bool
+static uk.osric.asp.Core.Assistant.ChatStreamEvent.operator ==(uk.osric.asp.Core.Assistant.ChatStreamEvent? left, uk.osric.asp.Core.Assistant.ChatStreamEvent? right) -> bool
+static uk.osric.asp.Core.Assistant.ContentDelta.operator !=(uk.osric.asp.Core.Assistant.ContentDelta? left, uk.osric.asp.Core.Assistant.ContentDelta? right) -> bool
+static uk.osric.asp.Core.Assistant.ContentDelta.operator ==(uk.osric.asp.Core.Assistant.ContentDelta? left, uk.osric.asp.Core.Assistant.ContentDelta? right) -> bool
+static uk.osric.asp.Core.Assistant.ContextTrimResult.operator !=(uk.osric.asp.Core.Assistant.ContextTrimResult? left, uk.osric.asp.Core.Assistant.ContextTrimResult? right) -> bool
+static uk.osric.asp.Core.Assistant.ContextTrimResult.operator ==(uk.osric.asp.Core.Assistant.ContextTrimResult? left, uk.osric.asp.Core.Assistant.ContextTrimResult? right) -> bool
+static uk.osric.asp.Core.Assistant.ContextTrimmer.Trim(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! messages, int maximumChars) -> uk.osric.asp.Core.Assistant.ContextTrimResult!
+static uk.osric.asp.Core.Assistant.ConversationTitle.From(string? message) -> string!
+static uk.osric.asp.Core.Assistant.Finished.operator !=(uk.osric.asp.Core.Assistant.Finished? left, uk.osric.asp.Core.Assistant.Finished? right) -> bool
+static uk.osric.asp.Core.Assistant.Finished.operator ==(uk.osric.asp.Core.Assistant.Finished? left, uk.osric.asp.Core.Assistant.Finished? right) -> bool
+static uk.osric.asp.Core.Assistant.PageRangeEditResult.operator !=(uk.osric.asp.Core.Assistant.PageRangeEditResult? left, uk.osric.asp.Core.Assistant.PageRangeEditResult? right) -> bool
+static uk.osric.asp.Core.Assistant.PageRangeEditResult.operator ==(uk.osric.asp.Core.Assistant.PageRangeEditResult? left, uk.osric.asp.Core.Assistant.PageRangeEditResult? right) -> bool
+static uk.osric.asp.Core.Assistant.PageRangeEditor.Replace(string! source, int startLine, int endLine, string! replacement, int maximumChars) -> uk.osric.asp.Core.Assistant.PageRangeEditResult!
+static uk.osric.asp.Core.Assistant.PageWrites.Written(string? toolName, string? resultJson) -> uk.osric.asp.Core.Pages.PagePath?
+static uk.osric.asp.Core.Assistant.ReasoningDelta.operator !=(uk.osric.asp.Core.Assistant.ReasoningDelta? left, uk.osric.asp.Core.Assistant.ReasoningDelta? right) -> bool
+static uk.osric.asp.Core.Assistant.ReasoningDelta.operator ==(uk.osric.asp.Core.Assistant.ReasoningDelta? left, uk.osric.asp.Core.Assistant.ReasoningDelta? right) -> bool
+static uk.osric.asp.Core.Assistant.TokenUsage.operator !=(uk.osric.asp.Core.Assistant.TokenUsage? left, uk.osric.asp.Core.Assistant.TokenUsage? right) -> bool
+static uk.osric.asp.Core.Assistant.TokenUsage.operator ==(uk.osric.asp.Core.Assistant.TokenUsage? left, uk.osric.asp.Core.Assistant.TokenUsage? right) -> bool
+static uk.osric.asp.Core.Assistant.ToolArgumentSchema.operator !=(uk.osric.asp.Core.Assistant.ToolArgumentSchema? left, uk.osric.asp.Core.Assistant.ToolArgumentSchema? right) -> bool
+static uk.osric.asp.Core.Assistant.ToolArgumentSchema.operator ==(uk.osric.asp.Core.Assistant.ToolArgumentSchema? left, uk.osric.asp.Core.Assistant.ToolArgumentSchema? right) -> bool
+static uk.osric.asp.Core.Assistant.ToolArguments.Parse(string! json, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolArgumentSchema!>! schema, int maximumChars) -> uk.osric.asp.Core.Assistant.ToolArgumentsResult!
+static uk.osric.asp.Core.Assistant.ToolArgumentsResult.operator !=(uk.osric.asp.Core.Assistant.ToolArgumentsResult? left, uk.osric.asp.Core.Assistant.ToolArgumentsResult? right) -> bool
+static uk.osric.asp.Core.Assistant.ToolArgumentsResult.operator ==(uk.osric.asp.Core.Assistant.ToolArgumentsResult? left, uk.osric.asp.Core.Assistant.ToolArgumentsResult? right) -> bool
+static uk.osric.asp.Core.Assistant.ToolCall.operator !=(uk.osric.asp.Core.Assistant.ToolCall? left, uk.osric.asp.Core.Assistant.ToolCall? right) -> bool
+static uk.osric.asp.Core.Assistant.ToolCall.operator ==(uk.osric.asp.Core.Assistant.ToolCall? left, uk.osric.asp.Core.Assistant.ToolCall? right) -> bool
+static uk.osric.asp.Core.Assistant.ToolCallDelta.operator !=(uk.osric.asp.Core.Assistant.ToolCallDelta? left, uk.osric.asp.Core.Assistant.ToolCallDelta? right) -> bool
+static uk.osric.asp.Core.Assistant.ToolCallDelta.operator ==(uk.osric.asp.Core.Assistant.ToolCallDelta? left, uk.osric.asp.Core.Assistant.ToolCallDelta? right) -> bool
+static uk.osric.asp.Core.Assistant.ToolDefinition.operator !=(uk.osric.asp.Core.Assistant.ToolDefinition? left, uk.osric.asp.Core.Assistant.ToolDefinition? right) -> bool
+static uk.osric.asp.Core.Assistant.ToolDefinition.operator ==(uk.osric.asp.Core.Assistant.ToolDefinition? left, uk.osric.asp.Core.Assistant.ToolDefinition? right) -> bool
+static uk.osric.asp.Core.Assistant.UsageEvent.operator !=(uk.osric.asp.Core.Assistant.UsageEvent? left, uk.osric.asp.Core.Assistant.UsageEvent? right) -> bool
+static uk.osric.asp.Core.Assistant.UsageEvent.operator ==(uk.osric.asp.Core.Assistant.UsageEvent? left, uk.osric.asp.Core.Assistant.UsageEvent? right) -> bool
+static uk.osric.asp.Core.Assistant.VirtualShellCommand.operator !=(uk.osric.asp.Core.Assistant.VirtualShellCommand? left, uk.osric.asp.Core.Assistant.VirtualShellCommand? right) -> bool
+static uk.osric.asp.Core.Assistant.VirtualShellCommand.operator ==(uk.osric.asp.Core.Assistant.VirtualShellCommand? left, uk.osric.asp.Core.Assistant.VirtualShellCommand? right) -> bool
+static uk.osric.asp.Core.Assistant.VirtualShellParseResult.operator !=(uk.osric.asp.Core.Assistant.VirtualShellParseResult? left, uk.osric.asp.Core.Assistant.VirtualShellParseResult? right) -> bool
+static uk.osric.asp.Core.Assistant.VirtualShellParseResult.operator ==(uk.osric.asp.Core.Assistant.VirtualShellParseResult? left, uk.osric.asp.Core.Assistant.VirtualShellParseResult? right) -> bool
+static uk.osric.asp.Core.Assistant.VirtualShellParser.Parse(string! text) -> uk.osric.asp.Core.Assistant.VirtualShellParseResult!
+static uk.osric.asp.Core.Charting.ChartAxis.operator !=(uk.osric.asp.Core.Charting.ChartAxis? left, uk.osric.asp.Core.Charting.ChartAxis? right) -> bool
+static uk.osric.asp.Core.Charting.ChartAxis.operator ==(uk.osric.asp.Core.Charting.ChartAxis? left, uk.osric.asp.Core.Charting.ChartAxis? right) -> bool
+static uk.osric.asp.Core.Charting.ChartPoint.operator !=(uk.osric.asp.Core.Charting.ChartPoint left, uk.osric.asp.Core.Charting.ChartPoint right) -> bool
+static uk.osric.asp.Core.Charting.ChartPoint.operator ==(uk.osric.asp.Core.Charting.ChartPoint left, uk.osric.asp.Core.Charting.ChartPoint right) -> bool
+static uk.osric.asp.Core.Charting.ChartScale.operator !=(uk.osric.asp.Core.Charting.ChartScale left, uk.osric.asp.Core.Charting.ChartScale right) -> bool
+static uk.osric.asp.Core.Charting.ChartScale.operator ==(uk.osric.asp.Core.Charting.ChartScale left, uk.osric.asp.Core.Charting.ChartScale right) -> bool
+static uk.osric.asp.Core.Charting.ChartSeries.operator !=(uk.osric.asp.Core.Charting.ChartSeries? left, uk.osric.asp.Core.Charting.ChartSeries? right) -> bool
+static uk.osric.asp.Core.Charting.ChartSeries.operator ==(uk.osric.asp.Core.Charting.ChartSeries? left, uk.osric.asp.Core.Charting.ChartSeries? right) -> bool
+static uk.osric.asp.Core.Charting.ChartSize.operator !=(uk.osric.asp.Core.Charting.ChartSize left, uk.osric.asp.Core.Charting.ChartSize right) -> bool
+static uk.osric.asp.Core.Charting.ChartSize.operator ==(uk.osric.asp.Core.Charting.ChartSize left, uk.osric.asp.Core.Charting.ChartSize right) -> bool
+static uk.osric.asp.Core.Charting.ChartTick.operator !=(uk.osric.asp.Core.Charting.ChartTick left, uk.osric.asp.Core.Charting.ChartTick right) -> bool
+static uk.osric.asp.Core.Charting.ChartTick.operator ==(uk.osric.asp.Core.Charting.ChartTick left, uk.osric.asp.Core.Charting.ChartTick right) -> bool
+static uk.osric.asp.Core.Charting.Heatmap.FromCumulative(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! cumulative) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>!
+static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartSize size, string! title, string! yTitle, string! valueUnit) -> string!
+static uk.osric.asp.Core.Charting.HeatmapRow.operator !=(uk.osric.asp.Core.Charting.HeatmapRow? left, uk.osric.asp.Core.Charting.HeatmapRow? right) -> bool
+static uk.osric.asp.Core.Charting.HeatmapRow.operator ==(uk.osric.asp.Core.Charting.HeatmapRow? left, uk.osric.asp.Core.Charting.HeatmapRow? right) -> bool
+static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size) -> string!
+static uk.osric.asp.Core.Charting.NiceTicks.ForTime(System.DateTimeOffset from, System.DateTimeOffset to, System.TimeZoneInfo! zone) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>!
+static uk.osric.asp.Core.Charting.NiceTicks.ForValue(double min, double max) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>!
+static uk.osric.asp.Core.Charting.SvgText.SeriesColour(int index) -> string!
+static uk.osric.asp.Core.Charting.ValueUnit.ForBytes(double min, double max) -> uk.osric.asp.Core.Charting.ChartScale
+static uk.osric.asp.Core.Charting.ValueUnit.ForSeconds(double min, double max) -> uk.osric.asp.Core.Charting.ChartScale
+static uk.osric.asp.Core.Compilation.ApiReference.operator !=(uk.osric.asp.Core.Compilation.ApiReference left, uk.osric.asp.Core.Compilation.ApiReference right) -> bool
+static uk.osric.asp.Core.Compilation.ApiReference.operator ==(uk.osric.asp.Core.Compilation.ApiReference left, uk.osric.asp.Core.Compilation.ApiReference right) -> bool
+static uk.osric.asp.Core.Compilation.GeneratedSource.operator !=(uk.osric.asp.Core.Compilation.GeneratedSource? left, uk.osric.asp.Core.Compilation.GeneratedSource? right) -> bool
+static uk.osric.asp.Core.Compilation.GeneratedSource.operator ==(uk.osric.asp.Core.Compilation.GeneratedSource? left, uk.osric.asp.Core.Compilation.GeneratedSource? right) -> bool
+static uk.osric.asp.Core.Compilation.PageApiPolicy.Check(System.Collections.Generic.IEnumerable<uk.osric.asp.Core.Compilation.ApiReference>! used) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>!
+static uk.osric.asp.Core.Compilation.PageDiagnostic.SortedForDisplay(System.Collections.Generic.IEnumerable<uk.osric.asp.Core.Compilation.PageDiagnostic!>! diagnostics) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>!
+static uk.osric.asp.Core.Compilation.PageDiagnostic.operator !=(uk.osric.asp.Core.Compilation.PageDiagnostic? left, uk.osric.asp.Core.Compilation.PageDiagnostic? right) -> bool
+static uk.osric.asp.Core.Compilation.PageDiagnostic.operator ==(uk.osric.asp.Core.Compilation.PageDiagnostic? left, uk.osric.asp.Core.Compilation.PageDiagnostic? right) -> bool
+static uk.osric.asp.Core.Compilation.ScriptSkeletonResult.operator !=(uk.osric.asp.Core.Compilation.ScriptSkeletonResult? left, uk.osric.asp.Core.Compilation.ScriptSkeletonResult? right) -> bool
+static uk.osric.asp.Core.Compilation.ScriptSkeletonResult.operator ==(uk.osric.asp.Core.Compilation.ScriptSkeletonResult? left, uk.osric.asp.Core.Compilation.ScriptSkeletonResult? right) -> bool
+static uk.osric.asp.Core.Compilation.TemplateFingerprint.Of(string! template) -> string!
+static uk.osric.asp.Core.Compilation.TemplateGenerationResult.operator !=(uk.osric.asp.Core.Compilation.TemplateGenerationResult? left, uk.osric.asp.Core.Compilation.TemplateGenerationResult? right) -> bool
+static uk.osric.asp.Core.Compilation.TemplateGenerationResult.operator ==(uk.osric.asp.Core.Compilation.TemplateGenerationResult? left, uk.osric.asp.Core.Compilation.TemplateGenerationResult? right) -> bool
+static uk.osric.asp.Core.Compilation.TemplateLines.Count(string! input) -> int
+static uk.osric.asp.Core.Compilation.TemplatePosition.operator !=(uk.osric.asp.Core.Compilation.TemplatePosition left, uk.osric.asp.Core.Compilation.TemplatePosition right) -> bool
+static uk.osric.asp.Core.Compilation.TemplatePosition.operator ==(uk.osric.asp.Core.Compilation.TemplatePosition left, uk.osric.asp.Core.Compilation.TemplatePosition right) -> bool
+static uk.osric.asp.Core.Compilation.TemplateScriptSkeleton.Create(string! template) -> uk.osric.asp.Core.Compilation.ScriptSkeletonResult!
+static uk.osric.asp.Core.Compilation.TemplateSourceGenerator.Generate(string! template) -> uk.osric.asp.Core.Compilation.TemplateGenerationResult!
+static uk.osric.asp.Core.Pages.PageContentTypes.Create(string! fallback, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string?>>! extensions) -> uk.osric.asp.Core.Pages.PageContentTypes!
+static uk.osric.asp.Core.Pages.PagePath.Normalize(string? path) -> uk.osric.asp.Core.Pages.PagePath!
+static uk.osric.asp.Core.Pages.PagePath.operator !=(uk.osric.asp.Core.Pages.PagePath? left, uk.osric.asp.Core.Pages.PagePath? right) -> bool
+static uk.osric.asp.Core.Pages.PagePath.operator ==(uk.osric.asp.Core.Pages.PagePath? left, uk.osric.asp.Core.Pages.PagePath? right) -> bool
+static uk.osric.asp.Core.Pages.RevisionHash.Of(string! source, string! creationRuntimeId, System.DateTimeOffset savedAt, string! revisionId) -> string!
+static uk.osric.asp.Core.Text.LowercaseText.Normalize(string! value) -> string!
+static uk.osric.asp.Core.Text.MessageText.Sanitize(string! value) -> string!
+uk.osric.asp.Core.Assistant.ApprovalMode
+uk.osric.asp.Core.Assistant.ApprovalMode.AlwaysApprove = 0 -> uk.osric.asp.Core.Assistant.ApprovalMode
+uk.osric.asp.Core.Assistant.ApprovalMode.RequireApproval = 1 -> uk.osric.asp.Core.Assistant.ApprovalMode
+uk.osric.asp.Core.Assistant.BudgetAmount
+uk.osric.asp.Core.Assistant.BudgetSnapshot
+uk.osric.asp.Core.Assistant.BudgetSnapshot.<Clone>$() -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
+uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long ContextChars, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int CompletionTokens) -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.CompletionTokens.get -> int
+uk.osric.asp.Core.Assistant.BudgetSnapshot.CompletionTokens.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.ContextChars.get -> long
+uk.osric.asp.Core.Assistant.BudgetSnapshot.ContextChars.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long ContextChars, out int Steps, out int ToolCalls, out int LongestArguments, out int LongestResult, out int CompletionTokens) -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.Equals(uk.osric.asp.Core.Assistant.BudgetSnapshot? other) -> bool
+uk.osric.asp.Core.Assistant.BudgetSnapshot.LongestArguments.get -> int
+uk.osric.asp.Core.Assistant.BudgetSnapshot.LongestArguments.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.LongestResult.get -> int
+uk.osric.asp.Core.Assistant.BudgetSnapshot.LongestResult.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.Steps.get -> int
+uk.osric.asp.Core.Assistant.BudgetSnapshot.Steps.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.ToolCalls.get -> int
+uk.osric.asp.Core.Assistant.BudgetSnapshot.ToolCalls.init -> void
+uk.osric.asp.Core.Assistant.ChatMessage
+uk.osric.asp.Core.Assistant.ChatMessage.<Clone>$() -> uk.osric.asp.Core.Assistant.ChatMessage!
+uk.osric.asp.Core.Assistant.ChatMessage.ChatMessage(string! Role, string! Content, string? ToolCallsJson = null, string? ToolCallId = null, string? ToolName = null) -> void
+uk.osric.asp.Core.Assistant.ChatMessage.Content.get -> string!
+uk.osric.asp.Core.Assistant.ChatMessage.Content.init -> void
+uk.osric.asp.Core.Assistant.ChatMessage.Deconstruct(out string! Role, out string! Content, out string? ToolCallsJson, out string? ToolCallId, out string? ToolName) -> void
+uk.osric.asp.Core.Assistant.ChatMessage.Equals(uk.osric.asp.Core.Assistant.ChatMessage? other) -> bool
+uk.osric.asp.Core.Assistant.ChatMessage.Role.get -> string!
+uk.osric.asp.Core.Assistant.ChatMessage.Role.init -> void
+uk.osric.asp.Core.Assistant.ChatMessage.ToolCallId.get -> string?
+uk.osric.asp.Core.Assistant.ChatMessage.ToolCallId.init -> void
+uk.osric.asp.Core.Assistant.ChatMessage.ToolCallsJson.get -> string?
+uk.osric.asp.Core.Assistant.ChatMessage.ToolCallsJson.init -> void
+uk.osric.asp.Core.Assistant.ChatMessage.ToolName.get -> string?
+uk.osric.asp.Core.Assistant.ChatMessage.ToolName.init -> void
+uk.osric.asp.Core.Assistant.ChatRequest
+uk.osric.asp.Core.Assistant.ChatRequest.<Clone>$() -> uk.osric.asp.Core.Assistant.ChatRequest!
+uk.osric.asp.Core.Assistant.ChatRequest.ChatRequest(string! Model, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, double Temperature, int MaxOutputTokens, string! ReasoningField, bool IncludeUsage) -> void
+uk.osric.asp.Core.Assistant.ChatRequest.Deconstruct(out string! Model, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, out double Temperature, out int MaxOutputTokens, out string! ReasoningField, out bool IncludeUsage) -> void
+uk.osric.asp.Core.Assistant.ChatRequest.Equals(uk.osric.asp.Core.Assistant.ChatRequest? other) -> bool
+uk.osric.asp.Core.Assistant.ChatRequest.IncludeUsage.get -> bool
+uk.osric.asp.Core.Assistant.ChatRequest.IncludeUsage.init -> void
+uk.osric.asp.Core.Assistant.ChatRequest.MaxOutputTokens.get -> int
+uk.osric.asp.Core.Assistant.ChatRequest.MaxOutputTokens.init -> void
+uk.osric.asp.Core.Assistant.ChatRequest.Messages.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>!
+uk.osric.asp.Core.Assistant.ChatRequest.Messages.init -> void
+uk.osric.asp.Core.Assistant.ChatRequest.Model.get -> string!
+uk.osric.asp.Core.Assistant.ChatRequest.Model.init -> void
+uk.osric.asp.Core.Assistant.ChatRequest.ReasoningField.get -> string!
+uk.osric.asp.Core.Assistant.ChatRequest.ReasoningField.init -> void
+uk.osric.asp.Core.Assistant.ChatRequest.Temperature.get -> double
+uk.osric.asp.Core.Assistant.ChatRequest.Temperature.init -> void
+uk.osric.asp.Core.Assistant.ChatRequest.Tools.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>!
+uk.osric.asp.Core.Assistant.ChatRequest.Tools.init -> void
+uk.osric.asp.Core.Assistant.ChatResponse
+uk.osric.asp.Core.Assistant.ChatResponse.<Clone>$() -> uk.osric.asp.Core.Assistant.ChatResponse!
+uk.osric.asp.Core.Assistant.ChatResponse.ChatResponse(string! Content, string! Reasoning, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolCall!>! ToolCalls, string? FinishReason, uk.osric.asp.Core.Assistant.TokenUsage? Usage) -> void
+uk.osric.asp.Core.Assistant.ChatResponse.Content.get -> string!
+uk.osric.asp.Core.Assistant.ChatResponse.Content.init -> void
+uk.osric.asp.Core.Assistant.ChatResponse.Deconstruct(out string! Content, out string! Reasoning, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolCall!>! ToolCalls, out string? FinishReason, out uk.osric.asp.Core.Assistant.TokenUsage? Usage) -> void
+uk.osric.asp.Core.Assistant.ChatResponse.Equals(uk.osric.asp.Core.Assistant.ChatResponse? other) -> bool
+uk.osric.asp.Core.Assistant.ChatResponse.FinishReason.get -> string?
+uk.osric.asp.Core.Assistant.ChatResponse.FinishReason.init -> void
+uk.osric.asp.Core.Assistant.ChatResponse.HasContent.get -> bool
+uk.osric.asp.Core.Assistant.ChatResponse.Reasoning.get -> string!
+uk.osric.asp.Core.Assistant.ChatResponse.Reasoning.init -> void
+uk.osric.asp.Core.Assistant.ChatResponse.ToolCalls.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolCall!>!
+uk.osric.asp.Core.Assistant.ChatResponse.ToolCalls.init -> void
+uk.osric.asp.Core.Assistant.ChatResponse.Usage.get -> uk.osric.asp.Core.Assistant.TokenUsage?
+uk.osric.asp.Core.Assistant.ChatResponse.Usage.init -> void
+uk.osric.asp.Core.Assistant.ChatStreamAccumulator
+uk.osric.asp.Core.Assistant.ChatStreamAccumulator.Add(uk.osric.asp.Core.Assistant.ChatStreamEvent! event) -> void
+uk.osric.asp.Core.Assistant.ChatStreamAccumulator.ChatStreamAccumulator() -> void
+uk.osric.asp.Core.Assistant.ChatStreamAccumulator.Complete() -> uk.osric.asp.Core.Assistant.ChatResponse!
+uk.osric.asp.Core.Assistant.ChatStreamEvent
+uk.osric.asp.Core.Assistant.ChatStreamEvent.ChatStreamEvent() -> void
+uk.osric.asp.Core.Assistant.ChatStreamEvent.ChatStreamEvent(uk.osric.asp.Core.Assistant.ChatStreamEvent! original) -> void
+uk.osric.asp.Core.Assistant.ContentDelta
+uk.osric.asp.Core.Assistant.ContentDelta.ContentDelta(string! Text) -> void
+uk.osric.asp.Core.Assistant.ContentDelta.Deconstruct(out string! Text) -> void
+uk.osric.asp.Core.Assistant.ContentDelta.Equals(uk.osric.asp.Core.Assistant.ContentDelta? other) -> bool
+uk.osric.asp.Core.Assistant.ContentDelta.Text.get -> string!
+uk.osric.asp.Core.Assistant.ContentDelta.Text.init -> void
+uk.osric.asp.Core.Assistant.ContextTrimResult
+uk.osric.asp.Core.Assistant.ContextTrimResult.<Clone>$() -> uk.osric.asp.Core.Assistant.ContextTrimResult!
+uk.osric.asp.Core.Assistant.ContextTrimResult.ContextTrimResult(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, int DroppedMessages, string? Error) -> void
+uk.osric.asp.Core.Assistant.ContextTrimResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, out int DroppedMessages, out string? Error) -> void
+uk.osric.asp.Core.Assistant.ContextTrimResult.DroppedMessages.get -> int
+uk.osric.asp.Core.Assistant.ContextTrimResult.DroppedMessages.init -> void
+uk.osric.asp.Core.Assistant.ContextTrimResult.Equals(uk.osric.asp.Core.Assistant.ContextTrimResult? other) -> bool
+uk.osric.asp.Core.Assistant.ContextTrimResult.Error.get -> string?
+uk.osric.asp.Core.Assistant.ContextTrimResult.Error.init -> void
+uk.osric.asp.Core.Assistant.ContextTrimResult.IsTrimmed.get -> bool
+uk.osric.asp.Core.Assistant.ContextTrimResult.Messages.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>!
+uk.osric.asp.Core.Assistant.ContextTrimResult.Messages.init -> void
+uk.osric.asp.Core.Assistant.ContextTrimResult.TrimmingNote.get -> string?
+uk.osric.asp.Core.Assistant.ContextTrimmer
+uk.osric.asp.Core.Assistant.ConversationTitle
+uk.osric.asp.Core.Assistant.Finished
+uk.osric.asp.Core.Assistant.Finished.Deconstruct(out string? Reason) -> void
+uk.osric.asp.Core.Assistant.Finished.Equals(uk.osric.asp.Core.Assistant.Finished? other) -> bool
+uk.osric.asp.Core.Assistant.Finished.Finished(string? Reason) -> void
+uk.osric.asp.Core.Assistant.Finished.Reason.get -> string?
+uk.osric.asp.Core.Assistant.Finished.Reason.init -> void
+uk.osric.asp.Core.Assistant.PageRangeEditResult
+uk.osric.asp.Core.Assistant.PageRangeEditResult.<Clone>$() -> uk.osric.asp.Core.Assistant.PageRangeEditResult!
+uk.osric.asp.Core.Assistant.PageRangeEditResult.Content.get -> string?
+uk.osric.asp.Core.Assistant.PageRangeEditResult.Content.init -> void
+uk.osric.asp.Core.Assistant.PageRangeEditResult.Deconstruct(out string? Content, out string? Error) -> void
+uk.osric.asp.Core.Assistant.PageRangeEditResult.Equals(uk.osric.asp.Core.Assistant.PageRangeEditResult? other) -> bool
+uk.osric.asp.Core.Assistant.PageRangeEditResult.Error.get -> string?
+uk.osric.asp.Core.Assistant.PageRangeEditResult.Error.init -> void
+uk.osric.asp.Core.Assistant.PageRangeEditResult.IsSuccess.get -> bool
+uk.osric.asp.Core.Assistant.PageRangeEditResult.PageRangeEditResult(string? Content, string? Error) -> void
+uk.osric.asp.Core.Assistant.PageRangeEditor
+uk.osric.asp.Core.Assistant.PageWrites
+uk.osric.asp.Core.Assistant.ReasoningDelta
+uk.osric.asp.Core.Assistant.ReasoningDelta.Deconstruct(out string! Text) -> void
+uk.osric.asp.Core.Assistant.ReasoningDelta.Equals(uk.osric.asp.Core.Assistant.ReasoningDelta? other) -> bool
+uk.osric.asp.Core.Assistant.ReasoningDelta.ReasoningDelta(string! Text) -> void
+uk.osric.asp.Core.Assistant.ReasoningDelta.Text.get -> string!
+uk.osric.asp.Core.Assistant.ReasoningDelta.Text.init -> void
+uk.osric.asp.Core.Assistant.TokenUsage
+uk.osric.asp.Core.Assistant.TokenUsage.<Clone>$() -> uk.osric.asp.Core.Assistant.TokenUsage!
+uk.osric.asp.Core.Assistant.TokenUsage.CompletionTokens.get -> int?
+uk.osric.asp.Core.Assistant.TokenUsage.CompletionTokens.init -> void
+uk.osric.asp.Core.Assistant.TokenUsage.Deconstruct(out int? PromptTokens, out int? CompletionTokens) -> void
+uk.osric.asp.Core.Assistant.TokenUsage.Equals(uk.osric.asp.Core.Assistant.TokenUsage? other) -> bool
+uk.osric.asp.Core.Assistant.TokenUsage.PromptTokens.get -> int?
+uk.osric.asp.Core.Assistant.TokenUsage.PromptTokens.init -> void
+uk.osric.asp.Core.Assistant.TokenUsage.TokenUsage(int? PromptTokens, int? CompletionTokens) -> void
+uk.osric.asp.Core.Assistant.ToolArgumentSchema
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.<Clone>$() -> uk.osric.asp.Core.Assistant.ToolArgumentSchema!
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Deconstruct(out string! Name, out uk.osric.asp.Core.Assistant.ToolArgumentType Type, out bool Required) -> void
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Equals(uk.osric.asp.Core.Assistant.ToolArgumentSchema? other) -> bool
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Name.get -> string!
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Name.init -> void
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Required.get -> bool
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Required.init -> void
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.ToolArgumentSchema(string! Name, uk.osric.asp.Core.Assistant.ToolArgumentType Type, bool Required) -> void
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Type.get -> uk.osric.asp.Core.Assistant.ToolArgumentType
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Type.init -> void
+uk.osric.asp.Core.Assistant.ToolArgumentType
+uk.osric.asp.Core.Assistant.ToolArgumentType.Boolean = 2 -> uk.osric.asp.Core.Assistant.ToolArgumentType
+uk.osric.asp.Core.Assistant.ToolArgumentType.Integer = 1 -> uk.osric.asp.Core.Assistant.ToolArgumentType
+uk.osric.asp.Core.Assistant.ToolArgumentType.String = 0 -> uk.osric.asp.Core.Assistant.ToolArgumentType
+uk.osric.asp.Core.Assistant.ToolArguments
+uk.osric.asp.Core.Assistant.ToolArgumentsResult
+uk.osric.asp.Core.Assistant.ToolArgumentsResult.<Clone>$() -> uk.osric.asp.Core.Assistant.ToolArgumentsResult!
+uk.osric.asp.Core.Assistant.ToolArgumentsResult.Deconstruct(out System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>! Values, out string? Error) -> void
+uk.osric.asp.Core.Assistant.ToolArgumentsResult.Equals(uk.osric.asp.Core.Assistant.ToolArgumentsResult? other) -> bool
+uk.osric.asp.Core.Assistant.ToolArgumentsResult.Error.get -> string?
+uk.osric.asp.Core.Assistant.ToolArgumentsResult.Error.init -> void
+uk.osric.asp.Core.Assistant.ToolArgumentsResult.IsSuccess.get -> bool
+uk.osric.asp.Core.Assistant.ToolArgumentsResult.ToolArgumentsResult(System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>! Values, string? Error) -> void
+uk.osric.asp.Core.Assistant.ToolArgumentsResult.Values.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>!
+uk.osric.asp.Core.Assistant.ToolArgumentsResult.Values.init -> void
+uk.osric.asp.Core.Assistant.ToolCall
+uk.osric.asp.Core.Assistant.ToolCall.<Clone>$() -> uk.osric.asp.Core.Assistant.ToolCall!
+uk.osric.asp.Core.Assistant.ToolCall.Arguments.get -> string!
+uk.osric.asp.Core.Assistant.ToolCall.Arguments.init -> void
+uk.osric.asp.Core.Assistant.ToolCall.Deconstruct(out int Index, out string? Id, out string? Name, out string! Arguments) -> void
+uk.osric.asp.Core.Assistant.ToolCall.Equals(uk.osric.asp.Core.Assistant.ToolCall? other) -> bool
+uk.osric.asp.Core.Assistant.ToolCall.Id.get -> string?
+uk.osric.asp.Core.Assistant.ToolCall.Id.init -> void
+uk.osric.asp.Core.Assistant.ToolCall.Index.get -> int
+uk.osric.asp.Core.Assistant.ToolCall.Index.init -> void
+uk.osric.asp.Core.Assistant.ToolCall.Name.get -> string?
+uk.osric.asp.Core.Assistant.ToolCall.Name.init -> void
+uk.osric.asp.Core.Assistant.ToolCall.ToolCall(int Index, string? Id, string? Name, string! Arguments) -> void
+uk.osric.asp.Core.Assistant.ToolCallDelta
+uk.osric.asp.Core.Assistant.ToolCallDelta.Arguments.get -> string?
+uk.osric.asp.Core.Assistant.ToolCallDelta.Arguments.init -> void
+uk.osric.asp.Core.Assistant.ToolCallDelta.Deconstruct(out int Index, out string? Id, out string? Name, out string? Arguments) -> void
+uk.osric.asp.Core.Assistant.ToolCallDelta.Equals(uk.osric.asp.Core.Assistant.ToolCallDelta? other) -> bool
+uk.osric.asp.Core.Assistant.ToolCallDelta.Id.get -> string?
+uk.osric.asp.Core.Assistant.ToolCallDelta.Id.init -> void
+uk.osric.asp.Core.Assistant.ToolCallDelta.Index.get -> int
+uk.osric.asp.Core.Assistant.ToolCallDelta.Index.init -> void
+uk.osric.asp.Core.Assistant.ToolCallDelta.Name.get -> string?
+uk.osric.asp.Core.Assistant.ToolCallDelta.Name.init -> void
+uk.osric.asp.Core.Assistant.ToolCallDelta.ToolCallDelta(int Index, string? Id, string? Name, string? Arguments) -> void
+uk.osric.asp.Core.Assistant.ToolDefinition
+uk.osric.asp.Core.Assistant.ToolDefinition.<Clone>$() -> uk.osric.asp.Core.Assistant.ToolDefinition!
+uk.osric.asp.Core.Assistant.ToolDefinition.Deconstruct(out string! Name, out string! Description, out bool NeedsApproval, out string! ParametersJson) -> void
+uk.osric.asp.Core.Assistant.ToolDefinition.Description.get -> string!
+uk.osric.asp.Core.Assistant.ToolDefinition.Description.init -> void
+uk.osric.asp.Core.Assistant.ToolDefinition.Equals(uk.osric.asp.Core.Assistant.ToolDefinition? other) -> bool
+uk.osric.asp.Core.Assistant.ToolDefinition.Name.get -> string!
+uk.osric.asp.Core.Assistant.ToolDefinition.Name.init -> void
+uk.osric.asp.Core.Assistant.ToolDefinition.NeedsApproval.get -> bool
+uk.osric.asp.Core.Assistant.ToolDefinition.NeedsApproval.init -> void
+uk.osric.asp.Core.Assistant.ToolDefinition.ParametersJson.get -> string!
+uk.osric.asp.Core.Assistant.ToolDefinition.ParametersJson.init -> void
+uk.osric.asp.Core.Assistant.ToolDefinition.ToolDefinition(string! Name, string! Description, bool NeedsApproval, string! ParametersJson) -> void
+uk.osric.asp.Core.Assistant.UsageEvent
+uk.osric.asp.Core.Assistant.UsageEvent.Deconstruct(out uk.osric.asp.Core.Assistant.TokenUsage! Usage) -> void
+uk.osric.asp.Core.Assistant.UsageEvent.Equals(uk.osric.asp.Core.Assistant.UsageEvent? other) -> bool
+uk.osric.asp.Core.Assistant.UsageEvent.Usage.get -> uk.osric.asp.Core.Assistant.TokenUsage!
+uk.osric.asp.Core.Assistant.UsageEvent.Usage.init -> void
+uk.osric.asp.Core.Assistant.UsageEvent.UsageEvent(uk.osric.asp.Core.Assistant.TokenUsage! Usage) -> void
+uk.osric.asp.Core.Assistant.VirtualShellCommand
+uk.osric.asp.Core.Assistant.VirtualShellCommand.<Clone>$() -> uk.osric.asp.Core.Assistant.VirtualShellCommand!
+uk.osric.asp.Core.Assistant.VirtualShellCommand.Arguments.get -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Core.Assistant.VirtualShellCommand.Arguments.init -> void
+uk.osric.asp.Core.Assistant.VirtualShellCommand.Deconstruct(out string! Name, out System.Collections.Generic.IReadOnlyList<string!>! Arguments) -> void
+uk.osric.asp.Core.Assistant.VirtualShellCommand.Equals(uk.osric.asp.Core.Assistant.VirtualShellCommand? other) -> bool
+uk.osric.asp.Core.Assistant.VirtualShellCommand.Name.get -> string!
+uk.osric.asp.Core.Assistant.VirtualShellCommand.Name.init -> void
+uk.osric.asp.Core.Assistant.VirtualShellCommand.VirtualShellCommand(string! Name, System.Collections.Generic.IReadOnlyList<string!>! Arguments) -> void
+uk.osric.asp.Core.Assistant.VirtualShellParseResult
+uk.osric.asp.Core.Assistant.VirtualShellParseResult.<Clone>$() -> uk.osric.asp.Core.Assistant.VirtualShellParseResult!
+uk.osric.asp.Core.Assistant.VirtualShellParseResult.Command.get -> uk.osric.asp.Core.Assistant.VirtualShellCommand?
+uk.osric.asp.Core.Assistant.VirtualShellParseResult.Command.init -> void
+uk.osric.asp.Core.Assistant.VirtualShellParseResult.Deconstruct(out uk.osric.asp.Core.Assistant.VirtualShellCommand? Command, out string? Error) -> void
+uk.osric.asp.Core.Assistant.VirtualShellParseResult.Equals(uk.osric.asp.Core.Assistant.VirtualShellParseResult? other) -> bool
+uk.osric.asp.Core.Assistant.VirtualShellParseResult.Error.get -> string?
+uk.osric.asp.Core.Assistant.VirtualShellParseResult.Error.init -> void
+uk.osric.asp.Core.Assistant.VirtualShellParseResult.VirtualShellParseResult(uk.osric.asp.Core.Assistant.VirtualShellCommand? Command, string? Error) -> void
+uk.osric.asp.Core.Assistant.VirtualShellParser
+uk.osric.asp.Core.Charting.ChartAxis
+uk.osric.asp.Core.Charting.ChartAxis.<Clone>$() -> uk.osric.asp.Core.Charting.ChartAxis!
+uk.osric.asp.Core.Charting.ChartAxis.ChartAxis(string! Title, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>! Ticks) -> void
+uk.osric.asp.Core.Charting.ChartAxis.Deconstruct(out string! Title, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>! Ticks) -> void
+uk.osric.asp.Core.Charting.ChartAxis.Equals(uk.osric.asp.Core.Charting.ChartAxis? other) -> bool
+uk.osric.asp.Core.Charting.ChartAxis.Ticks.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>!
+uk.osric.asp.Core.Charting.ChartAxis.Ticks.init -> void
+uk.osric.asp.Core.Charting.ChartAxis.Title.get -> string!
+uk.osric.asp.Core.Charting.ChartAxis.Title.init -> void
+uk.osric.asp.Core.Charting.ChartPoint
+uk.osric.asp.Core.Charting.ChartPoint.At.get -> System.DateTimeOffset
+uk.osric.asp.Core.Charting.ChartPoint.At.init -> void
+uk.osric.asp.Core.Charting.ChartPoint.ChartPoint() -> void
+uk.osric.asp.Core.Charting.ChartPoint.ChartPoint(System.DateTimeOffset At, double? Value) -> void
+uk.osric.asp.Core.Charting.ChartPoint.Deconstruct(out System.DateTimeOffset At, out double? Value) -> void
+uk.osric.asp.Core.Charting.ChartPoint.Equals(uk.osric.asp.Core.Charting.ChartPoint other) -> bool
+uk.osric.asp.Core.Charting.ChartPoint.Value.get -> double?
+uk.osric.asp.Core.Charting.ChartPoint.Value.init -> void
+uk.osric.asp.Core.Charting.ChartScale
+uk.osric.asp.Core.Charting.ChartScale.ChartScale() -> void
+uk.osric.asp.Core.Charting.ChartScale.ChartScale(double Min, double Max, string! Unit) -> void
+uk.osric.asp.Core.Charting.ChartScale.Deconstruct(out double Min, out double Max, out string! Unit) -> void
+uk.osric.asp.Core.Charting.ChartScale.Equals(uk.osric.asp.Core.Charting.ChartScale other) -> bool
+uk.osric.asp.Core.Charting.ChartScale.Max.get -> double
+uk.osric.asp.Core.Charting.ChartScale.Max.init -> void
+uk.osric.asp.Core.Charting.ChartScale.Min.get -> double
+uk.osric.asp.Core.Charting.ChartScale.Min.init -> void
+uk.osric.asp.Core.Charting.ChartScale.Unit.get -> string!
+uk.osric.asp.Core.Charting.ChartScale.Unit.init -> void
+uk.osric.asp.Core.Charting.ChartSeries
+uk.osric.asp.Core.Charting.ChartSeries.<Clone>$() -> uk.osric.asp.Core.Charting.ChartSeries!
+uk.osric.asp.Core.Charting.ChartSeries.ChartSeries(string! Label, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartPoint>! Points) -> void
+uk.osric.asp.Core.Charting.ChartSeries.Deconstruct(out string! Label, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartPoint>! Points) -> void
+uk.osric.asp.Core.Charting.ChartSeries.Equals(uk.osric.asp.Core.Charting.ChartSeries? other) -> bool
+uk.osric.asp.Core.Charting.ChartSeries.Label.get -> string!
+uk.osric.asp.Core.Charting.ChartSeries.Label.init -> void
+uk.osric.asp.Core.Charting.ChartSeries.Points.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartPoint>!
+uk.osric.asp.Core.Charting.ChartSeries.Points.init -> void
+uk.osric.asp.Core.Charting.ChartSize
+uk.osric.asp.Core.Charting.ChartSize.ChartSize() -> void
+uk.osric.asp.Core.Charting.ChartSize.ChartSize(double Width, double Height) -> void
+uk.osric.asp.Core.Charting.ChartSize.Deconstruct(out double Width, out double Height) -> void
+uk.osric.asp.Core.Charting.ChartSize.Equals(uk.osric.asp.Core.Charting.ChartSize other) -> bool
+uk.osric.asp.Core.Charting.ChartSize.Height.get -> double
+uk.osric.asp.Core.Charting.ChartSize.Height.init -> void
+uk.osric.asp.Core.Charting.ChartSize.Width.get -> double
+uk.osric.asp.Core.Charting.ChartSize.Width.init -> void
+uk.osric.asp.Core.Charting.ChartTick
+uk.osric.asp.Core.Charting.ChartTick.ChartTick() -> void
+uk.osric.asp.Core.Charting.ChartTick.ChartTick(double Position, string! Label) -> void
+uk.osric.asp.Core.Charting.ChartTick.Deconstruct(out double Position, out string! Label) -> void
+uk.osric.asp.Core.Charting.ChartTick.Equals(uk.osric.asp.Core.Charting.ChartTick other) -> bool
+uk.osric.asp.Core.Charting.ChartTick.Label.get -> string!
+uk.osric.asp.Core.Charting.ChartTick.Label.init -> void
+uk.osric.asp.Core.Charting.ChartTick.Position.get -> double
+uk.osric.asp.Core.Charting.ChartTick.Position.init -> void
+uk.osric.asp.Core.Charting.Heatmap
+uk.osric.asp.Core.Charting.HeatmapRow
+uk.osric.asp.Core.Charting.HeatmapRow.<Clone>$() -> uk.osric.asp.Core.Charting.HeatmapRow!
+uk.osric.asp.Core.Charting.HeatmapRow.Deconstruct(out string! Label, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartPoint>! Points) -> void
+uk.osric.asp.Core.Charting.HeatmapRow.Equals(uk.osric.asp.Core.Charting.HeatmapRow? other) -> bool
+uk.osric.asp.Core.Charting.HeatmapRow.HeatmapRow(string! Label, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartPoint>! Points) -> void
+uk.osric.asp.Core.Charting.HeatmapRow.Label.get -> string!
+uk.osric.asp.Core.Charting.HeatmapRow.Label.init -> void
+uk.osric.asp.Core.Charting.HeatmapRow.Points.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartPoint>!
+uk.osric.asp.Core.Charting.HeatmapRow.Points.init -> void
+uk.osric.asp.Core.Charting.LineChart
+uk.osric.asp.Core.Charting.NiceTicks
+uk.osric.asp.Core.Charting.SvgText
+uk.osric.asp.Core.Charting.ValueUnit
+uk.osric.asp.Core.Compilation.ApiReference
+uk.osric.asp.Core.Compilation.ApiReference.ApiReference() -> void
+uk.osric.asp.Core.Compilation.ApiReference.ApiReference(string! Namespace, string! Type, string! Member, uk.osric.asp.Core.Compilation.TemplatePosition? Position) -> void
+uk.osric.asp.Core.Compilation.ApiReference.Deconstruct(out string! Namespace, out string! Type, out string! Member, out uk.osric.asp.Core.Compilation.TemplatePosition? Position) -> void
+uk.osric.asp.Core.Compilation.ApiReference.Equals(uk.osric.asp.Core.Compilation.ApiReference other) -> bool
+uk.osric.asp.Core.Compilation.ApiReference.Member.get -> string!
+uk.osric.asp.Core.Compilation.ApiReference.Member.init -> void
+uk.osric.asp.Core.Compilation.ApiReference.Namespace.get -> string!
+uk.osric.asp.Core.Compilation.ApiReference.Namespace.init -> void
+uk.osric.asp.Core.Compilation.ApiReference.Position.get -> uk.osric.asp.Core.Compilation.TemplatePosition?
+uk.osric.asp.Core.Compilation.ApiReference.Position.init -> void
+uk.osric.asp.Core.Compilation.ApiReference.Type.get -> string!
+uk.osric.asp.Core.Compilation.ApiReference.Type.init -> void
+uk.osric.asp.Core.Compilation.GeneratedSource
+uk.osric.asp.Core.Compilation.GeneratedSource.<Clone>$() -> uk.osric.asp.Core.Compilation.GeneratedSource!
+uk.osric.asp.Core.Compilation.GeneratedSource.Equals(uk.osric.asp.Core.Compilation.GeneratedSource? other) -> bool
+uk.osric.asp.Core.Compilation.GeneratedSource.Text.get -> string!
+uk.osric.asp.Core.Compilation.PageApiPolicy
+uk.osric.asp.Core.Compilation.PageDiagnostic
+uk.osric.asp.Core.Compilation.PageDiagnostic.<Clone>$() -> uk.osric.asp.Core.Compilation.PageDiagnostic!
+uk.osric.asp.Core.Compilation.PageDiagnostic.Deconstruct(out uk.osric.asp.Core.Compilation.PageDiagnosticSeverity Severity, out uk.osric.asp.Core.Compilation.TemplatePosition? Position, out string! Message) -> void
+uk.osric.asp.Core.Compilation.PageDiagnostic.Equals(uk.osric.asp.Core.Compilation.PageDiagnostic? other) -> bool
+uk.osric.asp.Core.Compilation.PageDiagnostic.Message.get -> string!
+uk.osric.asp.Core.Compilation.PageDiagnostic.Message.init -> void
+uk.osric.asp.Core.Compilation.PageDiagnostic.PageDiagnostic(uk.osric.asp.Core.Compilation.PageDiagnosticSeverity Severity, uk.osric.asp.Core.Compilation.TemplatePosition? Position, string! Message) -> void
+uk.osric.asp.Core.Compilation.PageDiagnostic.Position.get -> uk.osric.asp.Core.Compilation.TemplatePosition?
+uk.osric.asp.Core.Compilation.PageDiagnostic.Position.init -> void
+uk.osric.asp.Core.Compilation.PageDiagnostic.Severity.get -> uk.osric.asp.Core.Compilation.PageDiagnosticSeverity
+uk.osric.asp.Core.Compilation.PageDiagnostic.Severity.init -> void
+uk.osric.asp.Core.Compilation.PageDiagnosticSeverity
+uk.osric.asp.Core.Compilation.PageDiagnosticSeverity.Error = 1 -> uk.osric.asp.Core.Compilation.PageDiagnosticSeverity
+uk.osric.asp.Core.Compilation.PageDiagnosticSeverity.Warning = 0 -> uk.osric.asp.Core.Compilation.PageDiagnosticSeverity
+uk.osric.asp.Core.Compilation.ScriptSkeletonResult
+uk.osric.asp.Core.Compilation.ScriptSkeletonResult.<Clone>$() -> uk.osric.asp.Core.Compilation.ScriptSkeletonResult!
+uk.osric.asp.Core.Compilation.ScriptSkeletonResult.Deconstruct(out string! Source, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>! Diagnostics) -> void
+uk.osric.asp.Core.Compilation.ScriptSkeletonResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>!
+uk.osric.asp.Core.Compilation.ScriptSkeletonResult.Diagnostics.init -> void
+uk.osric.asp.Core.Compilation.ScriptSkeletonResult.Equals(uk.osric.asp.Core.Compilation.ScriptSkeletonResult? other) -> bool
+uk.osric.asp.Core.Compilation.ScriptSkeletonResult.IsSuccess.get -> bool
+uk.osric.asp.Core.Compilation.ScriptSkeletonResult.ScriptSkeletonResult(string! Source, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>! Diagnostics) -> void
+uk.osric.asp.Core.Compilation.ScriptSkeletonResult.Source.get -> string!
+uk.osric.asp.Core.Compilation.ScriptSkeletonResult.Source.init -> void
+uk.osric.asp.Core.Compilation.TemplateFingerprint
+uk.osric.asp.Core.Compilation.TemplateGenerationResult
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.<Clone>$() -> uk.osric.asp.Core.Compilation.TemplateGenerationResult!
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.Deconstruct(out uk.osric.asp.Core.Compilation.GeneratedSource? Source, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>! Errors) -> void
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.Equals(uk.osric.asp.Core.Compilation.TemplateGenerationResult? other) -> bool
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.Errors.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>!
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.Errors.init -> void
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.Source.get -> uk.osric.asp.Core.Compilation.GeneratedSource?
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.Source.init -> void
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.TemplateGenerationResult(uk.osric.asp.Core.Compilation.GeneratedSource? Source, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>! Errors) -> void
+uk.osric.asp.Core.Compilation.TemplateLines
+uk.osric.asp.Core.Compilation.TemplatePosition
+uk.osric.asp.Core.Compilation.TemplatePosition.Column.get -> int
+uk.osric.asp.Core.Compilation.TemplatePosition.Column.init -> void
+uk.osric.asp.Core.Compilation.TemplatePosition.Deconstruct(out int Line, out int Column) -> void
+uk.osric.asp.Core.Compilation.TemplatePosition.Equals(uk.osric.asp.Core.Compilation.TemplatePosition other) -> bool
+uk.osric.asp.Core.Compilation.TemplatePosition.Line.get -> int
+uk.osric.asp.Core.Compilation.TemplatePosition.Line.init -> void
+uk.osric.asp.Core.Compilation.TemplatePosition.TemplatePosition() -> void
+uk.osric.asp.Core.Compilation.TemplatePosition.TemplatePosition(int Line, int Column) -> void
+uk.osric.asp.Core.Compilation.TemplateScriptSkeleton
+uk.osric.asp.Core.Compilation.TemplateSourceGenerator
+uk.osric.asp.Core.Pages.PageContentTypes
+uk.osric.asp.Core.Pages.PageContentTypes.ExtensionCount.get -> int
+uk.osric.asp.Core.Pages.PageContentTypes.Fallback.get -> string!
+uk.osric.asp.Core.Pages.PageContentTypes.ForPath(string? path) -> string!
+uk.osric.asp.Core.Pages.PagePath
+uk.osric.asp.Core.Pages.PagePath.<Clone>$() -> uk.osric.asp.Core.Pages.PagePath!
+uk.osric.asp.Core.Pages.PagePath.Equals(uk.osric.asp.Core.Pages.PagePath? other) -> bool
+uk.osric.asp.Core.Pages.PagePath.IsAddressable.get -> bool
+uk.osric.asp.Core.Pages.PagePath.Key.get -> string!
+uk.osric.asp.Core.Pages.RevisionHash
+uk.osric.asp.Core.Text.LowercaseText
+uk.osric.asp.Core.Text.MessageText
+virtual uk.osric.asp.Core.Assistant.ChatStreamEvent.EqualityContract.get -> System.Type!
+virtual uk.osric.asp.Core.Assistant.ChatStreamEvent.Equals(uk.osric.asp.Core.Assistant.ChatStreamEvent? other) -> bool
+virtual uk.osric.asp.Core.Assistant.ChatStreamEvent.PrintMembers(System.Text.StringBuilder! builder) -> bool
+~override uk.osric.asp.Core.Charting.ChartPoint.Equals(object obj) -> bool
+~override uk.osric.asp.Core.Charting.ChartPoint.ToString() -> string
+~override uk.osric.asp.Core.Charting.ChartScale.Equals(object obj) -> bool
+~override uk.osric.asp.Core.Charting.ChartScale.ToString() -> string
+~override uk.osric.asp.Core.Charting.ChartSize.Equals(object obj) -> bool
+~override uk.osric.asp.Core.Charting.ChartSize.ToString() -> string
+~override uk.osric.asp.Core.Charting.ChartTick.Equals(object obj) -> bool
+~override uk.osric.asp.Core.Charting.ChartTick.ToString() -> string
+~override uk.osric.asp.Core.Compilation.ApiReference.Equals(object obj) -> bool
+~override uk.osric.asp.Core.Compilation.ApiReference.ToString() -> string
+~override uk.osric.asp.Core.Compilation.TemplatePosition.Equals(object obj) -> bool

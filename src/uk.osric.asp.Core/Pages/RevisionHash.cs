@@ -11,7 +11,7 @@ using System.Text;
 public static class RevisionHash {
 
     /// <summary>The versioned framing prefix used by the revision identity format.</summary>
-    public const string FormatVersion = "page-revision-v1";
+    internal const string FormatVersion = "page-revision-v1";
 
     /// <summary>Hashes the source and immutable identity fields for a saved revision.</summary>
     /// <param name="source">The exact UTF-8 source stored in the revision.</param>

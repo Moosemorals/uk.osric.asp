@@ -1,0 +1,31 @@
+#nullable enable
+override uk.osric.asp.Runtime.CompileResult.Equals(object? obj) -> bool
+override uk.osric.asp.Runtime.CompileResult.GetHashCode() -> int
+override uk.osric.asp.Runtime.CompileResult.ToString() -> string!
+static uk.osric.asp.Runtime.CompileResult.operator !=(uk.osric.asp.Runtime.CompileResult? left, uk.osric.asp.Runtime.CompileResult? right) -> bool
+static uk.osric.asp.Runtime.CompileResult.operator ==(uk.osric.asp.Runtime.CompileResult? left, uk.osric.asp.Runtime.CompileResult? right) -> bool
+static uk.osric.asp.Runtime.JavaScriptValidator.Validate(string! script) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>!
+uk.osric.asp.Runtime.CompileResult
+uk.osric.asp.Runtime.CompileResult.<Clone>$() -> uk.osric.asp.Runtime.CompileResult!
+uk.osric.asp.Runtime.CompileResult.CompileResult(byte[]? Image, byte[]? Symbols, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>! Diagnostics) -> void
+uk.osric.asp.Runtime.CompileResult.Deconstruct(out byte[]? Image, out byte[]? Symbols, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>! Diagnostics) -> void
+uk.osric.asp.Runtime.CompileResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>!
+uk.osric.asp.Runtime.CompileResult.Diagnostics.init -> void
+uk.osric.asp.Runtime.CompileResult.Equals(uk.osric.asp.Runtime.CompileResult? other) -> bool
+uk.osric.asp.Runtime.CompileResult.Image.get -> byte[]?
+uk.osric.asp.Runtime.CompileResult.Image.init -> void
+uk.osric.asp.Runtime.CompileResult.IsSuccess.get -> bool
+uk.osric.asp.Runtime.CompileResult.Symbols.get -> byte[]?
+uk.osric.asp.Runtime.CompileResult.Symbols.init -> void
+uk.osric.asp.Runtime.IPageCompiler
+uk.osric.asp.Runtime.IPageCompiler.Compile(uk.osric.asp.Core.Compilation.GeneratedSource! source, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> uk.osric.asp.Runtime.CompileResult!
+uk.osric.asp.Runtime.IPageCompiler.Load(byte[]! image, byte[]? symbols = null) -> uk.osric.asp.Runtime.LoadedPage!
+uk.osric.asp.Runtime.IPageCompiler.RuntimeId.get -> string!
+uk.osric.asp.Runtime.JavaScriptValidator
+uk.osric.asp.Runtime.LoadedPage
+uk.osric.asp.Runtime.LoadedPage.Dispose() -> void
+uk.osric.asp.Runtime.LoadedPage.InvokeAsync(uk.osric.asp.Sdk.IContext! context) -> System.Threading.Tasks.Task!
+uk.osric.asp.Runtime.PageCompiler
+uk.osric.asp.Runtime.PageCompiler.Compile(uk.osric.asp.Core.Compilation.GeneratedSource! source, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> uk.osric.asp.Runtime.CompileResult!
+uk.osric.asp.Runtime.PageCompiler.Load(byte[]! image, byte[]? symbols = null) -> uk.osric.asp.Runtime.LoadedPage!
+uk.osric.asp.Runtime.PageCompiler.PageCompiler() -> void

@@ -68,7 +68,7 @@ public sealed class ChatStreamAccumulator {
             }
         }
 
-        public ToolCall Build(int index) => new(
+        internal ToolCall Build(int index) => new(
             index,
             _id.Length == 0 ? null : _id.ToString(),
             _name.Length == 0 ? null : _name.ToString(),

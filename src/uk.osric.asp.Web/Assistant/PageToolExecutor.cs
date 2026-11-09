@@ -40,7 +40,7 @@ internal sealed class PageToolExecutor(
     // One table: the schema a call is validated against and the tool the model is offered are both
     // derived from it, so an argument cannot be described to the model and refused at execution.
     private static readonly ToolSpec[] s_tools = [
-        new("list_pages", "List live page keys under an optional prefix.", false, [
+        new("list_pages", "List live page keys under an optional prefix, each with its compile state.", false, [
             new("prefix", ToolArgumentType.String, false),
             new("includeDeleted", ToolArgumentType.Boolean, false),
         ]),
@@ -138,15 +138,19 @@ internal sealed class PageToolExecutor(
         }
 
         bool includeDeleted = Boolean(arguments, "includeDeleted");
-        IReadOnlyList<PageHeadSummary> all = await pages.ListAsync(cancellationToken);
-        PageHeadSummary[] matching = [.. all
+        IReadOnlyList<PageListing> all = await pages.ListAsync(cancellationToken);
+        PageListing[] matching = [.. all
             .Where(item => !paths.IsProtected(item.Path)
                 && (includeDeleted || !item.IsDeleted)
                 && IsUnderPrefix(item.Path, prefix))
             .OrderBy(item => item.Path.Key, StringComparer.Ordinal)];
         bool truncated = matching.Length > 500;
         object data = new {
-            pages = matching.Take(500).Select(item => new { path = item.Path.Key, deleted = item.IsDeleted }),
+            pages = matching.Take(500).Select(item => new {
+                path = item.Path.Key,
+                deleted = item.IsDeleted,
+                status = item.State.Describe(),
+            }),
             truncated,
         };
         return Success(data, $"Listed {Math.Min(matching.Length, 500)} pages");
@@ -194,7 +198,7 @@ internal sealed class PageToolExecutor(
             path = path.Key,
             revisionHash = page.Hash,
             savedAt = page.SavedAt,
-            compileStatus = ImageStatus(page),
+            compileStatus = ImageStatus(page, pages.RuntimeId),
             diagnostics = Diagnostics(page),
             startLine = start,
             endLine = end,
@@ -367,7 +371,7 @@ internal sealed class PageToolExecutor(
         PagePath? prefix = checkedPrefix.Path;
 
         if (command.Name is "ls" or "find") {
-            IReadOnlyList<PageHeadSummary> heads = await pages.ListAsync(cancellationToken);
+            IReadOnlyList<PageListing> heads = await pages.ListAsync(cancellationToken);
             string shellOutput = string.Join('\n', heads.Where(head => !head.IsDeleted && !paths.IsProtected(head.Path) && IsUnderPrefix(head.Path, prefix))
                 .OrderBy(head => head.Path.Key, StringComparer.Ordinal).Take(500).Select(head => head.Path.Key));
             return Success(new { output = shellOutput }, prefix is null ? command.Name : $"{command.Name} {Describe(prefix)}");
@@ -404,7 +408,7 @@ internal sealed class PageToolExecutor(
             "head" => string.Join('\n', sourceLines.Take(ParseCount(command.Arguments[1]))),
             "tail" => string.Join('\n', sourceLines.TakeLast(ParseCount(command.Arguments[1]))),
             "wc" => sourceLines.Length.ToString(CultureInfo.InvariantCulture),
-            "stat" => $"{checkedPath.Path!.Key}\n{target.Template.Length} chars\n{target.Hash}\n{target.SavedAt:O}\n{ImageStatus(target)}",
+            "stat" => $"{checkedPath.Path!.Key}\n{target.Template.Length} chars\n{target.Hash}\n{target.SavedAt:O}\n{ImageStatus(target, pages.RuntimeId)}",
             _ => "",
         };
         // Half the budget, because the output still has to fit back inside the JSON envelope with
@@ -437,11 +441,11 @@ internal sealed class PageToolExecutor(
         PagePath? prefix,
         string query,
         StringComparison comparison,
-        Func<PageHeadSummary, int, string, T> project,
+        Func<PageListing, int, string, T> project,
         CancellationToken cancellationToken) {
         List<T> matches = [];
 
-        foreach (PageHeadSummary head in await pages.ListAsync(cancellationToken)) {
+        foreach (PageListing head in await pages.ListAsync(cancellationToken)) {
             if (head.IsDeleted || paths.IsProtected(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
                 continue;
             }
@@ -518,10 +522,13 @@ internal sealed class PageToolExecutor(
         return [.. lines];
     }
 
-    private static string ImageStatus(PageTemplate page) => PageImageStatus.Describe(
+    // The page is shown as it stands against the running build, so a page compiled by an earlier one
+    // says Stale rather than repeating diagnostics that are about to be replaced.
+    private static string ImageStatus(PageTemplate page, string currentRuntimeId) => PageImageStatus.Describe(
         page.Image?.RuntimeId,
         page.Image?.Bytes is not null,
-        page.Image?.Diagnostics.Count > 0);
+        page.Image?.Diagnostics.Count > 0,
+        currentRuntimeId).Describe();
 
     private static object[] Diagnostics(PageTemplate page) => page.Image is null
         ? []

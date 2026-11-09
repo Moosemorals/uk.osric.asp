@@ -23,13 +23,16 @@ own: it is five declarations with documentation and no behaviour, and what depen
 by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScopeTests`,
 `PageLoadContextTests`, `PageReferenceSetTests`).
 - **Runtime tests** cover what the core cannot: Roslyn emitting a handler, loading the assembly and
-  invoking it. They also cover the page API policy — one test per banned construct, plus a page of
+  invoking it. `ScaffoldTests` compiles the generated wrapper for every token shape under the
+  production options to prove the scaffold never warns, and `PageCompilerTests` proves a page's own
+  warning is mapped to its template line. They also cover the page API policy — one test per banned construct, plus a page of
   ordinary code that must still compile — the reference set the compiler is built on, and the load
   context, which is reachable from the tests through `InternalsVisibleTo`. They reference `Runtime`
   and `Sdk`, never `Web`.
 - **Web tests** cover the shell: endpoints driven through a hand-built `HttpContext` with an
   in-memory `IPageStore`, a `TestSession`, a `TestAntiforgery` and the real compiler, and storage
-  against a real SQLite database file. Storage tests cover legacy migration, append-only revision
+  against a real SQLite database file. `PageImageStateTests` is the one place the five state words
+  and their classes are pinned, so the editor, the history and the assistant cannot drift apart. Storage tests cover legacy migration, append-only revision
   identity, concurrent saves, tombstones, scrub and SQLite cleanup. `PageStorageMetricsTests` checks
   logical payload accounting, cached observable gauges, failed-sample retention and bounded sampling.
   The page-cache tests swap in a counting compiler wrapped around the real one, so "a second request

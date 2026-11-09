@@ -38,9 +38,12 @@ internal sealed class PageEditor(
         return storage.GetPageAsync(path, cancellationToken);
     }
 
-    public Task<IReadOnlyList<PageHeadSummary>> ListAsync(CancellationToken cancellationToken = default) {
+    public Task<IReadOnlyList<PageListing>> ListAsync(CancellationToken cancellationToken = default) {
         return storage.ListPagesAsync(cancellationToken);
     }
+
+    /// <summary>The build that compiled the images this editor serves and saves.</summary>
+    public string RuntimeId => images.RuntimeId;
 
     public Task<PageHeadSummary?> GetHeadAsync(PagePath path, CancellationToken cancellationToken = default) {
         return storage.GetHeadAsync(path, cancellationToken);

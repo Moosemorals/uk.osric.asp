@@ -11,6 +11,8 @@ internal static class Redirect {
     /// <param name="status">The redirect status to send.</param>
     /// <param name="target">A relative target, which may carry a query and a fragment, or an absolute URL.</param>
     public static void To(HttpContext context, int status, string target) {
+        ArgumentNullException.ThrowIfNull(context);
+
         context.Response.StatusCode = status;
         context.Response.Headers.Location = Encode(target);
     }
@@ -18,11 +20,15 @@ internal static class Redirect {
     // 308 rather than 301: both are permanent, but 308 keeps the method, so canonicalising a URL can
     // never turn a POST into a GET and silently drop a save.
     public static void Permanent(HttpContext context, string target) {
+        ArgumentNullException.ThrowIfNull(context);
+
         To(context, StatusCodes.Status308PermanentRedirect, target);
     }
 
     /// <summary>Sends a POST result to a GET of <paramref name="target"/>.</summary>
     public static void SeeOther(HttpContext context, string target) {
+        ArgumentNullException.ThrowIfNull(context);
+
         To(context, StatusCodes.Status303SeeOther, target);
     }
 

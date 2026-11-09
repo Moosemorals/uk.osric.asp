@@ -55,7 +55,7 @@ public static class TemplateLines {
     /// <param name="position">The position before the text.</param>
     /// <param name="text">The text to move past.</param>
     /// <returns>The position immediately after the text.</returns>
-    public static TemplatePosition Advance(TemplatePosition position, string text) {
+    internal static TemplatePosition Advance(TemplatePosition position, string text) {
         int line = position.Line;
         int column = position.Column;
 

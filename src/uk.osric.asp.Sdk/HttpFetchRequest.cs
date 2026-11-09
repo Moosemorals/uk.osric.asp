@@ -12,6 +12,10 @@ namespace uk.osric.asp.Sdk;
 /// <param name="Url">An absolute <c>http</c> or <c>https</c> URL, with no credentials and no fragment.</param>
 public sealed record HttpFetchRequest(string Url) {
 
+    /// <summary>An absolute <c>http</c> or <c>https</c> URL, with no credentials and no fragment.</summary>
+    /// <exception cref="ArgumentException">The URL is blank.</exception>
+    public string Url { get; init; } = CheckUrl(Url);
+
     /// <summary>The method; <see cref="HttpFetchMethod.Get"/> by default.</summary>
     public HttpFetchMethod Method { get; init; } = HttpFetchMethod.Get;
 
@@ -24,4 +28,14 @@ public sealed record HttpFetchRequest(string Url) {
     /// </summary>
     public IReadOnlyDictionary<string, string> Headers { get; init; } =
         new Dictionary<string, string>();
+
+    // A blank URL is a mistake in the page and is worth failing on. Everything else about the value -
+    // the scheme, the host, credentials, a fragment - is the host's policy, and a fetch that the
+    // policy refuses comes back as a value: a page that shows live data branches on the failure
+    // rather than catching.
+    private static string CheckUrl(string url) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(url);
+
+        return url;
+    }
 }

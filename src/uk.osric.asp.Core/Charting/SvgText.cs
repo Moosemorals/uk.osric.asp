@@ -15,15 +15,15 @@ using System.Net;
 public static class SvgText {
 
     /// <summary>How many series colours the site's stylesheet defines.</summary>
-    public const int SeriesColours = 5;
+    internal const int SeriesColours = 5;
 
     /// <summary>Encodes text for an element body or an attribute value.</summary>
     /// <param name="value">The text, which may be null.</param>
-    public static string Escape(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
+    internal static string Escape(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
 
     /// <summary>Formats a coordinate or a value for an attribute, in the invariant culture.</summary>
     /// <param name="value">The number to write.</param>
-    public static string Number(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+    internal static string Number(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
 
     /// <summary>The CSS class for the nth series, cycling through the colours the sheet defines.</summary>
     /// <param name="index">The series position, counted from zero.</param>

@@ -11,5 +11,5 @@ internal sealed record PageRevisionTemplate(
     string Hash,
     DateTimeOffset SavedAt,
     string CreationRuntimeId,
-    string ImageStatus,
+    PageImageState ImageState,
     string Template);

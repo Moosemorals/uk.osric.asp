@@ -171,8 +171,8 @@ public sealed class EditorEndpointTests {
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(body.IndexOf("/a&amp;b", StringComparison.Ordinal), Is.LessThan(body.IndexOf("/zeta", StringComparison.Ordinal)));
-        Assert.That(body, Does.Contain("Deleted pages"));
-        Assert.That(body, Does.Contain("/gone (history retained)"));
+        Assert.That(body.IndexOf("/zeta", StringComparison.Ordinal), Is.LessThan(body.IndexOf("<h2>Deleted pages</h2>", StringComparison.Ordinal)));
+        Assert.That(body.IndexOf("/gone", StringComparison.Ordinal), Is.GreaterThan(body.IndexOf("<h2>Deleted pages</h2>", StringComparison.Ordinal)));
         Assert.That(body, Does.Not.Contain("href=\"/gone\""));
         Assert.That(storage.ReadCount, Is.Zero);
         Assert.That(storage.WriteCount, Is.Zero);
@@ -190,13 +190,110 @@ public sealed class EditorEndpointTests {
 
         string body = await TestHttp.ReadBodyAsync(context);
         int live = body.IndexOf("<h2>Live pages</h2>", StringComparison.Ordinal);
-        int page = body.IndexOf("<li><a href=\"/page\">", StringComparison.Ordinal);
+        int page = body.IndexOf("<th scope=\"row\"><a href=\"/page\"", StringComparison.Ordinal);
         int seeded = body.IndexOf("<h2>Seeded pages</h2>", StringComparison.Ordinal);
-        int seed = body.IndexOf("<li><a href=\"/editor.css\">", StringComparison.Ordinal);
+        int seed = body.IndexOf("<th scope=\"row\"><a href=\"/editor.css\"", StringComparison.Ordinal);
         Assert.That(live, Is.GreaterThanOrEqualTo(0));
         Assert.That(page, Is.GreaterThan(live));
         Assert.That(seeded, Is.GreaterThan(page));
         Assert.That(seed, Is.GreaterThan(seeded));
+    }
+
+    [Test]
+    public async Task ThePageListIsATableWithAPageAndStateColumn() {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+        FakePageStore storage = new();
+        storage["/page"] = new PageTemplate(PagePath.Normalize("/page"), "not loaded");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<table class=\"pages\">"));
+        Assert.That(body, Does.Contain(
+            "<tr><th scope=\"col\">Page</th><th scope=\"col\">State</th><th scope=\"col\">Actions</th></tr>"));
+        Assert.That(body, Does.Contain("<th scope=\"row\"><a href=\"/page\" aria-label=\"View /page\">/page</a></th>"));
+        Assert.That(body, Does.Contain("<td class=\"page-state state-not-compiled\">Not compiled</td>"));
+    }
+
+    [Test]
+    public async Task APageCompiledWithWarningsSaysSoInTheList() {
+        PagePath path = PagePath.Normalize("/blog");
+        FakePageStore storage = new() {
+            [path.Key] = new PageTemplate(path, "Loud.", Image(path, "Loud.", bytes: [1], warning: true)),
+        };
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<td class=\"page-state state-compiled-with-warnings\">Compiled with warnings</td>"));
+    }
+
+    [Test]
+    public async Task APageThatFailedToCompileSaysSoInTheList() {
+        PagePath path = PagePath.Normalize("/borked");
+        FakePageStore storage = new() {
+            [path.Key] = new PageTemplate(path, "<% broken", Image(path, "<% broken", bytes: null, warning: false)),
+        };
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<td class=\"page-state state-compile-failed\">Compile failed</td>"));
+    }
+
+    [Test]
+    public async Task AStalePageSaysSoInTheList() {
+        PagePath path = PagePath.Normalize("/blog");
+        FakePageStore storage = new() {
+            CurrentRuntimeId = "2:3:nowhere",
+            [path.Key] = new PageTemplate(path, "Loud.", Image(path, "Loud.", bytes: [1], warning: true)),
+        };
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<td class=\"page-state state-stale\">Stale</td>"));
+        Assert.That(body, Does.Not.Contain("Compiled with warnings"));
+    }
+
+    [Test]
+    public async Task TheDeletedListKeepsItsActions() {
+        PagePath path = PagePath.Normalize("/gone");
+        FakePageStore storage = new() {
+            [path.Key] = new PageTemplate(path, "retained"),
+        };
+        await storage.DeletePageAsync(path);
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        int deleted = body.IndexOf("<h2>Deleted pages</h2>", StringComparison.Ordinal);
+        Assert.That(deleted, Is.GreaterThanOrEqualTo(0));
+        Assert.That(body[deleted..], Does.Contain(
+            "<th scope=\"row\">/gone</th>"
+            + "<td class=\"page-state state-not-compiled\">Not compiled</td>"
+            + "<td class=\"page-actions\"><a href=\"/edit/gone\" aria-label=\"Recreate /gone\">Recreate</a> "
+            + "<a href=\"/edit/gone?cmd=history\" aria-label=\"History of /gone\">History</a> "
+            + "<a href=\"/edit/gone?cmd=scrub\" aria-label=\"Scrub history of /gone\">Scrub history</a>"));
+        Assert.That(body[deleted..], Does.Not.Contain("?cmd=delete"));
+    }
+
+    [Test]
+    public async Task TheListSaysUnavailableForAReservedKey() {
+        FakePageStore storage = new() {
+            ["/favicon.ico"] = new PageTemplate(PagePath.Normalize("/favicon.ico"), "hijack"),
+        };
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), Reserved, _antiforgery);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<th scope=\"row\">/favicon.ico: unavailable</th>"));
+        Assert.That(body, Does.Not.Contain("aria-label=\"Edit /favicon.ico\""));
     }
 
     [Test]
@@ -908,6 +1005,14 @@ public sealed class EditorEndpointTests {
         SetField(context, "__RequestVerificationToken", new StringValues("token"));
         return context;
     }
+
+    // A stored image built by another process, so a test can name a state without compiling.
+    private static PageImage Image(PagePath path, string template, byte[]? bytes, bool warning) => new(
+        TemplateFingerprint.Of(template),
+        "1:3:elsewhere",
+        bytes,
+        bytes is null ? null : [9],
+        warning ? [new PageDiagnostic(PageDiagnosticSeverity.Warning, new TemplatePosition(1, 1), "CS0219: unused")] : []);
 
     private static void SetTemplate(DefaultHttpContext context, StringValues template) {
         SetField(context, "template", template);

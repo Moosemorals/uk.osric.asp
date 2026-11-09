@@ -29,6 +29,10 @@ its path, and every live and deleted page has its own editor at <code>/edit/&lt;
     in the editor with the diagnostics instead.</li>
     <li><strong>Diagnostics</strong> name the line and column in your template. A diagnostic that
     has a position is a link to the matching number in the line gutter.</li>
+    <li><strong>State</strong> is what the page's stored image amounts to: <em>Compiled</em>,
+    <em>Compiled with warnings</em>, <em>Compile failed</em>, <em>Not compiled</em>, or <em>Stale</em>
+    when the image was built by an earlier deploy. A page compiled elsewhere says <em>Stale</em>
+    until it is next requested, which recompiles it.</li>
     <li><strong>History</strong> lists the saved revisions of a page. Choosing one shows its stored
     source without compiling it.</li>
     <li><strong>Delete</strong> hides a page but keeps its template and history. <strong>Scrub</strong>
@@ -135,7 +139,19 @@ script's position in the document does not matter.</p>
     &lt;p&gt;Line &lt;%= i.ToString() %&gt;&lt;/p&gt;
 &lt;% } %&gt;</code></pre>
 <p>An output expression must produce a string, so convert other values explicitly with
-<code>.ToString()</code>. A declaration block looks like this:</p>
+<code>.ToString()</code>.</p>
+<p>A page is compiled with nullable analysis on, exactly as the host's own code is, so a reference
+that may be null says so. <code>ctx.User</code> is a <code>PageUser?</code>, and
+<code>ctx.Features.Get&lt;T&gt;()</code> returns <code>null</code> when this render does not offer
+the capability. Bind a guard to a local and use the local, which is the form the compiler can
+follow:</p>
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;
+&lt;p&gt;Signed in as &lt;%= user.Name %&gt;.&lt;/p&gt;</code></pre>
+<p>A warning does not stop the page: it compiles, is stored and is served. It is still unfinished
+work, the editor shows it beside your template, and the page list says <em>Compiled with
+warnings</em> until it is fixed. A page that wants the old behaviour can write
+<code>#nullable disable</code> in its own code.</p>
+<p>A declaration block looks like this:</p>
 <pre class="source" tabindex="0"><code>&lt;%!
 using System.Globalization;
 

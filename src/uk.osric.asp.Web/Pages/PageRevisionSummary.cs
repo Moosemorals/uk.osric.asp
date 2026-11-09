@@ -7,5 +7,5 @@ internal sealed record PageRevisionSummary(
     string Hash,
     DateTimeOffset SavedAt,
     string CreationRuntimeId,
-    string ImageStatus,
+    PageImageState ImageState,
     bool IsCurrent);

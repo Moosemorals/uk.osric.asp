@@ -5,8 +5,22 @@ SPDX-License-Identifier: MIT
 
 # Page diagnostics and assembly visibility
 
-Status: **proposed, not implemented**. Written 2026-11-08 for review. It is a design and an
-implementation plan, not a record of work done. Filed as [ARCH-14](../jobs/ARCH-14.md).
+Status: **implemented** 2026-11-09, in the order the phases below set out. Written 2026-11-08 for
+review. Filed as ARCH-14, which is now closed and recorded in [jobs](../../jobs/README.md#closed).
+
+Three things landed differently from the plan as written, and are recorded here rather than left
+for a reader to discover:
+
+- **The scaffold is nullable-enabled only inside a mapped region.** The plan's rule is unchanged,
+  but a page's own `#nullable disable` wins only within its own block: the generator re-enables each
+  region, because a directive inside the region would move the author's positions. A page that wants
+  to be oblivious for its whole body writes the directive in each block.
+- **The narrowing found sixteen members, not a large surface.** Every declaration in `Core` was made
+  `internal` and the compiler named back what another assembly binds; `Runtime` kept its whole
+  surface because all of it satisfies an interface or is named by `Web`, and `Web` lost its one
+  exported type. The analyzer, not the count, is what holds the rule.
+- **The prompt is `page-author-v10`, not `v9`.** `v9` already existed, so moving the version is what
+  makes the nullable prose tell two prompts apart.
 
 ## The short version
 
@@ -15,7 +29,7 @@ implementation plan, not a record of work done. Filed as [ARCH-14](../jobs/ARCH-
 - **The scaffold is not the page.** The generator wraps every line it wrote itself in
   `#nullable disable` and every region it mapped to the template in `#nullable enable`. The wrapper
   is nullable-oblivious by construction, so a Roslyn warning can only ever be about page code — which
-  matters because [mapDiagnostics](../../src/uk.osric.asp.Runtime/PageCompiler.cs) silently drops
+  matters because [mapDiagnostics](../../../src/uk.osric.asp.Runtime/PageCompiler.cs) silently drops
   warnings from unmapped lines.
 - **Warnings become ordinary.** A warning never stops an image being emitted, stored or run; the
   editor already lists them, the assistant already receives them, and both already say "warnings".
@@ -52,7 +66,7 @@ implementation plan, not a record of work done. Filed as [ARCH-14](../jobs/ARCH-
 - **Migrating the owner's pages.** Turning nullable on does not edit a single stored template. Pages
   that now warn are the owner's to fix, and every existing guard idiom still compiles.
 - **Nullable for the product assemblies.** Already on everywhere through
-  [Directory.Build.props](../../Directory.Build.props). This plan changes only what a *page* is
+  [Directory.Build.props](../../../Directory.Build.props). This plan changes only what a *page* is
   compiled as.
 - **A per-page nullable switch.** The directive is not offered in the page API; a page that wants it
   off can already write `#nullable disable` itself, and nothing here takes that away.
@@ -64,30 +78,30 @@ implementation plan, not a record of work done. Filed as [ARCH-14](../jobs/ARCH-
 
 Checked against the code on 2026-11-08.
 
-- **Pages are nullable-oblivious.** [PageCompiler.Compile](../../src/uk.osric.asp.Runtime/PageCompiler.cs)
+- **Pages are nullable-oblivious.** [PageCompiler.Compile](../../../src/uk.osric.asp.Runtime/PageCompiler.cs)
   parses with default options and builds `new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)`,
   so `NullableContextOptions` is `Disable`. The generator emits no `#nullable` directive and
-  [TemplateSourceGenerator](../../src/uk.osric.asp.Core/Compilation/TemplateSourceGenerator.cs)
+  [TemplateSourceGenerator](../../../src/uk.osric.asp.Core/Compilation/TemplateSourceGenerator.cs)
   emits each `<% %>` block verbatim between `#line` directives.
 - **Warnings already exist end to end, without anything to say.** `MapDiagnostics` maps warning and
   error diagnostics alike through `GetMappedLineSpan`; unmapped *errors* are a fatal compiler fault
   and unmapped *warnings* are dropped silently. `CompileResult.Image` is null only when emit failed,
   so **a stored image with diagnostics carries warnings only** — an invariant
-  [SqlitePageStore](../../src/uk.osric.asp.Web/Pages/SqlitePageStore.cs) already relies on when it
+  [SqlitePageStore](../../../src/uk.osric.asp.Web/Pages/SqlitePageStore.cs) already relies on when it
   reads a pre-severity row and infers "no image means errors".
 - **No warning is produced in practice.** With nullable off, the generator's `#pragma warning disable
   CS1998` suppresses the only one the wrapper used to raise, and page code has little else to trip.
   `JavaScriptValidator` is the only source of warnings today, and it runs in the assistant's
   `check_script`, not in compilation.
-- **The editor already shows warnings.** [WriteEditorAsync](../../src/uk.osric.asp.Web/Editor/EditorEndpoint.cs)
+- **The editor already shows warnings.** [WriteEditorAsync](../../../src/uk.osric.asp.Web/Editor/EditorEndpoint.cs)
   renders `page.Image.Diagnostics` through `PageLayout.Diagnostics`, which has a `diagnostic-warning`
   class and links each line to its gutter number; the save message already has a "Saved with warnings."
   branch.
 - **The assistant already receives them.** `read_page` returns `compileStatus` and a `diagnostics`
   array with `code`, `severity`, `line`, `column` and `message`; `edit_page` returns diagnostics;
-  [PageAuthorPrompt](../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs) says "Check compile
+  [PageAuthorPrompt](../../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs) says "Check compile
   diagnostics after either write and fix **errors**."
-- **The listing is a list, not a table.** [WriteListingAsync](../../src/uk.osric.asp.Web/Editor/EditorEndpoint.cs)
+- **The listing is a list, not a table.** [WriteListingAsync](../../../src/uk.osric.asp.Web/Editor/EditorEndpoint.cs)
   renders three `<ul role="list">` sections — live, seeded, deleted — with links and a restore form
   per item. Nothing on it says whether the page compiled. `PageHeadSummary` carries `Path` and
   `IsDeleted` and nothing else, and `ListPagesAsync` projects `PageHead` alone.
@@ -101,7 +115,7 @@ Checked against the code on 2026-11-08.
   template hash and the `RuntimeId`, and the render path uses it to recompile lazily; the listing
   never asks.
 - **Visibility is a documented rule, not an enforced one.**
-  [architecture.md's "Visibility"](../../docs/architecture.md) says nothing is `public` unless
+  [architecture.md's "Visibility"](../../../docs/architecture.md) says nothing is `public` unless
   another product assembly needs it and that every type in `Web` is `internal`. Measured today:
 
   | Assembly | Types | `public` types | `public` members on public types | `public` members on non-public types |
@@ -117,20 +131,20 @@ Checked against the code on 2026-11-08.
 - **Guards are everywhere, by convention.** 222 `Argument*Exception.ThrowIf*` statements: 40 in
   `Core`, 7 in `Runtime`, 1 in `Sdk`, 174 in `Web`. Fewer than a dozen sit in non-public members.
   There is no `AnalysisMode` or `CA1062` setting in
-  [Directory.Build.props](../../Directory.Build.props), so nothing enforces either the presence or
+  [Directory.Build.props](../../../Directory.Build.props), so nothing enforces either the presence or
   the absence.
 
 ## What this touches
 
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
-| [ARCH-14](../jobs/ARCH-14.md) | This job | **Implements it** |
+| ARCH-14 | This job | **Implements it**; the job is closed |
 | DEC-31, "Compiled pages" | A warning-only page stores its image and reports "Saved with warnings." | Makes that sentence true in practice by giving the compiler something to warn about, and makes it visible in the listing |
-| "Visibility" in [architecture.md](../../docs/architecture.md) | Nothing is `public` unless another product assembly needs it | Turns the paragraph into a build failure, and narrows the surface it already describes |
-| [IDEA-001](../jobs/IDEA-001.md) | The editor has a gutter and linked diagnostics | The listing gains the state column that makes the run of those links worth clicking |
-| [IDEA-015](../jobs/IDEA-015.md) | The listing and history are shell views because a page cannot read the store | Unchanged: the listing stays a shell view, and this plan fixes its shape before a page takes it over |
-| [SEC-03](../jobs/SEC-03.md) | Page code has no process boundary | Guards at public entry points are not a boundary and are not presented as one |
-| [BUG-18](../jobs/BUG-18.md) | Every failure is a document a person can read | The listing stays a document; the new column is text, not an icon |
+| "Visibility" in [architecture.md](../../../docs/architecture.md) | Nothing is `public` unless another product assembly needs it | Turns the paragraph into a build failure, and narrows the surface it already describes |
+| [IDEA-001](../../jobs/IDEA-001.md) | The editor has a gutter and linked diagnostics | The listing gains the state column that makes the run of those links worth clicking |
+| [IDEA-015](../../jobs/IDEA-015.md) | The listing and history are shell views because a page cannot read the store | Unchanged: the listing stays a shell view, and this plan fixes its shape before a page takes it over |
+| [SEC-03](../../jobs/SEC-03.md) | Page code has no process boundary | Guards at public entry points are not a boundary and are not presented as one |
+| [BUG-18](../../jobs/BUG-18.md) | Every failure is a document a person can read | The listing stays a document; the new column is text, not an icon |
 
 ## Design
 
@@ -300,7 +314,7 @@ the build after narrowing. That is the loop working — the answer is another `I
 `Core` already has three of — and worth knowing before the first one looks like a mistake.
 
 **Held by the analyzer.** `Microsoft.CodeAnalysis.PublicApiAnalyzers`, pinned in
-[Directory.Packages.props](../../Directory.Packages.props), with `PublicAPI.Shipped.txt` in `Core`,
+[Directory.Packages.props](../../../Directory.Packages.props), with `PublicAPI.Shipped.txt` in `Core`,
 `Runtime` and `Web`. This is the one new package, and the justification is the one the rules ask
 for: it is the only way to make "nothing is `public` unless another assembly needs it" a build
 failure rather than a paragraph, it is Microsoft's own, and it turns a 232-entry list into a file the
@@ -334,7 +348,7 @@ guarantee, hand-rolled, at the cost of a large literal and no "removed API" dete
   pass null, so a guard there is dead code. Guards stay where a constructor is *also* reached with
   data the container did not supply.
 
-The rule is written down in [architecture.md](../../docs/architecture.md) beside "Visibility", so the
+The rule is written down in [architecture.md](../../../docs/architecture.md) beside "Visibility", so the
 next reviewer does not have to re-derive it.
 
 ### D11 — `FormatVersion` moves, once

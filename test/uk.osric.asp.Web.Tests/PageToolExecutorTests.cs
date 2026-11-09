@@ -6,6 +6,8 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
@@ -171,6 +173,79 @@ public sealed class PageToolExecutorTests {
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Content, Does.Contain("not an addressable page path"));
+    }
+
+    [Test]
+    public async Task ListPagesIncludesEachPagesStateAsync() {
+        string template = "Loud.";
+        FakePageStore storage = new();
+        storage["/clean"] = new PageTemplate(PageHarness.Key("/clean"), "Clean.");
+        storage["/loud"] = new PageTemplate(PageHarness.Key("/loud"), template, new PageImage(
+            TemplateFingerprint.Of(template), "1:3:elsewhere", [1], [2],
+            [new PageDiagnostic(PageDiagnosticSeverity.Warning, new TemplatePosition(1, 1), "CS0219: unused")]));
+        storage["/borked"] = new PageTemplate(PageHarness.Key("/borked"), "<% broken", new PageImage(
+            TemplateFingerprint.Of("<% broken"), "1:3:elsewhere", null, null,
+            [new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(1, 4), "CS1525: broken")]));
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", CancellationToken.None);
+
+        Assert.That(States(result), Is.EqualTo(new Dictionary<string, string> {
+            ["/borked"] = "Compile failed",
+            ["/clean"] = "Not compiled",
+            ["/loud"] = "Compiled with warnings",
+        }));
+    }
+
+    [Test]
+    public async Task ListPagesSaysStaleForAPageCompiledByAnotherBuildAsync() {
+        FakePageStore storage = new() {
+            CurrentRuntimeId = "2:3:nowhere",
+            ["/blog"] = new PageTemplate(PageHarness.Key("/blog"), "Loud.", new PageImage(
+                TemplateFingerprint.Of("Loud."), "1:3:elsewhere", [1], [2], [])),
+        };
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", CancellationToken.None);
+
+        Assert.That(States(result)["/blog"], Is.EqualTo("Stale"));
+    }
+
+    [Test]
+    public async Task ReadPageStillReportsCompiledWithWarningsAsync() {
+        // FakePageStore judges against no build, so a page read from it is described without staleness.
+        string template = "<% int unused = 1; %>";
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        storage["/loud"] = new PageTemplate(PageHarness.Key("/loud"), template, pages.Images.Build(
+            PageHarness.Key("/loud"), template, PageMetrics.ReasonSave, CancellationToken.None));
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "read_page", "{\"path\":\"/loud\"}", CancellationToken.None);
+
+        Assert.That(Data(result).GetProperty("compileStatus").GetString(), Is.EqualTo("Compiled with warnings"));
+    }
+
+    [Test]
+    public async Task WritingAPageThatWarnsIsASuccessfulCallAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "write_page", "{\"path\":\"/loud\",\"content\":\"<% int unused = 1; %>\"}", CancellationToken.None);
+
+        Assert.That(result.IsSuccess, Is.True, result.Content);
+        Assert.That(storage["/loud"]?.Image?.Bytes, Is.Not.Null);
+        Assert.That(Data(result).GetProperty("diagnostics")[0].GetProperty("severity").GetString(),
+            Is.EqualTo("Warning"));
     }
 
     [Test]
@@ -846,6 +921,13 @@ public sealed class PageToolExecutorTests {
 
     private static string[] Paths(ToolExecutionResult result) =>
         [.. Data(result).GetProperty("pages").EnumerateArray().Select(page => page.GetProperty("path").GetString()!)];
+
+    private static Dictionary<string, string> States(ToolExecutionResult result) => Data(result)
+        .GetProperty("pages").EnumerateArray()
+        .ToDictionary(
+            page => page.GetProperty("path").GetString()!,
+            page => page.GetProperty("status").GetString()!,
+            StringComparer.Ordinal);
 
     private static string[] Matches(ToolExecutionResult result) =>
         [.. Data(result).GetProperty("matches").EnumerateArray()

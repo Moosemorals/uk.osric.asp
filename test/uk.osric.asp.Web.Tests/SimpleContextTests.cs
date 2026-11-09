@@ -13,6 +13,26 @@ using uk.osric.asp.Web.Pages;
 public sealed class SimpleContextTests {
 
     [Test]
+    public void WritingNullIsRefused() {
+        SimpleContext context = CreateContext(out _);
+
+        Assert.Multiple(() => {
+            Assert.Throws<ArgumentNullException>(() => context.Write(null!));
+            Assert.Throws<ArgumentNullException>(() => context.WriteRaw(null!));
+        });
+    }
+
+    [Test]
+    public void AStatusOutsideTheHttpRangeIsRefused() {
+        SimpleContext context = CreateContext(out _);
+
+        Assert.Multiple(() => {
+            Assert.Throws<ArgumentOutOfRangeException>(() => context.SetStatus(99));
+            Assert.Throws<ArgumentOutOfRangeException>(() => context.SetStatus(600));
+        });
+    }
+
+    [Test]
     public void ResponseDefaultsToOkHtml() {
         SimpleContext context = CreateContext(out _);
 

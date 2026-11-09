@@ -16,6 +16,8 @@ internal static class ErrorEndpoint {
     /// <summary>Writes the error page. Runs inside the exception handler's branch, not from routing.</summary>
     /// <param name="context">The failing request.</param>
     public static async Task HandleAsync(HttpContext context) {
+        ArgumentNullException.ThrowIfNull(context);
+
         // The branch form of UseExceptionHandler publishes the failure under both feature names.
         IExceptionHandlerPathFeature? pathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
         Exception? exception = pathFeature?.Error

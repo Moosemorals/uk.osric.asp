@@ -9,7 +9,7 @@ using uk.osric.asp.Core.Compilation;
 /// <param name="Text">The message, unencoded: <see cref="PageLayout.Diagnostics(IReadOnlyList{DiagnosticLine}, bool)"/> encodes it.</param>
 /// <param name="Severity">The severity, or null for a line that carries none, such as a stack location.</param>
 /// <param name="Line">The source line the line points at, when it points at one.</param>
-public readonly record struct DiagnosticLine(string Text, PageDiagnosticSeverity? Severity, int? Line) {
+internal readonly record struct DiagnosticLine(string Text, PageDiagnosticSeverity? Severity, int? Line) {
 
     /// <summary>Turns compiler diagnostics into lines, ordered by source position.</summary>
     /// <param name="diagnostics">The diagnostics to show.</param>

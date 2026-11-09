@@ -16,6 +16,8 @@ internal static class StatusEndpoint {
         HttpContext context,
         Dashboard dashboard,
         CancellationToken cancellationToken) {
+        ArgumentNullException.ThrowIfNull(context);
+
 
         StatusDuration duration = StatusDuration.FromToken(context.Request.Query["duration"]);
         StatusPage page = await dashboard.GetAsync(duration, cancellationToken);

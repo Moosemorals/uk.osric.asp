@@ -9,9 +9,7 @@ public sealed record GeneratedSource {
     /// <summary>Wraps generated source.</summary>
     /// <param name="text">The C# the template generator produced.</param>
     /// <exception cref="ArgumentException">The text is empty.</exception>
-    public GeneratedSource(string text) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(text);
-
+    internal GeneratedSource(string text) {
         Text = text;
     }
 

@@ -60,6 +60,21 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Not.Contain("<%"));
     }
 
+    // A shipped page that warns would greet a fresh installation with "Compiled with warnings", so
+    // the seeds are held to the standard the prompt's examples are.
+    [TestCaseSource(nameof(SeedPaths))]
+    public async Task EveryShippedSeedCompilesWithoutDiagnosticsAsync(string path) {
+        using PageHarness pages = new(new FakePageStore());
+        string template = (await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path)))!;
+
+        PageImage image = pages.Images.Build(
+            PagePath.Normalize(path), template, PageMetrics.ReasonSave, CancellationToken.None);
+
+        Assert.That(image.Diagnostics, Is.Empty,
+            $"{path}: {string.Join("; ", image.Diagnostics.Select(diagnostic => diagnostic.Message))}");
+        Assert.That(image.Bytes, Is.Not.Null, path);
+    }
+
     [Test]
     public async Task TheAdminIndexIsAReachableFragment() {
         string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/admin"));
