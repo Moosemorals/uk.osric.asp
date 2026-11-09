@@ -14,18 +14,29 @@ using uk.osric.asp.Core.Charting;
 /// <param name="options">The zone the time labels are written in.</param>
 internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions options) {
 
-    private static readonly ChartSize LineSize = new(420, 180);
-    private static readonly ChartSize StackedSize = new(420, 200);
-    private static readonly ChartSize HeatmapSize = new(420, 280);
+    // Twenty per cent larger than the first draft: twenty-eight small multiples is dense enough
+    // without the plots themselves being cramped.
+    private static readonly ChartSize LineSize = new(504, 216);
+    private static readonly ChartSize StackedSize = new(504, 240);
+    private static readonly ChartSize HeatmapSize = new(504, 336);
     private const string HeatmapValueUnit = "per second";
     private const string EmptyText = "No data in this window.";
 
     /// <summary>Draws one panel for one window.</summary>
     /// <param name="panel">The panel, whose chart kind decides the drawing.</param>
     /// <param name="window">The start and length every query is run over.</param>
+    /// <param name="titleHref">
+    /// Where the drawing's title links, or null when the drawing is already the page that link would
+    /// open — which is what the chart endpoint passes.
+    /// </param>
     /// <param name="cancellationToken">Aborted when the request is abandoned.</param>
     /// <returns>The drawing, or why it could not be drawn; never throws for a remote failure.</returns>
-    public async Task<ChartResult> RenderAsync(Panel panel, ChartWindow window, CancellationToken cancellationToken) {
+    public async Task<ChartResult> RenderAsync(
+        Panel panel,
+        ChartWindow window,
+        string? titleHref,
+        CancellationToken cancellationToken) {
+
         ArgumentNullException.ThrowIfNull(panel);
         ArgumentNullException.ThrowIfNull(window);
 
@@ -45,7 +56,7 @@ internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions option
             }
         }
 
-        ChartFrame frame = new(panel.Id, panel.Title, panel.YTitle, EmptyText, options.TimeZone);
+        ChartFrame frame = new(panel.Id, panel.Title, panel.YTitle, EmptyText, options.TimeZone, titleHref);
         ChartAxis time = new("time", NiceTicks.ForTime(window.Start, window.End, options.TimeZone));
 
         return panel.Chart switch {

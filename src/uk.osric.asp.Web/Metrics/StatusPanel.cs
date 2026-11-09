@@ -3,11 +3,13 @@
 
 namespace uk.osric.asp.Web.Metrics;
 
-/// <summary>One titled drawing on the status page, and the link that opens it alone.</summary>
+/// <summary>One titled drawing on the status page.</summary>
 /// <param name="Panel">The catalogue entry it was drawn from.</param>
-/// <param name="Svg">The drawing; it is never null, because a panel with no data says so itself.</param>
-/// <param name="Href">The chart endpoint's URL for the same panel and window.</param>
-internal sealed record StatusPanel(Panel Panel, string Svg, string Href);
+/// <param name="Svg">
+/// The drawing; it is never null, because a panel with no data says so itself. Its title is the link
+/// that opens the same chart on its own.
+/// </param>
+internal sealed record StatusPanel(Panel Panel, string Svg);
 
 /// <summary>Everything the status endpoint needs to write the page.</summary>
 /// <param name="Panels">The drawings, in catalogue order.</param>

@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Core.Charting;
 
 using System.Text;
+using uk.osric.asp.Core.Assistant;
 
 /// <summary>Draws a stacked area chart as SVG.</summary>
 /// <remarks>
@@ -58,18 +59,19 @@ public static class StackedAreaChart {
 
         StringBuilder svg = new();
         double top = ChartChrome.Begin(svg, size, "stacked", frame, ChartChrome.Describe(x, y));
-        top = ChartChrome.Legend(svg, size, top, [.. ordered.Select(line => line.Label)]);
+        IReadOnlyList<LegendEntry> legend = ChartChrome.LayoutLegend(
+            size, top, [.. ordered.Select(line => line.Label)], out double plotTop);
 
-        double plotHeight = size.Height - top - BottomMargin;
+        double plotHeight = size.Height - plotTop - BottomMargin;
         if (plotHeight <= 0) {
             throw new ArgumentOutOfRangeException(nameof(size), size, "The chart is too small for its labels.");
         }
 
-        WriteAxisTitle(svg, y.Title, top, plotHeight);
+        WriteAxisTitle(svg, y.Title, plotTop, plotHeight);
 
         IReadOnlyList<ChartPoint> timeline = Timeline(ordered);
         if (timeline.Count == 0) {
-            ChartChrome.Empty(svg, size, top, frame.EmptyText);
+            ChartChrome.Empty(svg, size, plotTop, frame.EmptyText);
             svg.Append("</svg>\n");
 
             return svg.ToString();
@@ -79,7 +81,7 @@ public static class StackedAreaChart {
         double[] totals = Totals(values, timeline.Count);
         double max = totals.Max();
         if (max <= 0) {
-            ChartChrome.Empty(svg, size, top, frame.EmptyText);
+            ChartChrome.Empty(svg, size, plotTop, frame.EmptyText);
             svg.Append("</svg>\n");
 
             return svg.ToString();
@@ -90,7 +92,8 @@ public static class StackedAreaChart {
         double axisMax = Math.Max(max, ticks.Max(tick => tick.Position));
         double span = Math.Max((timeline[^1].At - timeline[0].At).TotalSeconds, 1);
 
-        WriteGrid(svg, x, ticks, top, plotHeight, plotWidth, size, span, axisMax);
+        WriteGrid(svg, x, ticks, plotTop, plotHeight, plotWidth, size, span, axisMax);
+        ChartChrome.Border(svg, LeftMargin, plotTop, plotWidth, plotHeight);
 
         double[] below = new double[timeline.Count];
         double right = LeftMargin + plotWidth;
@@ -108,20 +111,22 @@ public static class StackedAreaChart {
                 tops[column] = below[column] + values[index][column];
             }
 
-            svg.Append("<a class=\"series-link\" id=\"").Append(SvgText.Escape(id))
+            svg.Append("<a class=\"series-link ").Append(SvgText.SeriesColour(index))
+                .Append("\" id=\"").Append(SvgText.Escape(id))
                 .Append("\" href=\"#").Append(SvgText.Escape(id)).Append("\" tabindex=\"-1\">\n");
             svg.Append("<title>").Append(SvgText.Escape(line.Label)).Append("</title>\n");
+            ChartChrome.WriteLegendItem(svg, legend[index], line.Label);
             svg.Append("<path class=\"series area ").Append(SvgText.SeriesColour(index))
-                .Append("\" d=\"").Append(Area(timeline, below, tops, span, plotWidth, top, plotHeight, axisMax))
+                .Append("\" d=\"").Append(Area(timeline, below, tops, span, plotWidth, plotTop, plotHeight, axisMax))
                 .Append("\" fill=\"").Append(colour).Append("\" fill-opacity=\"")
                 .Append(SvgText.Number(FillOpacity)).Append("\" stroke=\"none\"/>\n");
             svg.Append("<polyline class=\"series ").Append(SvgText.SeriesColour(index))
-                .Append("\" points=\"").Append(Top(timeline, tops, span, plotWidth, top, plotHeight, axisMax))
+                .Append("\" points=\"").Append(Top(timeline, tops, span, plotWidth, plotTop, plotHeight, axisMax))
                 .Append("\" fill=\"none\" stroke=\"").Append(colour)
                 .Append("\" stroke-width=\"2\"").Append(dash).Append("/>\n");
             svg.Append("</a>\n");
 
-            WriteEndLabel(svg, line.Label, colour, timeline, below, tops, span, plotWidth, top, plotHeight, axisMax, right);
+            WriteEndLabel(svg, line.Label, colour, timeline, below, tops, span, plotWidth, plotTop, plotHeight, axisMax, right);
             below = tops;
         }
 
@@ -150,7 +155,7 @@ public static class StackedAreaChart {
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(LeftMargin - 4))
                 .Append("\" y=\"").Append(SvgText.Number(at + 4))
                 .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
-                .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(tick.Label))
+                .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BudgetAmount.Format(tick.Position)))
                 .Append("</text>\n");
         }
 

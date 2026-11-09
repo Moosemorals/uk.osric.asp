@@ -15,23 +15,24 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageContentTypesConfigurationTests {
 
     [Test]
-    public void TheShippedSectionMapsTheFiveExtensions() {
+    public void TheShippedSectionMapsEveryExtension() {
         PageContentTypes contentTypes = ReadShipped();
 
         Assert.Multiple(() => {
             Assert.That(contentTypes.Fallback, Is.EqualTo("text/html; charset=utf-8"));
-            Assert.That(contentTypes.ExtensionCount, Is.EqualTo(5));
+            Assert.That(contentTypes.ExtensionCount, Is.EqualTo(6));
             Assert.That(contentTypes.ForPath("/app.js"), Is.EqualTo("text/javascript; charset=utf-8"));
             Assert.That(contentTypes.ForPath("/app.mjs"), Is.EqualTo("text/javascript; charset=utf-8"));
             Assert.That(contentTypes.ForPath("/app.css"), Is.EqualTo("text/css; charset=utf-8"));
             Assert.That(contentTypes.ForPath("/app.json"), Is.EqualTo("application/json; charset=utf-8"));
             Assert.That(contentTypes.ForPath("/app.txt"), Is.EqualTo("text/plain; charset=utf-8"));
+            Assert.That(contentTypes.ForPath("/shape.svg"), Is.EqualTo("image/svg+xml; charset=utf-8"));
             Assert.That(contentTypes.ForPath("/app"), Is.EqualTo("text/html; charset=utf-8"));
         });
     }
 
     [Test]
-    public void TheRepositoryStillShipsTheFiveRows() {
+    public void TheRepositoryStillShipsEveryRow() {
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(AppSettingsPath()));
 
         JsonElement section = document.RootElement.GetProperty("Pages").GetProperty("ContentTypes");
@@ -39,7 +40,7 @@ public sealed class PageContentTypesConfigurationTests {
         Assert.That(section.GetProperty("Fallback").GetString(), Is.EqualTo("text/html; charset=utf-8"));
         Assert.That(
             section.GetProperty("Extensions").EnumerateObject().Select(property => property.Name),
-            Is.EquivalentTo([".js", ".mjs", ".css", ".json", ".txt"]));
+            Is.EquivalentTo([".js", ".mjs", ".css", ".json", ".svg", ".txt"]));
     }
 
     [Test]

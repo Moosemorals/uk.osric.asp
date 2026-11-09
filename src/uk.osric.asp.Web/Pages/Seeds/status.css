@@ -45,14 +45,6 @@
     margin: 0;
 }
 
-.panel figcaption {
-    font-size: 0.75rem;
-}
-
-.panel figcaption a {
-    color: #444;
-}
-
 .chart,
 .heatmap,
 .stacked {
@@ -61,9 +53,19 @@
     height: auto;
 }
 
+/* The title is the link that opens the chart on its own. */
+.chart-title-link {
+    text-decoration: none;
+}
+
+.chart-title-link:hover .chart-title {
+    text-decoration: underline;
+}
+
 /* Identification beyond colour: hovering or pinning one series dims the others, and the page is
-   still usable without this — every line is also labelled and dashed. `:has` is supported by every
-   browser this page is read in; without it only the dimming is lost. */
+   still usable without this — every line is also labelled and dashed, and each series' legend entry
+   sits inside the series' own anchor, so hovering the legend is hovering the series. `:has` is
+   supported by every browser this page is read in; without it only the dimming is lost. */
 svg:has(.series-link:hover) .series-link:not(:hover) .series,
 svg:has(.series-link:focus) .series-link:not(:focus) .series,
 svg:has(.series-link:target) .series-link:not(:target) .series {
@@ -74,4 +76,17 @@ svg:has(.series-link:target) .series-link:not(:target) .series {
 .series-link:focus .series,
 .series-link:target .series {
     stroke-width: 3;
+}
+
+/* A heatmap's row is its series: hovering one row dims the rest, and clicking pins it. */
+svg:has(.heat-row:hover) .heat-row:not(:hover) rect,
+svg:has(.heat-row:focus) .heat-row:not(:focus) rect,
+svg:has(.heat-row:target) .heat-row:not(:target) rect {
+    opacity: 0.25;
+}
+
+.heat-row:hover text,
+.heat-row:focus text,
+.heat-row:target text {
+    font-weight: 600;
 }

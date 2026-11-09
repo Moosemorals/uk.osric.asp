@@ -3,7 +3,7 @@
 
 body {
     margin: 0 auto;
-    max-width: 40rem;
+    max-width: 120ch;
     padding: 2rem;
     font-family: system-ui, sans-serif;
     line-height: 1.6;

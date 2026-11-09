@@ -75,7 +75,8 @@ Two rules keep the response safe:
   session cookie. Redirects go through `Redirect`; content type through `SetContentType`, and the
   script permission through `AllowScripts` — the `Content-Security-Policy` header itself stays
   shell-owned. The extension is only a default: a key's last segment selects the initial content
-  type through `Pages:ContentTypes` (DEC-144), and `SetContentType` always wins. Every rendered page
+  type through `Pages:ContentTypes` (DEC-144), which ships `.js`, `.mjs`, `.css`, `.json`, `.svg` and
+  `.txt` (DEC-197), and `SetContentType` always wins. Every rendered page
   also starts with `Cache-Control: no-cache`, and a page opts out by setting its own header.
 
 Successful page responses receive a strong `ETag` computed from the UTF-8 bytes of the rendered

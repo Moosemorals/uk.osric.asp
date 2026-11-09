@@ -70,14 +70,14 @@ internal sealed class Dashboard(ChartRenderer renderer, TimeProvider time, ILogg
         string? banner = null;
 
         foreach (Panel panel in StatusCatalogue.Panels) {
-            ChartResult result = await renderer.RenderAsync(panel, window, cancellationToken);
+            ChartResult result = await renderer.RenderAsync(panel, window, Href(panel, window), cancellationToken);
 
             if (result.Svg is null) {
                 banner ??= result.Reason;
                 continue;
             }
 
-            panels.Add(new StatusPanel(panel, result.Svg, Href(panel, window)));
+            panels.Add(new StatusPanel(panel, result.Svg));
         }
 
         if (banner is not null) {

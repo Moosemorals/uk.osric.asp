@@ -41,6 +41,20 @@ public sealed class ShellTests : IntegrationTest {
     }
 
     [Test]
+    public async Task AnSvgPageTakesItsContentTypeFromTheExtensionMap() {
+        // No SetContentType: the map is what makes an .svg page an image.
+        const string body = "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"4\"/></svg>";
+        await SavePageAsync("/shape.svg", body);
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/shape.svg");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content.Headers.ContentType?.ToString(), Is.EqualTo("image/svg+xml; charset=utf-8"));
+        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo(body));
+    }
+
+    [Test]
     public async Task UnknownPageReturnsNotFound() {
         using HttpClient client = CreateClient();
 

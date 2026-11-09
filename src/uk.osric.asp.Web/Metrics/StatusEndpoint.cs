@@ -77,16 +77,9 @@ internal static class StatusEndpoint {
         await ShellDocument.EndAsync(context, cancellationToken);
     }
 
-    private static async Task WriteFigureAsync(HttpContext context, StatusPanel panel, CancellationToken cancellationToken) {
-        string label = WebUtility.HtmlEncode("Open chart: " + panel.Panel.Title);
-
-        await context.Response.WriteAsync("<figure class=\"panel\">", cancellationToken);
-        await context.Response.WriteAsync(panel.Svg, cancellationToken);
-        await context.Response.WriteAsync(
-            $"<figcaption><a href=\"{WebUtility.HtmlEncode(panel.Href)}\" aria-label=\"{label}\">Open chart</a></figcaption>",
-            cancellationToken);
-        await context.Response.WriteAsync("</figure>", cancellationToken);
-    }
+    private static Task WriteFigureAsync(HttpContext context, StatusPanel panel, CancellationToken cancellationToken) =>
+        // The drawing's own title is the link to the chart on its own, so the figure adds nothing.
+        context.Response.WriteAsync("<figure class=\"panel\">" + panel.Svg + "</figure>", cancellationToken);
 
     private static Task WriteNavAsync(HttpContext context, string current, CancellationToken cancellationToken) {
         // The current window is where you already are, so it is text, not a link to itself.

@@ -33,9 +33,10 @@ curl -sI https://moosemorals.com/site.css | grep -iE '^(content-type|cache-contr
 ```
 
 Every rendered page is `Cache-Control: no-cache` unless the page sets its own, and an authenticated
-response is `no-store` whatever the page set. `.svg` is deliberately not in the shipped map because
-it is active content; `/rocket.svg` sets `image/svg+xml` itself. The mount is read-only on purpose:
-no page, editor or assistant can change the map.
+response is `no-store` whatever the page set. The shipped map names `.js`, `.mjs`, `.css`, `.json`,
+`.svg` and `.txt`; an `.svg` page is the owner's own content, served with the shell's policy and
+refused script unless the page asks for it (DEC-197). The mount is read-only on purpose: no page,
+editor or assistant can change the map.
 
 ## Memory and swap
 

@@ -52,8 +52,14 @@ public sealed class LineChartTests {
     public void EverySeriesIsAnAnchorThatNamesItself() {
         string svg = Render(Series("ok", (0, 0), (600, 1)));
 
-        Assert.That(svg, Does.Contain("<a class=\"series-link\" id=\"test-s1\" href=\"#test-s1\" tabindex=\"-1\">"));
+        Assert.That(svg, Does.Contain("<a class=\"series-link series-1\" id=\"test-s1\" href=\"#test-s1\" tabindex=\"-1\">"));
         Assert.That(svg, Does.Contain("<title>ok</title>"), "the anchor names the series on hover");
+
+        int open = svg.IndexOf("<a class=\"series-link series-1\"", StringComparison.Ordinal);
+        string anchor = svg[open..svg.IndexOf("</a>", open, StringComparison.Ordinal)];
+
+        Assert.That(anchor, Does.Contain("chart-legend-label"), "the legend entry lives in the series' anchor");
+        Assert.That(anchor, Does.Contain("<polyline class=\"series series-1\""), "and so does the line");
     }
 
     [Test]
@@ -120,6 +126,35 @@ public sealed class LineChartTests {
 
         Assert.That(svg, Does.Contain("<polyline class=\"series series-1\""));
         Assert.That(svg, Does.Contain("stroke=\"#0072B2\""));
+    }
+
+    [Test]
+    public void TheTitleLinksToTheChartOnItsOwnOnlyWhenItIsGivenSomewhereToGo() {
+        ChartFrame linked = Frame with { TitleHref = "/status/chart?panel=test" };
+
+        string svg = LineChart.Render([Series("ok", (0, 0), (600, 1))], TimeAxis, CountAxis, Size, linked);
+
+        Assert.That(svg, Does.Contain("<a class=\"chart-title-link\" href=\"/status/chart?panel=test\">"));
+        Assert.That(svg, Does.Contain("</a>\n<text class=\"chart-axis-title\""));
+        Assert.That(Render(Series("ok", (0, 0), (600, 1))), Does.Not.Contain("chart-title-link"));
+    }
+
+    [Test]
+    public void TheDrawnAreaIsFramed() {
+        string svg = Render(Series("ok", (0, 0), (600, 1)));
+
+        Assert.That(svg, Does.Contain("class=\"chart-frame\""));
+        Assert.That(svg, Does.Contain("fill=\"none\" stroke=\"#999999\""));
+    }
+
+    [Test]
+    public void TheValueAxisUsesThreeSignificantFiguresAndAnSiSuffix() {
+        ChartAxis large = new("bytes", [new ChartTick(0, "0"), new ChartTick(1_048_576, "1048576")]);
+
+        string svg = LineChart.Render([Series("big", (0, 0), (600, 1_048_576))], TimeAxis, large, Size, Frame);
+
+        Assert.That(svg, Does.Contain(">1M</text>"));
+        Assert.That(svg, Does.Not.Contain("1.048576e+06"));
     }
 
     [Test]

@@ -47,6 +47,8 @@ internal static class ChartEndpoint {
             return;
         }
 
+        // A chart served on its own must not link to itself, so no title href is passed through the
+        // dashboard; the page is the only place that knows the chart's URL.
         StatusPage page = await dashboard.GetAsync(window, cancellationToken);
         StatusPanel? drawing = page.Panels.FirstOrDefault(candidate => candidate.Panel.Id == panel.Id);
 

@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Core.Charting;
 
 using System.Text;
+using uk.osric.asp.Core.Assistant;
 
 /// <summary>Draws line charts as SVG.</summary>
 /// <remarks>
@@ -14,8 +15,8 @@ using System.Text;
 /// </para>
 /// <para>
 /// A series is identified four ways, in the order a reader meets them: its colour, its dash pattern, a
-/// label at the end of its line, and a legend inside the drawing. Colour is the last cue, not the
-/// first.
+/// label at the end of its line, and a legend inside the drawing. Each series' legend entry sits in the
+/// same anchor as the line itself, so hovering or clicking either one highlights the same series.
 /// </para>
 /// </remarks>
 public static class LineChart {
@@ -54,9 +55,10 @@ public static class LineChart {
 
         StringBuilder svg = new();
         double top = ChartChrome.Begin(svg, size, "chart", frame, ChartChrome.Describe(x, y));
-        top = ChartChrome.Legend(svg, size, top, [.. series.Select(line => line.Label)]);
+        IReadOnlyList<LegendEntry> legend = ChartChrome.LayoutLegend(
+            size, top, [.. series.Select(line => line.Label)], out double plotTop);
 
-        double plotHeight = size.Height - top - BottomMargin;
+        double plotHeight = size.Height - plotTop - BottomMargin;
         if (plotHeight <= 0) {
             throw new ArgumentOutOfRangeException(nameof(size), size, "The chart is too small for its labels.");
         }
@@ -64,10 +66,10 @@ public static class LineChart {
         (DateTimeOffset start, double span) = TimeRange(series);
         (double min, double max) = ValueRange(series, y);
 
-        WriteAxisTitles(svg, y, top, plotHeight);
+        WriteAxisTitle(svg, y, plotTop, plotHeight);
 
         foreach (ChartTick tick in Order(y.Ticks)) {
-            double at = ValuePosition(tick.Position, min, max, top, plotHeight);
+            double at = ValuePosition(tick.Position, min, max, plotTop, plotHeight);
             svg.Append("<line class=\"chart-grid\" x1=\"").Append(SvgText.Number(LeftMargin))
                 .Append("\" y1=\"").Append(SvgText.Number(at))
                 .Append("\" x2=\"").Append(SvgText.Number(LeftMargin + plotWidth))
@@ -76,16 +78,16 @@ public static class LineChart {
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(LeftMargin - 4))
                 .Append("\" y=\"").Append(SvgText.Number(at + 4))
                 .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
-                .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(tick.Label))
+                .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BudgetAmount.Format(tick.Position)))
                 .Append("</text>\n");
         }
 
         foreach (ChartTick tick in Order(x.Ticks)) {
             double at = LeftMargin + ((tick.Position / span) * plotWidth);
             svg.Append("<line class=\"chart-grid\" x1=\"").Append(SvgText.Number(at))
-                .Append("\" y1=\"").Append(SvgText.Number(top))
+                .Append("\" y1=\"").Append(SvgText.Number(plotTop))
                 .Append("\" x2=\"").Append(SvgText.Number(at))
-                .Append("\" y2=\"").Append(SvgText.Number(top + plotHeight))
+                .Append("\" y2=\"").Append(SvgText.Number(plotTop + plotHeight))
                 .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(at))
                 .Append("\" y=\"").Append(SvgText.Number(size.Height - 6))
@@ -94,8 +96,10 @@ public static class LineChart {
                 .Append("</text>\n");
         }
 
+        ChartChrome.Border(svg, LeftMargin, plotTop, plotWidth, plotHeight);
+
         if (!HasSamples(series)) {
-            ChartChrome.Empty(svg, size, top, frame.EmptyText);
+            ChartChrome.Empty(svg, size, plotTop, frame.EmptyText);
             svg.Append("</svg>\n");
 
             return svg.ToString();
@@ -112,21 +116,23 @@ public static class LineChart {
                 : string.Empty;
             string id = frame.Id + "-s" + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-            svg.Append("<a class=\"series-link\" id=\"").Append(SvgText.Escape(id))
+            svg.Append("<a class=\"series-link ").Append(SvgText.SeriesColour(index))
+                .Append("\" id=\"").Append(SvgText.Escape(id))
                 .Append("\" href=\"#").Append(SvgText.Escape(id)).Append("\" tabindex=\"-1\">\n");
             svg.Append("<title>").Append(SvgText.Escape(line.Label)).Append("</title>\n");
+            ChartChrome.WriteLegendItem(svg, legend[index], line.Label);
 
-            WriteLine(svg, line, index, colour, dash, series.Count > 1, start, span, min, max, top, plotHeight, plotWidth, right);
+            WriteLine(svg, line, index, colour, dash, series.Count > 1, start, span, min, max, plotTop, plotHeight, plotWidth, right);
             svg.Append("</a>\n");
 
-            WriteEndLabel(svg, line, colour, start, span, min, max, top, plotHeight, plotWidth, right, labels);
+            WriteEndLabel(svg, line, colour, start, span, min, max, plotTop, plotHeight, plotWidth, right, labels);
         }
 
         svg.Append("</svg>\n");
         return svg.ToString();
     }
 
-    private static void WriteAxisTitles(StringBuilder svg, ChartAxis y, double top, double plotHeight) {
+    private static void WriteAxisTitle(StringBuilder svg, ChartAxis y, double top, double plotHeight) {
         double middle = top + (plotHeight / 2);
 
         // The unit belongs on the axis, not only in the description: a chart of unknown units is a
@@ -207,6 +213,7 @@ public static class LineChart {
                 .Append("\" fill=\"none\" stroke=\"transparent\" stroke-width=\"12\"/>\n");
         }
     }
+
     private static void WriteEndLabel(
         StringBuilder svg,
         ChartSeries line,
@@ -236,7 +243,7 @@ public static class LineChart {
             return;
         }
 
-        double x = Math.Min(right, 40 + ((sample.At - start).TotalSeconds / span * plotWidth));
+        double x = Math.Min(right, LeftMargin + ((sample.At - start).TotalSeconds / span * plotWidth));
         double y = ValuePosition(lastValue, min, max, top, plotHeight);
         if (placed.Any(other => Math.Abs(other.Y - y) < LabelHeight)) {
             return;

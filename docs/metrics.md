@@ -90,10 +90,14 @@ distribution, exactly as `page.render.duration` merges every path. The panel's t
 splitting a heatmap by a tag would be a grid of small multiples rather than one chart.
 
 The page is a grid of `<figure>`s under three headings, and each drawing carries its own title and
-legend inside its SVG (DEC-181). The only thing the page adds is one caption link per figure, which
-opens that chart on its own. A panel whose answer was empty draws its own "No data in this window."
-rather than a gap in the grid, which is a different statement from the banner that says Prometheus
-itself is unwell.
+legend inside its SVG (DEC-181). The page adds nothing to a figure: the drawing's own title is the
+link that opens that chart on its own. A panel whose answer was empty draws its own "No data in this
+window." rather than a gap in the grid, which is a different statement from the banner that says
+Prometheus itself is unwell.
+
+Every plot is framed — a line at each edge of the drawn area — and its value axis is labelled with
+`BudgetAmount.Format`, the same three-significant-figures-and-SI-suffix code the assistant's budget
+gauges use, so a bucket boundary read `1M` rather than `1.048576e+06`.
 
 **The inventory is the catalogue.** Each meter publishes its instruments, the catalogue maps them
 one-to-one, and tests fail when either side gains an entry the other lacks, when a type disagrees
@@ -109,11 +113,15 @@ markup budget, which `StatusPageSizeTests` pins.
 ### Identifying a series without colour
 
 Each series gets a colour from the Okabe–Ito palette, a dash pattern, and a label drawn at the end of
-its line; the legend repeats both inside the drawing. Hovering or focusing a series dims the others,
-and clicking it pins that highlight by SVG fragment target (DEC-182). The interaction is CSS only,
-because `/status` is script-free (DEC-81), and the at-rest cues — the end-of-line label, the dash and
-the legend — are the accessible ones. The series anchors are pointer-only; a keyboard or screen-reader
-reader gets the label, the legend and the drawing's own `<title>`.
+its line; the legend repeats both inside the drawing, and each series' legend entry sits inside that
+series' own anchor, so hovering or clicking the entry does what hovering or clicking the line does.
+Hovering or focusing a series dims the others, and clicking it pins that highlight by SVG fragment
+target (DEC-182). A heatmap behaves the same way with rows instead of series: hovering a row dims the
+rest and clicking pins it, and every run names its shade, its total and its time span on hover.
+The interaction is CSS only, because `/status` is script-free (DEC-81), and the at-rest cues — the
+end-of-line label, the dash and the legend — are the accessible ones. The series and row anchors are
+pointer-only; a keyboard or screen-reader reader gets the label, the legend and the drawing's own
+`<title>`.
 
 The palette and the dashes are presentation attributes written by `Core.Charting`, not stylesheet
 rules, so a chart served on its own is legible with no stylesheet at all (DEC-184). `/status.css`
