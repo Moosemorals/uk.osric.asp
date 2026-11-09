@@ -115,7 +115,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation clean
+.PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -155,7 +155,10 @@ help:
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
 		'license-check      Fail if the tree is not REUSE compliant (needs the reuse tool).' \
-		'mutation           Mutation-test Core with Stryker: does the suite notice a change in the code?' \
+		'mutation-core      Mutation-test Core with Stryker: does the suite notice a change in the code?' \
+		'mutation-runtime   Mutation-test the page compiler.' \
+		'mutation-sdk       Mutation-test the page contract, which the Web suite drives.' \
+		'mutation-web       Mutation-test the shell: the long one, hours rather than minutes.' \
 		'browsers           Install the Firefox build the browser suite drives.' \
 		'clean              Delete the artifacts folder.' \
 		'help               Show this list.'
@@ -448,14 +451,36 @@ format-check:
 license-check:
 	reuse lint
 
-# Mutation testing rewrites the Core source and reruns the suite once per mutant, so it is minutes
-# rather than seconds and stays out of `check`. Stryker compiles the mutated project itself, which
-# is why this needs only a restore: the build stamp would compile the same projects for nothing.
-# It runs from the test project, its own recommendation: started at the solution file, Stryker takes
-# the whole solution as its scope and runs every suite for every mutant.
-mutation: $(RESTORE_STAMP)
+# Mutation testing rewrites a project's source and reruns the suite once per mutant, so it is minutes
+# to hours rather than seconds and stays out of `check`. Stryker mutates one project per run, so each
+# project has a target of its own and a configuration beside the suite that drives it. Each report
+# lands in its own folder, so one run cannot overwrite another's.
+#
+# Stryker compiles the mutated project itself, which is why this needs only a restore: the build stamp
+# would compile the same projects for nothing. It runs from the test project, its own recommendation:
+# started at the solution file, Stryker takes the whole solution as its scope and runs every suite for
+# every mutant.
+
+MUTATION_DIR := $(ARTIFACTS)/stryker
+
+mutation-core: $(RESTORE_STAMP)
 	$(DOTNET) tool restore
-	cd $(dir $(CORE_TESTS)) && $(DOTNET) tool run dotnet-stryker --output $(abspath $(ARTIFACTS))/stryker
+	cd $(dir $(CORE_TESTS)) && $(DOTNET) tool run dotnet-stryker --output $(abspath $(MUTATION_DIR))/core
+
+mutation-runtime: $(RESTORE_STAMP)
+	$(DOTNET) tool restore
+	cd $(dir $(RUNTIME_TESTS)) && $(DOTNET) tool run dotnet-stryker --output $(abspath $(MUTATION_DIR))/runtime
+
+# Sdk has no suite of its own, so its configuration sits beside the Web suite, which is the one that
+# drives it: the document builder is asserted there.
+mutation-sdk: $(RESTORE_STAMP)
+	$(DOTNET) tool restore
+	cd $(dir $(WEB_TESTS)) && $(DOTNET) tool run dotnet-stryker -f stryker-sdk-config.json --output $(abspath $(MUTATION_DIR))/sdk
+
+# The shell is the long one: ten times the code of the rest together, and the slowest suite.
+mutation-web: $(RESTORE_STAMP)
+	$(DOTNET) tool restore
+	cd $(dir $(WEB_TESTS)) && $(DOTNET) tool run dotnet-stryker --output $(abspath $(MUTATION_DIR))/web
 
 clean:
 	rm -rf $(ARTIFACTS)

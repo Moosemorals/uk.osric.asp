@@ -16,6 +16,9 @@ path = [
   ".vscode/tasks.json",
   ".vscode/extensions.json",
   "test/uk.osric.asp.Core.Tests/stryker-config.json",
+  "test/uk.osric.asp.Runtime.Tests/stryker-config.json",
+  "test/uk.osric.asp.Web.Tests/stryker-config.json",
+  "test/uk.osric.asp.Web.Tests/stryker-sdk-config.json",
 ]
 SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
 SPDX-License-Identifier = "MIT"

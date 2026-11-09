@@ -142,7 +142,10 @@ make test-integration  # the composed pipeline only, against a throwaway databas
 make browsers          # download the Firefox build the browser suite drives, once
 make test-browser      # the real host in Firefox, with a scripted provider
 make test-browser-live # the tests that call the configured provider and cost tokens
-make mutation          # mutation-test Core: does the suite notice a change in the code?
+make mutation-core     # mutation-test Core: does the suite notice a change in the code?
+make mutation-runtime  # the same for the page compiler
+make mutation-sdk      # the same for the page contract
+make mutation-web      # the same for the shell; hours rather than minutes
 ```
 
 Every suite writes its results under `artifacts/test-results`, so a run leaves the working tree alone.
@@ -183,18 +186,26 @@ is read in.
 
 ## Mutation testing
 
-`make mutation` probes the suite rather than the code: Stryker changes `Core` on purpose — a `<` to a
-`<=`, a `+` to a `-`, a returned value to another — reruns `Core.Tests` and reports every change the
-tests did not notice. A survivor is either a gap in the suite or an equivalent mutant, so each one is
-judged from the report rather than counted as a failure.
+`make mutation-core` probes the suite rather than the code: Stryker changes `Core` on purpose — a `<`
+to a `<=`, a `+` to a `-`, a returned value to another — reruns `Core.Tests` and reports every change
+the tests did not notice. A survivor is either a gap in the suite or an equivalent mutant, so each one
+is judged from the report rather than counted as a failure. `mutation-runtime`, `mutation-sdk` and
+`mutation-web` do the same for the other three projects.
 
 It is opt-in and out of `make check`, like the browser suite: the project is rebuilt and the suite
-rerun once per mutant, so a full run is minutes. The configuration lives beside the tests it drives
-(`test/uk.osric.asp.Core.Tests/stryker-config.json`) and ignores string mutations — a test that pins
-the exact text of an exception message is testing the wording, not the behaviour. Stryker runs from
-the test project directory; started beside the solution file it treats the whole solution as its
-scope. `dotnet-stryker` is a local tool, so a fresh checkout needs `dotnet tool restore` (the target
-does it).
+rerun once per mutant, so a run is minutes for `Core` and `Runtime`, and hours for the shell, which is
+ten times the code of the rest together. Stryker mutates one project per run, which is why there is a
+target per project rather than one for the repository, and why each report has its own folder under
+`artifacts/stryker`.
+
+The configuration lives beside the tests it drives — `test/uk.osric.asp.Core.Tests/stryker-config.json`
+and its siblings — and ignores string mutations: a test that pins the exact text of an exception
+message is testing the wording, not the behaviour. The `Web` run uses both web suites, because the
+integration tests are the only ones that reach the wiring; the `Sdk` run uses `Web.Tests`, because
+`Sdk` has no suite of its own and the document builder is asserted there. The `Web` run also excludes
+the generated migrations, which are not ours to test. Stryker runs from the test project directory;
+started beside the solution file it treats the whole solution as its scope. `dotnet-stryker` is a
+local tool, so a fresh checkout needs `dotnet tool restore` (the targets do it).
 
 ## The gate
 

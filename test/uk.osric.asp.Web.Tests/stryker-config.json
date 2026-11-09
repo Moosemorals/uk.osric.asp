@@ -1,0 +1,12 @@
+{
+  "stryker-config": {
+    "project": "uk.osric.asp.Web.csproj",
+    "test-projects": [
+      "uk.osric.asp.Web.Tests.csproj",
+      "../uk.osric.asp.Web.IntegrationTests/uk.osric.asp.Web.IntegrationTests.csproj"
+    ],
+    "mutate": ["**/*.cs", "!**/Storage/Migrations/**"],
+    "ignore-mutations": ["string"],
+    "reporters": ["progress", "cleartext", "html"]
+  }
+}
