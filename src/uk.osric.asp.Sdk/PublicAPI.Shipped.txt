@@ -1,0 +1,193 @@
+#nullable enable
+const uk.osric.asp.Sdk.PageDocument.SkipLinkText = "Skip to content" -> string!
+override uk.osric.asp.Sdk.HttpFetchRequest.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.HttpFetchRequest.GetHashCode() -> int
+override uk.osric.asp.Sdk.HttpFetchRequest.ToString() -> string!
+override uk.osric.asp.Sdk.HttpFetchResponse.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.HttpFetchResponse.GetHashCode() -> int
+override uk.osric.asp.Sdk.HttpFetchResponse.ToString() -> string!
+override uk.osric.asp.Sdk.NavLink.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageRequest.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageRequest.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageRequest.ToString() -> string!
+override uk.osric.asp.Sdk.PageResponse.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageResponse.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageResponse.ToString() -> string!
+override uk.osric.asp.Sdk.PageUser.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageUser.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageUser.ToString() -> string!
+override uk.osric.asp.Sdk.PageValue<T>.GetHashCode() -> int
+static uk.osric.asp.Sdk.HttpFetchRequest.operator !=(uk.osric.asp.Sdk.HttpFetchRequest? left, uk.osric.asp.Sdk.HttpFetchRequest? right) -> bool
+static uk.osric.asp.Sdk.HttpFetchRequest.operator ==(uk.osric.asp.Sdk.HttpFetchRequest? left, uk.osric.asp.Sdk.HttpFetchRequest? right) -> bool
+static uk.osric.asp.Sdk.HttpFetchResponse.operator !=(uk.osric.asp.Sdk.HttpFetchResponse? left, uk.osric.asp.Sdk.HttpFetchResponse? right) -> bool
+static uk.osric.asp.Sdk.HttpFetchResponse.operator ==(uk.osric.asp.Sdk.HttpFetchResponse? left, uk.osric.asp.Sdk.HttpFetchResponse? right) -> bool
+static uk.osric.asp.Sdk.NavLink.operator !=(uk.osric.asp.Sdk.NavLink left, uk.osric.asp.Sdk.NavLink right) -> bool
+static uk.osric.asp.Sdk.NavLink.operator ==(uk.osric.asp.Sdk.NavLink left, uk.osric.asp.Sdk.NavLink right) -> bool
+static uk.osric.asp.Sdk.PageDocument.Banner(string! navigation) -> string!
+static uk.osric.asp.Sdk.PageDocument.BaseStylesheets.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static uk.osric.asp.Sdk.PageDocument.CloseMain() -> string!
+static uk.osric.asp.Sdk.PageDocument.End() -> string!
+static uk.osric.asp.Sdk.PageDocument.Head(string! title, System.Collections.Generic.IReadOnlyList<string!>? stylesheets = null, string? head = null, string? bodyClass = null) -> string!
+static uk.osric.asp.Sdk.PageDocument.IsSiteRelative(string? href) -> bool
+static uk.osric.asp.Sdk.PageDocument.Nav(string! label, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.NavLink>! links, string? className = null) -> string!
+static uk.osric.asp.Sdk.PageDocument.OpenMain() -> string!
+static uk.osric.asp.Sdk.PageRequest.operator !=(uk.osric.asp.Sdk.PageRequest? left, uk.osric.asp.Sdk.PageRequest? right) -> bool
+static uk.osric.asp.Sdk.PageRequest.operator ==(uk.osric.asp.Sdk.PageRequest? left, uk.osric.asp.Sdk.PageRequest? right) -> bool
+static uk.osric.asp.Sdk.PageResponse.Default.get -> uk.osric.asp.Sdk.PageResponse!
+static uk.osric.asp.Sdk.PageResponse.operator !=(uk.osric.asp.Sdk.PageResponse? left, uk.osric.asp.Sdk.PageResponse? right) -> bool
+static uk.osric.asp.Sdk.PageResponse.operator ==(uk.osric.asp.Sdk.PageResponse? left, uk.osric.asp.Sdk.PageResponse? right) -> bool
+static uk.osric.asp.Sdk.PageUser.operator !=(uk.osric.asp.Sdk.PageUser? left, uk.osric.asp.Sdk.PageUser? right) -> bool
+static uk.osric.asp.Sdk.PageUser.operator ==(uk.osric.asp.Sdk.PageUser? left, uk.osric.asp.Sdk.PageUser? right) -> bool
+static uk.osric.asp.Sdk.PageValue<T>.operator !=(uk.osric.asp.Sdk.PageValue<T> left, uk.osric.asp.Sdk.PageValue<T> right) -> bool
+static uk.osric.asp.Sdk.PageValue<T>.operator ==(uk.osric.asp.Sdk.PageValue<T> left, uk.osric.asp.Sdk.PageValue<T> right) -> bool
+uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchFailure.Aborted = 4 -> uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchFailure.HttpError = 6 -> uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchFailure.InvalidRequest = 1 -> uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchFailure.Network = 5 -> uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchFailure.None = 0 -> uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchFailure.NotAllowed = 2 -> uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchFailure.Timeout = 3 -> uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchFailure.TooManyRedirects = 8 -> uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchFailure.TooManyRequests = 7 -> uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchMethod
+uk.osric.asp.Sdk.HttpFetchMethod.Get = 0 -> uk.osric.asp.Sdk.HttpFetchMethod
+uk.osric.asp.Sdk.HttpFetchMethod.Post = 1 -> uk.osric.asp.Sdk.HttpFetchMethod
+uk.osric.asp.Sdk.HttpFetchRequest
+uk.osric.asp.Sdk.HttpFetchRequest.<Clone>$() -> uk.osric.asp.Sdk.HttpFetchRequest!
+uk.osric.asp.Sdk.HttpFetchRequest.Body.get -> string?
+uk.osric.asp.Sdk.HttpFetchRequest.Body.init -> void
+uk.osric.asp.Sdk.HttpFetchRequest.Deconstruct(out string! Url) -> void
+uk.osric.asp.Sdk.HttpFetchRequest.Equals(uk.osric.asp.Sdk.HttpFetchRequest? other) -> bool
+uk.osric.asp.Sdk.HttpFetchRequest.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+uk.osric.asp.Sdk.HttpFetchRequest.Headers.init -> void
+uk.osric.asp.Sdk.HttpFetchRequest.HttpFetchRequest(string! Url) -> void
+uk.osric.asp.Sdk.HttpFetchRequest.Method.get -> uk.osric.asp.Sdk.HttpFetchMethod
+uk.osric.asp.Sdk.HttpFetchRequest.Method.init -> void
+uk.osric.asp.Sdk.HttpFetchRequest.Url.get -> string!
+uk.osric.asp.Sdk.HttpFetchRequest.Url.init -> void
+uk.osric.asp.Sdk.HttpFetchResponse
+uk.osric.asp.Sdk.HttpFetchResponse.<Clone>$() -> uk.osric.asp.Sdk.HttpFetchResponse!
+uk.osric.asp.Sdk.HttpFetchResponse.Body.get -> string!
+uk.osric.asp.Sdk.HttpFetchResponse.Body.init -> void
+uk.osric.asp.Sdk.HttpFetchResponse.Deconstruct(out int Status, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, out string! Body, out uk.osric.asp.Sdk.HttpFetchFailure Failure, out bool Truncated) -> void
+uk.osric.asp.Sdk.HttpFetchResponse.Equals(uk.osric.asp.Sdk.HttpFetchResponse? other) -> bool
+uk.osric.asp.Sdk.HttpFetchResponse.Failure.get -> uk.osric.asp.Sdk.HttpFetchFailure
+uk.osric.asp.Sdk.HttpFetchResponse.Failure.init -> void
+uk.osric.asp.Sdk.HttpFetchResponse.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+uk.osric.asp.Sdk.HttpFetchResponse.Headers.init -> void
+uk.osric.asp.Sdk.HttpFetchResponse.HttpFetchResponse(int Status, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, string! Body, uk.osric.asp.Sdk.HttpFetchFailure Failure, bool Truncated) -> void
+uk.osric.asp.Sdk.HttpFetchResponse.Status.get -> int
+uk.osric.asp.Sdk.HttpFetchResponse.Status.init -> void
+uk.osric.asp.Sdk.HttpFetchResponse.Succeeded.get -> bool
+uk.osric.asp.Sdk.HttpFetchResponse.Truncated.get -> bool
+uk.osric.asp.Sdk.HttpFetchResponse.Truncated.init -> void
+uk.osric.asp.Sdk.IContext
+uk.osric.asp.Sdk.IContext.Aborted.get -> System.Threading.CancellationToken
+uk.osric.asp.Sdk.IContext.AllowScripts() -> void
+uk.osric.asp.Sdk.IContext.AntiforgeryField.get -> string!
+uk.osric.asp.Sdk.IContext.Features.get -> uk.osric.asp.Sdk.IPageFeatures!
+uk.osric.asp.Sdk.IContext.Log(string! message) -> void
+uk.osric.asp.Sdk.IContext.LogError(string! message) -> void
+uk.osric.asp.Sdk.IContext.LogWarning(string! message) -> void
+uk.osric.asp.Sdk.IContext.Path.get -> string!
+uk.osric.asp.Sdk.IContext.Redirect(string! location, int status = 302) -> void
+uk.osric.asp.Sdk.IContext.RedirectToLogin() -> void
+uk.osric.asp.Sdk.IContext.Request.get -> uk.osric.asp.Sdk.PageRequest!
+uk.osric.asp.Sdk.IContext.SetContentType(string! contentType) -> void
+uk.osric.asp.Sdk.IContext.SetHeader(string! name, string! value) -> void
+uk.osric.asp.Sdk.IContext.SetStatus(int status) -> void
+uk.osric.asp.Sdk.IContext.User.get -> uk.osric.asp.Sdk.PageUser?
+uk.osric.asp.Sdk.IContext.Write(string! message) -> void
+uk.osric.asp.Sdk.IContext.WriteRaw(string! message) -> void
+uk.osric.asp.Sdk.IHandler
+uk.osric.asp.Sdk.IHandler.HandleAsync(uk.osric.asp.Sdk.IContext! context) -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IHttpFetch
+uk.osric.asp.Sdk.IHttpFetch.GetAsync(string! url) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.HttpFetchResponse!>!
+uk.osric.asp.Sdk.IHttpFetch.PostAsync(string! url, string! body) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.HttpFetchResponse!>!
+uk.osric.asp.Sdk.IHttpFetch.SendAsync(uk.osric.asp.Sdk.HttpFetchRequest! request) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.HttpFetchResponse!>!
+uk.osric.asp.Sdk.IPageFeatures
+uk.osric.asp.Sdk.IPageFeatures.Get<T>() -> T?
+uk.osric.asp.Sdk.IPageFeatures.GetRequired<T>() -> T!
+uk.osric.asp.Sdk.IPageFeatures.TryGet<T>(out T? feature) -> bool
+uk.osric.asp.Sdk.IPageLayout
+uk.osric.asp.Sdk.IPageLayout.AddHead(string! markup) -> void
+uk.osric.asp.Sdk.IPageLayout.AddStylesheet(string! href) -> void
+uk.osric.asp.Sdk.IPageLayout.Body.get -> string!
+uk.osric.asp.Sdk.IPageLayout.Head.get -> string!
+uk.osric.asp.Sdk.IPageLayout.Layout.get -> string?
+uk.osric.asp.Sdk.IPageLayout.Layout.set -> void
+uk.osric.asp.Sdk.IPageLayout.Stylesheets.get -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Sdk.IPageLayout.Title.get -> string!
+uk.osric.asp.Sdk.IPageLayout.Title.set -> void
+uk.osric.asp.Sdk.IPageStorage
+uk.osric.asp.Sdk.IPageStorage.DeleteAsync(string! key) -> System.Threading.Tasks.Task<bool>!
+uk.osric.asp.Sdk.IPageStorage.KeysAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<string!>!>!
+uk.osric.asp.Sdk.IPageStorage.SetAsync<T>(string! key, T value) -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IPageStorage.TryGetValueAsync<T>(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageValue<T>>!
+uk.osric.asp.Sdk.NavLink
+uk.osric.asp.Sdk.NavLink.Deconstruct(out string! Href, out string! Text, out bool IsCurrent) -> void
+uk.osric.asp.Sdk.NavLink.Equals(uk.osric.asp.Sdk.NavLink other) -> bool
+uk.osric.asp.Sdk.NavLink.Href.get -> string!
+uk.osric.asp.Sdk.NavLink.Href.init -> void
+uk.osric.asp.Sdk.NavLink.IsCurrent.get -> bool
+uk.osric.asp.Sdk.NavLink.IsCurrent.init -> void
+uk.osric.asp.Sdk.NavLink.NavLink() -> void
+uk.osric.asp.Sdk.NavLink.NavLink(string! Href, string! Text, bool IsCurrent = false) -> void
+uk.osric.asp.Sdk.NavLink.Text.get -> string!
+uk.osric.asp.Sdk.NavLink.Text.init -> void
+uk.osric.asp.Sdk.PageDocument
+uk.osric.asp.Sdk.PageRequest
+uk.osric.asp.Sdk.PageRequest.<Clone>$() -> uk.osric.asp.Sdk.PageRequest!
+uk.osric.asp.Sdk.PageRequest.Cookies.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+uk.osric.asp.Sdk.PageRequest.Cookies.init -> void
+uk.osric.asp.Sdk.PageRequest.Deconstruct(out string! Method, out string! Path, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies) -> void
+uk.osric.asp.Sdk.PageRequest.Equals(uk.osric.asp.Sdk.PageRequest? other) -> bool
+uk.osric.asp.Sdk.PageRequest.Form.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+uk.osric.asp.Sdk.PageRequest.Form.init -> void
+uk.osric.asp.Sdk.PageRequest.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+uk.osric.asp.Sdk.PageRequest.Headers.init -> void
+uk.osric.asp.Sdk.PageRequest.Method.get -> string!
+uk.osric.asp.Sdk.PageRequest.Method.init -> void
+uk.osric.asp.Sdk.PageRequest.PageRequest(string! Method, string! Path, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies) -> void
+uk.osric.asp.Sdk.PageRequest.Path.get -> string!
+uk.osric.asp.Sdk.PageRequest.Path.init -> void
+uk.osric.asp.Sdk.PageRequest.Query.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+uk.osric.asp.Sdk.PageRequest.Query.init -> void
+uk.osric.asp.Sdk.PageResponse
+uk.osric.asp.Sdk.PageResponse.<Clone>$() -> uk.osric.asp.Sdk.PageResponse!
+uk.osric.asp.Sdk.PageResponse.AllowsScripts.get -> bool
+uk.osric.asp.Sdk.PageResponse.AllowsScripts.init -> void
+uk.osric.asp.Sdk.PageResponse.ContentType.get -> string!
+uk.osric.asp.Sdk.PageResponse.ContentType.init -> void
+uk.osric.asp.Sdk.PageResponse.Deconstruct(out int Status, out string! ContentType, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, out string? Location) -> void
+uk.osric.asp.Sdk.PageResponse.Equals(uk.osric.asp.Sdk.PageResponse? other) -> bool
+uk.osric.asp.Sdk.PageResponse.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+uk.osric.asp.Sdk.PageResponse.Headers.init -> void
+uk.osric.asp.Sdk.PageResponse.Location.get -> string?
+uk.osric.asp.Sdk.PageResponse.Location.init -> void
+uk.osric.asp.Sdk.PageResponse.PageResponse(int Status, string! ContentType, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, string? Location) -> void
+uk.osric.asp.Sdk.PageResponse.Status.get -> int
+uk.osric.asp.Sdk.PageResponse.Status.init -> void
+uk.osric.asp.Sdk.PageUser
+uk.osric.asp.Sdk.PageUser.<Clone>$() -> uk.osric.asp.Sdk.PageUser!
+uk.osric.asp.Sdk.PageUser.Deconstruct(out string! Name) -> void
+uk.osric.asp.Sdk.PageUser.Equals(uk.osric.asp.Sdk.PageUser? other) -> bool
+uk.osric.asp.Sdk.PageUser.Name.get -> string!
+uk.osric.asp.Sdk.PageUser.Name.init -> void
+uk.osric.asp.Sdk.PageUser.PageUser(string! Name) -> void
+uk.osric.asp.Sdk.PageValue<T>
+uk.osric.asp.Sdk.PageValue<T>.Deconstruct(out bool Found, out T? Value) -> void
+uk.osric.asp.Sdk.PageValue<T>.Equals(uk.osric.asp.Sdk.PageValue<T> other) -> bool
+uk.osric.asp.Sdk.PageValue<T>.Found.get -> bool
+uk.osric.asp.Sdk.PageValue<T>.Found.init -> void
+uk.osric.asp.Sdk.PageValue<T>.PageValue() -> void
+uk.osric.asp.Sdk.PageValue<T>.PageValue(bool Found, T? Value) -> void
+uk.osric.asp.Sdk.PageValue<T>.Value.get -> T?
+uk.osric.asp.Sdk.PageValue<T>.Value.init -> void
+uk.osric.asp.Sdk.UserFacingException
+uk.osric.asp.Sdk.UserFacingException.UserFacingException(string! message) -> void
+~override uk.osric.asp.Sdk.NavLink.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.NavLink.ToString() -> string
+~override uk.osric.asp.Sdk.PageValue<T>.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageValue<T>.ToString() -> string

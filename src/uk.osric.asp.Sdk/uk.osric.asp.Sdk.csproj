@@ -10,4 +10,12 @@ SPDX-License-Identifier: MIT
     policy lets it name. Reference-free on purpose, so nothing it exposes can drag the host in.
   -->
 
+  <ItemGroup>
+    <!-- The page contract is the one surface that must stay open, so it is declared shipped in full:
+         widening it is a deliberate edit to this file, not an accident. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+
 </Project>
