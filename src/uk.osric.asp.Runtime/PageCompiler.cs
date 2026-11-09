@@ -8,6 +8,9 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Sdk;
+// The page contract has a diagnostic value of its own, so the compiler names its own type here.
+using PageDiagnostic = uk.osric.asp.Core.Compilation.PageDiagnostic;
+using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSeverity;
 
 /// <summary>Compiles generated page source into page images and loads them for execution.</summary>
 public sealed class PageCompiler : IPageCompiler {

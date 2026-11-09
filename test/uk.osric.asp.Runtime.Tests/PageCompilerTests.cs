@@ -9,6 +9,9 @@ using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
+// The page contract has a diagnostic value of its own, so this file names the compiler's.
+using PageDiagnostic = uk.osric.asp.Core.Compilation.PageDiagnostic;
+using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSeverity;
 
 [TestFixture]
 public sealed class PageCompilerTests {

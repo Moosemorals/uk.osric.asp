@@ -15,6 +15,8 @@ using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
+// The page contract has a diagnostic value of its own, so this file names the compiler's.
+using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSeverity;
 
 /// <summary>The import views: upload and validate, review and approve, progress and results.</summary>
 /// <remarks>

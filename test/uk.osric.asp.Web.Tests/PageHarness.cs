@@ -143,7 +143,8 @@ internal sealed class PageHarness : IDisposable {
         ReadBudget? readBudget = null,
         bool withFetch = true,
         bool withStorage = true,
-        bool withCatalog = true) {
+        bool withCatalog = true,
+        bool withWriter = true) {
         PageFeatures features = new();
 
         if (withStorage) {
@@ -175,6 +176,11 @@ internal sealed class PageHarness : IDisposable {
                 new ReservedPaths(ReservedPaths.Default),
                 ContentTypes);
             features.Add<IPageCatalog>(catalog);
+        }
+
+        if (withWriter) {
+            PageWriterScope writer = new(path, Saver, user, writable: !isHead);
+            features.Add<IPageWriter>(writer);
         }
 
         return new SimpleContext(

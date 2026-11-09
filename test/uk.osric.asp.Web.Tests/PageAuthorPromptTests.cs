@@ -9,6 +9,8 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Pages;
+// The page contract has a diagnostic value of its own, so this file names the compiler's.
+using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSeverity;
 
 [TestFixture]
 public sealed class PageAuthorPromptTests {

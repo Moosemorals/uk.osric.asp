@@ -12,6 +12,7 @@ using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
@@ -43,6 +44,7 @@ public sealed class PageEndpointTests {
             new PageReadOptions(),
             new FakePageStateStore(),
             new FakePageReadStore(),
+            Saver(render ?? Options),
             new FakePageFetcher(),
             _metrics,
             _antiforgery,
@@ -717,6 +719,16 @@ public sealed class PageEndpointTests {
         context.Request.ContentType = "application/x-www-form-urlencoded";
         context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
         return context;
+    }
+
+    // A save is never made through this fixture's environment; the saver exists because a render is
+    // offered the capability the same way every other one is.
+    private PageSaver Saver(RenderOptions render) {
+        PageBudget budget = new(render, new CompileOptions());
+        PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
+
+        return new PageSaver(
+            new FakePageRevisionStore(new FakePageStore()), images, _metrics, NullLogger<PageSaver>.Instance);
     }
 
     private PageRenderer CreatePages(IPageStore storage, RenderOptions? options = null) {

@@ -155,6 +155,7 @@ internal class Program {
             services.GetRequiredService<PageReadOptions>(),
             services.GetRequiredService<IPageStateStore>(),
             services.GetRequiredService<IPageReadStore>(),
+            services.GetRequiredService<PageSaver>(),
             services.GetRequiredService<IPageFetcher>(),
             services.GetRequiredService<PageMetrics>(),
             services.GetRequiredService<IAntiforgery>(),
