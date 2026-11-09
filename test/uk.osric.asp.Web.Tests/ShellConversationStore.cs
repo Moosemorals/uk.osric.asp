@@ -66,6 +66,12 @@ internal sealed class ShellConversationStore(
     public Task<bool> SetRunStatusAsync(string runId, string status, string? errorCode = null, string? errorMessage = null, CancellationToken cancellationToken = default) =>
         Task.FromResult(true);
 
+    public Task<bool> PauseRunAsync(string runId, string budget, CancellationToken cancellationToken = default) =>
+        Task.FromResult(true);
+
+    public Task<bool> ContinueRunAsync(long conversationId, string owner, string runId, int stepWindow, int toolCallWindow, CancellationToken cancellationToken = default) =>
+        Task.FromResult(true);
+
     public Task<bool> CreateApprovalAsync(string runId, string toolCallId, CancellationToken cancellationToken = default) =>
         Task.FromResult(true);
 

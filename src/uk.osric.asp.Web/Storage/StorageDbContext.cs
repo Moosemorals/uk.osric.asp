@@ -85,13 +85,14 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             run.Property(row => row.ApprovalMode).HasMaxLength(32);
             run.Property(row => row.PromptVersion).HasMaxLength(100);
             run.Property(row => row.ErrorCode).HasMaxLength(100);
+            run.Property(row => row.PausedBudget).HasMaxLength(32);
             run.HasOne<Conversation>()
                 .WithMany()
                 .HasForeignKey(row => row.ConversationId)
                 .OnDelete(DeleteBehavior.Cascade);
             run.HasIndex(row => row.ConversationId)
                 .IsUnique()
-                .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_approval')");
+                .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_approval', 'awaiting_continuation')");
         });
 
         modelBuilder.Entity<Message>(message => {

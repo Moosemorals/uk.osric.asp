@@ -59,8 +59,15 @@ the deadline is re-armed for every event the provider sends, so a model that rea
 cut off, while a stalled stream ends the step with `provider_timeout`. The whole run uses the same
 two-minute silence rule, re-armed per streamed event; keep-alive comments are not events, and the
 clock stops while a tool runs or an approval waits for its owner, because neither is the run going
-quiet. An approval the owner never answers leaves the run `awaiting_approval` until they stop the run
-or delete the conversation, or the host restarts. A run that stops leaves its reason in the
+quiet. A budget is a different matter: running out of steps or tool calls pauses the run instead of
+failing it. The run stops where the budget forbids, writes nothing to the transcript, and the page
+asks "Do you want to continue?" in a card rendered from the run's stored state, so a reload or
+another device still shows it. Continue gives that budget one more window of itself — another
+`MaxSteps` steps, `MaxToolCalls` calls, or `MaxToolCallsPerStep` calls in one step — and the run
+carries on with the request it was about to make, so the model never learns it was interrupted.
+Stopping a paused run is the ordinary Stop. An approval or a continuation the owner never answers
+leaves the run `awaiting_approval` or `awaiting_continuation` until they stop the run or delete the
+conversation, or the host restarts. A run that stops leaves its reason in the
 transcript, and a message that stops at the provider's output limit is stored as `truncated`, because
 the reload after a terminal event is when a reader needs the reason, and a bare status word would
 not give it. Provider

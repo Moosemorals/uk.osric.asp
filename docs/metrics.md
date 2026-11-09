@@ -49,7 +49,9 @@ The wait histogram carries no path tag for the same reason, and because queueing
 site rather than of a page.
 
 Durations are seconds to match OpenTelemetry and ASP.NET Core's own hosting instruments, so do not
-add a request-duration metric of our own. On a cache miss `page.compile.duration` is a subset of
+add a request-duration metric of our own. A run's duration is wall-clock, so it includes the time an
+approval or a continuation waited for its owner, as `assistant.run.duration` always has. On a cache
+miss `page.compile.duration` is a subset of
 `page.render.duration`; never add the two together. `page.path` is bounded by the number of stored
 pages, which is small — if that ever stops being true, drop the tag and keep the path in logs.
 Recording costs nothing until an exporter listens, so the instruments are always on. For a quick

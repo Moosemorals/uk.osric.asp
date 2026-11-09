@@ -49,7 +49,8 @@ internal sealed class SqliteConversationStore(
                 conversation.ApprovalMode,
                 conversation.UpdatedAt,
                 database.Set<Run>().Where(run => run.ConversationId == conversation.Id
-                        && (run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval"))
+                        && (run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval"
+                            || run.Status == RunBudget.Awaiting))
                     .Select(run => run.Id)
                     .FirstOrDefault()))
             .ToArrayAsync(cancellationToken);
@@ -268,7 +269,8 @@ internal sealed class SqliteConversationStore(
         return owned
             ? await database.Set<Run>().AsNoTracking()
                 .Where(run => run.ConversationId == id
-                && (run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval"))
+                && (run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval"
+                    || run.Status == RunBudget.Awaiting))
                 .SingleOrDefaultAsync(cancellationToken)
             : null;
     }
@@ -325,8 +327,9 @@ internal sealed class SqliteConversationStore(
                 .SetProperty(run => run.Status, status)
                 .SetProperty(run => run.ErrorCode, errorCode)
                 .SetProperty(run => run.ErrorMessage, errorMessage)
+                .SetProperty(run => run.PausedBudget, (string?)null)
                 .SetProperty(run => run.StartedAt, run => run.StartedAt ?? (status == "running" ? now : null))
-                .SetProperty(run => run.CompletedAt, status == "queued" || status == "running" || status == "awaiting_approval" ? null : now), cancellationToken);
+                .SetProperty(run => run.CompletedAt, IsRunning(status) ? (DateTimeOffset?)null : now), cancellationToken);
         if (updated > 0) {
             await database.Set<Conversation>()
             .Where(conversation => conversation.Id == conversationId)
@@ -334,6 +337,79 @@ internal sealed class SqliteConversationStore(
         }
         return updated > 0;
     }
+
+    public async Task<bool> PauseRunAsync(string runId, string budget, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(budget);
+        DateTimeOffset now = clock.GetUtcNow();
+        long? conversationId = await database.Set<Run>()
+            .Where(run => run.Id == runId)
+            .Select(run => (long?)run.ConversationId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (conversationId is null) {
+            return false;
+        }
+
+        int updated = await database.Set<Run>()
+            .Where(run => run.Id == runId && run.Status == "running")
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(run => run.Status, RunBudget.Awaiting)
+                .SetProperty(run => run.PausedBudget, budget)
+                .SetProperty(run => run.ErrorCode, (string?)null)
+                .SetProperty(run => run.ErrorMessage, (string?)null)
+                .SetProperty(run => run.CompletedAt, (DateTimeOffset?)null), cancellationToken);
+        if (updated > 0) {
+            await database.Set<Conversation>()
+                .Where(conversation => conversation.Id == conversationId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(conversation => conversation.UpdatedAt, now), cancellationToken);
+        }
+        return updated > 0;
+    }
+
+    public async Task<bool> ContinueRunAsync(
+        long conversationId,
+        string owner,
+        string runId,
+        int stepWindow,
+        int toolCallWindow,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(stepWindow);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(toolCallWindow);
+
+        if (!await OwnsConversationAsync(conversationId, owner, cancellationToken)) {
+            return false;
+        }
+
+        DateTimeOffset now = clock.GetUtcNow();
+        // Every right-hand side reads the row as it was, so the budget that ran out is widened by one
+        // window and the other keeps its value, whichever order the columns are set in.
+        int updated = await database.Set<Run>()
+            .Where(run => run.Id == runId
+                && run.ConversationId == conversationId
+                && run.Status == RunBudget.Awaiting)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(run => run.Status, "running")
+                .SetProperty(run => run.PausedBudget, (string?)null)
+                .SetProperty(run => run.StepLimit, run => run.PausedBudget == RunBudget.Steps
+                    ? (run.StepLimit ?? stepWindow) + stepWindow
+                    : run.StepLimit)
+                .SetProperty(run => run.ToolCallLimit, run => run.PausedBudget == RunBudget.ToolCalls
+                    ? (run.ToolCallLimit ?? toolCallWindow) + toolCallWindow
+                    : run.ToolCallLimit)
+                .SetProperty(run => run.CompletedAt, (DateTimeOffset?)null), cancellationToken);
+        if (updated > 0) {
+            await database.Set<Conversation>()
+                .Where(conversation => conversation.Id == conversationId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(conversation => conversation.UpdatedAt, now), cancellationToken);
+        }
+        return updated > 0;
+    }
+
+    // A run that is still going has no completion time; a paused one has not completed either.
+    private static bool IsRunning(string status) =>
+        status is "queued" or "running" or "awaiting_approval" or RunBudget.Awaiting;
 
     public async Task<bool> CreateApprovalAsync(string runId, string toolCallId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
@@ -459,7 +535,8 @@ internal sealed class SqliteConversationStore(
 
     public async Task<int> RecoverInterruptedRunsAsync(CancellationToken cancellationToken = default) {
         Run[] interrupted = await database.Set<Run>().AsNoTracking()
-            .Where(run => run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval")
+            .Where(run => run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval"
+                || run.Status == RunBudget.Awaiting)
             .ToArrayAsync(cancellationToken);
 
         foreach (Run run in interrupted) {

@@ -40,6 +40,7 @@ internal sealed class AspApplication(
     IMetricsSource? metricsSource = null,
     bool assistantEnabled = false,
     IChatCompletionClient? chatCompletionClient = null,
+    int? assistantMaxSteps = null,
     IPageFetcher? pageFetcher = null,
     int? archiveUploadBytes = null,
     string? pageLayout = null) : WebApplicationFactory<Program> {
@@ -66,6 +67,9 @@ internal sealed class AspApplication(
         builder.UseSetting("Pages:Layout", pageLayout ?? string.Empty);
         if (assistantEnabled) {
             builder.UseSetting("Assistant:ApiKey", "integration-test-key");
+        }
+        if (assistantMaxSteps is { } maxSteps) {
+            builder.UseSetting("Assistant:MaxSteps", maxSteps.ToString(CultureInfo.InvariantCulture));
         }
 
         if (archiveUploadBytes is { } uploadBytes) {

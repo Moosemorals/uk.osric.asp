@@ -298,6 +298,109 @@ public sealed class ConversationStoreTests {
         });
     }
 
+    [Test]
+    public async Task APausedRunWidensOnlyTheBudgetTheOwnerContinuedAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, "running");
+
+        Assert.That(await conversations.PauseRunAsync(start.RunId!, RunBudget.Steps), Is.True);
+        Run paused = (await conversations.GetActiveRunAsync(conversation.Id, "owner"))!;
+        Assert.Multiple(() => {
+            Assert.That(paused.Status, Is.EqualTo(RunBudget.Awaiting));
+            Assert.That(paused.PausedBudget, Is.EqualTo(RunBudget.Steps));
+            Assert.That(paused.CompletedAt, Is.Null, "a paused run has not completed");
+        });
+
+        Assert.That(await conversations.ContinueRunAsync(conversation.Id, "owner", start.RunId!, 40, 16), Is.True);
+        Run resumed = (await conversations.GetRunAsync(conversation.Id, "owner", start.RunId!))!;
+        Assert.Multiple(() => {
+            Assert.That(resumed.Status, Is.EqualTo("running"));
+            Assert.That(resumed.PausedBudget, Is.Null);
+            Assert.That(resumed.StepLimit, Is.EqualTo(80), "the steps ran out, so the steps grew by a window");
+            Assert.That(resumed.ToolCallLimit, Is.Null, "the tool-call budget did not");
+            Assert.That(resumed.CompletedAt, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task AToolCallPauseWidensTheCallBudgetAndNotTheStepsAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, "running");
+        await conversations.PauseRunAsync(start.RunId!, RunBudget.ToolCalls);
+
+        Assert.That(await conversations.ContinueRunAsync(conversation.Id, "owner", start.RunId!, 40, 16), Is.True);
+        Run resumed = (await conversations.GetRunAsync(conversation.Id, "owner", start.RunId!))!;
+        Assert.Multiple(() => {
+            Assert.That(resumed.ToolCallLimit, Is.EqualTo(32));
+            Assert.That(resumed.StepLimit, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task OnlyAPausedRunOfTheOwnersConversationCanContinueAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, "running");
+
+        bool whileRunning = await conversations.ContinueRunAsync(conversation.Id, "owner", start.RunId!, 40, 16);
+        await conversations.PauseRunAsync(start.RunId!, RunBudget.Steps);
+        bool byAnotherOwner = await conversations.ContinueRunAsync(conversation.Id, "someone", start.RunId!, 40, 16);
+        bool inAnotherConversation = await conversations.ContinueRunAsync(conversation.Id + 1, "owner", start.RunId!, 40, 16);
+
+        Run after = (await conversations.GetRunAsync(conversation.Id, "owner", start.RunId!))!;
+
+        Assert.Multiple(() => {
+            Assert.That(whileRunning, Is.False);
+            Assert.That(byAnotherOwner, Is.False);
+            Assert.That(inAnotherConversation, Is.False);
+            Assert.That(after.Status, Is.EqualTo(RunBudget.Awaiting), "a refused continuation leaves the run as it was");
+        });
+    }
+
+    [Test]
+    public async Task APausedRunStillOwnsItsConversationAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "first", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, "running");
+        await conversations.PauseRunAsync(start.RunId!, RunBudget.Steps);
+
+        RunStartResult second = await conversations.StartRunAsync(conversation.Id, "owner", "second", "model", "prompt-v1");
+        ConversationListItem listed = (await conversations.ListAsync("owner")).Single();
+
+        Assert.Multiple(() => {
+            Assert.That(second.Status, Is.EqualTo(RunStartStatus.AlreadyActive));
+            Assert.That(listed.ActiveRunId, Is.EqualTo(start.RunId), "the list shows the paused run as active");
+        });
+    }
+
+    [Test]
+    public async Task StartupRecoveryInterruptsAPausedRunAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, "running");
+        await conversations.PauseRunAsync(start.RunId!, RunBudget.Steps);
+
+        Assert.That(await conversations.RecoverInterruptedRunsAsync(), Is.EqualTo(1));
+
+        Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
+        Assert.Multiple(() => {
+            Assert.That(run.Status, Is.EqualTo("interrupted"));
+            Assert.That(run.PausedBudget, Is.Null, "the question died with the process that asked it");
+        });
+    }
+
     private static IConversationStore NewStore(StorageDbContext database) =>
         new SqliteConversationStore(database, TimeProvider.System, NullLogger<SqliteConversationStore>.Instance);
 }

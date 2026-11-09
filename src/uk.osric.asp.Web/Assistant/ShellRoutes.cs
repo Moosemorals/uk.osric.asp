@@ -30,7 +30,7 @@ internal static class ShellRoutes {
         new("/admin/import", "GET, POST", "the owner",
             "Uploads a page archive, shows what it would change and applies it all or nothing."),
         new("/assistant", "GET, POST, HEAD", "the owner; only while Assistant:Enabled is true",
-            "The page assistant: conversations, transcript, run stream and tool approvals."),
+            "The page assistant: conversations, transcript, run stream, tool approvals and the pause a run takes when it runs out of budget."),
         new("/edit", "GET, POST", "the owner",
             "The editor: the page list, a page's source, save, history, delete, scrub and seed restore."),
         new("/favicon.ico", "GET", "anyone",

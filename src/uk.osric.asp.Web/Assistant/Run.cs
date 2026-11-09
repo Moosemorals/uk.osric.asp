@@ -20,4 +20,18 @@ internal sealed class Run {
     public int? CompletionTokens { get; set; }
     public string? ErrorCode { get; set; }
     public string? ErrorMessage { get; set; }
+
+    /// <summary>The budget the run is paused on, or null when it is not paused.</summary>
+    /// <remarks>One of <see cref="RunBudget.Steps"/>, <see cref="RunBudget.ToolCalls"/> or
+    /// <see cref="RunBudget.ToolCallsPerStep"/> while <see cref="Status"/> is
+    /// <c>awaiting_continuation</c>.</remarks>
+    public string? PausedBudget { get; set; }
+
+    /// <summary>The run's step budget, or null while it is the configured one.</summary>
+    /// <remarks>A continuation adds one window to the budget it ran out of, so this is what the page
+    /// shows and what the processor resumes with.</remarks>
+    public int? StepLimit { get; set; }
+
+    /// <summary>The run's tool-call budget, or null while it is the configured one.</summary>
+    public int? ToolCallLimit { get; set; }
 }

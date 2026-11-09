@@ -28,6 +28,8 @@ public sealed class RunProcessorTests {
 
     private readonly ToolApprovalCoordinator _approvals = new();
 
+    private readonly RunContinuationCoordinator _continuation = new();
+
     private readonly RecordingLoggerFactory _logs = new();
 
     private string _databasePath = string.Empty;
@@ -361,12 +363,205 @@ public sealed class RunProcessorTests {
         throw new InvalidOperationException("unreachable");
     }
 
-    private static AssistantOptions RunTimeout(int seconds, int toolSeconds = 2) => new() {
-        RunTimeoutSeconds = seconds,
-        RequestTimeoutSeconds = 3,
-        ToolTimeoutSeconds = toolSeconds,
-        MaxContextChars = 20_000,
-    };
+    [Test]
+    public async Task ARunThatUsesItsStepsPausesForTheOwnerInsteadOfFailingAsync() {
+        SteppedClient client = new(
+            [
+                new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+                new Finished("tool_calls"),
+            ],
+            [
+                new ContentDelta("Done."),
+                new Finished("stop"),
+            ]);
+        AssistantOptions options = RunTimeout(seconds: 20, steps: 1);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client, options);
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await WaitForPauseAsync(started.RunId!);
+
+        Run paused = await RunAsync(conversation);
+        IReadOnlyList<Message> before = await MessagesAsync(conversation);
+        Assert.Multiple(() => {
+            Assert.That(paused.Status, Is.EqualTo(RunBudget.Awaiting));
+            Assert.That(paused.PausedBudget, Is.EqualTo(RunBudget.Steps));
+            Assert.That(paused.ErrorCode, Is.Null, "running out of steps is not a failure");
+            Assert.That(before.Select(message => message.Role), Is.EqualTo(["user", "assistant", "tool"]),
+                "the pause writes nothing to the transcript");
+        });
+
+        await ContinueAsync(conversation, started.RunId!, options);
+        Assert.That(await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(10))), Is.SameAs(run),
+            "continuing resumes the run");
+        await run;
+
+        Run finished = await RunAsync(conversation);
+        IReadOnlyList<Message> after = await MessagesAsync(conversation);
+        RunEvent[] events = await CollectAsync(stream);
+        Assert.Multiple(() => {
+            Assert.That(finished.Status, Is.EqualTo("completed"));
+            Assert.That(finished.StepLimit, Is.EqualTo(2), "one more window of the steps that ran out");
+            Assert.That(finished.ToolCallLimit, Is.Null, "the tool-call budget was not the one that ran out");
+            Assert.That(after.Select(message => message.Role), Is.EqualTo(["user", "assistant", "tool", "assistant"]));
+            Assert.That(after[^1].Content, Is.EqualTo("Done."), "the model answered the step it was about to make");
+            Assert.That(events.Select(item => item.Type), Does.Contain("run.paused"));
+            Assert.That(events.Select(item => item.Type), Does.Contain("run.resumed"));
+            Assert.That(events.Select(item => item.Type), Does.Not.Contain("run.failed"));
+        });
+    }
+
+    [Test]
+    public async Task ARunThatUsesItsToolCallsPausesBeforeTheCallItCannotMakeAsync() {
+        SteppedClient client = new(
+            [
+                new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+                new ToolCallDelta(1, "call-2", "read_page", """{"path":"/missing-too"}"""),
+                new Finished("tool_calls"),
+            ],
+            [
+                new ContentDelta("Done."),
+                new Finished("stop"),
+            ]);
+        AssistantOptions options = RunTimeout(seconds: 20, calls: 1);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, options);
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await WaitForPauseAsync(started.RunId!);
+
+        string? pausedOn = await PausedBudgetAsync(started.RunId!);
+        IReadOnlyList<Message> before = await MessagesAsync(conversation);
+        Assert.Multiple(() => {
+            Assert.That(pausedOn, Is.EqualTo(RunBudget.ToolCalls));
+            Assert.That(before.Select(message => message.Role), Is.EqualTo(["user", "assistant", "tool"]),
+                "the call the budget forbids has not run");
+        });
+
+        await ContinueAsync(conversation, started.RunId!, options);
+        await run;
+
+        Run finished = await RunAsync(conversation);
+        IReadOnlyList<Message> after = await MessagesAsync(conversation);
+        Assert.Multiple(() => {
+            Assert.That(finished.Status, Is.EqualTo("completed"));
+            Assert.That(finished.ToolCallLimit, Is.EqualTo(2));
+            Assert.That(finished.StepLimit, Is.Null);
+            Assert.That(after.Select(message => message.Role), Is.EqualTo(["user", "assistant", "tool", "tool", "assistant"]));
+        });
+    }
+
+    [Test]
+    public async Task OneStepThatAsksForTooManyCallsPausesTooAsync() {
+        SteppedClient client = new(
+            [
+                new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+                new ToolCallDelta(1, "call-2", "read_page", """{"path":"/missing-too"}"""),
+                new Finished("tool_calls"),
+            ],
+            [
+                new ContentDelta("Done."),
+                new Finished("stop"),
+            ]);
+        AssistantOptions options = RunTimeout(seconds: 20, calls: 16, callsPerStep: 1);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, options);
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await WaitForPauseAsync(started.RunId!);
+
+        Assert.That(await PausedBudgetAsync(started.RunId!), Is.EqualTo(RunBudget.ToolCallsPerStep));
+
+        await ContinueAsync(conversation, started.RunId!, options);
+        await run;
+
+        Run finished = await RunAsync(conversation);
+        IReadOnlyList<Message> after = await MessagesAsync(conversation);
+        Assert.Multiple(() => {
+            Assert.That(finished.Status, Is.EqualTo("completed"));
+            Assert.That(after.Select(message => message.Role), Is.EqualTo(["user", "assistant", "tool", "tool", "assistant"]));
+        });
+    }
+
+    [Test]
+    public async Task StoppingAPausedRunEndsItCancelledRatherThanWaitingAsync() {
+        SteppedClient client = new(
+            [
+                new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+                new Finished("tool_calls"),
+            ],
+            [
+                new ContentDelta("Done."),
+                new Finished("stop"),
+            ]);
+        AssistantOptions options = RunTimeout(seconds: 20, steps: 1);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client, options);
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await WaitForPauseAsync(started.RunId!);
+
+        _ = stream.Stop();
+
+        Assert.That(await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(10))), Is.SameAs(run),
+            "a stop must not wait for an answer nobody is going to give");
+        await run;
+        Assert.That((await RunAsync(conversation)).Status, Is.EqualTo("cancelled"));
+    }
+
+    private static AssistantOptions RunTimeout(
+        int seconds,
+        int toolSeconds = 2,
+        int steps = 40,
+        int calls = 16,
+        int callsPerStep = 8) => new() {
+            RunTimeoutSeconds = seconds,
+            RequestTimeoutSeconds = 3,
+            ToolTimeoutSeconds = toolSeconds,
+            MaxContextChars = 20_000,
+            MaxSteps = steps,
+            MaxToolCalls = calls,
+            MaxToolCallsPerStep = callsPerStep,
+        };
+
+    private async Task WaitForPauseAsync(string runId) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
+        for (int attempt = 0; attempt < 200; attempt++) {
+            Run? run = await database.Set<Run>().AsNoTracking().SingleOrDefaultAsync(item => item.Id == runId);
+            if (run?.Status == RunBudget.Awaiting) {
+                return;
+            }
+            await Task.Delay(20);
+        }
+        Assert.Fail("The run never paused for the owner.");
+    }
+
+    private async Task<string?> PausedBudgetAsync(string runId) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
+        return (await database.Set<Run>().AsNoTracking().SingleAsync(item => item.Id == runId)).PausedBudget;
+    }
+
+    private async Task ContinueAsync(Conversation conversation, string runId, AssistantOptions options) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Assert.That(await store.ContinueRunAsync(conversation.Id, "owner", runId, options.MaxSteps, options.MaxToolCalls),
+            Is.True, "the run was not waiting to continue");
+        Assert.That(_continuation.Signal(runId), Is.True, "the processor was not waiting for the decision");
+    }
+
+    private async Task<IReadOnlyList<Message>> MessagesAsync(Conversation conversation) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        return await store.GetMessagesAsync(conversation.Id, "owner");
+    }
+
+    private async Task<Run> RunAsync(Conversation conversation) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        return (await store.GetLastRunAsync(conversation.Id, "owner"))!;
+    }
 
     private async Task WaitForPendingApprovalAsync(Conversation conversation) {
         await using AsyncServiceScope scope = _services!.CreateAsyncScope();
@@ -403,6 +598,7 @@ public sealed class RunProcessorTests {
             tools,
             registry,
             _approvals,
+            _continuation,
             new AssistantMetrics(),
             options,
             _logs.CreateLogger<RunProcessor>());

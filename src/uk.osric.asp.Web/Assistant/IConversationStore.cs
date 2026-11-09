@@ -21,6 +21,8 @@ internal interface IConversationStore {
     Task<Run?> GetLastRunAsync(long id, string owner, CancellationToken cancellationToken = default);
     Task<Run?> GetRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default);
     Task<bool> SetRunStatusAsync(string runId, string status, string? errorCode = null, string? errorMessage = null, CancellationToken cancellationToken = default);
+    Task<bool> PauseRunAsync(string runId, string budget, CancellationToken cancellationToken = default);
+    Task<bool> ContinueRunAsync(long conversationId, string owner, string runId, int stepWindow, int toolCallWindow, CancellationToken cancellationToken = default);
     Task<bool> CreateApprovalAsync(string runId, string toolCallId, CancellationToken cancellationToken = default);
     Task<ApprovalResolutionResult> ResolveApprovalAsync(long conversationId, string owner, string runId, string toolCallId, string decision, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ToolApproval>> GetPendingApprovalsAsync(long conversationId, string owner, CancellationToken cancellationToken = default);

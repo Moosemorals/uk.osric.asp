@@ -20,6 +20,7 @@ if (root) {
     const budgetRows = new Map(Array.from(document.querySelectorAll('[data-budget]'), row => [row.dataset.budget, {
         row,
         count: row.querySelector('.assistant-budget-count > span'),
+        limit: row.querySelector('.assistant-budget-limit'),
         meter: row.querySelector('meter'),
     }]));
     const token = messageForm.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
@@ -242,18 +243,68 @@ if (root) {
     }
 
     // The server already knows what each figure is; the page only shows it, by the same two rules
-    // the markup is written with: the number may exceed the meter, the meter may not.
-    function applyBudgets(budgets) {
+    // the markup is written with: the number may exceed the meter, the meter may not. A continuation
+    // widens one budget, so the limit the row names moves with the figure.
+    function applyBudgets(budgets, limits) {
         for (const [name, used] of Object.entries(budgets ?? {})) {
             const budget = budgetRows.get(name);
             if (!budget) {
                 continue;
             }
-            const maximum = Number(budget.meter.max);
-            budget.count.textContent = formatAmount(used);
+            const maximum = Number(limits?.[name] ?? budget.meter.max);
+            budget.meter.max = String(maximum);
+            budget.meter.low = String(Math.floor(maximum * 3 / 5));
+            budget.meter.high = String(Math.floor(maximum * 17 / 20));
             budget.meter.value = Math.min(used, maximum);
+            budget.count.textContent = formatAmount(used);
+            if (budget.limit) {
+                budget.limit.textContent = formatAmount(maximum);
+            }
             budget.row.classList.toggle('assistant-budget-exceeded', used > maximum);
         }
+    }
+
+    // A run that ran out of a budget waits here rather than failing: the same card the server
+    // renders on a reload, with the server's own sentence, so the two cannot disagree.
+    function addContinuation(data) {
+        const wasNear = nearBottom();
+        // A reload renders the server's copy of this card, and the journal replays the event that
+        // asked for it, so the live card replaces the stored one rather than joining it.
+        transcript.querySelector(`section.assistant-continuation[data-budget="${CSS.escape(data.budget)}"]`)?.remove();
+        const section = document.createElement('section');
+        section.className = 'assistant-continuation';
+        section.dataset.budget = data.budget;
+        const heading = document.createElement('h2');
+        heading.textContent = 'Do you want to continue?';
+        const message = document.createElement('p');
+        message.textContent = data.message;
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = `/assistant/${encodeURIComponent(conversationId)}/runs/${encodeURIComponent(data.runId)}/continue`;
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = '__RequestVerificationToken';
+        csrf.value = token;
+        const button = document.createElement('button');
+        button.type = 'submit';
+        button.textContent = 'Continue';
+        form.append(csrf, button);
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            button.disabled = true;
+            const response = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+            if (!response.ok) {
+                button.disabled = false;
+                statusLine.textContent = 'The run is no longer waiting to continue. Reload to check its state.';
+            }
+        });
+        const note = document.createElement('p');
+        note.className = 'assistant-continuation-note';
+        note.textContent = 'Stopping ends the run; the transcript is kept.';
+        section.append(heading, message, form, note);
+        transcript.append(section);
+        keepNearBottom(wasNear);
+        statusLine.textContent = 'Run paused: it needs your answer';
     }
 
     function connect(runId, after) {
@@ -300,13 +351,22 @@ if (root) {
             void renderCompleted(message, data.messageId);
             statusLine.textContent = 'Response step complete';
         });
-        source.addEventListener('budget.updated', event => applyBudgets(JSON.parse(event.data).budgets));
+        source.addEventListener('budget.updated', event => {
+            const data = JSON.parse(event.data);
+            applyBudgets(data.budgets, data.limits);
+        });
         source.addEventListener('tool.started', event => showTool(JSON.parse(event.data)));
         source.addEventListener('approval.required', event => addApproval(JSON.parse(event.data)));
         source.addEventListener('approval.resolved', event => {
             const data = JSON.parse(event.data);
             transcript.querySelector(`[data-tool-call-id="${CSS.escape(data.toolCallId)}"].assistant-approval`)?.remove();
             statusLine.textContent = data.decision === 'approved' ? 'Tool approved' : 'Tool denied';
+        });
+        source.addEventListener('run.paused', event => addContinuation(JSON.parse(event.data)));
+        source.addEventListener('run.resumed', event => {
+            const data = JSON.parse(event.data);
+            transcript.querySelector(`section.assistant-continuation[data-budget="${CSS.escape(data.budget)}"]`)?.remove();
+            statusLine.textContent = 'Continuing';
         });
         source.addEventListener('tool.finished', event => {
             const data = JSON.parse(event.data);

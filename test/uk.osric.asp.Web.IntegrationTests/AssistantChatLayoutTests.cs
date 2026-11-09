@@ -82,17 +82,17 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         string body = await RunAndReloadAsync(client, conversation);
 
         Assert.That(body, Does.Contain("<dt>Message</dt>"));
-        Assert.That(body, Does.Contain("<span id=\"assistant-budget-message\">0</span> / 16k chars</span>"));
-        Assert.That(body, Does.Contain(" / 500k chars</span>"), "the context budget is missing");
-        Assert.That(body, Does.Contain(" / 40 steps</span>"), "the step budget is missing");
-        Assert.That(body, Does.Contain(" / 16 calls</span>"), "the tool-call budget is missing");
-        Assert.That(body, Does.Contain(" / 33k tokens</span>"), "the output budget is missing");
+        Assert.That(body, Does.Contain("<span id=\"assistant-budget-message\">0</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-message-limit\">16k</span> chars</span>"));
+        Assert.That(body, Does.Contain("id=\"assistant-budget-context-limit\">500k</span>"), "the context budget is missing");
+        Assert.That(body, Does.Contain("id=\"assistant-budget-steps-limit\">40</span>"), "the step budget is missing");
+        Assert.That(body, Does.Contain("id=\"assistant-budget-tool-calls-limit\">16</span>"), "the tool-call budget is missing");
+        Assert.That(body, Does.Contain("id=\"assistant-budget-output-limit\">33k</span>"), "the output budget is missing");
 
         // The system prompt alone is already spent, and the run's own steps are counted from the store.
         Assert.That(body, Does.Match("<meter id=\"assistant-budget-context-meter\" aria-hidden=\"true\" min=\"0\" max=\"500000\" value=\"[1-9][0-9]*\""));
-        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-steps\">2</span> / 40 steps</span>"),
+        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-steps\">2</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-steps-limit\">40</span> steps</span>"),
             "the answered run took two steps: the tool call and the answer");
-        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-tool-calls\">1</span> / 16 calls</span>"));
+        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-tool-calls\">1</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-tool-calls-limit\">16</span> calls</span>"));
 
         // Every row carries the name the page's script looks it up by.
         foreach (string row in new[] { "message", "context", "steps", "tool-calls", "tool-arguments", "tool-result", "output" }) {

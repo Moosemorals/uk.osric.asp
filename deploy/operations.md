@@ -204,7 +204,10 @@ reachable from the internet.
   does not answer a `503` with the reason.
 - **Restore `/status.css` after deploying this page.** The sheet is a seeded page (DEC-174), so an
   installation that already has one keeps the old rules until the owner restores it from `/edit`.
-  Until then the charts render full width, one per row: usable, but not the intended grid.
+  Until then the charts render full width, one per row: usable, but not the intended grid. The
+  assistant's own seeded `/assistant.css` and `/assistant.js` are the same: a deployment adds the
+  continuation card and its script to the image, and an installation keeps the old sheet and script
+  until the owner restores them, so a paused run would show no card until then.
 - **Retention is a guess.** 30 days and 4 GB are easy to change in `prometheus.container`; check
   `df -h /` before raising them, because images, page assemblies, the database and the swap file
   share the disk.

@@ -152,6 +152,7 @@ internal static class AssistantEndpoint {
             }
         }
         await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
+        await WriteContinuationAsync(context, activeRun, tokens, id, options);
         await WriteStoppedRunAsync(context, lastRun);
         await context.Response.WriteAsync($"""
                     </section>
@@ -176,7 +177,7 @@ internal static class AssistantEndpoint {
             lastRun?.StepCount ?? 0,
             lastRun?.ToolCallCount ?? 0,
             lastRun?.CompletionTokens);
-        await WriteBudgetsAsync(context, budgets, options);
+        await WriteBudgetsAsync(context, budgets, options, lastRun);
         await context.Response.WriteAsync($"""
                 <fieldset>
                     <legend>Page options</legend>
@@ -235,7 +236,7 @@ internal static class AssistantEndpoint {
         if (await conversations.GetActiveRunAsync(id, owner, context.RequestAborted) is not null) {
             await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
                 "assistant.run_active", "A run is already in progress",
-                "Wait for it to finish, or stop it, then send the message again.");
+                "Wait for it to finish, or continue or stop it, then send the message again.");
             return;
         }
         if (!queue.TryReserve()) {
@@ -480,6 +481,46 @@ internal static class AssistantEndpoint {
         }
     }
 
+    public static async Task ContinueAsync(
+        HttpContext context,
+        long id,
+        string runId,
+        IConversationStore conversations,
+        RunContinuationCoordinator continuation,
+        AssistantOptions options) {
+        ArgumentNullException.ThrowIfNull(context);
+
+        SecurityHeaders.NoStore(context);
+        if (!IsPostValid(context)) {
+            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                "assistant.form_expired", "The run could not be continued",
+                "The form could not be verified. Reload the conversation and try again.");
+            return;
+        }
+        string? owner = Owner(context);
+        Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
+        if (conversation is null) {
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.conversation_not_found", "That conversation does not exist",
+                "It may have been deleted, or it belongs to another account.");
+            return;
+        }
+
+        // The store is the arbiter: only a run that is still paused can be continued, and it widens
+        // the budget that ran out by one window of that budget alone.
+        bool continued = await conversations.ContinueRunAsync(
+            id, owner!, runId, options.MaxSteps, options.MaxToolCalls, context.RequestAborted);
+        if (!continued) {
+            await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
+                "assistant.run_not_paused", "The run is not waiting to continue",
+                "It may have finished, been stopped, or already been continued. Reload the conversation to see its state.");
+            return;
+        }
+
+        _ = continuation.Signal(runId);
+        context.Response.StatusCode = StatusCodes.Status204NoContent;
+    }
+
     public static async Task DeleteConfirmationAsync(
         HttpContext context,
         long id,
@@ -659,13 +700,54 @@ internal static class AssistantEndpoint {
         await context.Response.WriteAsync("</section>");
     }
 
+    /// <summary>Writes the question a run that ran out of a budget asked the owner.</summary>
+    /// <param name="context">The response being written.</param>
+    /// <param name="run">The conversation's active run, which is the only run that can be paused.</param>
+    /// <param name="tokens">The antiforgery pair the Continue form carries.</param>
+    /// <param name="conversationId">The conversation the form posts to.</param>
+    /// <param name="options">The configured windows, so the sentence names what continuing buys.</param>
+    /// <remarks>
+    /// Rendered from the run's stored status rather than from the event stream, so a reload or another
+    /// device shows the same question, and the sentence is the one the live event carried.
+    /// </remarks>
+    private static async Task WriteContinuationAsync(
+        HttpContext context,
+        Run? run,
+        AntiforgeryTokenSet tokens,
+        long conversationId,
+        AssistantOptions options) {
+        if (run?.Status != RunBudget.Awaiting || run.PausedBudget is not { } budget) {
+            return;
+        }
+
+        (int limit, int window) = budget switch {
+            RunBudget.Steps => (run.StepLimit ?? options.MaxSteps, options.MaxSteps),
+            RunBudget.ToolCalls => (run.ToolCallLimit ?? options.MaxToolCalls, options.MaxToolCalls),
+            _ => (options.MaxToolCallsPerStep, options.MaxToolCallsPerStep),
+        };
+        string action = $"/assistant/{conversationId}/runs/{Encode(run.Id)}/continue";
+
+        await context.Response.WriteAsync($"""
+            <section class="assistant-continuation" aria-label="Run paused" data-budget="{Encode(budget)}">
+                <h2>Do you want to continue?</h2>
+                <p>{Encode(RunBudget.Sentence(budget, limit, window))}</p>
+                <form method="post" action="{action}">
+                    {AntiforgeryField.Hidden(tokens)}
+                    <button type="submit">Continue</button>
+                </form>
+                <p class="assistant-continuation-note">Stopping ends the run; the transcript is kept.</p>
+            </section>
+            """);
+    }
+
     // Every budget a reader can run into is shown with what has been spent on it, so a run that
     // stops on one names it before it stops. The figures come from the same snapshot the run
     // publishes, so a live one and a reloaded one cannot disagree.
     private static async Task WriteBudgetsAsync(
         HttpContext context,
         BudgetSnapshot snapshot,
-        AssistantOptions options) {
+        AssistantOptions options,
+        Run? run) {
         await context.Response.WriteAsync("""
             <fieldset class="assistant-budgets">
                 <legend>Budgets</legend>
@@ -673,8 +755,8 @@ internal static class AssistantEndpoint {
             """);
         await WriteBudgetAsync(context, "message", "Message", 0, options.MaxMessageChars, "chars");
         await WriteBudgetAsync(context, "context", "Context", snapshot.ContextChars, options.MaxContextChars, "chars");
-        await WriteBudgetAsync(context, "steps", "Steps", snapshot.Steps, options.MaxSteps, "steps");
-        await WriteBudgetAsync(context, "tool-calls", "Tool calls", snapshot.ToolCalls, options.MaxToolCalls, "calls");
+        await WriteBudgetAsync(context, "steps", "Steps", snapshot.Steps, run?.StepLimit ?? options.MaxSteps, "steps");
+        await WriteBudgetAsync(context, "tool-calls", "Tool calls", snapshot.ToolCalls, run?.ToolCallLimit ?? options.MaxToolCalls, "calls");
         await WriteBudgetAsync(context, "tool-arguments", "Tool arguments", snapshot.LongestArguments, options.MaxToolArgumentChars, "chars");
         await WriteBudgetAsync(context, "tool-result", "Tool result", snapshot.LongestResult, options.MaxToolResultChars, "chars");
         await WriteBudgetAsync(context, "output", "Output", snapshot.CompletionTokens, options.MaxOutputTokens, "tokens");
@@ -707,7 +789,7 @@ internal static class AssistantEndpoint {
                 <dt>{Encode(label)}</dt>
                 <dd class="assistant-budget-gauge">
                     <meter id="assistant-budget-{Encode(row)}-meter" aria-hidden="true" min="0" max="{available}" value="{shown}" low="{available * 3 / 5}" high="{available * 17 / 20}" optimum="0"></meter>
-                    <span class="assistant-budget-count"><span id="assistant-budget-{Encode(row)}">{usedText}</span> / {limit} {Encode(unit)}</span>
+                    <span class="assistant-budget-count"><span id="assistant-budget-{Encode(row)}">{usedText}</span> / <span class="assistant-budget-limit" id="assistant-budget-{Encode(row)}-limit">{limit}</span> {Encode(unit)}</span>
                 </dd>
             </div>
             """);

@@ -155,6 +155,10 @@ namespace uk.osric.asp.Web.Storage.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PausedBudget")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("PromptTokens")
                         .HasColumnType("INTEGER");
 
@@ -174,14 +178,20 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.Property<int>("StepCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("StepLimit")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("ToolCallCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ToolCallLimit")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId")
                         .IsUnique()
-                        .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_approval')");
+                        .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_approval', 'awaiting_continuation')");
 
                     b.ToTable("AssistantRuns", (string)null);
                 });

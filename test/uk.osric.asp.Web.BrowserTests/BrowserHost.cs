@@ -33,6 +33,9 @@ internal sealed record BrowserHostSettings {
 
     /// <summary>The provider's output cap, small when a test wants a truncated answer.</summary>
     public int MaxOutputTokens { get; init; } = 4096;
+
+    /// <summary>The run's step budget, small when a test wants the run to pause for the owner.</summary>
+    public int MaxSteps { get; init; } = 40;
 }
 
 /// <summary>
@@ -158,6 +161,7 @@ internal sealed class BrowserHost : IAsyncDisposable {
             ["Assistant__BaseUrl"] = (settings.ProviderBaseUrl ?? new Uri(Provider!.BaseUrl)).ToString(),
             ["Assistant__Model"] = settings.Model,
             ["Assistant__MaxOutputTokens"] = settings.MaxOutputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["Assistant__MaxSteps"] = settings.MaxSteps.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["Assistant__HeartbeatSeconds"] = settings.HeartbeatSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["Assistant__RequestTimeoutSeconds"] = settings.RequestTimeoutSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["Assistant__RunTimeoutSeconds"] = settings.RunTimeoutSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),

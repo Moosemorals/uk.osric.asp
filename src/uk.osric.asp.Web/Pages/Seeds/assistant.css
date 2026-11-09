@@ -283,6 +283,32 @@
     background: var(--assistant-alert);
 }
 
+/* A run that ran out of a budget waits for the owner rather than failing, so the question sits where
+   a tool approval does: in the transcript, at the point the run stopped. */
+.assistant-continuation {
+    padding: 0.5rem 0.6rem;
+    border: 1px solid #2c5f8a;
+    background: var(--assistant-paper);
+}
+
+.assistant-continuation h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.assistant-continuation p {
+    margin-block: 0.25rem 0.25rem;
+}
+
+.assistant-continuation form {
+    display: inline-block;
+    margin: 0.1rem 0.5rem 0 0;
+}
+
+.assistant-continuation-note {
+    color: var(--assistant-muted);
+}
+
 /* The turn's own summary of what it saved, so the pages are reachable without opening the tool
    details above it. */
 .assistant-changed-pages {
@@ -351,6 +377,7 @@
     .assistant-content,
     .assistant-message.user-message,
     .assistant-approval,
+    .assistant-continuation,
     .assistant-changed-pages,
     .assistant-tool {
         padding: 0.4rem;

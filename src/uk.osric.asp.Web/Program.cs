@@ -195,6 +195,7 @@ internal class Program {
             builder.Services.AddSingleton<RunQueue>();
             builder.Services.AddSingleton<RunRegistry>();
             builder.Services.AddSingleton<ToolApprovalCoordinator>();
+            builder.Services.AddSingleton<RunContinuationCoordinator>();
 
             builder.Services.AddScoped<RunProcessor>();
 
@@ -400,6 +401,9 @@ internal class Program {
                 .RequireAuthorization(EditorPolicy.Name)
                 .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
             app.MapPost("/assistant/{id:long}/runs/{runId}/tool-calls/{toolCallId}/approval", AssistantEndpoint.ApprovalAsync)
+                .RequireAuthorization(EditorPolicy.Name)
+                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+            app.MapPost("/assistant/{id:long}/runs/{runId}/continue", AssistantEndpoint.ContinueAsync)
                 .RequireAuthorization(EditorPolicy.Name)
                 .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
             app.MapPost("/assistant/{id:long}/options", AssistantEndpoint.OptionsAsync)
