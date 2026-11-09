@@ -127,8 +127,8 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-13 | `PageDiagnostic` carries severity and a warning-only page stores an image, renders, and reports "Saved with warnings." |
 | BUG-14 | A redirect keeps its query and fragment: `Redirects.To` encodes each part with the type that understands it. See [the plan](../plans/archive/site-navigation.md) |
 | BUG-15 | A page key containing `?` or `#` is refused by both the page and the editor rather than normalised onto another key |
-| OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and DEC-180–DEC-185 |
 | BUG-16 | Every view is one document: `ShellDocument` writes the head, `<main id="main">` and the foot, and `AccessibilityTests` applies twelve rules to every view over rendered markup (DEC-110). See [the plan](../plans/archive/semantic-html-and-accessibility.md) |
+| OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and DEC-180–DEC-185 |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
 | IDEA-002 | A page reaches an allow-listed host through `ctx.Features.GetRequired<IHttpFetch>()`; every failure is a value (DEC-128, DEC-129, DEC-143). See [the plan](../plans/archive/page-fetch-and-storage.md) |
 | IDEA-003 | A page keeps state through `ctx.Features.GetRequired<IPageStorage>()` in a `PageState` table with per-page caps (DEC-125, DEC-126, DEC-127, DEC-142). See [the plan](../plans/archive/page-fetch-and-storage.md) |
