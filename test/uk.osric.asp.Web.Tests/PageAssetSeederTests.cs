@@ -106,6 +106,8 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("Title = \"About\""));
         Assert.That(template, Does.Contain("<h1>About</h1>"));
         Assert.That(template, Does.Contain("Osric Wilkinson").And.Contain("DeepSeek"));
+        Assert.That(template, Does.Contain("IBuildInfo"));
+        Assert.That(template, Does.Contain("https://github.com/Moosemorals/uk.osric.asp/commit/"));
         Assert.That(template, Does.Contain("The MIT licence").And.Contain("The ISC licence"));
         Assert.That(template, Does.Contain("Acornima 1.9.1").And.Contain("Markdig 1.6.0"));
         Assert.That(template, Does.Not.Contain("RedirectToLogin"), "the about page is public");

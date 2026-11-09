@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v11";
+    public const string Version = "page-author-v12";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -157,6 +157,9 @@ internal static class PageAuthorPrompt {
         Optional capabilities are read from `ctx.Features`: `Get<T>()` returns
         null when this render does not offer one, `GetRequired<T>()` throws,
         and `TryGet<T>(out T?)` reports whether it is there.
+        `ctx.Features.GetRequired<IBuildInfo>()` names the running build:
+        `Commit` is the full git commit hash, or null when the build was not
+        made from a checkout.
         Pages run for GET, POST, and HEAD. The header allow-list is
         Cache-Control, Content-Language, ETag, Expires, Vary, and X-*; pages
         cannot set cookies, Location, content type through a header, or framing

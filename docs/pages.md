@@ -30,9 +30,13 @@ returns it or throws naming the interface, so the page decides whether absence i
 decides what is registered — a page cannot add or replace a capability — and a capability is either
 registered or absent, never `null` (DEC-142).
 
-Five capabilities are registered today — three that do I/O and are bounded by the render, one that
-is the page's slots in its document, and one that is a pure renderer:
+Six capabilities are registered today — three that do I/O and are bounded by the render, one that
+is the page's slots in its document, one that is a pure renderer, and one that is a fact about the
+build:
 
+- `IBuildInfo` says which build is answering: `Commit` is the full git commit hash, or `null` when
+  the build did not come from a checkout. It is a capability because the page API denies both the
+  assembly and the environment, and the seeded `/about` page links the commit.
 - `IPageStorage` is the page's own key/value store. It is bound to the page's key, so a page cannot
   name another page's state; the handle is the isolation. Values are JSON round-tripped by the
   host, keys are ordinal, and writes are last-write-wins. A `HEAD` render may read but never write

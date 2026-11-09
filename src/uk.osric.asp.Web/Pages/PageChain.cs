@@ -113,6 +113,7 @@ internal sealed class PageChain {
             _environment.ContentTypes);
 
         PageFeatures features = new PageFeatures()
+            .Add<IBuildInfo>(BuildInfo.Current)
             .Add<IPageStorage>(storage)
             .Add<IHttpFetch>(fetch)
             .Add<IPageCatalog>(catalog)

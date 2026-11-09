@@ -143,7 +143,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v11"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v12"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -199,6 +199,16 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void ThePromptNamesTheBuildCapability() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IBuildInfo>()"));
+            Assert.That(prompt, Does.Contain("full git commit hash"));
+        });
+    }
+
+    [Test]
     public void ThePrivatePageExampleIsPresent() {
         Assert.That(PageAuthorPrompt.Examples.Select(example => example.Name), Does.Contain("private-page"));
     }
@@ -217,7 +227,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v11"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v12"));
         });
     }
 

@@ -116,6 +116,12 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         Assert.That(body, Does.Contain("The ISC licence"));
         Assert.That(body, Does.Contain("Acornima 1.9.1"));
         Assert.That(body, Does.Contain("Markdig 1.6.0"));
+
+        if (BuildInfo.Current.Commit is { } commit) {
+            Assert.That(body, Does.Contain($"https://github.com/Moosemorals/uk.osric.asp/commit/{commit}"));
+        } else {
+            Assert.That(body, Does.Contain("a build that does not record its commit"));
+        }
     }
 
     [Test]
