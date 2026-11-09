@@ -10,7 +10,8 @@ if (root) {
     const optionsStatus = document.getElementById('assistant-options-status');
     const titleInput = document.getElementById('conversation-title');
     const messageForm = document.getElementById('assistant-message-form');
-    const stopForm = document.getElementById('assistant-stop-form');
+    const sendButton = document.getElementById('assistant-send');
+    const stopButton = document.getElementById('assistant-stop');
     const input = document.getElementById('assistant-message');
     const count = document.getElementById('assistant-char-count');
     const messageBudget = document.getElementById('assistant-budget-message');
@@ -64,8 +65,8 @@ if (root) {
 
     function setBusy(busy) {
         input.disabled = busy;
-        messageForm.querySelector('button[type="submit"]').disabled = busy;
-        stopForm.hidden = !busy;
+        sendButton.disabled = busy;
+        stopButton.hidden = !busy;
         if (busy) {
             root.setAttribute('aria-busy', 'true');
         } else {
@@ -363,6 +364,14 @@ if (root) {
 
     messageForm.addEventListener('submit', async event => {
         event.preventDefault();
+        if (event.submitter === stopButton) {
+            // A stop needs the token and nothing else; the draft in the box is not part of it.
+            const body = new FormData();
+            body.append('__RequestVerificationToken', token);
+            await fetch(stopButton.formAction, { method: 'POST', body });
+            statusLine.textContent = 'Stopping run';
+            return;
+        }
         if (!input.value.trim()) {
             return;
         }
@@ -381,12 +390,6 @@ if (root) {
         root.dataset.activeRun = data.runId;
         root.dataset.replayFrom = '0';
         connect(data.runId, 0);
-    });
-
-    stopForm.addEventListener('submit', async event => {
-        event.preventDefault();
-        await fetch(stopForm.action, { method: 'POST', body: new FormData(stopForm) });
-        statusLine.textContent = 'Stopping run';
     });
 
     if (root.dataset.activeRun) {

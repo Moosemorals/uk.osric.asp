@@ -109,7 +109,7 @@ internal abstract partial class BrowserTest {
     /// <summary>Types a message and lets the page's script post it, which starts the run.</summary>
     protected async Task SendAsync(string message) {
         await Page.FillAsync("#assistant-message", message);
-        await Page.ClickAsync("#assistant-message-form button[type=submit]");
+        await Page.ClickAsync("#assistant-send");
     }
 
     /// <summary>A page path that belongs to this test alone.</summary>

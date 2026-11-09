@@ -156,12 +156,12 @@ internal static class AssistantEndpoint {
                     <form id="assistant-message-form" method="post" action="/assistant/{id}/messages">
                         {AntiforgeryField.Hidden(tokens)}
                         <textarea id="assistant-message" name="content" rows="5" maxlength="{options.MaxMessageChars}" required></textarea>
-                        <p class="assistant-char-count" aria-hidden="true"><span id="assistant-char-count">0</span> / {options.MaxMessageChars}</p>
-                        <button type="submit">Send</button>
-                    </form>
-                    <form id="assistant-stop-form" method="post" action="/assistant/{id}/stop"{(activeRun is null ? " hidden" : "")}>
-                        {AntiforgeryField.Hidden(tokens)}
-                        <button type="submit">Stop</button>
+                        <div class="assistant-compose-actions">
+                            <button type="submit" id="assistant-send">Send</button>
+                            <!-- Stopping is its own action, and formnovalidate lets an empty box still stop the run. -->
+                            <button type="submit" id="assistant-stop" formaction="/assistant/{id}/stop" formnovalidate{(activeRun is null ? " hidden" : "")}>Stop</button>
+                            <p class="assistant-char-count" aria-hidden="true"><span id="assistant-char-count">0</span> / {options.MaxMessageChars}</p>
+                        </div>
                     </form>
                 </fieldset>
             """);

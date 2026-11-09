@@ -70,6 +70,26 @@ internal sealed class AssistantChatTests : BrowserTest {
     }
 
     [Test]
+    public async Task TheButtonsLeadTheCountsLineAndTheCountTrailsItAsync() {
+        await NewConversationAsync();
+        Provider.Script(StubResponse.Words(string.Join(' ', Enumerable.Repeat("word", 200)), TimeSpan.FromMilliseconds(100)));
+        await SendAsync("Write a lot, slowly");
+        await Assertions.Expect(Page.Locator("#assistant-stop")).ToBeVisibleAsync(new() { Timeout = 30_000 });
+
+        double[][] boxes = await Page.EvaluateAsync<double[][]>("""
+            () => ['.assistant-compose-actions', '#assistant-send', '#assistant-stop', '.assistant-char-count'].map(selector => {
+                const r = document.querySelector(selector).getBoundingClientRect();
+                return [r.top, r.left, r.right];
+            })
+            """);
+
+        Assert.That(boxes[2][0], Is.EqualTo(boxes[1][0]).Within(4), "Stop does not sit beside Send");
+        Assert.That(boxes[3][0], Is.EqualTo(boxes[1][0]).Within(4), "the count is not on the buttons' line");
+        Assert.That(boxes[1][1], Is.EqualTo(boxes[0][1]).Within(1), "Send is not at the line start");
+        Assert.That(boxes[3][2], Is.EqualTo(boxes[0][2]).Within(1), "the count is not at the line end");
+    }
+
+    [Test]
     public async Task TheStepBudgetCountsUpWhileTheAnswerStreamsAsync() {
         await NewConversationAsync();
         Provider.Script(
@@ -167,7 +187,7 @@ internal sealed class AssistantChatTests : BrowserTest {
 
         await SendAsync("Write a lot, slowly");
         await Assertions.Expect(Page.Locator("#assistant-transcript")).ToContainTextAsync("word word", new() { Timeout = 30_000 });
-        await Page.ClickAsync("#assistant-stop-form button[type=submit]");
+        await Page.ClickAsync("#assistant-stop");
 
         await Assertions.Expect(Page.Locator("#assistant-transcript")).ToContainTextAsync("This answer was stopped.", new() { Timeout = 30_000 });
     }

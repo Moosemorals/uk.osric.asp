@@ -46,7 +46,7 @@ internal sealed class AssistantLiveTruncationTests : BrowserTest {
         await Page.ClickAsync("text=New conversation");
         await Page.WaitForURLAsync(AssistantUrl());
         await Page.FillAsync("#assistant-message", "Explain, at length, why the sea is salty.");
-        await Page.ClickAsync("#assistant-message-form button[type=submit]");
+        await Page.ClickAsync("#assistant-send");
 
         await Assertions.Expect(Page.Locator(".assistant-incomplete"))
             .ToContainTextAsync("reached the provider's token limit", new() { Timeout = 240_000 });

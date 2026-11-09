@@ -261,10 +261,18 @@
     border-left: 0.25rem solid var(--assistant-user-accent);
 }
 
+/* The buttons sit at the line start and the count takes the slack, so it stays at the trailing
+   edge however long the number grows. */
+.assistant-compose-actions {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-block-start: 0.35rem;
+}
+
 .assistant-char-count {
-    margin: 0.15rem 0 0.35rem;
+    margin: 0 0 0 auto;
     color: #4b4b4b;
-    text-align: right;
 }
 
 #assistant-status {
