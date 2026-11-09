@@ -134,6 +134,7 @@ internal class Program {
         builder.Services.AddSingleton(PageReadOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
         builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
+        builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
         builder.Services.AddSingleton(PageFetchOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddHttpClient(PageFetcher.ClientName)
             .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
@@ -175,8 +176,11 @@ internal class Program {
         builder.Services.AddHostedService<ImportWorker>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
         builder.Services.AddScoped<PageEditor>();
+        // The save is a singleton because a page's save can outlive the request that started it, and
+        // the image builder has no per-request state: a compiler, the compile budget and the metrics.
+        builder.Services.AddSingleton<PageSaver>();
+        builder.Services.AddSingleton<PageImageBuilder>();
         builder.Services.AddScoped<PageRenderer>();
-        builder.Services.AddScoped<PageImageBuilder>();
 
         if (assistantEnabled) {
             builder.Services.AddHostedService<RunWorker>();

@@ -18,18 +18,19 @@ internal sealed record ConditionalPageSaveResult(
 /// <remarks>
 /// <para>
 /// A save compiles before it stores, so the page never sits in the database without the result of
-/// compiling it. A compiler fault is the one case where the template is stored without an image:
-/// losing the author's edit to report our bug would be the worse failure.
+/// compiling it. That is <see cref="PageSaver"/>'s job, and it is shared with a page that saves its
+/// own source; this class is the editor's view of it, plus the conditional save the editor alone
+/// needs (DEC-192).
 /// </para>
 /// <para>
-/// Records <c>page.save.duration</c>.
+/// The unconditional save records <c>page.save.duration</c> through the saver; the conditional one
+/// shares the saver's accounting so a conflict and a plain save are counted alike.
 /// </para>
 /// </remarks>
 internal sealed class PageEditor(
     IPageStore storage,
     PageImageBuilder images,
-    PageMetrics metrics,
-    ILogger<PageEditor> logger) {
+    PageSaver saver) {
 
     /// <summary>Reads a page without compiling it.</summary>
     /// <param name="path">The canonical key to read.</param>
@@ -43,7 +44,7 @@ internal sealed class PageEditor(
     }
 
     /// <summary>The build that compiled the images this editor serves and saves.</summary>
-    public string RuntimeId => images.RuntimeId;
+    public string RuntimeId => saver.RuntimeId;
 
     public Task<PageHeadSummary?> GetHeadAsync(PagePath path, CancellationToken cancellationToken = default) {
         return storage.GetHeadAsync(path, cancellationToken);
@@ -74,23 +75,9 @@ internal sealed class PageEditor(
         PagePath path,
         string template,
         CancellationToken cancellationToken = default) {
-        long start = Stopwatch.GetTimestamp();
+        SavedRevision saved = await saver.SaveAsync(path, template, cancellationToken);
 
-        PageImage image;
-        try {
-            image = images.Build(path, template, PageMetrics.ReasonSave, cancellationToken);
-        } catch (InvalidOperationException) {
-            // A compiler fault is our bug, but the author's edit must survive it. Store the template
-            // without an image; the next request retries, and the failure still answers 500.
-            await storage.SavePageAsync(PageTemplate.NewRevision(path, template, null, images.RuntimeId), cancellationToken);
-            metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
-            throw;
-        }
-
-        await storage.SavePageAsync(PageTemplate.NewRevision(path, template, image, images.RuntimeId), cancellationToken);
-
-        RecordSaved(path, image, start);
-        return image.Diagnostics;
+        return saved.Diagnostics;
     }
 
     /// <summary>Compiles and saves a page only while its current revision hash still matches.</summary>
@@ -109,7 +96,7 @@ internal sealed class PageEditor(
             image = images.Build(path, template, PageMetrics.ReasonSave, cancellationToken);
         } catch (InvalidOperationException) {
             await storage.TrySavePageAsync(PageTemplate.NewRevision(path, template, null, images.RuntimeId), expectedRevisionHash, cancellationToken);
-            metrics.RecordSave(path, false, Stopwatch.GetElapsedTime(start));
+            saver.RecordSaveFailed(path, start);
             throw;
         }
 
@@ -119,22 +106,8 @@ internal sealed class PageEditor(
             return new ConditionalPageSaveResult(false, null, []);
         }
 
-        RecordSaved(path, image, start);
+        saver.RecordSaved(path, image, start);
+
         return new ConditionalPageSaveResult(true, revision.Hash, image.Diagnostics);
-    }
-
-    private void RecordSaved(PagePath path, PageImage image, long start) {
-        TimeSpan duration = Stopwatch.GetElapsedTime(start);
-        metrics.RecordSave(path, image.Bytes is not null, duration);
-        logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
-            Outcome(image));
-    }
-
-    private static string Outcome(PageImage image) {
-        if (image.Bytes is null) {
-            return "with errors";
-        }
-
-        return image.Diagnostics.Count > 0 ? "compiled with warnings" : "compiled";
     }
 }

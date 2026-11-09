@@ -988,11 +988,15 @@ public sealed class EditorEndpointTests {
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Not.Contain("name=\"confirmation\""));
     }
 
-    private PageEditor CreatePages(IPageStore storage) {
+    private PageEditor CreatePages(FakePageStore storage) {
         PageBudget budget = new(new RenderOptions(), new CompileOptions());
         PageImageBuilder compilations = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
+        // The editor's save goes through the saver's own seam; in this fixture that seam is the same
+        // in-memory store, so an endpoint test sees what the saver stored.
+        PageSaver saver = new(
+            new FakePageRevisionStore(storage), compilations, _metrics, NullLogger<PageSaver>.Instance);
 
-        return new PageEditor(storage, compilations, _metrics, NullLogger<PageEditor>.Instance);
+        return new PageEditor(storage, compilations, saver);
     }
 
     private static DefaultHttpContext CreateContext(string method = "GET", string? path = "page.cs") {
