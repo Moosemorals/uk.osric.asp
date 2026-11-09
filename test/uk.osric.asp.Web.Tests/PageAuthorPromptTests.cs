@@ -149,6 +149,23 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void TheShellFileSectionTeachesWhatAShellFileIs() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Shell files"));
+            Assert.That(prompt, Does.Contain("`/edit`, `/login`"));
+            Assert.That(prompt, Does.Contain("-r--r--r--"));
+            Assert.That(prompt, Does.Contain("-rw-r--r--"));
+            Assert.That(prompt, Does.Contain("shell file"));
+            Assert.That(prompt, Does.Contain("not permitted"));
+            Assert.That(prompt, Does.Contain("`/site.css`"),
+                "the seeded assets are ordinary pages, not shell files");
+            Assert.That(prompt, Does.Contain("Pages:ReservedPaths"));
+        });
+    }
+
+    [Test]
     public void ThePromptSaysAWarningIsUnfinishedWork() {
         string prompt = PageAuthorPrompt.Build();
 

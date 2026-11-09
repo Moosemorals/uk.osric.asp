@@ -223,6 +223,16 @@ through the ordinary revision path.
 
 **Owner:** pages — `src/uk.osric.asp.Web/Pages/Seeds`, `PageAssetSeeder` and `PageAssetSeeder.SeedPaths`.
 
+## Shell file
+A key the site's own routes answer — `/edit`, `/login`, `/assistant`, `/metrics` and the rest of
+`Pages:ReservedPaths` — which the assistant may list and read but never save over.
+
+**Not** a page or a seed. A shell file has no stored source, revision or compile state: the assistant
+reads a host-written record of what the route does, because the running image has no source tree.
+
+**Owner:** assistant — `ShellRoutes` for the records, `PagePathPolicy` for the permission, and
+`ReservedPaths` for the list itself.
+
 ## Series
 One metric at one set of label values, sampled over time.
 

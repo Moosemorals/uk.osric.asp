@@ -21,12 +21,28 @@ tool calls receive synthetic results rather than being replayed to the provider.
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
 endpoint. Enabling the feature sends the system prompt, conversation transcript, and page source read
 by tools to that provider. No provider SDK is used. Assistant tools have access only to the page store
-through `PageEditor`: list/read/search, bounded template-source line edits with an atomic revision-hash
+through `PageEditor` — list/read/search, bounded template-source line edits with an atomic revision-hash
 check, whole-page writes, tombstone deletes, a read-only virtual shell, and two read-only script
-checks that parse a stored page or a supplied complete template as an ES module and change nothing.
+checks that parse a stored page or a supplied complete template as an ES module and change nothing —
+plus a record of the site's own routes, which they can read and never write.
 There is no process, filesystem, git, package, or outbound-network tool. The per-conversation approval
 mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on each
 flagged mutation. Unresolved, stale, stopped, or restarted approvals never execute.
+
+The tools also see the shell's own files, which are the site's routes (DEC-180). Every key in
+`Pages:ReservedPaths` — `/edit`, `/login`, `/logout`, `/assistant`, `/admin/import`,
+`/admin/export`, `/metrics`, `/status`, `/heath` and `/favicon.ico` — is listed, searched and
+readable: `cat` and `read_page` return a host-written record of the route's methods, access and
+purpose rather than source, because the running image carries the assembly and not the source tree,
+and `ShellRoutesTests` pins the records to `ReservedPaths.Default` in both directions. Every listing
+row and `ls` line carries the assistant's own permission in the `ls -l` first column —
+`-rw-r--r--` where a save would be accepted, `-r--r--r--` where it would not — and `list_pages` also
+marks the row `kind: shell` or `kind: page`. A save to a shell file answers "Not permitted": only the
+owner changes the shell, in code. The seeded assets are ordinary pages the assistant may edit;
+`Assistant:ProtectedPaths` (empty unless an operator fills it) is a separate, extra lock over a single
+page, which still reads as its own source. `RequireApproval` asks the path policy before it asks the
+owner, so a save it has already refused never becomes an approval nobody can grant. `check_script`
+stays a page-source check, so a shell file is refused there.
 
 An assistant reply is Markdown and the transcript renders it. The restricted profile is the second
 `MarkdownRenderer` profile (DEC-164): no raw HTML, images, autolinks or unsafe URL schemes;
