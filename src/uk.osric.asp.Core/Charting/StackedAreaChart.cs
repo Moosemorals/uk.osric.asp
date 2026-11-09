@@ -21,10 +21,10 @@ using uk.osric.asp.Core.Assistant;
 /// </remarks>
 public static class StackedAreaChart {
 
-    private const double LeftMargin = 40;
+    private const double LeftMargin = 40 * SvgText.TypeScale;
     private const double RightMargin = 12;
-    private const double BottomMargin = 22;
-    private const double LabelHeight = 11;
+    private const double BottomMargin = 22 * SvgText.TypeScale;
+    private const double LabelHeight = 11 * SvgText.TypeScale;
     private const double FillOpacity = 0.35;
 
     /// <summary>Renders one stacked area chart.</summary>
@@ -153,7 +153,7 @@ public static class StackedAreaChart {
                 .Append("\" y2=\"").Append(SvgText.Number(at))
                 .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(LeftMargin - 4))
-                .Append("\" y=\"").Append(SvgText.Number(at + 4))
+                .Append("\" y=\"").Append(SvgText.Number(at + (4 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
                 .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BudgetAmount.Format(tick.Position)))
                 .Append("</text>\n");
@@ -167,7 +167,7 @@ public static class StackedAreaChart {
                 .Append("\" y2=\"").Append(SvgText.Number(top + plotHeight))
                 .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(at))
-                .Append("\" y=\"").Append(SvgText.Number(size.Height - 6))
+                .Append("\" y=\"").Append(SvgText.Number(size.Height - (6 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
                 .Append("\" fill=\"#444444\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label))
                 .Append("</text>\n");
@@ -176,9 +176,12 @@ public static class StackedAreaChart {
 
     private static void WriteAxisTitle(StringBuilder svg, string title, double top, double plotHeight) {
         double middle = top + (plotHeight / 2);
+        double x = 10 * SvgText.TypeScale;
 
-        svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 10 ").Append(SvgText.Number(middle))
-            .Append(")\" x=\"10\" y=\"").Append(SvgText.Number(middle))
+        svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 ").Append(SvgText.Number(x))
+            .Append(' ').Append(SvgText.Number(middle))
+            .Append(")\" x=\"").Append(SvgText.Number(x))
+            .Append("\" y=\"").Append(SvgText.Number(middle))
             .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
             .Append("\" fill=\"#666666\" text-anchor=\"middle\">").Append(SvgText.Escape(title))
             .Append("</text>\n");
@@ -212,9 +215,9 @@ public static class StackedAreaChart {
         double x = Math.Min(right, LeftMargin + (((timeline[last].At - timeline[0].At).TotalSeconds / span) * plotWidth));
         double y = (bottom + upper) / 2;
 
-        svg.Append("<text class=\"series-label\" x=\"").Append(SvgText.Number(x - 4))
-            .Append("\" y=\"").Append(SvgText.Number(y + 4))
-            .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize - 1))
+        svg.Append("<text class=\"series-label\" x=\"").Append(SvgText.Number(x - (4 * SvgText.TypeScale)))
+            .Append("\" y=\"").Append(SvgText.Number(y + (4 * SvgText.TypeScale)))
+            .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.SeriesFontSize))
             .Append("\" fill=\"").Append(colour).Append("\" text-anchor=\"end\">")
             .Append(SvgText.Escape(label)).Append("</text>\n");
     }

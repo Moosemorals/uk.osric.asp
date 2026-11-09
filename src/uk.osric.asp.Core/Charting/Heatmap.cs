@@ -23,10 +23,10 @@ using uk.osric.asp.Core.Assistant;
 /// </remarks>
 public static class Heatmap {
 
-    private const double LeftMargin = 60;
+    private const double LeftMargin = 60 * SvgText.TypeScale;
     private const double RightMargin = 10;
-    private const double BottomMargin = 22;
-    private const double LegendHeight = 18;
+    private const double BottomMargin = 22 * SvgText.TypeScale;
+    private const double LegendHeight = 18 * SvgText.TypeScale;
     private const double SwatchWidth = 14;
     private const double SwatchHeight = 10;
     private const double SwatchGap = 2;
@@ -133,7 +133,7 @@ public static class Heatmap {
         foreach (ChartTick tick in x.Ticks.OrderBy(tick => tick.Position)) {
             double at = LeftMargin + ((tick.Position / span) * plotWidth);
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(at))
-                .Append("\" y=\"").Append(SvgText.Number(plotTop + plotHeight + 14))
+                .Append("\" y=\"").Append(SvgText.Number(plotTop + plotHeight + (14 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
                 .Append("\" fill=\"#444444\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label))
                 .Append("</text>\n");
@@ -198,7 +198,7 @@ public static class Heatmap {
                 .Append("\" href=\"#").Append(SvgText.Escape(id)).Append("\" tabindex=\"-1\">\n");
             svg.Append("<title>").Append(SvgText.Escape($"{BucketLabel(line.Label)} {frame.YTitle}")).Append("</title>\n");
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(LeftMargin - 4))
-                .Append("\" y=\"").Append(SvgText.Number(y + (cellHeight / 2) + 4))
+                .Append("\" y=\"").Append(SvgText.Number(y + (cellHeight / 2) + (4 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
                 .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BucketLabel(line.Label)))
                 .Append("</text>\n");
@@ -290,9 +290,12 @@ public static class Heatmap {
 
     private static void WriteAxisTitle(StringBuilder svg, string yTitle, double top, double plotHeight) {
         double middle = top + (plotHeight / 2);
+        double x = 12 * SvgText.TypeScale;
 
-        svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 12 ").Append(SvgText.Number(middle))
-            .Append(")\" x=\"12\" y=\"").Append(SvgText.Number(middle))
+        svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 ").Append(SvgText.Number(x))
+            .Append(' ').Append(SvgText.Number(middle))
+            .Append(")\" x=\"").Append(SvgText.Number(x))
+            .Append("\" y=\"").Append(SvgText.Number(middle))
             .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
             .Append("\" fill=\"#666666\" text-anchor=\"middle\">").Append(SvgText.Escape(yTitle))
             .Append("</text>\n");
@@ -309,7 +312,7 @@ public static class Heatmap {
             .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
             .Append("\" fill=\"#444444\" text-anchor=\"start\">0</text>\n");
 
-        x += 12;
+        x += 12 * SvgText.TypeScale;
         for (int level = 1; level <= SvgText.HeatLevels; level++) {
             svg.Append("<rect class=\"heat heat-").Append(level).Append(" legend\" x=\"").Append(SvgText.Number(x))
                 .Append("\" y=\"").Append(SvgText.Number(y))

@@ -50,6 +50,15 @@ public sealed class AssistantMetricsTests {
 
 
     [Test]
+    public void TheRunDurationScaleReachesPastAnHour() {
+        Assert.That(AssistantMetrics.RunDurationBuckets, Is.Ordered);
+        Assert.That(
+            AssistantMetrics.RunDurationBuckets[^1],
+            Is.GreaterThan(3600),
+            "a run is measured in minutes, so the top boundary is past an hour rather than at the page budget");
+    }
+
+    [Test]
     public void ThePublishedInventoryIsTheOneTheMeterRegisters() {
         List<(string Name, InstrumentKind Kind)> published = [];
         using MeterListener listener = new();

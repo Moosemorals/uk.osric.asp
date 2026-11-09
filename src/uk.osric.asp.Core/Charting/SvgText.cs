@@ -27,8 +27,16 @@ public static class SvgText {
     /// <summary>How many shades a heatmap uses.</summary>
     internal const int HeatLevels = 5;
 
+    /// <summary>How much larger every chart's type is than the first draft's eleven-pixel labels.</summary>
+    /// <remarks>
+    /// A drawing's spacing is arithmetic rather than measured, so the distances that exist to hold a
+    /// label scale with its type: the margins, the row heights and the end-of-line labels' offsets. The
+    /// type grows into its room instead of into its neighbours.
+    /// </remarks>
+    internal const double TypeScale = 1.1;
+
     /// <summary>Roughly how wide one character is at the labels' size, for laying out a legend.</summary>
-    internal const double CharacterWidth = 5.6;
+    internal const double CharacterWidth = 5.6 * TypeScale;
 
     private static readonly string[] Strokes = [
         "#0072B2", // blue

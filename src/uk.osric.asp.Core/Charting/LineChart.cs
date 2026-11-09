@@ -21,11 +21,11 @@ using uk.osric.asp.Core.Assistant;
 /// </remarks>
 public static class LineChart {
 
-    private const double LeftMargin = 40;
+    private const double LeftMargin = 40 * SvgText.TypeScale;
     private const double RightMargin = 12;
-    private const double BottomMargin = 22;
+    private const double BottomMargin = 22 * SvgText.TypeScale;
     private const double PointRadius = 2;
-    private const double LabelHeight = 10;
+    private const double LabelHeight = 10 * SvgText.TypeScale;
 
     /// <summary>Renders one chart.</summary>
     /// <param name="series">The lines to draw; a null value is a gap rather than a zero.</param>
@@ -76,7 +76,7 @@ public static class LineChart {
                 .Append("\" y2=\"").Append(SvgText.Number(at))
                 .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(LeftMargin - 4))
-                .Append("\" y=\"").Append(SvgText.Number(at + 4))
+                .Append("\" y=\"").Append(SvgText.Number(at + (4 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
                 .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BudgetAmount.Format(tick.Position)))
                 .Append("</text>\n");
@@ -90,7 +90,7 @@ public static class LineChart {
                 .Append("\" y2=\"").Append(SvgText.Number(plotTop + plotHeight))
                 .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(at))
-                .Append("\" y=\"").Append(SvgText.Number(size.Height - 6))
+                .Append("\" y=\"").Append(SvgText.Number(size.Height - (6 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
                 .Append("\" fill=\"#444444\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label))
                 .Append("</text>\n");
@@ -134,11 +134,14 @@ public static class LineChart {
 
     private static void WriteAxisTitle(StringBuilder svg, ChartAxis y, double top, double plotHeight) {
         double middle = top + (plotHeight / 2);
+        double x = 10 * SvgText.TypeScale;
 
         // The unit belongs on the axis, not only in the description: a chart of unknown units is a
         // chart nobody can act on.
-        svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 10 ").Append(SvgText.Number(middle))
-            .Append(")\" x=\"10\" y=\"").Append(SvgText.Number(middle))
+        svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 ").Append(SvgText.Number(x))
+            .Append(' ').Append(SvgText.Number(middle))
+            .Append(")\" x=\"").Append(SvgText.Number(x))
+            .Append("\" y=\"").Append(SvgText.Number(middle))
             .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
             .Append("\" fill=\"#666666\" text-anchor=\"middle\">").Append(SvgText.Escape(y.Title))
             .Append("</text>\n");
@@ -250,13 +253,13 @@ public static class LineChart {
         }
 
         double width = SvgText.EstimateWidth(line.Label);
-        double left = Math.Min(x + 4, right - width);
+        double left = Math.Min(x + (4 * SvgText.TypeScale), right - width);
 
         placed.Add((left, y));
 
         svg.Append("<text class=\"series-label\" x=\"").Append(SvgText.Number(left))
-            .Append("\" y=\"").Append(SvgText.Number(y + 3))
-            .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize - 1))
+            .Append("\" y=\"").Append(SvgText.Number(y + (3 * SvgText.TypeScale)))
+            .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.SeriesFontSize))
             .Append("\" fill=\"").Append(colour).Append("\" text-anchor=\"start\">")
             .Append(SvgText.Escape(line.Label)).Append("</text>\n");
     }

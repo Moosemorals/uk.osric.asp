@@ -112,7 +112,7 @@ public sealed class HeatmapTests {
         string svg = Render(Row("0.5", 1, 100));
 
         // Two differently shaded columns fill the plot width exactly: no gap between neighbours.
-        Assert.That(svg, Does.Contain("width=\"165\""), "half of a 330-wide plot");
+        Assert.That(svg, Does.Contain("width=\"162\""), "half of a 324-wide plot");
     }
 
     [Test]
@@ -178,7 +178,7 @@ public sealed class HeatmapTests {
     public void TicksArePlacedByTheirSecondsFromTheFirstSample() {
         string svg = Render(Row("0.5", 1, 2));
 
-        Assert.That(AttributeOf(svg, "05:00", "x"), Is.EqualTo(60), "the left margin");
+        Assert.That(AttributeOf(svg, "05:00", "x"), Is.EqualTo(66), "the left margin");
         Assert.That(AttributeOf(svg, "05:01", "x"), Is.EqualTo(390), "the whole plot width later");
     }
 

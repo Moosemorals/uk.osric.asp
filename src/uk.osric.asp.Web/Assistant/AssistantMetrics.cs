@@ -30,6 +30,16 @@ internal sealed class AssistantMetrics : IDisposable {
     public static readonly double[] StepBuckets = [1, 2, 3, 5, 8, 12, 16, 24];
     public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32, 64];
 
+    /// <summary>Buckets for <c>assistant.run.duration</c>, in seconds.</summary>
+    /// <remarks>
+    /// A run is bounded by <c>Assistant:RunTimeoutSeconds</c> rather than by the page render budget, so
+    /// it gets its own scale in minutes. The page scale stops at ten seconds, which is why every run
+    /// used to land in `+Inf`; the top boundary is past an hour, so a run that reaches a generous
+    /// timeout is still drawn as a real bucket.
+    /// </remarks>
+    public static readonly double[] RunDurationBuckets =
+        [1, 2.5, 5, 10, 30, 60, 120, 180, 300, 600, 900, 1800, 2700, 3600, 5400];
+
     /// <summary>The tool tag recorded when a call names no registered tool.</summary>
     /// <remarks>
     /// A tool name is model-supplied, so tagging a made-up or mistyped name verbatim would mint one

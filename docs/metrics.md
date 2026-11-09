@@ -163,10 +163,13 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   what `MetricNamesTests` and the family test exist to catch. Tag names are sanitised the same way —
   the tag `page.path` is the label `page_path` — and PromQL will not parse the dotted form, so queries
   and legends use the underscore.
-- **The buckets are ours.** Every duration shares one explicit scale whose top boundary is past the
-  render budget, so a render recorded at its deadline lands in a real bucket rather than `+Inf`;
-  `page.image.size` has its own byte scale. The SDK's default starts at 0–5 s for a seconds
-  instrument, which would make every render one column and every percentile meaningless.
+- **The buckets are ours, and they follow the work.** The page durations share one explicit scale
+  whose top boundary is past the render budget, so a render recorded at its deadline lands in a real
+  bucket rather than `+Inf`; `assistant.run.duration` has its own scale in minutes, because a run is
+  bounded by `Assistant:RunTimeoutSeconds` rather than by that budget — the page scale stops at ten
+  seconds, which put every run in `+Inf`; `page.image.size` has its own byte scale. The SDK's default
+  starts at 0–5 s for a seconds instrument, which would make every render one column and every
+  percentile meaningless.
 - **Two gates on `/metrics`.** The app publishes on the loopback only (DEC-61), and Caddy answers
   `404` for the path on the public origin. Prometheus scrapes `app:8080` over the shared rootless
   network; see [deployment](../deploy/operations.md#metrics-and-the-status-page).

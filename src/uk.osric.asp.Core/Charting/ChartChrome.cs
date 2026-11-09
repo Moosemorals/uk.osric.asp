@@ -16,16 +16,19 @@ using System.Text;
 internal static class ChartChrome {
 
     /// <summary>The height the title band takes.</summary>
-    internal const double TitleHeight = 20;
+    internal const double TitleHeight = 20 * SvgText.TypeScale;
 
     /// <summary>The height of one legend row.</summary>
-    internal const double LegendRowHeight = 14;
+    internal const double LegendRowHeight = 14 * SvgText.TypeScale;
 
     /// <summary>The size of the axis and legend labels.</summary>
-    internal const double FontSize = 11;
+    internal const double FontSize = 11 * SvgText.TypeScale;
 
     /// <summary>The size of the title.</summary>
-    internal const double TitleFontSize = 12;
+    internal const double TitleFontSize = 12 * SvgText.TypeScale;
+
+    /// <summary>The size of the label at the end of a series' line, a shade smaller than the ticks.</summary>
+    internal const double SeriesFontSize = 10 * SvgText.TypeScale;
 
     internal const double LeftPad = 6;
     internal const double RightPad = 6;
@@ -56,7 +59,7 @@ internal static class ChartChrome {
         }
 
         svg.Append("<text class=\"chart-title\" x=\"").Append(SvgText.Number(LeftPad))
-            .Append("\" y=\"").Append(SvgText.Number(TitleFontSize + 2))
+            .Append("\" y=\"").Append(SvgText.Number(TitleFontSize + (2 * SvgText.TypeScale)))
             .Append("\" font-size=\"").Append(SvgText.Number(TitleFontSize))
             .Append("\" fill=\"#222222\" text-anchor=\"start\">").Append(SvgText.Escape(frame.Title))
             .Append("</text>");
@@ -120,13 +123,13 @@ internal static class ChartChrome {
 
         svg.Append("<line class=\"chart-legend-key ").Append(SvgText.SeriesColour(entry.Index))
             .Append("\" x1=\"").Append(SvgText.Number(entry.X))
-            .Append("\" y1=\"").Append(SvgText.Number(entry.Y + 4))
+            .Append("\" y1=\"").Append(SvgText.Number(entry.Y + (4 * SvgText.TypeScale)))
             .Append("\" x2=\"").Append(SvgText.Number(entry.X + KeyWidth))
-            .Append("\" y2=\"").Append(SvgText.Number(entry.Y + 4))
+            .Append("\" y2=\"").Append(SvgText.Number(entry.Y + (4 * SvgText.TypeScale)))
             .Append("\" stroke=\"").Append(SvgText.SeriesStroke(entry.Index))
             .Append("\" stroke-width=\"2\"").Append(dash).Append("/>\n");
         svg.Append("<text class=\"chart-legend-label\" x=\"").Append(SvgText.Number(entry.X + KeyWidth + KeyGap))
-            .Append("\" y=\"").Append(SvgText.Number(entry.Y + 8))
+            .Append("\" y=\"").Append(SvgText.Number(entry.Y + (8 * SvgText.TypeScale)))
             .Append("\" font-size=\"").Append(SvgText.Number(FontSize))
             .Append("\" fill=\"#444444\" text-anchor=\"start\">").Append(SvgText.Escape(label))
             .Append("</text>\n");

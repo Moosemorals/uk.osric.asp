@@ -163,4 +163,15 @@ public sealed class LineChartTests {
 
         Assert.That(svg, Does.Contain("<title>Requests</title>"));
     }
+
+    [Test]
+    public void TheTypeIsTenPerCentLargerThanTheFirstDraft() {
+        string svg = Render(Series("ok", (0, 0), (600, 1)));
+
+        Assert.That(
+            svg,
+            Does.Contain("class=\"chart-title\" x=\"6\" y=\"15.4\" font-size=\"13.2\""),
+            "the title is twelve pixels plus a tenth, in a band that grew with it");
+        Assert.That(svg, Does.Contain("\" font-size=\"12.1\""), "the axis labels are eleven pixels plus a tenth");
+    }
 }
