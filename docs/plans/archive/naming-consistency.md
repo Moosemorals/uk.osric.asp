@@ -501,7 +501,7 @@ one row per judgement, and it is easier to argue about once the type names have 
   (That row lives in `decisions.md`; the link is written for that file, and here it points back at this
   plan.)
 - [ai-page-assistant.md](ai-page-assistant.md) and [assistant-browser-tests.md](assistant-browser-tests.md)
-  and [BUG-17](../../jobs/BUG-17.md) name types too. These describe work that is already finished, so
+  and [the assistant](../../assistant.md#ai-page-assistant) name types too. These describe work that is already finished, so
   they get one line under their status saying the type names predate DEC-122, rather than a rewrite
   that would misrepresent what was implemented.
 - [deploy/README.md](../../../deploy/operations.md#storage-and-migrations) — the once-only removal of both

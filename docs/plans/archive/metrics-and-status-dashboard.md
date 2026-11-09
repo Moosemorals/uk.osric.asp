@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Metrics, Prometheus and a status dashboard
 
-Implementation plan for the monitoring half of [OPS-02](../../jobs/OPS-02.md): export the instruments
+Implementation plan for the monitoring half of the health endpoint (OPS-02): export the instruments
 `PageMetrics` already records, run Prometheus beside the app, and render a status page whose charts
 are our own SVG drawn from pure functions in `Core`. Metrics only — no traces, no logs, no OTLP.
 
@@ -404,9 +404,9 @@ is where the Phase 1 boundaries earn their keep.
   level; no browser tests; meter observation is `[NonParallelizable]`.
 - `deploy/README.md`: the Prometheus unit, the network, retention, the loopback story, the new
   reserved path and the image size change.
-- `docs/jobs/README.md`: OPS-02's monitoring half is answered here; alerting stays with OPS-05. Fix
-  `docs/jobs/OPS-02.md` at the same time: its "Remaining" section still says the container health check
-  was deferred because the image has no `curl`/`wget`, which the quadlet has since contradicted.
+- `docs/jobs/README.md`: OPS-02's monitoring half is answered here; alerting stays with OPS-05. The
+  job itself was closed on 2026-11-09, once the container health check the base image's busybox
+  `wget` makes possible had replaced the version deferred for want of a client.
 - Mark this plan Implemented with test counts when it lands.
 
 ## Test matrix

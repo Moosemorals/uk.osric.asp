@@ -21,7 +21,7 @@ The defect and operation jobs were raised by the architecture review and the cod
 BUG-14 came out of the metrics dashboard planning, and BUG-18 came out of the editor's
 save-and-view work. The `IDEA-` jobs were added on 2026-11-01, OPS-06
 and IDEA-013 came out of the naming-consistency planning, and every status below was checked against
-the code on 2026-11-06. IDEA-014 to IDEA-019 came out of the shell-versus-page review of 2026-11-07:
+the code on 2026-11-09. IDEA-014 to IDEA-019 came out of the shell-versus-page review of 2026-11-07:
 what is left in the shell is mostly authority a page does not have rather than markup a page could
 not write. IDEA-020 came out of the import and export planning, and records why a destructive reset
 is not part of that flow. IDEA-022 came out of the [page-features
@@ -32,16 +32,14 @@ out of the assistant shell-file work of 2026-11-09 (DEC-198).
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
-| [BUG-18](BUG-18.md) | Medium | S | Save and view answered a bare 400, and human errors were blank |
-| [BUG-17](BUG-17.md) | Medium | M | A long think loses the answer, and the page cannot say why |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore action |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
 | [ARCH-15](ARCH-15.md) | Low | S | An assistant-only list is a second, invisible kind of read-only page |
-| [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
+| [IDEA-005](IDEA-005.md) | — | L | Pages cannot share code: the layout half landed, a named declaration a second page can use is still deferred |
 | [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-014](IDEA-014.md) | — | M | A page cannot keep per-visitor state, so a form cannot redirect and say why |
 | [IDEA-017](IDEA-017.md) | — | L | A page cannot edit another page, so the editor cannot become one |
@@ -71,10 +69,10 @@ follow-up.
 Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and
 self-contained comes first, because these are the ones that never get scheduled otherwise.
 
-1. **ARCH-07, revision restore.** History storage, page listing, generated-source inspection,
-   history browsing, tombstone deletion, explicit scrub and restoring a bundled seed are
-   implemented. What remains is restoring a selected revision as a new save; asset serving and
-   PageLayout adoption remain [IDEA-010](IDEA-010.md).
+1. **ARCH-07, revision restore.** History storage, page listing, history browsing, tombstone
+   deletion, explicit scrub and restoring a bundled seed are implemented. What remains is restoring
+   a selected revision as a new save; asset serving and PageLayout adoption remain
+   [IDEA-010](IDEA-010.md).
 2. **OPS-03, CI automation** — `make check` and `make ci` already exist; what is missing is
    something that runs one of them without being asked.
 3. **IDEA-005, shared code between pages** — the layout half is done (see [site
@@ -84,8 +82,8 @@ self-contained comes first, because these are the ones that never get scheduled 
 4. **IDEA-001, a proper editor** — the line gutter, linked diagnostics and caret persistence are
    done; syntax highlighting or adopting a third-party editor is what is left.
 5. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
-6. **OPS-05, alerting** — the monitoring half (OPS-02) is done, so what is left is a channel
-   and a rule, once there is something worth being woken for.
+6. **OPS-05, alerting** — OPS-02's health endpoint and dashboard are done and that job is closed,
+   so what is left is a channel and a rule, once there is something worth being woken for.
 7. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
 8. **IDEA-014 … IDEA-019, page capabilities** — each lets a stored page do something only the shell
    can do today. None is urgent while the shell works; they matter when a view is worth moving.
@@ -129,12 +127,14 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-14 | A redirect keeps its query and fragment: `Redirects.To` encodes each part with the type that understands it. See [the plan](../plans/archive/site-navigation.md) |
 | BUG-15 | A page key containing `?` or `#` is refused by both the page and the editor rather than normalised onto another key |
 | BUG-16 | Every view is one document: `ShellDocument` writes the head, `<main id="main">` and the foot, and `AccessibilityTests` applies twelve rules to every view over rendered markup (DEC-110). See [the plan](../plans/archive/semantic-html-and-accessibility.md) |
+| BUG-17 | A long think is not cut off by its own duration: `Assistant:RequestTimeoutSeconds` is re-armed by every event the provider sends, a stall fails as `provider_timeout` with its own sentence, a message that stops at the output limit is stored `truncated`, and the transcript renders the run's own reason after the reload (DEC-119). The one thing left is the failed-request log line a mid-run reload leaves behind, which is [ARCH-13](ARCH-13.md)'s |
+| BUG-18 | Save and view reads its command from the form for a POST and the query for a link, and a failed save stays on the editor with its diagnostics. Every human surface answers with a document: `Errors/ErrorResponses.cs` writes the shell or an RFC 9457 problem document by `Accept`, and `UseStatusCodePages` covers every status no endpoint described (DEC-131). See [the shell](../shell.md#error-responses) |
+| OPS-02 | The health endpoint and its monitoring: `/heath` pings storage and reports abandoned renders, the quadlet probes it and restarts after three failures, and `/status` draws what Prometheus scraped. The alerting it named was always [OPS-05](OPS-05.md)'s (DEC-45). See [deployment](../../deploy/operations.md#resource-limits-and-restarts) |
 | OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and DEC-180–DEC-185 |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
 | IDEA-002 | A page reaches an allow-listed host through `ctx.Features.GetRequired<IHttpFetch>()`; every failure is a value (DEC-128, DEC-129, DEC-143). See [the plan](../plans/archive/page-fetch-and-storage.md) |
 | IDEA-003 | A page keeps state through `ctx.Features.GetRequired<IPageStorage>()` in a `PageState` table with per-page caps (DEC-125, DEC-126, DEC-127, DEC-142). See [the plan](../plans/archive/page-fetch-and-storage.md) |
 | IDEA-004 | The page contract is its own reference-free assembly, `uk.osric.asp.Sdk`. See [the plan](../plans/archive/page-sdk-split.md) |
-| IDEA-005 | Phase 2 landed as [site navigation](../plans/archive/site-navigation.md): a page is wrapped in `/_layout` by default, reached through `IPageLayout` (DEC-148–DEC-158). Shared *code* between pages is still its own job |
 | IDEA-006 | `/site.css` is a seeded page rather than a static file, so the site's look is edited like any other page. See [the plan](../plans/archive/non-html-pages.md) |
 | IDEA-007 | `/rocket.svg` is a seeded page served as `image/svg+xml`. See [the plan](../plans/archive/non-html-pages.md) |
 | IDEA-008 | Implemented as the authenticated page-author assistant, off by default, with bounded page-store tools (DEC-111). See [the plan](../plans/archive/ai-page-assistant.md) |

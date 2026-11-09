@@ -5,7 +5,7 @@
 Description=Caddy reverse proxy
 Wants=network-online.target
 After=network-online.target
-# Give up after a few rapid restarts instead of crash-looping forever; see docs/issues/OPS-02.md.
+# Give up after a few rapid restarts instead of crash-looping forever; see deploy/operations.md#resource-limits-and-restarts.
 StartLimitIntervalSec=60s
 StartLimitBurst=3
 

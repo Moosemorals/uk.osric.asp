@@ -107,7 +107,7 @@ Checked against the code on 2026-11-08.
 | [IDEA-017](../../jobs/IDEA-017.md) | The editor is the recovery path; do not let it depend on page code | Preserved: shell views never use the stored layout, so a broken layout cannot lock the owner out |
 | [IDEA-001](../../jobs/IDEA-001.md) | The editor is mostly markup | The editor loses its ad-hoc sign-out form; its page menu stays |
 | [IDEA-022](../../jobs/IDEA-022.md) | `SimpleContext` does five jobs | Gains a constructor argument (the layout state), not a contract member |
-| [BUG-18](../../jobs/BUG-18.md) | Every failure is a document a person can read | Error documents gain the menu above the recovery nav |
+| [the shell](../../shell.md#error-responses) | Every failure is a document a person can read | Error documents gain the menu above the recovery nav |
 | DEC-121 | No skip link until chrome precedes `main` | Superseded: the chrome arrives |
 | DEC-107, DEC-116 | One writer owns the head and the landmark; sheet order is fixed | Extended to the banner and the skip link, for both the shell and the layout, and to layers: a page's sheets are last |
 | DEC-174 | Seed restore is a per-page action on `/edit`; `/admin` is not a page surface | `/admin` returns as an *index of tools*, so the objection that retired it (a duplicate page list) does not apply |

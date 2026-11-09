@@ -31,6 +31,12 @@ No page needs this today: bodies are static and small, and Caddy already streams
 writes. This is recorded so the constraint is a decision rather than an oversight, and so that the
 first page that wants to stream starts from the right shape.
 
+One quiet cost surfaced through the assistant's own event stream (it was noted when BUG-17 closed): a
+browser that reloads mid-run closes the socket, and writing to the response afterwards throws
+`NotSupportedException` from the framework's writer, so the journal gains a failed request for a run
+that is still working. Nothing user-visible breaks, and the fix is in the write path a page-flush
+would change rather than in the run loop.
+
 ## Fix outline
 
 1. Add `Task FlushAsync(CancellationToken)` to `IContext` (async, because the write is I/O), and make

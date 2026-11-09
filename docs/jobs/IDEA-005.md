@@ -104,10 +104,12 @@ serves like any other page. No storage, schema or `RuntimeId` decision moved —
 in `Core`, whose module version id was already in the id — and the API policy applies to a declared
 type exactly as it does to a code block, so writing a class is not a way to reach `System.IO`.
 
-Phase 2 is now the shared layout, not shared types, and it is being replanned. The layout is the
-first capability to arrive through the page-features change (`IContext` keeps the request, response
-and logging core; storage, fetch and the layout's own slots become capabilities a page asks for), so
-its plan waits until that has bedded in. It stays best done after IDEA-018, because the layout page
-calls the builder that job moves, and it is still the first capability the listing and history views
-(IDEA-015, IDEA-017) cannot move without; shared types stay deferred until a concrete helper needs
-them.
+Phase 2 is done, by [site navigation](../plans/archive/site-navigation.md): every HTML page is wrapped
+in the stored `/_layout` by default, the slots are on `IPageLayout` through `ctx.Features`, one
+request renders the whole chain under one slot and one deadline, and IDEA-018 moved the document
+builder into `Sdk` so the shell and the layout write one document (DEC-148–DEC-158).
+
+What is left of this job is shared types, and they stay deferred until a page-authored helper needs
+them. The layout is markup rather than a library, the SDK carries anything stable, and a library page
+would make every dependent page's image depend on its source — the recompile storm the rendered
+layout avoids. Nothing here is scheduled.

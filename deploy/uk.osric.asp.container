@@ -3,7 +3,7 @@
 
 [Unit]
 Description=uk.osric.asp web app (rootless)
-# Give up after a few rapid restarts instead of crash-looping forever; see docs/issues/OPS-02.md.
+# Give up after a few rapid restarts instead of crash-looping forever; see deploy/operations.md#resource-limits-and-restarts.
 StartLimitIntervalSec=60s
 StartLimitBurst=3
 

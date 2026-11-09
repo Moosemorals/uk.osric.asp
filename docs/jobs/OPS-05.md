@@ -14,7 +14,7 @@ SPDX-License-Identifier: MIT
 ## Problem
 
 Nothing tells anyone when the site is down. The quadlets restart a crashing app up to three times and
-then give up (see OPS-02), and `Restart=always` is otherwise silent: a failed unit, a full disk, a
+then give up (see [deployment](../../deploy/operations.md#resource-limits-and-restarts)), and `Restart=always` is otherwise silent: a failed unit, a full disk, a
 startup migration that stops the app, or Caddy losing its certificate all sit unnoticed until someone
 happens to look. There is no outbound mail, so systemd's failure notifications have nowhere to go.
 
@@ -31,7 +31,7 @@ happens to look. There is no outbound mail, so systemd's failure notifications h
 4. Point systemd at it:
    - `OnFailure=` (and `OnUnitInactiveSec=`) on the `uk.osric.asp` user unit and the `caddy` system
      unit;
-   - a small timer that curls `/heath` and alerts when it returns 503, tying the signal from OPS-02
-     to a human.
+   - a small timer that curls `/heath` and alerts when it returns 503, tying the health check to a
+     human.
 5. Keep credentials out of the repository: ship the MTA configuration through cloud-init and
    `make deploy`, exactly as the quadlets are shipped today.
