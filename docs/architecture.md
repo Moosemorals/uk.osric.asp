@@ -135,6 +135,9 @@ until someone declares it, and removing a declared one fails it too (RS0017). `C
 declare what they publish, and `Sdk` declares its whole contract shipped, because widening the page
 contract should be a deliberate edit to a file rather than an accident. `PublicAPI.Unshipped.txt`
 holds entries for API added since the last release; an entry moves to the shipped file when it lands.
+The files also carry `#nullable enable` so the analyzer records annotations, and because the analyzer
+parses every line as an entry they can carry no licence header: they are named in `REUSE.toml`
+instead. `Web` keeps that marker in its unshipped file, which is why its shipped file is empty.
 
 The narrowing loop is mechanical and compiler-checked: make a member `internal`, build, and the
 compiler names the one caller that needs it. `InternalsVisibleTo` keeps the test projects compiling,
