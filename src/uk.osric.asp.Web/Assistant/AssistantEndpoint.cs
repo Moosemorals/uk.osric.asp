@@ -175,21 +175,26 @@ internal static class AssistantEndpoint {
         // same options the run uses, so the figure a reader reloads is the one the run just published.
         List<ChatMessage> stored = [new ChatMessage("system", PageAuthorPrompt.Build()), .. messages.Select(message => message.ToChatMessage())];
         ChatRequest request = new(
-            options.Model,
+            lastRun?.Model ?? options.Model,
             stored,
             PageToolExecutor.Definitions,
             options.Temperature,
             options.MaxOutputTokens,
             options.ReasoningField,
             options.IncludeUsage);
-        ContextPlan plan = ContextPlanner.Build(request, options.MaxRequestBytes);
+        TokenEstimator estimator = TokenEstimator.For(
+            lastRun?.RequestBytes is { } calibratedBytes && lastRun?.LastPromptTokens is { } calibratedPrompt
+                ? new TokenCalibration(calibratedBytes, calibratedPrompt)
+                : null);
+        ContextPlan plan = ContextPlanner.Build(request, options.MaxContextTokens, estimator);
         BudgetSnapshot budgets = BudgetSnapshot.Measure(
             plan,
             stored,
             lastRun?.StepCount ?? 0,
             lastRun?.ToolCallCount ?? 0,
-            lastRun?.CompletionTokens);
+            lastRun?.OutputTokens);
         await WriteBudgetsAsync(context, budgets, options);
+        await WriteUsageAsync(context, lastRun?.ToUsage() ?? RunUsage.Empty);
         await context.Response.WriteAsync($"""
                 <fieldset>
                     <legend>Page options</legend>
@@ -685,15 +690,34 @@ internal static class AssistantEndpoint {
                 <dl class="assistant-budget-list">
             """);
         await WriteBudgetAsync(context, "message", "Message", 0, options.MaxMessageChars, "chars");
-        await WriteBudgetAsync(context, "context", "Request", snapshot.SentBytes, options.MaxRequestBytes, "bytes");
+        await WriteBudgetAsync(context, "context", "Request", snapshot.ContextTokens, options.MaxContextTokens, "tokens");
         await WriteBudgetAsync(context, "steps", "Steps", snapshot.Steps, options.MaxSteps, "steps");
         await WriteBudgetAsync(context, "tool-calls", "Tool calls", snapshot.ToolCalls, options.MaxToolCalls, "calls");
         await WriteBudgetAsync(context, "tool-arguments", "Tool arguments", snapshot.LongestArguments, options.MaxToolArgumentChars, "chars");
         await WriteBudgetAsync(context, "tool-result", "Tool result", snapshot.LongestResult, options.MaxToolResultChars, "chars");
-        await WriteBudgetAsync(context, "output", "Output", snapshot.CompletionTokens, options.MaxOutputTokens, "tokens");
+        await WriteBudgetAsync(context, "output", "Output", snapshot.OutputTokens, options.MaxOutputTokens, "tokens");
         await context.Response.WriteAsync("""
                 </dl>
-                <p class="assistant-budget-note">Request is the provider request as sent: the system prompt, the tool definitions and the messages after masking and trimming. The transcript above is complete. Steps, tool calls and output count the current or most recent run.</p>
+                <p class="assistant-budget-note">Request is the provider request as sent: the system prompt, the tool definitions and the messages after masking and trimming, estimated in tokens from the exact body and the last provider report. The transcript above is complete. Steps, tool calls and output count the current or most recent run.</p>
+            </fieldset>
+            """);
+    }
+
+    private static async Task WriteUsageAsync(HttpContext context, RunUsage usage) {
+        int share = usage.PromptTokens == 0
+            ? 0
+            : Math.Clamp((int)Math.Round(100.0 * usage.CachedTokens / usage.PromptTokens), 0, 100);
+        await context.Response.WriteAsync($"""
+            <fieldset class="assistant-usage">
+                <legend>Tokens this run</legend>
+                <dl class="assistant-usage-list">
+                    <div data-usage="prompt"><dt>Prompt</dt><dd><span id="assistant-usage-prompt">{BudgetAmount.Format(usage.PromptTokens)}</span></dd></div>
+                    <div data-usage="cached"><dt>Cached</dt><dd><span id="assistant-usage-cached">{BudgetAmount.Format(usage.CachedTokens)}</span> <span id="assistant-usage-cached-share">({share}%)</span></dd></div>
+                    <div data-usage="completion"><dt>Completion</dt><dd><span id="assistant-usage-completion">{BudgetAmount.Format(usage.CompletionTokens)}</span></dd></div>
+                    <div data-usage="reasoning"><dt>Reasoning</dt><dd><span id="assistant-usage-reasoning">{BudgetAmount.Format(usage.ReasoningTokens)}</span></dd></div>
+                    <div data-usage="total"><dt>Total</dt><dd><span id="assistant-usage-total">{BudgetAmount.Format(usage.TotalTokens)}</span></dd></div>
+                </dl>
+                <p class="assistant-usage-note">Cached is part of prompt; reasoning is part of completion. Total is prompt + completion. The provider reports usage once per step.</p>
             </fieldset>
             """);
     }

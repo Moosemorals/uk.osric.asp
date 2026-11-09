@@ -52,7 +52,7 @@ internal static class StatusCatalogue {
         Heatmap(Assistant("assistant.provider.first_token.duration"), "First token latency", "seconds"),
         Heatmap(Assistant("assistant.provider.request.duration"), "Provider request duration", "seconds"),
         Heatmap(Assistant("assistant.tool.duration"), "Tool duration", "seconds"),
-        Stacked(Assistant("assistant.tokens"), "Tokens", "tokens/s", split: "kind"),
+        Line(Assistant("assistant.tokens"), "Tokens", "tokens/s", topk: "kind"),
 
         // Host: the framework's meters, which are not instruments this repository registers.
         new Panel {

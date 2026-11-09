@@ -237,12 +237,12 @@ through the ordinary revision path.
 The size of a provider request as sent: the UTF-8 byte count of the body `ChatRequestJson` builds
 from the model, system prompt, tool definitions, messages and envelope.
 
-**Not** the untrimmed transcript's size, and not a character count. Characters undercount the JSON
-envelope and escaping, and the provider decodes the body before tokenising it, so bytes are a
-conservative upper bound on the input.
+**Not** the budget any more, and not a character count. Characters undercount the JSON envelope and
+escaping, so bytes are the honest measure of the wire body; `TokenEstimator` converts that count to
+estimated tokens, which is what `Assistant:MaxContextTokens` bounds (DEC-204).
 
-**Owner:** assistant — `ChatRequestJson.MeasureBytes`, `ContextPlan.SentBytes` and
-`BudgetSnapshot.SentBytes`; `Assistant:MaxRequestBytes` is the budget it is spent against (DEC-200).
+**Owner:** assistant — `ChatRequestJson.MeasureBytes` and `ContextPlan.RequestBytes`; the token
+estimate is `TokenEstimator` and `ContextPlan.EstimatedTokens` (DEC-204).
 
 ## Shell file
 A key the site's own routes answer — `/edit`, `/login`, `/assistant`, `/metrics` and the rest of
@@ -292,6 +292,18 @@ many steps, bounded by `Assistant:MaxSteps`.
 **Owner:** assistant — no row; `Run.StepCount`, the `step` field on every run event and the
 `assistant.run.steps` instrument; `Assistant:MaxSteps`.
 
+## Token estimate
+The assistant's estimate of a provider request in tokens: `ChatRequestJson` measures the exact UTF-8
+body, and `TokenEstimator` divides it by the bytes-per-token ratio the provider's last `prompt_tokens`
+report calibrated, with a ten-percent margin and a conservative default before the first report.
+
+**Not** the provider's exact count. The usage list shows the exact prompt, completion, cache and
+reasoning tokens the provider reported; the request row is an estimate, and the provider's own limit
+is the backstop.
+
+**Owner:** assistant — `TokenEstimator`, `ContextPlan.EstimatedTokens` and
+`BudgetSnapshot.ContextTokens`; `Assistant:MaxContextTokens` (DEC-204).
+
 ## Template
 The text an author edits and saves: markup plus C# in `<% %>` blocks and declarations in `<%! %>`
 blocks.
@@ -338,3 +350,13 @@ and dropped after `Assistant:JournalTtlMinutes`.
 **Owner:** assistant — `Message`, the `AssistantMessages` table and `IConversationStore`;
 `ContextPlanner` selects what is sent, and `ObservationMasker` shortens old payloads in the request
 without changing the stored rows.
+
+## Usage
+The prompt, completion, cache-hit and reasoning token counts a provider reports for a step,
+accumulated by `RunUsage` and stored on the run.
+
+**Not** a budget. Usage says what was spent; the budgets say what a run may spend, and the two are
+shown separately. Cached is part of prompt and reasoning part of completion, so the figures overlap.
+
+**Owner:** assistant — `TokenUsage`, `RunUsage`, the `AssistantRuns` totals and
+`AssistantMetrics.RecordUsage` (DEC-203).

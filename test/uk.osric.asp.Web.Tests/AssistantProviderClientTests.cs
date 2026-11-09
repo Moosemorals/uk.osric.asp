@@ -43,6 +43,38 @@ public sealed class AssistantProviderClientTests {
     }
 
     [Test]
+    public async Task ReadsTheCacheAndReasoningCountsDeepSeekReportsAsync() {
+        string payload = """
+            data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":2,"total_tokens":9,"prompt_cache_hit_tokens":5,"prompt_cache_miss_tokens":2,"prompt_tokens_details":{"cached_tokens":5},"completion_tokens_details":{"reasoning_tokens":1}}}
+
+            data: [DONE]
+
+            """;
+        using HttpClient client = Client(_ => Task.FromResult(Response(HttpStatusCode.OK, payload)));
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
+
+        List<ChatStreamEvent> events = await CollectAsync(provider);
+
+        Assert.That(events.OfType<UsageEvent>().Single().Usage, Is.EqualTo(new TokenUsage(7, 2, 5, 1)));
+    }
+
+    [Test]
+    public async Task ReadsAnOpenAiStyleCachedCountAsync() {
+        string payload = """
+            data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":2,"prompt_tokens_details":{"cached_tokens":5}}}
+
+            data: [DONE]
+
+            """;
+        using HttpClient client = Client(_ => Task.FromResult(Response(HttpStatusCode.OK, payload)));
+        OpenAiChatCompletionClient provider = new(client, new AssistantOptions { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
+
+        List<ChatStreamEvent> events = await CollectAsync(provider);
+
+        Assert.That(events.OfType<UsageEvent>().Single().Usage, Is.EqualTo(new TokenUsage(7, 2, 5)));
+    }
+
+    [Test]
     public async Task RequestUsesOpenAiCompatibleWireShapeAndDoesNotSendAnOptionalKeyAsync() {
         HttpRequestMessage? captured = null;
         string? body = null;

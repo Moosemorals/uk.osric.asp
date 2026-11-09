@@ -63,16 +63,17 @@ public static class BudgetAmount {
         return sign + magnitude.ToString("0.#", CultureInfo.InvariantCulture) + Units[unit];
     }
 
-    // Three significant figures, without an exponent and without trailing zeros.
+    // Three significant figures, without an exponent and without trailing zeros. A figure at or above
+    // one keeps its integer zeros: 600 is 600, not 6.
     private static string Significant(double value) {
         if (value == 0) {
             return "0";
         }
 
         int decimals = Math.Clamp(2 - (int)Math.Floor(Math.Log10(value)), 0, 9);
-
-        return value.ToString("F" + decimals.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)
-            .TrimEnd('0')
-            .TrimEnd('.');
+        string text = value.ToString("F" + decimals.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+        return text.Contains('.')
+            ? text.TrimEnd('0').TrimEnd('.')
+            : text;
     }
 }

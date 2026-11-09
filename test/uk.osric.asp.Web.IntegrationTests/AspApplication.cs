@@ -29,7 +29,7 @@ using uk.osric.asp.Web.Users;
 /// <param name="chatCompletionClient">Stands in for the configured provider.</param>
 /// <param name="pageFetcher">Stands in for the page fetcher, so no fixture needs a socket.</param>
 /// <param name="archiveUploadBytes">Overrides the import upload cap, for the too-large fixture.</param>
-/// <param name="maxRequestBytes">Overrides the assistant's request budget, so a fixture can make a conversation too big to send.</param>
+/// <param name="maxContextTokens">Overrides the assistant's estimated token budget, so a fixture can make a conversation too big to send.</param>
 /// <param name="pageLayout">
 /// The layout pages are wrapped in. Off by default so a fixture about one page does not also have to
 /// write the layout; <c>SiteChromeTests</c> switches the shipped default on.
@@ -43,7 +43,8 @@ internal sealed class AspApplication(
     IChatCompletionClient? chatCompletionClient = null,
     IPageFetcher? pageFetcher = null,
     int? archiveUploadBytes = null,
-    int? maxRequestBytes = null,
+    int? maxContextTokens = null,
+    int? maxOutputTokens = null,
     string? pageLayout = null) : WebApplicationFactory<Program> {
 
     /// <summary>The database this host migrates and serves; it is deleted with the factory.</summary>
@@ -73,8 +74,11 @@ internal sealed class AspApplication(
         if (archiveUploadBytes is { } uploadBytes) {
             builder.UseSetting("Pages:Archive:MaxUploadBytes", uploadBytes.ToString(CultureInfo.InvariantCulture));
         }
-        if (maxRequestBytes is { } requestBytes) {
-            builder.UseSetting("Assistant:MaxRequestBytes", requestBytes.ToString(CultureInfo.InvariantCulture));
+        if (maxContextTokens is { } contextTokens) {
+            builder.UseSetting("Assistant:MaxContextTokens", contextTokens.ToString(CultureInfo.InvariantCulture));
+        }
+        if (maxOutputTokens is { } outputTokens) {
+            builder.UseSetting("Assistant:MaxOutputTokens", outputTokens.ToString(CultureInfo.InvariantCulture));
         }
         builder.ConfigureTestServices(services => {
             services.AddSingleton<IPageCompiler>(Compiler);

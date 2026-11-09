@@ -77,7 +77,10 @@ internal sealed class RunProcessor(
 
             int toolCallCount = 0;
             int toolCallsRecorded = 0;
-            int? completionTokens = null;
+            RunUsage usageTotals = run.ToUsage();
+            TokenCalibration? calibration = run.RequestBytes is { } calibratedBytes && run.LastPromptTokens is { } calibratedPrompt
+                ? new TokenCalibration(calibratedBytes, calibratedPrompt)
+                : null;
             BudgetSnapshot budgets = BudgetSnapshot.Empty;
             // The warnings describe what the run as a whole did, so each is published at most once:
             // a hundred steps that all masked an old result are one fact, not a hundred.
@@ -96,7 +99,7 @@ internal sealed class RunProcessor(
                     options.MaxOutputTokens,
                     options.ReasoningField,
                     options.IncludeUsage);
-                ContextPlan plan = ContextPlanner.Build(request, options.MaxRequestBytes);
+                ContextPlan plan = ContextPlanner.Build(request, options.MaxContextTokens, TokenEstimator.For(calibration));
                 if (plan.Error is not null) {
                     await FailAsync(queued, stream, "context_too_long", plan.Error, partial, step, runTimeout.Token);
                     return;
@@ -117,16 +120,16 @@ internal sealed class RunProcessor(
                 }
                 if (plan.IsMasked || plan.IsTrimmed) {
                     logger.LogInformation(
-                        "Assistant step {Step} shaped the request: {MaskedResults} results and {MaskedArguments} arguments elided, {DroppedMessages} messages dropped, {OriginalBytes} bytes became {SentBytes}",
+                        "Assistant step {Step} shaped the request: {MaskedResults} results and {MaskedArguments} arguments elided, {DroppedMessages} messages dropped, {OriginalTokens} estimated tokens became {EstimatedTokens} ({RequestBytes} bytes)",
                         step, plan.MaskedToolResults, plan.MaskedArguments, plan.DroppedMessages,
-                        plan.OriginalBytes, plan.SentBytes);
+                        plan.OriginalTokens, plan.EstimatedTokens, plan.RequestBytes);
                 }
 
                 // The budget row counts the request the planner built, and the counters are what the
                 // loop has already spent, so the live figure is the one the page will reload.
-                budgets = BudgetSnapshot.Measure(plan, messages, step, toolCallsRecorded, completionTokens);
+                budgets = BudgetSnapshot.Measure(plan, messages, step, toolCallsRecorded, usageTotals.OutputTokens);
                 stream.Publish("message.started", new { step });
-                PublishBudgets(stream, budgets);
+                PublishBudgets(stream, budgets, usageTotals);
                 partial = new ChatStreamAccumulator();
 
                 long providerStart = Stopwatch.GetTimestamp();
@@ -171,10 +174,13 @@ internal sealed class RunProcessor(
                 ChatResponse response = partial.Complete();
                 if (response.Usage is { } usage) {
                     metrics.RecordUsage(usage);
-                    // The store keeps the last non-null count, so the loop does the same.
-                    completionTokens = usage.CompletionTokens ?? completionTokens;
+                    usageTotals = usageTotals.Add(usage);
+                    if (usage.PromptTokens is > 0) {
+                        calibration = new TokenCalibration(plan.RequestBytes, usage.PromptTokens.Value);
+                    }
                 }
-                await StoreAsync(store => store.RecordStepAsync(queued.RunId, response.ToolCalls.Count, response.Usage, runTimeout.Token));
+                await StoreAsync(store => store.RecordStepAsync(
+                    queued.RunId, response.ToolCalls.Count, plan.RequestBytes, response.Usage, runTimeout.Token));
                 toolCallsRecorded += response.ToolCalls.Count;
                 if (response.FinishReason == "content_filter") {
                     await PersistAssistantAsync(queued, stream, step, response, "failed", includeToolCalls: false, CancellationToken.None);
@@ -191,9 +197,9 @@ internal sealed class RunProcessor(
                 budgets = budgets with {
                     Steps = step,
                     ToolCalls = toolCallsRecorded,
-                    CompletionTokens = completionTokens ?? 0,
+                    OutputTokens = usageTotals.OutputTokens,
                 };
-                PublishBudgets(stream, budgets);
+                PublishBudgets(stream, budgets, usageTotals);
 
                 if (response.FinishReason == "length") {
                     stream.Publish("run.warning", new { code = "length", message = "The response reached the provider token limit." });
@@ -205,7 +211,7 @@ internal sealed class RunProcessor(
                     string status = response.FinishReason == "length" ? "truncated" : "complete";
                     await PersistAssistantAsync(queued, stream, step, response, status, includeToolCalls: false, runTimeout.Token);
                     partial = null;
-                    await CompleteAsync(queued, stream, step, response, budgets, run.Model);
+                    await CompleteAsync(queued, stream, step, budgets, usageTotals, run.Model, calibration);
                     return;
                 }
 
@@ -233,7 +239,7 @@ internal sealed class RunProcessor(
                     // can wait a long time and a slow tool would otherwise hide it.
                     if (call.Arguments.Length > budgets.LongestArguments) {
                         budgets = budgets with { LongestArguments = call.Arguments.Length };
-                        PublishBudgets(stream, budgets);
+                        PublishBudgets(stream, budgets, usageTotals);
                     }
 
                     long toolStart = Stopwatch.GetTimestamp();
@@ -277,7 +283,7 @@ internal sealed class RunProcessor(
                     // The stored result is what the page measures, so a longer one moves the row now.
                     if (result.Content.Length > budgets.LongestResult) {
                         budgets = budgets with { LongestResult = result.Content.Length };
-                        PublishBudgets(stream, budgets);
+                        PublishBudgets(stream, budgets, usageTotals);
                     }
                     activeToolCallId = null;
                     activeToolName = null;
@@ -482,9 +488,10 @@ internal sealed class RunProcessor(
         QueuedRun queued,
         RunStream stream,
         int steps,
-        ChatResponse response,
         BudgetSnapshot budgets,
-        string model) {
+        RunUsage usage,
+        string model,
+        TokenCalibration? calibration) {
         await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "completed"));
         // The last live figure is the request the next step would send, built from the transcript as
         // stored. The reload builds the same plan the same way, so it cannot correct what a reader
@@ -502,25 +509,32 @@ internal sealed class RunProcessor(
             options.MaxOutputTokens,
             options.ReasoningField,
             options.IncludeUsage);
-        ContextPlan plan = ContextPlanner.Build(request, options.MaxRequestBytes);
-        PublishBudgets(stream, BudgetSnapshot.Measure(plan, messages, steps, budgets.ToolCalls, budgets.CompletionTokens));
+        ContextPlan plan = ContextPlanner.Build(request, options.MaxContextTokens, TokenEstimator.For(calibration));
+        PublishBudgets(stream, BudgetSnapshot.Measure(plan, messages, steps, budgets.ToolCalls, usage.OutputTokens), usage);
         stream.Publish("run.completed", new {
             runId = queued.RunId,
             steps,
-            usage = response.Usage,
+            usage,
         });
     }
 
     // The keys are the row names the page's markup carries, so the browser needs no translation and
     // `message` is absent: the textarea is that row's only source.
-    private static void PublishBudgets(RunStream stream, BudgetSnapshot budgets) => stream.Publish("budget.updated", new {
+    private static void PublishBudgets(RunStream stream, BudgetSnapshot budgets, RunUsage usage) => stream.Publish("budget.updated", new {
         budgets = new Dictionary<string, long>(StringComparer.Ordinal) {
-            ["context"] = budgets.SentBytes,
+            ["context"] = budgets.ContextTokens,
             ["steps"] = budgets.Steps,
             ["tool-calls"] = budgets.ToolCalls,
             ["tool-arguments"] = budgets.LongestArguments,
             ["tool-result"] = budgets.LongestResult,
-            ["output"] = budgets.CompletionTokens,
+            ["output"] = budgets.OutputTokens,
+        },
+        usage = new {
+            prompt = usage.PromptTokens,
+            cached = usage.CachedTokens,
+            completion = usage.CompletionTokens,
+            reasoning = usage.ReasoningTokens,
+            total = usage.TotalTokens,
         },
     });
 

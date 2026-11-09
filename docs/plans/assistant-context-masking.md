@@ -5,7 +5,13 @@ SPDX-License-Identifier: MIT
 
 # Assistant context masking, with whole-turn trimming as the fallback
 
-Status: **proposed**. Written 2026-11-09; checked against the code on the same day.
+Status: **implemented 2026-11-09**. Written 2026-11-09; checked against the code on the same day.
+
+> **Unit superseded.** The masking and trimming design below is what was built, but DEC-204 replaced
+> its byte budget with estimated tokens: `Assistant:MaxRequestBytes` is now
+> `Assistant:MaxContextTokens`, `ContextPlan.SentBytes` is now `ContextPlan.EstimatedTokens`, and
+> `ChatRequestJson.MeasureBytes` is the input to `TokenEstimator` rather than the budget itself. Read
+> "bytes" below as the exact measure that calibrates the token estimate, not as the budget.
 
 ## The short version
 

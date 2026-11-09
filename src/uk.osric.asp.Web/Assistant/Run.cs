@@ -16,8 +16,28 @@ internal sealed class Run {
     public DateTimeOffset? CompletedAt { get; set; }
     public int StepCount { get; set; }
     public int ToolCallCount { get; set; }
+    /// <summary>Every step's prompt tokens added together.</summary>
     public int? PromptTokens { get; set; }
+    /// <summary>Every step's completion tokens added together.</summary>
     public int? CompletionTokens { get; set; }
+    /// <summary>Every step's cache-hit prompt tokens added together.</summary>
+    public int? CachedTokens { get; set; }
+    /// <summary>Every step's reasoning tokens added together.</summary>
+    public int? ReasoningTokens { get; set; }
+    /// <summary>The most recent step's completion tokens, which the output budget counts.</summary>
+    public int? OutputTokens { get; set; }
+    /// <summary>The UTF-8 bytes of the last request this run sent, for calibrating the token estimate.</summary>
+    public long? RequestBytes { get; set; }
+    /// <summary>The last request's provider-reported prompt tokens, for calibrating the token estimate.</summary>
+    public int? LastPromptTokens { get; set; }
     public string? ErrorCode { get; set; }
     public string? ErrorMessage { get; set; }
+
+    /// <summary>The stored totals as the value the page and the run publish.</summary>
+    public uk.osric.asp.Core.Assistant.RunUsage ToUsage() => new(
+        PromptTokens ?? 0,
+        CompletionTokens ?? 0,
+        CachedTokens ?? 0,
+        ReasoningTokens ?? 0,
+        OutputTokens ?? 0);
 }

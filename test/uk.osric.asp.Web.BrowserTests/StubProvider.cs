@@ -148,7 +148,7 @@ internal sealed class StubProvider : IAsyncDisposable {
             if (response.ToolCall is { } call) {
                 await WriteAsync(output, ToolCallDelta(call), null, cancellationToken);
             }
-            await WriteAsync(output, new Dictionary<string, object?>(), response.FinishReason, cancellationToken);
+            await WriteAsync(output, new Dictionary<string, object?>(), response.FinishReason, cancellationToken, Usage());
             await WriteDataAsync(output, "[DONE]", cancellationToken);
             output.Close();
             context.Response.Close();
@@ -179,13 +179,21 @@ internal sealed class StubProvider : IAsyncDisposable {
         },
     };
 
-    private static async Task WriteAsync(Stream output, object delta, string? finishReason, CancellationToken cancellationToken) {
+    private static object Usage() => new {
+        prompt_tokens = 1_000,
+        completion_tokens = 20,
+        prompt_cache_hit_tokens = 600,
+        completion_tokens_details = new { reasoning_tokens = 5 },
+    };
+
+    private static async Task WriteAsync(Stream output, object delta, string? finishReason, CancellationToken cancellationToken, object? usage = null) {
         string payload = JsonSerializer.Serialize(new {
             id = "stub",
             @object = "chat.completion.chunk",
             created = 0,
             model = "stub-model",
             choices = new[] { new { index = 0, delta, finish_reason = finishReason } },
+            usage,
         });
         await WriteRawAsync(output, payload, cancellationToken);
     }

@@ -20,7 +20,7 @@ public sealed class ContextTrimmerTests {
         ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([
             new("system", "prompt"),
             new("user", "latest"),
-        ])));
+        ])), Exact);
 
         Assert.That(result.Request.Messages.Select(message => message.Content), Is.EqualTo(["prompt", "latest"]));
         Assert.That(result.IsTrimmed, Is.True);
@@ -41,7 +41,7 @@ public sealed class ContextTrimmerTests {
         ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([
             new("system", "s"),
             new("user", "new"),
-        ])));
+        ])), Exact);
 
         Assert.That(result.Request.Messages.Select(message => message.Content), Is.EqualTo(["s", "new"]));
         Assert.That(result.Request.Messages.Any(message => message.Role == "tool"), Is.False);
@@ -51,13 +51,13 @@ public sealed class ContextTrimmerTests {
     public void ReportsWhenTheNewestTurnCannotFit() {
         ChatRequest request = Request([new("system", "prompt"), new("user", "too long")]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([new("system", "prompt")])));
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([new("system", "prompt")])), Exact);
 
         Assert.Multiple(() => {
             Assert.That(result.Error, Is.Not.Null);
             Assert.That(result.Request.Messages.Select(message => message.Role), Is.EqualTo(["system", "user"]),
                 "the smallest request is still reported so the page can show its size");
-            Assert.That(result.SentBytes, Is.EqualTo(Bytes(result.Request)));
+            Assert.That(result.EstimatedTokens, Is.EqualTo(Bytes(result.Request)));
         });
     }
 
@@ -72,7 +72,7 @@ public sealed class ContextTrimmerTests {
         ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([
             new("system", "s"),
             new("user", "c"), new("assistant", "d"),
-        ])));
+        ])), Exact);
 
         Assert.Multiple(() => {
             Assert.That(result.Request.Messages.Select(message => message.Content), Is.EqualTo(["s", "c", "d"]));
@@ -87,7 +87,7 @@ public sealed class ContextTrimmerTests {
             new("user", "a"), new("assistant", "b"),
         ]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(request));
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(request), Exact);
 
         Assert.Multiple(() => {
             Assert.That(result.Request.Messages.Select(message => message.Content), Is.EqualTo(["s", "a", "b"]));
@@ -102,7 +102,7 @@ public sealed class ContextTrimmerTests {
     public void ATranscriptWithoutASystemPromptKeepsTheNewestTurn() {
         ChatRequest request = Request([new("assistant", "a"), new("user", "b")]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([new("user", "b")])));
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([new("user", "b")])), Exact);
 
         Assert.Multiple(() => {
             Assert.That(result.Request.Messages.Select(message => message.Content), Is.EqualTo(["b"]));
@@ -114,27 +114,27 @@ public sealed class ContextTrimmerTests {
     public void ReportsWhenTheSystemPromptAloneIsTooLong() {
         ChatRequest request = Request([new("system", "prompt")]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(request) - 1);
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(request) - 1, Exact);
 
-        Assert.That(result.Error, Is.Not.Null.And.Contains("needs").And.Contains("bytes"));
+        Assert.That(result.Error, Is.Not.Null.And.Contains("needs").And.Contains("tokens"));
     }
 
     [Test]
     public void ReportsWhenTheSystemFitsButTheNewestTurnDoesNot() {
         ChatRequest request = Request([new("system", "s"), new("user", "too long")]);
 
-        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([new("system", "s")])));
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([new("system", "s")])), Exact);
 
         Assert.That(result.Error, Is.Not.Null, "the newest turn may not be split from its result");
     }
 
     [Test]
-    public void TheBudgetIsMeasuredInBytes() {
+    public void TheBudgetIsMeasuredInEstimatedTokens() {
         ChatRequest request = Request([new("system", "s"), new("user", "0123456789")]);
 
         Assert.Multiple(() => {
-            Assert.That(ContextTrimmer.Trim(request, Bytes(request) - 1).Error, Is.Not.Null);
-            Assert.That(ContextTrimmer.Trim(request, Bytes(request)).Error, Is.Null);
+            Assert.That(ContextTrimmer.Trim(request, Bytes(request) - 1, Exact).Error, Is.Not.Null);
+            Assert.That(ContextTrimmer.Trim(request, Bytes(request), Exact).Error, Is.Null);
         });
     }
 
@@ -145,20 +145,36 @@ public sealed class ContextTrimmerTests {
 
         Assert.Multiple(() => {
             Assert.That(Bytes(request), Is.GreaterThan(contentCharacters), "the JSON envelope is part of the request");
-            Assert.That(ContextTrimmer.Trim(request, contentCharacters).Error, Is.Not.Null);
+            Assert.That(ContextTrimmer.Trim(request, contentCharacters, Exact).Error, Is.Not.Null);
         });
+    }
+
+    [Test]
+    public void TheRequestBytesAreTheSentRequest() {
+        ChatRequest request = Request([
+            new("system", "s"),
+            new("user", "a"), new("assistant", "b"),
+            new("user", "c"), new("assistant", "d"),
+        ]);
+
+        ContextTrimResult result = ContextTrimmer.Trim(request, Bytes(Request([
+            new("system", "s"),
+            new("user", "c"), new("assistant", "d"),
+        ])), Exact);
+
+        Assert.That(result.RequestBytes, Is.EqualTo(ChatRequestJson.MeasureBytes(result.Request)));
     }
 
     [Test]
     public void ANullTranscriptIsRefused() {
         ChatRequest request = Request([new("user", "a")]) with { Messages = null! };
 
-        Assert.That(() => ContextTrimmer.Trim(request, 10), Throws.ArgumentNullException);
+        Assert.That(() => ContextTrimmer.Trim(request, 10, Exact), Throws.ArgumentNullException);
     }
 
     [Test]
     public void ANonPositiveBudgetIsRefused() {
-        Assert.That(() => ContextTrimmer.Trim(Request([new("user", "a")]), 0),
+        Assert.That(() => ContextTrimmer.Trim(Request([new("user", "a")]), 0, Exact),
             Throws.TypeOf<ArgumentOutOfRangeException>());
     }
 
@@ -170,6 +186,10 @@ public sealed class ContextTrimmerTests {
         20,
         "reasoning_content",
         IncludeUsage: true);
+
+    // One byte is one estimated token, so a budget derived from a byte count keeps the exact
+    // arithmetic the masking rules were written around.
+    private static readonly TokenEstimator Exact = new(1.0, 1.0);
 
     private static long Bytes(ChatRequest request) => ChatRequestJson.MeasureBytes(request);
 }

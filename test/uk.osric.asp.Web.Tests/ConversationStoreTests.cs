@@ -298,6 +298,74 @@ public sealed class ConversationStoreTests {
         });
     }
 
+    [Test]
+    public async Task RecordStepAddsEveryReportedCountToTheRunAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 1, 4_000,
+            new TokenUsage(1_000, 20, 600, 5), CancellationToken.None), Is.True);
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 2, 5_000,
+            new TokenUsage(2_000, 30, 1_200, 7), CancellationToken.None), Is.True);
+
+        Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
+        Assert.Multiple(() => {
+            Assert.That(run.StepCount, Is.EqualTo(2));
+            Assert.That(run.ToolCallCount, Is.EqualTo(3));
+            Assert.That(run.PromptTokens, Is.EqualTo(3_000));
+            Assert.That(run.CompletionTokens, Is.EqualTo(50));
+            Assert.That(run.CachedTokens, Is.EqualTo(1_800));
+            Assert.That(run.ReasoningTokens, Is.EqualTo(12));
+            Assert.That(run.OutputTokens, Is.EqualTo(30), "the output budget counts the last step");
+            Assert.That(run.RequestBytes, Is.EqualTo(5_000));
+            Assert.That(run.LastPromptTokens, Is.EqualTo(2_000));
+        });
+    }
+
+    [Test]
+    public async Task ANullUsageStillCountsTheStepAndLeavesTheTotalsAloneAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 4, 9_000, null, CancellationToken.None), Is.True);
+
+        Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
+        Assert.Multiple(() => {
+            Assert.That(run.StepCount, Is.EqualTo(1));
+            Assert.That(run.ToolCallCount, Is.EqualTo(4));
+            Assert.That(run.PromptTokens, Is.Null);
+            Assert.That(run.CompletionTokens, Is.Null);
+            Assert.That(run.RequestBytes, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task ANewRunStartsWithTheLastRunsCalibrationForTheSameModelAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult first = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        await conversations.RecordStepAsync(first.RunId!, 0, 4_000, new TokenUsage(1_000, 20), CancellationToken.None);
+        await conversations.SetRunStatusAsync(first.RunId!, "completed");
+
+        RunStartResult second = await conversations.StartRunAsync(conversation.Id, "owner", "again", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(second.RunId!, "completed");
+        RunStartResult otherModel = await conversations.StartRunAsync(conversation.Id, "owner", "again", "other-model", "prompt-v1");
+
+        Run copied = await database.Set<Run>().AsNoTracking().SingleAsync(run => run.Id == second.RunId);
+        Run notCopied = await database.Set<Run>().AsNoTracking().SingleAsync(run => run.Id == otherModel.RunId);
+        Assert.Multiple(() => {
+            Assert.That(copied.RequestBytes, Is.EqualTo(4_000));
+            Assert.That(copied.LastPromptTokens, Is.EqualTo(1_000));
+            Assert.That(notCopied.RequestBytes, Is.Null, "a different model's ratio is not a safe start");
+            Assert.That(notCopied.LastPromptTokens, Is.Null);
+        });
+    }
+
     private static IConversationStore NewStore(StorageDbContext database) =>
         new SqliteConversationStore(database, TimeProvider.System, NullLogger<SqliteConversationStore>.Instance);
 }

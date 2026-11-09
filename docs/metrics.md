@@ -41,7 +41,7 @@ the other half of the same question and live in [logging](logging.md).
 | `assistant.provider.first_token.duration` | histogram | s | `model` — the wait before the model said anything |
 | `assistant.provider.request.duration` | histogram | s | `model`, `outcome` |
 | `assistant.tool.duration` | histogram | s | `tool` (a registered tool's name, or `(unknown)`), `outcome` |
-| `assistant.tokens` | counter | {token} | `kind` (`prompt`, `completion`) |
+| `assistant.tokens` | counter | {token} | `kind` (`prompt`, `cached`, `completion`, `reasoning`) |
 
 A miss is tagged `page.path="(not-found)"`. The requested path is unauthenticated and unbounded, so
 tagging it verbatim would let a scan mint one time series per URL; the real path is in the access log.
@@ -80,10 +80,15 @@ instrument, and the instrument's type decides the chart (DEC-180).
 `StatusCatalogue` holds the list: sixteen Pages panels (nine heatmaps for the duration and size
 histograms, stacked areas for cache lookups and staleness, line charts for abandoned renders, layout
 fallbacks and the three storage gauges), seven Assistant panels (six heatmaps and the token counter
-stacked by `kind`), and five Host panels from the framework's own meters — process memory, process
+as a line chart), and five Host panels from the framework's own meters — process memory, process
 CPU, connections and active requests, request duration and the HTTP status mix. The Host panels are
 not instruments this repository registers, so a combined panel there is allowed where three series
 answer one question.
+
+`assistant.tokens` is a line chart, not a stacked area, because its labels do not partition one
+total: cached tokens are already inside prompt tokens and reasoning tokens inside completion tokens.
+The four lines answer "how many of each did the provider report" without drawing the same token
+twice.
 
 A heatmap aggregates every tag but `le`: `assistant.tool.duration` merges every tool into one
 distribution, exactly as `page.render.duration` merges every path. The panel's title says so, and

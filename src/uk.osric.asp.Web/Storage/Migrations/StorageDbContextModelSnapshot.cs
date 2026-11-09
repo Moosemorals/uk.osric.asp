@@ -131,6 +131,9 @@ namespace uk.osric.asp.Web.Storage.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("CachedTokens")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("TEXT");
 
@@ -150,10 +153,16 @@ namespace uk.osric.asp.Web.Storage.Migrations
                     b.Property<string>("ErrorMessage")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("LastPromptTokens")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Model")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("OutputTokens")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("PromptTokens")
                         .HasColumnType("INTEGER");
@@ -162,6 +171,12 @@ namespace uk.osric.asp.Web.Storage.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("ReasoningTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("RequestBytes")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset?>("StartedAt")
                         .HasColumnType("TEXT");

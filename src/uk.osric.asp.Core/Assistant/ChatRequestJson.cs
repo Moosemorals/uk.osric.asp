@@ -75,8 +75,9 @@ public static class ChatRequestJson {
     /// <returns>The byte count of <see cref="Serialize"/>.</returns>
     /// <remarks>
     /// This is the single place a request's size is counted: the planner, the trimmer and the page all
-    /// ask here rather than building their own figure. A token budget replaces this method's body with
-    /// the tokenizer's count of the same serialized text, and leaves the rules alone.
+    /// ask here rather than building their own figure. A token budget estimates tokens from this byte
+    /// count with <see cref="TokenEstimator"/>, calibrated by the provider's last report, and leaves
+    /// the rules alone.
     /// </remarks>
     public static long MeasureBytes(ChatRequest request) => Encoding.UTF8.GetByteCount(Serialize(request));
 }

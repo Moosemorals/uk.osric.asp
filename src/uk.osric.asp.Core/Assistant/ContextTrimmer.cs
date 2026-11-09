@@ -16,15 +16,17 @@ public sealed record ChatMessage(
     string? ToolCallId = null,
     string? ToolName = null);
 
-/// <summary>The result of fitting whole conversation turns into a request-size budget.</summary>
+/// <summary>The result of fitting whole conversation turns into a token budget.</summary>
 /// <param name="Request">The smallest request that was built: system prompt plus the turns kept.</param>
 /// <param name="DroppedMessages">How many transcript messages were omitted.</param>
-/// <param name="SentBytes">The size of <paramref name="Request"/> as it would be sent.</param>
+/// <param name="EstimatedTokens">The estimated size of <paramref name="Request"/> as it would be sent.</param>
+/// <param name="RequestBytes">The exact UTF-8 bytes of <paramref name="Request"/>, for calibration.</param>
 /// <param name="Error">A safe reason no request can be built, when the newest turn cannot fit.</param>
 public sealed record ContextTrimResult(
     ChatRequest Request,
     int DroppedMessages,
-    long SentBytes,
+    long EstimatedTokens,
+    long RequestBytes,
     string? Error) {
 
     /// <summary>Whether older conversation messages were omitted.</summary>
@@ -36,16 +38,18 @@ public sealed record ContextTrimResult(
         : null;
 }
 
-/// <summary>Fits a request to a byte budget by dropping the oldest whole turns.</summary>
+/// <summary>Fits a request to a token budget by dropping the oldest whole turns.</summary>
 public static class ContextTrimmer {
 
     /// <summary>Keeps the system prompt and the newest whole turns that fit.</summary>
     /// <param name="request">The full request, whose messages are the transcript to trim.</param>
-    /// <param name="maximumBytes">The largest request body the provider may be sent.</param>
+    /// <param name="maximumTokens">The largest estimated prompt the provider may be sent.</param>
+    /// <param name="estimator">The estimator the budget is measured with.</param>
     /// <returns>The smallest request that fits, or the newest turn with an error when that cannot.</returns>
-    public static ContextTrimResult Trim(ChatRequest request, long maximumBytes) {
+    public static ContextTrimResult Trim(ChatRequest request, long maximumTokens, TokenEstimator estimator) {
         ArgumentNullException.ThrowIfNull(request);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
+        ArgumentNullException.ThrowIfNull(estimator);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumTokens);
         if (request.Messages is null) {
             throw new ArgumentNullException(nameof(request), "The request has no messages.");
         }
@@ -54,7 +58,8 @@ public static class ContextTrimmer {
         if (split.Turns.Count == 0) {
             ChatRequest only = request with { Messages = ConversationTurns.Flatten(split.System, []) };
             long bytes = ChatRequestJson.MeasureBytes(only);
-            return new ContextTrimResult(only, 0, bytes, bytes <= maximumBytes ? null : TooLong(bytes, maximumBytes));
+            long tokens = estimator.Estimate(bytes);
+            return new ContextTrimResult(only, 0, tokens, bytes, tokens <= maximumTokens ? null : TooLong(tokens, bytes, maximumTokens));
         }
 
         List<IReadOnlyList<ChatMessage>> kept = [];
@@ -64,12 +69,17 @@ public static class ContextTrimmer {
                 Messages = ConversationTurns.Flatten(split.System, candidate),
             };
             long bytes = ChatRequestJson.MeasureBytes(candidateRequest);
-            if (bytes > maximumBytes) {
+            long tokens = estimator.Estimate(bytes);
+            if (tokens > maximumTokens) {
                 // The newest turn is the smallest request there is; once it does not fit, an older turn
                 // would only make the request larger, and dropping it is not an option.
                 if (kept.Count == 0) {
-                    return new ContextTrimResult(candidateRequest, request.Messages.Count - candidateRequest.Messages.Count,
-                        bytes, TooLong(bytes, maximumBytes));
+                    return new ContextTrimResult(
+                        candidateRequest,
+                        request.Messages.Count - candidateRequest.Messages.Count,
+                        tokens,
+                        bytes,
+                        TooLong(tokens, bytes, maximumTokens));
                 }
                 break;
             }
@@ -79,10 +89,16 @@ public static class ContextTrimmer {
 
         ChatRequest trimmed = request with { Messages = ConversationTurns.Flatten(split.System, kept) };
         long sentBytes = ChatRequestJson.MeasureBytes(trimmed);
-        return new ContextTrimResult(trimmed, request.Messages.Count - trimmed.Messages.Count, sentBytes, null);
+        long sentTokens = estimator.Estimate(sentBytes);
+        return new ContextTrimResult(
+            trimmed,
+            request.Messages.Count - trimmed.Messages.Count,
+            sentTokens,
+            sentBytes,
+            null);
     }
 
-    private static string TooLong(long bytes, long maximumBytes) =>
-        $"The request needs {bytes} bytes and the budget is {maximumBytes}. "
+    private static string TooLong(long tokens, long bytes, long maximumTokens) =>
+        $"The request needs about {tokens} tokens ({bytes} bytes) and the budget is {maximumTokens} tokens. "
         + "The system prompt, tool definitions and newest turn alone are too large.";
 }

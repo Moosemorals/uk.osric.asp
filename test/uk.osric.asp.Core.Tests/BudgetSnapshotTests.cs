@@ -10,14 +10,14 @@ using uk.osric.asp.Core.Assistant;
 public sealed class BudgetSnapshotTests {
 
     [Test]
-    public void TheRequestFigureIsThePlansSentBytes() {
+    public void TheRequestFigureIsThePlansEstimatedTokens() {
         ChatMessage[] stored = [new("system", "prompt"), new("user", "a question"), new("assistant", "an answer")];
         ChatRequest request = Request(stored);
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(request));
+        ContextPlan plan = ContextPlanner.Build(request, Bytes(request), Exact);
 
         BudgetSnapshot snapshot = BudgetSnapshot.Measure(plan, stored, 0, 0, null);
 
-        Assert.That(snapshot.SentBytes, Is.EqualTo(plan.SentBytes));
+        Assert.That(snapshot.ContextTokens, Is.EqualTo(plan.EstimatedTokens));
     }
 
     [Test]
@@ -26,7 +26,7 @@ public sealed class BudgetSnapshotTests {
         ChatRequest request = Request(stored);
         int storedLength = ArgumentsOf(stored[0]).Length;
 
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(request) - 1);
+        ContextPlan plan = ContextPlanner.Build(request, Bytes(request) - 1, Exact);
         BudgetSnapshot snapshot = BudgetSnapshot.Measure(plan, stored, 0, 0, null);
 
         Assert.Multiple(() => {
@@ -41,12 +41,12 @@ public sealed class BudgetSnapshotTests {
         ChatRequest request = Request(stored);
         long budget = Bytes(request) - 2_000;
 
-        ContextPlan plan = ContextPlanner.Build(request, budget);
+        ContextPlan plan = ContextPlanner.Build(request, budget, Exact);
         BudgetSnapshot snapshot = BudgetSnapshot.Measure(plan, stored, 0, 0, null);
 
         Assert.Multiple(() => {
             Assert.That(plan.IsMasked, Is.True);
-            Assert.That(plan.SentBytes, Is.LessThanOrEqualTo(budget));
+            Assert.That(plan.EstimatedTokens, Is.LessThanOrEqualTo(budget));
             Assert.That(snapshot.LongestResult, Is.EqualTo(4_000));
         });
     }
@@ -59,7 +59,7 @@ public sealed class BudgetSnapshotTests {
         ];
         ChatRequest request = Request(stored);
 
-        BudgetSnapshot snapshot = BudgetSnapshot.Measure(ContextPlanner.Build(request, Bytes(request)), stored, 0, 0, null);
+        BudgetSnapshot snapshot = BudgetSnapshot.Measure(ContextPlanner.Build(request, Bytes(request), Exact), stored, 0, 0, null);
 
         Assert.That(snapshot.LongestArguments, Is.EqualTo("""{"path":"/a-much-longer-path"}""".Length));
     }
@@ -69,7 +69,7 @@ public sealed class BudgetSnapshotTests {
         ChatMessage[] stored = [new("user", "just words"), new("assistant", "just an answer")];
         ChatRequest request = Request(stored);
 
-        BudgetSnapshot snapshot = BudgetSnapshot.Measure(ContextPlanner.Build(request, Bytes(request)), stored, 0, 0, null);
+        BudgetSnapshot snapshot = BudgetSnapshot.Measure(ContextPlanner.Build(request, Bytes(request), Exact), stored, 0, 0, null);
 
         Assert.That(snapshot.LongestArguments, Is.Zero);
     }
@@ -83,7 +83,7 @@ public sealed class BudgetSnapshotTests {
         ];
         ChatRequest request = Request(stored);
 
-        BudgetSnapshot snapshot = BudgetSnapshot.Measure(ContextPlanner.Build(request, Bytes(request)), stored, 0, 0, null);
+        BudgetSnapshot snapshot = BudgetSnapshot.Measure(ContextPlanner.Build(request, Bytes(request), Exact), stored, 0, 0, null);
 
         Assert.That(snapshot.LongestResult, Is.EqualTo(90));
     }
@@ -91,36 +91,36 @@ public sealed class BudgetSnapshotTests {
     [Test]
     public void TheCountersAreCarriedThroughUnchanged() {
         ChatRequest request = Request([]);
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(request));
+        ContextPlan plan = ContextPlanner.Build(request, Bytes(request), Exact);
 
-        BudgetSnapshot snapshot = BudgetSnapshot.Measure(plan, [], steps: 3, toolCalls: 2, completionTokens: 513);
+        BudgetSnapshot snapshot = BudgetSnapshot.Measure(plan, [], steps: 3, toolCalls: 2, outputTokens: 513);
 
         Assert.Multiple(() => {
             Assert.That(snapshot.Steps, Is.EqualTo(3));
             Assert.That(snapshot.ToolCalls, Is.EqualTo(2));
-            Assert.That(snapshot.CompletionTokens, Is.EqualTo(513));
+            Assert.That(snapshot.OutputTokens, Is.EqualTo(513));
         });
     }
 
     [Test]
     public void AMissingUsageCountsAsNoOutput() {
         ChatRequest request = Request([]);
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(request));
+        ContextPlan plan = ContextPlanner.Build(request, Bytes(request), Exact);
 
         BudgetSnapshot snapshot = BudgetSnapshot.Measure(plan, [], 0, 0, null);
 
-        Assert.That(snapshot.CompletionTokens, Is.Zero);
+        Assert.That(snapshot.OutputTokens, Is.Zero);
     }
 
     [Test]
     public void AnEmptyTranscriptMeasuresTheEnvelopeItWouldSend() {
         ChatRequest request = Request([]);
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(request));
+        ContextPlan plan = ContextPlanner.Build(request, Bytes(request), Exact);
 
         BudgetSnapshot snapshot = BudgetSnapshot.Measure(plan, [], 1, 4, 7);
 
         Assert.Multiple(() => {
-            Assert.That(snapshot.SentBytes, Is.EqualTo(Bytes(request)));
+            Assert.That(snapshot.ContextTokens, Is.EqualTo(Bytes(request)));
             Assert.That(snapshot.LongestArguments, Is.Zero);
             Assert.That(snapshot.LongestResult, Is.Zero);
             Assert.That(snapshot, Is.EqualTo(new BudgetSnapshot(Bytes(request), 1, 4, 0, 0, 7)));
@@ -154,4 +154,8 @@ public sealed class BudgetSnapshotTests {
     }
 
     private static long Bytes(ChatRequest request) => ChatRequestJson.MeasureBytes(request);
+
+    // One byte is one estimated token, so a budget derived from a byte count keeps the exact
+    // arithmetic the masking rules were written around.
+    private static readonly TokenEstimator Exact = new(1.0, 1.0);
 }

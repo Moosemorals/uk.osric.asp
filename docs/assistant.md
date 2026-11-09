@@ -72,12 +72,21 @@ The budgets the page shows are one `BudgetSnapshot`: the request plan and the st
 measured once. The page renders it, and the run publishes it as `budget.updated` over the journal the
 page already listens to, at the start of each step, when that step's usage is stored and around each
 tool call. A figure a reader watches move is therefore the figure the reload will show. The request
-row is the provider request as sent: the UTF-8 bytes of the body `ChatRequestJson` serializes,
-including the system prompt, the tool definitions and the messages after masking and trimming.
-`ContextPlanner` elides old tool results and long old tool-call arguments first, and drops whole
-older turns only when masking cannot free enough. The panel is read at a glance: each row is a label
-and a meter with its figure drawn over it, and `BudgetAmount` keeps every figure to at most three
-digits and a unit letter (`16k`, `500k`), so the seven rows fit two columns.
+row is the provider request as sent: the system prompt, the tool definitions and the messages after
+masking and trimming, measured in estimated tokens against `Assistant:MaxContextTokens`. `ChatRequestJson` measures the exact UTF-8 body,
+and `TokenEstimator` turns that into tokens with the bytes-per-token ratio the provider's last
+`prompt_tokens` report calibrated, a ten-percent margin and a conservative default before the first
+report. `ContextPlanner` elides old tool results and long old tool-call arguments first, and drops
+whole older turns only when masking cannot free enough. The panel is read at a glance: each row is a
+label and a meter with its figure drawn over it, and `BudgetAmount` keeps every figure to at most
+three digits and a unit letter (`16k`, `90k`), so the seven rows fit two columns.
+
+A second fieldset, "Tokens this run", shows what the provider reported rather than what a limit
+allows: prompt, cached, completion and reasoning tokens, the cached share of the prompt, and the
+prompt-plus-completion total. Cached is a subset of prompt and reasoning a subset of completion, so
+the list says so rather than summing them twice. The run accumulates the figures across its steps;
+the page reads the stored totals after a reload, and `budget.updated` carries the same object while
+the run is live. The context row is the only estimate; the usage list is the provider's own count.
 
 Each finished turn of the transcript ends with a changed-pages card: the live pages its `write_page`
 and `edit_page` calls reported saving, each linked to the page and to its editor. It is read from the

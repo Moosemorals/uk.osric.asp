@@ -34,13 +34,19 @@ public sealed class AssistantMetricsTests {
         ToolDefinition writePage = PageToolExecutor.Definitions.Single(definition => definition.Name == "write_page");
         metrics.RecordTool(writePage, true, TimeSpan.FromMilliseconds(10));
         metrics.RecordTool(null, false, TimeSpan.FromMilliseconds(10));
-        metrics.RecordUsage(new TokenUsage(12, 4));
+        metrics.RecordUsage(new TokenUsage(12, 4, 5, 1));
 
         Assert.That(measurements.Select(item => item.Name), Is.EquivalentTo([
             "assistant.run.duration", "assistant.run.steps", "assistant.run.tool_calls",
             "assistant.provider.first_token.duration", "assistant.provider.request.duration",
-            "assistant.tool.duration", "assistant.tool.duration", "assistant.tokens", "assistant.tokens",
+            "assistant.tool.duration", "assistant.tool.duration",
+            "assistant.tokens", "assistant.tokens", "assistant.tokens", "assistant.tokens",
         ]));
+        Assert.That(
+            measurements.Where(item => item.Name == "assistant.tokens").Select(item => item.Tags),
+            Is.EquivalentTo([
+                "kind=prompt", "kind=cached", "kind=completion", "kind=reasoning",
+            ]));
         Assert.That(
             measurements.Where(item => item.Name == "assistant.tool.duration").Select(item => item.Tags),
             Is.EquivalentTo(["tool=write_page,outcome=ok", $"tool={AssistantMetrics.UnknownTool},outcome=error"]));

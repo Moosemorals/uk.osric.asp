@@ -126,6 +126,36 @@
     font-size: 0.75rem;
 }
 
+/* The usage list is read, not enforced: two label/value pairs per row, the same compact scale as the
+   budgets, and no meter because nothing here has a limit. */
+.assistant-usage-list {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+    gap: 0.15rem 1.25rem;
+    align-items: baseline;
+    margin: 0;
+    font-size: 0.8rem;
+}
+
+.assistant-usage-list > div {
+    display: contents;
+}
+
+.assistant-usage-list dt {
+    font-weight: 600;
+}
+
+.assistant-usage-list dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.assistant-usage-note {
+    margin: 0.35rem 0 0;
+    color: #414b48;
+    font-size: 0.75rem;
+}
+
 #assistant-transcript {
     display: grid;
     gap: 0.35rem;

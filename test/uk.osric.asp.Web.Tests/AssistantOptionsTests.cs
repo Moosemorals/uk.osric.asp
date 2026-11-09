@@ -61,19 +61,47 @@ public sealed class AssistantOptionsTests {
     }
 
     [Test]
-    public void ABudgetBelowTheFloorNamesMaxRequestBytes() {
+    public void ABudgetBelowTheFloorNamesMaxContextTokens() {
         AssistantOptions options = new() {
             Enabled = true,
             ApiKey = "configured",
-            MaxRequestBytes = 1_000,
+            MaxContextTokens = 1_000,
         };
 
         ValidateOptionsResult result = Validate(options);
 
         Assert.Multiple(() => {
             Assert.That(result.Failed, Is.True);
-            Assert.That(result.FailureMessage, Does.Contain("Assistant:MaxRequestBytes"));
+            Assert.That(result.FailureMessage, Does.Contain("Assistant:MaxContextTokens"));
         });
+    }
+
+    [Test]
+    public void ABudgetAndOutputOverTheModelWindowAreRejected() {
+        AssistantOptions options = new() {
+            Enabled = true,
+            ApiKey = "configured",
+            MaxContextTokens = 100_000,
+            MaxOutputTokens = 40_000,
+            ModelContextTokens = 131_072,
+        };
+
+        ValidateOptionsResult result = Validate(options);
+
+        Assert.Multiple(() => {
+            Assert.That(result.Failed, Is.True);
+            Assert.That(result.FailureMessage, Does.Contain("Assistant:ModelContextTokens"));
+        });
+    }
+
+    [Test]
+    public void TheDefaultBudgetFitsTheDefaultModelWindow() {
+        AssistantOptions options = new() {
+            Enabled = true,
+            ApiKey = "configured",
+        };
+
+        AssertValid(options);
     }
 
     private void AssertValid(AssistantOptions options) {

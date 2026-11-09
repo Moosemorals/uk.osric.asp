@@ -88,8 +88,14 @@ internal sealed class AssistantMetrics : IDisposable {
         if (usage.PromptTokens is > 0) {
             _tokens.Add(usage.PromptTokens.Value, new TagList { { "kind", "prompt" } });
         }
+        if (usage.CachedTokens is > 0) {
+            _tokens.Add(usage.CachedTokens.Value, new TagList { { "kind", "cached" } });
+        }
         if (usage.CompletionTokens is > 0) {
             _tokens.Add(usage.CompletionTokens.Value, new TagList { { "kind", "completion" } });
+        }
+        if (usage.ReasoningTokens is > 0) {
+            _tokens.Add(usage.ReasoningTokens.Value, new TagList { { "kind", "reasoning" } });
         }
     }
 

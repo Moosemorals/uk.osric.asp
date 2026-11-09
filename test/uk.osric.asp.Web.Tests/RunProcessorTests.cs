@@ -24,7 +24,7 @@ public sealed class RunProcessorTests {
         RunTimeoutSeconds = 5,
         RequestTimeoutSeconds = 3,
         ToolTimeoutSeconds = 2,
-        MaxRequestBytes = 500_000,
+        MaxContextTokens = 90_000,
     };
 
     private readonly ToolApprovalCoordinator _approvals = new();
@@ -100,6 +100,48 @@ public sealed class RunProcessorTests {
             Assert.That(events.Select(item => item.Type), Does.Contain("content.delta"));
             Assert.That(events[^1].Type, Is.EqualTo("run.completed"));
         });
+    }
+
+    [Test]
+    public async Task ASteppedRunSumsItsUsageAndKeepsTheLastStepsOutputAsync() {
+        SteppedClient client = new([
+            [
+                new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+                new UsageEvent(new TokenUsage(1_000, 20, 600, 5)),
+                new Finished("tool_calls"),
+            ],
+            [
+                new ContentDelta("Done."),
+                new UsageEvent(new TokenUsage(2_000, 30, 1_200, 7)),
+                new Finished("stop"),
+            ],
+        ]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
+        Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
+        RunEvent[] events = await CollectAsync(stream);
+        JsonDocument usage = JsonDocument.Parse(events.Last(@event => @event.Type == "budget.updated").DataJson);
+        JsonElement totals = usage.RootElement.GetProperty("usage");
+
+        Assert.Multiple(() => {
+            Assert.That(run.PromptTokens, Is.EqualTo(3_000));
+            Assert.That(run.CompletionTokens, Is.EqualTo(50));
+            Assert.That(run.CachedTokens, Is.EqualTo(1_800));
+            Assert.That(run.ReasoningTokens, Is.EqualTo(12));
+            Assert.That(run.OutputTokens, Is.EqualTo(30));
+            Assert.That(run.RequestBytes, Is.GreaterThan(0));
+            Assert.That(run.LastPromptTokens, Is.EqualTo(2_000));
+            Assert.That(totals.GetProperty("prompt").GetInt32(), Is.EqualTo(3_000));
+            Assert.That(totals.GetProperty("cached").GetInt32(), Is.EqualTo(1_800));
+            Assert.That(totals.GetProperty("completion").GetInt32(), Is.EqualTo(50));
+            Assert.That(totals.GetProperty("reasoning").GetInt32(), Is.EqualTo(12));
+        });
+        usage.Dispose();
     }
 
     [Test]
@@ -370,7 +412,7 @@ public sealed class RunProcessorTests {
         Assert.Multiple(() => {
             Assert.That(client.Requests, Has.Count.EqualTo(2));
             foreach (ChatRequest request in client.Requests) {
-                Assert.That(figures, Does.Contain(ChatRequestJson.MeasureBytes(request)),
+                Assert.That(figures, Does.Contain(TokenEstimator.For(null).Estimate(ChatRequestJson.MeasureBytes(request))),
                     "the figure a step published is the request it sent");
             }
         });
@@ -382,7 +424,7 @@ public sealed class RunProcessorTests {
             RunTimeoutSeconds = 5,
             RequestTimeoutSeconds = 3,
             ToolTimeoutSeconds = 2,
-            MaxRequestBytes = 1_000,
+            MaxContextTokens = 1_000,
         };
         ScriptedClient client = new([new ContentDelta("Never sent."), new Finished("stop")]);
         (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
@@ -423,7 +465,7 @@ public sealed class RunProcessorTests {
                 RunTimeoutSeconds = 5,
                 RequestTimeoutSeconds = 3,
                 ToolTimeoutSeconds = 2,
-                MaxRequestBytes = (int)MaskedBudget(seeds),
+                MaxContextTokens = (int)TokenEstimator.For(null).Estimate(MaskedBudget(seeds)),
             }));
 
         await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
@@ -506,7 +548,7 @@ public sealed class RunProcessorTests {
         RunTimeoutSeconds = seconds,
         RequestTimeoutSeconds = 3,
         ToolTimeoutSeconds = toolSeconds,
-        MaxRequestBytes = 500_000,
+        MaxContextTokens = 90_000,
     };
 
     private async Task WaitForPendingApprovalAsync(Conversation conversation) {

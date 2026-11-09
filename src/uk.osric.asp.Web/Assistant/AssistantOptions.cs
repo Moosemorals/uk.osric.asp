@@ -31,7 +31,10 @@ internal sealed class AssistantOptions {
     public int MaxPageChars { get; init; } = 262_144;
     public int MaxToolArgumentChars { get; init; } = 131_072;
     public int MaxToolResultChars { get; init; } = 32_768;
-    public int MaxRequestBytes { get; init; } = 120_000;
+    /// <summary>The estimated prompt tokens one request may spend.</summary>
+    public int MaxContextTokens { get; init; } = 90_000;
+    /// <summary>The model's whole context window, used to check the prompt and output budgets fit.</summary>
+    public int ModelContextTokens { get; init; } = 131_072;
     public int HeartbeatSeconds { get; init; } = 15;
     public int JournalMaxEvents { get; init; } = 20_000;
     public int JournalMaxBytes { get; init; } = 4_194_304;
@@ -45,7 +48,7 @@ internal sealed class AssistantOptions {
 
 /// <summary>Rejects an assistant configuration its client could not use.</summary>
 internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOptions> {
-    private const int MinimumRequestBytes = 16_384;
+    private const int MinimumContextTokens = 16_384;
 
     public ValidateOptionsResult Validate(string? name, AssistantOptions options) {
         ArgumentNullException.ThrowIfNull(options);
@@ -82,12 +85,18 @@ internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOpti
             || options.RequestTimeoutSeconds <= 0 || options.RunTimeoutSeconds <= 0 || options.ToolTimeoutSeconds <= 0
             || options.MaxProviderRetries < 0 || options.MaxMessageChars <= 0 || options.MaxPageChars <= 0
             || options.MaxToolArgumentChars <= 0 || options.MaxToolResultChars <= 0
+            || options.MaxContextTokens <= 0 || options.ModelContextTokens <= 0
             || options.HeartbeatSeconds <= 0 || options.JournalMaxEvents <= 0
             || options.JournalMaxBytes <= 0 || options.JournalTtlMinutes <= 0) {
             failures.Add("Assistant limits and timeouts must be positive; MaxProviderRetries may be zero.");
         }
-        if (options.MaxRequestBytes < MinimumRequestBytes) {
-            failures.Add($"Assistant:MaxRequestBytes must be at least {MinimumRequestBytes}.");
+        if (options.MaxContextTokens < MinimumContextTokens) {
+            failures.Add($"Assistant:MaxContextTokens must be at least {MinimumContextTokens}.");
+        }
+        if ((long)options.MaxContextTokens + options.MaxOutputTokens > options.ModelContextTokens) {
+            failures.Add(
+                $"Assistant:MaxContextTokens plus Assistant:MaxOutputTokens must not exceed Assistant:ModelContextTokens "
+                + $"({options.MaxContextTokens} + {options.MaxOutputTokens} > {options.ModelContextTokens}).");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

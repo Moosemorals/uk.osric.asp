@@ -170,9 +170,16 @@ internal sealed class OpenAiChatCompletionClient(
             }
 
             if (root.TryGetProperty("usage", out JsonElement usage) && usage.ValueKind == JsonValueKind.Object) {
+                // DeepSeek reports the cache hit at the top level; OpenAI reports it under
+                // prompt_tokens_details. Both count the cached part of prompt_tokens.
+                int? cached = IntProperty(usage, "prompt_cache_hit_tokens")
+                    ?? NestedIntProperty(usage, "prompt_tokens_details", "cached_tokens");
+                int? reasoning = NestedIntProperty(usage, "completion_tokens_details", "reasoning_tokens");
                 events.Add(new UsageEvent(new TokenUsage(
                     IntProperty(usage, "prompt_tokens"),
-                    IntProperty(usage, "completion_tokens"))));
+                    IntProperty(usage, "completion_tokens"),
+                    cached,
+                    reasoning)));
             }
             return events;
         }
@@ -194,6 +201,11 @@ internal sealed class OpenAiChatCompletionClient(
     private static int? IntProperty(JsonElement element, string property) =>
         element.TryGetProperty(property, out JsonElement value) && value.TryGetInt32(out int parsed)
             ? parsed
+            : null;
+
+    private static int? NestedIntProperty(JsonElement element, string parent, string property) =>
+        element.TryGetProperty(parent, out JsonElement nested) && nested.ValueKind == JsonValueKind.Object
+            ? IntProperty(nested, property)
             : null;
 
     private static bool IsRetryable(HttpStatusCode status) =>

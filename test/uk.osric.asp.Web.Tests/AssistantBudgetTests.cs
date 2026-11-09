@@ -34,8 +34,10 @@ public sealed class AssistantBudgetTests {
 
     private static ContextPlan Plan(IReadOnlyList<ChatMessage> messages) {
         ChatRequest request = new("model", messages, [], 0.2, 20, "reasoning_content", IncludeUsage: true);
-        return ContextPlanner.Build(request, ChatRequestJson.MeasureBytes(request));
+        return ContextPlanner.Build(request, ChatRequestJson.MeasureBytes(request), Exact);
     }
+
+    private static readonly TokenEstimator Exact = new(1.0, 1.0);
 
     private static Message StoredCall(string id, string arguments) => new() {
         RunId = "run",

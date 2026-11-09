@@ -61,16 +61,17 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   the run's scope. `Web.IntegrationTests/ErrorHandlingTests` proves the framework's own
   unhandled-exception line carries the request scope, which is what fixes the order of the middleware.
 - **The assistant** is covered at the same boundaries: `Core.Tests` checks request planning — observation
-  masking, whole-turn trimming and the byte measure the page and the stream share — stream
-  accumulation, strict tool arguments, virtual-shell parsing, title generation, authored
-  template-source line edits and the `BudgetSnapshot` the page and the stream both read.
+  masking, whole-turn trimming, token estimation and the byte measure the estimator calibrates —
+  stream accumulation, usage accumulation, strict tool arguments, virtual-shell parsing, title
+  generation, authored template-source line edits and the `BudgetSnapshot` the page and the stream
+  both read.
   `Web.Tests` uses migrated SQLite files for conversations, sequence
   allocation, approvals and restart repair; fake HTTP handlers for provider SSE; and scripted model
   streams for the run processor. `Web.IntegrationTests` runs the real authenticated host with a
   scripted provider to verify disabled routing, conversation streaming, approval gating and writes,
-  and compares the last `budget.updated` a run published with the page the reload renders. The
-  browser suite watches a budget figure move while the run is still busy, and watches a scripted
-  Markdown reply become formatted when its step completes.
+  and compares the last `budget.updated` a run published — its budgets and its usage — with the page
+  the reload renders. The browser suite watches a budget figure and the usage list move while the run
+  is still busy, and watches a scripted Markdown reply become formatted when its step completes.
   No suite contacts a real model provider.
 - **Markdown** is split by what each suite owns: `Core.Tests` pins `LinkPolicy`; `Runtime.Tests`
   drives both renderer profiles, including the table renderer's `scope="col"` and refusal of inline

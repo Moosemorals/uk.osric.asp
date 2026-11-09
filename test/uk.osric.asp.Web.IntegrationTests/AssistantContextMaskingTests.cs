@@ -16,12 +16,12 @@ public sealed class AssistantContextMaskingTests : IntegrationTest {
     // Ten read_page results of about 13 kB each: eight fit the request budget, the ninth does not, so
     // the run has to elide its oldest observation to send the next step.
     private const int ToolCalls = 10;
-    private const int Budget = 160_000;
+    private const int Budget = 110_000;
 
     private readonly ReadingClient _provider = new(ToolCalls);
 
     internal override AspApplication CreateApplication() =>
-        new(assistantEnabled: true, chatCompletionClient: _provider, maxRequestBytes: Budget);
+        new(assistantEnabled: true, chatCompletionClient: _provider, maxContextTokens: Budget, maxOutputTokens: 4_096);
 
     [Test]
     public async Task AnOldToolResultIsMaskedInTheRequestButNotInTheTranscript() {
@@ -103,7 +103,7 @@ public sealed class AssistantOverBudgetTests : IntegrationTest {
     private readonly CountingClient _provider = new();
 
     internal override AspApplication CreateApplication() =>
-        new(assistantEnabled: true, chatCompletionClient: _provider, maxRequestBytes: 16_384);
+        new(assistantEnabled: true, chatCompletionClient: _provider, maxContextTokens: 16_384);
 
     [Test]
     public async Task ARunThatCannotFitFailsWithContextTooLong() {
