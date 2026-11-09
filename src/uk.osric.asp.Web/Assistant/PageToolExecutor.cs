@@ -37,34 +37,35 @@ internal sealed class PageToolExecutor(
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
 
     private const int MatchLimit = 100;
+    private const int ListingLimit = 500;
 
     // One table: the schema a call is validated against and the tool the model is offered are both
     // derived from it, so an argument cannot be described to the model and refused at execution.
     private static readonly ToolSpec[] s_tools = [
-        new("list_pages", "List live page keys under an optional prefix, each with its compile state.", false, [
+        new("list_pages", "List live page keys under an optional prefix, each with its kind, its permission and its compile state. A shell file — a route the site answers itself — is listed as kind shell with mode -r--r--r--.", false, [
             new("prefix", ToolArgumentType.String, false),
             new("includeDeleted", ToolArgumentType.Boolean, false),
         ]),
-        new("read_page", "Read a page, its revision hash, compile status and diagnostics. Optional 1-based line numbers refer to physical lines of the stored template source.", false, [
+        new("read_page", "Read a page, its revision hash, compile status and diagnostics. Optional 1-based line numbers refer to physical lines of the stored template source. A shell file returns a record of what the route does instead, which can also be read by line.", false, [
             new("path", ToolArgumentType.String, true),
             new("startLine", ToolArgumentType.Integer, false),
             new("endLine", ToolArgumentType.Integer, false),
         ]),
-        new("edit_page", "Replace an inclusive range of 1-based physical template-source lines if the current revision hash still matches. Lines include literal HTML and template delimiters as authored, not generated C# or rendered HTML.", true, [
+        new("edit_page", "Replace an inclusive range of 1-based physical template-source lines if the current revision hash still matches. Lines include literal HTML and template delimiters as authored, not generated C# or rendered HTML. A shell file is refused: the owner changes the shell in code.", true, [
             new("path", ToolArgumentType.String, true),
             new("startLine", ToolArgumentType.Integer, true),
             new("endLine", ToolArgumentType.Integer, true),
             new("expectedRevisionHash", ToolArgumentType.String, true),
             new("replacement", ToolArgumentType.String, true),
         ]),
-        new("write_page", "Create or deliberately replace a complete page through the normal compile-and-save path.", true, [
+        new("write_page", "Create or deliberately replace a complete page through the normal compile-and-save path. A shell file is refused, and a page locked by Assistant:ProtectedPaths is refused: the owner changes those in the editor.", true, [
             new("path", ToolArgumentType.String, true),
             new("content", ToolArgumentType.String, true),
         ]),
-        new("delete_page", "Tombstone a page while retaining its revisions.", true, [
+        new("delete_page", "Tombstone a page while retaining its revisions. A shell file and a locked page are refused.", true, [
             new("path", ToolArgumentType.String, true),
         ]),
-        new("search_pages", "Search live page source for a literal substring.", false, [
+        new("search_pages", "Search live page source and the shell files' records for a literal substring.", false, [
             new("query", ToolArgumentType.String, true),
             new("prefix", ToolArgumentType.String, false),
             new("caseSensitive", ToolArgumentType.Boolean, false),
@@ -73,7 +74,7 @@ internal sealed class PageToolExecutor(
             "Check the JavaScript a stored page serves. Reads the page by path and parses its literal "
             + "text as an ES module. The key's extension is not consulted: a page that is not "
             + "JavaScript will generally produce syntax errors. Checks syntax only; imports are not "
-            + "resolved and nothing is executed.",
+            + "resolved and nothing is executed. A shell file has no page source and is refused.",
             false,
             [new("path", ToolArgumentType.String, true)]),
         new("check_script_text",
@@ -83,7 +84,7 @@ internal sealed class PageToolExecutor(
             + "Checks syntax only; imports are not resolved and nothing is executed.",
             false,
             [new("content", ToolArgumentType.String, true)]),
-        new("shell", "Run a read-only virtual-shell command over stored pages.", false, [
+        new("shell", "Run a read-only virtual-shell command over stored pages and the shell's files. ls and find print one entry per line as mode then key.", false, [
             new("command", ToolArgumentType.String, true),
         ]),
     ];
@@ -95,19 +96,19 @@ internal sealed class PageToolExecutor(
             tool.NeedsApproval,
             ParametersJson(tool.Arguments)))];
 
-    private static readonly IReadOnlyDictionary<string, ToolArgumentSchema[]> s_schemas =
-        s_tools.ToDictionary(tool => tool.Name, tool => tool.Arguments.ToArray(), StringComparer.Ordinal);
+    private static readonly IReadOnlyDictionary<string, ToolSpec> s_specs =
+        s_tools.ToDictionary(tool => tool.Name, StringComparer.Ordinal);
 
     public async Task<ToolExecutionResult> ExecuteAsync(
         string name,
         string argumentsJson,
         CancellationToken cancellationToken) {
-        if (!s_schemas.TryGetValue(name, out ToolArgumentSchema[]? schema)) {
+        if (!s_specs.TryGetValue(name, out ToolSpec? spec)) {
             string unknown = MessageText.Sanitize(name);
             return Failure($"Unknown tool '{unknown}'.", $"Unknown tool {unknown}");
         }
 
-        ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, schema, options.MaxToolArgumentChars);
+        ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, spec.Arguments, options.MaxToolArgumentChars);
         if (!parsed.IsSuccess) {
             return Failure(parsed.Error!, $"Invalid arguments for {name}");
         }
@@ -128,6 +129,36 @@ internal sealed class PageToolExecutor(
         };
     }
 
+    /// <summary>The refusal the path policy gives a mutating call, or null when the call may run.</summary>
+    /// <remarks>
+    /// The approval gate asks this before it prompts. An approval the policy has already refused is
+    /// one the owner could only deny, so it is not worth their attention. An unknown tool, a tool
+    /// that writes nothing, bad arguments and a permitted path all answer null, because
+    /// <see cref="ExecuteAsync"/> owns those refusals and the owner may still want to see the call.
+    /// </remarks>
+    /// <param name="name">The tool the model called.</param>
+    /// <param name="argumentsJson">Its complete arguments, as validated.</param>
+    public ToolExecutionResult? RefuseBeforeApproval(string name, string argumentsJson) {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(argumentsJson);
+
+        // The approval-gated tools are exactly the ones that write, so the search for a path to check
+        // can start and end with that flag.
+        if (!s_specs.TryGetValue(name, out ToolSpec? spec) || !spec.NeedsApproval) {
+            return null;
+        }
+
+        ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, spec.Arguments, options.MaxToolArgumentChars);
+        if (!parsed.IsSuccess
+            || !parsed.Values.TryGetValue("path", out JsonElement value)
+            || value.ValueKind != JsonValueKind.String) {
+            return null;
+        }
+
+        PathValidationResult checkedPath = paths.Validate(value.GetString(), write: true);
+        return checkedPath.IsSuccess ? null : Failure(checkedPath.Error!, $"{Verb(name)} refused");
+    }
+
     private async Task<ToolExecutionResult> ListPagesAsync(
         IReadOnlyDictionary<string, JsonElement> arguments,
         PageEditor pages,
@@ -139,22 +170,19 @@ internal sealed class PageToolExecutor(
         }
 
         bool includeDeleted = Boolean(arguments, "includeDeleted");
-        IReadOnlyList<PageListing> all = await pages.ListAsync(cancellationToken);
-        PageListing[] matching = [.. all
-            .Where(item => !paths.IsProtected(item.Path)
-                && (includeDeleted || !item.IsDeleted)
-                && IsUnderPrefix(item.Path, prefix))
-            .OrderBy(item => item.Path.Key, StringComparer.Ordinal)];
-        bool truncated = matching.Length > 500;
+        List<Entry> matching = await EntriesAsync(pages, includeDeleted, prefix, cancellationToken);
+        bool truncated = matching.Count > ListingLimit;
         object data = new {
-            pages = matching.Take(500).Select(item => new {
+            pages = matching.Take(ListingLimit).Select(item => new {
                 path = item.Path.Key,
+                kind = item.IsShellFile ? "shell" : "page",
+                mode = Mode(item.Path),
                 deleted = item.IsDeleted,
-                status = item.State.Describe(),
+                status = item.Status,
             }),
             truncated,
         };
-        return Success(data, $"Listed {Math.Min(matching.Length, 500)} pages");
+        return Success(data, $"Listed {Math.Min(matching.Count, ListingLimit)} pages");
     }
 
     private async Task<ToolExecutionResult> ReadPageAsync(
@@ -174,12 +202,31 @@ internal sealed class PageToolExecutor(
         int? requestedEnd,
         PageEditor pages,
         CancellationToken cancellationToken) {
-        PageTemplate? page = await pages.GetAsync(path, cancellationToken);
-        if (page is null) {
-            return Failure($"Page {Describe(path)} was not found.", $"Read {Describe(path)}: not found");
+        if (ShadowedKey(path) is { } shadowed) {
+            return shadowed;
         }
 
-        string[] lines = ReadLines(page.Template);
+        string text;
+        string? revisionHash = null;
+        DateTimeOffset? savedAt = null;
+        string? compileStatus = null;
+        object[] diagnostics = [];
+        if (paths.IsReserved(path)) {
+            text = ShellRoutes.Text(path);
+        } else {
+            PageTemplate? page = await pages.GetAsync(path, cancellationToken);
+            if (page is null) {
+                return Failure($"Page {Describe(path)} was not found.", $"Read {Describe(path)}: not found");
+            }
+
+            text = page.Template;
+            revisionHash = page.Hash;
+            savedAt = page.SavedAt;
+            compileStatus = ImageStatus(page, pages.RuntimeId);
+            diagnostics = Diagnostics(page);
+        }
+
+        string[] lines = ReadLines(text);
         int start = requestedStart ?? 1;
         int end = requestedEnd ?? (requestedStart is null ? lines.Length : start);
         if (start < 1 || end < start || end > lines.Length) {
@@ -197,10 +244,12 @@ internal sealed class PageToolExecutor(
 
         object data = new {
             path = path.Key,
-            revisionHash = page.Hash,
-            savedAt = page.SavedAt,
-            compileStatus = ImageStatus(page, pages.RuntimeId),
-            diagnostics = Diagnostics(page),
+            kind = paths.IsReserved(path) ? "shell" : "page",
+            mode = Mode(path),
+            revisionHash,
+            savedAt,
+            compileStatus,
+            diagnostics,
             startLine = start,
             endLine = end,
             totalLines = lines.Length,
@@ -220,6 +269,15 @@ internal sealed class PageToolExecutor(
         }
 
         PagePath path = checkedPath.Path!;
+        if (ShadowedKey(path) is { } shadowed) {
+            return shadowed;
+        }
+        if (paths.IsReserved(path)) {
+            return Failure(
+                $"check_script reads page source, and {Describe(path)} is a shell file with no page source. read_page describes it instead.",
+                "Check refused");
+        }
+
         PageTemplate? page = await pages.GetAsync(path, cancellationToken);
         if (page is null) {
             return Failure($"Page {Describe(path)} was not found.", $"Check {Describe(path)}: not found");
@@ -343,7 +401,7 @@ internal sealed class PageToolExecutor(
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
         (List<object> matches, bool truncated) = await FindMatchesAsync<object>(pages, prefix, query, comparison,
-            (head, line, text) => new { path = head.Path.Key, line, text = text[..Math.Min(text.Length, 240)] },
+            (path, line, text) => new { path = path.Key, line, text = text[..Math.Min(text.Length, 240)] },
             cancellationToken);
 
         return Success(new { query, matches, truncated }, $"Found {matches.Count} matches");
@@ -372,9 +430,8 @@ internal sealed class PageToolExecutor(
         PagePath? prefix = checkedPrefix.Path;
 
         if (command.Name is "ls" or "find") {
-            IReadOnlyList<PageListing> heads = await pages.ListAsync(cancellationToken);
-            string shellOutput = string.Join('\n', heads.Where(head => !head.IsDeleted && !paths.IsProtected(head.Path) && IsUnderPrefix(head.Path, prefix))
-                .OrderBy(head => head.Path.Key, StringComparer.Ordinal).Take(500).Select(head => head.Path.Key));
+            List<Entry> entries = await EntriesAsync(pages, includeDeleted: false, prefix, cancellationToken);
+            string shellOutput = string.Join('\n', entries.Take(ListingLimit).Select(entry => $"{Mode(entry.Path)} {entry.Path.Key}"));
             return Success(new { output = shellOutput }, prefix is null ? command.Name : $"{command.Name} {Describe(prefix)}");
         }
 
@@ -389,7 +446,7 @@ internal sealed class PageToolExecutor(
             string query = command.Arguments[queryIndex];
             StringComparison comparison = command.Arguments[0] == "-i" ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             (List<string> found, _) = await FindMatchesAsync(pages, prefix, query, comparison,
-                (head, line, text) => $"{head.Path.Key}:{line}: {text}",
+                (path, line, text) => $"{path.Key}:{line}: {text}",
                 cancellationToken);
 
             return Success(new { output = string.Join('\n', found) }, $"grep {MessageText.Sanitize(query)}");
@@ -399,17 +456,32 @@ internal sealed class PageToolExecutor(
         if (!checkedPath.IsSuccess) {
             return Failure(checkedPath.Error!, "Shell path refused");
         }
-        PageTemplate? target = await pages.GetAsync(checkedPath.Path!, cancellationToken);
-        if (target is null) {
-            return Failure($"Page {Describe(checkedPath.Path!)} was not found.", $"{command.Name} {Describe(checkedPath.Path!)}: not found");
+        PagePath path = checkedPath.Path!;
+        if (ShadowedKey(path) is { } shadowed) {
+            return shadowed;
         }
-        string[] sourceLines = ReadLines(target.Template);
+
+        string source;
+        PageTemplate? target = null;
+        if (paths.IsReserved(path)) {
+            source = ShellRoutes.Text(path);
+        } else {
+            target = await pages.GetAsync(path, cancellationToken);
+            if (target is null) {
+                return Failure($"Page {Describe(path)} was not found.", $"{command.Name} {Describe(path)}: not found");
+            }
+            source = target.Template;
+        }
+
+        string[] sourceLines = ReadLines(source);
         string output = command.Name switch {
-            "cat" => target.Template,
+            "cat" => source,
             "head" => string.Join('\n', sourceLines.Take(ParseCount(command.Arguments[1]))),
             "tail" => string.Join('\n', sourceLines.TakeLast(ParseCount(command.Arguments[1]))),
             "wc" => sourceLines.Length.ToString(CultureInfo.InvariantCulture),
-            "stat" => $"{checkedPath.Path!.Key}\n{target.Template.Length} chars\n{target.Hash}\n{target.SavedAt:O}\n{ImageStatus(target, pages.RuntimeId)}",
+            "stat" => target is null
+                ? $"{path.Key}\n{Mode(path)}\nshell file\n{sourceLines.Length} lines, {source.Length} chars"
+                : $"{path.Key}\n{Mode(path)}\n{target.Template.Length} chars\n{target.Hash}\n{target.SavedAt:O}\n{ImageStatus(target, pages.RuntimeId)}",
             _ => "",
         };
         // Half the budget, because the output still has to fit back inside the JSON envelope with
@@ -418,7 +490,7 @@ internal sealed class PageToolExecutor(
         if (output.Length > budget) {
             output = output[..budget] + "\n[truncated]";
         }
-        return Success(new { output }, $"{command.Name} {Describe(checkedPath.Path!)}");
+        return Success(new { output }, $"{command.Name} {Describe(path)}");
     }
 
     private ToolExecutionResult Success(object data, string summary) => Bounded(new { ok = true, data, error = (string?)null }, summary);
@@ -434,29 +506,37 @@ internal sealed class PageToolExecutor(
                 "Tool result too large");
     }
 
-    // Both search_pages and the shell's grep walk the same live pages under the same rules, so the
-    // scan lives here once and the caller decides what a match becomes. It looks one match past the
-    // limit so the caller can say whether anything was left behind rather than guessing from the count.
+    // Both search_pages and the shell's grep walk the same live pages and shell records under the same
+    // rules, so the scan lives here once and the caller decides what a match becomes. It looks one
+    // match past the limit so the caller can say whether anything was left behind rather than
+    // guessing from the count. Keys are visited in ordinal order, so a result reads like a listing.
     private async Task<(List<T> Matches, bool Truncated)> FindMatchesAsync<T>(
         PageEditor pages,
         PagePath? prefix,
         string query,
         StringComparison comparison,
-        Func<PageListing, int, string, T> project,
+        Func<PagePath, int, string, T> project,
         CancellationToken cancellationToken) {
         List<T> matches = [];
+        List<(PagePath Path, string Text)> sources = [.. paths.Reserved
+            .Where(path => IsUnderPrefix(path, prefix))
+            .Select(path => (path, ShellRoutes.Text(path)))];
 
         foreach (PageListing head in await pages.ListAsync(cancellationToken)) {
-            if (head.IsDeleted || paths.IsProtected(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
+            if (head.IsDeleted || paths.IsReserved(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
                 continue;
             }
 
             PageTemplate? page = await pages.GetAsync(head.Path, cancellationToken);
-            if (page is null) {
-                continue;
+            if (page is not null) {
+                sources.Add((head.Path, page.Template));
             }
+        }
 
-            string[] lines = ReadLines(page.Template);
+        sources.Sort((left, right) => string.CompareOrdinal(left.Path.Key, right.Path.Key));
+
+        foreach ((PagePath path, string text) in sources) {
+            string[] lines = ReadLines(text);
             for (int index = 0; index < lines.Length; index++) {
                 if (!lines[index].Contains(query, comparison)) {
                     continue;
@@ -464,12 +544,57 @@ internal sealed class PageToolExecutor(
                 if (matches.Count == MatchLimit) {
                     return (matches, true);
                 }
-                matches.Add(project(head, index + 1, lines[index]));
+                matches.Add(project(path, index + 1, lines[index]));
             }
         }
 
         return (matches, false);
     }
+
+    // One row of a listing: a stored page or one of the shell's own files. A shell file has no head,
+    // so it is never deleted and has no compile state.
+    private sealed record Entry(PagePath Path, bool IsShellFile, bool IsDeleted, string? Status);
+
+    private async Task<List<Entry>> EntriesAsync(
+        PageEditor pages,
+        bool includeDeleted,
+        PagePath? prefix,
+        CancellationToken cancellationToken) {
+        List<Entry> entries = [.. paths.Reserved
+            .Where(path => IsUnderPrefix(path, prefix))
+            .Select(path => new Entry(path, IsShellFile: true, IsDeleted: false, Status: null))];
+
+        foreach (PageListing head in await pages.ListAsync(cancellationToken)) {
+            if (paths.IsReserved(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
+                continue;
+            }
+            if (!includeDeleted && head.IsDeleted) {
+                continue;
+            }
+            entries.Add(new Entry(head.Path, IsShellFile: false, head.IsDeleted, head.State.Describe()));
+        }
+
+        entries.Sort((left, right) => string.CompareOrdinal(left.Path.Key, right.Path.Key));
+        return entries;
+    }
+
+    // A key beneath a reserved route is answered by that route, not by a page, so a read of it can
+    // only point at the shell file that owns it.
+    private ToolExecutionResult? ShadowedKey(PagePath path) => paths.ShadowedBy(path) is { } owner
+        && !string.Equals(owner.Key, path.Key, StringComparison.Ordinal)
+            ? Failure($"The key {Describe(path)} is beneath the shell file {Describe(owner)}. Read {Describe(owner)} instead.", $"Read {Describe(path)}: beneath {Describe(owner)}")
+            : null;
+
+    // The first column of `ls -l`: the assistant's own permission on the entry, not a host file mode.
+    // There is no host filesystem here; the column says whether write_page would be accepted.
+    private string Mode(PagePath path) => paths.CanWrite(path) ? "-rw-r--r--" : "-r--r--r--";
+
+    private static string Verb(string name) => name switch {
+        "edit_page" => "Edit",
+        "write_page" => "Write",
+        "delete_page" => "Delete",
+        _ => "Tool call",
+    };
 
     private static string ParametersJson(IReadOnlyList<ToolArgumentSchema> arguments) {
         Dictionary<string, object> properties = new(StringComparer.Ordinal);

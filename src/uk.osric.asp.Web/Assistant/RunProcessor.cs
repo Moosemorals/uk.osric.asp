@@ -219,10 +219,17 @@ internal sealed class RunProcessor(
                     }
 
                     long toolStart = Stopwatch.GetTimestamp();
+                    // An approval the path policy has already refused is one the owner could only
+                    // deny, so the policy decides first and the prompt never appears.
+                    ToolExecutionResult? refused = requiresApproval
+                        ? tools.RefuseBeforeApproval(call.Name, call.Arguments)
+                        : null;
                     if (callsThisStep > options.MaxToolCallsPerStep) {
                         result = ToolFailure("The provider exceeded the per-step tool-call limit.", $"{call.DisplayName}: per-step tool-call limit");
                     } else if (toolCallCount >= options.MaxToolCalls) {
                         result = ToolFailure("The run reached its tool-call limit.", $"{call.DisplayName}: tool-call limit");
+                    } else if (refused is not null) {
+                        result = refused;
                     } else if (requiresApproval) {
                         result = await WhilePaused(() =>
                             ResolveApprovalAsync(queued, stream, step, call, definition!, runTimeout.Token));

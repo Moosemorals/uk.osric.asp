@@ -204,6 +204,34 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    public async Task AWriteToAShellFileIsRefusedWithoutAnApprovalAsync() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-1", "write_page", """{"path":"/login","content":"x"}"""),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("That key is the sign-in form, so I left it alone."),
+            new Finished("stop"),
+        ]);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, RunTimeout(seconds: 20, toolSeconds: 5), ApprovalMode.RequireApproval);
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        Assert.That(await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(10))), Is.SameAs(run),
+            "the refusal must not park the run on an approval nobody will answer");
+        await run;
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Run? finished = await store.GetLastRunAsync(conversation.Id, "owner");
+        IReadOnlyList<ToolApproval> pending = await store.GetPendingApprovalsAsync(conversation.Id, "owner");
+
+        Assert.Multiple(() => {
+            Assert.That(finished?.Status, Is.EqualTo("completed"));
+            Assert.That(pending, Is.Empty, "an approval the policy has refused is one the owner could only deny");
+        });
+    }
+
+    [Test]
     public async Task AProviderThatStopsSendingFailsTheRunWithItsOwnCodeAsync() {
         ScriptedClient client = new([new ContentDelta("Starting")],
             new ProviderException("provider_timeout", "The provider stopped sending before the answer was complete."));

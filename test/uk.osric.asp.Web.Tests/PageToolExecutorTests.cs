@@ -60,8 +60,9 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task ProtectedPathIsRejectedBeforeReadingStorageAsync() {
+    public async Task ALockedPageIsReadableAndSaysSoAsync() {
         FakePageStore storage = new();
+        storage["/editor.js"] = new PageTemplate(PageHarness.Key("/editor.js"), "export {};");
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
@@ -69,8 +70,66 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "read_page", "{\"path\":\"/editor.js\"}", CancellationToken.None);
 
-        Assert.That(result.IsSuccess, Is.False);
-        Assert.That(storage.ReadCount, Is.Zero);
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("source").GetString(), Is.EqualTo("export {};"));
+            Assert.That(Data(result).GetProperty("kind").GetString(), Is.EqualTo("page"));
+            Assert.That(Data(result).GetProperty("mode").GetString(), Is.EqualTo("-r--r--r--"));
+            Assert.That(Data(result).GetProperty("revisionHash").GetString(), Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public async Task ReadPageReturnsTheShellRecordInsteadOfSourceAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "read_page", "{\"path\":\"/login\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("kind").GetString(), Is.EqualTo("shell"));
+            Assert.That(Data(result).GetProperty("mode").GetString(), Is.EqualTo("-r--r--r--"));
+            Assert.That(Data(result).GetProperty("source").GetString(), Does.StartWith("/login\n"));
+            Assert.That(Data(result).GetProperty("source").GetString(), Does.Contain("description:"));
+            Assert.That(Data(result).GetProperty("totalLines").GetInt32(), Is.EqualTo(5));
+            Assert.That(Data(result).GetProperty("revisionHash").ValueKind, Is.EqualTo(JsonValueKind.Null));
+            Assert.That(Data(result).GetProperty("compileStatus").ValueKind, Is.EqualTo(JsonValueKind.Null));
+            Assert.That(storage.ReadCount, Is.Zero, "a shell file is not in the store");
+        });
+    }
+
+    [Test]
+    public async Task ReadPageSlicesTheShellRecordByLineAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "read_page", "{\"path\":\"/login\",\"startLine\":3,\"endLine\":3}", CancellationToken.None);
+
+        Assert.That(Data(result).GetProperty("source").GetString(), Does.StartWith("methods: "));
+    }
+
+    [Test]
+    public async Task ReadPageRefusesAKeyBeneathAShellFileAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "read_page", "{\"path\":\"/edit/anything\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("beneath the shell file").And.Contain("/edit"));
+            Assert.That(storage.ReadCount, Is.Zero);
+        });
     }
 
     [Test]
@@ -140,7 +199,65 @@ public sealed class PageToolExecutorTests {
             "list_pages", "{\"prefix\":\"/a\"}", CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
-        Assert.That(Paths(result), Is.EqualTo<string[]>(["/a", "/a/child"]));
+        Assert.That(PagePaths(result), Is.EqualTo<string[]>(["/a", "/a/child"]));
+    }
+
+    [Test]
+    public async Task ListPagesMarksShellFilesReadOnlyAsync() {
+        FakePageStore storage = new();
+        storage["/blog"] = new PageTemplate(PageHarness.Key("/blog"), "alpha");
+        storage["/logout"] = new PageTemplate(PageHarness.Key("/logout"), "shadowed by the route");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", CancellationToken.None);
+
+        Dictionary<string, (string Kind, string Mode, bool Deleted, string? Status)> rows = Data(result)
+            .GetProperty("pages").EnumerateArray()
+            .ToDictionary(
+                page => page.GetProperty("path").GetString()!,
+                page => (
+                    page.GetProperty("kind").GetString()!,
+                    page.GetProperty("mode").GetString()!,
+                    page.GetProperty("deleted").GetBoolean(),
+                    page.GetProperty("status").GetString()),
+                StringComparer.Ordinal);
+
+        Assert.Multiple(() => {
+            Assert.That(rows["/login"], Is.EqualTo(("shell", "-r--r--r--", false, (string?)null)));
+            Assert.That(rows["/blog"], Is.EqualTo(("page", "-rw-r--r--", false, "Not compiled")));
+            Assert.That(rows["/logout"], Is.EqualTo(("shell", "-r--r--r--", false, (string?)null)),
+                "the shell file is the entry, whatever the store holds at its key");
+            Assert.That(rows.ContainsKey("/edit/anything"), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task RefuseBeforeApprovalRefusesASaveToAShellFileAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult? refused = tools.RefuseBeforeApproval(
+            "write_page", "{\"path\":\"/login\",\"content\":\"x\"}");
+
+        Assert.Multiple(() => {
+            Assert.That(refused, Is.Not.Null);
+            Assert.That(refused!.IsSuccess, Is.False);
+            Assert.That(refused.Summary, Is.EqualTo("Write refused"));
+            Assert.That(refused.Content, Does.Contain("shell file"));
+            Assert.That(tools.RefuseBeforeApproval("read_page", "{\"path\":\"/login\"}"), Is.Null,
+                "a read changes nothing");
+            Assert.That(tools.RefuseBeforeApproval("write_page", "{\"path\":\"/new\",\"content\":\"x\"}"), Is.Null,
+                "an allowed save is the owner's to approve");
+            Assert.That(tools.RefuseBeforeApproval("write_page", "not json"), Is.Null,
+                "bad arguments are the tool's own refusal");
+            Assert.That(tools.RefuseBeforeApproval("write_page", "{\"path\":\"/editor.js\",\"content\":\"x\"}"), Is.Not.Null,
+                "a locked page is refused before the prompt too");
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
     }
 
     [Test]
@@ -157,8 +274,8 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult all = await tools.ExecuteAsync(
             "list_pages", "{\"includeDeleted\":true}", CancellationToken.None);
 
-        Assert.That(Paths(live), Is.EqualTo<string[]>(["/live"]));
-        Assert.That(Paths(all), Is.EqualTo<string[]>(["/gone", "/live"]));
+        Assert.That(PagePaths(live), Is.EqualTo<string[]>(["/live"]));
+        Assert.That(PagePaths(all), Is.EqualTo<string[]>(["/gone", "/live"]));
     }
 
     [Test]
@@ -230,6 +347,24 @@ public sealed class PageToolExecutorTests {
             "read_page", "{\"path\":\"/loud\"}", CancellationToken.None);
 
         Assert.That(Data(result).GetProperty("compileStatus").GetString(), Is.EqualTo("Compiled with warnings"));
+    }
+
+    [Test]
+    public async Task ASeededAssetIsAnOrdinaryWritablePageAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "write_page", "{\"path\":\"/site.css\",\"content\":\"body { color: red; }\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(storage["/site.css"]?.Template, Is.EqualTo("body { color: red; }"),
+                "the shipped ProtectedPaths list is empty, so the seeded styling is the assistant's to edit");
+            Assert.That(Data(result).GetProperty("diagnostics").GetArrayLength(), Is.Zero);
+        });
     }
 
     [Test]
@@ -324,7 +459,7 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task ShellListReturnsLiveKeysUnderThePrefixAsync() {
+    public async Task ShellListReturnsLiveKeysWithTheirPermissionAsync() {
         FakePageStore storage = new();
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha");
         storage["/a/child"] = new PageTemplate(PageHarness.Key("/a/child"), "alpha");
@@ -338,7 +473,43 @@ public sealed class PageToolExecutorTests {
             "shell", "{\"command\":\"ls /a\"}", CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
-        Assert.That(Output(result), Is.EqualTo("/a\n/a/child"));
+        Assert.That(Output(result), Is.EqualTo("-rw-r--r-- /a\n-rw-r--r-- /a/child"));
+    }
+
+    [Test]
+    public async Task ShellListIncludesTheShellFilesReadOnlyAsync() {
+        FakePageStore storage = new();
+        storage["/blog"] = new PageTemplate(PageHarness.Key("/blog"), "alpha");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult root = await tools.ExecuteAsync("shell", "{\"command\":\"ls /\"}", CancellationToken.None);
+        ToolExecutionResult route = await tools.ExecuteAsync("shell", "{\"command\":\"ls /edit\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(Output(root).Split('\n'), Does.Contain("-r--r--r-- /edit"));
+            Assert.That(Output(root).Split('\n'), Does.Contain("-r--r--r-- /login"));
+            Assert.That(Output(root).Split('\n'), Does.Contain("-rw-r--r-- /blog"));
+            Assert.That(Output(route), Is.EqualTo("-r--r--r-- /edit"), "a route owns the subtree, not a page");
+        });
+    }
+
+    [Test]
+    public async Task ShellCatReadsAShellFileRecordAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"cat /login\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Output(result), Does.StartWith("/login\n"));
+            Assert.That(Output(result), Does.Contain("description:"));
+        });
     }
 
     [Test]
@@ -496,7 +667,7 @@ public sealed class PageToolExecutorTests {
     [TestCase("edit_page", "{\"path\":\"/editor.js\",\"startLine\":1,\"endLine\":1,\"expectedRevisionHash\":\"x\",\"replacement\":\"y\"}", "Edit refused")]
     [TestCase("write_page", "{\"path\":\"/editor.js\",\"content\":\"x\"}", "Write refused")]
     [TestCase("delete_page", "{\"path\":\"/editor.js\"}", "Delete refused")]
-    public async Task WritingToolRefusesAProtectedPathAsync(string tool, string arguments, string summary) {
+    public async Task WritingToolRefusesALockedPageAsync(string tool, string arguments, string summary) {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
@@ -504,9 +675,31 @@ public sealed class PageToolExecutorTests {
 
         ToolExecutionResult result = await tools.ExecuteAsync(tool, arguments, CancellationToken.None);
 
-        Assert.That(result.IsSuccess, Is.False);
-        Assert.That(result.Summary, Is.EqualTo(summary));
-        Assert.That(storage.WriteCount, Is.Zero);
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Summary, Is.EqualTo(summary));
+            Assert.That(result.Content, Does.Contain("Not permitted").And.Contain("Assistant:ProtectedPaths"));
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
+    }
+
+    [TestCase("edit_page", "{\"path\":\"/login\",\"startLine\":1,\"endLine\":1,\"expectedRevisionHash\":\"x\",\"replacement\":\"y\"}", "Edit refused")]
+    [TestCase("write_page", "{\"path\":\"/login\",\"content\":\"x\"}", "Write refused")]
+    [TestCase("delete_page", "{\"path\":\"/login\"}", "Delete refused")]
+    public async Task WritingToolRefusesAShellFileAsync(string tool, string arguments, string summary) {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(tool, arguments, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Summary, Is.EqualTo(summary));
+            Assert.That(result.Content, Does.Contain("Not permitted").And.Contain("shell file"));
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
     }
 
     [Test]
@@ -524,20 +717,37 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task SearchPagesSkipsDeletedAndProtectedPagesAsync() {
+    public async Task SearchPagesCoversShellRecordsAndSkipsDeletedPagesAsync() {
         FakePageStore storage = new();
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha");
         storage["/gone"] = new PageTemplate(PageHarness.Key("/gone"), "alpha");
-        storage["/editor.js"] = new PageTemplate(PageHarness.Key("/editor.js"), "alpha");
         using PageHarness pages = new(storage);
         await pages.Editor.DeleteAsync(PageHarness.Key("/gone"));
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "search_pages", "{\"query\":\"alpha\"}", CancellationToken.None);
+            "search_pages", "{\"query\":\"the owner\"}", CancellationToken.None);
 
-        Assert.That(Matches(result), Is.EqualTo<string[]>(["/a:1:alpha"]));
+        string[] matches = Matches(result);
+        Assert.Multiple(() => {
+            Assert.That(matches, Has.Some.StartsWith("/edit:4:access: the owner"),
+                "a shell file's record is searchable, and its line numbers are the record's");
+            Assert.That(matches, Has.None.StartsWith("/gone:"));
+        });
+    }
+
+    [Test]
+    public async Task ShellGrepSearchesShellRecordsAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"grep sign-in\"}", CancellationToken.None);
+
+        Assert.That(Output(result), Does.Contain("/login:5: description:"));
     }
 
     [Test]
@@ -625,7 +835,24 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "shell", "{\"command\":\"stat /notes\"}", CancellationToken.None);
 
-        Assert.That(Output(result), Does.Contain("/notes\n3 chars\n").And.Contain(page.Hash));
+        Assert.That(Output(result), Does.Contain("/notes\n-rw-r--r--\n3 chars\n").And.Contain(page.Hash));
+    }
+
+    [Test]
+    public async Task ShellStatDescribesAShellFileWithoutARevisionAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"stat /login\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Output(result), Does.StartWith("/login\n-r--r--r--\nshell file\n"));
+            Assert.That(Output(result), Does.Not.Contain("chars\n0"));
+        });
     }
 
     [Test]
@@ -808,8 +1035,27 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task CheckScriptRefusesAProtectedPathBeforeReadingStorageAsync() {
+    public async Task CheckScriptRefusesAShellFileBeforeReadingStorageAsync() {
         FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "check_script", "{\"path\":\"/login\"}", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Summary, Is.EqualTo("Check refused"));
+            Assert.That(result.Content, Does.Contain("no page source"));
+            Assert.That(storage.ReadCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task CheckScriptStillChecksALockedPageAsync() {
+        FakePageStore storage = new();
+        storage["/editor.js"] = new PageTemplate(PageHarness.Key("/editor.js"), "export const answer = 42;\n");
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
@@ -818,9 +1064,8 @@ public sealed class PageToolExecutorTests {
             "check_script", "{\"path\":\"/editor.js\"}", CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.False);
-            Assert.That(result.Summary, Is.EqualTo("Check refused"));
-            Assert.That(storage.ReadCount, Is.Zero);
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.True);
         });
     }
 
@@ -922,8 +1167,14 @@ public sealed class PageToolExecutorTests {
     private static string[] Paths(ToolExecutionResult result) =>
         [.. Data(result).GetProperty("pages").EnumerateArray().Select(page => page.GetProperty("path").GetString()!)];
 
+    private static string[] PagePaths(ToolExecutionResult result) => [.. Data(result)
+        .GetProperty("pages").EnumerateArray()
+        .Where(page => page.GetProperty("kind").GetString() == "page")
+        .Select(page => page.GetProperty("path").GetString()!)];
+
     private static Dictionary<string, string> States(ToolExecutionResult result) => Data(result)
         .GetProperty("pages").EnumerateArray()
+        .Where(page => page.GetProperty("kind").GetString() == "page")
         .ToDictionary(
             page => page.GetProperty("path").GetString()!,
             page => page.GetProperty("status").GetString()!,

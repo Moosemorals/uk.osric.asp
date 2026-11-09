@@ -27,7 +27,8 @@ not write. IDEA-020 came out of the import and export planning, and records why 
 is not part of that flow. IDEA-022 came out of the [page-features
 planning](../plans/archive/page-features.md) of 2026-11-08, and is worth doing now that storage and
 fetch have left `SimpleContext`. ARCH-14 came out of the nullable-pages discussion of 2026-11-08 and
-carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md).
+carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md). ARCH-15 came
+out of the assistant shell-file work of 2026-11-09 (DEC-180).
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -36,6 +37,7 @@ carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md)
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore action |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
+| [ARCH-15](ARCH-15.md) | Low | S | An assistant-only list is a second, invisible kind of read-only page |
 | [OPS-02](OPS-02.md) | Low | S | The health endpoint and the metrics dashboard exist; only alerting is missing |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |

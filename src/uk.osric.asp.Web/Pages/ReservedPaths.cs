@@ -23,34 +23,41 @@ internal sealed class ReservedPaths {
     public static IReadOnlyList<string> Default { get; } =
         ["/admin/export", "/admin/import", "/assistant", "/edit", "/favicon.ico", "/heath", "/login", "/logout", "/metrics", "/status"];
 
-    private readonly IReadOnlyList<string> _prefixes;
+    private readonly IReadOnlyList<PagePath> _keys;
 
     /// <summary>Creates the list from the configured keys.</summary>
     /// <param name="paths">The configured keys; <see cref="Default"/> is used when this is empty.</param>
     public ReservedPaths(IEnumerable<string>? paths) {
-        List<string> prefixes = [];
+        List<PagePath> keys = [];
 
         foreach (string path in paths ?? []) {
             if (!string.IsNullOrWhiteSpace(path)) {
-                prefixes.Add(PagePath.Normalize(path).Key);
+                keys.Add(PagePath.Normalize(path));
             }
         }
 
-        _prefixes = prefixes.Count > 0 ? prefixes : Default;
+        _keys = keys.Count > 0 ? keys : [.. Default.Select(PagePath.Normalize)];
     }
+
+    /// <summary>The reserved keys themselves, in configuration order, as canonical paths.</summary>
+    public IReadOnlyList<PagePath> Keys => _keys;
 
     /// <summary>Whether the site's routes already answer for this key.</summary>
     /// <param name="path">The canonical key to test.</param>
-    public bool IsReserved(PagePath path) {
+    public bool IsReserved(PagePath path) => MatchingPrefix(path) is not null;
+
+    /// <summary>The reserved key that owns this one, so a key beneath a route can name the route.</summary>
+    /// <param name="path">The canonical key to test.</param>
+    public PagePath? MatchingPrefix(PagePath path) {
         ArgumentNullException.ThrowIfNull(path);
 
-        foreach (string prefix in _prefixes) {
-            if (string.Equals(path.Key, prefix, StringComparison.Ordinal)
-                || path.Key.StartsWith(prefix + "/", StringComparison.Ordinal)) {
-                return true;
+        foreach (PagePath prefix in _keys) {
+            if (string.Equals(path.Key, prefix.Key, StringComparison.Ordinal)
+                || path.Key.StartsWith(prefix.Key + "/", StringComparison.Ordinal)) {
+                return prefix;
             }
         }
 
-        return false;
+        return null;
     }
 }

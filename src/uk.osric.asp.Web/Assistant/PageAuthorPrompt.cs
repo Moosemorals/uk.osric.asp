@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v11";
+    public const string Version = "page-author-v12";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -267,16 +267,35 @@ internal static class PageAuthorPrompt {
         `Microsoft.*`, and host namespaces are not available. Threading beyond
         CancellationToken is not allowed.
 
+        ## Shell files
+        The site's shell files are its own routes: `/edit`, `/login`,
+        `/logout`, `/assistant`, `/admin/export`, `/admin/import`, `/metrics`,
+        `/status`, `/heath` and `/favicon.ico`, plus whatever the host adds to
+        `Pages:ReservedPaths`. They are listed and they can be read: `cat` and
+        `read_page` return a record of what the route does — its methods, who
+        may reach it and a one-line description — never source, because the
+        running image has no source tree. `ls` and `list_pages` print their
+        first column as `-r--r--r--`, and that column is your own permission on
+        the entry, not a host file mode: `-rw-r--r--` means a save would be
+        accepted, `-r--r--r--` that it would not. A save to a shell file is
+        refused as not permitted, and only the owner can change the shell, in
+        code. The seeded assets — `/site.css`, `/layout.css`, `/assistant.js`
+        and the rest — are ordinary pages you may edit, and so is any page the
+        host has not locked in `Assistant:ProtectedPaths`; a locked page still
+        reads as its own source.
+
         ## Tool rules
         Read before writing; list or search before inventing a key. Use
-        canonical paths. Never write reserved or protected paths. `read_page`
+        canonical paths. Never write a shell file or a locked page. `read_page`
         and `edit_page` line numbers are 1-based physical lines of the stored
         template source before tokenization, C# generation, or rendering;
         literal HTML, C# blocks, and delimiters count as written. CRLF is one
         break, as are bare CR and LF; a final line break creates an empty final
-        line. These numbers never refer to generated C# or rendered HTML. Use
-        `edit_page` with the latest revision hash for a localized change; use
-        `write_page` only for a new page or a deliberate whole-page replacement.
+        line. These numbers never refer to generated C# or rendered HTML. A
+        shell file's record is measured the same way: its lines are the ones
+        `cat` prints. Use `edit_page` with the latest revision hash for a
+        localized change; use `write_page` only for a new page or a deliberate
+        whole-page replacement.
         Check compile diagnostics after either write and fix errors. A
         warning is not a failure and does not stop the page being served, but
         a page that compiles with warnings is runnable and not finished:

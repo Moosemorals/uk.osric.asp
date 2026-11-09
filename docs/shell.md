@@ -149,7 +149,10 @@ comes back without discarding its earlier revisions.
   or account removal revokes them all.
 - `/edit/**` and `/status` require the `Editor` policy, which is just an authenticated account.
   `/login`, `/logout`, `/heath` and `/metrics` are the other routes outside the page catch-all, and
-  every one of them is a reserved page key.
+  every one of them is a reserved page key. The reserved keys are also what the assistant calls the
+  shell files: it lists and reads a record of each one and can never write one, and `ShellRoutes`
+  is pinned to `ReservedPaths.Default` by a test, so a new route adds its record in the same change
+  (DEC-180).
 - Sign-in is throttled by a fixed window of ten attempts a minute (`LoginRateLimitOptions`), and a
   request over the limit is answered `429` before any password is hashed. The window is per client
   address, taken from the `X-Forwarded-For` Caddy writes, so one address spending its attempts
