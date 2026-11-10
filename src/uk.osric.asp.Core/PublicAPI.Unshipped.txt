@@ -108,6 +108,7 @@ static uk.osric.asp.Core.Diff.NormalDiff.Format(uk.osric.asp.Core.Diff.DiffDocum
 static uk.osric.asp.Core.Diff.UnifiedDiff.Format(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
 static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool
 static uk.osric.asp.Core.Pages.PageGlob.IsMatch(string! pattern, string! key) -> bool
+static uk.osric.asp.Core.Pages.PageGlob.IsMatch(uk.osric.asp.Core.Shell.ShellWord! pattern, string! key) -> bool
 static uk.osric.asp.Core.Pages.PageGlob.IsWildcard(string! pattern) -> bool
 static uk.osric.asp.Core.Shell.ShellArgument.operator !=(uk.osric.asp.Core.Shell.ShellArgument? left, uk.osric.asp.Core.Shell.ShellArgument? right) -> bool
 static uk.osric.asp.Core.Shell.ShellArgument.operator ==(uk.osric.asp.Core.Shell.ShellArgument? left, uk.osric.asp.Core.Shell.ShellArgument? right) -> bool
@@ -422,14 +423,16 @@ uk.osric.asp.Core.Shell.ShellCommandLine
 uk.osric.asp.Core.Shell.ShellCommandLine.<Clone>$() -> uk.osric.asp.Core.Shell.ShellCommandLine!
 uk.osric.asp.Core.Shell.ShellCommandLine.Arguments.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellArgument!>!
 uk.osric.asp.Core.Shell.ShellCommandLine.Arguments.init -> void
-uk.osric.asp.Core.Shell.ShellCommandLine.Deconstruct(out System.Collections.Generic.IReadOnlySet<char>! Flags, out System.Collections.Generic.IReadOnlyDictionary<char, int>! Values, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellArgument!>! Arguments) -> void
 uk.osric.asp.Core.Shell.ShellCommandLine.Equals(uk.osric.asp.Core.Shell.ShellCommandLine? other) -> bool
 uk.osric.asp.Core.Shell.ShellCommandLine.Flags.get -> System.Collections.Generic.IReadOnlySet<char>!
 uk.osric.asp.Core.Shell.ShellCommandLine.Flags.init -> void
 uk.osric.asp.Core.Shell.ShellCommandLine.Has(char flag) -> bool
-uk.osric.asp.Core.Shell.ShellCommandLine.ShellCommandLine(System.Collections.Generic.IReadOnlySet<char>! Flags, System.Collections.Generic.IReadOnlyDictionary<char, int>! Values, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellArgument!>! Arguments) -> void
-uk.osric.asp.Core.Shell.ShellCommandLine.Value(char letter) -> int?
-uk.osric.asp.Core.Shell.ShellCommandLine.Values.get -> System.Collections.Generic.IReadOnlyDictionary<char, int>!
+uk.osric.asp.Core.Shell.ShellCommandLine.Number(char letter) -> int?
+uk.osric.asp.Core.Shell.ShellCommandLine.ShellCommandLine(System.Collections.Generic.IReadOnlySet<char>! Flags, System.Collections.Generic.IReadOnlyDictionary<char, string!>! Values, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellArgument!>! Arguments, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellWord!>! Trailing) -> void
+uk.osric.asp.Core.Shell.ShellCommandLine.Trailing.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellWord!>!
+uk.osric.asp.Core.Shell.ShellCommandLine.Trailing.init -> void
+uk.osric.asp.Core.Shell.ShellCommandLine.Value(char letter) -> string?
+uk.osric.asp.Core.Shell.ShellCommandLine.Values.get -> System.Collections.Generic.IReadOnlyDictionary<char, string!>!
 uk.osric.asp.Core.Shell.ShellCommandLine.Values.init -> void
 uk.osric.asp.Core.Shell.ShellCommandLine.Words(uk.osric.asp.Core.Shell.ShellOperandKind kind) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellWord!>!
 uk.osric.asp.Core.Shell.ShellLexResult
@@ -487,14 +490,15 @@ uk.osric.asp.Core.Shell.ShellSegment.Text.get -> string!
 uk.osric.asp.Core.Shell.ShellSegment.Text.init -> void
 uk.osric.asp.Core.Shell.ShellSyntax
 uk.osric.asp.Core.Shell.ShellSyntax.<Clone>$() -> uk.osric.asp.Core.Shell.ShellSyntax!
-uk.osric.asp.Core.Shell.ShellSyntax.Deconstruct(out System.Collections.Generic.IReadOnlyList<char>! Flags, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellValueOption!>! Values, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellOperand!>! Operands) -> void
 uk.osric.asp.Core.Shell.ShellSyntax.Equals(uk.osric.asp.Core.Shell.ShellSyntax? other) -> bool
 uk.osric.asp.Core.Shell.ShellSyntax.Flags.get -> System.Collections.Generic.IReadOnlyList<char>!
 uk.osric.asp.Core.Shell.ShellSyntax.Flags.init -> void
 uk.osric.asp.Core.Shell.ShellSyntax.Match(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellWord!>! words, string! usage) -> uk.osric.asp.Core.Shell.ShellMatchResult!
 uk.osric.asp.Core.Shell.ShellSyntax.Operands.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellOperand!>!
 uk.osric.asp.Core.Shell.ShellSyntax.Operands.init -> void
-uk.osric.asp.Core.Shell.ShellSyntax.ShellSyntax(System.Collections.Generic.IReadOnlyList<char>! Flags, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellValueOption!>! Values, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellOperand!>! Operands) -> void
+uk.osric.asp.Core.Shell.ShellSyntax.ShellSyntax(System.Collections.Generic.IReadOnlyList<char>! Flags, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellValueOption!>! Values, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellOperand!>! Operands, bool Trailing = false) -> void
+uk.osric.asp.Core.Shell.ShellSyntax.Trailing.get -> bool
+uk.osric.asp.Core.Shell.ShellSyntax.Trailing.init -> void
 uk.osric.asp.Core.Shell.ShellSyntax.Values.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellValueOption!>!
 uk.osric.asp.Core.Shell.ShellSyntax.Values.init -> void
 uk.osric.asp.Core.Shell.ShellToken
@@ -502,13 +506,15 @@ uk.osric.asp.Core.Shell.ShellToken.ShellToken() -> void
 uk.osric.asp.Core.Shell.ShellToken.ShellToken(uk.osric.asp.Core.Shell.ShellToken! original) -> void
 uk.osric.asp.Core.Shell.ShellValueOption
 uk.osric.asp.Core.Shell.ShellValueOption.<Clone>$() -> uk.osric.asp.Core.Shell.ShellValueOption!
-uk.osric.asp.Core.Shell.ShellValueOption.Deconstruct(out char Letter, out string! Name) -> void
+uk.osric.asp.Core.Shell.ShellValueOption.Deconstruct(out char Letter, out string! Name, out bool Numeric) -> void
 uk.osric.asp.Core.Shell.ShellValueOption.Equals(uk.osric.asp.Core.Shell.ShellValueOption? other) -> bool
 uk.osric.asp.Core.Shell.ShellValueOption.Letter.get -> char
 uk.osric.asp.Core.Shell.ShellValueOption.Letter.init -> void
 uk.osric.asp.Core.Shell.ShellValueOption.Name.get -> string!
 uk.osric.asp.Core.Shell.ShellValueOption.Name.init -> void
-uk.osric.asp.Core.Shell.ShellValueOption.ShellValueOption(char Letter, string! Name) -> void
+uk.osric.asp.Core.Shell.ShellValueOption.Numeric.get -> bool
+uk.osric.asp.Core.Shell.ShellValueOption.Numeric.init -> void
+uk.osric.asp.Core.Shell.ShellValueOption.ShellValueOption(char Letter, string! Name, bool Numeric = true) -> void
 uk.osric.asp.Core.Shell.ShellWord
 uk.osric.asp.Core.Shell.ShellWord.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellSegment!>! Segments) -> void
 uk.osric.asp.Core.Shell.ShellWord.Equals(uk.osric.asp.Core.Shell.ShellWord? other) -> bool
@@ -524,3 +530,6 @@ virtual uk.osric.asp.Core.Shell.ShellToken.PrintMembers(System.Text.StringBuilde
 ~override uk.osric.asp.Core.Diff.DiffHunk.ToString() -> string
 ~override uk.osric.asp.Core.Diff.DiffLine.Equals(object obj) -> bool
 ~override uk.osric.asp.Core.Diff.DiffLine.ToString() -> string
+
+uk.osric.asp.Core.Shell.ShellCommandLine.Deconstruct(out System.Collections.Generic.IReadOnlySet<char>! Flags, out System.Collections.Generic.IReadOnlyDictionary<char, string!>! Values, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellArgument!>! Arguments, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellWord!>! Trailing) -> void
+uk.osric.asp.Core.Shell.ShellSyntax.Deconstruct(out System.Collections.Generic.IReadOnlyList<char>! Flags, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellValueOption!>! Values, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellOperand!>! Operands, out bool Trailing) -> void

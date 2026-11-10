@@ -20,6 +20,11 @@ internal sealed record ShellPath(PagePath Key, bool IsFolder, bool IsPage, strin
 /// <param name="Status">The compile state, as <c>stat</c> prints it.</param>
 internal sealed record ShellFile(ShellPath Path, string Text, PageTemplate? Page, string Status);
 
+/// <summary>A node a command may read, with the text it holds.</summary>
+/// <param name="Path">The node.</param>
+/// <param name="Text">Its text: a page's source, or a route's record.</param>
+internal sealed record ShellSource(ShellPath Path, string Text);
+
 /// <summary>The tree a path names: its nodes, and the rules for being inside one.</summary>
 /// <remarks>
 /// The store's keys form a tree, and the shell speaks of it as one. This is the only place the rules

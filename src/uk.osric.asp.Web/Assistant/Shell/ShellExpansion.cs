@@ -34,6 +34,21 @@ internal sealed class ShellExpansion(PagePathPolicy paths) {
                 continue;
             }
 
+            // A word with an unquoted wildcard names every node it fits, as a shell expands a pattern
+            // before the command runs; a word without one names the key it spells.
+            if (argument.Word.HasWildcard) {
+                List<ShellPath> matched = [.. (await store.NodesAsync(cancellationToken))
+                    .Where(node => PageGlob.IsMatch(argument.Word, node.Key.Key))];
+                if (matched.Count == 0) {
+                    return ([], ShellResult.Refused(
+                        $"No key matches {MessageText.Sanitize(argument.Word.Text)}. ls {Folder(PagePath.Normalize(argument.Word.Text))} lists what is there.",
+                        $"Shell pattern matched nothing: {MessageText.Sanitize(argument.Word.Text)}"));
+                }
+
+                named.AddRange(matched);
+                continue;
+            }
+
             string text = argument.Word.Text;
             PathValidationResult checkedPrefix = argument.Kind == ShellOperandKind.Prefix
                 ? PagePathPolicy.ValidatePrefix(text)

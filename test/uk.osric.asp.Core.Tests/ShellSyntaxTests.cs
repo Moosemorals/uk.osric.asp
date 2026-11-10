@@ -20,12 +20,12 @@ public sealed class ShellSyntaxTests {
 
     private static readonly ShellSyntax s_head = new(
         [],
-        [new ShellValueOption('n', "count")],
+        [new ShellValueOption('n', "a number")],
         [new ShellOperand("key", ShellOperandKind.Path, 1, int.MaxValue)]);
 
     private static readonly ShellSyntax s_diff = new(
         ['b', 'u'],
-        [new ShellValueOption('U', "count")],
+        [new ShellValueOption('U', "a number")],
         [new ShellOperand("left", ShellOperandKind.Path), new ShellOperand("right", ShellOperandKind.Path)]);
 
     private static readonly ShellSyntax s_help = new(
@@ -49,7 +49,7 @@ public sealed class ShellSyntaxTests {
     [TestCase("head -n 5 /a", 5)]
     [TestCase("head -n 0 /a", 0)]
     public void AValueMayAttachOrTakeTheNextWord(string line, int expected) {
-        Assert.That(Match(s_head, line).Value('n'), Is.EqualTo(expected));
+        Assert.That(Match(s_head, line).Number('n'), Is.EqualTo(expected));
     }
 
     [Test]
@@ -60,7 +60,7 @@ public sealed class ShellSyntaxTests {
         foreach (ShellCommandLine line in new[] { attached, spaced }) {
             Assert.Multiple(() => {
                 Assert.That(line.Has('b'), Is.True);
-                Assert.That(line.Value('U'), Is.EqualTo(2));
+                Assert.That(line.Number('U'), Is.EqualTo(2));
                 Assert.That(line.Arguments.Select(argument => argument.Word.Text), Is.EqualTo((string[])["/a", "/b"]));
             });
         }
@@ -71,7 +71,7 @@ public sealed class ShellSyntaxTests {
         ShellCommandLine line = Match(s_head, "head /a");
 
         Assert.Multiple(() => {
-            Assert.That(line.Value('n'), Is.Null);
+            Assert.That(line.Number('n'), Is.Null);
             Assert.That(line.Arguments, Has.Count.EqualTo(1));
         });
     }

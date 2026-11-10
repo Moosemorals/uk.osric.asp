@@ -15,6 +15,15 @@ internal interface IPageStoreView {
     /// <param name="cancellationToken">The run's token.</param>
     Task<IReadOnlyList<ShellPath>> NodesAsync(CancellationToken cancellationToken);
 
+    /// <summary>The nodes a search may read, in key order.</summary>
+    /// <param name="scopes">The paths to read: each in itself, and what is below it when the search descends.</param>
+    /// <param name="recursive">Whether to read everything below the paths, or only what is at them.</param>
+    /// <param name="cancellationToken">The run's token.</param>
+    Task<IReadOnlyList<ShellSource>> SourcesAsync(
+        IReadOnlyList<ShellPath> scopes,
+        bool recursive,
+        CancellationToken cancellationToken);
+
     /// <summary>What a node holds, or null when nothing is stored at it.</summary>
     /// <param name="path">The node to read.</param>
     /// <param name="cancellationToken">The run's token.</param>
@@ -57,6 +66,39 @@ internal sealed class PageStoreView(PageEditor pages, PagePathPolicy paths) : IP
             return new ShellPath(path, isFolder, stored.Contains(node), Mode(path, isFolder));
         })];
     }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<ShellSource>> SourcesAsync(
+        IReadOnlyList<ShellPath> scopes,
+        bool recursive,
+        CancellationToken cancellationToken) {
+        ArgumentNullException.ThrowIfNull(scopes);
+
+        List<ShellPath> nodes = [.. await NodesAsync(cancellationToken)];
+        List<ShellPath> named = scopes.Count == 0
+            ? [.. nodes.Where(node => node.Key.Key == "/")]
+            : [.. scopes];
+
+        List<ShellSource> sources = [];
+        foreach (ShellPath node in nodes) {
+            if (!node.IsPage || !named.Any(scope => InScope(node, scope, recursive))) {
+                continue;
+            }
+
+            ShellFile? file = await ReadAsync(node, cancellationToken);
+            if (file is not null) {
+                sources.Add(new ShellSource(node, file.Text));
+            }
+        }
+
+        return sources;
+    }
+
+    // A path names a page as readily as a folder, so the key it names is always in scope; what lives
+    // below it is in scope only when the search descends.
+    private static bool InScope(ShellPath node, ShellPath scope, bool recursive) =>
+        string.Equals(node.Key.Key, scope.Key.Key, StringComparison.Ordinal)
+        || (recursive ? ShellTree.IsBelow(node.Key, scope.Key) : ShellTree.IsDirectlyBelow(node.Key, scope.Key));
 
     /// <inheritdoc/>
     public async Task<ShellFile?> ReadAsync(ShellPath path, CancellationToken cancellationToken) {

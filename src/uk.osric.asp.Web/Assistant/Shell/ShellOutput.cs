@@ -32,6 +32,10 @@ internal interface IShellOutput {
     /// <param name="text">The text.</param>
     void Raw(string text);
 
+    /// <summary>Writes a bracketed note that says something about the answer without cutting it short.</summary>
+    /// <param name="note">The note, without its brackets.</param>
+    void Note(string note);
+
     /// <summary>Writes the note that says a limit was reached, and marks the answer truncated.</summary>
     /// <param name="note">The note, without its brackets.</param>
     void Stopped(string note);
@@ -70,8 +74,11 @@ internal sealed class ShellOutput : IShellOutput {
     }
 
     /// <inheritdoc/>
+    public void Note(string note) => Line("[" + note + "]");
+
+    /// <inheritdoc/>
     public void Stopped(string note) {
         Truncated = true;
-        Line("[" + note + "]");
+        Note(note);
     }
 }

@@ -1,0 +1,123 @@
+// SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+// SPDX-License-Identifier: MIT
+
+namespace uk.osric.asp.Web.Assistant.Shell.Applets;
+
+using System.Globalization;
+using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Shell;
+using uk.osric.asp.Core.Text;
+
+/// <summary>Prints the lines that match a pattern, the keys that have one, or a count for each key.</summary>
+internal sealed class GrepApplet : ShellApplet {
+
+    public override string Name => "grep";
+
+    public override string Usage => "grep [-i] [-n] [-r] [-l] [-c] <query> [path ...]";
+
+    public override string Description => "Print key, line and text for every matching line at each path, or below it with -r.";
+
+    public override string? Notes =>
+        "The query is a basic regular expression: ^ $ . * and [abc] are metacharacters, \\| is\n"
+        + "either-this-or-that, and every other character is the literal one. -i ignores case, and -n\n"
+        + "changes nothing because a match always carries its line. -l prints the keys that match, one\n"
+        + "per key, and -c prints key:count for every key searched.";
+
+    public override ShellSyntax Syntax => new(
+        ['i', 'n', 'r', 'l', 'c'],
+        [],
+        [new ShellOperand("query", ShellOperandKind.Text), new ShellOperand("path", ShellOperandKind.Prefix, 0, int.MaxValue)]);
+
+    public override async ValueTask<ShellResult> RunAsync(
+        ShellCommandLine line,
+        ShellContext context,
+        CancellationToken cancellationToken) {
+        ArgumentNullException.ThrowIfNull(line);
+        ArgumentNullException.ThrowIfNull(context);
+
+        string query = line.Words(ShellOperandKind.Text)[0].Text;
+        if (!GrepPattern.TryCompile(query, line.Has('i'), out GrepPattern? compiled, out string? error)) {
+            return ShellResult.Refused(error!, $"grep {MessageText.Sanitize(query)}: refused");
+        }
+
+        GrepPattern pattern = compiled!;
+        bool recursive = line.Has('r');
+        bool names = line.Has('l');
+        bool counts = !names && line.Has('c');
+
+        IReadOnlyList<ShellSource> sources = await context.Store.SourcesAsync(context.Paths, recursive, cancellationToken);
+        (List<string> rows, bool truncated) = Fold(sources, pattern, names, counts, context.Output.MatchLimit);
+
+        string summary = $"grep {MessageText.Sanitize(query)}";
+        if (rows.Count > 0) {
+            foreach (string row in rows) {
+                context.Output.Line(row);
+            }
+        } else {
+            context.Output.Raw(recursive ? "No match." : "No match at this level.");
+            if (!recursive) {
+                await ExplainDepthAsync(pattern, context, cancellationToken);
+            }
+        }
+
+        if (truncated) {
+            context.Output.Stopped($"{context.Output.MatchLimit} lines shown, in key order, and there are more. Narrow the query or the path.");
+        }
+
+        return ShellResult.Ok(summary);
+    }
+
+    private static (List<string> Rows, bool Truncated) Fold(
+        IReadOnlyList<ShellSource> sources,
+        GrepPattern pattern,
+        bool names,
+        bool counts,
+        int limit) {
+        List<string> rows = [];
+        foreach (ShellSource source in sources) {
+            string[] lines = ShellText.Split(source.Text);
+            if (names) {
+                if (!lines.Any(pattern.IsMatch)) {
+                    continue;
+                }
+                if (rows.Count == limit) {
+                    return (rows, true);
+                }
+                rows.Add(source.Path.Key.Key);
+                continue;
+            }
+
+            if (counts) {
+                if (rows.Count == limit) {
+                    return (rows, true);
+                }
+                rows.Add(string.Create(CultureInfo.InvariantCulture, $"{source.Path.Key.Key}:{lines.Count(pattern.IsMatch)}"));
+                continue;
+            }
+
+            for (int index = 0; index < lines.Length; index++) {
+                if (!pattern.IsMatch(lines[index])) {
+                    continue;
+                }
+                if (rows.Count == limit) {
+                    return (rows, true);
+                }
+                rows.Add(string.Create(CultureInfo.InvariantCulture, $"{source.Path.Key.Key}:{index + 1}: {lines[index]}"));
+            }
+        }
+
+        return (rows, false);
+    }
+
+    // "No match" about a folder whose folders were never read invites the wrong conclusion, so a
+    // search that would have found something one level down says so.
+    private static async Task ExplainDepthAsync(
+        GrepPattern pattern,
+        ShellContext context,
+        CancellationToken cancellationToken) {
+        IReadOnlyList<ShellSource> deeper = await context.Store.SourcesAsync(context.Paths, recursive: true, cancellationToken);
+        if (deeper.Any(source => ShellText.Split(source.Text).Any(pattern.IsMatch))) {
+            context.Output.Note("There are matches below this level: grep -r reads the folders too.");
+        }
+    }
+}

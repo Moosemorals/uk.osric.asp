@@ -504,7 +504,7 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task ShellFindIsTheLongListingOfEverythingBelowAsync() {
+    public async Task ShellFindPrintsTheKeysThatMatchItsTestsAsync() {
         FakePageStore storage = new();
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha");
         storage["/a/b/c"] = new PageTemplate(PageHarness.Key("/a/b/c"), "alpha");
@@ -512,12 +512,14 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync(
+        ToolExecutionResult all = await tools.ExecuteAsync(
             "shell", "{\"command\":\"find /a\"}", Context, CancellationToken.None);
+        ToolExecutionResult typed = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"find /a -type d\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(Output(result).Split('\n'), Does.Contain("drwxr-xr-x /a/b"), "the folder that only exists below a key");
-            Assert.That(Output(result).Split('\n'), Does.Contain("-rw-r--r-- /a/b/c"));
+            Assert.That(Output(all).Split('\n'), Is.EqualTo((string[])["/a", "/a/b", "/a/b/c"]));
+            Assert.That(Output(typed).Split('\n'), Is.EqualTo((string[])["/a", "/a/b"]), "the folders, and only the folders");
         });
     }
 
@@ -630,10 +632,10 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        // The shape of the production failures: a POSIX form, refused, and the model told where the
-        // accepted one is written down.
+        // The shape of the production failures: an option the command has not got, refused, and the
+        // model told where the accepted form is written down.
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"grep -rn notes /\"}", Context, CancellationToken.None);
+            "shell", "{\"command\":\"grep -z notes /\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.False);
@@ -848,7 +850,7 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult head = await tools.ExecuteAsync(
             "shell", "{\"command\":\"head /notes\"}", Context, CancellationToken.None);
         ToolExecutionResult headThree = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"head 3 /notes\"}", Context, CancellationToken.None);
+            "shell", "{\"command\":\"head -n 3 /notes\"}", Context, CancellationToken.None);
         ToolExecutionResult tail = await tools.ExecuteAsync(
             "shell", "{\"command\":\"tail /notes\"}", Context, CancellationToken.None);
         ToolExecutionResult counted = await tools.ExecuteAsync(
@@ -862,8 +864,8 @@ public sealed class PageToolExecutorTests {
             Assert.That(Output(headThree).Split('\n'), Has.Length.EqualTo(3));
             Assert.That(Output(tail).Split('\n'), Has.Length.EqualTo(10));
             Assert.That(Output(tail).Split('\n')[^1], Is.EqualTo("line 15"));
-            Assert.That(Output(counted), Is.EqualTo("15"), "wc counts lines without being told to");
-            Assert.That(Output(countedLong), Is.EqualTo("15"));
+            Assert.That(Output(counted), Is.EqualTo("15 /notes"), "wc counts lines without being told to, and names the key");
+            Assert.That(Output(countedLong), Is.EqualTo("15 /notes"));
         });
     }
 
@@ -1007,7 +1009,7 @@ public sealed class PageToolExecutorTests {
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
             Assert.That(Output(result), Does.Contain("cat [-n] <key> [key ...]: "));
-            Assert.That(Output(result), Does.Contain("grep [-i] [-n] [-r] [-l] [-c] <query> [prefix ...]: "));
+            Assert.That(Output(result), Does.Contain("grep [-i] [-n] [-r] [-l] [-c] <query> [path ...]: "));
             Assert.That(Output(result), Does.Contain("help [command]: "));
             Assert.That(storage.ReadCount, Is.Zero, "help reads the table, not the store");
         });
@@ -1025,7 +1027,7 @@ public sealed class PageToolExecutorTests {
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Output(result), Does.StartWith("grep [-i] [-n] [-r] [-l] [-c] <query> [prefix ...]: "));
+            Assert.That(Output(result), Does.StartWith("grep [-i] [-n] [-r] [-l] [-c] <query> [path ...]: "));
             Assert.That(Output(result), Does.Not.Contain("cat [-n]"));
         });
     }
@@ -1262,7 +1264,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"ls /a?b\"}", Context, CancellationToken.None);
+            "shell", "{\"command\":\"ls '/a?b'\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Summary, Is.EqualTo("Shell path refused"));
@@ -1276,7 +1278,7 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"cat /a?b\"}", Context, CancellationToken.None);
+            "shell", "{\"command\":\"cat '/a?b'\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Summary, Is.EqualTo("Shell path refused"));
@@ -1314,7 +1316,7 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task ShellWcCountsTheLinesIncludingTheFinalEmptyOneAsync() {
+    public async Task ShellWcCountsALineBreakTerminatedLineOnceAsync() {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "one\ntwo\n");
         using PageHarness pages = new(storage);
@@ -1324,7 +1326,7 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "shell", "{\"command\":\"wc -l /notes\"}", Context, CancellationToken.None);
 
-        Assert.That(Output(result), Is.EqualTo("3"));
+        Assert.That(Output(result), Is.EqualTo("2 /notes"), "a final line break ends the last line, as POSIX counts it");
     }
 
     [Test]

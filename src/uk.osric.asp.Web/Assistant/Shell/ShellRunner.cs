@@ -18,9 +18,14 @@ internal static class ShellRunner {
 
     private static readonly ShellRegistry s_registry = new([
         new CatApplet(),
+        new FindApplet(),
+        new GrepApplet(),
+        new HeadApplet(),
         new HelpApplet(),
         new LsApplet(),
         new StatApplet(),
+        new TailApplet(),
+        new WcApplet(),
     ]);
 
     /// <summary>The table of applets, which <c>help</c> reads.</summary>

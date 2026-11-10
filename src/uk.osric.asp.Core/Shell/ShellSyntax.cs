@@ -25,10 +25,11 @@ public enum ShellOperandKind {
 /// <param name="Maximum">How many are accepted.</param>
 public sealed record ShellOperand(string Name, ShellOperandKind Kind, int Minimum = 1, int Maximum = 1);
 
-/// <summary>An option that takes a number, written <c>-n 5</c> or <c>-n5</c>.</summary>
+/// <summary>An option that takes a value, written <c>-n 5</c>, <c>-n5</c> or <c>-name pattern</c>.</summary>
 /// <param name="Letter">The letter after the dash.</param>
-/// <param name="Name">What the number is called.</param>
-public sealed record ShellValueOption(char Letter, string Name);
+/// <param name="Name">What the value is, in the wording a refusal uses: "a number", "a pattern".</param>
+/// <param name="Numeric">Whether the value has to be a number.</param>
+public sealed record ShellValueOption(char Letter, string Name, bool Numeric = true);
 
 /// <summary>One operand as the line gave it, with the kind the command declared for it.</summary>
 /// <param name="Kind">How the command reads it.</param>
@@ -42,20 +43,27 @@ public sealed record ShellMatchResult(ShellCommandLine? Line, string? Error);
 
 /// <summary>A command's command line: the flags and values it was given, and its operands.</summary>
 /// <param name="Flags">The flags, as the letters that were written.</param>
-/// <param name="Values">The value options, as the number each was given.</param>
+/// <param name="Values">The value options, as the text each was given.</param>
 /// <param name="Arguments">The operands, in the order they were written, each with its declared kind.</param>
+/// <param name="Trailing">The words the command's own grammar owns, when its syntax allows them.</param>
 public sealed record ShellCommandLine(
     IReadOnlySet<char> Flags,
-    IReadOnlyDictionary<char, int> Values,
-    IReadOnlyList<ShellArgument> Arguments) {
+    IReadOnlyDictionary<char, string> Values,
+    IReadOnlyList<ShellArgument> Arguments,
+    IReadOnlyList<ShellWord> Trailing) {
 
     /// <summary>Whether a flag was given.</summary>
     /// <param name="flag">The letter after the dash.</param>
     public bool Has(char flag) => Flags.Contains(flag);
 
-    /// <summary>The number a value option was given, or null when it was not given.</summary>
+    /// <summary>The text a value option was given, or null when it was not given.</summary>
     /// <param name="letter">The letter after the dash.</param>
-    public int? Value(char letter) => Values.TryGetValue(letter, out int value) ? value : null;
+    public string? Value(char letter) => Values.TryGetValue(letter, out string? value) ? value : null;
+
+    /// <summary>The number a value option was given, or null when it was not given or is not a number.</summary>
+    /// <param name="letter">The letter after the dash.</param>
+    public int? Number(char letter) =>
+        int.TryParse(Value(letter), NumberStyles.None, CultureInfo.InvariantCulture, out int value) ? value : null;
 
     /// <summary>The operands of one kind, in the order they were written.</summary>
     /// <param name="kind">The kind to take.</param>
@@ -74,10 +82,15 @@ public sealed record ShellCommandLine(
 /// <param name="Flags">The letters that are flags.</param>
 /// <param name="Values">The letters that take a number.</param>
 /// <param name="Operands">The operands, in the order they are written.</param>
+/// <param name="Trailing">
+/// Whether the command's own grammar continues past its operands, so that words beginning with a dash
+/// are its language rather than a mistake. <c>find</c>'s expression is the reason it exists.
+/// </param>
 public sealed record ShellSyntax(
     IReadOnlyList<char> Flags,
     IReadOnlyList<ShellValueOption> Values,
-    IReadOnlyList<ShellOperand> Operands) {
+    IReadOnlyList<ShellOperand> Operands,
+    bool Trailing = false) {
 
     /// <summary>A command that takes nothing.</summary>
     public static ShellSyntax Nothing { get; } = new([], [], []);
@@ -90,7 +103,7 @@ public sealed record ShellSyntax(
         ArgumentNullException.ThrowIfNull(usage);
 
         HashSet<char> flags = [];
-        Dictionary<char, int> values = [];
+        Dictionary<char, string> values = [];
         int index = 0;
         bool options = true;
         bool terminated = false;
@@ -116,18 +129,19 @@ public sealed record ShellSyntax(
                     continue;
                 }
 
-                if (!Values.Any(value => value.Letter == letter)) {
+                ShellValueOption? value = Values.FirstOrDefault(item => item.Letter == letter);
+                if (value is null) {
                     return Refused(usage, $"there is no '-{letter}'");
                 }
 
-                string? number = position + 1 < text.Length
+                string? given = position + 1 < text.Length
                     ? text[(position + 1)..]
                     : index + 1 < words.Count ? words[index + 1].Text : null;
-                if (!int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out int parsed)) {
-                    return Refused(usage, $"-{letter} needs a number");
+                if (given is null || (value.Numeric && !int.TryParse(given, NumberStyles.None, CultureInfo.InvariantCulture, out _))) {
+                    return Refused(usage, $"-{letter} needs {value.Name}");
                 }
 
-                values[letter] = parsed;
+                values[letter] = given;
                 if (position + 1 >= text.Length) {
                     index++;
                 }
@@ -138,7 +152,14 @@ public sealed record ShellSyntax(
         }
 
         List<ShellWord> operands = [.. words.Skip(index)];
-        if (!terminated && operands.Any(word => word.Text.Length > 1 && word.Text[0] == '-')) {
+        List<ShellWord> trailing = [];
+        if (Trailing) {
+            int expression = operands.FindIndex(word => word.Text.Length > 1 && word.Text[0] == '-');
+            if (expression >= 0) {
+                trailing = [.. operands[expression..]];
+                operands = [.. operands[..expression]];
+            }
+        } else if (!terminated && operands.Any(word => word.Text.Length > 1 && word.Text[0] == '-')) {
             return Refused(usage, "an option must come before the operands");
         }
 
@@ -167,7 +188,7 @@ public sealed record ShellSyntax(
             left -= take;
         }
 
-        return new ShellMatchResult(new ShellCommandLine(flags, values, arguments), null);
+        return new ShellMatchResult(new ShellCommandLine(flags, values, arguments, trailing), null);
     }
 
     private static ShellMatchResult Refused(string usage, string why) =>

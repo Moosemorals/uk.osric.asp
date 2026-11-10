@@ -23,7 +23,7 @@ public sealed class ShellRegistryTests {
             IEnumerable<char> named = applet.Usage
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Select(word => word.Trim('[', ']', '(', ')', '<', '>', '.'))
-                .Where(word => word.Length > 1 && word[0] == '-' && word[1] != '-')
+                .Where(word => word.Length == 2 && word[0] == '-')
                 .Select(word => word[1]);
             IEnumerable<char> declared = [.. applet.Syntax.Flags, .. applet.Syntax.Values.Select(value => value.Letter)];
 
@@ -73,7 +73,7 @@ public sealed class ShellRegistryTests {
             foreach (ShellApplet applet in ShellRunner.Registry.All) {
                 Assert.That(listed, Does.Contain($"{applet.Usage}: {applet.Description}"), applet.Name);
             }
-            Assert.That(listed, Does.Contain("grep [-i] [-n] [-r] [-l] [-c] <query> [prefix ...]"),
+            Assert.That(listed, Does.Contain("grep [-i] [-n] [-r] [-l] [-c] <query> [path ...]"),
                 "a command that has not moved to an applet is still described");
             Assert.That(described, Does.StartWith("ls [-l] [-R] [-r] [path ...]: "));
         });

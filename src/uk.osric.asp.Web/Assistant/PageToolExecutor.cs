@@ -718,13 +718,7 @@ internal sealed class PageToolExecutor(
             return Failure(parsed.Error!, "Shell command refused");
         }
 
-        VirtualShellCommand command = parsed.Command;
-        return command.Name switch {
-            "find" => await ListAsync(command, pages, cancellationToken),
-            "diff" => await DiffAsync(command, pages, cancellationToken),
-            "grep" => await GrepAsync(command, pages, cancellationToken),
-            _ => await ReadAsync(command, pages, cancellationToken),
-        };
+        return await DiffAsync(parsed.Command, pages, cancellationToken);
     }
 
     // POSIX diff over two keys: the normal format unless -u or -U asked for a unified one, and -b
