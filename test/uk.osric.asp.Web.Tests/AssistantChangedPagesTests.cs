@@ -45,11 +45,11 @@ public sealed class AssistantChangedPagesTests {
     }
 
     [Test]
-    public async Task TheCardFollowsTheLastMessageOfItsTurnAsync() {
+    public async Task TheCardLeadsItsTurnInTheNewestFirstTranscriptAsync() {
         string html = await RenderAsync(WriteTurn("run-1"));
 
         Assert.That(html.IndexOf("assistant-changed-pages", StringComparison.Ordinal),
-            Is.GreaterThan(html.IndexOf("The page is written.", StringComparison.Ordinal)));
+            Is.LessThan(html.IndexOf("The page is written.", StringComparison.Ordinal)));
     }
 
     [Test]

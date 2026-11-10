@@ -52,20 +52,40 @@ public sealed class AssistantTranscriptTests {
         });
     }
 
-    private static Message Assistant(string content) => new() {
+    [Test]
+    public async Task TheNewestMessageIsRenderedFirstAsync() {
+        string html = await RenderAsync(
+            User("The first prompt", "run-1"),
+            Assistant("The first answer", "run-1"),
+            User("The second prompt", "run-2"),
+            Assistant("The second answer", "run-2"));
+
+        int secondAnswer = html.IndexOf("The second answer", StringComparison.Ordinal);
+        int secondPrompt = html.IndexOf("The second prompt", StringComparison.Ordinal);
+        int firstAnswer = html.IndexOf("The first answer", StringComparison.Ordinal);
+        int firstPrompt = html.IndexOf("The first prompt", StringComparison.Ordinal);
+        Assert.Multiple(() => {
+            Assert.That(secondAnswer, Is.GreaterThanOrEqualTo(0), "the newest answer is missing");
+            Assert.That(secondPrompt, Is.GreaterThan(secondAnswer), "the newest prompt must follow its answer");
+            Assert.That(firstAnswer, Is.GreaterThan(secondPrompt), "the older answer must follow the newer turn");
+            Assert.That(firstPrompt, Is.GreaterThan(firstAnswer), "the older prompt must follow its answer");
+        });
+    }
+
+    private static Message Assistant(string content, string runId = "run-1") => new() {
         Id = 2,
         ConversationId = 1,
-        RunId = "run-1",
+        RunId = runId,
         Sequence = 2,
         Role = "assistant",
         Content = content,
         CreatedAt = DateTimeOffset.UtcNow,
     };
 
-    private static Message User(string content) => new() {
+    private static Message User(string content, string runId = "run-1") => new() {
         Id = 1,
         ConversationId = 1,
-        RunId = "run-1",
+        RunId = runId,
         Sequence = 1,
         Role = "user",
         Content = content,

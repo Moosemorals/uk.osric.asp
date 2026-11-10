@@ -168,7 +168,11 @@ the list says so rather than summing them twice. The run accumulates the figures
 the page reads the stored totals after a reload, and `budget.updated` carries the same object while
 the run is live. The context row is the only estimate; the usage list is the provider's own count.
 
-Each finished turn of the transcript ends with a changed-pages card: the live pages its `write_page`
+The transcript reads newest first: the prompt fieldset sits above it, so the answer a reader is waiting
+for arrives directly under the box that asked for it, and the page's script inserts each new card at
+the top rather than scrolling a growing column.
+
+Each finished turn of the transcript leads with a changed-pages card: the live pages its `write_page`
 and `edit_page` calls reported saving, each linked to the page and to its editor. It is read from the
 stored tool results by `PageWrites` rather than published live, because the page reloads on the run's
 terminal event and a result the run itself reported is what that reload would show. A refused write

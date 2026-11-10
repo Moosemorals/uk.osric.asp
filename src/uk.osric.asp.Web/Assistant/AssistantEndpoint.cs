@@ -136,32 +136,8 @@ internal static class AssistantEndpoint {
 
         await context.Response.WriteAsync($"""
             <div class="assistant-chat" id="assistant-chat" data-conversation-id="{id}" data-active-run="{Encode(activeRun?.Id ?? "")}" data-replay-from="{replayFrom}">
-                <p id="assistant-status" role="status" aria-live="polite"></p>
-                <fieldset>
-                    <legend>Assistant messages</legend>
-                    <section id="assistant-transcript" aria-label="Conversation">
-            """);
-
-        Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
-        // A run is a turn, and the card that says what it changed belongs at the end of it; the run
-        // still going has not changed anything yet as far as a reader is concerned.
-        foreach (IGrouping<string, Message> turn in visibleMessages.GroupBy(message => message.RunId)) {
-            foreach (Message message in turn) {
-                await WriteMessageAsync(context, message, calls, markdown);
-            }
-            if (!string.Equals(turn.Key, activeRun?.Id, StringComparison.Ordinal)) {
-                await WriteChangedPagesAsync(context, turn);
-            }
-        }
-        await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
-        await WriteContinuationAsync(context, activeRun, tokens, id, options);
-        await WriteStoppedRunAsync(context, lastRun);
-        await context.Response.WriteAsync($"""
-                    </section>
-                </fieldset>
-
                 <fieldset class="assistant-compose">
-                    <legend><label for="assistant-message">Your message</label></legend>
+                    <legend><label for="assistant-message">Prompt</label></legend>
                     <form id="assistant-message-form" method="post" action="/assistant/{id}/messages">
                         {AntiforgeryField.Hidden(tokens)}
                         <textarea id="assistant-message" name="content" rows="5" maxlength="{options.MaxMessageChars}" required></textarea>
@@ -172,6 +148,31 @@ internal static class AssistantEndpoint {
                             <p class="assistant-char-count" aria-hidden="true"><span id="assistant-char-count">0</span> / {options.MaxMessageChars}</p>
                         </div>
                     </form>
+                </fieldset>
+
+                <p id="assistant-status" role="status" aria-live="polite"></p>
+                <fieldset>
+                    <legend>Assistant messages</legend>
+                    <section id="assistant-transcript" aria-label="Conversation">
+            """);
+
+        Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
+        // The transcript reads newest first, so the latest run sits directly under the prompt box. A
+        // run still going has not changed anything yet as far as a reader is concerned, and the card
+        // that says what a finished turn changed leads that turn's block.
+        await WriteStoppedRunAsync(context, lastRun);
+        await WriteContinuationAsync(context, activeRun, tokens, id, options);
+        await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
+        foreach (IGrouping<string, Message> turn in visibleMessages.Reverse().GroupBy(message => message.RunId)) {
+            if (!string.Equals(turn.Key, activeRun?.Id, StringComparison.Ordinal)) {
+                await WriteChangedPagesAsync(context, turn);
+            }
+            foreach (Message message in turn) {
+                await WriteMessageAsync(context, message, calls, markdown);
+            }
+        }
+        await context.Response.WriteAsync("""
+                    </section>
                 </fieldset>
             """);
         // The page builds the plan the next step would send, from the same stored transcript and the
@@ -222,7 +223,7 @@ internal static class AssistantEndpoint {
                 </fieldset>
 
                 <p><a href="/assistant/{id}/delete">Delete conversation</a></p>
-                <noscript><p>JavaScript is disabled. Your message will still start a run; refresh this page to see the response.</p></noscript>
+                <noscript><p>JavaScript is disabled. Your prompt will still start a run; refresh this page to see the response.</p></noscript>
             </div>
             <script type="module" src="/assistant.js"></script>
             """);

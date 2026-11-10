@@ -220,6 +220,33 @@ internal sealed class AssistantChatTests : BrowserTest {
     }
 
     [Test]
+    public async Task ANewAnswerJoinsTheTranscriptAboveTheAnswersAlreadyThereAsync() {
+        await NewConversationAsync();
+        Provider.Script(StubResponse.Words("The first answer.", TimeSpan.Zero));
+        await SendAsync("The first question");
+        await Assertions.Expect(Page.Locator("#assistant-transcript"))
+            .ToContainTextAsync("The first answer.", new() { Timeout = 30_000 });
+
+        // Slow enough that the run is still live when the order is read, because its terminal event
+        // reloads the page and the reload's order is the ordinary server render.
+        Provider.Script(StubResponse.Words(string.Join(' ', Enumerable.Repeat("latest", 200)), TimeSpan.FromMilliseconds(100)));
+        await SendAsync("The second question");
+        await Assertions.Expect(Page.Locator("#assistant-transcript"))
+            .ToContainTextAsync("latest latest", new() { Timeout = 30_000 });
+
+        string[] answers = await Page.Locator("article.assistant-message:not(.user-message)")
+            .EvaluateAllAsync<string[]>("nodes => nodes.map(node => node.textContent)");
+        Assert.Multiple(() => {
+            Assert.That(answers[0], Does.Contain("latest latest"), "the new answer is not at the top of the transcript");
+            Assert.That(answers[^1], Does.Contain("The first answer."), "the older answer is no longer at the bottom");
+        });
+
+        await Page.ClickAsync("#assistant-stop");
+        await Assertions.Expect(Page.Locator("#assistant-transcript"))
+            .ToContainTextAsync("This answer was stopped.", new() { Timeout = 30_000 });
+    }
+
+    [Test]
     public async Task AToolOnlyStepLeavesNoBlankRowWhileTheAnswerStreamsAsync() {
         await NewConversationAsync();
         Provider.Script(

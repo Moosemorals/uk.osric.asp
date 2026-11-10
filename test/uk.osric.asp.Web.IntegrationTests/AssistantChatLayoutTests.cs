@@ -43,7 +43,8 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         string body = await reloaded.Content.ReadAsStringAsync();
 
         int options = body.IndexOf("<legend>Page options</legend>", StringComparison.Ordinal);
-        int compose = body.IndexOf("<legend><label for=\"assistant-message\">Your message</label></legend>", StringComparison.Ordinal);
+        int compose = body.IndexOf("<legend><label for=\"assistant-message\">Prompt</label></legend>", StringComparison.Ordinal);
+        int status = body.IndexOf("<p id=\"assistant-status\"", StringComparison.Ordinal);
         int transcript = body.IndexOf("<legend>Assistant messages</legend>", StringComparison.Ordinal);
         int budgets = body.IndexOf("<legend>Budgets</legend>", StringComparison.Ordinal);
         int usage = body.IndexOf("<legend>Tokens this run</legend>", StringComparison.Ordinal);
@@ -51,8 +52,10 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         Assert.That(budgets, Is.GreaterThanOrEqualTo(0), "the budgets fieldset is missing");
         Assert.That(usage, Is.GreaterThan(budgets), "usage must follow the budgets");
         Assert.That(options, Is.GreaterThanOrEqualTo(0), "the page options fieldset is missing");
-        Assert.That(compose, Is.GreaterThan(transcript), "the message fieldset must follow the transcript");
-        Assert.That(budgets, Is.GreaterThan(compose), "budgets must follow the message fieldset");
+        Assert.That(compose, Is.GreaterThanOrEqualTo(0), "the prompt fieldset is missing");
+        Assert.That(status, Is.InRange(compose, transcript), "the status line must sit between the prompt and the transcript");
+        Assert.That(transcript, Is.GreaterThan(compose), "the assistant messages must follow the prompt");
+        Assert.That(budgets, Is.GreaterThan(transcript), "budgets must follow the transcript");
         Assert.That(options, Is.GreaterThan(usage), "page options must follow the usage");
 
         int title = body.IndexOf("<input id=\"conversation-title\"", StringComparison.Ordinal);

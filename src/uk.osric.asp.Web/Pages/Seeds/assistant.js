@@ -31,8 +31,9 @@ if (root) {
     let source = null;
     let reconnectFailures = 0;
 
-    function nearBottom() {
-        return document.documentElement.scrollHeight - window.scrollY - window.innerHeight < 120;
+    // The transcript reads newest first, so every new card joins it directly under the prompt box.
+    function prepend(node) {
+        transcript.insertBefore(node, transcript.firstChild);
     }
 
     // Mirrors Core's BudgetAmount.Format, so a figure updated live reads the same as the markup it
@@ -58,12 +59,6 @@ if (root) {
         return `${rounded}${units[unit]}`;
     }
 
-    function keepNearBottom(wasNear) {
-        if (wasNear) {
-            window.scrollTo(0, document.documentElement.scrollHeight);
-        }
-    }
-
     function setBusy(busy) {
         input.disabled = busy;
         sendButton.disabled = busy;
@@ -76,7 +71,6 @@ if (root) {
     }
 
     function addUserMessage(text) {
-        const wasNear = nearBottom();
         const article = document.createElement('article');
         article.className = 'assistant-message user-message';
         const heading = document.createElement('h2');
@@ -85,8 +79,7 @@ if (root) {
         const body = document.createElement('pre');
         body.textContent = text;
         article.append(heading, body);
-        transcript.append(article);
-        keepNearBottom(wasNear);
+        prepend(article);
     }
 
     function beginMessage(step) {
@@ -114,7 +107,7 @@ if (root) {
     function attachMessage(message) {
         if (!message.attached) {
             message.attached = true;
-            transcript.append(message.article);
+            prepend(message.article);
         }
         return message;
     }
@@ -128,7 +121,6 @@ if (root) {
         }
 
         message.rendered = true;
-        const wasNear = nearBottom();
         try {
             const response = await fetch(
                 `/assistant/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/content`,
@@ -142,7 +134,6 @@ if (root) {
             rendered.innerHTML = await response.text();
             message.content.replaceWith(rendered);
             message.content = rendered;
-            keepNearBottom(wasNear);
         } catch {
             // The plain text already in the transcript is the fallback.
         }
@@ -183,20 +174,18 @@ if (root) {
     }
 
     function showTool(data) {
-        const wasNear = nearBottom();
         const existing = transcript.querySelector(`details.assistant-tool[data-tool-call-id="${CSS.escape(data.toolCallId)}"]`);
         const details = buildTool(data);
         if (existing) {
+            // A reply replaces the call already in place, so the card keeps the position it joined at.
             details.open = existing.open;
             existing.replaceWith(details);
         } else {
-            transcript.append(details);
+            prepend(details);
         }
-        keepNearBottom(wasNear);
     }
 
     function addApproval(data) {
-        const wasNear = nearBottom();
         const article = document.createElement('article');
         article.className = 'assistant-approval';
         article.dataset.toolCallId = data.toolCallId;
@@ -237,8 +226,7 @@ if (root) {
             });
             article.append(form);
         }
-        transcript.append(article);
-        keepNearBottom(wasNear);
+        prepend(article);
         statusLine.textContent = 'A tool needs your approval';
     }
 
@@ -267,7 +255,6 @@ if (root) {
     // A run that ran out of a budget waits here rather than failing: the same card the server
     // renders on a reload, with the server's own sentence, so the two cannot disagree.
     function addContinuation(data) {
-        const wasNear = nearBottom();
         // A reload renders the server's copy of this card, and the journal replays the event that
         // asked for it, so the live card replaces the stored one rather than joining it.
         transcript.querySelector(`section.assistant-continuation[data-budget="${CSS.escape(data.budget)}"]`)?.remove();
@@ -302,8 +289,7 @@ if (root) {
         note.className = 'assistant-continuation-note';
         note.textContent = 'Stopping ends the run; the transcript is kept.';
         section.append(heading, message, form, note);
-        transcript.append(section);
-        keepNearBottom(wasNear);
+        prepend(section);
         statusLine.textContent = 'Run paused: it needs your answer';
     }
 
@@ -345,10 +331,8 @@ if (root) {
             if (!data.text) {
                 return;
             }
-            const wasNear = nearBottom();
             const message = attachMessage(messages.get(data.step) ?? beginMessage(data.step));
             message.reasoningBody.textContent += data.text;
-            keepNearBottom(wasNear);
             reconnectFailures = 0;
         });
         source.addEventListener('content.delta', event => {
@@ -356,10 +340,8 @@ if (root) {
             if (!data.text) {
                 return;
             }
-            const wasNear = nearBottom();
             const message = attachMessage(messages.get(data.step) ?? beginMessage(data.step));
             message.content.textContent += data.text;
-            keepNearBottom(wasNear);
             reconnectFailures = 0;
         });
         source.addEventListener('message.completed', event => {
