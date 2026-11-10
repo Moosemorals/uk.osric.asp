@@ -115,6 +115,32 @@ public sealed class PrometheusMetricsSourceTests {
     }
 
     [Test]
+    public async Task AProxyErrorPageIsUnavailableRatherThanAnException() {
+        using HttpClient http = Client(new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.BadGateway) {
+                Content = new StringContent("<html>bad gateway</html>", Encoding.UTF8, "text/html"),
+            }));
+
+        QueryResult result = await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance)
+            .QueryAsync("up", From, To, Step, CancellationToken.None);
+
+        Assert.That(((MetricsUnavailable)result).Reason, Does.Contain("502"));
+    }
+
+    [Test]
+    public async Task ANonJsonSuccessBodyIsUnavailableRatherThanAnException() {
+        using HttpClient http = Client(new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK) {
+                Content = new StringContent("<html>not prometheus</html>", Encoding.UTF8, "text/html"),
+            }));
+
+        QueryResult result = await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance)
+            .QueryAsync("up", From, To, Step, CancellationToken.None);
+
+        Assert.That(((MetricsUnavailable)result).Reason, Does.Contain("cannot read"));
+    }
+
+    [Test]
     public async Task ABadQuerySurfacesPrometheusOwnMessage() {
         QueryResult result = await QueryAsync(
             """{"status":"error","errorType":"bad_data","error":"unknown function with name \"nope\""}""",

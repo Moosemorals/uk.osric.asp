@@ -61,9 +61,16 @@ public sealed class PageDocumentTests {
     [TestCase("//example.com/site.css")]
     [TestCase("site.css")]
     [TestCase("/\\example.com/site.css")]
+    [TestCase("/a\\b.css")]
+    [TestCase("/a\nb.css")]
     [TestCase("")]
     public void ASheetThatIsNotSiteRelativeIsRefused(string href) {
         Assert.Throws<ArgumentException>(() => PageDocument.Head("Title", [href]));
+    }
+
+    [Test]
+    public void ASingleSlashIsSiteRelative() {
+        Assert.That(Sheets(PageDocument.Head("Title", ["/"])), Is.EqualTo((string[])["/site.css", "/"]));
     }
 
     [Test]
