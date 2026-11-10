@@ -543,6 +543,114 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
+    public async Task ShellCatNumbersTheLinesWhenItsOptionIsGivenAsync() {
+        FakePageStore storage = new();
+        storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "<h1>Title</h1>\n<p>Body</p>");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"cat -n /notes\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Output(result), Is.EqualTo("1\t<h1>Title</h1>\n2\t<p>Body</p>"),
+                "the numbers are the physical lines read_page and edit_page count");
+        });
+    }
+
+    [Test]
+    public async Task ShellGrepAcceptsTheLineNumberOptionAsync() {
+        FakePageStore storage = new();
+        storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "Alpha\nbeta");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"grep -n -i alpha /a\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Output(result), Is.EqualTo("/a:1: Alpha"),
+                "a match carries its line whether -n is given or not");
+        });
+    }
+
+    [Test]
+    public async Task ShellRefusalPointsAtHelpAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        // The shape of the production failures: a POSIX form, refused, and the model told where the
+        // accepted one is written down.
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"grep -rn notes /\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("Run help grep"));
+            Assert.That(storage.ReadCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task ShellHelpListsEveryCommandWithoutReadingAPageAsync() {
+        FakePageStore storage = new();
+        storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "one");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"help\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Output(result), Does.Contain("cat [-n] <key>: "));
+            Assert.That(Output(result), Does.Contain("grep [-i] [-n] <query> [prefix]: "));
+            Assert.That(Output(result), Does.Contain("help [command]: "));
+            Assert.That(storage.ReadCount, Is.Zero, "help reads the table, not the store");
+        });
+    }
+
+    [Test]
+    public async Task ShellHelpDescribesOneCommandAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"help grep\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Output(result), Does.StartWith("grep [-i] [-n] <query> [prefix]: "));
+            Assert.That(Output(result), Does.Not.Contain("cat [-n]"));
+        });
+    }
+
+    [Test]
+    public async Task ShellHelpRefusesAWordItDoesNotAnswerForAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"help rm\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("not supported").And.Contain("Run help"));
+        });
+    }
+
+    [Test]
     public async Task ShellRefusesAnUnsupportedCommandAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);

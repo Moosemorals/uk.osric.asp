@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Assistant;
 
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Compilation;
@@ -94,7 +95,7 @@ internal sealed class PageToolExecutor(
             + "in a URL.",
             true,
             [new("url", ToolArgumentType.String, true)]),
-        new("shell", "Run a read-only virtual-shell command over stored pages and the shell's files. ls and find print one entry per line as mode then key.", false, [
+        new("shell", "Run a read-only virtual-shell command over stored pages and the shell's files. Run help for the commands, their options and their arguments. ls and find print one entry per line as mode then key.", false, [
             new("command", ToolArgumentType.String, true),
         ]),
         new("remember",
@@ -611,9 +612,13 @@ internal sealed class PageToolExecutor(
         }
 
         VirtualShellCommand command = parsed.Command;
+        if (command.Name == "help") {
+            return Help(command);
+        }
+
         string? prefixText = command.Name switch {
             "ls" or "find" => command.Arguments.Count > 0 ? command.Arguments[0] : null,
-            "grep" => command.Arguments.Count > (command.Arguments[0] == "-i" ? 2 : 1) ? command.Arguments[^1] : null,
+            "grep" => command.Arguments.Count > 1 ? command.Arguments[^1] : null,
             _ => null,
         };
         PathValidationResult checkedPrefix = PagePathPolicy.ValidatePrefix(prefixText);
@@ -636,9 +641,8 @@ internal sealed class PageToolExecutor(
             _ => "",
         };
         if (command.Name == "grep") {
-            int queryIndex = command.Arguments[0] == "-i" ? 1 : 0;
-            string query = command.Arguments[queryIndex];
-            StringComparison comparison = command.Arguments[0] == "-i" ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            string query = command.Arguments[0];
+            StringComparison comparison = command.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             (List<string> found, _) = await FindMatchesAsync(pages, prefix, query, comparison,
                 (path, line, text) => $"{path.Key}:{line}: {text}",
                 cancellationToken);
@@ -669,7 +673,7 @@ internal sealed class PageToolExecutor(
 
         string[] sourceLines = ReadLines(source);
         string output = command.Name switch {
-            "cat" => source,
+            "cat" => command.NumberLines ? Number(sourceLines) : source,
             "head" => string.Join('\n', sourceLines.Take(ParseCount(command.Arguments[1]))),
             "tail" => string.Join('\n', sourceLines.TakeLast(ParseCount(command.Arguments[1]))),
             "wc" => sourceLines.Length.ToString(CultureInfo.InvariantCulture),
@@ -685,6 +689,21 @@ internal sealed class PageToolExecutor(
             output = output[..budget] + "\n[truncated]";
         }
         return Success(new { output }, $"{command.Name} {Describe(path)}");
+    }
+
+    // `help` is the only description of the grammar the model can reach: the tool description is a
+    // line, and a refusal that names the command is what turns a guess into a second, working call.
+    private ToolExecutionResult Help(VirtualShellCommand command) {
+        if (command.Arguments.Count == 0) {
+            return Success(new { output = ShellHelp.Text() }, "Shell help");
+        }
+
+        string topic = command.Arguments[0];
+        return ShellHelp.TryGet(topic, out ShellHelpEntry? entry)
+            ? Success(new { output = ShellHelp.Text(entry) }, $"Shell help: {MessageText.Sanitize(topic)}")
+            : Failure(
+                $"The command {MessageText.Sanitize(topic)} is not supported. Run help for the commands it answers.",
+                "Shell help: not a command");
     }
 
     private ToolExecutionResult Success(object data, string summary) => Bounded(new { ok = true, data, error = (string?)null }, summary);
@@ -840,6 +859,19 @@ internal sealed class PageToolExecutor(
             lines.Add("");
         }
         return [.. lines];
+    }
+
+    // -n numbers the page's own lines, 1-based from the top, which are the numbers grep reports and
+    // read_page and edit_page take, so a number printed here can be pasted straight into either.
+    private static string Number(string[] lines) {
+        StringBuilder text = new();
+        for (int index = 0; index < lines.Length; index++) {
+            if (index > 0) {
+                _ = text.Append('\n');
+            }
+            _ = text.Append(index + 1).Append('\t').Append(lines[index]);
+        }
+        return text.ToString();
     }
 
     // The page is shown as it stands against the running build, so a page compiled by an earlier one

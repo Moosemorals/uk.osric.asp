@@ -42,13 +42,17 @@ readable: `cat` and `read_page` return a host-written record of the route's meth
 purpose rather than source, because the running image carries the assembly and not the source tree,
 and `ShellRoutesTests` pins the records to `ReservedPaths.Default` in both directions. Every listing
 row and `ls` line carries the assistant's own permission in the `ls -l` first column —
-`-rw-r--r--` where a save would be accepted, `-r--r--r--` where it would not — and `list_pages` also
-marks the row `kind: shell` or `kind: page`. A save to a shell file answers "Not permitted": only the
-owner changes the shell, in code. The seeded assets are ordinary pages the assistant may edit;
-`Assistant:ProtectedPaths` (empty unless an operator fills it) is a separate, extra lock over a single
-page, which still reads as its own source. `RequireApproval` asks the path policy before it asks the
-owner, so a save it has already refused never becomes an approval nobody can grant. `check_script`
-stays a page-source check, so a shell file is refused there.
+`-rw-r--r--` where a save would be accepted, `-r--r--r--` where it would not — and `list_pages`
+also marks the row `kind: shell` or `kind: page`. The shell describes itself: `help` lists every
+command with its options and arguments, `help <command>` prints one, and a refused call names
+`help`, so the accepted form is one call away rather than in the prompt or here. `-n` numbers
+the lines `cat` prints, and `grep` accepts it and changes nothing, because a match already
+carries its line (DEC-217). A save to a shell file answers "Not permitted": only the owner
+changes the shell, in code. The seeded assets are ordinary pages the assistant may edit;
+`Assistant:ProtectedPaths` (empty unless an operator fills it) is a separate, extra lock over a
+single page, which still reads as its own source. `RequireApproval` asks the path policy before
+it asks the owner, so a save it has already refused never becomes an approval nobody can grant.
+`check_script` stays a page-source check, so a shell file is refused there.
 
 The assistant has a small memory of its own, one owner's and nobody else's (DEC-184–DEC-188). A memory
 is a note — a preference, a fact about this site, a correction, a reference to where something lives —
