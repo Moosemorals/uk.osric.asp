@@ -3,10 +3,8 @@
 
 namespace uk.osric.asp.Web.Assistant.Shell.Applets;
 
-using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Shell;
 using uk.osric.asp.Core.Text;
-using uk.osric.asp.Web.Assistant;
 
 /// <summary>The commands, and one command's syntax, read from the applets themselves.</summary>
 internal sealed class HelpApplet : ShellApplet {
@@ -39,45 +37,26 @@ internal sealed class HelpApplet : ShellApplet {
         if (line.Arguments.Count == 0) {
             context.Output.Raw(Preface);
             context.Output.Line(string.Empty);
-            foreach (string name in Names(context)) {
-                context.Output.Line(Describe(name, context));
+            foreach (ShellApplet applet in context.Registry.All) {
+                context.Output.Line($"{applet.Usage}: {applet.Description}");
             }
 
             return ValueTask.FromResult(ShellResult.Ok("Shell help"));
         }
 
         string word = line.Arguments[0].Word.Text;
-        ShellApplet? applet = context.Registry.Find(word);
-        if (applet is not null) {
-            context.Output.Line($"{applet.Usage}: {applet.Description}");
-            if (applet.Notes is { } notes) {
-                context.Output.Raw(notes);
-            }
-
-            return ValueTask.FromResult(ShellResult.Ok($"Shell help: {MessageText.Sanitize(word)}"));
+        ShellApplet? named = context.Registry.Find(word);
+        if (named is null) {
+            return ValueTask.FromResult(ShellResult.Refused(
+                $"The command {MessageText.Sanitize(word)} is not supported. Run help for the commands it answers.",
+                "Shell help: not a command"));
         }
 
-        // A command that has not moved to an applet yet is still described, by the table it left
-        // behind, so help is never less than the whole shell.
-        if (ShellHelp.TryGet(word, out ShellHelpEntry? entry) && entry is not null) {
-            context.Output.Raw(ShellHelp.Text(entry));
-            return ValueTask.FromResult(ShellResult.Ok($"Shell help: {MessageText.Sanitize(word)}"));
+        context.Output.Line($"{named.Usage}: {named.Description}");
+        if (named.Notes is { } notes) {
+            context.Output.Raw(notes);
         }
 
-        return ValueTask.FromResult(ShellResult.Refused(
-            $"The command {MessageText.Sanitize(word)} is not supported. Run help for the commands it answers.",
-            "Shell help: not a command"));
+        return ValueTask.FromResult(ShellResult.Ok($"Shell help: {MessageText.Sanitize(word)}"));
     }
-
-    // Every command the shell answers, in ordinal order, whichever table describes it: the applet
-    // registry for the commands that have moved, and the older table for the rest.
-    private static IEnumerable<string> Names(ShellContext context) => VirtualShellParser.Commands
-        .Union(context.Registry.All.Select(applet => applet.Name), StringComparer.Ordinal)
-        .Order(StringComparer.Ordinal);
-
-    private static string Describe(string name, ShellContext context) => context.Registry.Find(name) is { } applet
-        ? $"{applet.Usage}: {applet.Description}"
-        : ShellHelp.TryGet(name, out ShellHelpEntry? entry) && entry is not null
-            ? $"{entry.Usage}: {entry.Description}"
-            : name;
 }

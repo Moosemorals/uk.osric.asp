@@ -88,7 +88,6 @@ static uk.osric.asp.Core.Assistant.MemoryRecall.Select(System.Collections.Generi
 static uk.osric.asp.Core.Assistant.MemorySecrets.LooksLikeSecret(string! content) -> string?
 static uk.osric.asp.Core.Assistant.MemorySelection.operator !=(uk.osric.asp.Core.Assistant.MemorySelection? left, uk.osric.asp.Core.Assistant.MemorySelection? right) -> bool
 static uk.osric.asp.Core.Assistant.MemorySelection.operator ==(uk.osric.asp.Core.Assistant.MemorySelection? left, uk.osric.asp.Core.Assistant.MemorySelection? right) -> bool
-static uk.osric.asp.Core.Assistant.VirtualShellParser.Commands.get -> System.Collections.Generic.IReadOnlyList<string!>!
 static uk.osric.asp.Core.Charting.ChartFrame.operator !=(uk.osric.asp.Core.Charting.ChartFrame? left, uk.osric.asp.Core.Charting.ChartFrame? right) -> bool
 static uk.osric.asp.Core.Charting.ChartFrame.operator ==(uk.osric.asp.Core.Charting.ChartFrame? left, uk.osric.asp.Core.Charting.ChartFrame? right) -> bool
 *REMOVED*static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartSize size, string! title, string! yTitle, string! valueUnit) -> string!
@@ -203,21 +202,6 @@ uk.osric.asp.Core.Assistant.MemorySelection.Truncated.get -> bool
 uk.osric.asp.Core.Assistant.MemorySelection.Truncated.init -> void
 *REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.Deconstruct(out string! Name, out System.Collections.Generic.IReadOnlyList<string!>! Arguments) -> void
 *REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.VirtualShellCommand(string! Name, System.Collections.Generic.IReadOnlyList<string!>! Arguments) -> void
-uk.osric.asp.Core.Assistant.VirtualShellCommand.Deconstruct(out string! Name, out System.Collections.Generic.IReadOnlyList<string!>! Arguments, out uk.osric.asp.Core.Assistant.VirtualShellOptions Options) -> void
-uk.osric.asp.Core.Assistant.VirtualShellCommand.Options.get -> uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellCommand.Options.init -> void
-uk.osric.asp.Core.Assistant.VirtualShellCommand.VirtualShellCommand(string! Name, System.Collections.Generic.IReadOnlyList<string!>! Arguments, uk.osric.asp.Core.Assistant.VirtualShellOptions Options = uk.osric.asp.Core.Assistant.VirtualShellOptions.None) -> void
-uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellOptions.Counts = 64 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellOptions.IgnoreCase = 2 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellOptions.IgnoreSpaceChange = 128 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellOptions.Long = 4 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellOptions.Names = 32 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellOptions.None = 0 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellOptions.Numbers = 1 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellOptions.Recursive = 8 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellOptions.Reverse = 16 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
-uk.osric.asp.Core.Assistant.VirtualShellOptions.Unified = 256 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Charting.ChartFrame
 uk.osric.asp.Core.Charting.ChartFrame.<Clone>$() -> uk.osric.asp.Core.Charting.ChartFrame!
 *REMOVED*uk.osric.asp.Core.Charting.ChartFrame.ChartFrame(string! Id, string! Title, string! YTitle, string! EmptyText, System.TimeZoneInfo! Zone) -> void
@@ -353,6 +337,34 @@ uk.osric.asp.Core.Assistant.ContextTrimResult.RequestBytes.get -> long
 uk.osric.asp.Core.Assistant.ContextTrimResult.RequestBytes.init -> void
 *REMOVED*uk.osric.asp.Core.Assistant.TokenUsage.Deconstruct(out int? PromptTokens, out int? CompletionTokens) -> void
 *REMOVED*uk.osric.asp.Core.Assistant.TokenUsage.TokenUsage(int? PromptTokens, int? CompletionTokens) -> void
+*REMOVED*override uk.osric.asp.Core.Assistant.VirtualShellCommand.Equals(object? obj) -> bool
+*REMOVED*override uk.osric.asp.Core.Assistant.VirtualShellCommand.GetHashCode() -> int
+*REMOVED*override uk.osric.asp.Core.Assistant.VirtualShellCommand.ToString() -> string!
+*REMOVED*override uk.osric.asp.Core.Assistant.VirtualShellParseResult.Equals(object? obj) -> bool
+*REMOVED*override uk.osric.asp.Core.Assistant.VirtualShellParseResult.GetHashCode() -> int
+*REMOVED*override uk.osric.asp.Core.Assistant.VirtualShellParseResult.ToString() -> string!
+*REMOVED*static uk.osric.asp.Core.Assistant.VirtualShellCommand.operator !=(uk.osric.asp.Core.Assistant.VirtualShellCommand? left, uk.osric.asp.Core.Assistant.VirtualShellCommand? right) -> bool
+*REMOVED*static uk.osric.asp.Core.Assistant.VirtualShellCommand.operator ==(uk.osric.asp.Core.Assistant.VirtualShellCommand? left, uk.osric.asp.Core.Assistant.VirtualShellCommand? right) -> bool
+*REMOVED*static uk.osric.asp.Core.Assistant.VirtualShellParseResult.operator !=(uk.osric.asp.Core.Assistant.VirtualShellParseResult? left, uk.osric.asp.Core.Assistant.VirtualShellParseResult? right) -> bool
+*REMOVED*static uk.osric.asp.Core.Assistant.VirtualShellParseResult.operator ==(uk.osric.asp.Core.Assistant.VirtualShellParseResult? left, uk.osric.asp.Core.Assistant.VirtualShellParseResult? right) -> bool
+*REMOVED*static uk.osric.asp.Core.Assistant.VirtualShellParser.Parse(string! text) -> uk.osric.asp.Core.Assistant.VirtualShellParseResult!
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.<Clone>$() -> uk.osric.asp.Core.Assistant.VirtualShellCommand!
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.Arguments.get -> System.Collections.Generic.IReadOnlyList<string!>!
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.Arguments.init -> void
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.Equals(uk.osric.asp.Core.Assistant.VirtualShellCommand? other) -> bool
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.Name.get -> string!
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.Name.init -> void
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult.<Clone>$() -> uk.osric.asp.Core.Assistant.VirtualShellParseResult!
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult.Command.get -> uk.osric.asp.Core.Assistant.VirtualShellCommand?
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult.Command.init -> void
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult.Deconstruct(out uk.osric.asp.Core.Assistant.VirtualShellCommand? Command, out string? Error) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult.Equals(uk.osric.asp.Core.Assistant.VirtualShellParseResult? other) -> bool
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult.Error.get -> string?
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult.Error.init -> void
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult.VirtualShellParseResult(uk.osric.asp.Core.Assistant.VirtualShellCommand? Command, string? Error) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParser
 uk.osric.asp.Core.Assistant.TokenUsage.CachedTokens.get -> int?
 uk.osric.asp.Core.Assistant.TokenUsage.CachedTokens.init -> void
 uk.osric.asp.Core.Assistant.TokenUsage.ReasoningTokens.get -> int?
@@ -530,6 +542,5 @@ virtual uk.osric.asp.Core.Shell.ShellToken.PrintMembers(System.Text.StringBuilde
 ~override uk.osric.asp.Core.Diff.DiffHunk.ToString() -> string
 ~override uk.osric.asp.Core.Diff.DiffLine.Equals(object obj) -> bool
 ~override uk.osric.asp.Core.Diff.DiffLine.ToString() -> string
-
 uk.osric.asp.Core.Shell.ShellCommandLine.Deconstruct(out System.Collections.Generic.IReadOnlySet<char>! Flags, out System.Collections.Generic.IReadOnlyDictionary<char, string!>! Values, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellArgument!>! Arguments, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellWord!>! Trailing) -> void
 uk.osric.asp.Core.Shell.ShellSyntax.Deconstruct(out System.Collections.Generic.IReadOnlyList<char>! Flags, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellValueOption!>! Values, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellOperand!>! Operands, out bool Trailing) -> void
