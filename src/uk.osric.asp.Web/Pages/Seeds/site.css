@@ -130,16 +130,6 @@ thead th {
     overflow-wrap: anywhere;
 }
 
-/* The document's children used to be the body's; the landmark that now wraps them is a flex column
-   so the editor keeps the window and the form keeps filling it. */
-body.editor-page > main {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    gap: 0.5rem;
-    min-height: 0;
-}
-
 /* A form's fields are a description list: the label is a dt and the control is its dd. The label
    column takes the widest label's width up to 40% of the form, then wraps; the control takes the
    rest. The cap keeps one long label from squeezing the control to nothing. */

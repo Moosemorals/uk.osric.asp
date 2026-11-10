@@ -14,6 +14,16 @@ body.editor-page {
     gap: 0.5rem;
 }
 
+/* The document's children used to be the body's; the landmark that now wraps them is a flex column
+   so the editor keeps the window and the form keeps filling it. */
+body.editor-page > main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 0.5rem;
+    min-height: 0;
+}
+
 .editor-menu {
     display: flex;
     flex-wrap: wrap;
