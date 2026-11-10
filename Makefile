@@ -482,25 +482,34 @@ license-check:
 # would compile the same projects for nothing. It runs from the test project, its own recommendation:
 # started at the solution file, Stryker takes the whole solution as its scope and runs every suite for
 # every mutant.
+#
+# Its builds land in the same artifacts/ tree as a normal one, so the stamp is deleted before a run
+# starts: interrupted halfway it would leave mutated assemblies behind, and a stamp that still said
+# "built" would let the next `make test` run against them. Only the restore stamp is kept.
 
 MUTATION_DIR := $(ARTIFACTS)/stryker
+FORGET_BUILD = @rm -f $(BUILD_STAMP)
 
 mutation-core: $(RESTORE_STAMP)
+	$(FORGET_BUILD)
 	$(DOTNET) tool restore
 	cd $(dir $(CORE_TESTS)) && $(DOTNET) tool run dotnet-stryker --output $(abspath $(MUTATION_DIR))/core
 
 mutation-runtime: $(RESTORE_STAMP)
+	$(FORGET_BUILD)
 	$(DOTNET) tool restore
 	cd $(dir $(RUNTIME_TESTS)) && $(DOTNET) tool run dotnet-stryker --output $(abspath $(MUTATION_DIR))/runtime
 
 # Sdk has no suite of its own, so its configuration sits beside the Web suite, which is the one that
 # drives it: the document builder is asserted there.
 mutation-sdk: $(RESTORE_STAMP)
+	$(FORGET_BUILD)
 	$(DOTNET) tool restore
 	cd $(dir $(WEB_TESTS)) && $(DOTNET) tool run dotnet-stryker -f stryker-sdk-config.json --output $(abspath $(MUTATION_DIR))/sdk
 
 # The shell is the long one: ten times the code of the rest together, and the slowest suite.
 mutation-web: $(RESTORE_STAMP)
+	$(FORGET_BUILD)
 	$(DOTNET) tool restore
 	cd $(dir $(WEB_TESTS)) && $(DOTNET) tool run dotnet-stryker --output $(abspath $(MUTATION_DIR))/web
 
