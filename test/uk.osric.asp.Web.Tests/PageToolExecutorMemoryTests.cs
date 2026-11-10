@@ -225,7 +225,8 @@ public sealed class PageToolExecutorMemoryTests {
         _services.GetRequiredService<IServiceScopeFactory>(),
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), _options),
         _options,
-        _services.GetRequiredService<AssistantMetrics>());
+        _services.GetRequiredService<AssistantMetrics>(),
+        new FakeAssistantFetcher());
 
     private static JsonElement Data(ToolExecutionResult result) {
         using JsonDocument document = JsonDocument.Parse(result.Content);

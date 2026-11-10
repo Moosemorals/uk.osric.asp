@@ -5,9 +5,10 @@ namespace uk.osric.asp.Sdk;
 
 /// <summary>An outbound HTTP request a page asks the host to make.</summary>
 /// <remarks>
-/// The host makes the request, not the browser, and only to hosts the operator has allow-listed.
-/// Credentials in the URL are refused; a page that needs one puts it in an <c>Authorization</c> or an
-/// <c>X-</c> header deliberately, because nothing forwards a credential by accident.
+/// The host makes the request, not the browser, to any <c>http</c> or <c>https</c> host the URL
+/// names. Credentials in the URL are refused; a page that needs one puts it in an
+/// <c>Authorization</c> or an <c>X-</c> header deliberately, because nothing forwards a credential
+/// by accident.
 /// </remarks>
 /// <param name="Url">An absolute <c>http</c> or <c>https</c> URL, with no credentials and no fragment.</param>
 public sealed record HttpFetchRequest(string Url) {

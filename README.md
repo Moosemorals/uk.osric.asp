@@ -44,8 +44,8 @@ writes through `ctx.WriteRaw` without encoding. Expressions must produce a strin
 values explicitly, for example with `.ToString()`. Statement blocks can still call `ctx.Write`,
 `ctx.WriteRaw` or `ctx.Log` directly. The handler is asynchronous, so `await` is an ordinary
 expression in a block and inside `<%= %>`: `ctx.Features.GetRequired<IPageStorage>()` keeps a page's
-own key/value state, and `ctx.Features.GetRequired<IHttpFetch>()` reaches an allow-listed host from
-the server. The [page contract](docs/pages.md#page-contract) list the rest of the
+own key/value state, and `ctx.Features.GetRequired<IHttpFetch>()` reaches any `http` or `https` host
+from the server. The [page contract](docs/pages.md#page-contract) list the rest of the
 surface.
 
 `ctx.Features.GetRequired<IMarkdownRenderer>()` renders Markdown to HTML for a page; write the

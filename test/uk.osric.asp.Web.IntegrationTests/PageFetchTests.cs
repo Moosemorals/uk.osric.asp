@@ -58,11 +58,11 @@ public sealed class PageFetchTests : IntegrationTest {
             0,
             new Dictionary<string, string>(),
             string.Empty,
-            HttpFetchFailure.NotAllowed,
+            HttpFetchFailure.Network,
             false);
         using HttpClient client = CreateClient();
 
-        Assert.That(await client.GetStringAsync("/live"), Does.Contain("NotAllowed"));
+        Assert.That(await client.GetStringAsync("/live"), Does.Contain("Network"));
     }
 
     private sealed class RecordingPageFetcher : IPageFetcher {

@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>Streams completions from an OpenAI-compatible chat-completions endpoint.</summary>
 internal sealed class OpenAiChatCompletionClient(
@@ -88,6 +89,7 @@ internal sealed class OpenAiChatCompletionClient(
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
             };
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+            message.Headers.TryAddWithoutValidation("User-Agent", OutboundUserAgent.For(OutboundOrigin.Assistant));
             if (options.RequireApiKey && !string.IsNullOrWhiteSpace(options.ApiKey)) {
                 message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
             }

@@ -198,8 +198,9 @@ last-write-wins, and a page cannot reach another page's keys:</p>
    int visits = (stored.Found ? stored.Value : 0) + 1;
    await storage.SetAsync("visits", visits); %&gt;
 &lt;p&gt;Visited &lt;%= visits.ToString() %&gt; times.&lt;/p&gt;</code></pre>
-<p><code>IHttpFetch</code> makes one bounded HTTP request from the host, not the browser, and only to
-hosts the operator allow-lists. Failures are values rather than exceptions:</p>
+<p><code>IHttpFetch</code> makes one bounded HTTP request from the host, not the browser, to any
+<code>http</code> or <code>https</code> host the URL names. Failures are values rather than
+exceptions:</p>
 <pre class="source" tabindex="0"><code>&lt;% IHttpFetch fetch = ctx.Features.GetRequired&lt;IHttpFetch&gt;();
    HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/status");
    if (response.Succeeded) { %&gt;

@@ -20,14 +20,20 @@ tool calls receive synthetic results rather than being replayed to the provider.
 
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
 endpoint. Enabling the feature sends the system prompt, conversation transcript, and page source read
-by tools to that provider. No provider SDK is used. Assistant tools have access only to the page store
+by tools to that provider. No provider SDK is used. Assistant tools reach the page store
 through `PageEditor` — list/read/search, bounded template-source line edits with an atomic revision-hash
 check, whole-page writes, tombstone deletes, a read-only virtual shell, and two read-only script
 checks that parse a stored page or a supplied complete template as an ES module and change nothing —
-plus a record of the site's own routes, which they can read and never write.
-There is no process, filesystem, git, package, or outbound-network tool. The per-conversation approval
-mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on each
-flagged mutation. Unresolved, stale, stopped, or restarted approvals never execute.
+plus a record of the site's own routes, which they can read and never write, and an outbound `fetch`
+tool. `fetch` GETs an absolute `http` or `https` URL through the same bounded outbound HTTP a page uses and
+returns the status, content type and text body; every assistant request, the provider call included,
+carries `moosemorals.com (assistant)` as its `User-Agent`. It is approval-gated under
+`RequireApproval`, and like
+page fetch it has no host allow-list (DEC-216). A fetched body is a tool result, so it is stored in the
+transcript and sent to the provider on the next step: treat it as untrusted data, not instructions.
+There is no process, filesystem, git, package, or other outbound-network tool. The per-conversation
+approval mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on
+each flagged call. Unresolved, stale, stopped, or restarted approvals never execute.
 
 The tools also see the shell's own files, which are the site's routes (DEC-198). Every key in
 `Pages:ReservedPaths` — `/edit`, `/login`, `/logout`, `/assistant`, `/admin/import`,

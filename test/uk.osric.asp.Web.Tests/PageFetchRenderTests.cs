@@ -38,7 +38,7 @@ public sealed class PageFetchRenderTests {
             0,
             new Dictionary<string, string>(),
             string.Empty,
-            HttpFetchFailure.NotAllowed,
+            HttpFetchFailure.Network,
             false));
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         await pages.StoreCompiledAsync("/live", """

@@ -7,9 +7,16 @@ using System.Collections.Frozen;
 
 /// <summary>The header names a page may send and see.</summary>
 /// <remarks>
+/// <para>
 /// Both lists are allow-lists rather than filters. Framing headers, <c>Host</c>, <c>Cookie</c> and
 /// <c>Set-Cookie</c> are refused outright, so nothing ambient is forwarded and nothing ambient comes
 /// back; a page that means to send a credential does it through <c>Authorization</c> on purpose.
+/// </para>
+/// <para>
+/// <c>User-Agent</c> is accepted so a page that already sets one is not refused, but
+/// <see cref="OutboundFetcher"/> replaces it with <see cref="OutboundUserAgent"/>'s value: the identity
+/// a remote service sees is the site's and the origin's, never a page's claim.
+/// </para>
 /// </remarks>
 internal static class PageFetchHeaders {
 

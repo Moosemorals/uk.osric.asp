@@ -639,7 +639,7 @@ public sealed class RunProcessorTests {
         RunRegistry registry = new(options, TimeProvider.System);
         Assert.That(registry.TryStart(started.RunId!, conversation.Id, out RunStream? stream), Is.True);
         PagePathPolicy paths = new(new ReservedPaths(ReservedPaths.Default), options);
-        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, options, new AssistantMetrics());
+        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, options, new AssistantMetrics(), new FakeAssistantFetcher());
         RunProcessor processor = new(
             services.GetRequiredService<IServiceScopeFactory>(),
             client,

@@ -1201,5 +1201,6 @@ public sealed class PageToolExecutorTests {
         services.GetRequiredService<IServiceScopeFactory>(),
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions { ProtectedPaths = ["/editor.js"] }),
         options ?? new AssistantOptions { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
-        new AssistantMetrics());
+        new AssistantMetrics(),
+        new FakeAssistantFetcher());
 }

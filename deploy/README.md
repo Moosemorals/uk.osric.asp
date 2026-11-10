@@ -139,11 +139,13 @@ and applies them.
   using `curl -N`, not only against the Kestrel port. A run continues if its browser is closed; the
   `Stop` form cancels it. During graceful shutdown the host records unfinished runs as interrupted;
   the 300-second default run timeout is independent of the container's 35-second graceful stop.
-- **Outbound fetch:** off until an operator lists a host. Set `Pages__Fetch__AllowedHosts__0`,
-  `__1`, ... in the environment file and restart; each entry is a bare host name, with no scheme,
-  path or port, and a malformed one fails the start rather than being ignored. The container's
-  egress is not otherwise restricted — the allow-list is a footgun guard, not a sandbox (SEC-03).
-  `Pages__Fetch__TimeoutSeconds` defaults to 4, deliberately below the 5-second render budget.
+- **Outbound fetch:** any `http` or `https` host is reachable, with no allow-list (DEC-216).
+  `Pages__Fetch__TimeoutSeconds` defaults to 4, deliberately below the 5-second render budget;
+  `MaxResponseBytes`, `MaxRequestsPerRender` and `MaxRedirects` bound the rest. The container's egress
+  and internal network are not otherwise restricted, and the assistant's `fetch` tool uses the same
+  path, so a stored page or an approved tool call can reach anything the container can. That is the
+  single-owner trust boundary, not a sandbox (SEC-03). Every request carries
+  `moosemorals.com (page)` or `moosemorals.com (assistant)` as its `User-Agent`, set by the host.
 - **Page state:** a page reaches state through `ctx.Features.GetRequired<IPageStorage>()`; it is
   stored in `PageState` in the same database, so `storage.db` carries it and a backup includes
   it. Deleting a page clears its state; editing or restoring it

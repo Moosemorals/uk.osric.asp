@@ -14,7 +14,7 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageFetcherTests {
 
     [Test]
-    public async Task AnAllowedHostIsFetchedAsync() {
+    public async Task AUrlIsFetchedAsync() {
         HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/status"),
             Respond(HttpStatusCode.OK, "{\"state\":\"up\"}"));
@@ -27,14 +27,42 @@ public sealed class PageFetcherTests {
     }
 
     [Test]
-    public async Task AHostThatIsNotListedIsRefusedWithoutASocketAsync() {
-        StubHttpMessageHandler handler = new(Respond(HttpStatusCode.OK, "no"));
+    public async Task ThePageUserAgentIsSentAsync() {
+        StubHttpMessageHandler handler = new(request => {
+            Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (page)"));
 
-        HttpFetchResponse response = await FetchAsync(Request("https://evil.example/"), handler);
+            return Respond(HttpStatusCode.OK, "ok")(request);
+        });
 
-        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.NotAllowed));
-        Assert.That(response.Status, Is.Zero);
-        Assert.That(handler.Requests, Is.Empty);
+        HttpFetchResponse response = await FetchAsync(Request("https://api.example.com/"), handler);
+
+        Assert.That(response.Succeeded, Is.True);
+    }
+
+    [Test]
+    public async Task APageCannotReplaceTheUserAgentAsync() {
+        StubHttpMessageHandler handler = new(request => {
+            Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (page)"));
+
+            return Respond(HttpStatusCode.OK, "ok")(request);
+        });
+
+        await FetchAsync(
+            new HttpFetchRequest("https://api.example.com/") {
+                Headers = new Dictionary<string, string> { ["User-Agent"] = "somebody-else" },
+            },
+            handler);
+    }
+
+    [Test]
+    public async Task AnyHttpHostIsFetchedAsync() {
+        StubHttpMessageHandler handler = new(Respond(HttpStatusCode.OK, "yes"));
+
+        HttpFetchResponse response = await FetchAsync(Request("https://elsewhere.example/"), handler);
+
+        Assert.That(response.Succeeded, Is.True);
+        Assert.That(response.Body, Is.EqualTo("yes"));
+        Assert.That(handler.Requests, Has.Count.EqualTo(1));
     }
 
     [TestCase("ftp://api.example.com/")]
@@ -167,9 +195,9 @@ public sealed class PageFetcherTests {
     }
 
     [Test]
-    public async Task ARedirectToAnAllowedHostIsFollowedAsync() {
+    public async Task ARedirectToAnotherHostIsFollowedAsync() {
         StubHttpMessageHandler handler = new(request => request.RequestUri!.AbsolutePath == "/start"
-            ? Redirect("/next")
+            ? Redirect("https://elsewhere.example/next")
             : Respond(HttpStatusCode.OK, "arrived")(request));
 
         HttpFetchResponse response = await FetchAsync(Request("https://api.example.com/start"), handler);
@@ -180,18 +208,15 @@ public sealed class PageFetcherTests {
     }
 
     [Test]
-    public async Task ARedirectToADisallowedHostIsNotFollowedAsync() {
-        StubHttpMessageHandler handler = new(_ => {
-            HttpResponseMessage message = Redirect("https://elsewhere.example/");
-            return message;
-        });
+    public async Task ARedirectToANonHttpTargetIsNotFollowedAsync() {
+        StubHttpMessageHandler handler = new(_ => Redirect("ftp://elsewhere.example/"));
 
         HttpFetchResponse response = await FetchAsync(Request("https://api.example.com/start"), handler);
 
-        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.NotAllowed));
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.InvalidRequest));
         Assert.That(response.Status, Is.EqualTo(302));
         Assert.That(handler.Requests, Has.Count.EqualTo(1));
-        Assert.That(response.Headers["Location"], Is.EqualTo("https://elsewhere.example/"));
+        Assert.That(response.Headers["Location"], Is.EqualTo("ftp://elsewhere.example/"));
     }
 
     [Test]
@@ -250,7 +275,7 @@ public sealed class PageFetcherTests {
         HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             Respond(HttpStatusCode.OK, new string('x', 4096)),
-            new PageFetchOptions { AllowedHosts = ["api.example.com"], MaxResponseBytes = 1024 });
+            new PageFetchOptions { MaxResponseBytes = 1024 });
 
         Assert.That(response.Truncated, Is.True);
         Assert.That(response.Body, Has.Length.EqualTo(1024));
@@ -272,7 +297,7 @@ public sealed class PageFetcherTests {
         HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new SlowHandler(),
-            new PageFetchOptions { AllowedHosts = ["api.example.com"], TimeoutSeconds = 0.25 });
+            new PageFetchOptions { TimeoutSeconds = 0.25 });
 
         Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.Timeout));
     }
@@ -285,7 +310,7 @@ public sealed class PageFetcherTests {
         HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new SlowHandler(),
-            new PageFetchOptions { AllowedHosts = ["api.example.com"], TimeoutSeconds = 30 },
+            new PageFetchOptions { TimeoutSeconds = 30 },
             aborted.Token);
 
         Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.Aborted));
@@ -299,7 +324,7 @@ public sealed class PageFetcherTests {
         HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new SlowHandler(),
-            new PageFetchOptions { AllowedHosts = ["api.example.com"], TimeoutSeconds = 30 },
+            new PageFetchOptions { TimeoutSeconds = 30 },
             CancellationToken.None,
             deadline.Token);
 
@@ -312,7 +337,7 @@ public sealed class PageFetcherTests {
         PageMetrics metrics = new();
         PageFetcher fetcher = Fetcher(
             new StubHttpMessageHandler(Respond(HttpStatusCode.OK, "ok")),
-            new PageFetchOptions { AllowedHosts = ["api.example.com"] },
+            new PageFetchOptions(),
             metrics);
 
         await fetcher.FetchAsync(Request("https://api.example.com/"), "/page", CancellationToken.None, CancellationToken.None);
@@ -321,34 +346,22 @@ public sealed class PageFetcherTests {
         Assert.That(capture.For("page.fetch.duration", "/page"), Has.Count.EqualTo(1));
     }
 
-    [TestCase("")]
-    [TestCase("https://api.example.com/")]
-    [TestCase("api.example.com/path")]
-    [TestCase("api.example.com:8443")]
-    public void AMalformedAllowedHostIsAStartupError(string host) {
-        ConfigurationBuilder builder = new();
-        builder.AddInMemoryCollection(new Dictionary<string, string?> { ["Pages:Fetch:AllowedHosts:0"] = host });
-
-        Assert.Throws<InvalidOperationException>(() => PageFetchOptions.FromConfiguration(builder.Build()));
-    }
-
     [Test]
-    public void ABracketedIpv6HostIsAccepted() {
+    public void FetchLimitsComeFromConfiguration() {
         ConfigurationBuilder builder = new();
-        builder.AddInMemoryCollection(new Dictionary<string, string?> { ["Pages:Fetch:AllowedHosts:0"] = "[::1]" });
+        builder.AddInMemoryCollection(new Dictionary<string, string?> {
+            ["Pages:Fetch:TimeoutSeconds"] = "2.5",
+            ["Pages:Fetch:MaxResponseBytes"] = "2048",
+            ["Pages:Fetch:MaxRedirects"] = "0",
+        });
 
         PageFetchOptions options = PageFetchOptions.FromConfiguration(builder.Build());
 
-        Assert.That(options.Allows("[::1]"), Is.True);
-    }
-
-    [Test]
-    public void HostsMatchExactlyAndCaseInsensitively() {
-        PageFetchOptions options = new() { AllowedHosts = ["API.example.com"] };
-
-        Assert.That(options.Allows("api.example.com"), Is.True);
-        Assert.That(options.Allows("api.example.com.evil"), Is.False);
-        Assert.That(options.Allows("sub.api.example.com"), Is.False);
+        Assert.Multiple(() => {
+            Assert.That(options.TimeoutSeconds, Is.EqualTo(2.5));
+            Assert.That(options.MaxResponseBytes, Is.EqualTo(2048));
+            Assert.That(options.MaxRedirects, Is.Zero);
+        });
     }
 
     private static HttpFetchRequest Request(string url) => new(url);
@@ -373,7 +386,7 @@ public sealed class PageFetcherTests {
         CancellationToken aborted = default,
         CancellationToken deadline = default) {
         StubHttpMessageHandler handler = new(respond);
-        PageFetcher fetcher = Fetcher(handler, options ?? new PageFetchOptions { AllowedHosts = ["api.example.com"] });
+        PageFetcher fetcher = Fetcher(handler, options ?? new PageFetchOptions());
 
         return await fetcher.FetchAsync(request, "/page", aborted, deadline);
     }
@@ -384,17 +397,18 @@ public sealed class PageFetcherTests {
         PageFetchOptions? options = null,
         CancellationToken aborted = default,
         CancellationToken deadline = default) {
-        PageFetcher fetcher = Fetcher(handler, options ?? new PageFetchOptions { AllowedHosts = ["api.example.com"] });
+        PageFetcher fetcher = Fetcher(handler, options ?? new PageFetchOptions());
 
         return await fetcher.FetchAsync(request, "/page", aborted, deadline);
     }
 
     private static PageFetcher Fetcher(HttpMessageHandler handler, PageFetchOptions options, PageMetrics? metrics = null) {
         return new PageFetcher(
-            new StubHttpClientFactory(handler),
-            options,
-            metrics ?? new PageMetrics(),
-            NullLogger<PageFetcher>.Instance);
+            new OutboundFetcher(
+                new StubHttpClientFactory(handler),
+                options,
+                NullLogger<OutboundFetcher>.Instance),
+            metrics ?? new PageMetrics());
     }
 
     private sealed class SlowHandler : HttpMessageHandler {
@@ -403,10 +417,5 @@ public sealed class PageFetcherTests {
 
             return new HttpResponseMessage(HttpStatusCode.OK);
         }
-    }
-
-    private sealed class StubHttpClientFactory(HttpMessageHandler handler) : IHttpClientFactory {
-        // A fresh client per call, because the fetcher disposes the one it is given.
-        public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
     }
 }
