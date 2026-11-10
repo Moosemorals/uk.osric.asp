@@ -439,6 +439,19 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 		sleep 2; \
 	done'
 	@echo "deployed $(GIT_SHA)"
+	@# The image is tagged with the commit, so a commit that reached the registry but never reached
+	@# the remote leaves the running site with no source anyone else can fetch, review, or rebuild a
+	@# rollback from. A note rather than a gate: the push has already happened and cannot be
+	@# withdrawn, so failing here would only make a successful deploy look like a failed one.
+	@if up=$$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null); then \
+		ahead=$$(git rev-list --count "$$up..HEAD"); \
+		if [ "$$ahead" -gt 0 ]; then \
+			echo "but $$up is missing $$ahead commit(s): git push"; \
+			git --no-pager log --oneline "$$up..HEAD"; \
+		fi; \
+	else \
+		echo "but this checkout has no upstream to compare $(GIT_SHA) with: is the commit on the remote?"; \
+	fi
 
 # Everything the deploy destination insists on, checked before the gate rather than after it. An
 # image pushed from an uncommitted tree cannot be rebuilt from the commit its tag names, which is

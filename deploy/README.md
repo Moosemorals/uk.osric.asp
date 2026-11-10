@@ -106,7 +106,8 @@ and applies them.
 ## Day-to-day
 
 - **New code:** commit it, then back up storage, then `make deploy HOST=deploy@<server-ip>`
-  (guards, checks, runs the browser suite, builds, pushes, pulls, restarts, waits for `/heath`).
+  (guards, checks, runs the browser suite, builds, pushes, pulls, restarts, waits for `/heath`, then
+  says so if the commit it deployed is not on the remote yet).
 - **The gate:** `make check`, run by hand when you want it — `make deploy` runs it anyway, with the
   browser suite after it. `make ci` is the slower version that starts from `make clean` and fails if
   the build dirties the tree; run it before a release, or from any machine that is asked to prove the
