@@ -17,13 +17,9 @@ internal static class ShellKernelHarness {
         new AssistantOptions { ProtectedPaths = ["/editor.js"] });
 
     /// <summary>Runs a line through the kernel, or fails the test when the command is not an applet.</summary>
-    public static async Task<ShellOutcome> RunAsync(PageEditor pages, string line, int maxChars = 4096) {
-        ShellOutcome? outcome = await ShellRunner.TryRunAsync(
+    public static async Task<ShellOutcome> RunAsync(PageEditor pages, string line, int maxChars = 4096) =>
+        await ShellRunner.RunAsync(
             line, pages, Policy, new AssistantOptions { MaxToolResultChars = maxChars }, CancellationToken.None);
-
-        Assert.That(outcome, Is.Not.Null, $"'{line}' is not answered by an applet yet");
-        return outcome!;
-    }
 
     /// <summary>The answer, for a line that is expected to work.</summary>
     public static async Task<string> OutputAsync(PageEditor pages, string line) {

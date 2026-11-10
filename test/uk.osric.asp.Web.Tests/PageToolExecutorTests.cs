@@ -885,7 +885,6 @@ public sealed class PageToolExecutorTests {
             Assert.That(result.IsSuccess, Is.True, result.Content);
             Assert.That(Output(result), Is.EqualTo("2c2\n< two\n---\n> TWO"),
                 "the normal format, without the trailing line break a diff file carries");
-            Assert.That(Data(result).GetProperty("identical").GetBoolean(), Is.False);
         });
     }
 
@@ -927,7 +926,7 @@ public sealed class PageToolExecutorTests {
         Assert.Multiple(() => {
             Assert.That(Output(plain), Is.Not.Empty, "whitespace is a difference by default");
             Assert.That(Output(ignored), Is.Empty, "and -b ignores it, so diff writes nothing");
-            Assert.That(Data(ignored).GetProperty("identical").GetBoolean(), Is.True);
+            Assert.That(ignored.IsSuccess, Is.True, "writing nothing is how a shell's diff reports no difference");
         });
     }
 
@@ -944,9 +943,8 @@ public sealed class PageToolExecutorTests {
             "shell", "{\"command\":\"diff /a /b\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(result.IsSuccess, Is.True, "no differences is success, as a shell's diff reports it");
             Assert.That(Output(result), Is.Empty);
-            Assert.That(Data(result).GetProperty("identical").GetBoolean(), Is.True);
         });
     }
 
@@ -966,7 +964,7 @@ public sealed class PageToolExecutorTests {
 
         Assert.Multiple(() => {
             Assert.That(missing.IsSuccess, Is.False);
-            Assert.That(missing.Content, Does.Contain("was not found"));
+            Assert.That(missing.Content, Does.Contain("No key /missing is stored"));
             Assert.That(folder.IsSuccess, Is.False);
             Assert.That(folder.Content, Does.Contain("is a folder, not a page"));
         });

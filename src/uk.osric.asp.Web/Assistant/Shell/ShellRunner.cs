@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Assistant.Shell;
 
 using uk.osric.asp.Core.Shell;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Assistant.Shell.Applets;
 using uk.osric.asp.Web.Editor;
 
@@ -18,6 +19,7 @@ internal static class ShellRunner {
 
     private static readonly ShellRegistry s_registry = new([
         new CatApplet(),
+        new DiffApplet(),
         new FindApplet(),
         new GrepApplet(),
         new HeadApplet(),
@@ -31,17 +33,13 @@ internal static class ShellRunner {
     /// <summary>The table of applets, which <c>help</c> reads.</summary>
     public static ShellRegistry Registry => s_registry;
 
-    /// <summary>Runs a line, when the shell answers the command it names.</summary>
+    /// <summary>Runs a line. Every command the shell answers is an applet, so this always answers.</summary>
     /// <param name="text">The command text.</param>
     /// <param name="pages">The editor behind the store.</param>
     /// <param name="paths">The path policy.</param>
     /// <param name="options">The assistant's options, for the result budget.</param>
     /// <param name="cancellationToken">The run's token.</param>
-    /// <returns>
-    /// The outcome, or null when the command is not one this kernel answers yet, so that the caller's
-    /// older path can take it while the rest of the commands move across.
-    /// </returns>
-    public static async Task<ShellOutcome?> TryRunAsync(
+    public static async Task<ShellOutcome> RunAsync(
         string text,
         PageEditor pages,
         PagePathPolicy paths,
@@ -52,12 +50,16 @@ internal static class ShellRunner {
             return ShellOutcome.Refused(lexed.Error, "Shell command refused");
         }
         if (lexed.Words.Count == 0) {
-            return null;
+            return ShellOutcome.Refused(
+                "There is no command to run. Run help for the commands the shell answers.",
+                "Shell command refused");
         }
 
         ShellApplet? applet = s_registry.Find(lexed.Words[0].Text);
         if (applet is null) {
-            return null;
+            return ShellOutcome.Refused(
+                $"The shell command {MessageText.Sanitize(lexed.Words[0].Text)} is not supported. Run help for the commands it answers.",
+                "Shell command refused");
         }
 
         if (lexed.Operator is { } unquoted) {

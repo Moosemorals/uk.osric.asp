@@ -702,23 +702,12 @@ internal sealed class PageToolExecutor(
         IReadOnlyDictionary<string, JsonElement> arguments,
         PageEditor pages,
         CancellationToken cancellationToken) {
-        string text = String(arguments, "command")!;
+        ShellOutcome outcome = await ShellRunner.RunAsync(
+            String(arguments, "command")!, pages, paths, options, cancellationToken);
 
-        // The kernel answers the commands that have moved to applets; the rest still go through the
-        // parser and the switch below until they follow it.
-        ShellOutcome? outcome = await ShellRunner.TryRunAsync(text, pages, paths, options, cancellationToken);
-        if (outcome is not null) {
-            return outcome.IsSuccess
-                ? Success(new { output = outcome.Output, truncated = outcome.Truncated }, outcome.Summary)
-                : Failure(outcome.Error!, outcome.Summary);
-        }
-
-        VirtualShellParseResult parsed = VirtualShellParser.Parse(text);
-        if (parsed.Command is null) {
-            return Failure(parsed.Error!, "Shell command refused");
-        }
-
-        return await DiffAsync(parsed.Command, pages, cancellationToken);
+        return outcome.IsSuccess
+            ? Success(new { output = outcome.Output, truncated = outcome.Truncated }, outcome.Summary)
+            : Failure(outcome.Error!, outcome.Summary);
     }
 
     // POSIX diff over two keys: the normal format unless -u or -U asked for a unified one, and -b
