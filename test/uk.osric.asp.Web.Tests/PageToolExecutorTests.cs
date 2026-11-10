@@ -868,6 +868,109 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
+    public async Task ShellDiffWritesTheNormalFormatByDefaultAsync() {
+        FakePageStore storage = new();
+        storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one\ntwo\nthree");
+        storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "one\nTWO\nthree");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"diff /a /b\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Output(result), Is.EqualTo("2c2\n< two\n---\n> TWO"),
+                "the normal format, without the trailing line break a diff file carries");
+            Assert.That(Data(result).GetProperty("identical").GetBoolean(), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task ShellDiffWritesAUnifiedDiffWhenAskedAsync() {
+        FakePageStore storage = new();
+        storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one\ntwo\nthree");
+        storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "one\nTWO\nthree");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult stock = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"diff -u /a /b\"}", Context, CancellationToken.None);
+        ToolExecutionResult none = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"diff -U 0 /a /b\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(Output(stock), Does.StartWith("--- /a\n+++ /b\n@@ -1,3 +1,3 @@\n"));
+            Assert.That(Output(stock), Does.Contain("-two\n+TWO"));
+            Assert.That(Output(none), Does.Contain("@@ -2,1 +2,1 @@"), "-U 0 keeps no context");
+        });
+    }
+
+    [Test]
+    public async Task ShellDiffIgnoresWhitespaceWhenAskedAsync() {
+        FakePageStore storage = new();
+        storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one   \ntwo\t\nthree");
+        storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "one\ntwo\nthree");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult plain = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"diff /a /b\"}", Context, CancellationToken.None);
+        ToolExecutionResult ignored = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"diff -b /a /b\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(Output(plain), Is.Not.Empty, "whitespace is a difference by default");
+            Assert.That(Output(ignored), Is.Empty, "and -b ignores it, so diff writes nothing");
+            Assert.That(Data(ignored).GetProperty("identical").GetBoolean(), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task ShellDiffOfTwoSamePagesWritesNothingAndSaysSoAsync() {
+        FakePageStore storage = new();
+        storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one\ntwo");
+        storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "one\ntwo");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"diff /a /b\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Output(result), Is.Empty);
+            Assert.That(Data(result).GetProperty("identical").GetBoolean(), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task ShellDiffRefusesAKeyThatIsNotThereAsync() {
+        FakePageStore storage = new();
+        storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one");
+        storage["/folder/deep"] = new PageTemplate(PageHarness.Key("/folder/deep"), "one");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult missing = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"diff /a /missing\"}", Context, CancellationToken.None);
+        ToolExecutionResult folder = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"diff /a /folder\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(missing.IsSuccess, Is.False);
+            Assert.That(missing.Content, Does.Contain("was not found"));
+            Assert.That(folder.IsSuccess, Is.False);
+            Assert.That(folder.Content, Does.Contain("is a folder, not a page"));
+        });
+    }
+
+    [Test]
     public async Task ShellGrepNamesTheKeysOrCountsThemLinesWhenAskedAsync() {
         FakePageStore storage = new();
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "needle\nneedle");

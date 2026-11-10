@@ -42,7 +42,7 @@ public static class VirtualShellParser {
 
     private static readonly HashSet<char> s_expanding = ['$', '`'];
     private static readonly HashSet<char> s_operators = ['|', '>', '<', ';', '&', '\n', '\r'];
-    private static readonly HashSet<string> s_commands = ["cat", "find", "grep", "head", "help", "ls", "stat", "tail", "wc"];
+    private static readonly HashSet<string> s_commands = ["cat", "diff", "find", "grep", "head", "help", "ls", "stat", "tail", "wc"];
 
     /// <summary>Every command the shell answers, in ordinal order.</summary>
     public static IReadOnlyList<string> Commands { get; } = [.. s_commands.Order(StringComparer.Ordinal)];
@@ -74,13 +74,26 @@ public static class VirtualShellParser {
 
         List<string> arguments = [.. lexed.Words.Skip(1)];
         VirtualShellOptions options = VirtualShellOptions.None;
-        while (arguments.Count > 0 && TakeOption(name, arguments[0], ref options)) {
+        int? context = null;
+        while (arguments.Count > 0) {
+            if (name == "diff" && TryTakeContext(arguments, out int lines)) {
+                context = lines;
+                continue;
+            }
+            if (!TakeOption(name, arguments[0], ref options)) {
+                break;
+            }
             arguments.RemoveAt(0);
         }
+        if (context is int requested) {
+            // A valued option stays among the command's own words, the way head keeps -n, so the
+            // executor reads it where it reads the rest.
+            arguments.InsertRange(0, ["-U", requested.ToString(CultureInfo.InvariantCulture)]);
+        }
 
-        // head, tail and wc take their option as part of their argument list; for every other command
-        // a word that still starts with a dash is a guess at a host shell, not a path.
-        if (name is not ("head" or "tail" or "wc") && arguments.Any(argument => argument.StartsWith('-'))) {
+        // head, tail, wc and diff take their options as part of their argument list; for every other
+        // command a word that still starts with a dash is a guess at a host shell, not a path.
+        if (name is not ("head" or "tail" or "wc" or "diff") && arguments.Any(argument => argument.StartsWith('-'))) {
             return WrongArguments(name);
         }
 
@@ -205,6 +218,8 @@ public static class VirtualShellParser {
             ("grep", "-c") => VirtualShellOptions.Counts,
             ("grep", "-r") or ("grep", "-R") or ("ls", "-R") or ("find", "-r") or ("find", "-R") => VirtualShellOptions.Recursive,
             ("ls", "-r") => VirtualShellOptions.Reverse,
+            ("diff", "-b") => VirtualShellOptions.IgnoreSpaceChange,
+            ("diff", "-u") => VirtualShellOptions.Unified,
             ("ls", "-l") or ("find", "-l") => VirtualShellOptions.Long,
             _ => VirtualShellOptions.None,
         };
@@ -223,6 +238,15 @@ public static class VirtualShellParser {
         "head" or "tail" => HeadOrTail(arguments),
         "wc" => Wc(arguments),
         "grep" => arguments.Count >= 1,
+        "diff" => DiffArguments(arguments),
+        _ => false,
+    };
+
+    /// <summary>The form <c>diff</c> takes: two keys, and the context count when <c>-U</c> gave one.</summary>
+    /// <remarks>Pairs only, for now: a shell's diff compares one file with another.</remarks>
+    private static bool DiffArguments(IReadOnlyList<string> arguments) => arguments.Count switch {
+        2 => true,
+        4 => arguments[0] == "-U" && IsContextCount(arguments[1]),
         _ => false,
     };
 
@@ -241,6 +265,29 @@ public static class VirtualShellParser {
         2 => arguments[0] == "-l",
         _ => false,
     };
+
+    /// <summary>Takes <c>-U n</c> or <c>-Un</c>, the context count, removing the words it took.</summary>
+    /// <remarks>
+    /// A count is a value rather than a flag, and POSIX lets it lead in any order with the other
+    /// options, so it is read here rather than in the flag table.
+    /// </remarks>
+    private static bool TryTakeContext(List<string> arguments, out int lines) {
+        lines = 0;
+        string word = arguments[0];
+        string? countText = word == "-U"
+            ? arguments.Count > 1 ? arguments[1] : null
+            : word.Length > 2 && word.StartsWith("-U", StringComparison.Ordinal) ? word[2..] : null;
+        if (countText is null || !IsContextCount(countText)) {
+            return false;
+        }
+
+        lines = int.Parse(countText, NumberStyles.None, CultureInfo.InvariantCulture);
+        arguments.RemoveRange(0, word == "-U" ? 2 : 1);
+        return true;
+    }
+
+    private static bool IsContextCount(string text) =>
+        int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int count) && count >= 0;
 
     private static bool IsCount(string text) =>
         int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int count) && count > 0;

@@ -44,6 +44,11 @@ internal static class ShellHelp {
             "Print each page's source, one after another. -n puts each line's number and a tab before it, counting each page from one.",
             "Several keys are read in the order they are written, and a number printed for one page can be\n"
             + "pasted into read_page or edit_page for that page."),
+        new("diff", "diff [-b] [-u | -U <count>] <key> <key>",
+            "Compare two pages line by line, in the normal format unless -u or -U asks for a unified one.",
+            "-u is a unified diff with three lines of context, and -U <count> gives another count. -b\n"
+            + "ignores changes in the amount of white space, trailing white space included. Two keys\n"
+            + "only, for now."),
         new("find", "find [prefix]",
             "Print the long listing of everything below prefix, the same as ls -Rl."),
         new("grep", "grep [-i] [-n] [-r] [-l] [-c] <query> [prefix ...]",

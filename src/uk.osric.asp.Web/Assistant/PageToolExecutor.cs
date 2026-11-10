@@ -710,10 +710,58 @@ internal sealed class PageToolExecutor(
         return command.Name switch {
             "help" => Help(command),
             "find" or "ls" => await ListAsync(command, pages, cancellationToken),
+            "diff" => await DiffAsync(command, pages, cancellationToken),
             "grep" => await GrepAsync(command, pages, cancellationToken),
             _ => await ReadAsync(command, pages, cancellationToken),
         };
     }
+
+    // POSIX diff over two keys: the normal format unless -u or -U asked for a unified one, and -b
+    // ignoring changes in the amount of white space, trailing white space included. A pair only, for
+    // now, because that is what POSIX's diff compares too.
+    private async Task<ToolExecutionResult> DiffAsync(
+        VirtualShellCommand command,
+        PageEditor pages,
+        CancellationToken cancellationToken) {
+        List<string> keys = [.. command.Arguments];
+        int context = LineDiff.ContextLines;
+        bool unified = command.Options.HasFlag(VirtualShellOptions.Unified);
+        if (keys.Count == 4) {
+            // -U n asks for a unified diff with n lines of context, which is what the format is for.
+            context = ParseCount(keys[1]);
+            keys.RemoveRange(0, 2);
+            unified = true;
+        }
+
+        List<Source> sources = [];
+        foreach (string key in keys) {
+            (Source? source, ToolExecutionResult? failed) = await ResolveAsync(command, key, pages, cancellationToken);
+            if (failed is not null) {
+                return failed;
+            }
+            sources.Add(source!);
+        }
+
+        DiffDocument diff = LineDiff.Compare(
+            sources[0].Text,
+            sources[1].Text,
+            context,
+            command.Options.HasFlag(VirtualShellOptions.IgnoreSpaceChange));
+        string output = diff.IsEmpty
+            ? ""
+            : unified
+                ? $"{Header("---", sources[0].Path)}\n{Header("+++", sources[1].Path)}\n{UnifiedDiff.Format(diff)}".TrimEnd('\n')
+                : NormalDiff.Format(diff).TrimEnd('\n');
+        if (diff.IsCoarse) {
+            output += "\n[the pages differ too much to align line by line: this is one removed block and one added block]";
+        }
+
+        return Success(
+            new { output = WithinBudget(output), identical = diff.IsEmpty },
+            $"diff {Describe(sources[0].Path)} {Describe(sources[1].Path)}");
+    }
+
+    private static string Header(string marker, PagePath path) => $"{marker} {path.Key}";
 
     // The store's keys are a tree, and the shell speaks of it as one: a path names a folder as readily
     // as a page, ls lists what is at the path, -R and -r reach everything below it, and reaching a

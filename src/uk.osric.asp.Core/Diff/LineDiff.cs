@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Core.Diff;
 
+using System.Text;
+
 /// <summary>Compares two documents line by line.</summary>
 /// <remarks>
 /// <para>
@@ -34,12 +36,32 @@ public static class LineDiff {
     /// <param name="after">The later document.</param>
     /// <returns>The changes, grouped into hunks with <see cref="ContextLines"/> lines of context.</returns>
     /// <exception cref="ArgumentNullException">Either document is <see langword="null"/>.</exception>
-    public static DiffDocument Compare(string before, string after) {
+    public static DiffDocument Compare(string before, string after) => Compare(before, after, ContextLines, ignoreSpaceChange: false);
+
+    /// <summary>Compares two documents line by line, with as much context as asked for.</summary>
+    /// <param name="before">The earlier document.</param>
+    /// <param name="after">The later document.</param>
+    /// <param name="contextLines">How many unchanged lines surround each changed region.</param>
+    /// <param name="ignoreSpaceChange">
+    /// Whether a run of blanks compares equal to any other run of blanks, and to none at the end of a
+    /// line, as <c>diff -b</c> means it to.
+    /// </param>
+    /// <returns>The changes, grouped into hunks with <paramref name="contextLines"/> lines of context.</returns>
+    /// <exception cref="ArgumentNullException">Either document is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="contextLines"/> is negative.</exception>
+    /// <remarks>
+    /// The ignored difference is the whitespace, never the line: the comparison runs on a collapsed
+    /// copy of each line and the text in the result is put back as it was written.
+    /// </remarks>
+    public static DiffDocument Compare(string before, string after, int contextLines, bool ignoreSpaceChange) {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
+        ArgumentOutOfRangeException.ThrowIfNegative(contextLines);
 
-        string[] beforeLines = SplitLines(before);
-        string[] afterLines = SplitLines(after);
+        string[] beforeWritten = SplitLines(before);
+        string[] afterWritten = SplitLines(after);
+        string[] beforeLines = ignoreSpaceChange ? [.. beforeWritten.Select(WhitespaceKey)] : beforeWritten;
+        string[] afterLines = ignoreSpaceChange ? [.. afterWritten.Select(WhitespaceKey)] : afterWritten;
 
         int prefix = 0;
         while (prefix < beforeLines.Length
@@ -83,11 +105,48 @@ public static class LineDiff {
             script.Add(new DiffLine(DiffLineKind.Context, beforeLines[index], beforeNumber++, afterNumber++));
         }
 
-        return new DiffDocument(
-            BuildHunks(script),
+        DiffDocument diff = new(
+            BuildHunks(script, contextLines),
             script.Count(line => line.Kind == DiffLineKind.Added),
             script.Count(line => line.Kind == DiffLineKind.Removed),
             isCoarse);
+
+        return ignoreSpaceChange ? AsWritten(diff, beforeWritten, afterWritten) : diff;
+    }
+
+    /// <summary>The comparison's alignment, with each line's text put back as it was written.</summary>
+    private static DiffDocument AsWritten(DiffDocument diff, string[] before, string[] after) => diff with {
+        Hunks = [
+            .. diff.Hunks.Select(hunk => hunk with {
+                Lines = [
+                    .. hunk.Lines.Select(line => line with {
+                        Text = line.Kind == DiffLineKind.Added
+                            ? after[line.AfterLine!.Value - 1]
+                            : before[line.BeforeLine!.Value - 1],
+                    }),
+                ],
+            }),
+        ],
+    };
+
+    // POSIX -b: any run of blanks compares equal to any other, and a run at the end of a line compares
+    // equal to no blanks at all, so changing trailing white space is not a change.
+    private static string WhitespaceKey(string line) {
+        StringBuilder key = new(line.Length);
+        bool pending = false;
+        foreach (char character in line) {
+            if (character is ' ' or '\t') {
+                pending = key.Length > 0;
+            } else {
+                if (pending) {
+                    _ = key.Append(' ');
+                    pending = false;
+                }
+                _ = key.Append(character);
+            }
+        }
+
+        return key.ToString();
     }
 
     private static string[] SplitLines(string text) {
@@ -222,7 +281,7 @@ public static class LineDiff {
         return operations;
     }
 
-    private static IReadOnlyList<DiffHunk> BuildHunks(List<DiffLine> script) {
+    private static IReadOnlyList<DiffHunk> BuildHunks(List<DiffLine> script, int contextLines) {
         List<int> changes = [];
         for (int index = 0; index < script.Count; index++) {
             if (script[index].Kind != DiffLineKind.Context) {
@@ -249,13 +308,13 @@ public static class LineDiff {
 
             // Changes no more than two context distances apart would share their context, so they
             // belong to one hunk rather than two adjacent ones.
-            while (next < changes.Count && changes[next] - last - 1 <= 2 * ContextLines) {
+            while (next < changes.Count && changes[next] - last - 1 <= 2 * contextLines) {
                 last = changes[next];
                 next++;
             }
 
-            int start = Math.Max(0, first - ContextLines);
-            int end = Math.Min(script.Count, last + ContextLines + 1);
+            int start = Math.Max(0, first - contextLines);
+            int end = Math.Min(script.Count, last + contextLines + 1);
             int beforeCount = beforeCounts[end] - beforeCounts[start];
             int afterCount = afterCounts[end] - afterCounts[start];
 

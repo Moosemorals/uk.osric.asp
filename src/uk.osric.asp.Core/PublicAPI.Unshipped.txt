@@ -65,6 +65,8 @@ static uk.osric.asp.Core.Diff.DiffHunk.operator ==(uk.osric.asp.Core.Diff.DiffHu
 static uk.osric.asp.Core.Diff.DiffLine.operator !=(uk.osric.asp.Core.Diff.DiffLine left, uk.osric.asp.Core.Diff.DiffLine right) -> bool
 static uk.osric.asp.Core.Diff.DiffLine.operator ==(uk.osric.asp.Core.Diff.DiffLine left, uk.osric.asp.Core.Diff.DiffLine right) -> bool
 static uk.osric.asp.Core.Diff.LineDiff.Compare(string! before, string! after) -> uk.osric.asp.Core.Diff.DiffDocument!
+static uk.osric.asp.Core.Diff.LineDiff.Compare(string! before, string! after, int contextLines, bool ignoreSpaceChange) -> uk.osric.asp.Core.Diff.DiffDocument!
+static uk.osric.asp.Core.Diff.NormalDiff.Format(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
 static uk.osric.asp.Core.Diff.UnifiedDiff.Format(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
 static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool
 uk.osric.asp.Core.Assistant.GrepPattern
@@ -143,12 +145,14 @@ uk.osric.asp.Core.Assistant.VirtualShellCommand.VirtualShellCommand(string! Name
 uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.Counts = 64 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.IgnoreCase = 2 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellOptions.IgnoreSpaceChange = 128 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.Long = 4 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.Names = 32 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.None = 0 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.Numbers = 1 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.Recursive = 8 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.Reverse = 16 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellOptions.Unified = 256 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Charting.ChartFrame
 uk.osric.asp.Core.Charting.ChartFrame.<Clone>$() -> uk.osric.asp.Core.Charting.ChartFrame!
 *REMOVED*uk.osric.asp.Core.Charting.ChartFrame.ChartFrame(string! Id, string! Title, string! YTitle, string! EmptyText, System.TimeZoneInfo! Zone) -> void
@@ -216,6 +220,7 @@ uk.osric.asp.Core.Diff.DiffLineKind.Added = 1 -> uk.osric.asp.Core.Diff.DiffLine
 uk.osric.asp.Core.Diff.DiffLineKind.Context = 0 -> uk.osric.asp.Core.Diff.DiffLineKind
 uk.osric.asp.Core.Diff.DiffLineKind.Removed = 2 -> uk.osric.asp.Core.Diff.DiffLineKind
 uk.osric.asp.Core.Diff.LineDiff
+uk.osric.asp.Core.Diff.NormalDiff
 uk.osric.asp.Core.Diff.UnifiedDiff
 uk.osric.asp.Core.Markdown.LinkPolicy
 override uk.osric.asp.Core.Assistant.ContextPlan.Equals(object? obj) -> bool

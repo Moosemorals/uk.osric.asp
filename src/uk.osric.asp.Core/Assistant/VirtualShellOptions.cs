@@ -35,4 +35,10 @@ public enum VirtualShellOptions {
 
     /// <summary><c>-c</c> on <c>grep</c>: how many lines match in each key, instead of the lines.</summary>
     Counts = 64,
+
+    /// <summary><c>-b</c> on <c>diff</c>: a run of blanks compares equal to any other, and to none at the end of a line.</summary>
+    IgnoreSpaceChange = 128,
+
+    /// <summary><c>-u</c> on <c>diff</c>: the unified format instead of the normal one.</summary>
+    Unified = 256,
 }

@@ -27,6 +27,13 @@ public sealed class VirtualShellTests {
     [TestCase("head /a", "head", "/a")]
     [TestCase("head 3 /a", "head", "3", "/a")]
     [TestCase("tail /a", "tail", "/a")]
+    [TestCase("diff /a /b", "diff", "/a", "/b")]
+    [TestCase("diff -b /a /b", "diff", "/a", "/b")]
+    [TestCase("diff -u /a /b", "diff", "/a", "/b")]
+    [TestCase("diff -U 2 /a /b", "diff", "-U", "2", "/a", "/b")]
+    [TestCase("diff -U2 /a /b", "diff", "-U", "2", "/a", "/b")]
+    [TestCase("diff -U 0 /a /b", "diff", "-U", "0", "/a", "/b")]
+    [TestCase("diff -b -u -U 4 /a /b", "diff", "-U", "4", "/a", "/b")]
     [TestCase("ls", "ls")]
     public void ParsesSupportedCommandsAndQuotedArguments(string command, params string[] expected) {
         VirtualShellParseResult result = VirtualShellParser.Parse(command);
@@ -49,6 +56,9 @@ public sealed class VirtualShellTests {
     [TestCase("ls -r -l /a", VirtualShellOptions.Reverse | VirtualShellOptions.Long)]
     [TestCase("grep -l title /a", VirtualShellOptions.Names)]
     [TestCase("grep -c title /a", VirtualShellOptions.Counts)]
+    [TestCase("diff -b /a /b", VirtualShellOptions.IgnoreSpaceChange)]
+    [TestCase("diff -u /a /b", VirtualShellOptions.Unified)]
+    [TestCase("diff -b -u /a /b", VirtualShellOptions.IgnoreSpaceChange | VirtualShellOptions.Unified)]
     [TestCase("find -R /a", VirtualShellOptions.Recursive)]
     [TestCase("grep -r title /blog", VirtualShellOptions.Recursive)]
     [TestCase("grep -R title /blog", VirtualShellOptions.Recursive)]
@@ -66,6 +76,9 @@ public sealed class VirtualShellTests {
 
     [TestCase("ls -n /a", "ls has no -n")]
     [TestCase("cat -l /a", "cat has no -l")]
+    [TestCase("diff -U /a /b", "a context count with no count")]
+    [TestCase("diff -U x /a /b", "a context count that is not a number")]
+    [TestCase("diff -n /a /b", "diff has no -n")]
     public void RefusesAnOptionTheCommandDoesNotTake(string command, string why) {
         Assert.That(VirtualShellParser.Parse(command).Error, Is.Not.Null, why);
     }
@@ -73,7 +86,7 @@ public sealed class VirtualShellTests {
     [Test]
     public void CommandsAreListedInOrdinalOrder() {
         Assert.That(VirtualShellParser.Commands,
-            Is.EqualTo((string[])["cat", "find", "grep", "head", "help", "ls", "stat", "tail", "wc"]),
+            Is.EqualTo((string[])["cat", "diff", "find", "grep", "head", "help", "ls", "stat", "tail", "wc"]),
             "the help command's table is pinned to this list");
     }
 
@@ -168,6 +181,9 @@ public sealed class VirtualShellTests {
             Assert.That(VirtualShellParser.Parse("wc -l").Error, Is.Not.Null, "wc takes a key");
             Assert.That(VirtualShellParser.Parse("head 4").Error, Is.Not.Null, "a count with no key");
             Assert.That(VirtualShellParser.Parse("head -n 4").Error, Is.Not.Null, "a count with no key");
+            Assert.That(VirtualShellParser.Parse("diff /a").Error, Is.Not.Null, "diff compares a pair");
+            Assert.That(VirtualShellParser.Parse("diff /a /b /c").Error, Is.Not.Null, "a pair, for now");
+            Assert.That(VirtualShellParser.Parse("diff /a -b /b").Error, Is.Not.Null, "an option must lead");
         });
     }
 

@@ -58,12 +58,14 @@ one (DEC-219): `ls` lists what is at a path and `ls -R`/`find` list everything b
 reads one level and `grep -r` descends, and `grep`'s query is a basic regular expression whose
 `\|` is alternation while every other punctuation character is literal. A capped listing, a
 capped match, or a match that lies below the level a search read, is said in the answer rather
-than left to be misread. A save to a shell file answers "Not permitted": only the owner changes
-the shell, in code. The seeded assets are ordinary pages the assistant may edit;
-`Assistant:ProtectedPaths` (empty unless an operator fills it) is a separate, extra lock over a
-single page, which still reads as its own source. `RequireApproval` asks the path policy before
-it asks the owner, so a save it has already refused never becomes an approval nobody can grant.
-`check_script` stays a page-source check, so a shell file is refused there.
+than left to be misread. `diff` compares a pair of keys and writes POSIX `diff`'s own output
+(DEC-225), because where the shell implements a command it implements the POSIX one (DEC-224). A
+save to a shell file answers "Not permitted": only the owner changes the shell, in code. The
+seeded assets are ordinary pages the assistant may edit; `Assistant:ProtectedPaths` (empty
+unless an operator fills it) is a separate, extra lock over a single page, which still reads as
+its own source. `RequireApproval` asks the path policy before it asks the owner, so a save it
+has already refused never becomes an approval nobody can grant. `check_script` stays a
+page-source check, so a shell file is refused there.
 
 The assistant has a small memory of its own, one owner's and nobody else's (DEC-184–DEC-188). A memory
 is a note — a preference, a fact about this site, a correction, a reference to where something lives —
