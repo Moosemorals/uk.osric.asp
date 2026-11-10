@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Assistant.Shell;
 
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
@@ -129,9 +128,4 @@ internal sealed class PageStoreView(PageEditor pages, PagePathPolicy paths) : IP
         (false, true) => "-rw-r--r--",
         (false, false) => "-r--r--r--",
     };
-
-    /// <summary>The message a path that is not addressable gets.</summary>
-    /// <param name="path">The key as it was written.</param>
-    public static string NotAddressable(PagePath path) =>
-        $"The key {MessageText.Sanitize(path.Key)} is not a path a page can have: it contains '?' or '#'.";
 }

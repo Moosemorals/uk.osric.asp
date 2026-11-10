@@ -108,7 +108,6 @@ static uk.osric.asp.Core.Diff.UnifiedDiff.Format(uk.osric.asp.Core.Diff.DiffDocu
 static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool
 static uk.osric.asp.Core.Pages.PageGlob.IsMatch(string! pattern, string! key) -> bool
 static uk.osric.asp.Core.Pages.PageGlob.IsMatch(uk.osric.asp.Core.Shell.ShellWord! pattern, string! key) -> bool
-static uk.osric.asp.Core.Pages.PageGlob.IsWildcard(string! pattern) -> bool
 static uk.osric.asp.Core.Shell.ShellArgument.operator !=(uk.osric.asp.Core.Shell.ShellArgument? left, uk.osric.asp.Core.Shell.ShellArgument? right) -> bool
 static uk.osric.asp.Core.Shell.ShellArgument.operator ==(uk.osric.asp.Core.Shell.ShellArgument? left, uk.osric.asp.Core.Shell.ShellArgument? right) -> bool
 static uk.osric.asp.Core.Shell.ShellCommandLine.operator !=(uk.osric.asp.Core.Shell.ShellCommandLine? left, uk.osric.asp.Core.Shell.ShellCommandLine? right) -> bool
@@ -365,6 +364,7 @@ uk.osric.asp.Core.Assistant.ContextTrimResult.RequestBytes.init -> void
 *REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult.Error.init -> void
 *REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParseResult.VirtualShellParseResult(uk.osric.asp.Core.Assistant.VirtualShellCommand? Command, string? Error) -> void
 *REMOVED*uk.osric.asp.Core.Assistant.VirtualShellParser
+*REMOVED*static uk.osric.asp.Core.Charting.ValueUnit.ForSeconds(double min, double max) -> uk.osric.asp.Core.Charting.ChartScale
 uk.osric.asp.Core.Assistant.TokenUsage.CachedTokens.get -> int?
 uk.osric.asp.Core.Assistant.TokenUsage.CachedTokens.init -> void
 uk.osric.asp.Core.Assistant.TokenUsage.ReasoningTokens.get -> int?

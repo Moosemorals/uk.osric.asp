@@ -22,13 +22,6 @@ using uk.osric.asp.Core.Shell;
 /// </remarks>
 public static class PageGlob {
 
-    /// <summary>Whether a pattern has a wildcard in it, and so needs expanding.</summary>
-    /// <param name="pattern">The pattern as it was written.</param>
-    public static bool IsWildcard(string pattern) {
-        ArgumentNullException.ThrowIfNull(pattern);
-        return pattern.AsSpan().IndexOfAny('*', '?') >= 0;
-    }
-
     /// <summary>Whether a key matches a pattern written as a plain string.</summary>
     /// <param name="pattern">The pattern, as a path a shell would expand.</param>
     /// <param name="key">A canonical page key.</param>

@@ -41,14 +41,4 @@ public sealed class PageGlobTests {
             Assert.That(PageGlob.IsMatch("/vim/../vim/*", "/vim/vim.js"), Is.True, "so does a dot-dot");
         });
     }
-
-    [Test]
-    public void KnowsWhatAWildcardIs() {
-        Assert.Multiple(() => {
-            Assert.That(PageGlob.IsWildcard("/vim/*.js"), Is.True);
-            Assert.That(PageGlob.IsWildcard("/vim/?.js"), Is.True);
-            Assert.That(PageGlob.IsWildcard("/vim/vim.js"), Is.False);
-            Assert.That(PageGlob.IsWildcard("/"), Is.False);
-        });
-    }
 }
