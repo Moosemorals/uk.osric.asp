@@ -125,7 +125,7 @@ memory needs no repeated values, no cookie and no hashing.
 | `docs/architecture.md`, `docs/decisions.md` | The rule and the audit; DEC-205 moved to superseded in phase 3 |
 | `docs/assistant.md`, `docs/storage.md`, `docs/testing.md`, `docs/glossary.md` | The page, the capability, the suites, the terms |
 | `docs/jobs/IDEA-024.md`, `IDEA-025.md`, `docs/jobs/README.md` | The two jobs this plan opens |
-| `docs/plans/assistant-memory-page.md` | A note: its shell view is superseded, its store work stands |
+| `docs/plans/archive/assistant-memory-page.md` | A note: its shell view is superseded, its store work stands |
 
 ## Design
 

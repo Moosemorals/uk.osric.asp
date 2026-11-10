@@ -5,9 +5,16 @@ SPDX-License-Identifier: MIT
 
 # A kernel for the virtual shell
 
-The plan for the shell the shell became: commands as applets, one kernel that lexes, parses and
-expands, and the POSIX rule DEC-224 set. Written before the work and kept afterwards, as DEC-09 asks;
-the decisions it landed are DEC-226 and DEC-227.
+Status: **implemented 2026-11-10**. The plan for the shell the shell became: commands as applets,
+one kernel that lexes, parses and expands, and the POSIX rule DEC-224 set. Written before the work
+and kept afterwards, as DEC-09 asks; the decisions it landed are DEC-226 and DEC-227.
+
+Implementation notes, where the code differs from the plan: the applet fixtures were consolidated
+rather than one file per command — `CatAndStatAppletTests`, `LsAppletTests` and
+`ShellPatternAndSearchTests` cover the reading and searching commands over the fake
+`IPageStoreView`; `HelpApplet` is proved through `ShellRegistryTests`, whose
+`HelpListsEveryAppletAndDescribesOne` renders the registry rather than holding a parallel table; and
+the tool's JSON surface stays in `PageToolExecutorTests` and `PageToolExecutorDiffTests`.
 
 ## Why
 

@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Landed |
+| Status | Implemented 2026-11-09 |
 | Size | Medium — two store operations, four routes, a list-and-form view, one seed's styles and the tests for each |
-| Spike | None. [The memory spike](../spikes/assistant-memory.md) already settled the store; this plan only reads and writes it |
+| Spike | None. [The memory spike](../../spikes/assistant-memory.md) already settled the store; this plan only reads and writes it |
 | Decisions | DEC-205–DEC-209, recorded when this lands |
-| Backlog | [IDEA-023](../jobs/README.md#closed), which this plan closed |
-| Superseded | D2–D6, the shell view, by [page first](page-first.md): the capability and the seeded page replace the endpoint, and D1's store work stands |
+| Backlog | [IDEA-023](../../jobs/README.md#closed), which this plan closed |
+| Superseded | D2–D6, the shell view, by [page first](../page-first.md): the capability and the seeded page replace the endpoint, and D1's store work stands |
 
 ## The short version
 
@@ -502,11 +502,11 @@ trip edits, pins and forgets a memory.
 
 ### Phase 4 — documents and the closed job (half a day)
 
-- [assistant](../assistant.md): the page replaces "until the page lands".
-- [storage](../storage.md): the owner's write and the pin.
-- [testing](../testing.md): the suites.
-- [glossary](../glossary.md): **Memory page** and **Pin**.
-- Delete `docs/jobs/IDEA-023.md` and add its row to [the closed jobs](../jobs/README.md#closed).
+- [assistant](../../assistant.md): the page replaces "until the page lands".
+- [storage](../../storage.md): the owner's write and the pin.
+- [testing](../../testing.md): the suites.
+- [glossary](../../glossary.md): **Memory page** and **Pin**.
+- Delete `docs/jobs/IDEA-023.md` and add its row to [the closed jobs](../../jobs/README.md#closed).
 - The plan's status row moved to landed; link and anchor check.
 
 **Done when** the docs describe what the code does, IDEA-023 is closed with its outcome, and
@@ -530,10 +530,10 @@ trip edits, pins and forgets a memory.
   index row in one transaction, no tombstone — and it asks on a page of its own first, which also
   says what the delete cannot reach.
 
-Docs changes: [assistant](../assistant.md) gains the page where it now says the transcript is the only
-view; [storage](../storage.md) gains the owner's write beside the assistant's; [testing](../testing.md)
-names the three suites; [glossary](../glossary.md) defines **Memory page** and **Pin**; IDEA-023 moves
-to [closed](../jobs/README.md#closed); and the plan's status row says landed.
+Docs changes: [assistant](../../assistant.md) gains the page where it now says the transcript is the only
+view; [storage](../../storage.md) gains the owner's write beside the assistant's; [testing](../../testing.md)
+names the three suites; [glossary](../../glossary.md) defines **Memory page** and **Pin**; IDEA-023 moves
+to [closed](../../jobs/README.md#closed); and the plan's status row says landed.
 
 ## Risks
 

@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Landed |
+| Status | Implemented 2026-11-09 |
 | Size | Large — a migration, a store, four tools, recall in the run, and the tests for each |
-| Spike | [Memory for the page assistant](../spikes/assistant-memory.md), which measures the store and surveys what other systems do |
-| Decisions | DEC-184–DEC-188, recorded in [decisions](../decisions.md#architecture-and-code-placement) |
-| Backlog | [IDEA-023](../jobs/README.md#closed) — the page that shows, edits and pins memory, now built by [its own plan](assistant-memory-page.md) |
+| Spike | [Memory for the page assistant](../../spikes/assistant-memory.md), which measures the store and surveys what other systems do |
+| Decisions | DEC-184–DEC-188, recorded in [decisions](../../decisions.md#architecture-and-code-placement) |
+| Backlog | [IDEA-023](../../jobs/README.md#closed) — the page that shows, edits and pins memory, now built by [its own plan](assistant-memory-page.md) |
 
 ## The short version
 
@@ -36,7 +36,7 @@ run.
   under a millisecond.
 
 The owner's view of all this — a page that lists, edits, forgets and pins — is
-[IDEA-023](../jobs/README.md#closed). This plan stores the `Pinned` flag and honours it in the selector so
+[IDEA-023](../../jobs/README.md#closed). This plan stores the `Pinned` flag and honours it in the selector so
 that the job is a page rather than a migration, but until the job lands nothing sets it except a
 test. The assistant's own tools are the whole owner interface in the meantime: the transcript shows
 every write, and `forget_memory` is how a memory is removed.
@@ -59,7 +59,7 @@ every write, and `forget_memory` is how a memory is removed.
 ## Non-goals
 
 - **An owner-facing page.** Listing, editing, forgetting and pinning from the browser is
-  [IDEA-023](../jobs/README.md#closed), built by [the memory page plan](assistant-memory-page.md). This
+  [IDEA-023](../../jobs/README.md#closed), built by [the memory page plan](assistant-memory-page.md). This
   plan is the assistant side.
 - **Embeddings, a vector store or a reranker.** The provider client speaks chat completions only,
   and the measured recall at this size does not need them.
@@ -80,7 +80,7 @@ every write, and `forget_memory` is how a memory is removed.
 ## What exists today
 
 The assistant is an optional, owner-scoped subsystem under `/assistant`
-([assistant](../assistant.md)). The parts this plan builds on:
+([assistant](../../assistant.md)). The parts this plan builds on:
 
 | Piece | Today | Used here for |
 | --- | --- | --- |
@@ -218,7 +218,7 @@ The decisions inside the schema, one at a time:
 - **`Kind` is four values.** `preference`, `fact`, `feedback`, `reference` — enough to group the
   prompt block and to make a later page useful, and not a taxonomy that has to be maintained.
 - **`Pinned` is an owner control.** The assistant may not set it. The column and the selector's
-  pinned tier exist so [IDEA-023](../plans/assistant-memory-page.md) adds a toggle rather than a migration; until
+  pinned tier exist so [IDEA-023](assistant-memory-page.md) adds a toggle rather than a migration; until
   then it is always 0 and the tier is proved by test alone.
 - **Provenance is not a foreign key.** A memory outlives the conversation that produced it, so
   `SourceConversationId` and `SourceRunId` are plain nullable values, nulled explicitly when the
@@ -431,7 +431,7 @@ The defaults go in `AssistantOptions` and the shipped values in `appsettings.jso
 assistant limits. `MaxMemoryCharsPerRun` is 3.3% of the 120,000-character default context budget and
 0.8% of the 500,000 the shipped configuration sets; either way memory cannot crowd out the
 transcript, and the context row on the page shows it. If the
-[token-counting spike](../spikes/deepseek-token-counting.md) turns the context budget into tokens,
+[token-counting spike](../../spikes/deepseek-token-counting.md) turns the context budget into tokens,
 these six follow it in the same change rather than ahead of it.
 
 Instruments:
@@ -551,7 +551,7 @@ Each phase ends with a green `make check` and its tests written first.
 
 ### Phase 0 — decisions and scaffolding (half a day)
 
-- Record DEC-184–DEC-188 in [decisions](../decisions.md); they land with this plan, so the numbers
+- Record DEC-184–DEC-188 in [decisions](../../decisions.md); they land with this plan, so the numbers
   are fixed before any code.
 - Create the `Core.Assistant` value types and the empty rules with their tests failing.
 - Add the six settings, the validator rules and `appsettings.json`, with the options tests.
@@ -593,8 +593,8 @@ another owner's request without it, and the run's warning path when the store th
 
 - `SqliteConversationStore.DeleteAsync` clears provenance; `users remove` sweeps the owner.
 - The logging and metric review: no content anywhere.
-- [assistant](../assistant.md), [storage](../storage.md), [glossary](../glossary.md) and
-  [testing](../testing.md) updated, and the plan's status row moved to landed.
+- [assistant](../../assistant.md), [storage](../../storage.md), [glossary](../../glossary.md) and
+  [testing](../../testing.md) updated, and the plan's status row moved to landed.
 - Link and anchor check.
 
 **Done when** a conversation delete and an account removal are both proved by test, the docs describe
@@ -624,10 +624,10 @@ were claimed by the status-page rebuild and the assistant's own budget work, so 
 are DEC-184–DEC-188. The prompt version is `page-author-v13` rather than the v12 this plan names,
 because v12 was taken by the context-masking change that merged ahead of this one.
 
-Docs changes: a paragraph in [assistant](../assistant.md) after the tools and approvals paragraph; an
-"Assistant memory" subsection in [storage](../storage.md) beside `PageState`; **Memory** and **Recall**
-entries in [glossary](../glossary.md); a clause in [testing](../testing.md) naming the memory suites;
-the six settings in `appsettings.json`; and [IDEA-023](../jobs/README.md#closed) for the page.
+Docs changes: a paragraph in [assistant](../../assistant.md) after the tools and approvals paragraph; an
+"Assistant memory" subsection in [storage](../../storage.md) beside `PageState`; **Memory** and **Recall**
+entries in [glossary](../../glossary.md); a clause in [testing](../../testing.md) naming the memory suites;
+the six settings in `appsettings.json`; and [IDEA-023](../../jobs/README.md#closed) for the page.
 
 ## Risks
 

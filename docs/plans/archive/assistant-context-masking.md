@@ -70,22 +70,22 @@ Status: **implemented 2026-11-09**. Written 2026-11-09; checked against the code
 Checked against the code on 2026-11-09.
 
 - **The trimmer drops whole turns against a character count.**
-  [`ContextTrimmer.Trim`](../../src/uk.osric.asp.Core/Assistant/ContextTrimmer.cs) keeps the system
+  [`ContextTrimmer.Trim`](../../../src/uk.osric.asp.Core/Assistant/ContextTrimmer.cs) keeps the system
   prompt and the newest whole turns that fit `maximumChars`. It groups a turn at each `user`
   message, never splits a turn, and returns an error when the system prompt and newest turn alone do
   not fit, which the run turns into `context_too_long`. `MeasureChars` counts
   `Content.Length + ToolCallsJson.Length`; it does not count the JSON envelope, the tool name or the
   tool-call id.
 - **The run builds the provider request from the trimmer's output.**
-  [`RunProcessor`](../../src/uk.osric.asp.Web/Assistant/RunProcessor.cs) loads the transcript and
+  [`RunProcessor`](../../../src/uk.osric.asp.Web/Assistant/RunProcessor.cs) loads the transcript and
   the system prompt, trims them, and constructs a `ChatRequest` around `trimmed.Messages`. It
   publishes `context_trimmed` as a `run.warning`.
 - **The context row counts the untrimmed conversation.**
-  [`BudgetSnapshot.Measure`](../../src/uk.osric.asp.Core/Assistant/BudgetSnapshot.cs) takes the
+  [`BudgetSnapshot.Measure`](../../../src/uk.osric.asp.Core/Assistant/BudgetSnapshot.cs) takes the
   system prompt plus every stored message and measures them with `ContextTrimmer.MeasureChars`.
-  [DEC-159](../decisions.md) made that deliberate: the page render and the run stream measure the
-  stored transcript so they cannot disagree. [DEC-141](../decisions.md) and
-  [DEC-162](../decisions.md) describe the row and its compact presentation.
+  [DEC-159](../../decisions.md) made that deliberate: the page render and the run stream measure the
+  stored transcript so they cannot disagree. [DEC-141](../../decisions.md) and
+  [DEC-162](../../decisions.md) describe the row and its compact presentation.
 - **The page builds the same snapshot without the tools.** `AssistantEndpoint` calls
   `BudgetSnapshot.Measure([system, .. messages], ...)`; the tool definitions are in the request the
   run sends but not in the page's figure.

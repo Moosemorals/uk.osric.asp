@@ -29,8 +29,8 @@ planning](../plans/archive/page-features.md) of 2026-11-08, and is worth doing n
 fetch have left `SimpleContext`. ARCH-14 came out of the nullable-pages discussion of 2026-11-08 and
 carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md). ARCH-15 came
 out of the assistant shell-file work of 2026-11-09 (DEC-198). IDEA-023 came out of the
-[assistant-memory planning](../plans/assistant-memory.md) of 2026-11-09: that plan gave the assistant
-a memory and left the page that shows it to its owner behind, and [its own plan](../plans/assistant-memory-page.md)
+[assistant-memory planning](../plans/archive/assistant-memory.md) of 2026-11-09: that plan gave the assistant
+a memory and left the page that shows it to its owner behind, and [its own plan](../plans/archive/assistant-memory-page.md)
 has now built it. IDEA-024 and IDEA-025 came out of [the page-first plan](../plans/page-first.md) of
 2026-11-09 (DEC-210): the rule that anything a page can serve is a page, and the two things the shell
 still does because a page cannot (an archive, and a live run).
@@ -140,7 +140,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and DEC-180–DEC-185 |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
 | IDEA-002 | A page reaches any `http` or `https` host through `ctx.Features.GetRequired<IHttpFetch>()`; every failure is a value (DEC-216, DEC-129, DEC-143). See [the plan](../plans/archive/page-fetch-and-storage.md) |
-| IDEA-023 | `/assistant/memory` lists every memory the owner holds, grouped by kind with the pinned ones first, each row a form that saves content, kind and pin under the version it was rendered from, with a count against the cap and a forget that asks on its own page first (DEC-205–DEC-209). See [the plan](../plans/assistant-memory-page.md) |
+| IDEA-023 | `/assistant/memory` lists every memory the owner holds, grouped by kind with the pinned ones first, each row a form that saves content, kind and pin under the version it was rendered from, with a count against the cap and a forget that asks on its own page first (DEC-205–DEC-209). See [the plan](../plans/archive/assistant-memory-page.md) |
 | IDEA-003 | A page keeps state through `ctx.Features.GetRequired<IPageStorage>()` in a `PageState` table with per-page caps (DEC-125, DEC-126, DEC-127, DEC-142). See [the plan](../plans/archive/page-fetch-and-storage.md) |
 | IDEA-004 | The page contract is its own reference-free assembly, `uk.osric.asp.Sdk`. See [the plan](../plans/archive/page-sdk-split.md) |
 | IDEA-006 | `/site.css` is a seeded page rather than a static file, so the site's look is edited like any other page. See [the plan](../plans/archive/non-html-pages.md) |
