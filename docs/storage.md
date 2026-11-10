@@ -147,7 +147,7 @@ publish output. Each file is a complete page template and its filename becomes t
 response type follows that name's extension through `Pages:ContentTypes`, so the scripts,
 stylesheets and SVG are pure source with no directive of their own; the seeded `/rocket.svg` sets
 `image/svg+xml` explicitly as well, which is the same answer the map gives. `/site.css` holds the
-site's look, `/layout.css` the rules the document shell's markup needs (see [the document
+site's look and the rules the document shell's markup needs (see [the document
 shell](shell.md#the-document-shell)), while `/status.css` holds dashboard styles and is linked only
 by `/status`. Editing a seed file changes the initial content for
 a never-created page, not an existing database page. The authenticated restore action applies the

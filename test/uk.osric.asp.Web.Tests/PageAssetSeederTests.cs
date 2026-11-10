@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/layout.css", "/pages", "/recent", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/_layout", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/recent", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {
@@ -51,7 +51,6 @@ public sealed class PageAssetSeederTests {
     [TestCase("/assistant.js")]
     [TestCase("/editor.css")]
     [TestCase("/editor.js")]
-    [TestCase("/layout.css")]
     [TestCase("/site.css")]
     [TestCase("/status.css")]
     public async Task StylesheetsAndScriptsCarryNoTemplateDirectiveAsync(string path) {

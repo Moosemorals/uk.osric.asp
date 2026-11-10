@@ -205,7 +205,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         string body = await (await client.GetAsync("/own-document")).Content.ReadAsStringAsync();
 
         Assert.That(body, Does.StartWith("<!DOCTYPE html>"));
-        Assert.That(body, Does.Not.Contain("layout.css"));
+        Assert.That(body, Does.Not.Contain("<link rel=\"stylesheet\""));
         Assert.That(body, Does.Not.Contain("<main id=\"main\">"));
     }
 

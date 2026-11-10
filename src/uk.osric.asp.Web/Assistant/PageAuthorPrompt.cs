@@ -341,8 +341,8 @@ internal static class PageAuthorPrompt {
         the entry, not a host file mode: `-rw-r--r--` means a save would be
         accepted, `-r--r--r--` that it would not. A save to a shell file is
         refused as not permitted, and only the owner can change the shell, in
-        code. The seeded assets — `/site.css`, `/layout.css`, `/assistant.js`
-        and the rest — are ordinary pages you may edit, and so is any page the
+        code. The seeded assets — `/site.css`, `/assistant.js` and the rest —
+        are ordinary pages you may edit, and so is any page the
         host has not locked in `Assistant:ProtectedPaths`; a locked page still
         reads as its own source.
 

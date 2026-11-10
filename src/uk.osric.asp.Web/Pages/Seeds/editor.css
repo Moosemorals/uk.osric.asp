@@ -98,7 +98,7 @@ body.editor-page {
     border-collapse: collapse;
 }
 
-/* Alignment is the shell's: /layout.css left-aligns a row header and centres a column one. */
+/* Alignment is the shell's: /site.css left-aligns a row header and centres a column one. */
 .pages th,
 .pages td {
     padding: 0.25rem 0.75rem 0.25rem 0;

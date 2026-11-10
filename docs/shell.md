@@ -16,17 +16,17 @@ Everything the site itself serves — the editor, the listing, sign-in, status, 
 the confirmations — is one document shape, written by `Html/ShellDocument.cs`. `BeginAsync` sets the
 content type, the status and `Cache-Control: no-store` (unless the response already carries a header,
 which is how a view that mints an antiforgery token keeps the framework's `no-cache, no-store`),
-writes the head (the title, `/layout.css`, `/site.css`, the view's own sheet where it has one, then
-the icon) and opens `<main id="main">`; `EndAsync` closes the landmark and the document. A view
-writes its own body content and nothing else, so the title, the landmark and the sheet order cannot
-drift apart from one view to the next.
+writes the head (the title, `/site.css`, the view's own sheet where it has one, then the icon) and
+opens `<main id="main">`; `EndAsync` closes the landmark and the document. A view writes its own body
+content and nothing else, so the title, the landmark and the sheet order cannot drift apart from one
+view to the next.
 
 - The body opens with the skip link, then the banner, then the one `main`. `BeginAsync` requires a
   navigation argument, so no view can be written without a menu: the shell composes its own with
   `SiteNavigation`, and the seeded layout writes the same items for stored pages (DEC-151, DEC-154).
-- `/layout.css` is a seeded page and is linked **first** (DEC-116). It holds the document's shape —
-  the visually hidden utility, the listing and the form grid. `site.css` owns look and
-  comes next, and the view's own sheet is last, so either can override a structural rule without a
+- `/site.css` is a seeded page and the only base sheet (DEC-217). It holds the document's shape —
+  the visually hidden utility, the listing and the form grid — and the site's look, with the shape
+  rules first. The view's own sheet is linked last, so it can override a structural rule without a
   more specific selector. The owner restores a stale seeded sheet from the page list.
 - `/status` writes body content only — its heading, window nav, banner and figures — and its document
   is the builder's, like every other view's. A chart it draws can also be requested on its own at

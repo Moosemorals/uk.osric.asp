@@ -29,9 +29,9 @@ public static class PageDocument {
     public const string SkipLinkText = "Skip to content";
 
     /// <summary>The sheets every document links before its own, in this order.</summary>
-    /// <remarks><c>/layout.css</c> carries the document's shape, so a site or page sheet overrides a
-    /// structural rule without a more specific selector.</remarks>
-    public static IReadOnlyList<string> BaseStylesheets { get; } = ["/layout.css", "/site.css"];
+    /// <remarks><c>/site.css</c> carries the document's shape and the site's look, so a page sheet
+    /// overrides a structural rule without a more specific selector.</remarks>
+    public static IReadOnlyList<string> BaseStylesheets { get; } = ["/site.css"];
 
     /// <summary>Whether a value is a path on this site rather than an absolute or protocol-relative URL.</summary>
     /// <param name="href">The value to test.</param>

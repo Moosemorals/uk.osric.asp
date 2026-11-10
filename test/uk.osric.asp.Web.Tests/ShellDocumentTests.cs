@@ -22,13 +22,13 @@ public sealed class ShellDocumentTests {
     }
 
     [Test]
-    public async Task SheetsAreLinkedLayoutThenSiteThenViewAsync() {
+    public async Task SheetsAreLinkedSiteThenViewAsync() {
         string[] sheets = [.. MarkupReader.Parse(await RenderAsync(stylesheets: ["/editor.css"]))
             .Elements("link")
             .Where(link => string.Equals(link.Attribute("rel"), "stylesheet", StringComparison.Ordinal))
             .Select(link => link.Attribute("href")!)];
 
-        string[] expected = ["/layout.css", "/site.css", "/editor.css"];
+        string[] expected = ["/site.css", "/editor.css"];
         Assert.That(sheets, Is.EqualTo(expected));
     }
 
@@ -39,7 +39,7 @@ public sealed class ShellDocumentTests {
             .Where(link => string.Equals(link.Attribute("rel"), "stylesheet", StringComparison.Ordinal))
             .Select(link => link.Attribute("href")!)];
 
-        string[] expected = ["/layout.css", "/site.css"];
+        string[] expected = ["/site.css"];
         Assert.That(sheets, Is.EqualTo(expected));
     }
 
@@ -50,7 +50,7 @@ public sealed class ShellDocumentTests {
             .Where(link => string.Equals(link.Attribute("rel"), "stylesheet", StringComparison.Ordinal))
             .Select(link => link.Attribute("href")!)];
 
-        string[] expected = ["/layout.css", "/site.css", "/first.css", "/second.css"];
+        string[] expected = ["/site.css", "/first.css", "/second.css"];
         Assert.That(sheets, Is.EqualTo(expected));
     }
 

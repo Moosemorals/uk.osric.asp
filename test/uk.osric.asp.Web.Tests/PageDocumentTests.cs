@@ -13,7 +13,7 @@ using uk.osric.asp.Sdk;
 [TestFixture]
 public sealed class PageDocumentTests {
 
-    private static readonly string[] s_baseSheets = ["/layout.css", "/site.css"];
+    private static readonly string[] s_baseSheets = ["/site.css"];
 
     [Test]
     public void TheHeadMatchesWhatTheShellWrites() {
@@ -28,33 +28,33 @@ public sealed class PageDocumentTests {
     }
 
     [Test]
-    public void TheSheetsAreLinkedLayoutThenSiteThenTheView() {
+    public void TheSheetIsLinkedBeforeTheView() {
         Assert.That(Sheets(PageDocument.Head("Title", ["/editor.css"])),
-            Is.EqualTo((string[])["/layout.css", "/site.css", "/editor.css"]));
+            Is.EqualTo((string[])["/site.css", "/editor.css"]));
     }
 
     [Test]
-    public void APageWithNoSheetsGetsTheBaseTwoAndNothingElse() {
+    public void APageWithNoSheetsGetsTheBaseSheetAndNothingElse() {
         Assert.That(Sheets(PageDocument.Head("Title")), Is.EqualTo(s_baseSheets));
     }
 
     [Test]
     public void EverySheetThePageAsksForIsLinkedInTheOrderItAsked() {
         Assert.That(Sheets(PageDocument.Head("Title", ["/blog.css", "/print.css"])),
-            Is.EqualTo((string[])["/layout.css", "/site.css", "/blog.css", "/print.css"]));
+            Is.EqualTo((string[])["/site.css", "/blog.css", "/print.css"]));
     }
 
     [Test]
     public void OnePageMayLinkSeveralSheets() {
         string[] sheets = Sheets(PageDocument.Head("Title", ["/one.css", "/two.css", "/three.css"]));
 
-        Assert.That(sheets, Has.Length.EqualTo(5));
+        Assert.That(sheets, Has.Length.EqualTo(4));
     }
 
     [Test]
     public void TheSameSheetIsLinkedOnlyOnce() {
         Assert.That(Sheets(PageDocument.Head("Title", ["/site.css", "/page.css", "/page.css"])),
-            Is.EqualTo((string[])["/layout.css", "/site.css", "/page.css"]));
+            Is.EqualTo((string[])["/site.css", "/page.css"]));
     }
 
     [TestCase("https://example.com/site.css")]

@@ -18,7 +18,7 @@ internal static class ShellDocument {
     /// </param>
     /// <param name="statusCode">The response status.</param>
     /// <param name="stylesheets">
-    /// The sheets the view needs, after <c>/layout.css</c> and <c>/site.css</c>, in the order given.
+    /// The sheets the view needs, after <c>/site.css</c>, in the order given.
     /// </param>
     /// <param name="bodyClass">A class for <c>body</c>, when the view styles the document box.</param>
     /// <param name="head">

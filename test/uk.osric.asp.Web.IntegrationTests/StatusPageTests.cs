@@ -28,11 +28,8 @@ public sealed class StatusPageTests : IntegrationTest {
         using HttpResponseMessage anonymousStylesheet = await anonymous.GetAsync("/status.css");
 
         Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/status.css\">"));
-        Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/layout.css\">"));
-        Assert.That(status.IndexOf("/layout.css", StringComparison.Ordinal),
-            Is.LessThan(status.IndexOf("/site.css", StringComparison.Ordinal)), "layout.css is linked first");
         Assert.That(status.IndexOf("/site.css", StringComparison.Ordinal),
-            Is.LessThan(status.IndexOf("/status.css", StringComparison.Ordinal)), "the view's sheet follows the shared ones");
+            Is.LessThan(status.IndexOf("/status.css", StringComparison.Ordinal)), "the view's sheet follows the shared one");
         Assert.That(stylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(stylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
         Assert.That(stylesheet.Headers.CacheControl?.NoStore, Is.True);
@@ -42,7 +39,7 @@ public sealed class StatusPageTests : IntegrationTest {
         Assert.That(sharedStyles, Does.Contain("body {").And.Contain(".diagnostics"));
         Assert.That(sharedStyles, Does.Not.Contain(".status-nav").And.Not.Contain(".chart").And.Not.Contain(".heatmap"));
         Assert.That(login, Does.Not.Contain("/status.css"));
-        Assert.That(login, Does.Contain("<link rel=\"stylesheet\" href=\"/layout.css\">"));
+        Assert.That(login, Does.Contain("<link rel=\"stylesheet\" href=\"/site.css\">"));
     }
 
     [Test]

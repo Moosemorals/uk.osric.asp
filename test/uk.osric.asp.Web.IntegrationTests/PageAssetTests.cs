@@ -35,12 +35,6 @@ public sealed class PageAssetTests : IntegrationTest {
         Assert.That(statusStylesheet.Headers.CacheControl?.NoCache, Is.True);
         Assert.That(await statusStylesheet.Content.ReadAsStringAsync(), Is.EqualTo(RenderedSeed("status.css")));
 
-        using HttpResponseMessage layoutStylesheet = await client.GetAsync("/layout.css");
-        Assert.That(layoutStylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(layoutStylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
-        Assert.That(layoutStylesheet.Headers.CacheControl?.NoCache, Is.True);
-        Assert.That(await layoutStylesheet.Content.ReadAsStringAsync(), Is.EqualTo(RenderedSeed("layout.css")));
-
         using HttpResponseMessage editorStylesheet = await client.GetAsync("/editor.css");
         Assert.That(editorStylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(editorStylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
