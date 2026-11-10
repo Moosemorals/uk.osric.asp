@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Core.Assistant;
 
 using System.Globalization;
-using System.Text;
+using uk.osric.asp.Core.Shell;
 using uk.osric.asp.Core.Text;
 
 /// <summary>A parsed command for the page-store-only virtual shell.</summary>
@@ -40,8 +40,6 @@ public sealed record VirtualShellParseResult(VirtualShellCommand? Command, strin
 /// </remarks>
 public static class VirtualShellParser {
 
-    private static readonly HashSet<char> s_expanding = ['$', '`'];
-    private static readonly HashSet<char> s_operators = ['|', '>', '<', ';', '&', '\n', '\r'];
     private static readonly HashSet<string> s_commands = ["cat", "diff", "find", "grep", "head", "help", "ls", "stat", "tail", "wc"];
 
     /// <summary>Every command the shell answers, in ordinal order.</summary>
@@ -52,27 +50,27 @@ public static class VirtualShellParser {
     public static VirtualShellParseResult Parse(string text) {
         ArgumentNullException.ThrowIfNull(text);
 
-        LexResult lexed = Lex(text);
+        ShellLexResult lexed = ShellLine.Lex(text);
         if (lexed.Error is not null) {
             return Invalid(lexed.Error);
         }
 
         if (lexed.Words.Count == 0) {
             return lexed.Operator is { } unquoted
-                ? Invalid(OperatorError(unquoted))
+                ? Invalid(OperatorError(unquoted.Character))
                 : Invalid("There is no command to run. Run help for the commands the shell answers.");
         }
 
-        string name = lexed.Words[0];
+        string name = lexed.Words[0].Text;
         if (!s_commands.Contains(name)) {
             return Invalid($"The shell command {MessageText.Sanitize(name)} is not supported. Run help for the commands it answers.");
         }
 
         if (lexed.Operator is { } separator) {
-            return Invalid(OperatorError(separator));
+            return Invalid(OperatorError(separator.Character));
         }
 
-        List<string> arguments = [.. lexed.Words.Skip(1)];
+        List<string> arguments = [.. lexed.Words.Skip(1).Select(word => word.Text)];
         VirtualShellOptions options = VirtualShellOptions.None;
         int? context = null;
         while (arguments.Count > 0) {
@@ -104,102 +102,9 @@ public static class VirtualShellParser {
         return new VirtualShellParseResult(new VirtualShellCommand(name, arguments, options), null);
     }
 
-    /// <summary>One command line, as a lexer sees it: words, the first operator, or the fault.</summary>
-    /// <param name="Words">The words, with quoting and escaping applied.</param>
-    /// <param name="Operator">The first operator outside quotes, when the line carries one.</param>
-    /// <param name="Error">The fault that stopped the line, when there was one.</param>
-    private sealed record LexResult(IReadOnlyList<string> Words, char? Operator, string? Error);
-
-    /// <summary>Splits a line into words, applying quotes and escapes, and reports what stops it.</summary>
-    /// <remarks>
-    /// Quotes are why this is a lexer and not a scan for banned characters: a quoted character is
-    /// data, so it is the only way to search for one. Adjacent parts join into one word
-    /// (<c>pre"fix"</c> is <c>prefix</c>), an empty pair of quotes is an empty word, and a backslash
-    /// outside single quotes takes the next character literally, as it does in a shell.
-    /// </remarks>
-    private static LexResult Lex(string text) {
-        List<string> words = [];
-        StringBuilder word = new();
-        char quote = '\0';
-        bool started = false;
-        int index = 0;
-
-        while (index < text.Length) {
-            char character = text[index++];
-
-            if (quote == '\'') {
-                if (character == '\'') {
-                    quote = '\0';
-                } else {
-                    _ = word.Append(character);
-                }
-                continue;
-            }
-
-            if (quote == '"') {
-                if (character == '"') {
-                    quote = '\0';
-                } else if (character == '\\' && index < text.Length && text[index] is '"' or '\\' or '$' or '`') {
-                    // Inside double quotes only the quote, the backslash and the characters an
-                    // expansion would use are escaped, so a backslash before anything else survives
-                    // into the word, as a shell leaves it.
-                    _ = word.Append(text[index++]);
-                } else if (s_expanding.Contains(character)) {
-                    return new LexResult([], null, ExpansionError(character));
-                } else {
-                    _ = word.Append(character);
-                }
-                continue;
-            }
-
-            if (character == '\\') {
-                if (index == text.Length) {
-                    return new LexResult([], null,
-                        "The command line ends with a backslash, which escapes nothing. Run help for the accepted form.");
-                }
-                _ = word.Append(text[index++]);
-                started = true;
-            } else if (character is '\'' or '"') {
-                quote = character;
-                started = true;
-            } else if (s_expanding.Contains(character)) {
-                return new LexResult([], null, ExpansionError(character));
-            } else if (s_operators.Contains(character)) {
-                return new LexResult(words, character, null);
-            } else if (char.IsWhiteSpace(character)) {
-                AddWord();
-            } else {
-                _ = word.Append(character);
-                started = true;
-            }
-        }
-
-        if (quote != '\0') {
-            return new LexResult([], null, quote == '\''
-                ? "A single-quoted word was not closed. Run help for the accepted form."
-                : "A double-quoted word was not closed. Run help for the accepted form.");
-        }
-
-        AddWord();
-        return new LexResult(words, null, null);
-
-        void AddWord() {
-            if (!started) {
-                return;
-            }
-            words.Add(word.ToString());
-            _ = word.Clear();
-            started = false;
-        }
-    }
-
     /// <summary>Why an unquoted operator is refused.</summary>
     private static string OperatorError(char character) =>
         $"There are no pipes, redirects, separators or background jobs, so {Display(character)} is refused. Run help for the accepted form.";
-
-    /// <summary>Why an unquoted <c>$</c> or backtick is refused.</summary>
-    private static string ExpansionError(char character) =>
-        $"There is no variable or command expansion, so {Display(character)} is refused; single-quote it to search for a literal one. Run help for the accepted form.";
 
     private static string Display(char character) => character is '\n' or '\r' ? "a newline" : $"'{character}'";
 
