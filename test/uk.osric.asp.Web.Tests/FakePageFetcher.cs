@@ -13,7 +13,7 @@ internal sealed class FakePageFetcher(Func<HttpFetchRequest, HttpFetchResponse>?
         0,
         new Dictionary<string, string>(),
         string.Empty,
-        HttpFetchFailure.NotAllowed,
+        HttpFetchFailure.Network,
         false));
 
     public List<HttpFetchRequest> Requests { get; } = [];

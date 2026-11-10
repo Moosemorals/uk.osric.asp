@@ -1,4 +1,5 @@
 #nullable enable
+*REMOVED*uk.osric.asp.Sdk.HttpFetchFailure.NotAllowed = 2 -> uk.osric.asp.Sdk.HttpFetchFailure
 override uk.osric.asp.Sdk.PageEntry.GetHashCode() -> int
 override uk.osric.asp.Sdk.PageRevisionInfo.GetHashCode() -> int
 override uk.osric.asp.Sdk.PageSource.Equals(object? obj) -> bool

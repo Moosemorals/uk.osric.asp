@@ -90,6 +90,7 @@ public sealed class AssistantProviderClientTests {
         Assert.Multiple(() => {
             Assert.That(captured!.RequestUri!.AbsoluteUri, Is.EqualTo("https://api.deepseek.com/chat/completions"));
             Assert.That(captured.Headers.Accept, Does.Contain(new MediaTypeWithQualityHeaderValue("text/event-stream")));
+            Assert.That(captured.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (assistant)"));
             Assert.That(captured.Headers.Authorization, Is.Null);
             Assert.That(body, Does.Contain("\"stream\":true"));
             Assert.That(body, Does.Contain("\"tool_choice\":\"auto\""));

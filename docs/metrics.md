@@ -21,7 +21,7 @@ the other half of the same question and live in [logging](logging.md).
 | `page.load.duration` | histogram | s | `page.path` |
 | `page.invoke.duration` | histogram | s | `page.path`, `outcome` |
 | `page.save.duration` | histogram | s | `page.path`, `outcome` |
-| `page.fetch.duration` | histogram | s | `page.path`, `outcome` (`ok`, `http-error`, `not-allowed`, `timeout`, `network`, `invalid`, `limit`, `redirect-limit`, `aborted`) |
+| `page.fetch.duration` | histogram | s | `page.path`, `outcome` (`ok`, `http-error`, `timeout`, `network`, `invalid`, `limit`, `redirect-limit`, `aborted`) |
 | `page.image.size` | histogram | By | `page.path` |
 | `page.import.duration` | histogram | s | `outcome` — one imported archive, compiled and committed |
 | `page.layout.fallback` | counter | — | `page.path` — pages served without the default layout because it could not be served |

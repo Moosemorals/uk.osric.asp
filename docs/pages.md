@@ -41,10 +41,13 @@ the build:
   name another page's state; the handle is the isolation. Values are JSON round-tripped by the
   host, keys are ordinal, and writes are last-write-wins. A `HEAD` render may read but never write
   (DEC-125, DEC-126, DEC-127).
-- `IHttpFetch` makes one outbound HTTP request from the host, not the browser, and only to hosts the
-  operator has allow-listed. `GetAsync` and `PostAsync` sit over `SendAsync(HttpFetchRequest)`;
-  every failure is a value rather than an exception, and the render's shared request count, the
-  deadline and abandonment all bound it (DEC-128, DEC-129, DEC-143).
+- `IHttpFetch` makes one outbound HTTP request from the host, not the browser, to any `http` or
+  `https` host the URL names: there is no host allow-list (DEC-216). Every request carries
+  `moosemorals.com (page)` as its `User-Agent`, set by the host after the page's own headers, so a
+  page cannot claim to be another client. `GetAsync` and `PostAsync` sit over
+  `SendAsync(HttpFetchRequest)`; every failure is a value rather than an exception, and the
+  render's shared request count, the deadline and abandonment all bound it (DEC-216, DEC-129,
+  DEC-143).
 - `IPageCatalog` reads the page store: `ListAsync(prefix)` lists the heads under a subtree,
   `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a page's history and
   `ReadRevisionAsync(key, hash)` reads one retained revision. It reads and never writes. The read is

@@ -114,9 +114,6 @@ internal sealed class PageMetrics : IDisposable {
     /// <summary>The remote server answered 4xx or 5xx.</summary>
     public const string FetchHttpError = "http-error";
 
-    /// <summary>The host is not on the operator's allow-list.</summary>
-    public const string FetchNotAllowed = "not-allowed";
-
     /// <summary>The per-fetch timeout or the render's deadline fired.</summary>
     public const string FetchTimeout = "timeout";
 

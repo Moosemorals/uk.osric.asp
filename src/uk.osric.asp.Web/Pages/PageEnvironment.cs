@@ -18,7 +18,7 @@ using uk.osric.asp.Web.Editor;
 /// <param name="Render">The render budget and body cap.</param>
 /// <param name="ContentTypes">The media type each page key's extension names.</param>
 /// <param name="Storage">The storage caps.</param>
-/// <param name="Fetch">The fetch allow-list and caps.</param>
+/// <param name="Fetch">The outbound fetch caps.</param>
 /// <param name="Read">The caps on a page's read of the page store.</param>
 /// <param name="StateStore">Where a page's state is read and written.</param>
 /// <param name="ReadStore">Where a page's catalog reads the page store.</param>

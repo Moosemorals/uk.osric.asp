@@ -11,6 +11,10 @@ SPDX-License-Identifier: MIT
 | Size | Small — one SDK property, one options parser, one injection path, and their tests |
 | Decisions | DEC-212 (proposed; add the row when this is implemented) |
 
+> **Update 2026-11-10:** DEC-216 removed the `Pages:Fetch:AllowedHosts` allow-list this plan assumed.
+> A credential's `Host` is now its own scope, and a credential is not widened by a host list because
+> there is none. The parts below that say a host "must appear in `AllowedHosts`" no longer apply.
+
 ## The short version
 
 A stored page needs to make an authenticated request — the assistant page calling its provider is
@@ -68,18 +72,17 @@ it to the assistant.
 `IHttpFetch` is the page's only egress. `SendAsync(HttpFetchRequest)` is the general form, with
 `GetAsync` and `PostAsync` as default interface members over it. `PageHttpFetch` binds the capability
 to one layer and the render's fetch budget; `PageFetcher` is the host implementation that validates
-the request, checks `Pages:Fetch:AllowedHosts` before any socket is opened, re-checks every redirect
-hop, and returns every failure as an `HttpFetchFailure` value rather than throwing.
+the request, checks the URL shape before any socket is opened, re-checks every redirect hop, and
+returns every failure as an `HttpFetchFailure` value rather than throwing.
 
 `HttpFetchRequest` already carries `Headers`, and its allow-list in `PageFetchHeaders` already
 permits `Authorization` and any `X-` header. The comment on the type says a page that needs a
 credential puts it in one of those headers deliberately. The missing piece is a way for the
 operator to supply the value without the page knowing it.
 
-The fetch configuration is read once at startup by `PageFetchOptions.FromConfiguration`; a malformed
-allowed host is already a startup error. `PageFetchOptions` is an internal `Web` record, and
-`PageFetcher` already receives the page's key for its metric and log tags, so it can enforce a
-page-bound credential without new plumbing.
+The fetch configuration is read once at startup by `PageFetchOptions.FromConfiguration`.
+`PageFetchOptions` is an internal `Web` record, and `PageFetcher` already receives the page's key for
+its metric and log tags, so it can enforce a page-bound credential without new plumbing.
 
 ## Design
 
@@ -91,7 +94,6 @@ The existing section grows one optional map:
 // appsettings.json ships the empty map; the value comes from the mode-0600 environment file.
 "Pages": {
   "Fetch": {
-    "AllowedHosts": [ "api.deepseek.com" ],
     "Credentials": {}
   }
 }
@@ -100,7 +102,6 @@ The existing section grows one optional map:
 An operator defines a credential with environment variables:
 
 ```sh
-Pages__Fetch__AllowedHosts__0=api.deepseek.com
 Pages__Fetch__Credentials__assistant__Host=api.deepseek.com
 Pages__Fetch__Credentials__assistant__Header=Authorization
 Pages__Fetch__Credentials__assistant__Scheme=Bearer
@@ -113,9 +114,8 @@ Every rule is checked by `PageFetchOptions.FromConfiguration`, which throws
 request:
 
 - **Name** — the configuration key. Non-empty, at most 64 characters, no control characters.
-- **`Host`** — required, a bare host under the existing `ValidateHost` rules (no scheme, path, query
-  or port), and it must appear in `Pages:Fetch:AllowedHosts`. The allow-list stays the egress
-  boundary; a credential does not silently widen it.
+- **`Host`** — required, a bare host (no scheme, path, query or port). It is the credential's own
+  scope: the header is attached only to this host, whatever else the page may fetch.
 - **`Page`** — required. Canonicalised with `PagePath.Normalize` and required to be addressable. The
   credential is usable only by that exact canonical key, so a page created or edited by the
   assistant cannot spend the operator's token by naming it.
@@ -161,13 +161,13 @@ rule; no special version bump is needed.
   `Authorization` while naming a credential with `Header=Authorization` is ambiguous, so it is
   refused rather than silently overridden.
 - The credential is bound to another page, the request host is not the credential's host, or the
-  target is plaintext and not loopback → `HttpFetchFailure.NotAllowed`, and no request is made.
+  target is plaintext and not loopback → `HttpFetchFailure.InvalidRequest`, and no request is made.
 
 The header is added per hop, not once for the whole redirect chain. It is present only when that
 hop's `Uri.IdnHost` equals the credential's host and the hop is `https` (or `http` to a loopback
 host, matching the assistant's existing local-provider exception). A redirect to another host, or
-to plaintext, is still followed under the existing allow-list and redirect rules, but it is sent
-without the credential. A same-host redirect keeps it. This closes the obvious redirect
+to plaintext, is still followed under the existing redirect rules, but it is sent without the
+credential. A same-host redirect keeps it. This closes the obvious redirect
 exfiltration path without changing how redirects work today.
 
 Nothing else changes in the fetch path: the render's request budget, timeout, response cap, metrics
@@ -219,8 +219,8 @@ configuration once at startup and registers it as a singleton.
 - A same-host redirect keeps the header; a cross-host redirect does not.
 - A loopback `http` target is allowed; a non-loopback `http` target is refused.
 - `PageFetchOptions.FromConfiguration` parses a full entry; missing `Host`, missing `Page`, missing
-  `Value`, a bad header, a host outside `AllowedHosts`, a bad scheme and CR/LF in the value all
-  throw. No exception message contains the value.
+  `Value`, a bad header, a bad scheme and CR/LF in the value all throw. No exception message contains
+  the value.
 - `PageCredential.ToString()` does not contain the value.
 
 `PageFetchRenderTests`:

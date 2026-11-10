@@ -73,7 +73,8 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("## Outbound fetch"));
             Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IHttpFetch>()"));
             Assert.That(prompt, Does.Contain("GetAsync(url)"));
-            Assert.That(prompt, Does.Contain("allow-listed"));
+            Assert.That(prompt, Does.Contain("any http or https"));
+            Assert.That(prompt, Does.Contain("moosemorals.com (page)"));
             Assert.That(prompt, Does.Contain("Failures are values"));
         });
     }
@@ -145,7 +146,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v15"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v16"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -278,7 +279,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v15"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v16"));
         });
     }
 

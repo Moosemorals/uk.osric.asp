@@ -139,7 +139,7 @@ internal class Program {
         builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
         builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
         builder.Services.AddSingleton(PageFetchOptions.FromConfiguration(builder.Configuration));
-        builder.Services.AddHttpClient(PageFetcher.ClientName)
+        builder.Services.AddHttpClient(OutboundFetcher.ClientName)
             .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
                 UseCookies = false,
@@ -147,6 +147,7 @@ internal class Program {
                 AutomaticDecompression = DecompressionMethods.All,
                 PooledConnectionLifetime = TimeSpan.FromMinutes(2),
             });
+        builder.Services.AddSingleton<OutboundFetcher>();
         builder.Services.AddSingleton<IPageFetcher, PageFetcher>();
         builder.Services.AddSingleton(services => new PageEnvironment(
             services.GetRequiredService<ReservedPaths>(),
@@ -195,6 +196,7 @@ internal class Program {
             builder.Services.AddHostedService<RunJournalCleanupService>();
 
             builder.Services.AddSingleton<AssistantMetrics>();
+            builder.Services.AddSingleton<IAssistantFetcher, AssistantFetcher>();
             builder.Services.AddSingleton<PageToolExecutor>();
             builder.Services.AddSingleton<PagePathPolicy>();
             builder.Services.AddSingleton<RunQueue>();
