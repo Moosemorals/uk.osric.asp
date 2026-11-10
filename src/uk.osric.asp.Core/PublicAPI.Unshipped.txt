@@ -69,6 +69,8 @@ static uk.osric.asp.Core.Diff.LineDiff.Compare(string! before, string! after, in
 static uk.osric.asp.Core.Diff.NormalDiff.Format(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
 static uk.osric.asp.Core.Diff.UnifiedDiff.Format(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
 static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool
+static uk.osric.asp.Core.Pages.PageGlob.IsMatch(string! pattern, string! key) -> bool
+static uk.osric.asp.Core.Pages.PageGlob.IsWildcard(string! pattern) -> bool
 uk.osric.asp.Core.Assistant.GrepPattern
 uk.osric.asp.Core.Assistant.GrepPattern.IsMatch(string! line) -> bool
 uk.osric.asp.Core.Assistant.MemoryCandidate
@@ -344,6 +346,7 @@ uk.osric.asp.Core.Assistant.TokenEstimator.Margin.get -> double
 static uk.osric.asp.Core.Assistant.TokenEstimator.For(uk.osric.asp.Core.Assistant.TokenCalibration? calibration) -> uk.osric.asp.Core.Assistant.TokenEstimator!
 uk.osric.asp.Core.Assistant.TokenEstimator.Estimate(uk.osric.asp.Core.Assistant.ChatRequest! request) -> long
 uk.osric.asp.Core.Assistant.TokenEstimator.Estimate(long requestBytes) -> long
+uk.osric.asp.Core.Pages.PageGlob
 ~override uk.osric.asp.Core.Diff.DiffHunk.Equals(object obj) -> bool
 ~override uk.osric.asp.Core.Diff.DiffHunk.ToString() -> string
 ~override uk.osric.asp.Core.Diff.DiffLine.Equals(object obj) -> bool
