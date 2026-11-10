@@ -28,9 +28,6 @@ internal sealed class LsApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(line);
-        ArgumentNullException.ThrowIfNull(context);
-
         bool longListing = line.Has('l');
         bool recursive = line.Has('R');
         IReadOnlyList<ShellPath> nodes = await context.Store.NodesAsync(cancellationToken);

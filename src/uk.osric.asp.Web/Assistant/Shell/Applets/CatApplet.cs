@@ -27,23 +27,13 @@ internal sealed class CatApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(line);
-        ArgumentNullException.ThrowIfNull(context);
-
-        foreach (ShellPath path in context.Paths) {
-            if (!path.IsPage) {
-                return ShellResult.Refused(
-                    $"{path.Key.Key} is a folder, not a page. ls {path.Key.Key} lists what is in it.",
-                    $"cat {path.Key.Key}: a folder");
-            }
+        (List<ShellFile> files, ShellResult? refusal) =
+            await ShellReading.PagesAsync(context.Paths, context.Store, Name, cancellationToken);
+        if (refusal is not null) {
+            return refusal;
         }
 
-        foreach (ShellPath path in context.Paths) {
-            ShellFile? file = await context.Store.ReadAsync(path, cancellationToken);
-            if (file is null) {
-                return ShellResult.Refused($"Page {path.Key.Key} was not found.", $"cat {path.Key.Key}: not found");
-            }
-
+        foreach (ShellFile file in files) {
             context.Output.Raw(line.Has('n') ? ShellText.Number(file.Text) : file.Text);
         }
 

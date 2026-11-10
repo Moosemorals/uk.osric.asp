@@ -30,21 +30,13 @@ internal sealed class DiffApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(line);
-        ArgumentNullException.ThrowIfNull(context);
-
         int contextLines = line.Number('U') ?? LineDiff.ContextLines;
         bool unified = line.Has('u') || line.Number('U') is not null;
 
-        List<ShellFile> files = [];
-        foreach (ShellPath path in context.Paths) {
-            ShellFile? file = await context.Store.ReadAsync(path, cancellationToken);
-            if (file is null) {
-                return ShellResult.Refused(
-                    $"{path.Key.Key} is a folder, not a page. ls {path.Key.Key} lists what is in it.",
-                    $"diff {path.Key.Key}: a folder");
-            }
-            files.Add(file);
+        (List<ShellFile> files, ShellResult? refusal) =
+            await ShellReading.PagesAsync(context.Paths, context.Store, Name, cancellationToken);
+        if (refusal is not null) {
+            return refusal;
         }
 
         DiffDocument diff = LineDiff.Compare(files[0].Text, files[1].Text, contextLines, line.Has('b'));

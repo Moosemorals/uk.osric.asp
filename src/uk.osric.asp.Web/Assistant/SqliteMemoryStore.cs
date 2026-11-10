@@ -50,9 +50,9 @@ internal sealed class SqliteMemoryStore(
             LIMIT $limit;
             """,
             command => {
-                AddParameter(command, "$terms", queryTerms);
-                AddParameter(command, "$owner", owner);
-                AddParameter(command, "$limit", limit);
+                command.AddParameter("$terms", queryTerms);
+                command.AddParameter("$owner", owner);
+                command.AddParameter("$limit", limit);
             },
             cancellationToken);
     }
@@ -71,9 +71,9 @@ internal sealed class SqliteMemoryStore(
             LIMIT $limit;
             """,
             command => {
-                AddParameter(command, "$owner", owner);
-                AddParameter(command, "$conversation", conversationId);
-                AddParameter(command, "$limit", options.MaxMemoriesPerRun);
+                command.AddParameter("$owner", owner);
+                command.AddParameter("$conversation", conversationId);
+                command.AddParameter("$limit", options.MaxMemoriesPerRun);
             },
             cancellationToken);
     }
@@ -89,7 +89,7 @@ internal sealed class SqliteMemoryStore(
             WHERE memory."Owner" = $owner AND memory."Pinned" = 1
             ORDER BY memory."UpdatedAt" DESC, memory."Id" DESC;
             """,
-            command => AddParameter(command, "$owner", owner),
+            command => command.AddParameter("$owner", owner),
             cancellationToken);
     }
 
@@ -404,14 +404,4 @@ internal sealed class SqliteMemoryStore(
     // Timestamps are stored as TEXT, exactly as every other table stores them.
     private static DateTimeOffset Instant(string text) =>
         DateTimeOffset.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-
-    private static void AddParameter(DbCommand command, string name, object value) {
-        DbParameter parameter = command.CreateParameter();
-        parameter.ParameterName = name;
-        parameter.Value = value switch {
-            DateTimeOffset timestamp => timestamp.ToString("O", CultureInfo.InvariantCulture),
-            _ => value,
-        };
-        command.Parameters.Add(parameter);
-    }
 }

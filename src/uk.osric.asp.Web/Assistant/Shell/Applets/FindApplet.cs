@@ -32,9 +32,6 @@ internal sealed class FindApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(line);
-        ArgumentNullException.ThrowIfNull(context);
-
         (FindExpression? expression, string? error) = FindExpression.Parse(line.Trailing);
         if (expression is null) {
             return ShellResult.Refused(error!, "find: refused");

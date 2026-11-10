@@ -303,7 +303,7 @@ internal sealed class PageToolExecutor(
         }
 
         string source = string.Join('\n', lines.Skip(start - 1).Take(end - start + 1));
-        bool truncated = source.Length > options.MaxToolResultChars / 2;
+        bool truncated = source.Length > options.ToolResultBudget;
         if (truncated) {
             int window = Math.Max(1, options.MaxToolResultChars / 5);
             source = source[..Math.Min(window, source.Length)]
@@ -385,7 +385,7 @@ internal sealed class PageToolExecutor(
 
         DiffDocument comparison = diff.Compare(before.Template, after.Template);
         string text = diff.ToUnifiedDiff(comparison);
-        int budget = options.MaxToolResultChars / 2;
+        int budget = options.ToolResultBudget;
         bool truncated = text.Length > budget;
         if (truncated) {
             text = text[..budget] + "\n[truncated]";
@@ -675,9 +675,7 @@ internal sealed class PageToolExecutor(
                 return Failure("The fetch did not produce a response.", "Fetch failed");
         }
 
-        // Half the result budget, because the body still has to fit back inside the JSON envelope
-        // with room for escaping; the same rule read_page and shell use.
-        int budget = options.MaxToolResultChars / 2;
+        int budget = options.ToolResultBudget;
         string content = response.Body;
         bool truncated = response.Truncated;
         if (content.Length > budget) {

@@ -34,17 +34,9 @@ internal sealed class PageWriterScope(
     PagePath path,
     PageSaver saver,
     PageUser? user,
-    bool writable) : IPageWriter, IRenderBoundFeature {
+    bool writable) : RenderBoundFeature, IPageWriter {
 
-    private int _abandoned;
     private int _saved;
-    private CancellationToken _deadline;
-
-    /// <inheritdoc/>
-    public void AttachDeadline(CancellationToken deadline) => _deadline = deadline;
-
-    /// <inheritdoc/>
-    public void Abandon() => Volatile.Write(ref _abandoned, 1);
 
     /// <inheritdoc/>
     public async Task<PageSaveResult> SaveAsync(string template) {
@@ -57,7 +49,7 @@ internal sealed class PageWriterScope(
 
         // The render's token is deliberately not passed as the save's token: the deadline bounds the
         // queue for a compile slot, not the author's edit (DEC-191).
-        SavedRevision saved = await saver.SaveAsync(path, template, CancellationToken.None, _deadline);
+        SavedRevision saved = await saver.SaveAsync(path, template, CancellationToken.None, Deadline);
 
         Volatile.Write(ref _saved, 1);
 
@@ -83,11 +75,11 @@ internal sealed class PageWriterScope(
     }
 
     private void ThrowIfEnded() {
-        if (Volatile.Read(ref _abandoned) != 0) {
+        if (IsAbandoned) {
             throw new InvalidOperationException($"The render of {path.Key} was abandoned; it cannot save itself.");
         }
 
-        if (_deadline.IsCancellationRequested) {
+        if (Deadline.IsCancellationRequested) {
             throw new InvalidOperationException($"{path.Key} has run out of time; it cannot save itself.");
         }
     }

@@ -31,9 +31,6 @@ internal sealed class HelpApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(line);
-        ArgumentNullException.ThrowIfNull(context);
-
         if (line.Arguments.Count == 0) {
             context.Output.Raw(Preface);
             context.Output.Line(string.Empty);

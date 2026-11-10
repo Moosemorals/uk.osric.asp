@@ -23,17 +23,13 @@ internal sealed class StatApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(line);
-        ArgumentNullException.ThrowIfNull(context);
+        (List<ShellFile> files, ShellResult? refusal) =
+            await ShellReading.PagesAsync(context.Paths, context.Store, Name, cancellationToken);
+        if (refusal is not null) {
+            return refusal;
+        }
 
-        foreach (ShellPath path in context.Paths) {
-            ShellFile? file = await context.Store.ReadAsync(path, cancellationToken);
-            if (file is null) {
-                return ShellResult.Refused(
-                    $"{path.Key.Key} is a folder, not a page. ls {path.Key.Key} lists what is in it.",
-                    $"stat {path.Key.Key}: a folder");
-            }
-
+        foreach (ShellFile file in files) {
             context.Output.Raw(file.Page is null
                 ? $"{file.Path.Key.Key}\n{file.Path.Mode}\nshell file\n{ShellText.Split(file.Text).Length} lines, {file.Text.Length} chars"
                 : $"{file.Path.Key.Key}\n{file.Path.Mode}\n{file.Page.Template.Length} chars\n{file.Page.Hash}\n{file.Page.SavedAt:O}\n{file.Status}");

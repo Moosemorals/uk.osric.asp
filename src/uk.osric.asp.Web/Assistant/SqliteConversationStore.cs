@@ -148,11 +148,11 @@ internal sealed class SqliteConversationStore(
             WHERE "Id" = $id AND "Owner" = $owner
             RETURNING "NextMessageSequence" - 1, "ApprovalMode";
             """;
-        AddParameter(update, "$now", now);
-        AddParameter(update, "$defaultTitle", ConversationTitle.NewConversation);
-        AddParameter(update, "$title", ConversationTitle.From(content));
-        AddParameter(update, "$id", id);
-        AddParameter(update, "$owner", owner);
+        update.AddParameter("$now", now);
+        update.AddParameter("$defaultTitle", ConversationTitle.NewConversation);
+        update.AddParameter("$title", ConversationTitle.From(content));
+        update.AddParameter("$id", id);
+        update.AddParameter("$owner", owner);
 
         await using DbDataReader reader = await update.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken)) {
@@ -232,8 +232,8 @@ internal sealed class SqliteConversationStore(
             WHERE "Id" = $id
             RETURNING "NextMessageSequence" - 1;
             """;
-        AddParameter(update, "$now", now);
-        AddParameter(update, "$id", conversationId);
+        update.AddParameter("$now", now);
+        update.AddParameter("$id", conversationId);
 
         object? value = await update.ExecuteScalarAsync(cancellationToken);
         if (value is null or DBNull) {
@@ -619,14 +619,4 @@ internal sealed class SqliteConversationStore(
         database.Set<Conversation>().AnyAsync(
             conversation => conversation.Id == conversationId && conversation.Owner == owner,
             cancellationToken);
-
-    private static void AddParameter(DbCommand command, string name, object value) {
-        DbParameter parameter = command.CreateParameter();
-        parameter.ParameterName = name;
-        parameter.Value = value switch {
-            DateTimeOffset timestamp => timestamp.ToString("O", CultureInfo.InvariantCulture),
-            _ => value,
-        };
-        command.Parameters.Add(parameter);
-    }
 }

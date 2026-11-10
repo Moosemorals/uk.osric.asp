@@ -27,17 +27,14 @@ internal sealed class PageHttpFetch(
     PageFetchOptions options,
     RenderFetchBudget budget,
     PageMetrics metrics,
-    ILogger logger) : IHttpFetch, IRenderBoundFeature {
+    ILogger logger) : RenderBoundFeature, IHttpFetch {
 #pragma warning restore CA1068 // CancellationToken parameters must come last
-
-    private CancellationToken _deadline;
-    private volatile bool _abandoned;
 
     /// <inheritdoc/>
     public async Task<HttpFetchResponse> SendAsync(HttpFetchRequest request) {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (_abandoned) {
+        if (IsAbandoned) {
             throw new InvalidOperationException($"The render of {path.Key} was abandoned; it cannot fetch.");
         }
 
@@ -50,14 +47,8 @@ internal sealed class PageHttpFetch(
             return Refuse(PageMetrics.FetchLimit, $"more than {options.MaxRequestsPerRender} requests");
         }
 
-        return await fetcher.FetchAsync(request, path.Key, aborted, _deadline);
+        return await fetcher.FetchAsync(request, path.Key, aborted, Deadline);
     }
-
-    /// <inheritdoc/>
-    public void AttachDeadline(CancellationToken deadline) => _deadline = deadline;
-
-    /// <inheritdoc/>
-    public void Abandon() => _abandoned = true;
 
     private HttpFetchResponse Refuse(string outcome, string why) {
         metrics.RecordFetch(path, outcome, TimeSpan.Zero);

@@ -32,9 +32,6 @@ internal sealed class GrepApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(line);
-        ArgumentNullException.ThrowIfNull(context);
-
         string query = line.Words(ShellOperandKind.Text)[0].Text;
         if (!GrepPattern.TryCompile(query, line.Has('i'), out GrepPattern? compiled, out string? error)) {
             return ShellResult.Refused(error!, $"grep {MessageText.Sanitize(query)}: refused");

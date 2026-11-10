@@ -26,16 +26,7 @@ internal sealed class PageCatalogScope(
     PageReadOptions options,
     ReadBudget budget,
     ReservedPaths reserved,
-    PageContentTypes contentTypes) : IPageCatalog, IRenderBoundFeature {
-
-    private int _abandoned;
-    private CancellationToken _deadline;
-
-    /// <inheritdoc/>
-    public void AttachDeadline(CancellationToken deadline) => _deadline = deadline;
-
-    /// <inheritdoc/>
-    public void Abandon() => Volatile.Write(ref _abandoned, 1);
+    PageContentTypes contentTypes) : RenderBoundFeature, IPageCatalog {
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<PageEntry>> ListAsync(string prefix) {
@@ -139,13 +130,13 @@ internal sealed class PageCatalogScope(
     }
 
     private void ThrowIfEnded() {
-        if (Volatile.Read(ref _abandoned) != 0) {
+        if (IsAbandoned) {
             throw new InvalidOperationException($"The render of {path.Key} was abandoned; it cannot read the page store.");
         }
 
-        _deadline.ThrowIfCancellationRequested();
+        Deadline.ThrowIfCancellationRequested();
     }
 
     // The render's deadline, linked in by the renderer.
-    private CancellationToken Cancellation() => _deadline;
+    private CancellationToken Cancellation() => Deadline;
 }

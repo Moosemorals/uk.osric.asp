@@ -11,36 +11,21 @@ using uk.osric.asp.Sdk;
 
 /// <summary>One page's <see cref="IPageStorage"/>, bound to that page's key.</summary>
 /// <remarks>
-/// <para>
 /// The only handle a page ever gets, so it cannot name another page: isolation is structural rather
 /// than a check. Keys and values are validated here, and every per-page cap is enforced by the store
 /// in the same statement as the write.
-/// </para>
-/// <para>
-/// A page's task and the abandoning thread can be different threads, so the abandoned flag is read
-/// with <see cref="Volatile"/> rather than relying on the body lock.
-/// </para>
 /// </remarks>
 internal sealed class PageStorageScope(
     PagePath path,
     IPageStateStore store,
     PageStorageOptions options,
-    bool writable) : IRenderBoundPageStorage {
+    bool writable) : RenderBoundFeature, IRenderBoundPageStorage {
 
     // One instance is enough: JsonSerializerOptions is thread-safe once it has been used, and every
     // page serialises the same way.
     private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web) {
         Converters = { new JsonStringEnumConverter() },
     };
-
-    private int _abandoned;
-    private CancellationToken _deadline;
-
-    /// <inheritdoc/>
-    public void AttachDeadline(CancellationToken deadline) => _deadline = deadline;
-
-    /// <inheritdoc/>
-    public void Abandon() => Volatile.Write(ref _abandoned, 1);
 
     /// <inheritdoc/>
     public async Task<PageValue<T>> TryGetValueAsync<T>(string key) {
@@ -98,14 +83,14 @@ internal sealed class PageStorageScope(
     }
 
     private void ThrowIfEnded() {
-        if (Volatile.Read(ref _abandoned) != 0) {
+        if (IsAbandoned) {
             throw new InvalidOperationException($"The render of {path.Key} was abandoned; it cannot use storage.");
         }
 
-        _deadline.ThrowIfCancellationRequested();
+        Deadline.ThrowIfCancellationRequested();
     }
 
     // The render's deadline, linked in by the renderer. The per-command budget is a command timeout on
     // the store's connection, not a second token.
-    private CancellationToken Cancellation() => _deadline;
+    private CancellationToken Cancellation() => Deadline;
 }

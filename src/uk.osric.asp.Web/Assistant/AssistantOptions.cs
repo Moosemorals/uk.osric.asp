@@ -31,6 +31,12 @@ internal sealed class AssistantOptions {
     public int MaxPageChars { get; init; } = 262_144;
     public int MaxToolArgumentChars { get; init; } = 131_072;
     public int MaxToolResultChars { get; init; } = 32_768;
+
+    /// <summary>
+    /// How much text one tool may answer with before it is cut: half of <see cref="MaxToolResultChars"/>,
+    /// because the answer still has to fit back inside the JSON envelope with room for escaping.
+    /// </summary>
+    public int ToolResultBudget => MaxToolResultChars / 2;
     /// <summary>The estimated prompt tokens one request may spend.</summary>
     public int MaxContextTokens { get; init; } = 90_000;
     /// <summary>The model's whole context window, used to check the prompt and output budgets fit.</summary>

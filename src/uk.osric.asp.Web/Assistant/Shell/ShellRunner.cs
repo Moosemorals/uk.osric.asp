@@ -88,9 +88,7 @@ internal static class ShellRunner {
         string answer = output.Text;
         bool truncated = output.Truncated;
 
-        // Half the budget, because the output still has to fit back inside the JSON envelope with room
-        // for escaping; the same rule read_page uses.
-        int budget = options.MaxToolResultChars / 2;
+        int budget = options.ToolResultBudget;
         if (answer.Length > budget) {
             answer = answer[..budget] + $"\n[the answer was cut at {budget} characters; ask for less]";
             truncated = true;

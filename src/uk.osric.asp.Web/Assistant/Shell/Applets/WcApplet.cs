@@ -28,25 +28,21 @@ internal sealed class WcApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(line);
-        ArgumentNullException.ThrowIfNull(context);
-
-        List<string> rows = [];
-        int total = 0;
-        foreach (ShellPath path in context.Paths) {
-            ShellFile? file = await context.Store.ReadAsync(path, cancellationToken);
-            if (file is null) {
-                return ShellResult.Refused(
-                    $"{path.Key.Key} is a folder, not a page. ls {path.Key.Key} lists what is in it.",
-                    $"wc {path.Key.Key}: a folder");
-            }
-
-            int lines = ShellText.Split(file.Text).Length;
-            total += lines;
-            rows.Add(string.Create(CultureInfo.InvariantCulture, $"{lines} {path.Key.Key}"));
+        (List<ShellFile> files, ShellResult? refusal) =
+            await ShellReading.PagesAsync(context.Paths, context.Store, Name, cancellationToken);
+        if (refusal is not null) {
+            return refusal;
         }
 
-        if (context.Paths.Count > 1) {
+        int total = 0;
+        List<string> rows = [];
+        foreach (ShellFile file in files) {
+            int lines = ShellText.Split(file.Text).Length;
+            total += lines;
+            rows.Add(string.Create(CultureInfo.InvariantCulture, $"{lines} {file.Path.Key.Key}"));
+        }
+
+        if (files.Count > 1) {
             rows.Add(string.Create(CultureInfo.InvariantCulture, $"{total} total"));
         }
 
