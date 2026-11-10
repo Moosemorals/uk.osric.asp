@@ -350,6 +350,7 @@ image_command = $(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) 
 
 # podman packs the publish output; the SDK is not in the image at all.
 image:
+	rm -rf $(IMAGE_PUBLISH_DIR)
 	$(call image_command,$(LOCAL_IMAGE))
 
 # Reproducibility is a property that regresses silently, so it is a target: two fresh publishes and
