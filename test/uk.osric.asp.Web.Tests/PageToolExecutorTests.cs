@@ -1265,7 +1265,7 @@ public sealed class PageToolExecutorTests {
             "shell", "{\"command\":\"ls /a?b\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
-        Assert.That(result.Summary, Is.EqualTo("Shell command refused"));
+        Assert.That(result.Summary, Is.EqualTo("Shell path refused"));
     }
 
     [Test]
@@ -1293,7 +1293,7 @@ public sealed class PageToolExecutorTests {
             "shell", "{\"command\":\"cat /missing\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
-        Assert.That(result.Content, Does.Contain("was not found"));
+        Assert.That(result.Content, Does.Contain("No key /missing is stored").And.Contain("ls / lists what is there"));
     }
 
     [Test]
@@ -1375,7 +1375,7 @@ public sealed class PageToolExecutorTests {
             "shell", "{\"command\":\"cat /long\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
-        Assert.That(Output(result), Does.EndWith("[truncated: read a line range instead]"));
+        Assert.That(Output(result), Does.Contain("the answer was cut at"));
         Assert.That(Output(result).Length, Is.LessThanOrEqualTo(1024));
     }
 

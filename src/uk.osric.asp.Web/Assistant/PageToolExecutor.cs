@@ -12,6 +12,7 @@ using uk.osric.asp.Core.Diff;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Assistant.Shell;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
@@ -701,15 +702,25 @@ internal sealed class PageToolExecutor(
         IReadOnlyDictionary<string, JsonElement> arguments,
         PageEditor pages,
         CancellationToken cancellationToken) {
-        VirtualShellParseResult parsed = VirtualShellParser.Parse(String(arguments, "command")!);
+        string text = String(arguments, "command")!;
+
+        // The kernel answers the commands that have moved to applets; the rest still go through the
+        // parser and the switch below until they follow it.
+        ShellOutcome? outcome = await ShellRunner.TryRunAsync(text, pages, paths, options, cancellationToken);
+        if (outcome is not null) {
+            return outcome.IsSuccess
+                ? Success(new { output = outcome.Output, truncated = outcome.Truncated }, outcome.Summary)
+                : Failure(outcome.Error!, outcome.Summary);
+        }
+
+        VirtualShellParseResult parsed = VirtualShellParser.Parse(text);
         if (parsed.Command is null) {
             return Failure(parsed.Error!, "Shell command refused");
         }
 
         VirtualShellCommand command = parsed.Command;
         return command.Name switch {
-            "help" => Help(command),
-            "find" or "ls" => await ListAsync(command, pages, cancellationToken),
+            "find" => await ListAsync(command, pages, cancellationToken),
             "diff" => await DiffAsync(command, pages, cancellationToken),
             "grep" => await GrepAsync(command, pages, cancellationToken),
             _ => await ReadAsync(command, pages, cancellationToken),
@@ -902,28 +913,6 @@ internal sealed class PageToolExecutor(
         VirtualShellCommand command,
         PageEditor pages,
         CancellationToken cancellationToken) {
-        // cat and stat take as many keys as they are given: one source per key, in the order the keys
-        // were written, so a read of several pages reads like the command that asked for them.
-        if (command.Name is "cat" or "stat") {
-            List<Source> sources = [];
-            foreach (string pathText in command.Arguments) {
-                (Source? source, ToolExecutionResult? failed) = await ResolveAsync(command, pathText, pages, cancellationToken);
-                if (failed is not null) {
-                    return failed;
-                }
-                sources.Add(source!);
-            }
-
-            string output = command.Name == "stat"
-                ? string.Join('\n', sources.Select(source => Stat(source, pages)))
-                : command.Options.HasFlag(VirtualShellOptions.Numbers)
-                    ? string.Join('\n', sources.Select(source => Number(ReadLines(source.Text))))
-                    : string.Join('\n', sources.Select(source => source.Text));
-            return Success(
-                new { output = WithinBudget(output) },
-                $"{command.Name} {string.Join(' ', sources.Select(source => Describe(source.Path)))}");
-        }
-
         (int count, string key) = command.Name == "wc" ? (0, command.Arguments[^1]) : LineCount(command);
         (Source? only, ToolExecutionResult? refusal) = await ResolveAsync(command, key, pages, cancellationToken);
         if (refusal is not null) {
@@ -979,30 +968,11 @@ internal sealed class PageToolExecutor(
         _ => (ParseCount(command.Arguments[1]), command.Arguments[2]),
     };
 
-    private string Stat(Source source, PageEditor pages) => source.Page is null
-        ? $"{source.Path.Key}\n{Mode(source.Path)}\nshell file\n{ReadLines(source.Text).Length} lines, {source.Text.Length} chars"
-        : $"{source.Path.Key}\n{Mode(source.Path)}\n{source.Page.Template.Length} chars\n{source.Page.Hash}\n{source.Page.SavedAt:O}\n{ImageStatus(source.Page, pages.RuntimeId)}";
-
     // Half the budget, because the output still has to fit back inside the JSON envelope with room for
     // escaping; the same rule read_page uses.
     private string WithinBudget(string output) {
         int budget = options.MaxToolResultChars / 2;
         return output.Length > budget ? output[..budget] + "\n[truncated: read a line range instead]" : output;
-    }
-
-    // `help` is the only description of the grammar the model can reach: the tool description is a
-    // line, and a refusal that names the command is what turns a guess into a second, working call.
-    private ToolExecutionResult Help(VirtualShellCommand command) {
-        if (command.Arguments.Count == 0) {
-            return Success(new { output = ShellHelp.Text() }, "Shell help");
-        }
-
-        string topic = command.Arguments[0];
-        return ShellHelp.TryGet(topic, out ShellHelpEntry? entry)
-            ? Success(new { output = ShellHelp.Text(entry) }, $"Shell help: {MessageText.Sanitize(topic)}")
-            : Failure(
-                $"The command {MessageText.Sanitize(topic)} is not supported. Run help for the commands it answers.",
-                "Shell help: not a command");
     }
 
     private ToolExecutionResult Success(object data, string summary) => Bounded(new { ok = true, data, error = (string?)null }, summary);

@@ -31,9 +31,21 @@ override uk.osric.asp.Core.Diff.DiffDocument.GetHashCode() -> int
 override uk.osric.asp.Core.Diff.DiffDocument.ToString() -> string!
 override uk.osric.asp.Core.Diff.DiffHunk.GetHashCode() -> int
 override uk.osric.asp.Core.Diff.DiffLine.GetHashCode() -> int
+override uk.osric.asp.Core.Shell.ShellArgument.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Shell.ShellArgument.GetHashCode() -> int
+override uk.osric.asp.Core.Shell.ShellArgument.ToString() -> string!
+override uk.osric.asp.Core.Shell.ShellCommandLine.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Shell.ShellCommandLine.GetHashCode() -> int
+override uk.osric.asp.Core.Shell.ShellCommandLine.ToString() -> string!
 override uk.osric.asp.Core.Shell.ShellLexResult.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Shell.ShellLexResult.GetHashCode() -> int
 override uk.osric.asp.Core.Shell.ShellLexResult.ToString() -> string!
+override uk.osric.asp.Core.Shell.ShellMatchResult.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Shell.ShellMatchResult.GetHashCode() -> int
+override uk.osric.asp.Core.Shell.ShellMatchResult.ToString() -> string!
+override uk.osric.asp.Core.Shell.ShellOperand.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Shell.ShellOperand.GetHashCode() -> int
+override uk.osric.asp.Core.Shell.ShellOperand.ToString() -> string!
 override uk.osric.asp.Core.Shell.ShellOperator.<Clone>$() -> uk.osric.asp.Core.Shell.ShellOperator!
 override uk.osric.asp.Core.Shell.ShellOperator.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Shell.ShellOperator.GetHashCode() -> int
@@ -41,9 +53,15 @@ override uk.osric.asp.Core.Shell.ShellOperator.ToString() -> string!
 override uk.osric.asp.Core.Shell.ShellSegment.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Shell.ShellSegment.GetHashCode() -> int
 override uk.osric.asp.Core.Shell.ShellSegment.ToString() -> string!
+override uk.osric.asp.Core.Shell.ShellSyntax.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Shell.ShellSyntax.GetHashCode() -> int
+override uk.osric.asp.Core.Shell.ShellSyntax.ToString() -> string!
 override uk.osric.asp.Core.Shell.ShellToken.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Shell.ShellToken.GetHashCode() -> int
 override uk.osric.asp.Core.Shell.ShellToken.ToString() -> string!
+override uk.osric.asp.Core.Shell.ShellValueOption.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Shell.ShellValueOption.GetHashCode() -> int
+override uk.osric.asp.Core.Shell.ShellValueOption.ToString() -> string!
 override uk.osric.asp.Core.Shell.ShellWord.<Clone>$() -> uk.osric.asp.Core.Shell.ShellWord!
 override uk.osric.asp.Core.Shell.ShellWord.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Shell.ShellWord.GetHashCode() -> int
@@ -91,15 +109,28 @@ static uk.osric.asp.Core.Diff.UnifiedDiff.Format(uk.osric.asp.Core.Diff.DiffDocu
 static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool
 static uk.osric.asp.Core.Pages.PageGlob.IsMatch(string! pattern, string! key) -> bool
 static uk.osric.asp.Core.Pages.PageGlob.IsWildcard(string! pattern) -> bool
+static uk.osric.asp.Core.Shell.ShellArgument.operator !=(uk.osric.asp.Core.Shell.ShellArgument? left, uk.osric.asp.Core.Shell.ShellArgument? right) -> bool
+static uk.osric.asp.Core.Shell.ShellArgument.operator ==(uk.osric.asp.Core.Shell.ShellArgument? left, uk.osric.asp.Core.Shell.ShellArgument? right) -> bool
+static uk.osric.asp.Core.Shell.ShellCommandLine.operator !=(uk.osric.asp.Core.Shell.ShellCommandLine? left, uk.osric.asp.Core.Shell.ShellCommandLine? right) -> bool
+static uk.osric.asp.Core.Shell.ShellCommandLine.operator ==(uk.osric.asp.Core.Shell.ShellCommandLine? left, uk.osric.asp.Core.Shell.ShellCommandLine? right) -> bool
 static uk.osric.asp.Core.Shell.ShellLexResult.operator !=(uk.osric.asp.Core.Shell.ShellLexResult? left, uk.osric.asp.Core.Shell.ShellLexResult? right) -> bool
 static uk.osric.asp.Core.Shell.ShellLexResult.operator ==(uk.osric.asp.Core.Shell.ShellLexResult? left, uk.osric.asp.Core.Shell.ShellLexResult? right) -> bool
 static uk.osric.asp.Core.Shell.ShellLine.Lex(string! text) -> uk.osric.asp.Core.Shell.ShellLexResult!
+static uk.osric.asp.Core.Shell.ShellMatchResult.operator !=(uk.osric.asp.Core.Shell.ShellMatchResult? left, uk.osric.asp.Core.Shell.ShellMatchResult? right) -> bool
+static uk.osric.asp.Core.Shell.ShellMatchResult.operator ==(uk.osric.asp.Core.Shell.ShellMatchResult? left, uk.osric.asp.Core.Shell.ShellMatchResult? right) -> bool
+static uk.osric.asp.Core.Shell.ShellOperand.operator !=(uk.osric.asp.Core.Shell.ShellOperand? left, uk.osric.asp.Core.Shell.ShellOperand? right) -> bool
+static uk.osric.asp.Core.Shell.ShellOperand.operator ==(uk.osric.asp.Core.Shell.ShellOperand? left, uk.osric.asp.Core.Shell.ShellOperand? right) -> bool
 static uk.osric.asp.Core.Shell.ShellOperator.operator !=(uk.osric.asp.Core.Shell.ShellOperator? left, uk.osric.asp.Core.Shell.ShellOperator? right) -> bool
 static uk.osric.asp.Core.Shell.ShellOperator.operator ==(uk.osric.asp.Core.Shell.ShellOperator? left, uk.osric.asp.Core.Shell.ShellOperator? right) -> bool
 static uk.osric.asp.Core.Shell.ShellSegment.operator !=(uk.osric.asp.Core.Shell.ShellSegment? left, uk.osric.asp.Core.Shell.ShellSegment? right) -> bool
 static uk.osric.asp.Core.Shell.ShellSegment.operator ==(uk.osric.asp.Core.Shell.ShellSegment? left, uk.osric.asp.Core.Shell.ShellSegment? right) -> bool
+static uk.osric.asp.Core.Shell.ShellSyntax.Nothing.get -> uk.osric.asp.Core.Shell.ShellSyntax!
+static uk.osric.asp.Core.Shell.ShellSyntax.operator !=(uk.osric.asp.Core.Shell.ShellSyntax? left, uk.osric.asp.Core.Shell.ShellSyntax? right) -> bool
+static uk.osric.asp.Core.Shell.ShellSyntax.operator ==(uk.osric.asp.Core.Shell.ShellSyntax? left, uk.osric.asp.Core.Shell.ShellSyntax? right) -> bool
 static uk.osric.asp.Core.Shell.ShellToken.operator !=(uk.osric.asp.Core.Shell.ShellToken? left, uk.osric.asp.Core.Shell.ShellToken? right) -> bool
 static uk.osric.asp.Core.Shell.ShellToken.operator ==(uk.osric.asp.Core.Shell.ShellToken? left, uk.osric.asp.Core.Shell.ShellToken? right) -> bool
+static uk.osric.asp.Core.Shell.ShellValueOption.operator !=(uk.osric.asp.Core.Shell.ShellValueOption? left, uk.osric.asp.Core.Shell.ShellValueOption? right) -> bool
+static uk.osric.asp.Core.Shell.ShellValueOption.operator ==(uk.osric.asp.Core.Shell.ShellValueOption? left, uk.osric.asp.Core.Shell.ShellValueOption? right) -> bool
 static uk.osric.asp.Core.Shell.ShellWord.operator !=(uk.osric.asp.Core.Shell.ShellWord? left, uk.osric.asp.Core.Shell.ShellWord? right) -> bool
 static uk.osric.asp.Core.Shell.ShellWord.operator ==(uk.osric.asp.Core.Shell.ShellWord? left, uk.osric.asp.Core.Shell.ShellWord? right) -> bool
 uk.osric.asp.Core.Assistant.GrepPattern
@@ -378,6 +409,29 @@ static uk.osric.asp.Core.Assistant.TokenEstimator.For(uk.osric.asp.Core.Assistan
 uk.osric.asp.Core.Assistant.TokenEstimator.Estimate(uk.osric.asp.Core.Assistant.ChatRequest! request) -> long
 uk.osric.asp.Core.Assistant.TokenEstimator.Estimate(long requestBytes) -> long
 uk.osric.asp.Core.Pages.PageGlob
+uk.osric.asp.Core.Shell.ShellArgument
+uk.osric.asp.Core.Shell.ShellArgument.<Clone>$() -> uk.osric.asp.Core.Shell.ShellArgument!
+uk.osric.asp.Core.Shell.ShellArgument.Deconstruct(out uk.osric.asp.Core.Shell.ShellOperandKind Kind, out uk.osric.asp.Core.Shell.ShellWord! Word) -> void
+uk.osric.asp.Core.Shell.ShellArgument.Equals(uk.osric.asp.Core.Shell.ShellArgument? other) -> bool
+uk.osric.asp.Core.Shell.ShellArgument.Kind.get -> uk.osric.asp.Core.Shell.ShellOperandKind
+uk.osric.asp.Core.Shell.ShellArgument.Kind.init -> void
+uk.osric.asp.Core.Shell.ShellArgument.ShellArgument(uk.osric.asp.Core.Shell.ShellOperandKind Kind, uk.osric.asp.Core.Shell.ShellWord! Word) -> void
+uk.osric.asp.Core.Shell.ShellArgument.Word.get -> uk.osric.asp.Core.Shell.ShellWord!
+uk.osric.asp.Core.Shell.ShellArgument.Word.init -> void
+uk.osric.asp.Core.Shell.ShellCommandLine
+uk.osric.asp.Core.Shell.ShellCommandLine.<Clone>$() -> uk.osric.asp.Core.Shell.ShellCommandLine!
+uk.osric.asp.Core.Shell.ShellCommandLine.Arguments.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellArgument!>!
+uk.osric.asp.Core.Shell.ShellCommandLine.Arguments.init -> void
+uk.osric.asp.Core.Shell.ShellCommandLine.Deconstruct(out System.Collections.Generic.IReadOnlySet<char>! Flags, out System.Collections.Generic.IReadOnlyDictionary<char, int>! Values, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellArgument!>! Arguments) -> void
+uk.osric.asp.Core.Shell.ShellCommandLine.Equals(uk.osric.asp.Core.Shell.ShellCommandLine? other) -> bool
+uk.osric.asp.Core.Shell.ShellCommandLine.Flags.get -> System.Collections.Generic.IReadOnlySet<char>!
+uk.osric.asp.Core.Shell.ShellCommandLine.Flags.init -> void
+uk.osric.asp.Core.Shell.ShellCommandLine.Has(char flag) -> bool
+uk.osric.asp.Core.Shell.ShellCommandLine.ShellCommandLine(System.Collections.Generic.IReadOnlySet<char>! Flags, System.Collections.Generic.IReadOnlyDictionary<char, int>! Values, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellArgument!>! Arguments) -> void
+uk.osric.asp.Core.Shell.ShellCommandLine.Value(char letter) -> int?
+uk.osric.asp.Core.Shell.ShellCommandLine.Values.get -> System.Collections.Generic.IReadOnlyDictionary<char, int>!
+uk.osric.asp.Core.Shell.ShellCommandLine.Values.init -> void
+uk.osric.asp.Core.Shell.ShellCommandLine.Words(uk.osric.asp.Core.Shell.ShellOperandKind kind) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellWord!>!
 uk.osric.asp.Core.Shell.ShellLexResult
 uk.osric.asp.Core.Shell.ShellLexResult.<Clone>$() -> uk.osric.asp.Core.Shell.ShellLexResult!
 uk.osric.asp.Core.Shell.ShellLexResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellToken!>! Tokens, out string? Error) -> void
@@ -390,6 +444,32 @@ uk.osric.asp.Core.Shell.ShellLexResult.Tokens.get -> System.Collections.Generic.
 uk.osric.asp.Core.Shell.ShellLexResult.Tokens.init -> void
 uk.osric.asp.Core.Shell.ShellLexResult.Words.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellWord!>!
 uk.osric.asp.Core.Shell.ShellLine
+uk.osric.asp.Core.Shell.ShellMatchResult
+uk.osric.asp.Core.Shell.ShellMatchResult.<Clone>$() -> uk.osric.asp.Core.Shell.ShellMatchResult!
+uk.osric.asp.Core.Shell.ShellMatchResult.Deconstruct(out uk.osric.asp.Core.Shell.ShellCommandLine? Line, out string? Error) -> void
+uk.osric.asp.Core.Shell.ShellMatchResult.Equals(uk.osric.asp.Core.Shell.ShellMatchResult? other) -> bool
+uk.osric.asp.Core.Shell.ShellMatchResult.Error.get -> string?
+uk.osric.asp.Core.Shell.ShellMatchResult.Error.init -> void
+uk.osric.asp.Core.Shell.ShellMatchResult.Line.get -> uk.osric.asp.Core.Shell.ShellCommandLine?
+uk.osric.asp.Core.Shell.ShellMatchResult.Line.init -> void
+uk.osric.asp.Core.Shell.ShellMatchResult.ShellMatchResult(uk.osric.asp.Core.Shell.ShellCommandLine? Line, string? Error) -> void
+uk.osric.asp.Core.Shell.ShellOperand
+uk.osric.asp.Core.Shell.ShellOperand.<Clone>$() -> uk.osric.asp.Core.Shell.ShellOperand!
+uk.osric.asp.Core.Shell.ShellOperand.Deconstruct(out string! Name, out uk.osric.asp.Core.Shell.ShellOperandKind Kind, out int Minimum, out int Maximum) -> void
+uk.osric.asp.Core.Shell.ShellOperand.Equals(uk.osric.asp.Core.Shell.ShellOperand? other) -> bool
+uk.osric.asp.Core.Shell.ShellOperand.Kind.get -> uk.osric.asp.Core.Shell.ShellOperandKind
+uk.osric.asp.Core.Shell.ShellOperand.Kind.init -> void
+uk.osric.asp.Core.Shell.ShellOperand.Maximum.get -> int
+uk.osric.asp.Core.Shell.ShellOperand.Maximum.init -> void
+uk.osric.asp.Core.Shell.ShellOperand.Minimum.get -> int
+uk.osric.asp.Core.Shell.ShellOperand.Minimum.init -> void
+uk.osric.asp.Core.Shell.ShellOperand.Name.get -> string!
+uk.osric.asp.Core.Shell.ShellOperand.Name.init -> void
+uk.osric.asp.Core.Shell.ShellOperand.ShellOperand(string! Name, uk.osric.asp.Core.Shell.ShellOperandKind Kind, int Minimum = 1, int Maximum = 1) -> void
+uk.osric.asp.Core.Shell.ShellOperandKind
+uk.osric.asp.Core.Shell.ShellOperandKind.Path = 1 -> uk.osric.asp.Core.Shell.ShellOperandKind
+uk.osric.asp.Core.Shell.ShellOperandKind.Prefix = 2 -> uk.osric.asp.Core.Shell.ShellOperandKind
+uk.osric.asp.Core.Shell.ShellOperandKind.Text = 0 -> uk.osric.asp.Core.Shell.ShellOperandKind
 uk.osric.asp.Core.Shell.ShellOperator
 uk.osric.asp.Core.Shell.ShellOperator.Character.get -> char
 uk.osric.asp.Core.Shell.ShellOperator.Character.init -> void
@@ -405,9 +485,30 @@ uk.osric.asp.Core.Shell.ShellSegment.IsLiteral.init -> void
 uk.osric.asp.Core.Shell.ShellSegment.ShellSegment(string! Text, bool IsLiteral) -> void
 uk.osric.asp.Core.Shell.ShellSegment.Text.get -> string!
 uk.osric.asp.Core.Shell.ShellSegment.Text.init -> void
+uk.osric.asp.Core.Shell.ShellSyntax
+uk.osric.asp.Core.Shell.ShellSyntax.<Clone>$() -> uk.osric.asp.Core.Shell.ShellSyntax!
+uk.osric.asp.Core.Shell.ShellSyntax.Deconstruct(out System.Collections.Generic.IReadOnlyList<char>! Flags, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellValueOption!>! Values, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellOperand!>! Operands) -> void
+uk.osric.asp.Core.Shell.ShellSyntax.Equals(uk.osric.asp.Core.Shell.ShellSyntax? other) -> bool
+uk.osric.asp.Core.Shell.ShellSyntax.Flags.get -> System.Collections.Generic.IReadOnlyList<char>!
+uk.osric.asp.Core.Shell.ShellSyntax.Flags.init -> void
+uk.osric.asp.Core.Shell.ShellSyntax.Match(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellWord!>! words, string! usage) -> uk.osric.asp.Core.Shell.ShellMatchResult!
+uk.osric.asp.Core.Shell.ShellSyntax.Operands.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellOperand!>!
+uk.osric.asp.Core.Shell.ShellSyntax.Operands.init -> void
+uk.osric.asp.Core.Shell.ShellSyntax.ShellSyntax(System.Collections.Generic.IReadOnlyList<char>! Flags, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellValueOption!>! Values, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellOperand!>! Operands) -> void
+uk.osric.asp.Core.Shell.ShellSyntax.Values.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellValueOption!>!
+uk.osric.asp.Core.Shell.ShellSyntax.Values.init -> void
 uk.osric.asp.Core.Shell.ShellToken
 uk.osric.asp.Core.Shell.ShellToken.ShellToken() -> void
 uk.osric.asp.Core.Shell.ShellToken.ShellToken(uk.osric.asp.Core.Shell.ShellToken! original) -> void
+uk.osric.asp.Core.Shell.ShellValueOption
+uk.osric.asp.Core.Shell.ShellValueOption.<Clone>$() -> uk.osric.asp.Core.Shell.ShellValueOption!
+uk.osric.asp.Core.Shell.ShellValueOption.Deconstruct(out char Letter, out string! Name) -> void
+uk.osric.asp.Core.Shell.ShellValueOption.Equals(uk.osric.asp.Core.Shell.ShellValueOption? other) -> bool
+uk.osric.asp.Core.Shell.ShellValueOption.Letter.get -> char
+uk.osric.asp.Core.Shell.ShellValueOption.Letter.init -> void
+uk.osric.asp.Core.Shell.ShellValueOption.Name.get -> string!
+uk.osric.asp.Core.Shell.ShellValueOption.Name.init -> void
+uk.osric.asp.Core.Shell.ShellValueOption.ShellValueOption(char Letter, string! Name) -> void
 uk.osric.asp.Core.Shell.ShellWord
 uk.osric.asp.Core.Shell.ShellWord.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Shell.ShellSegment!>! Segments) -> void
 uk.osric.asp.Core.Shell.ShellWord.Equals(uk.osric.asp.Core.Shell.ShellWord? other) -> bool
