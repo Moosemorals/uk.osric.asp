@@ -128,7 +128,7 @@ public static class Heatmap {
         double cellWidth = plotWidth / columns;
         double cellHeight = plotHeight / folded.Count;
 
-        WriteRows(svg, folded, frame, valueUnit, plotTop, cellHeight, cellWidth, max, earliest, latest - earliest);
+        WriteRows(svg, folded, frame, valueUnit, plotTop, cellHeight, cellWidth, max, latest - earliest);
 
         foreach (ChartTick tick in x.Ticks.OrderBy(tick => tick.Position)) {
             double at = LeftMargin + ((tick.Position / span) * plotWidth);
@@ -184,7 +184,6 @@ public static class Heatmap {
         double cellHeight,
         double cellWidth,
         double max,
-        DateTimeOffset earliest,
         TimeSpan span) {
 
         for (int row = 0; row < rows.Count; row++) {
@@ -203,7 +202,7 @@ public static class Heatmap {
                 .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BucketLabel(line.Label)))
                 .Append("</text>\n");
 
-            WriteRuns(svg, line, frame, valueUnit, earliest, span, y, cellHeight, cellWidth, max);
+            WriteRuns(svg, line, frame, valueUnit, span, y, cellHeight, cellWidth, max);
             svg.Append("</a>\n");
         }
     }
@@ -213,7 +212,6 @@ public static class Heatmap {
         HeatmapRow line,
         ChartFrame frame,
         string valueUnit,
-        DateTimeOffset earliest,
         TimeSpan span,
         double y,
         double cellHeight,
@@ -239,7 +237,7 @@ public static class Heatmap {
             }
 
             if (start >= 0) {
-                WriteRun(svg, line.Label, frame, valueUnit, earliest, span, y, cellHeight, cellWidth,
+                WriteRun(svg, line.Label, frame, valueUnit, span, y, cellHeight, cellWidth,
                     start, column - 1, level, total, from, to);
             }
 
@@ -260,7 +258,6 @@ public static class Heatmap {
         string label,
         ChartFrame frame,
         string valueUnit,
-        DateTimeOffset earliest,
         TimeSpan span,
         double y,
         double cellHeight,

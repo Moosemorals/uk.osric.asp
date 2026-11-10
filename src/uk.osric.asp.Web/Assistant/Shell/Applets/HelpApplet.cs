@@ -12,7 +12,8 @@ internal sealed class HelpApplet : ShellApplet {
     private const string Preface =
         "A read-only shell over the page store, which is a tree of keys: /notes is a page, and /vim\n"
         + "is a folder when a key lives beneath it. A key is a key, never a host path.\n"
-        + "One command per line: there are no pipes, redirects, separators, globbing or expansion.\n"
+        + "One command per line: there are no pipes, redirects, separators or expansion, but an unquoted\n"
+        + "* or ? in an operand is a pattern and names every key it fits.\n"
         + "Quote a word with ' ' or \" \" to keep its spaces and punctuation literal, or escape one\n"
         + "character with a backslash: grep 'a|b' is a query, grep a|b is refused.";
 

@@ -253,10 +253,8 @@ public static class LineDiff {
 
             if (x == previousX) {
                 operations.Add(new Operation(DiffOperationKind.Insert, after[y - 1]));
-                y--;
             } else {
                 operations.Add(new Operation(DiffOperationKind.Delete, before[x - 1]));
-                x--;
             }
 
             x = previousX;

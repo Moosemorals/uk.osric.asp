@@ -11,7 +11,7 @@ internal sealed class WcApplet : ShellApplet {
 
     public override string Name => "wc";
 
-    public override string Usage => "wc [-l] [key ...]";
+    public override string Usage => "wc [-l] <key> [key ...]";
 
     public override string Description => "Print the number of lines in each key, and a total when there is more than one.";
 

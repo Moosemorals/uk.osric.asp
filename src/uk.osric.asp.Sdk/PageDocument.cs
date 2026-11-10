@@ -146,7 +146,7 @@ public static class PageDocument {
 
         foreach (string href in stylesheets) {
             if (!IsSiteRelative(href)) {
-                throw new ArgumentException($"'{href}' is not a site-relative URL.", "stylesheets");
+                throw new ArgumentException($"'{href}' is not a site-relative URL.", nameof(stylesheets));
             }
 
             if (seen.Add(href)) {

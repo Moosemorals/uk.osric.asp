@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Core.Assistant;
 
+using System.Buffers;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -28,6 +29,10 @@ using System.Text.RegularExpressions;
 /// </remarks>
 public sealed class GrepPattern {
 
+    // The characters that make a query a pattern rather than a literal substring: if none is present
+    // the cheap substring path is the whole match.
+    private static readonly SearchValues<char> s_metacharacters = SearchValues.Create("^$.*[]\\");
+
     private readonly StringComparison _comparison;
     private readonly string? _literal;
     private readonly Regex? _expression;
@@ -50,7 +55,7 @@ public sealed class GrepPattern {
         error = null;
         StringComparison comparison = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
-        if (query.AsSpan().IndexOfAny("^$.*[]\\") < 0) {
+        if (query.AsSpan().IndexOfAny(s_metacharacters) < 0) {
             pattern = new GrepPattern(query, comparison, null);
             return true;
         }
