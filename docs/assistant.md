@@ -33,7 +33,7 @@ page fetch it has no host allow-list (DEC-216). A fetched body is a tool result,
 transcript and sent to the provider on the next step: treat it as untrusted data, not instructions.
 `diff_page` compares two retained revisions of a page, defaulting to the newest two, and returns a
 unified diff, the two hashes and the editor link; it is a read, changes nothing and needs no
-approval (DEC-218).
+approval (DEC-219).
 There is no process, filesystem, git, package, or other outbound-network tool. The per-conversation
 approval mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on
 each flagged call. Unresolved, stale, stopped, or restarted approvals never execute.
@@ -50,11 +50,11 @@ would not — and `list_pages` also marks the row `kind: shell` or `kind: page`.
 describes itself: `help` lists every command with its options and arguments, `help <command>`
 prints one, and a refused call names `help`, so the accepted form is one call away rather than
 in the prompt or here. `-n` numbers the lines `cat` prints, and `grep` accepts it and changes
-nothing, because a match already carries its line (DEC-217). The line is lexed before it is
-judged (DEC-218): a quoted or escaped character is data, so `grep '&mdash;'` searches for one
+nothing, because a match already carries its line (DEC-221). The line is lexed before it is
+judged (DEC-222): a quoted or escaped character is data, so `grep '&mdash;'` searches for one
 and an unquoted `&` is refused, and a first word that is not a command is refused as that word
 rather than as the punctuation inside its quotes. The store is a tree, and the shell reads it as
-one (DEC-219): `ls` lists what is at a path and `ls -R`/`find` list everything below it, `grep`
+one (DEC-223): `ls` lists what is at a path and `ls -R`/`find` list everything below it, `grep`
 reads one level and `grep -r` descends, and `grep`'s query is a basic regular expression whose
 `\|` is alternation while every other punctuation character is literal. A capped listing, a
 capped match, or a match that lies below the level a search read, is said in the answer rather
@@ -123,7 +123,7 @@ page asks `GET /assistant/{id}/messages/{messageId}/content`, which renders the 
 the same profile as the reload, so the live step and the page after the run cannot disagree. The
 route is behind the same `Editor` policy and owner filter as every other conversation operation.
 A `diff_page` result carries `editorUrl`, which opens the same rendered diff the editor's history
-shows, so a model can link the owner to the line changes it read (DEC-218).
+shows, so a model can link the owner to the line changes it read (DEC-219).
 
 The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
 results, context and event replay, and bounds each provider request by silence rather than by duration:

@@ -78,7 +78,7 @@ the build:
   input is data, not markup. The result is a `table.diff` with line numbers, change markers and a
   sideways scroll container; an unchanged pair says so, and a comparison too different to align
   says why. A page compares two revisions by reading both with `IPageCatalog.ReadRevisionAsync`
-  (DEC-217, DEC-218).
+  (DEC-218, DEC-219).
 
 A page's log entries are filed under the single `uk.osric.asp.Pages` category with the page's key on
 a `Path` scope, and `SimpleContext` is where that enters the shell, so `Core` never names a logging
