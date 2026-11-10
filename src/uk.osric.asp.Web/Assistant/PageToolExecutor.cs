@@ -41,6 +41,7 @@ internal sealed class PageToolExecutor(
 
     private const int MatchLimit = 100;
     private const int ListingLimit = 500;
+    private const int DefaultLines = 10;
 
     // One table: the schema a call is validated against and the tool the model is offered are both
     // derived from it, so an argument cannot be described to the model and refused at execution.
@@ -642,6 +643,9 @@ internal sealed class PageToolExecutor(
 
         PagePath? prefix = checkedPrefix.Path;
         List<ShellNode> nodes = await ShellTreeAsync(pages, prefix, recursive, cancellationToken);
+        if (command.Options.HasFlag(VirtualShellOptions.Reverse)) {
+            nodes.Reverse();
+        }
         bool truncated = nodes.Count > ListingLimit;
         string output = string.Join('\n', nodes.Take(ListingLimit)
             .Select(node => longListing ? $"{Mode(node)} {node.Path.Key}" : node.Path.Key));
@@ -679,21 +683,25 @@ internal sealed class PageToolExecutor(
         }
 
         bool recursive = command.Options.HasFlag(VirtualShellOptions.Recursive);
-        (List<string> found, bool truncated) = await FindMatchesAsync(pages, prefixes, pattern.IsMatch, recursive,
-            (path, line, text) => $"{path.Key}:{line}: {text}", cancellationToken);
+        bool names = command.Options.HasFlag(VirtualShellOptions.Names);
+        bool counts = !names && command.Options.HasFlag(VirtualShellOptions.Counts);
+
+        (List<string> found, bool truncated) = names || counts
+            ? await CountOrNameAsync(pages, prefixes, pattern, recursive, names, cancellationToken)
+            : await FindMatchesAsync(pages, prefixes, pattern.IsMatch, recursive,
+                (path, line, text) => $"{path.Key}:{line}: {text}", cancellationToken);
 
         string output = found.Count > 0
             ? string.Join('\n', found)
             : recursive ? "No match." : "No match at this level.";
         if (truncated) {
-            output += $"\n[{MatchLimit} matches shown, in key order, and there are more. Narrow the query or the path.]";
+            output += $"\n[{MatchLimit} lines shown, in key order, and there are more. Narrow the query or the path.]";
         }
         if (found.Count == 0 && !recursive) {
             // "No match" about a folder whose folders were never read invites the wrong conclusion, so
             // a search that would have found something one level down says so.
-            (List<string> deeper, _) = await FindMatchesAsync(pages, prefixes, pattern.IsMatch, recursive: true,
-                (path, line, text) => path.Key, cancellationToken);
-            if (deeper.Count > 0) {
+            List<(PagePath Path, string Text)> deeper = await SourcesAsync(pages, prefixes, recursive: true, cancellationToken);
+            if (KeysMatching(deeper, pattern.IsMatch).Keys.Count > 0) {
                 output += "\n[There are matches below this level: grep -r reads the folders too.]";
             }
         }
@@ -701,55 +709,145 @@ internal sealed class PageToolExecutor(
         return Success(new { output, truncated }, $"grep {MessageText.Sanitize(query)}");
     }
 
+    private async Task<(List<string> Rows, bool Truncated)> CountOrNameAsync(
+        PageEditor pages,
+        IReadOnlyList<PagePath?> prefixes,
+        GrepPattern pattern,
+        bool recursive,
+        bool names,
+        CancellationToken cancellationToken) {
+        List<(PagePath Path, string Text)> sources = await SourcesAsync(pages, prefixes, recursive, cancellationToken);
+
+        return names
+            ? KeysMatching(sources, pattern.IsMatch)
+            : CountsMatching(sources, pattern.IsMatch);
+    }
+
+    // grep -l: one key per source that matches, however many of its lines do.
+    private static (List<string> Keys, bool Truncated) KeysMatching(
+        IReadOnlyList<(PagePath Path, string Text)> sources,
+        Func<string, bool> matches) {
+        List<string> keys = [];
+        foreach ((PagePath path, string text) in sources) {
+            if (!ReadLines(text).Any(matches)) {
+                continue;
+            }
+            if (keys.Count == MatchLimit) {
+                return (keys, true);
+            }
+            keys.Add(path.Key);
+        }
+
+        return (keys, false);
+    }
+
+    // grep -c: a key and its count for every source searched, zeros included, because that is what a
+    // count answers — which pages have this, and which do not.
+    private static (List<string> Counts, bool Truncated) CountsMatching(
+        IReadOnlyList<(PagePath Path, string Text)> sources,
+        Func<string, bool> matches) {
+        List<string> counts = [];
+        foreach ((PagePath path, string text) in sources) {
+            if (counts.Count == MatchLimit) {
+                return (counts, true);
+            }
+            int count = ReadLines(text).Count(matches);
+            counts.Add($"{path.Key}:{count.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        return (counts, false);
+    }
+
     private async Task<ToolExecutionResult> ReadAsync(
         VirtualShellCommand command,
         PageEditor pages,
         CancellationToken cancellationToken) {
-        string pathText = command.Name switch {
-            "head" or "tail" => command.Arguments[2],
-            _ => command.Arguments[^1],
-        };
-        PathValidationResult checkedPath = paths.Validate(pathText, write: false);
-        if (!checkedPath.IsSuccess) {
-            return Failure(checkedPath.Error!, "Shell path refused");
-        }
-        PagePath path = checkedPath.Path!;
-        if (ShadowedKey(path) is { } shadowed) {
-            return shadowed;
-        }
-
-        string source;
-        PageTemplate? target = null;
-        if (paths.IsReserved(path)) {
-            source = ShellRoutes.Text(path);
-        } else {
-            target = await pages.GetAsync(path, cancellationToken);
-            if (target is null) {
-                return await HasKeysBelowAsync(pages, path, cancellationToken)
-                    ? Failure($"{Describe(path)} is a folder, not a page. ls {Describe(path)} lists what is in it.", $"{command.Name} {Describe(path)}: a folder")
-                    : Failure($"Page {Describe(path)} was not found.", $"{command.Name} {Describe(path)}: not found");
+        // cat and stat take as many keys as they are given: one source per key, in the order the keys
+        // were written, so a read of several pages reads like the command that asked for them.
+        if (command.Name is "cat" or "stat") {
+            List<Source> sources = [];
+            foreach (string pathText in command.Arguments) {
+                (Source? source, ToolExecutionResult? failed) = await ResolveAsync(command, pathText, pages, cancellationToken);
+                if (failed is not null) {
+                    return failed;
+                }
+                sources.Add(source!);
             }
-            source = target.Template;
+
+            string output = command.Name == "stat"
+                ? string.Join('\n', sources.Select(source => Stat(source, pages)))
+                : command.Options.HasFlag(VirtualShellOptions.Numbers)
+                    ? string.Join('\n', sources.Select(source => Number(ReadLines(source.Text))))
+                    : string.Join('\n', sources.Select(source => source.Text));
+            return Success(
+                new { output = WithinBudget(output) },
+                $"{command.Name} {string.Join(' ', sources.Select(source => Describe(source.Path)))}");
         }
 
-        string[] sourceLines = ReadLines(source);
-        string output = command.Name switch {
-            "cat" => command.Options.HasFlag(VirtualShellOptions.Numbers) ? Number(sourceLines) : source,
-            "head" => string.Join('\n', sourceLines.Take(ParseCount(command.Arguments[1]))),
-            "tail" => string.Join('\n', sourceLines.TakeLast(ParseCount(command.Arguments[1]))),
-            "wc" => sourceLines.Length.ToString(CultureInfo.InvariantCulture),
-            "stat" => target is null
-                ? $"{path.Key}\n{Mode(path)}\nshell file\n{sourceLines.Length} lines, {source.Length} chars"
-                : $"{path.Key}\n{Mode(path)}\n{target.Template.Length} chars\n{target.Hash}\n{target.SavedAt:O}\n{ImageStatus(target, pages.RuntimeId)}",
+        (int count, string key) = command.Name == "wc" ? (0, command.Arguments[^1]) : LineCount(command);
+        (Source? only, ToolExecutionResult? refusal) = await ResolveAsync(command, key, pages, cancellationToken);
+        if (refusal is not null) {
+            return refusal;
+        }
+
+        string[] lines = ReadLines(only!.Text);
+        string body = command.Name switch {
+            "wc" => lines.Length.ToString(CultureInfo.InvariantCulture),
+            "head" => string.Join('\n', lines.Take(count)),
+            "tail" => string.Join('\n', lines.TakeLast(count)),
             _ => "",
         };
-        // Half the budget, because the output still has to fit back inside the JSON envelope with
-        // room for escaping; the same rule read_page uses.
-        int budget = options.MaxToolResultChars / 2;
-        if (output.Length > budget) {
-            output = output[..budget] + "\n[truncated: read a line range instead]";
+        return Success(new { output = WithinBudget(body) }, $"{command.Name} {Describe(only.Path)}");
+    }
+
+    // One key as it was resolved: the route's record, the page's source, or the refusal that says why
+    // there is nothing to read there.
+    private sealed record Source(PagePath Path, PageTemplate? Page, string Text);
+
+    private async Task<(Source? Source, ToolExecutionResult? Failure)> ResolveAsync(
+        VirtualShellCommand command,
+        string pathText,
+        PageEditor pages,
+        CancellationToken cancellationToken) {
+        PathValidationResult checkedPath = paths.Validate(pathText, write: false);
+        if (!checkedPath.IsSuccess) {
+            return (null, Failure(checkedPath.Error!, "Shell path refused"));
         }
-        return Success(new { output }, $"{command.Name} {Describe(path)}");
+
+        PagePath path = checkedPath.Path!;
+        if (ShadowedKey(path) is { } shadowed) {
+            return (null, shadowed);
+        }
+        if (paths.IsReserved(path)) {
+            return (new Source(path, null, ShellRoutes.Text(path)), null);
+        }
+
+        PageTemplate? page = await pages.GetAsync(path, cancellationToken);
+        if (page is not null) {
+            return (new Source(path, page, page.Template), null);
+        }
+
+        return (null, await HasKeysBelowAsync(pages, path, cancellationToken)
+            ? Failure($"{Describe(path)} is a folder, not a page. ls {Describe(path)} lists what is in it.", $"{command.Name} {Describe(path)}: a folder")
+            : Failure($"Page {Describe(path)} was not found.", $"{command.Name} {Describe(path)}: not found"));
+    }
+
+    // head and tail take a count and a key, and a bare key is ten lines, which is a shell's default.
+    private static (int Count, string Path) LineCount(VirtualShellCommand command) => command.Arguments.Count switch {
+        1 => (DefaultLines, command.Arguments[0]),
+        2 => (ParseCount(command.Arguments[0]), command.Arguments[1]),
+        _ => (ParseCount(command.Arguments[1]), command.Arguments[2]),
+    };
+
+    private string Stat(Source source, PageEditor pages) => source.Page is null
+        ? $"{source.Path.Key}\n{Mode(source.Path)}\nshell file\n{ReadLines(source.Text).Length} lines, {source.Text.Length} chars"
+        : $"{source.Path.Key}\n{Mode(source.Path)}\n{source.Page.Template.Length} chars\n{source.Page.Hash}\n{source.Page.SavedAt:O}\n{ImageStatus(source.Page, pages.RuntimeId)}";
+
+    // Half the budget, because the output still has to fit back inside the JSON envelope with room for
+    // escaping; the same rule read_page uses.
+    private string WithinBudget(string output) {
+        int budget = options.MaxToolResultChars / 2;
+        return output.Length > budget ? output[..budget] + "\n[truncated: read a line range instead]" : output;
     }
 
     // `help` is the only description of the grammar the model can reach: the tool description is a
@@ -780,11 +878,10 @@ internal sealed class PageToolExecutor(
                 "Tool result too large");
     }
 
-    // Both search_pages and the shell's grep walk the same live pages and shell records under the same
-    // rules, so the scan lives here once and the caller decides what a match becomes and how far down
-    // to read. It stops one match past the limit so the caller can say that something was left behind
-    // rather than guess from the count. Keys are visited in ordinal order, so a result reads like a
-    // listing.
+    // Both search_pages and the shell's grep read the same live pages and shell records under the same
+    // rules, so the scan lives here once and the caller folds it its own way: lines, keys, or counts. It
+    // stops one match past the limit so the caller can say that something was left behind rather than
+    // guess from the count. Keys are visited in ordinal order, so a result reads like a listing.
     private async Task<(List<T> Matches, bool Truncated)> FindMatchesAsync<T>(
         PageEditor pages,
         IReadOnlyList<PagePath?> prefixes,
@@ -793,6 +890,28 @@ internal sealed class PageToolExecutor(
         Func<PagePath, int, string, T> project,
         CancellationToken cancellationToken) {
         List<T> found = [];
+        foreach ((PagePath path, string text) in await SourcesAsync(pages, prefixes, recursive, cancellationToken)) {
+            string[] lines = ReadLines(text);
+            for (int index = 0; index < lines.Length; index++) {
+                if (!matches(lines[index])) {
+                    continue;
+                }
+                if (found.Count == MatchLimit) {
+                    return (found, true);
+                }
+                found.Add(project(path, index + 1, lines[index]));
+            }
+        }
+
+        return (found, false);
+    }
+
+    // The pages and shell records a command may read, in key order, so two searches of one tree agree.
+    private async Task<List<(PagePath Path, string Text)>> SourcesAsync(
+        PageEditor pages,
+        IReadOnlyList<PagePath?> prefixes,
+        bool recursive,
+        CancellationToken cancellationToken) {
         List<(PagePath Path, string Text)> sources = [.. paths.Reserved
             .Where(path => IsInScope(path, prefixes, recursive))
             .Select(path => (path, ShellRoutes.Text(path)))];
@@ -809,21 +928,7 @@ internal sealed class PageToolExecutor(
         }
 
         sources.Sort((left, right) => string.CompareOrdinal(left.Path.Key, right.Path.Key));
-
-        foreach ((PagePath path, string text) in sources) {
-            string[] lines = ReadLines(text);
-            for (int index = 0; index < lines.Length; index++) {
-                if (!matches(lines[index])) {
-                    continue;
-                }
-                if (found.Count == MatchLimit) {
-                    return (found, true);
-                }
-                found.Add(project(path, index + 1, lines[index]));
-            }
-        }
-
-        return (found, false);
+        return sources;
     }
 
     // Whether a key is inside what a command was told to read. A path names a file as readily as a

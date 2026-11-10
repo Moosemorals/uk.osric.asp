@@ -21,6 +21,12 @@ public sealed class VirtualShellTests {
     [TestCase("help", "help")]
     [TestCase("help cat", "help", "cat")]
     [TestCase("grep alpha /a /b /c", "grep", "alpha", "/a", "/b", "/c")]
+    [TestCase("cat /a /b /c", "cat", "/a", "/b", "/c")]
+    [TestCase("stat /a /b", "stat", "/a", "/b")]
+    [TestCase("wc /a", "wc", "/a")]
+    [TestCase("head /a", "head", "/a")]
+    [TestCase("head 3 /a", "head", "3", "/a")]
+    [TestCase("tail /a", "tail", "/a")]
     [TestCase("ls", "ls")]
     public void ParsesSupportedCommandsAndQuotedArguments(string command, params string[] expected) {
         VirtualShellParseResult result = VirtualShellParser.Parse(command);
@@ -39,6 +45,10 @@ public sealed class VirtualShellTests {
     [TestCase("grep -i title /blog", VirtualShellOptions.IgnoreCase)]
     [TestCase("grep -i -i title /blog", VirtualShellOptions.IgnoreCase)]
     [TestCase("find -l /a", VirtualShellOptions.Long)]
+    [TestCase("ls -r /a", VirtualShellOptions.Reverse)]
+    [TestCase("ls -r -l /a", VirtualShellOptions.Reverse | VirtualShellOptions.Long)]
+    [TestCase("grep -l title /a", VirtualShellOptions.Names)]
+    [TestCase("grep -c title /a", VirtualShellOptions.Counts)]
     [TestCase("find -R /a", VirtualShellOptions.Recursive)]
     [TestCase("grep -r title /blog", VirtualShellOptions.Recursive)]
     [TestCase("grep -R title /blog", VirtualShellOptions.Recursive)]
@@ -54,10 +64,8 @@ public sealed class VirtualShellTests {
         });
     }
 
-    [TestCase("ls -r /a", "ls has no -r: the listing is in key order")]
     [TestCase("ls -n /a", "ls has no -n")]
     [TestCase("cat -l /a", "cat has no -l")]
-    [TestCase("grep -l title /a", "grep has no -l")]
     public void RefusesAnOptionTheCommandDoesNotTake(string command, string why) {
         Assert.That(VirtualShellParser.Parse(command).Error, Is.Not.Null, why);
     }
@@ -153,12 +161,13 @@ public sealed class VirtualShellTests {
             Assert.That(VirtualShellParser.Parse("cat").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("head -n zero /page").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("head -n 0 /page").Error, Is.Not.Null);
-            Assert.That(VirtualShellParser.Parse("head 4 /page").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("head -n 4").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("grep -i").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("wc -l").Error, Is.Not.Null);
-            Assert.That(VirtualShellParser.Parse("wc /page").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("help cat dog").Error, Is.Not.Null);
+            Assert.That(VirtualShellParser.Parse("wc -l").Error, Is.Not.Null, "wc takes a key");
+            Assert.That(VirtualShellParser.Parse("head 4").Error, Is.Not.Null, "a count with no key");
+            Assert.That(VirtualShellParser.Parse("head -n 4").Error, Is.Not.Null, "a count with no key");
         });
     }
 

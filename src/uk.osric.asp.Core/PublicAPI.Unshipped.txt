@@ -125,11 +125,14 @@ uk.osric.asp.Core.Assistant.VirtualShellCommand.Options.get -> uk.osric.asp.Core
 uk.osric.asp.Core.Assistant.VirtualShellCommand.Options.init -> void
 uk.osric.asp.Core.Assistant.VirtualShellCommand.VirtualShellCommand(string! Name, System.Collections.Generic.IReadOnlyList<string!>! Arguments, uk.osric.asp.Core.Assistant.VirtualShellOptions Options = uk.osric.asp.Core.Assistant.VirtualShellOptions.None) -> void
 uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellOptions.Counts = 64 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.IgnoreCase = 2 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.Long = 4 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellOptions.Names = 32 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.None = 0 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.Numbers = 1 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Assistant.VirtualShellOptions.Recursive = 8 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellOptions.Reverse = 16 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Charting.ChartFrame
 uk.osric.asp.Core.Charting.ChartFrame.<Clone>$() -> uk.osric.asp.Core.Charting.ChartFrame!
 *REMOVED*uk.osric.asp.Core.Charting.ChartFrame.ChartFrame(string! Id, string! Title, string! YTitle, string! EmptyText, System.TimeZoneInfo! Zone) -> void

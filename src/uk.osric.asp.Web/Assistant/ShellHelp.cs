@@ -40,22 +40,31 @@ internal static class ShellHelp {
 
     /// <summary>One entry per command, in ordinal order.</summary>
     public static IReadOnlyList<ShellHelpEntry> All { get; } = [
-        new("cat", "cat [-n] <key>",
-            "Print a page's source. -n puts each line's number and a tab before it."),
+        new("cat", "cat [-n] <key> [key ...]",
+            "Print each page's source, one after another. -n puts each line's number and a tab before it, counting each page from one.",
+            "Several keys are read in the order they are written, and a number printed for one page can be\n"
+            + "pasted into read_page or edit_page for that page."),
         new("find", "find [prefix]",
             "Print the long listing of everything below prefix, the same as ls -Rl."),
-        new("grep", "grep [-i] [-n] [-r] <query> [prefix ...]",
+        new("grep", "grep [-i] [-n] [-r] [-l] [-c] <query> [prefix ...]",
             "Print key, line and text for every matching line at each prefix, or below it with -r.",
             "The query is a basic regular expression: ^ $ . * and [abc] are metacharacters, \\| is\n"
-            + "either-this-or-that, and every other character is the literal one. -n changes nothing,\n"
-            + "because a match always carries its line, and -i ignores case."),
-        new("head", "head -n <count> <key>", "Print the first count lines of a page."),
+            + "either-this-or-that, and every other character is the literal one. -i ignores case, and -n\n"
+            + "changes nothing because a match always carries its line. -l prints the keys that match,\n"
+            + "one per key, and -c prints key:count for every key searched."),
+        new("head", "head [<count>] <key>",
+            "Print the first count lines of a page, ten by default.",
+            "The count may be written plainly or after -n, as a shell spells it."),
         new("help", "help [command]", "Print this list, or the one command's usage and syntax."),
-        new("ls", "ls [-l] [-R] [prefix]",
-            "List the keys at prefix. -l puts the permission in front, and -R lists everything below."),
-        new("stat", "stat <key>", "Print a page's key, permission, size, revision hash, saved time and compile state."),
-        new("tail", "tail -n <count> <key>", "Print the last count lines of a page."),
-        new("wc", "wc -l <key>", "Print the number of lines in a page."),
+        new("ls", "ls [-l] [-R] [-r] [prefix]",
+            "List the keys at prefix. -l puts the permission in front, -R lists everything below, and -r reverses the order."),
+        new("stat", "stat <key> [key ...]",
+            "Print each page's key, permission, size, revision hash, saved time and compile state."),
+        new("tail", "tail [<count>] <key>",
+            "Print the last count lines of a page, ten by default.",
+            "The count may be written plainly or after -n, as a shell spells it."),
+        new("wc", "wc [-l] <key>",
+            "Print the number of lines in a page. -l is accepted and counts the same thing."),
     ];
 
     private static readonly Dictionary<string, ShellHelpEntry> s_byName =

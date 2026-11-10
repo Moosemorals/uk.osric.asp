@@ -26,4 +26,13 @@ public enum VirtualShellOptions {
 
     /// <summary><c>-r</c> or <c>-R</c>: read everything below the path, not only what is at it.</summary>
     Recursive = 8,
+
+    /// <summary><c>-r</c> on <c>ls</c>: the listing in reverse order, as a shell's <c>ls</c> means it.</summary>
+    Reverse = 16,
+
+    /// <summary><c>-l</c> on <c>grep</c>: the keys that match, instead of the lines that do.</summary>
+    Names = 32,
+
+    /// <summary><c>-c</c> on <c>grep</c>: how many lines match in each key, instead of the lines.</summary>
+    Counts = 64,
 }

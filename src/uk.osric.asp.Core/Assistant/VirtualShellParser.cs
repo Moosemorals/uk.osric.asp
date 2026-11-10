@@ -201,7 +201,10 @@ public static class VirtualShellParser {
         VirtualShellOptions option = (command, word) switch {
             ("cat", "-n") or ("grep", "-n") => VirtualShellOptions.Numbers,
             ("grep", "-i") => VirtualShellOptions.IgnoreCase,
+            ("grep", "-l") => VirtualShellOptions.Names,
+            ("grep", "-c") => VirtualShellOptions.Counts,
             ("grep", "-r") or ("grep", "-R") or ("ls", "-R") or ("find", "-r") or ("find", "-R") => VirtualShellOptions.Recursive,
+            ("ls", "-r") => VirtualShellOptions.Reverse,
             ("ls", "-l") or ("find", "-l") => VirtualShellOptions.Long,
             _ => VirtualShellOptions.None,
         };
@@ -216,13 +219,31 @@ public static class VirtualShellParser {
 
     private static bool ValidArguments(string command, IReadOnlyList<string> arguments) => command switch {
         "find" or "help" or "ls" => arguments.Count <= 1,
-        "cat" or "stat" => arguments.Count == 1,
-        "head" or "tail" => arguments.Count == 3 && arguments[0] == "-n"
-            && int.TryParse(arguments[1], NumberStyles.None, CultureInfo.InvariantCulture, out int count) && count > 0,
-        "wc" => arguments.Count == 2 && arguments[0] == "-l",
+        "cat" or "stat" => arguments.Count >= 1,
+        "head" or "tail" => HeadOrTail(arguments),
+        "wc" => Wc(arguments),
         "grep" => arguments.Count >= 1,
         _ => false,
     };
+
+    /// <summary>The forms <c>head</c> and <c>tail</c> take: a key, a count and a key, or <c>-n</c> and both.</summary>
+    /// <remarks>A lone number is a count with no key, which is a mistake rather than a key called <c>4</c>.</remarks>
+    private static bool HeadOrTail(IReadOnlyList<string> arguments) => arguments.Count switch {
+        1 => !IsCount(arguments[0]),
+        2 => IsCount(arguments[0]),
+        3 => arguments[0] == "-n" && IsCount(arguments[1]),
+        _ => false,
+    };
+
+    /// <summary>The forms <c>wc</c> takes: a key, or <c>-l</c> and a key, which count the same thing.</summary>
+    private static bool Wc(IReadOnlyList<string> arguments) => arguments.Count switch {
+        1 => !arguments[0].StartsWith('-'),
+        2 => arguments[0] == "-l",
+        _ => false,
+    };
+
+    private static bool IsCount(string text) =>
+        int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int count) && count > 0;
 
     private static VirtualShellParseResult WrongArguments(string command) =>
         Invalid($"The shell command has the wrong arguments. Run help {command} for the form it takes.");
