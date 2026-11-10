@@ -6,8 +6,8 @@ namespace uk.osric.asp.Sdk;
 /// <summary>The slots a render offers a page that is served inside another page.</summary>
 /// <remarks>
 /// <para>
-/// Reached through <see cref="IContext.Features"/> as
-/// <c>ctx.Features.GetRequired&lt;IPageLayout&gt;()</c>, so <see cref="IContext"/> gains nothing for
+/// Reached through <see cref="IContext.Capabilities"/> as
+/// <c>ctx.Capabilities.GetRequired&lt;IPageLayout&gt;()</c>, so <see cref="IContext"/> gains nothing for
 /// chrome and a page that never wants a layout never meets one.
 /// </para>
 /// <para>

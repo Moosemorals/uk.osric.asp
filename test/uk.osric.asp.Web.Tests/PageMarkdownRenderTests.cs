@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageMarkdownRenderTests {
 
     private const string MarkdownPage = """
-        <% IMarkdownRenderer markdown = ctx.Features.GetRequired<IMarkdownRenderer>(); %>
+        <% IMarkdownRenderer markdown = ctx.Capabilities.GetRequired<IMarkdownRenderer>(); %>
         <%== markdown.ToHtml("## Heading\n\n**bold** and [about](/about)\n\n| Name | Value |\n| --- | --- |\n| one | 1 |\n\n<span>raw</span>") %>
         """;
 

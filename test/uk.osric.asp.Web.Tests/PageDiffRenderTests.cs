@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageDiffRenderTests {
 
     private const string DiffPage = """
-        <% IDiffRenderer diff = ctx.Features.GetRequired<IDiffRenderer>(); %>
+        <% IDiffRenderer diff = ctx.Capabilities.GetRequired<IDiffRenderer>(); %>
         <%== diff.ToHtml("one\n<script>before</script>", "one\n<script>after</script>") %>
         """;
 

@@ -26,7 +26,7 @@ internal sealed class PageCatalogScope(
     PageReadOptions options,
     ReadBudget budget,
     ReservedPaths reserved,
-    PageContentTypes contentTypes) : RenderBoundFeature, IPageCatalog {
+    PageContentTypes contentTypes) : RenderBoundCapability, IPageCatalog {
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<PageEntry>> ListAsync(string prefix) {

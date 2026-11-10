@@ -34,7 +34,7 @@ internal sealed class PageWriterScope(
     PagePath path,
     PageSaver saver,
     PageUser? user,
-    bool writable) : RenderBoundFeature, IPageWriter {
+    bool writable) : RenderBoundCapability, IPageWriter {
 
     private int _saved;
 

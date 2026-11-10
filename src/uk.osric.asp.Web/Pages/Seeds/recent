@@ -6,7 +6,7 @@ sealed class RecentOrder : IComparer<PageEntry> {
         return byTime != 0 ? byTime : string.CompareOrdinal(left.Key, right.Key);
     }
 } %>
-<% ctx.Features.GetRequired<IPageLayout>().Title = "Recent changes"; %>
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Recent changes"; %>
 <h1>Recent changes</h1>
 <p>Every page this site stores, most recently saved first. This is a demonstration page for the
 page-store read capability (<code>IPageCatalog</code>), and the worked example for the listing the
@@ -14,7 +14,7 @@ editor is heading towards (<a href="/edit">IDEA-017</a>). It reads keys and head
 template.</p>
 <p>Signed in? <a href="/pages">Browse a page's source and history</a>.</p>
 <%
-    IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+    IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
     IReadOnlyList<PageEntry> entries = await catalog.ListAsync("");
     var ordered = new List<PageEntry>(entries);
     ordered.Sort(new RecentOrder());

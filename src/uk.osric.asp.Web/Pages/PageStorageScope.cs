@@ -19,7 +19,7 @@ internal sealed class PageStorageScope(
     PagePath path,
     IPageStateStore store,
     PageStorageOptions options,
-    bool writable) : RenderBoundFeature, IRenderBoundPageStorage {
+    bool writable) : RenderBoundCapability, IRenderBoundPageStorage {
 
     // One instance is enough: JsonSerializerOptions is thread-safe once it has been used, and every
     // page serialises the same way.

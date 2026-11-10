@@ -26,7 +26,7 @@ The first customer is the owner's memory page, which landed last week as four sh
 streaming and no upload — everything a page is *for*. It becomes:
 
 - **One capability, owner-bound.** `IMemoryCatalog` (read) and `IMemoryWriter` (write) in `Sdk`,
-  offered through `ctx.Features`, bound to `ctx.User` by the host so a page cannot name an owner.
+  offered through `ctx.Capabilities`, bound to `ctx.User` by the host so a page cannot name an owner.
   An anonymous render is refused by the capability, not merely by the page's own guard.
 - **One stored page.** `/memory`, seeded like `/help` and `/scratch`, with its own `/memory.css`,
   saving itself on a `POST` and answering `303` back to itself.
@@ -92,7 +92,7 @@ The pieces this plan builds on:
 
 | Piece | Today | Used here for |
 | --- | --- | --- |
-| `IContext` and `IPageFeatures` | `User`, `AntiforgeryField`, `Write`, `Redirect`, `SetStatus`, `SetHeader` and the capabilities | Everything the page needs; no contract change |
+| `IContext` and `IPageCapabilities` | `User`, `AntiforgeryField`, `Write`, `Redirect`, `SetStatus`, `SetHeader` and the capabilities | Everything the page needs; no contract change |
 | `IPageCatalog`, `IPageWriter`, `IPageStorage`, `IHttpFetch`, `IPageLayout`, `IMarkdownRenderer` | The capabilities a render offers, built per render in `PageChain` from `PageEnvironment` | The pattern the memory capability copies |
 | `PageWriterScope`, `PageCatalogScope`, `PageStorageScope` | Capability scopes in `Web.Pages`: mapping `Web` records to `Sdk` values and refusing what the policy forbids | The shape of `MemoryCatalogScope` and `MemoryWriterScope` |
 | `PageEnvironment` | The singleton record the renderer needs, which exists "so the endpoint's signature stays readable as the page contract grows a capability" | Gains the memory store, offered only while the assistant is enabled |
@@ -416,7 +416,7 @@ and the page is reached from the assistant.
   those has a job. `/status` counts as bootstrap because diagnosing why a page did not load starts
   with it.
 - **DEC-211** — Memory is a page capability, not a shell view: `IMemoryCatalog` and `IMemoryWriter`
-  reach a page through `ctx.Features`, the request's signed-in account is the only owner they can
+  reach a page through `ctx.Capabilities`, the request's signed-in account is the only owner they can
   name, an anonymous render is refused by the capability itself, the writer is withheld from a layout
   and from a `HEAD`, and the capability is absent while the assistant is off. The owner's memory page
   is the seeded `/memory`, which replaces the shell route.
@@ -451,7 +451,7 @@ owner's write is reached from a page; [testing](../testing.md) names the suites;
 
 - `docs/decisions.md` carries DEC-210 and DEC-211, DEC-205 is superseded, and
   `docs/architecture.md` states the rule and the audit.
-- A page can read its visitor's memories through `ctx.Features.GetRequired<IMemoryCatalog>()` and
+- A page can read its visitor's memories through `ctx.Capabilities.GetRequired<IMemoryCatalog>()` and
   change one through `IMemoryWriter`, and an anonymous render is refused by the capability.
 - `/memory` is a seeded page with its own sheet that lists every memory grouped by kind with the count,
   saves content, kind and pin under the row's version, and forgets one through a confirmation — with

@@ -20,7 +20,7 @@ public sealed class PageFetchRenderTests {
             false));
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         await pages.StoreCompiledAsync("/live", """
-            <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+            <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                HttpFetchResponse response = await fetch.SendAsync(new HttpFetchRequest("https://api.example.com/"));
                using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(response.Body); %>
             <p><%= document.RootElement.GetProperty("state").GetString() %></p>
@@ -42,7 +42,7 @@ public sealed class PageFetchRenderTests {
             false));
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         await pages.StoreCompiledAsync("/live", """
-            <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+            <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/"); %>
             <p><%= response.Succeeded ? response.Body : "unavailable" %></p>
             """);
@@ -58,7 +58,7 @@ public sealed class PageFetchRenderTests {
         FakePageFetcher fetcher = new();
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         await pages.StoreCompiledAsync("/post", """
-            <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+            <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                HttpFetchResponse response = await fetch.PostAsync("https://api.example.com/", "x"); %>
             <p><%= response.Failure.ToString() %></p>
             """);
@@ -82,7 +82,7 @@ public sealed class PageFetchRenderTests {
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
         await pages.StoreCompiledAsync("/greedy", """
             <%
-                IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+                IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                 for (int index = 0; index < 4; index++) {
                     HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/");
                     ctx.Write(response.Failure.ToString());
@@ -161,7 +161,7 @@ public sealed class PageFetchRenderTests {
     public async Task ARequiredFetchIsRefusedWhenTheRenderOffersNoneAsync() {
         using PageHarness pages = new(new FakePageStore());
         await pages.StoreCompiledAsync("/needs-fetch", """
-            <% _ = ctx.Features.GetRequired<IHttpFetch>(); %>
+            <% _ = ctx.Capabilities.GetRequired<IHttpFetch>(); %>
             """);
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(

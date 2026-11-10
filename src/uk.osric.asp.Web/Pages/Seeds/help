@@ -1,4 +1,4 @@
-<% ctx.Features.GetRequired<IPageLayout>().Title = "Help"; %>
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Help"; %>
 <h1>Help</h1>
 <p>This is the author manual. It is itself a stored page, so logged in users
 can improve it at <a href="/edit/help">/edit/help</a>.</p>
@@ -62,9 +62,9 @@ wrapped. A page whose key has a content type of its own, such as <code>/site.css
 <code>/editor.js</code>, is served as that content type and is never wrapped.</p>
 
 <h2 id="layout">Layout and title</h2>
-<p>The layout slots are reached through the page's features, so a page that never wants a layout
+<p>The layout slots are reached through the page's capabilities, so a page that never wants a layout
 never meets one:</p>
-<pre class="source" tabindex="0"><code>&lt;% IPageLayout layout = ctx.Features.GetRequired&lt;IPageLayout&gt;();
+<pre class="source" tabindex="0"><code>&lt;% IPageLayout layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
    layout.Title = "About";
    layout.AddStylesheet("/about.css"); %&gt;
 &lt;h1&gt;About&lt;/h1&gt;
@@ -95,7 +95,7 @@ layout.</p>
 <p>A layout is not a guard. The content has already run by the time the layout starts, so a layout
 can hide chrome but cannot prevent a side effect.</p>
 <p>A minimal layout writes the document through the shared builder and puts the page in the middle:</p>
-<pre class="source" tabindex="0"><code>&lt;% var layout = ctx.Features.GetRequired&lt;IPageLayout&gt;();
+<pre class="source" tabindex="0"><code>&lt;% var layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
    if (ctx.Path == ctx.Request.Path) { layout.Title = "Site"; }
    bool At(string href) =&gt; ctx.Request.Path == href;
    var links = new System.Collections.Generic.List&lt;NavLink&gt; { new("/", "Home", At("/")) }; %&gt;
@@ -145,7 +145,7 @@ script's position in the document does not matter.</p>
 <code>.ToString()</code>.</p>
 <p>A page is compiled with nullable analysis on, exactly as the host's own code is, so a reference
 that may be null says so. <code>ctx.User</code> is a <code>PageUser?</code>, and
-<code>ctx.Features.Get&lt;T&gt;()</code> returns <code>null</code> when this render does not offer
+<code>ctx.Capabilities.Get&lt;T&gt;()</code> returns <code>null</code> when this render does not offer
 the capability. Bind a guard to a local and use the local, which is the form the compiler can
 follow:</p>
 <pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;
@@ -183,18 +183,22 @@ response, and nothing else:</p>
     <li><code>ctx.AllowScripts</code> permits same-origin external scripts;
     <code>ctx.AntiforgeryField</code> carries the hidden input a form must include.</li>
 </ul>
-<p><code>ctx.Features</code> is how a page asks for an optional capability.
+<p><code>ctx.Capabilities</code> is how a page asks for an optional capability.
 <code>TryGet&lt;T&gt;(out T?)</code> reports whether it is there, <code>Get&lt;T&gt;()</code> returns
 <code>null</code> when it is not, and <code>GetRequired&lt;T&gt;()</code> throws naming the
 interface. The host decides what is offered.</p>
+<p>A capability is not a feature the product has, nor an extension someone else adds: it is what this
+one render offers this page, and the next render may offer something else. <code>ctx.Features</code>
+is the old name for the same thing and still works, with a compiler warning, so a page written
+before the rename keeps serving.</p>
 <p><code>IBuildInfo</code> says which build is answering. <code>Commit</code> is the full git commit
 hash, or <code>null</code> when the build did not come from a checkout:</p>
-<pre class="source" tabindex="0"><code>&lt;% if (ctx.Features.GetRequired&lt;IBuildInfo&gt;().Commit is { } commit) { %&gt;
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.Capabilities.GetRequired&lt;IBuildInfo&gt;().Commit is { } commit) { %&gt;
 &lt;a href="https://github.com/Moosemorals/uk.osric.asp/commit/&lt;%= commit %&gt;"&gt;&lt;%= commit %&gt;&lt;/a&gt;
 &lt;% } %&gt;</code></pre>
 <p><code>IPageStorage</code> is the page's own key/value store. Every visitor shares it, a write is
 last-write-wins, and a page cannot reach another page's keys:</p>
-<pre class="source" tabindex="0"><code>&lt;% IPageStorage storage = ctx.Features.GetRequired&lt;IPageStorage&gt;();
+<pre class="source" tabindex="0"><code>&lt;% IPageStorage storage = ctx.Capabilities.GetRequired&lt;IPageStorage&gt;();
    PageValue&lt;int&gt; stored = await storage.TryGetValueAsync&lt;int&gt;("visits");
    int visits = (stored.Found ? stored.Value : 0) + 1;
    await storage.SetAsync("visits", visits); %&gt;
@@ -202,7 +206,7 @@ last-write-wins, and a page cannot reach another page's keys:</p>
 <p><code>IHttpFetch</code> makes one bounded HTTP request from the host, not the browser, to any
 <code>http</code> or <code>https</code> host the URL names. Failures are values rather than
 exceptions:</p>
-<pre class="source" tabindex="0"><code>&lt;% IHttpFetch fetch = ctx.Features.GetRequired&lt;IHttpFetch&gt;();
+<pre class="source" tabindex="0"><code>&lt;% IHttpFetch fetch = ctx.Capabilities.GetRequired&lt;IHttpFetch&gt;();
    HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/status");
    if (response.Succeeded) { %&gt;
 &lt;p&gt;State: &lt;%= response.Body %&gt;&lt;/p&gt;
@@ -220,7 +224,7 @@ catch. <code>System.IO</code>, <code>System.Net</code>, <code>System.Reflection<
 prefix, read a live page's template, list a page's history, and read one retained revision by its
 key and hash. It never meets an image, a symbol or a write; saving is
 <code>IPageWriter</code>, below.</p>
-<pre class="source" tabindex="0"><code>&lt;% IPageCatalog catalog = ctx.Features.GetRequired&lt;IPageCatalog&gt;();
+<pre class="source" tabindex="0"><code>&lt;% IPageCatalog catalog = ctx.Capabilities.GetRequired&lt;IPageCatalog&gt;();
    System.Collections.Generic.IReadOnlyList&lt;PageEntry&gt; pages = await catalog.ListAsync("/blog");
    PageSource? page = await catalog.ReadAsync("/blog");
    System.Collections.Generic.IReadOnlyList&lt;PageRevisionInfo&gt; history = await catalog.RevisionsAsync("/blog"); %&gt;
@@ -256,7 +260,7 @@ body cap bounds what a page can write out of them. Both limits are set under
 <h2 id="writing">Saving the page you are</h2>
 <p><code>IPageWriter</code> saves the source of the page that calls it. It is bound to
 <code>ctx.Path</code> and takes no key, so a page writes itself and nothing else:</p>
-<pre class="source" tabindex="0"><code>&lt;% PageSaveResult saved = await ctx.Features.GetRequired&lt;IPageWriter&gt;()
+<pre class="source" tabindex="0"><code>&lt;% PageSaveResult saved = await ctx.Capabilities.GetRequired&lt;IPageWriter&gt;()
         .SaveAsync(ctx.Request.Form["template"]); %&gt;
 &lt;p&gt;Saved &lt;code&gt;&lt;%= saved.Hash %&gt;&lt;/code&gt;.&lt;/p&gt;</code></pre>
 <p>The answer is a <code>PageSaveResult</code>: the new revision's hash, and the compiler's
@@ -283,7 +287,7 @@ revision hash has been overtaken.</p>
 
 <h2 id="markdown">Markdown</h2>
 <p><code>IMarkdownRenderer</code> renders Markdown to HTML. Write its result raw:</p>
-<pre class="source" tabindex="0"><code>&lt;% IMarkdownRenderer markdown = ctx.Features.GetRequired&lt;IMarkdownRenderer&gt;(); %&gt;
+<pre class="source" tabindex="0"><code>&lt;% IMarkdownRenderer markdown = ctx.Capabilities.GetRequired&lt;IMarkdownRenderer&gt;(); %&gt;
 &lt;%== markdown.ToHtml("## Today\n\n- one\n- two") %&gt;</code></pre>
 <p>It understands CommonMark, pipe tables, auto-links, links and images. Raw HTML in the
 Markdown passes through, exactly like <code>&lt;%== %&gt;</code>: the renderer is not a
@@ -295,7 +299,7 @@ column alignment markers are ignored because the site's policy forbids inline st
 <h2 id="diff">Diff</h2>
 <p><code>IDiffRenderer</code> renders the line changes between two strings as HTML. Write its
 result raw:</p>
-<pre class="source" tabindex="0"><code>&lt;% IDiffRenderer diff = ctx.Features.GetRequired&lt;IDiffRenderer&gt;(); %&gt;
+<pre class="source" tabindex="0"><code>&lt;% IDiffRenderer diff = ctx.Capabilities.GetRequired&lt;IDiffRenderer&gt;(); %&gt;
 &lt;%== diff.ToHtml(before, after) %&gt;</code></pre>
 <p>Every source line is escaped, so unlike Markdown this renderer is safe for a visitor's text, a
 fetched body or page state. The result is a <code>table.diff</code> with one row per changed or

@@ -251,7 +251,7 @@ public sealed class PageRendererTests {
             state: state,
             rendererLogger: logs.CreateLogger<PageRenderer>());
         await pages.StoreCompiledAsync("/waiting",
-            "<% ctx.Write((await ctx.Features.GetRequired<IPageStorage>().TryGetValueAsync<int>(\"visits\")).Found.ToString()); %>");
+            "<% ctx.Write((await ctx.Capabilities.GetRequired<IPageStorage>().TryGetValueAsync<int>(\"visits\")).Found.ToString()); %>");
 
         long start = Stopwatch.GetTimestamp();
         (RenderResult result, string _) = await pages.RenderAsync("/waiting");

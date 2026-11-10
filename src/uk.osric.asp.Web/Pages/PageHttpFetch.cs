@@ -15,7 +15,7 @@ using uk.osric.asp.Sdk;
 /// a value.
 /// </para>
 /// <para>
-/// The deadline arrives after construction, from the renderer, so the feature reads it per call
+/// The deadline arrives after construction, from the renderer, so the capability reads it per call
 /// rather than capturing a token that did not exist yet.
 /// </para>
 /// </remarks>
@@ -27,7 +27,7 @@ internal sealed class PageHttpFetch(
     PageFetchOptions options,
     RenderFetchBudget budget,
     PageMetrics metrics,
-    ILogger logger) : RenderBoundFeature, IHttpFetch {
+    ILogger logger) : RenderBoundCapability, IHttpFetch {
 #pragma warning restore CA1068 // CancellationToken parameters must come last
 
     /// <inheritdoc/>

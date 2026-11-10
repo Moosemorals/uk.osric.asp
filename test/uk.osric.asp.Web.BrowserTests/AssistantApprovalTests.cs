@@ -15,7 +15,7 @@ internal sealed class AssistantApprovalTests : BrowserTest {
         string path = UniquePath("approved");
         await StartConversationRequiringApprovalAsync();
         Provider.Script(
-            StubResponse.Tool("call-approve", "write_page", $$"""{"path":"{{path}}","content":"<% ctx.Features.GetRequired<IPageLayout>().Title = \"Approved\"; %><h1>Approved</h1><p>approved by the owner</p>"}"""),
+            StubResponse.Tool("call-approve", "write_page", $$"""{"path":"{{path}}","content":"<% ctx.Capabilities.GetRequired<IPageLayout>().Title = \"Approved\"; %><h1>Approved</h1><p>approved by the owner</p>"}"""),
             StubResponse.Words("The page is written.", TimeSpan.Zero));
 
         await SendAsync($"Write {path}");

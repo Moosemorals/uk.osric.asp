@@ -42,7 +42,7 @@ internal sealed class SimpleContext : IContext {
 
     private readonly Func<string>? _antiforgeryFactory;
     private readonly Lock _body = new();
-    private readonly PageFeatures _features;
+    private readonly PageCapabilities _capabilities;
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _loginRedirect;
     private readonly BodyBudget _bodyBudget;
@@ -69,7 +69,7 @@ internal sealed class SimpleContext : IContext {
     /// <param name="request">The request snapshot.</param>
     /// <param name="aborted">The token from the request being served.</param>
     /// <param name="writer">The buffer the body is written to.</param>
-    /// <param name="features">The capabilities this layer offers.</param>
+    /// <param name="capabilities">The capabilities this layer offers.</param>
     /// <param name="contentTypes">The media type the page's key names.</param>
     /// <param name="maxBodyChars">How much body this layer may write when no chain budget is given.</param>
     /// <param name="user">The signed-in account, or <see langword="null"/> for an anonymous visitor.</param>
@@ -92,7 +92,7 @@ internal sealed class SimpleContext : IContext {
         PageRequest request,
         CancellationToken aborted,
         TextWriter writer,
-        PageFeatures features,
+        PageCapabilities capabilities,
         PageContentTypes contentTypes,
         int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
         PageUser? user = null,
@@ -104,7 +104,7 @@ internal sealed class SimpleContext : IContext {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(features);
+        ArgumentNullException.ThrowIfNull(capabilities);
         ArgumentNullException.ThrowIfNull(contentTypes);
         ArgumentException.ThrowIfNullOrWhiteSpace(loginRedirect);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxBodyChars, 1);
@@ -118,7 +118,7 @@ internal sealed class SimpleContext : IContext {
         _loginRedirect = loginRedirect;
         _antiforgeryFactory = antiforgeryField;
         Aborted = aborted;
-        _features = features;
+        _capabilities = capabilities;
         _writer = writer;
         User = user;
 
@@ -139,7 +139,14 @@ internal sealed class SimpleContext : IContext {
     public CancellationToken Aborted { get; }
 
     /// <inheritdoc/>
-    public IPageFeatures Features => _features;
+    public IPageCapabilities Capabilities => _capabilities;
+
+    // The stored pages that still say ctx.Features reach the same registry through this alias, which
+    // stays until IDEA-026 removes it (DEC-228).
+#pragma warning disable PAGE005
+    /// <inheritdoc/>
+    public IPageFeatures Features => _capabilities;
+#pragma warning restore PAGE005
 
     /// <summary>What the page asked the response to be.</summary>
     /// <remarks>
@@ -162,7 +169,7 @@ internal sealed class SimpleContext : IContext {
 
     /// <summary>Gives the page the render's deadline, so its I/O is cancelled with the render.</summary>
     /// <param name="deadline">The deadline's token; it outlives this context's use of it.</param>
-    public void AttachDeadline(CancellationToken deadline) => _features.AttachDeadline(deadline);
+    public void AttachDeadline(CancellationToken deadline) => _capabilities.AttachDeadline(deadline);
 
     /// <summary>Stops the page writing, once its render has been given up on.</summary>
     /// <remarks>
@@ -174,7 +181,7 @@ internal sealed class SimpleContext : IContext {
             _abandoned = true;
         }
 
-        _features.Abandon();
+        _capabilities.Abandon();
     }
 
     /// <inheritdoc/>

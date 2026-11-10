@@ -107,3 +107,11 @@ uk.osric.asp.Sdk.PageSaveResult.PageSaveResult(string! Hash, System.Collections.
 
 uk.osric.asp.Sdk.IDiffRenderer
 uk.osric.asp.Sdk.IDiffRenderer.ToHtml(string! before, string! after) -> string!
+uk.osric.asp.Sdk.IContext.Capabilities.get -> uk.osric.asp.Sdk.IPageCapabilities!
+uk.osric.asp.Sdk.IPageCapabilities
+uk.osric.asp.Sdk.IPageCapabilities.Get<T>() -> T?
+uk.osric.asp.Sdk.IPageCapabilities.GetRequired<T>() -> T!
+uk.osric.asp.Sdk.IPageCapabilities.TryGet<T>(out T? capability) -> bool
+*REMOVED*uk.osric.asp.Sdk.IPageFeatures.Get<T>() -> T?
+*REMOVED*uk.osric.asp.Sdk.IPageFeatures.GetRequired<T>() -> T!
+*REMOVED*uk.osric.asp.Sdk.IPageFeatures.TryGet<T>(out T? feature) -> bool

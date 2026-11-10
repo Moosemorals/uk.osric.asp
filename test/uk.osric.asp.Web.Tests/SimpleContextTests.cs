@@ -399,12 +399,24 @@ public sealed class SimpleContextTests {
         Assert.That(logs.Entries[0].Message, Is.EqualTo("broken"));
     }
 
+    [Test]
+    public void BothAccessorsHandOutTheSameRegistry() {
+        SimpleContext context = CreateContext(out _);
+
+        Assert.Multiple(() => {
+#pragma warning disable PAGE005 // the deprecated accessor is the subject of the test
+            Assert.That(context.Features, Is.SameAs(context.Capabilities));
+            Assert.That(context.Features, Is.InstanceOf<IPageCapabilities>());
+#pragma warning restore PAGE005
+        });
+    }
+
     // A page-level store over an empty one, registered as the capability the endpoint offers.
-    private static PageFeatures FeaturesFor(string path) {
+    private static PageCapabilities CapabilitiesFor(string path) {
         PageStorageScope storage = new(
             PagePath.Normalize(path), new FakePageStateStore(), new PageStorageOptions(), writable: true);
 
-        return new PageFeatures().Add<IPageStorage>(storage);
+        return new PageCapabilities().Add<IPageStorage>(storage);
     }
 
     private static SimpleContext CreateContext(
@@ -421,7 +433,7 @@ public sealed class SimpleContextTests {
             TestHttp.Request(path, method),
             CancellationToken.None,
             output,
-            FeaturesFor(path),
+            CapabilitiesFor(path),
             contentTypes ?? TestContentTypes.Shipped,
             RenderOptions.DefaultMaxBodyChars,
             user,
@@ -436,7 +448,7 @@ public sealed class SimpleContextTests {
             TestHttp.Request(path),
             CancellationToken.None,
             new StringWriter(),
-            FeaturesFor("/page"),
+            CapabilitiesFor("/page"),
             TestContentTypes.Shipped);
     }
 }

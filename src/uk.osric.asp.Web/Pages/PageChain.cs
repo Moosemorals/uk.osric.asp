@@ -112,7 +112,7 @@ internal sealed class PageChain {
             _environment.Reserved,
             _environment.ContentTypes);
 
-        PageFeatures features = new PageFeatures()
+        PageCapabilities capabilities = new PageCapabilities()
             .Add<IBuildInfo>(BuildInfo.Current)
             .Add<IPageStorage>(storage)
             .Add<IHttpFetch>(fetch)
@@ -124,7 +124,7 @@ internal sealed class PageChain {
         // A layout is markup, so it is offered the read and not the write: one that saved itself
         // would append a revision on every render it wraps (DEC-194).
         if (!isLayout) {
-            features.Add<IPageWriter>(new PageWriterScope(key, _environment.Saver, _user, writable: !_isHead));
+            capabilities.Add<IPageWriter>(new PageWriterScope(key, _environment.Saver, _user, writable: !_isHead));
         }
 
         return new SimpleContext(
@@ -132,7 +132,7 @@ internal sealed class PageChain {
             _request,
             _aborted,
             writer,
-            features,
+            capabilities,
             _environment.ContentTypes,
             _environment.Render.MaxBodyChars,
             _user,
@@ -175,7 +175,7 @@ internal sealed class PageChain {
             return new PageChainResult.Failed(StatusCodes.Status500InternalServerError, new ErrorMessage(
                 "page.layout_title_missing",
                 "The page set no title",
-                $"{path} is wrapped by a layout but set no title. Set one with ctx.Features.GetRequired<IPageLayout>().Title, or clear Layout to write the page's own document.",
+                $"{path} is wrapped by a layout but set no title. Set one with ctx.Capabilities.GetRequired<IPageLayout>().Title, or clear Layout to write the page's own document.",
                 ErrorMessage.DefaultRemedies(_user is not null)));
         }
 

@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 > cannot lock the owner out. A page editor would still need its own recovery story.
 >
 > **The cheap half is unblocked.** A page can now read the page store through
-> `ctx.Features.GetRequired<IPageCatalog>()`: list heads, read a page's source, list its history and
+> `ctx.Capabilities.GetRequired<IPageCatalog>()`: list heads, read a page's source, list its history and
 > read a revision (DEC-168–DEC-172, DEC-175, [the plan](../plans/archive/page-store-read.md)). Moving the listing,
 > history and revision views into pages is what is left; the save, delete, scrub and restore stay in
 > the shell.

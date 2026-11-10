@@ -42,7 +42,7 @@ public sealed class PageLayoutChainTests {
     public async Task AnHtmlPageIsWrappedInTheDefaultLayout() {
         StoreLayout();
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -56,7 +56,7 @@ public sealed class PageLayoutChainTests {
     public async Task APageThatClearsItsLayoutIsServedAlone() {
         StoreLayout();
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Layout = null; %><h1>Alone</h1>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null; %><h1>Alone</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -67,10 +67,10 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task APageMayChooseAnotherLayout() {
         Store("/other", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>(); %><%== PageDocument.Head(layout.Title) %><p class="other-layout"></p><%== layout.Body %>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><%== PageDocument.Head(layout.Title) %><p class="other-layout"></p><%== layout.Body %>
             """);
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/other";
                layout.Title = "Page"; %><h1>Page</h1>
             """);
@@ -95,7 +95,7 @@ public sealed class PageLayoutChainTests {
     public async Task ARedirectIsNeverWrapped() {
         StoreLayout();
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><% ctx.Redirect("/elsewhere"); %>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><% ctx.Redirect("/elsewhere"); %>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -108,8 +108,8 @@ public sealed class PageLayoutChainTests {
     public async Task TheContentRunsBeforeItsLayout() {
         StoreLayout();
         Store("/page", """
-            <% await ctx.Features.GetRequired<IPageStorage>().SetAsync("ran", "content");
-               ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            <% await ctx.Capabilities.GetRequired<IPageStorage>().SetAsync("ran", "content");
+               ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -122,7 +122,7 @@ public sealed class PageLayoutChainTests {
     public async Task TheLayoutReceivesTheContentAsItsBody() {
         StoreLayout();
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><p class="content">hello</p>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><p class="content">hello</p>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -134,7 +134,7 @@ public sealed class PageLayoutChainTests {
     public async Task ATitleOrHeadValueSetByTheContentReachesTheLayout() {
         StoreLayout();
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "The Page"; %><h1>Page</h1>
             """);
 
@@ -186,16 +186,16 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task TheOutermostLayoutWritesTheTitle() {
         Store("/outer", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "Site — " + layout.Title; %><%== PageDocument.Head(layout.Title) %><%== layout.Body %>
             """);
         Store("/middle", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/outer";
                layout.Title = "Middle — " + layout.Title; %><p class="middle"></p><%== layout.Body %>
             """);
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/middle";
                layout.Title = "Page"; %><h1>Page</h1>
             """);
@@ -209,16 +209,16 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task EachLayersHeadMarkupIsWrittenOnce() {
         Store("/outer", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.AddHead("<meta name=\"outer\" content=\"1\">"); %><%== PageDocument.Head(layout.Title, head: layout.Head) %><%== layout.Body %>
             """);
         Store("/middle", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/outer";
                layout.AddHead("<meta name=\"middle\" content=\"1\">"); %><p></p><%== layout.Body %>
             """);
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/middle";
                layout.Title = "Page";
                layout.AddHead("<meta name=\"page\" content=\"1\">"); %><h1>Page</h1>
@@ -238,16 +238,16 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task ALayersSheetsComeAfterTheSitesAndBeforeThePagesOwn() {
         Store("/outer", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.AddStylesheet("/outer.css"); %><%== PageDocument.Head(layout.Title, layout.Stylesheets) %><%== layout.Body %>
             """);
         Store("/middle", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/outer";
                layout.AddStylesheet("/middle.css"); %><p></p><%== layout.Body %>
             """);
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/middle";
                layout.Title = "Page";
                layout.AddStylesheet("/page.css"); %><h1>Page</h1>
@@ -264,7 +264,7 @@ public sealed class PageLayoutChainTests {
     public async Task APageThatAddsNoSheetAddsNone() {
         StoreLayout();
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -276,7 +276,7 @@ public sealed class PageLayoutChainTests {
     public async Task TwoPagesSheetsKeepTheOrderTheyWereAddedIn() {
         StoreLayout();
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "Page";
                layout.AddStylesheet("/second.css");
                layout.AddStylesheet("/first.css"); %><h1>Page</h1>
@@ -293,7 +293,7 @@ public sealed class PageLayoutChainTests {
     public async Task TheSameSheetFromTwoLayersIsLinkedOnce() {
         StoreLayout();
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "Page";
                layout.AddStylesheet("/site.css"); %><h1>Page</h1>
             """);
@@ -307,13 +307,13 @@ public sealed class PageLayoutChainTests {
     public async Task TheContentOwnsTheStatusTheContentTypeAndTheHeaders() {
         // The layout is the one that tries, so it is the layout that must be ignored.
         Store(DefaultLayout, """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                ctx.SetStatus(418);
                ctx.SetContentType("text/plain");
                ctx.SetHeader("X-Layout", "1"); %><%== PageDocument.Head(layout.Title) %><%== layout.Body %>
             """);
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "Page";
                ctx.SetStatus(202);
                ctx.SetHeader("X-Page", "1"); %><h1>Page</h1>
@@ -333,7 +333,7 @@ public sealed class PageLayoutChainTests {
     public async Task AllowingScriptsInAnyLayerAllowsThemInTheResponse(bool pageAllows, bool layoutAllows) {
         StoreLayout(allowsScripts: layoutAllows);
         Store("/page", $$"""
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "Page";
                {{(pageAllows ? "ctx.AllowScripts();" : "")}} %><h1>Page</h1>
             """);
@@ -350,7 +350,7 @@ public sealed class PageLayoutChainTests {
         // is a page fault, which the host reports rather than hides.
         Store(DefaultLayout, "<% int broken = ; %>");
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -362,7 +362,7 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task AMissingExplicitLayoutIsAnErrorNamingTheKey() {
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/gone";
                layout.Title = "Page"; %><h1>Page</h1>
             """);
@@ -376,14 +376,14 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task ALayoutMayNameAParentAndTheChainNests() {
         Store("/outer", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>(); %><div class="outer"><%== layout.Body %></div>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><div class="outer"><%== layout.Body %></div>
             """);
         Store("/inner", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/outer"; %><div class="inner"><%== layout.Body %></div>
             """);
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/inner";
                layout.Title = "Page"; %><h1>Page</h1>
             """);
@@ -397,15 +397,15 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task ACycleStopsAtTheFirstRepeat() {
         Store("/a", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/b"; %><i>a</i><%== layout.Body %>
             """);
         Store("/b", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/a"; %><i>b</i><%== layout.Body %>
             """);
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = "/a";
                layout.Title = "Page"; %><h1>Page</h1>
             """);
@@ -421,7 +421,7 @@ public sealed class PageLayoutChainTests {
     public async Task TheChainStopsAtTheDepthLimit() {
         StoreLayout();
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page", render: new RenderOptions { MaxLayoutDepth = 1 });
@@ -436,7 +436,7 @@ public sealed class PageLayoutChainTests {
     public async Task OneRequestTakesOneSlotAndOneDeadline() {
         StoreLayout();
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page", render: new RenderOptions { Slots = 1 });
@@ -452,7 +452,7 @@ public sealed class PageLayoutChainTests {
         StoreLayout();
         string content = new('x', 60);
         Store("/page", $$"""
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %>
             {{content}}
             """);
 
@@ -465,15 +465,15 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task EachLayerReadsItsOwnStorage() {
         Store(DefaultLayout, """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
-               var storage = ctx.Features.GetRequired<IPageStorage>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               var storage = ctx.Capabilities.GetRequired<IPageStorage>();
                await storage.SetAsync("last", ctx.Path);
                await storage.SetAsync("title", layout.Title); %><%== PageDocument.Head("Layout") %><%== layout.Body %>
             """);
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "Page";
-               await ctx.Features.GetRequired<IPageStorage>().SetAsync("last", ctx.Path); %><h1>Page</h1>
+               await ctx.Capabilities.GetRequired<IPageStorage>().SetAsync("last", ctx.Path); %><h1>Page</h1>
             """);
 
         await RenderAsync("/page");
@@ -486,11 +486,11 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task TheLayoutSeesTheRequestedPathAndItsOwnKey() {
         Store(DefaultLayout, """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>(); %><span id="layout-path"><%= ctx.Path %></span> <span id="layout-request"><%= ctx.Request.Path %></span>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><span id="layout-path"><%= ctx.Path %></span> <span id="layout-request"><%= ctx.Request.Path %></span>
             <%== PageDocument.Head("Layout") %><%== layout.Body %>
             """);
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "Page"; %><span id="page-path"><%= ctx.Path %></span> <span id="page-request"><%= ctx.Request.Path %></span>
             """);
 
@@ -505,16 +505,16 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task EveryLayerIsOfferedTheCatalogAsync() {
         Store("/_layout", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                System.Collections.Generic.IReadOnlyList<PageEntry> entries =
-                   await ctx.Features.GetRequired<IPageCatalog>().ListAsync(""); %>
+                   await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(""); %>
             <%== PageDocument.Head(layout.Title) %><span id="layout-count"><%= entries.Count.ToString() %></span><%== layout.Body %>
             """);
         Store("/page", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "Page";
                System.Collections.Generic.IReadOnlyList<PageEntry> entries =
-                   await ctx.Features.GetRequired<IPageCatalog>().ListAsync(""); %>
+                   await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(""); %>
             <span id="page-count"><%= entries.Count.ToString() %></span>
             """);
         _readStore.Save("/blog", "blog");
@@ -528,8 +528,8 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task EveryContentLayerIsOfferedTheWriterAsync() {
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %>
-            <span id="page-writer"><%= (ctx.Features.Get<IPageWriter>() is null ? "no" : "yes") %></span>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %>
+            <span id="page-writer"><%= (ctx.Capabilities.Get<IPageWriter>() is null ? "no" : "yes") %></span>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -540,11 +540,11 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task ALayoutIsNotOfferedTheWriterAsync() {
         Store("/_layout", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>(); %>
-            <%== PageDocument.Head(layout.Title) %><span id="layout-writer"><%= (ctx.Features.Get<IPageWriter>() is null ? "no" : "yes") %></span><%== layout.Body %>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %>
+            <%== PageDocument.Head(layout.Title) %><span id="layout-writer"><%= (ctx.Capabilities.Get<IPageWriter>() is null ? "no" : "yes") %></span><%== layout.Body %>
             """);
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -555,12 +555,12 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task ALayoutThatAsksForTheWriterIsRefusedAsync() {
         Store("/_layout", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
-               _ = ctx.Features.GetRequired<IPageWriter>(); %>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               _ = ctx.Capabilities.GetRequired<IPageWriter>(); %>
             <%== PageDocument.Head(layout.Title) %><%== layout.Body %>
             """);
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -573,12 +573,12 @@ public sealed class PageLayoutChainTests {
     public async Task ALayoutMayReadTheStoreAsync() {
         _readStore.Save("/blog", "<h1>From the store</h1>");
         Store("/_layout", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
-               PageSource source = (await ctx.Features.GetRequired<IPageCatalog>().ReadAsync("/blog"))!; %>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               PageSource source = (await ctx.Capabilities.GetRequired<IPageCatalog>().ReadAsync("/blog"))!; %>
             <%== PageDocument.Head(layout.Title) %><span id="layout-source"><%= source.Source %></span><%== layout.Body %>
             """);
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -590,13 +590,13 @@ public sealed class PageLayoutChainTests {
     public async Task TheChainSharesOneReadBudgetAsync() {
         _readStore.Save("/blog", new string('x', 8));
         Store("/_layout", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>();
-               _ = await ctx.Features.GetRequired<IPageCatalog>().ReadAsync("/blog"); %>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               _ = await ctx.Capabilities.GetRequired<IPageCatalog>().ReadAsync("/blog"); %>
             <%== PageDocument.Head(layout.Title) %><%== layout.Body %>
             """);
         Store("/page", """
-            <% ctx.Features.GetRequired<IPageLayout>().Title = "Page";
-               _ = await ctx.Features.GetRequired<IPageCatalog>().ReadAsync("/blog"); %><h1>Page</h1>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page";
+               _ = await ctx.Capabilities.GetRequired<IPageCatalog>().ReadAsync("/blog"); %><h1>Page</h1>
             """);
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -612,7 +612,7 @@ public sealed class PageLayoutChainTests {
 
     private void StoreLayout(bool allowsScripts = false) {
         Store(DefaultLayout, $$"""
-            <% var layout = ctx.Features.GetRequired<IPageLayout>(); {{(allowsScripts ? "ctx.AllowScripts();" : "")}} %><%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head) %>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); {{(allowsScripts ? "ctx.AllowScripts();" : "")}} %><%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head) %>
             <%== PageDocument.OpenMain() %>
             <%== layout.Body %>
             <%== PageDocument.CloseMain() %>

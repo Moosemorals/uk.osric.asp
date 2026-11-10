@@ -99,14 +99,14 @@ public sealed class PageScopeTests {
     public void TheStorageAndFetchContractCompiles() {
         string template = """
             <%
-                IPageStorage storage = ctx.Features.GetRequired<IPageStorage>();
+                IPageStorage storage = ctx.Capabilities.GetRequired<IPageStorage>();
                 PageValue<int> stored = await storage.TryGetValueAsync<int>("visits");
                 int visits = stored.Found ? stored.Value : 0;
                 await storage.SetAsync("visits", visits + 1);
                 await storage.DeleteAsync("gone");
                 ctx.Write(System.String.Join(",", await storage.KeysAsync()));
 
-                IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+                IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                 HttpFetchResponse response = await fetch.SendAsync(new HttpFetchRequest("https://example.com/"));
                 ctx.Write(response.Succeeded ? response.Body : response.Failure.ToString());
             %>
@@ -133,7 +133,7 @@ public sealed class PageScopeTests {
     [Test]
     public void TheFetchCapabilityCompilesWithoutAPolicyChange() {
         CompileResult result = Compiler.Compile(
-            TestTemplates.Generate("<% IHttpFetch fetch = ctx.Features.Get<IHttpFetch>(); %>"));
+            TestTemplates.Generate("<% IHttpFetch fetch = ctx.Capabilities.Get<IHttpFetch>(); %>"));
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }

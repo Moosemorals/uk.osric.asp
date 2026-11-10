@@ -1,6 +1,6 @@
 <%! using System.Collections.Generic; %>
 <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
-<% ctx.Features.GetRequired<IPageLayout>().Title = "Pages"; %>
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Pages"; %>
 <h1>Pages</h1>
 <p>Signed in as <%= user.Name %>. This is a demonstration page for the page-store read capability
 (<code>IPageCatalog</code>), and the worked example for the editor's history and revision views
@@ -12,7 +12,7 @@ own source.</p>
 this page shows source, and the one line of difference between them is
 <code>if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }</code>.</p>
 <%
-    IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+    IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
     string? requested = ctx.Request.Query.TryGetValue("page", out string? given) ? given : null;
     string? revisionHash = ctx.Request.Query.TryGetValue("rev", out string? rev) ? rev : null;
 %>

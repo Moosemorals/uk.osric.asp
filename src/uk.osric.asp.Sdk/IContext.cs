@@ -18,7 +18,7 @@ namespace uk.osric.asp.Sdk;
 /// <para>
 /// The handler is asynchronous, so <c>await</c> is an ordinary expression in a code block and inside
 /// a write expression. Every member that does I/O — here or on a capability reached through
-/// <see cref="Features"/> — returns a <see cref="Task"/> and takes no cancellation token: the render
+/// <see cref="Capabilities"/> — returns a <see cref="Task"/> and takes no cancellation token: the render
 /// owns <see cref="Aborted"/> and the deadline, and the implementation links them per call.
 /// </para>
 /// </remarks>
@@ -133,8 +133,12 @@ public interface IContext {
     /// Storage, outbound HTTP, the document's slots and Markdown live here rather than on the
     /// context, because a page that needs none of them should never meet them. A capability the
     /// render does not offer is absent rather than <see langword="null"/>; a page decides whether
-    /// that is fatal with <see cref="IPageFeatures.Get{T}"/> or
-    /// <see cref="IPageFeatures.GetRequired{T}"/>.
+    /// that is fatal with <see cref="IPageCapabilities.Get{T}"/> or
+    /// <see cref="IPageCapabilities.GetRequired{T}"/>.
     /// </remarks>
+    public IPageCapabilities Capabilities { get; }
+
+    /// <summary>The capabilities this render offers. Deprecated: use <see cref="Capabilities"/>.</summary>
+    [Obsolete(PageCapabilityDeprecation.Message, DiagnosticId = "PAGE005")]
     public IPageFeatures Features { get; }
 }

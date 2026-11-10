@@ -34,7 +34,7 @@ internal sealed class PageLayoutState(string? defaultLayout, PageLayoutState? in
     /// <exception cref="InvalidOperationException">No title has been set in this or any level.</exception>
     public string Title {
         get => _title ?? throw new InvalidOperationException(
-            "This page is wrapped by a layout but set no title. Set it with ctx.Features.GetRequired<IPageLayout>().Title.");
+            "This page is wrapped by a layout but set no title. Set it with ctx.Capabilities.GetRequired<IPageLayout>().Title.");
         set {
             ArgumentException.ThrowIfNullOrWhiteSpace(value);
             _title = value;

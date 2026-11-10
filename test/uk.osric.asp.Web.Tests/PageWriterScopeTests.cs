@@ -212,7 +212,7 @@ public sealed class PageWriterScopeTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         await pages.StoreCompiledAsync("/saving", """
-            <% PageSaveResult saved = await ctx.Features.GetRequired<IPageWriter>().SaveAsync("<h1>Saved</h1>"); %>
+            <% PageSaveResult saved = await ctx.Capabilities.GetRequired<IPageWriter>().SaveAsync("<h1>Saved</h1>"); %>
             <h1>Saved</h1><p id="hash"><%= saved.Hash %></p>
             """);
 

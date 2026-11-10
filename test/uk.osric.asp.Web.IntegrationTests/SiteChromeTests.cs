@@ -19,7 +19,7 @@ using uk.osric.asp.Web.Pages;
 public sealed partial class SiteChromeTests : IntegrationTest {
 
     private const string Fragment = """
-        <% ctx.Features.GetRequired<IPageLayout>().Title = "A fragment"; %><h1>Fragment</h1>
+        <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "A fragment"; %><h1>Fragment</h1>
         """;
 
     internal override AspApplication CreateApplication() => new(pageLayout: "/_layout", assistantEnabled: true);
@@ -197,7 +197,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     [Test]
     public async Task APageThatClearsItsLayoutIsServedUnwrapped() {
         await SavePageAsync("/own-document", """
-            <% ctx.Features.GetRequired<IPageLayout>().Layout = null; %><!DOCTYPE html>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null; %><!DOCTYPE html>
             <html lang="en"><head><title>Mine</title></head><body><h1>Mine</h1></body></html>
             """);
         using HttpClient client = CreateClient();

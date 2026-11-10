@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started |
+| Status | Implemented 2026-11-10; phase 4 is [IDEA-026](../../jobs/IDEA-026.md) |
 | Size | Medium — two `Sdk` renames behind an obsolete alias, a mechanical rename through `Web` and its suites, seven seeded pages (`/help` among them), and the documents that teach the name |
 | Spike | None. The split is already in the code, and the obsolete behaviour is settled: a warning where a page uses the old name, and no warning where the host implements it |
 | Decisions | DEC-228 (the word, the alias, and the release that removes it), recorded with this plan |
@@ -120,7 +120,7 @@ public interface IPageCapabilities {
 // Sdk/IPageFeatures.cs — the alias, for the release stored pages catch up in
 /// <summary>The capabilities this render offers.</summary>
 /// <remarks>Deprecated: every member is inherited from <see cref="IPageCapabilities"/>.</remarks>
-[Obsolete(Deprecated, DiagnosticId = "PAGE003")]
+[Obsolete(Deprecated, DiagnosticId = "PAGE005")]
 public interface IPageFeatures : IPageCapabilities;
 ```
 
@@ -130,7 +130,7 @@ public interface IPageFeatures : IPageCapabilities;
 public IPageCapabilities Capabilities { get; }
 
 /// <summary>The capabilities this render offers. Deprecated: use <see cref="Capabilities"/>.</summary>
-[Obsolete(Deprecated, DiagnosticId = "PAGE003")]
+[Obsolete(Deprecated, DiagnosticId = "PAGE005")]
 public IPageFeatures Features { get; }
 ```
 
@@ -186,10 +186,13 @@ the author's template.
 
 ### D3 — The diagnostic has a page code, and it names the replacement
 
-`DiagnosticId = "PAGE003"` puts the deprecation in the same space as the contract's other two
-(`PAGE001` API denials, `PAGE002` structure). A page author sees `PAGE003` at the position of use,
-with a message that names `ctx.Capabilities`; the assistant sees the same string in the diagnostics
-its save returns, so it can fix the page it is working on without being told separately.
+`DiagnosticId = "PAGE005"` puts the deprecation in the same space as the contract's other codes —
+`PAGE001` API denials, `PAGE002` structure, and `PAGE003`/`PAGE004` for the compile-slot and compile
+timeouts. This plan first named `PAGE003`, which is the compile-slot timeout already, and DEC-21 says
+a code is never reused, so the first free one is the one it carries. A page author sees `PAGE005` at
+the position of use, with a message that names `ctx.Capabilities`; the assistant sees the same string
+in the diagnostics its save returns, so it can fix the page it is working on without being told
+separately.
 
 `PageCompiler` maps a warning back to the template only when the position is mapped, and this one
 always is: the obsolete warning lands inside the page's own code block, which the generator wraps in
@@ -223,7 +226,7 @@ seeded page is not overwritten by a release. The upgrade path is therefore:
 
 - **The seeds themselves change**, so a fresh site teaches `ctx.Capabilities` and a restored seed
   replaces an old copy through the page list's restore action.
-- **An existing copy keeps working**, with a `PAGE003` warning, until the owner edits it or restores
+- **An existing copy keeps working**, with a `PAGE005` warning, until the owner edits it or restores
   it from its seed. There is no background rewrite of page source: the store belongs to the owner.
 - **`/help` changes in the same release**, because it is the manual for exactly this word, and it is
   seeded like everything else.
@@ -288,7 +291,7 @@ and it is where the Deprecated constant's sentence comes from.
 **`Runtime.Tests`** — the compatibility promise, proved by the compiler:
 
 - `APageThatSaysFeaturesCompilesAndWarns` — a template using `ctx.Features.GetRequired<IPageStorage>()`
-  compiles, and the warnings are exactly one `PAGE003` whose message names `ctx.Capabilities`.
+  compiles, and the warnings are exactly one `PAGE005` whose message names `ctx.Capabilities`.
 - `APageThatSaysCapabilitiesCompilesWithoutWarnings` — the same template with the new spelling is
   clean, so the new name is not quietly deprecated too.
 - `TheDeprecatedWarningCarriesTheTemplatePosition` — the diagnostic's line and column are the
@@ -309,7 +312,7 @@ and it is where the Deprecated constant's sentence comes from.
 **`Web.IntegrationTests`**
 
 - `AStoredPageThatSaysFeaturesStillServes` — a page saved with `ctx.Features` renders its body on the
-  real host, and its stored diagnostics carry `PAGE003`, which is the release's central promise.
+  real host, and its stored diagnostics carry `PAGE005`, which is the release's central promise.
 - The existing seed, layout, chrome and self-save flows, with the seeds on the new spelling.
 
 ## Phases
@@ -369,8 +372,8 @@ the suppression. Gated on a query of the page store for heads whose source still
 | Risk | Mitigation |
 | --- | --- |
 | **A page that cannot be edited is left on the old name.** The alias is permanent and the vocabulary is half-undone. | Phase 4 is called out as a release with an IDEA behind it, and its gate is a query over the page store, not an intention. |
-| **Warnings look like a regression.** After deploy, every stored page that says `ctx.Features` shows "Compiled with warnings" in the page list. | It is the migration signal, and `PAGE003` says what to do. The release notes say so; the seven seeds are fixed in the same release, so a fresh site is clean. |
-| **The obsolete noise reaches the assistant.** A run sees `PAGE003` in a save result and treats it as failure. | The message names the replacement, and the prompt's warning section already says a warning does not stop the page. `PageAuthorPromptTests` holds the prompt to the new name so new pages are written clean. |
+| **Warnings look like a regression.** After deploy, every stored page that says `ctx.Features` shows "Compiled with warnings" in the page list. | It is the migration signal, and `PAGE005` says what to do. The release notes say so; the seven seeds are fixed in the same release, so a fresh site is clean. |
+| **The obsolete noise reaches the assistant.** A run sees `PAGE005` in a save result and treats it as failure. | The message names the replacement, and the prompt's warning section already says a warning does not stop the page. `PageAuthorPromptTests` holds the prompt to the new name so new pages are written clean. |
 | **The dual implementation is forgotten.** Someone deletes the pragma, or `PageCapabilities` stops implementing the alias, and a stored page fails with a type error rather than a warning. | The `Sdk` and `Web` builds fail first, because `SimpleContext.Features` cannot return the alias from an object that does not implement it; `APageThatSaysFeaturesCompilesAndWarns` then proves the promise end to end, and the suppression carries its reason on the line above. |
 | **A later `Sdk` change removes `Features` by accident.** | It is a compile error for `Web` and a missing-API error in the analyzer; the removal is only ever the planned one. |
 | **The rename collides with the parallel churn.** | The work is one commit per phase, phase 0 and 1 touch disjoint files, and `make build` proves each phase before the next begins. |
@@ -385,20 +388,20 @@ the suppression. Gated on a query of the page store for heads whose source still
   — something the product has, or ASP.NET Core's request features — and not an extension: a file
   extension, an extension method, or third-party extensibility, which the page contract does not
   offer.
-- [pages](../pages.md) states the contract with `ctx.Capabilities` and keeps the count at eight.
-- [architecture](../architecture.md) names the `Sdk` surface correctly in the layer table.
-- [storage](../storage.md) shows the page-store read and the self-save through the new accessor.
-- [glossary](../glossary.md) defines **Capability**, with the "not a feature, not an extension" clause
+- [pages](../../pages.md) states the contract with `ctx.Capabilities` and keeps the count at eight.
+- [architecture](../../architecture.md) names the `Sdk` surface correctly in the layer table.
+- [storage](../../storage.md) shows the page-store read and the self-save through the new accessor.
+- [glossary](../../glossary.md) defines **Capability**, with the "not a feature, not an extension" clause
   and the note that the accessor was `Features` until DEC-228.
-- [testing](../testing.md) needs no suite name change; it does not list `PageFeaturesTests`.
-- [the jobs](../jobs/README.md) and IDEA-022/024/025 use the current spelling, and IDEA-026 is added
+- [testing](../../testing.md) needs no suite name change; it does not list `PageFeaturesTests`.
+- [the jobs](../../jobs/README.md) and IDEA-022/024/025 use the current spelling, and IDEA-026 is added
   as the alias's removal; archive plans and decision rows written before this change keep theirs.
 
 ## Delivered when
 
 - `ctx.Capabilities` is how a page reads a capability, and `IPageCapabilities` is the type that
   declares them; `docs/pages.md`, `/help` and the assistant prompt all say so.
-- `ctx.Features` and `IPageFeatures` compile with a `PAGE003` warning that names the replacement, and
+- `ctx.Features` and `IPageFeatures` compile with a `PAGE005` warning that names the replacement, and
   a stored page using them serves normally on the real host.
 - No `Feature`-named type is left in `Web.Pages` except ASP.NET's own, and `PageCapabilitiesTests`
   is the renamed suite.

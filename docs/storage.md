@@ -52,7 +52,7 @@ archives, backups or filesystem snapshots. Rotate exposed secrets and clean exte
 separately. Runtime-change cleanup of obsolete images and symbols is future work; source and
 revision identity are retained unless explicitly scrubbed.
 
-A stored page may read the same store through `ctx.Features.GetRequired<IPageCatalog>()`
+A stored page may read the same store through `ctx.Capabilities.GetRequired<IPageCatalog>()`
 (DEC-168–DEC-175). The read is a capability of its own rather than `IPageStore` because the latter
 is scoped to the request's context and a page's task can outlive the request: `IPageReadStore` is a
 read-only singleton over the context factory, it answers with small `Web` records and never with a
@@ -66,7 +66,7 @@ read is as public as the page that calls it: the host adds no gate, a page that 
 the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that
 page.
 
-A page may save its own template through `ctx.Features.GetRequired<IPageWriter>()` (DEC-189–DEC-196).
+A page may save its own template through `ctx.Capabilities.GetRequired<IPageWriter>()` (DEC-189–DEC-196).
 The write is the shell's save reached from inside a render: `PageSaver` compiles the template and
 `IPageRevisionStore` opens its own context for the insert, because a page's task can outlive the
 request, and both call the same `StoreRevisionAsync` the editor and the import batch use, so there is

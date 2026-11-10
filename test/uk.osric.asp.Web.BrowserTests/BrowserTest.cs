@@ -126,7 +126,7 @@ internal abstract partial class BrowserTest {
     /// <param name="title">The document title and the page's heading, as plain text.</param>
     /// <param name="body">Markup the test asserts on, appended after the heading.</param>
     protected static string PageTemplate(string title, params string[] body) =>
-        $"<% ctx.Features.GetRequired<IPageLayout>().Title = \"{title}\"; %><h1>{title}</h1>{string.Concat(body)}";
+        $"<% ctx.Capabilities.GetRequired<IPageLayout>().Title = \"{title}\"; %><h1>{title}</h1>{string.Concat(body)}";
 
     [GeneratedRegex(@"/assistant/\d+$")]
     protected static partial Regex AssistantUrl();

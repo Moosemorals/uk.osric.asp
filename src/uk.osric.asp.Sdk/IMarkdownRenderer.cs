@@ -6,8 +6,8 @@ namespace uk.osric.asp.Sdk;
 /// <summary>Renders Markdown to HTML for a stored page.</summary>
 /// <remarks>
 /// <para>
-/// The renderer is reached through <see cref="IContext.Features"/> as
-/// <c>ctx.Features.GetRequired&lt;IMarkdownRenderer&gt;()</c>, and its result is written raw:
+/// The renderer is reached through <see cref="IContext.Capabilities"/> as
+/// <c>ctx.Capabilities.GetRequired&lt;IMarkdownRenderer&gt;()</c>, and its result is written raw:
 /// <c>&lt;%== markdown.ToHtml(source) %&gt;</c>. It supports CommonMark, pipe tables, auto-links
 /// and the links and images Markdown can express.
 /// </para>

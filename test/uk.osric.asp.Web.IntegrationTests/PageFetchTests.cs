@@ -23,7 +23,7 @@ public sealed class PageFetchTests : IntegrationTest {
     [Test]
     public async Task AStoredPageFetchesThroughTheHostAsync() {
         await SavePageAsync("/live", """
-            <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+            <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/state"); %>
             <p>state: <%= response.Body %></p>
             """);
@@ -38,7 +38,7 @@ public sealed class PageFetchTests : IntegrationTest {
     [Test]
     public async Task ThePageKeyTravelsWithTheRequestAsync() {
         await SavePageAsync("/live", """
-            <% await ctx.Features.GetRequired<IHttpFetch>().GetAsync("https://api.example.com/state"); %>ok
+            <% await ctx.Capabilities.GetRequired<IHttpFetch>().GetAsync("https://api.example.com/state"); %>ok
             """);
         using HttpClient client = CreateClient();
 
@@ -50,7 +50,7 @@ public sealed class PageFetchTests : IntegrationTest {
     [Test]
     public async Task AFetchRefusalRendersTheFailureAsync() {
         await SavePageAsync("/live", """
-            <% HttpFetchResponse response = await ctx.Features.GetRequired<IHttpFetch>()
+            <% HttpFetchResponse response = await ctx.Capabilities.GetRequired<IHttpFetch>()
                    .GetAsync("https://api.example.com/state"); %>
             <p><%= response.Failure.ToString() %></p>
             """);

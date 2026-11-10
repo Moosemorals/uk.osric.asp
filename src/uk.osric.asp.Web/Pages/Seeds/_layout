@@ -1,4 +1,4 @@
-<% var layout = ctx.Features.GetRequired<IPageLayout>();
+<% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
    // Asked for by name, this page is the document rather than the chrome around one, so nothing has
    // set a title for it. When it wraps a page, that page's title is already here.
    if (ctx.Path == ctx.Request.Path) { layout.Title = "Site"; }

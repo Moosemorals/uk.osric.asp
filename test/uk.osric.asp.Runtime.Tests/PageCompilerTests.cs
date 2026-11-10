@@ -106,6 +106,47 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
+    public void APageThatSaysFeaturesCompilesAndWarns() {
+        CompileResult result = Compile("<% ctx.Features.Get<IPageStorage>(); %>");
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Image, Is.Not.Null);
+        Assert.That(result.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Warning
+                && diagnostic.Message.StartsWith("PAGE005:", StringComparison.Ordinal)));
+        PageDiagnostic warning = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.StartsWith("PAGE005:", StringComparison.Ordinal));
+        Assert.Multiple(() => {
+            Assert.That(warning.Message, Does.Contain(nameof(IContext.Capabilities)));
+            Assert.That(warning.Message, Does.Contain(nameof(IPageCapabilities)));
+        });
+    }
+
+    [Test]
+    public void APageThatSaysCapabilitiesCompilesWithoutWarnings() {
+        CompileResult result = Compile("<% ctx.Capabilities.Get<IPageStorage>(); %>");
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Diagnostics, Is.Empty, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public void TheDeprecatedWarningCarriesTheTemplatePosition() {
+        const string template = "first\nsecond\n<% ctx.Features.Get<IPageStorage>(); %>";
+
+        CompileResult result = Compile(template);
+
+        PageDiagnostic warning = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.StartsWith("PAGE005:", StringComparison.Ordinal));
+        int column = template.Split('\n')[2].IndexOf("ctx.Features", StringComparison.Ordinal) + 1;
+        Assert.Multiple(() => {
+            Assert.That(warning.Position?.Line, Is.EqualTo(3));
+            Assert.That(warning.Position?.Column, Is.EqualTo(column));
+        });
+    }
+
+    [Test]
     public void AWarningOnlyPageSucceedsAndEmitsAnImage() {
         CompileResult result = Compile("<% int unused = 1; %>");
 
@@ -477,13 +518,18 @@ public sealed class PageCompilerTests {
 
         public string AntiforgeryField => string.Empty;
 
-        public IPageFeatures Features { get; } = new NoFeatures();
+        public IPageCapabilities Capabilities { get; } = new NoCapabilities();
 
-        private sealed class NoFeatures : IPageFeatures {
-            public bool TryGet<T>([NotNullWhen(true)] out T? feature) where T : class {
-                feature = null;
+        // The contract keeps the old name for one release, so every context implements it (DEC-228).
+#pragma warning disable PAGE005
+        public IPageFeatures Features { get; } = new NoCapabilities();
+
+        private sealed class NoCapabilities : IPageCapabilities, IPageFeatures {
+            public bool TryGet<T>([NotNullWhen(true)] out T? capability) where T : class {
+                capability = null;
                 return false;
             }
         }
+#pragma warning restore PAGE005
     }
 }

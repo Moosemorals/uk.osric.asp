@@ -213,7 +213,7 @@ public sealed partial class PageSelfSaveTests : IntegrationTest {
     /// chain refuses it before the layout runs.
     /// </summary>
     private static string Titled(string title, string body) =>
-        $"<% ctx.Features.GetRequired<IPageLayout>().Title = \"{title}\"; %>{body}";
+        $"<% ctx.Capabilities.GetRequired<IPageLayout>().Title = \"{title}\"; %>{body}";
 
     /// <summary>Puts the seeded source back, so a fixture that saves does not leave the site changed.</summary>
     private async Task<string> RestoreDraftAsync() {

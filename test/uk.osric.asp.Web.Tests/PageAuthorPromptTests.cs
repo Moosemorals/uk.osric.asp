@@ -18,11 +18,23 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ContractSectionContainsEveryIContextMember() {
         string prompt = PageAuthorPrompt.Build();
+        // The deprecated alias is not something a prompt should teach, so it is not expected there.
         IEnumerable<string> members = typeof(IContext).GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(member => member is PropertyInfo || member is MethodInfo { IsSpecialName: false })
+            .Where(member => !member.IsDefined(typeof(ObsoleteAttribute)))
             .Select(member => member.Name);
 
         Assert.That(members.All(prompt.Contains), Is.True);
+    }
+
+    [Test]
+    public void ThePromptTeachesCapabilitiesAndNeverTheOldName() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("ctx.Capabilities"));
+            Assert.That(prompt, Does.Not.Contain("ctx.Features"));
+        });
     }
 
     [Test]
@@ -57,7 +69,7 @@ public sealed class PageAuthorPromptTests {
 
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("## Page storage"));
-            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IPageStorage>()"));
+            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IPageStorage>()"));
             Assert.That(prompt, Does.Contain("TryGetValueAsync<T>"));
             Assert.That(prompt, Does.Contain("SetAsync"));
             Assert.That(prompt, Does.Contain("PageValue<int>"));
@@ -71,7 +83,7 @@ public sealed class PageAuthorPromptTests {
 
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("## Outbound fetch"));
-            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IHttpFetch>()"));
+            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IHttpFetch>()"));
             Assert.That(prompt, Does.Contain("GetAsync(url)"));
             Assert.That(prompt, Does.Contain("any http or https"));
             Assert.That(prompt, Does.Contain("moosemorals.com (page)"));
@@ -135,7 +147,7 @@ public sealed class PageAuthorPromptTests {
 
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("A page is a fragment, not a document"));
-            Assert.That(prompt, Does.Contain("IPageLayout layout = ctx.Features.GetRequired<IPageLayout>()"));
+            Assert.That(prompt, Does.Contain("IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>()"));
             Assert.That(prompt, Does.Contain("must set `layout.Title`"));
             Assert.That(prompt, Does.Contain("layout.AddStylesheet"));
             Assert.That(prompt, Does.Contain("layout.AddHead"));
@@ -146,7 +158,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v17"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v18"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -210,7 +222,7 @@ public sealed class PageAuthorPromptTests {
 
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("## Page store read"));
-            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IPageCatalog>()"));
+            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IPageCatalog>()"));
             Assert.That(prompt, Does.Contain("ListAsync"));
             Assert.That(prompt, Does.Contain("ReadRevisionAsync"));
             Assert.That(prompt, Does.Contain("as public as the page that calls it"));
@@ -223,7 +235,7 @@ public sealed class PageAuthorPromptTests {
         string prompt = PageAuthorPrompt.Build();
 
         Assert.Multiple(() => {
-            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IBuildInfo>()"));
+            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IBuildInfo>()"));
             Assert.That(prompt, Does.Contain("full git commit hash"));
         });
     }
@@ -232,7 +244,7 @@ public sealed class PageAuthorPromptTests {
         string prompt = PageAuthorPrompt.Build();
 
         Assert.Multiple(() => {
-            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IPageWriter>().SaveAsync(template)"));
+            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IPageWriter>().SaveAsync(template)"));
             Assert.That(prompt, Does.Contain("bound"));
             Assert.That(prompt, Does.Contain("PageSaveResult"));
             Assert.That(prompt, Does.Contain("PageDiagnostic"));
@@ -279,7 +291,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v17"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v18"));
         });
     }
 
@@ -301,7 +313,7 @@ public sealed class PageAuthorPromptTests {
 
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("## Markdown"));
-            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IMarkdownRenderer>()"));
+            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IMarkdownRenderer>()"));
             Assert.That(prompt, Does.Contain("ToHtml"));
             Assert.That(prompt, Does.Contain("passes through"));
             Assert.That(prompt, Does.Contain("not a"));
@@ -318,7 +330,7 @@ public sealed class PageAuthorPromptTests {
 
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("## Diff"));
-            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IDiffRenderer>()"));
+            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IDiffRenderer>()"));
             Assert.That(prompt, Does.Contain("diff_page"));
             Assert.That(prompt, Does.Contain("unified diff"));
             Assert.That(prompt, Does.Contain("Every source line is escaped"));

@@ -10,7 +10,7 @@ using System.Net;
 public sealed class SiteLayoutEditingTests : IntegrationTest {
 
     private const string Fragment = """
-        <% ctx.Features.GetRequired<IPageLayout>().Title = "A fragment"; %><h1>Fragment</h1>
+        <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "A fragment"; %><h1>Fragment</h1>
         """;
 
     internal override AspApplication CreateApplication() => new(pageLayout: "/_layout");
@@ -24,7 +24,7 @@ public sealed class SiteLayoutEditingTests : IntegrationTest {
             Does.Not.Contain("Chrome from the editor"));
 
         HttpResponseMessage saved = await PostEditorAsync(client, "_layout", """
-            <% var layout = ctx.Features.GetRequired<IPageLayout>(); %><%== PageDocument.Head(layout.Title) %>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><%== PageDocument.Head(layout.Title) %>
             <p>Chrome from the editor</p><%== PageDocument.OpenMain() %><%== layout.Body %><%== PageDocument.CloseMain() %><%== PageDocument.End() %>
             """);
         Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));

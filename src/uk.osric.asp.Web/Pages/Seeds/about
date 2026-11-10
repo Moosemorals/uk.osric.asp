@@ -1,11 +1,11 @@
 <% // The credits and licence texts below mirror THIRD-PARTY-NOTICES.md, LICENSES/MIT.txt and
    // LICENSES/ISC.txt; update this page in the same change as any of them.
-   ctx.Features.GetRequired<IPageLayout>().Title = "About"; %>
+   ctx.Capabilities.GetRequired<IPageLayout>().Title = "About"; %>
 <h1>About</h1>
 <p><strong>uk.osric.asp</strong> is a small web server whose pages are C# and can edit themselves.
 Every page is a row in SQLite, compiled with Roslyn when it is saved, and the site ships with an
 editor, a Markdown renderer, a status dashboard and an optional AI assistant.</p>
-<% if (ctx.Features.GetRequired<IBuildInfo>().Commit is { } commit) { %>
+<% if (ctx.Capabilities.GetRequired<IBuildInfo>().Commit is { } commit) { %>
 <p>This site is running commit <a href="https://github.com/Moosemorals/uk.osric.asp/commit/<%= commit %>"><code><%= commit %></code></a>.</p>
 <% } else { %>
 <p>This site is running a build that does not record its commit.</p>

@@ -297,7 +297,7 @@ public sealed class PageCatalogScopeTests {
 
         using PageHarness pages = new(new FakePageStore(), readStore: store);
         await pages.StoreCompiledAsync("/listing", """
-            <% IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+            <% IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
                System.Collections.Generic.IReadOnlyList<PageEntry> entries = await catalog.ListAsync(""); %>
             <% foreach (PageEntry entry in entries) { %><p><%= entry.Key %></p><% } %>
             """);

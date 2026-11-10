@@ -9,9 +9,9 @@ namespace uk.osric.asp.Web.Pages;
 /// Both come from the shell, never from the page, because the SDK has no abandonment member
 /// (DEC-123).
 /// </remarks>
-internal interface IRenderBoundFeature {
+internal interface IRenderBoundCapability {
 
-    /// <summary>Gives the feature the render's deadline.</summary>
+    /// <summary>Gives the capability the render's deadline.</summary>
     /// <param name="deadline">The deadline's token; it outlives this use of it.</param>
     void AttachDeadline(CancellationToken deadline);
 

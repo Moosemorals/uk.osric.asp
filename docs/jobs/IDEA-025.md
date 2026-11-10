@@ -31,7 +31,7 @@ movable **yet**. This job is what would move it.
 ## Sketch
 
 1. **The capability first, the stream second.** A page needs
-   `ctx.Features.GetRequired<IAssistantConversations>()`, bound to `ctx.User` like the memory
+   `ctx.Capabilities.GetRequired<IAssistantConversations>()`, bound to `ctx.User` like the memory
    capability (DEC-211): list conversations, read a transcript, start a run with a message, stop one,
    and resolve a pending approval. The owner comes from the request, never from an argument, and an
    anonymous render is refused by the capability rather than by the page.

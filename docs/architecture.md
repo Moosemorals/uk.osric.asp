@@ -17,7 +17,7 @@ can enforce it.
 
 - **`src/uk.osric.asp.Sdk`** is the page contract: `IContext`, `PageRequest`, `PageResponse`,
   `IHandler`, `UserFacingException`, and the capability interfaces a page may ask for through
-  `IContext.Features`. It is what a compiled page binds against and the only product assembly a page
+  `IContext.Capabilities`. It is what a compiled page binds against and the only product assembly a page
   may name. It has no references at all, so nothing it exposes can drag the host in.
 - **`src/uk.osric.asp.Core`** holds the host's pure half: the template tokenizer and source
   generator, the page diagnostics, the API policy, page identity and the chart helpers. It has no
@@ -78,6 +78,7 @@ and the logs quote them:
 | `PAGE002` | `PageApiChecker` | page code escaped its method, or a declaration block declared something other than a type |
 | `PAGE003` | `PageImageBuilder` | the page waited too long for a compile slot |
 | `PAGE004` | `PageImageBuilder` | the page took too long to compile |
+| `PAGE005` | `Sdk`, from the `[Obsolete]` attributes on `IContext.Features` and `IPageFeatures` | the page used a capability name DEC-228 retired |
 | `SCRIPT001` | `JavaScriptValidator` | the assistant's script check found a syntax error |
 | `SCRIPT002` | `JavaScriptValidator` | the assistant's script check found an opener the failed parse never closed |
 
@@ -97,7 +98,7 @@ and the logs quote them:
 | The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
-| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageFeatures`, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure` | `Sdk`, as plain values a compiled page binds against |
+| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageCapabilities`, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure` | `Sdk`, as plain values a compiled page binds against |
 | The page policy: `PageApiPolicy`, `ApiReference` | `Core.Compilation`, as a pure rule over strings |
 | Which media type a page's key names, and what an unmapped key falls back to | `Core.Pages`, as `PageContentTypes` beside `PagePath`; `Web` reads the section |
 | The Roslyn walk that applies the page policy | `Runtime` |

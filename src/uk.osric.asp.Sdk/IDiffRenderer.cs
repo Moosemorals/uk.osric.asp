@@ -6,8 +6,8 @@ namespace uk.osric.asp.Sdk;
 /// <summary>Renders the line changes between two documents as HTML for a stored page.</summary>
 /// <remarks>
 /// <para>
-/// The renderer is reached through <see cref="IContext.Features"/> as
-/// <c>ctx.Features.GetRequired&lt;IDiffRenderer&gt;()</c>, and its result is written raw:
+/// The renderer is reached through <see cref="IContext.Capabilities"/> as
+/// <c>ctx.Capabilities.GetRequired&lt;IDiffRenderer&gt;()</c>, and its result is written raw:
 /// <c>&lt;%== diff.ToHtml(before, after) %&gt;</c>. It supports the line changes a page can compare
 /// with <see cref="IPageCatalog"/>: two templates, two revisions, or any two strings the page has.
 /// </para>

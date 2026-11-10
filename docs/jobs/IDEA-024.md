@@ -31,7 +31,7 @@ upload and download.
    a reason: a generic `IFileSystem` or `IRequestBody` in `Sdk` would hand page code a byte stream and
    the archive's format, and the export's correctness is `Web`'s (`PageArchiveWriter`,
    `sqlite3_serialize`) rather than a page's. So the capability is
-   `ctx.Features.GetRequired<IPageArchive>()` with `Task<byte[]> ExportAsync()`,
+   `ctx.Capabilities.GetRequired<IPageArchive>()` with `Task<byte[]> ExportAsync()`,
    `Task<ArchivePlan> StageAsync(string fileName, byte[] archive)` and
    `Task<PageSaveResult[]> ApplyAsync(ArchivePlan plan)`, refusing an anonymous render exactly as the
    memory writer does (DEC-211's rule).

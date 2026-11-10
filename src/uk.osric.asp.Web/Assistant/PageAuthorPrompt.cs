@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v17";
+    public const string Version = "page-author-v18";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -32,7 +32,7 @@ internal static class PageAuthorPrompt {
             <% } %>
             """),
         ("stored-counter", """
-            <% IPageStorage storage = ctx.Features.GetRequired<IPageStorage>();
+            <% IPageStorage storage = ctx.Capabilities.GetRequired<IPageStorage>();
                PageValue<int> stored = await storage.TryGetValueAsync<int>("visits");
                int visits = (stored.Found ? stored.Value : 0) + 1;
                await storage.SetAsync("visits", visits); %>
@@ -49,12 +49,12 @@ internal static class PageAuthorPrompt {
             </form>
             """),
         ("markdown-body", """
-            <% IMarkdownRenderer markdown = ctx.Features.GetRequired<IMarkdownRenderer>(); %>
+            <% IMarkdownRenderer markdown = ctx.Capabilities.GetRequired<IMarkdownRenderer>(); %>
             <h1>Notes</h1>
             <%== markdown.ToHtml("## Today\n\n- one\n- two\n\n| Name | Value |\n| --- | --- |\n| one | 1 |") %>
             """),
         ("catalog-listing", """
-            <% IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+            <% IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
                System.Collections.Generic.IReadOnlyList<PageEntry> pages = await catalog.ListAsync("/blog"); %>
             <h1>Pages under /blog</h1>
             <ul>
@@ -65,13 +65,13 @@ internal static class PageAuthorPrompt {
             """),
         ("save-own-source", """
             <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
-            <% IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+            <% IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
                PageSource? current = await catalog.ReadAsync(ctx.Path);
                string draft = current?.Source ?? "";
                PageSaveResult? saved = null;
                if (ctx.Request.Method == "POST" && ctx.Request.Form.TryGetValue("template", out string? submitted) && submitted is not null) {
                    draft = submitted;
-                   saved = await ctx.Features.GetRequired<IPageWriter>().SaveAsync(submitted);
+                   saved = await ctx.Capabilities.GetRequired<IPageWriter>().SaveAsync(submitted);
                } %>
             <h1>Draft</h1>
             <% if (saved is not null) { %><p>Saved revision <%= saved.Hash %>. Reload to see it.</p><% } %>
@@ -80,7 +80,7 @@ internal static class PageAuthorPrompt {
                 <button>Save</button></form>
             """),
         ("json-fetch", """
-            <% IHttpFetch fetch = ctx.Features.GetRequired<IHttpFetch>();
+            <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/status");
                if (response.Succeeded) {
                    using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(response.Body); %>
@@ -114,7 +114,7 @@ internal static class PageAuthorPrompt {
         own code is, so a reference that may be null says so and a diagnostic
         is always about your page. `ctx.User` is a `PageUser?`: bind it to a
         local with `is not { } user` before reading `user.Name`, as the guard
-        below does. The same holds for `ctx.Features.Get<T>()`, which returns
+        below does. The same holds for `ctx.Capabilities.Get<T>()`, which returns
         null when this render does not offer the capability, and for anything
         a BCL call marks maybe-null. Prefer the guard form that makes the
         compiler's job possible: one check, then a local, then use the local.
@@ -125,9 +125,9 @@ internal static class PageAuthorPrompt {
         host wraps every HTML page in the stored layout page, which writes all
         of that. Start at the page's first heading, and write one `<h1>`.
         The layout's slots are on `IPageLayout`, reached through the page's
-        features:
+        capabilities:
 
-        `<% IPageLayout layout = ctx.Features.GetRequired<IPageLayout>(); %>`
+        `<% IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>(); %>`
 
         A wrapped page must set `layout.Title`; the host refuses the chain and
         names the page if it does not. `layout.AddStylesheet("/blog.css")`
@@ -170,10 +170,10 @@ internal static class PageAuthorPrompt {
         follows its key's extension (HTML when the key is unmapped); status,
         content type, allowed headers, and redirect are applied after the
         handler returns.
-        Optional capabilities are read from `ctx.Features`: `Get<T>()` returns
+        Optional capabilities are read from `ctx.Capabilities`: `Get<T>()` returns
         null when this render does not offer one, `GetRequired<T>()` throws,
         and `TryGet<T>(out T?)` reports whether it is there.
-        `ctx.Features.GetRequired<IBuildInfo>()` names the running build:
+        `ctx.Capabilities.GetRequired<IBuildInfo>()` names the running build:
         `Commit` is the full git commit hash, or null when the build was not
         made from a checkout.
         Pages run for GET, POST, and HEAD. The header allow-list is
@@ -203,7 +203,7 @@ internal static class PageAuthorPrompt {
         `/login` and `/logout` already exist and are reserved paths.
 
         ## Page storage
-        `ctx.Features.GetRequired<IPageStorage>()` is this page's own
+        `ctx.Capabilities.GetRequired<IPageStorage>()` is this page's own
         key/value store, shared by every visitor and last-write-wins per key;
         a page cannot reach another page's keys. Values are JSON, so a record
         with public properties or a scalar round-trips and a value that cannot
@@ -213,13 +213,13 @@ internal static class PageAuthorPrompt {
         argument: it returns `PageValue<T>`, whose `Found` is false when the
         key is absent and true with a null `Value` when the stored value is
         JSON null. Write a counter as `IPageStorage storage =
-        ctx.Features.GetRequired<IPageStorage>(); PageValue<int> stored =
+        ctx.Capabilities.GetRequired<IPageStorage>(); PageValue<int> stored =
         await storage.TryGetValueAsync<int>("visits")`. A `HEAD` render may
         read but never write. Never start a storage write and leave the task
         unawaited: that is a dropped write.
 
         ## Page store read
-        `ctx.Features.GetRequired<IPageCatalog>()` reads the site's page store
+        `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
         and never writes. `ListAsync(prefix)` lists the heads under a subtree
         and returns `PageEntry` rows with `Key`, `SavedAt`, `Hash` and three
         marks: `IsDeleted`, `IsReserved` and `IsHtml`. A prefix is a subtree,
@@ -245,7 +245,7 @@ internal static class PageAuthorPrompt {
         the seeded `/pages` guards the same read.
 
         ## Saving the page itself
-        `ctx.Features.GetRequired<IPageWriter>().SaveAsync(template)` saves the
+        `ctx.Capabilities.GetRequired<IPageWriter>().SaveAsync(template)` saves the
         source of the page that calls it, and nothing else: the handle is bound
         to `ctx.Path` and takes no key. It answers with a `PageSaveResult` —
         `Hash` for the new revision and `Diagnostics`, which are
@@ -268,7 +268,7 @@ internal static class PageAuthorPrompt {
         the write.
 
         ## Markdown
-        A page renders Markdown through `ctx.Features.GetRequired<IMarkdownRenderer>()`
+        A page renders Markdown through `ctx.Capabilities.GetRequired<IMarkdownRenderer>()`
         and `ToHtml`; write the result raw with `<%== … %>`. It supports
         CommonMark, pipe tables, auto-links, links and images. An image must
         be served by this site, because the response's policy allows images only
@@ -285,7 +285,7 @@ internal static class PageAuthorPrompt {
 
         ## Diff
         A page renders the line changes between two strings with
-        `ctx.Features.GetRequired<IDiffRenderer>()` and `ToHtml`; write the
+        `ctx.Capabilities.GetRequired<IDiffRenderer>()` and `ToHtml`; write the
         result raw with `<%== … %>`. Every source line is escaped, so unlike
         Markdown it is safe for a visitor's text, a fetched body or page state.
         The result is a `table.diff` with line numbers; unchanged, added and
@@ -301,7 +301,7 @@ internal static class PageAuthorPrompt {
         markup.
 
         ## Outbound fetch
-        `ctx.Features.GetRequired<IHttpFetch>()` makes one bounded HTTP
+        `ctx.Capabilities.GetRequired<IHttpFetch>()` makes one bounded HTTP
         request from the host, not from the browser, to any http or https
         host the URL names. `GetAsync(url)` and `PostAsync(url, body)` cover
         the ordinary case; `SendAsync(new HttpFetchRequest(url))` is the

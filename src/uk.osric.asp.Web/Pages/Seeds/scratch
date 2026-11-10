@@ -1,5 +1,5 @@
 <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
-<% ctx.Features.GetRequired<IPageLayout>().Title = "Scratch: a page that edits itself"; %>
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Scratch: a page that edits itself"; %>
 <h1>Scratch</h1>
 <p>Signed in as <%= user.Name %>. This page is a demonstration of the page-write capability
 (<code>IPageWriter</code>): it reads its own source with <code>IPageCatalog</code>, shows it below,
@@ -10,7 +10,7 @@ write.</p>
 <p>Every save is a revision, so a bad edit is recoverable: <a href="/edit/scratch">/edit/scratch</a>
 has this page's history and a <strong>Restore from seed</strong> button.</p>
 <%
-    IPageCatalog catalog = ctx.Features.GetRequired<IPageCatalog>();
+    IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
     PageSource? current = await catalog.ReadAsync(ctx.Path);
     string draft = current?.Source ?? "";
     string headHash = current?.Hash ?? "";
@@ -29,7 +29,7 @@ has this page's history and a <strong>Restore from seed</strong> button.</p>
             refusal = "Somebody saved this page while you were typing, so nothing was saved. The current source is in the box.";
         } else {
             draft = template;
-            answered = await ctx.Features.GetRequired<IPageWriter>().SaveAsync(template);
+            answered = await ctx.Capabilities.GetRequired<IPageWriter>().SaveAsync(template);
             headHash = answered.Hash;
         }
     }
@@ -82,7 +82,7 @@ has this page's history and a <strong>Restore from seed</strong> button.</p>
         <textarea name="template" id="template" rows="24" cols="70" wrap="off" spellcheck="false" aria-describedby="template-hint"><%= draft %></textarea>
         <p id="template-hint">Saving compiles before it stores, so a template with an error is still
         saved and reported above. The page is wrapped in the site's layout, so whatever you save must
-        set a title: <code>&lt;% ctx.Features.GetRequired&lt;IPageLayout&gt;().Title = "Scratch"; %&gt;</code>.
+        set a title: <code>&lt;% ctx.Capabilities.GetRequired&lt;IPageLayout&gt;().Title = "Scratch"; %&gt;</code>.
         This is a demonstration page, not the editor.</p>
     </fieldset>
     <button type="submit">Save this page</button>

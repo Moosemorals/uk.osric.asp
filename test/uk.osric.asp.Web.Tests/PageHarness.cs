@@ -150,11 +150,11 @@ internal sealed class PageHarness : IDisposable {
         bool withStorage = true,
         bool withCatalog = true,
         bool withWriter = true) {
-        PageFeatures features = new();
+        PageCapabilities capabilities = new();
 
         if (withStorage) {
             PageStorageScope storage = new(path, State, StorageOptions, writable: !isHead);
-            features.Add<IPageStorage>(storage);
+            capabilities.Add<IPageStorage>(storage);
         }
 
         if (withFetch) {
@@ -167,11 +167,11 @@ internal sealed class PageHarness : IDisposable {
                 budget ?? new RenderFetchBudget(FetchOptions.MaxRequestsPerRender),
                 Metrics,
                 NullLoggerFactory.Instance.CreateLogger(SimpleContext.PageCategory));
-            features.Add<IHttpFetch>(fetch);
+            capabilities.Add<IHttpFetch>(fetch);
         }
 
-        features.Add<IMarkdownRenderer>(Markdown);
-        features.Add<IDiffRenderer>(Diff);
+        capabilities.Add<IMarkdownRenderer>(Markdown);
+        capabilities.Add<IDiffRenderer>(Diff);
 
         if (withCatalog) {
             PageCatalogScope catalog = new(
@@ -181,12 +181,12 @@ internal sealed class PageHarness : IDisposable {
                 readBudget ?? new ReadBudget(ReadOptions.MaxSourceCharsPerRender),
                 new ReservedPaths(ReservedPaths.Default),
                 ContentTypes);
-            features.Add<IPageCatalog>(catalog);
+            capabilities.Add<IPageCatalog>(catalog);
         }
 
         if (withWriter) {
             PageWriterScope writer = new(path, Saver, user, writable: !isHead);
-            features.Add<IPageWriter>(writer);
+            capabilities.Add<IPageWriter>(writer);
         }
 
         return new SimpleContext(
@@ -194,7 +194,7 @@ internal sealed class PageHarness : IDisposable {
             TestHttp.Request(path.Key, isHead ? "HEAD" : "GET"),
             CancellationToken.None,
             new StringWriter(),
-            features,
+            capabilities,
             ContentTypes,
             maxBodyChars,
             user);

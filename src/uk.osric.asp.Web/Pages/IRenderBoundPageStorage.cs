@@ -10,4 +10,4 @@ using uk.osric.asp.Sdk;
 /// The handle a page holds is only <see cref="IPageStorage"/>; this is the shell's view of the same
 /// object, with the deadline and abandonment the SDK deliberately does not expose (DEC-123).
 /// </remarks>
-internal interface IRenderBoundPageStorage : IPageStorage, IRenderBoundFeature;
+internal interface IRenderBoundPageStorage : IPageStorage, IRenderBoundCapability;

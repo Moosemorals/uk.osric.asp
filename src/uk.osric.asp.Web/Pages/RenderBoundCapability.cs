@@ -8,7 +8,7 @@ namespace uk.osric.asp.Web.Pages;
 /// A page's task and the abandoning thread can be different threads, so the flag is read with
 /// <see cref="Volatile"/> rather than through a lock the page never takes.
 /// </remarks>
-internal abstract class RenderBoundFeature : IRenderBoundFeature {
+internal abstract class RenderBoundCapability : IRenderBoundCapability {
 
     private int _abandoned;
     private CancellationToken _deadline;

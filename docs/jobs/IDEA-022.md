@@ -32,8 +32,8 @@ is still the hard-to-navigate shape, split it.
      `SimpleContext.SetStatus.cs`.
    - Keep the fields in the main file even when only a partial uses them, or the "where is the
      state" question just moves.
-2. Or compose instead: the features change proves the shape — a small collaborator object with an
-   interface, constructed by the endpoint, handed to the page through `IPageFeatures`. If a second
+2. Or compose instead: the capabilities change proves the shape — a small collaborator object with
+   an interface, constructed by the endpoint, handed to the page through `IPageCapabilities`. If a second
    concern wants that shape, take it rather than a partial, because it is unit-testable on its own
    and a partial is only a layout of one file.
 3. The real target is that `SimpleContextTests` can construct the part it tests without a full

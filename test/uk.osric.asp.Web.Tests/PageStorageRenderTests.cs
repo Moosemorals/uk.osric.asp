@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageStorageRenderTests {
 
     private const string Counter = """
-        <% IPageStorage storage = ctx.Features.GetRequired<IPageStorage>();
+        <% IPageStorage storage = ctx.Capabilities.GetRequired<IPageStorage>();
            PageValue<int> stored = await storage.TryGetValueAsync<int>("visits");
            int visits = (stored.Found ? stored.Value : 0) + 1;
            await storage.SetAsync("visits", visits); %>
@@ -36,7 +36,7 @@ public sealed class PageStorageRenderTests {
         using PageHarness pages = Harness("/visits");
         pages.State.Seed("/visits", "visits", "7");
         await pages.StoreCompiledAsync("/visits", """
-            <p>Visited <%= (await ctx.Features.GetRequired<IPageStorage>()
+            <p>Visited <%= (await ctx.Capabilities.GetRequired<IPageStorage>()
                 .TryGetValueAsync<int>("visits")).Value.ToString() %> times.</p>
             """);
 
@@ -50,7 +50,7 @@ public sealed class PageStorageRenderTests {
     public async Task APageCanRenderWithoutStorageAsync() {
         using PageHarness pages = new(new FakePageStore());
         await pages.StoreCompiledAsync("/plain", """
-            <p><%= ctx.Features.Get<IPageStorage>() is null ? "no storage" : "storage" %></p>
+            <p><%= ctx.Capabilities.Get<IPageStorage>() is null ? "no storage" : "storage" %></p>
             """);
 
         (RenderResult result, string output) = await pages.RenderAsync("/plain", withStorage: false);
@@ -65,10 +65,10 @@ public sealed class PageStorageRenderTests {
         pages.State.LivePages.Add("/first");
         pages.State.LivePages.Add("/second");
         await pages.StoreCompiledAsync("/first", """
-            <% await ctx.Features.GetRequired<IPageStorage>().SetAsync("shared", "one"); %>written
+            <% await ctx.Capabilities.GetRequired<IPageStorage>().SetAsync("shared", "one"); %>written
             """);
         await pages.StoreCompiledAsync("/second", """
-            <p>keys: <%= (await ctx.Features.GetRequired<IPageStorage>().KeysAsync()).Count.ToString() %></p>
+            <p>keys: <%= (await ctx.Capabilities.GetRequired<IPageStorage>().KeysAsync()).Count.ToString() %></p>
             """);
 
         await pages.RenderAsync("/first");

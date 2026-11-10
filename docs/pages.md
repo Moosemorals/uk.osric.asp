@@ -16,7 +16,7 @@ A page is a runtime, not a renderer: it reads the request and shapes the respons
 touches is a plain record in `Sdk`. `IContext` is the surface every page has — `Request` (method,
 path, query, form, headers, cookies), `Path`, `User`, `Aborted`, `Log`/`LogWarning`/`LogError`,
 `Write`/`WriteRaw`, `SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect`,
-`RedirectToLogin`, `AntiforgeryField` and `Features`.
+`RedirectToLogin`, `AntiforgeryField` and `Capabilities`.
 
 The handler is asynchronous: `IHandler.HandleAsync` returns a `Task`, the generator always emits an
 `async` method, and `await` is therefore an ordinary expression in a code block and inside a write
@@ -24,11 +24,14 @@ expression. Any member that does I/O — on `IContext` or on a capability — re
 no cancellation token: the context owns `Aborted` and the render's deadline, and an implementation
 links them per call (DEC-123).
 
-`IContext.Features` is how a page asks for a capability this render may or may not offer.
+`IContext.Capabilities` is how a page asks for a capability this render may or may not offer.
 `TryGet<T>` reports whether one is there, `Get<T>` returns it or `null`, and `GetRequired<T>`
 returns it or throws naming the interface, so the page decides whether absence is fatal. The host
 decides what is registered — a page cannot add or replace a capability — and a capability is either
-registered or absent, never `null` (DEC-142).
+registered or absent, never `null` (DEC-142). The type that declares them is `IPageCapabilities`;
+`IContext.Features` and `IPageFeatures` are the same surface under its old names, kept for one
+release so a stored page that says them still compiles, with a `PAGE005` warning that names the
+replacement (DEC-228).
 
 Eight capabilities are registered today — four that do I/O and are bounded by the render, one that
 is the page's slots in its document, two that are pure renderers, and one that is a fact about

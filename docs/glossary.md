@@ -27,6 +27,20 @@ pairs (DEC-141, DEC-159).
 **Owner:** pages — `PageBudget`, `Pages:Render:TimeoutSeconds`, `Pages:Render:Slots`,
 `Pages:Render:MaxBodyChars`, `Pages:Compile:TimeoutSeconds` and `Pages:Compile:Slots`.
 
+## Capability
+An ability the host grants one render and withholds from the next: storage, outbound fetch, the page
+store read, the page's own save, the layout's slots, the Markdown and diff renderers, and the build
+the site is running. A page asks for one through `ctx.Capabilities`, read-only; the host decides what
+the render offers, and a capability is registered or absent, never `null`.
+
+**Not** a feature or an extension. A feature is something the product has — the assistant is one, and
+ASP.NET Core's `HttpContext.Features` are another mechanism altogether — and an extension is
+something a third party adds; a capability is something one render offers a page, and it may be
+absent from the next. The accessor was called `ctx.Features` until DEC-228.
+
+**Owner:** pages — `IPageCapabilities`, `IContext.Capabilities` and the eight `Sdk` interfaces a page
+may ask for; `PageCapabilities` is the shell's registry (DEC-142, DEC-228).
+
 ## Conversation
 One chat thread owned by one account, with a title, an approval mode and a message counter of its own.
 
