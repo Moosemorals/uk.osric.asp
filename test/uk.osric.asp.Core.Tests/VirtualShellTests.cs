@@ -20,6 +20,7 @@ public sealed class VirtualShellTests {
     [TestCase("wc -l /blog", "wc", "-l", "/blog")]
     [TestCase("help", "help")]
     [TestCase("help cat", "help", "cat")]
+    [TestCase("grep alpha /a /b /c", "grep", "alpha", "/a", "/b", "/c")]
     [TestCase("ls", "ls")]
     public void ParsesSupportedCommandsAndQuotedArguments(string command, params string[] expected) {
         VirtualShellParseResult result = VirtualShellParser.Parse(command);
@@ -28,23 +29,37 @@ public sealed class VirtualShellTests {
         Assert.That(new[] { result.Command!.Name }.Concat(result.Command.Arguments), Is.EqualTo(expected));
     }
 
-    [TestCase("ls", false, false)]
-    [TestCase("cat -n /blog", true, false)]
-    [TestCase("grep title /blog", false, false)]
-    [TestCase("grep -n title /blog", true, false)]
-    [TestCase("grep -i title /blog", false, true)]
-    [TestCase("grep -n -i title /blog", true, true)]
-    [TestCase("grep -i -n title /blog", true, true)]
-    public void OptionsAreRecordedAndTakenOutOfTheArguments(string command, bool numberLines, bool ignoreCase) {
+    [TestCase("ls", VirtualShellOptions.None)]
+    [TestCase("ls -l /a", VirtualShellOptions.Long)]
+    [TestCase("ls -R /a", VirtualShellOptions.Recursive)]
+    [TestCase("ls -R -l /a", VirtualShellOptions.Long | VirtualShellOptions.Recursive)]
+    [TestCase("cat -n /blog", VirtualShellOptions.Numbers)]
+    [TestCase("grep title /blog", VirtualShellOptions.None)]
+    [TestCase("grep -n title /blog", VirtualShellOptions.Numbers)]
+    [TestCase("grep -i title /blog", VirtualShellOptions.IgnoreCase)]
+    [TestCase("grep -i -i title /blog", VirtualShellOptions.IgnoreCase)]
+    [TestCase("find -l /a", VirtualShellOptions.Long)]
+    [TestCase("find -R /a", VirtualShellOptions.Recursive)]
+    [TestCase("grep -r title /blog", VirtualShellOptions.Recursive)]
+    [TestCase("grep -R title /blog", VirtualShellOptions.Recursive)]
+    [TestCase("grep -n -i -r title /blog", VirtualShellOptions.Numbers | VirtualShellOptions.IgnoreCase | VirtualShellOptions.Recursive)]
+    public void OptionsAreRecordedAndTakenOutOfTheArguments(string command, VirtualShellOptions expected) {
         VirtualShellParseResult result = VirtualShellParser.Parse(command);
 
         Assert.Multiple(() => {
             Assert.That(result.Error, Is.Null);
-            Assert.That(result.Command!.NumberLines, Is.EqualTo(numberLines));
-            Assert.That(result.Command.IgnoreCase, Is.EqualTo(ignoreCase));
+            Assert.That(result.Command!.Options, Is.EqualTo(expected));
             Assert.That(result.Command.Arguments, Has.None.StartsWith("-"),
                 "an option is not one of the arguments the command is answered with");
         });
+    }
+
+    [TestCase("ls -r /a", "ls has no -r: the listing is in key order")]
+    [TestCase("ls -n /a", "ls has no -n")]
+    [TestCase("cat -l /a", "cat has no -l")]
+    [TestCase("grep -l title /a", "grep has no -l")]
+    public void RefusesAnOptionTheCommandDoesNotTake(string command, string why) {
+        Assert.That(VirtualShellParser.Parse(command).Error, Is.Not.Null, why);
     }
 
     [Test]
@@ -141,7 +156,6 @@ public sealed class VirtualShellTests {
             Assert.That(VirtualShellParser.Parse("head 4 /page").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("head -n 4").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("grep -i").Error, Is.Not.Null);
-            Assert.That(VirtualShellParser.Parse("grep a b c").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("wc -l").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("wc /page").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("help cat dog").Error, Is.Not.Null);
@@ -154,10 +168,9 @@ public sealed class VirtualShellTests {
             Assert.That(VirtualShellParser.Parse("cat -n").Error, Is.Not.Null, "no key");
             Assert.That(VirtualShellParser.Parse("cat -i /page").Error, Is.Not.Null, "cat has no -i");
             Assert.That(VirtualShellParser.Parse("grep -n").Error, Is.Not.Null, "no query");
-            Assert.That(VirtualShellParser.Parse("grep -i -i title").Error, Is.Not.Null, "a repeated option is left over");
             Assert.That(VirtualShellParser.Parse("grep -rn title").Error, Is.Not.Null, "options are not clustered");
-            Assert.That(VirtualShellParser.Parse("grep -r title").Error, Is.Not.Null, "grep has no -r");
             Assert.That(VirtualShellParser.Parse("grep title -n").Error, Is.Not.Null, "an option must lead");
+            Assert.That(VirtualShellParser.Parse("grep -r title -i").Error, Is.Not.Null, "an option must lead");
         });
     }
 

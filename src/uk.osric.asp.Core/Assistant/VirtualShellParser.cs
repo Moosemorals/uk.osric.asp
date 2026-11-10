@@ -10,13 +10,11 @@ using uk.osric.asp.Core.Text;
 /// <summary>A parsed command for the page-store-only virtual shell.</summary>
 /// <param name="Name">The supported command.</param>
 /// <param name="Arguments">Whitespace-separated arguments after the command name and its options.</param>
-/// <param name="NumberLines">Whether <c>-n</c> was given, asking for numbered lines.</param>
-/// <param name="IgnoreCase">Whether <c>-i</c> was given, asking for a case-insensitive match.</param>
+/// <param name="Options">The options the command was given, which only it knows the meaning of.</param>
 public sealed record VirtualShellCommand(
     string Name,
     IReadOnlyList<string> Arguments,
-    bool NumberLines = false,
-    bool IgnoreCase = false);
+    VirtualShellOptions Options = VirtualShellOptions.None);
 
 /// <summary>A parsed virtual-shell command or a safe syntax error.</summary>
 /// <param name="Command">The parsed command, or null on error.</param>
@@ -75,25 +73,22 @@ public static class VirtualShellParser {
         }
 
         List<string> arguments = [.. lexed.Words.Skip(1)];
-        bool numberLines = false;
-        bool ignoreCase = false;
-        if (name is "cat" or "grep") {
-            while (arguments.Count > 0 && TakeOption(name, arguments[0], ref numberLines, ref ignoreCase)) {
-                arguments.RemoveAt(0);
-            }
+        VirtualShellOptions options = VirtualShellOptions.None;
+        while (arguments.Count > 0 && TakeOption(name, arguments[0], ref options)) {
+            arguments.RemoveAt(0);
+        }
 
-            // An option this command does not take, or one left among the arguments, is a guess at a
-            // host shell rather than a query that happens to begin with a dash.
-            if (arguments.Any(argument => argument.StartsWith('-'))) {
-                return WrongArguments(name);
-            }
+        // head, tail and wc take their option as part of their argument list; for every other command
+        // a word that still starts with a dash is a guess at a host shell, not a path.
+        if (name is not ("head" or "tail" or "wc") && arguments.Any(argument => argument.StartsWith('-'))) {
+            return WrongArguments(name);
         }
 
         if (!ValidArguments(name, arguments)) {
             return WrongArguments(name);
         }
 
-        return new VirtualShellParseResult(new VirtualShellCommand(name, arguments, numberLines, ignoreCase), null);
+        return new VirtualShellParseResult(new VirtualShellCommand(name, arguments, options), null);
     }
 
     /// <summary>One command line, as a lexer sees it: words, the first operator, or the fault.</summary>
@@ -196,17 +191,27 @@ public static class VirtualShellParser {
     private static string Display(char character) => character is '\n' or '\r' ? "a newline" : $"'{character}'";
 
     /// <summary>Takes one leading option word, or answers false when it is not one this command has.</summary>
-    private static bool TakeOption(string command, string word, ref bool numberLines, ref bool ignoreCase) {
-        switch (word) {
-            case "-n" when !numberLines:
-                numberLines = true;
-                return true;
-            case "-i" when command == "grep" && !ignoreCase:
-                ignoreCase = true;
-                return true;
-            default:
-                return false;
+    /// <remarks>
+    /// The table is per command because the letters mean different things in different ones: <c>-n</c>
+    /// numbers lines for <c>cat</c> and <c>grep</c>, <c>-l</c> lengthens the listing for <c>ls</c>, and
+    /// <c>-r</c> is a search that descends for <c>grep</c> and a reversed listing for <c>ls</c>, which
+    /// this shell does not have.
+    /// </remarks>
+    private static bool TakeOption(string command, string word, ref VirtualShellOptions taken) {
+        VirtualShellOptions option = (command, word) switch {
+            ("cat", "-n") or ("grep", "-n") => VirtualShellOptions.Numbers,
+            ("grep", "-i") => VirtualShellOptions.IgnoreCase,
+            ("grep", "-r") or ("grep", "-R") or ("ls", "-R") or ("find", "-r") or ("find", "-R") => VirtualShellOptions.Recursive,
+            ("ls", "-l") or ("find", "-l") => VirtualShellOptions.Long,
+            _ => VirtualShellOptions.None,
+        };
+
+        if (option == VirtualShellOptions.None) {
+            return false;
         }
+
+        taken |= option;
+        return true;
     }
 
     private static bool ValidArguments(string command, IReadOnlyList<string> arguments) => command switch {
@@ -215,7 +220,7 @@ public static class VirtualShellParser {
         "head" or "tail" => arguments.Count == 3 && arguments[0] == "-n"
             && int.TryParse(arguments[1], NumberStyles.None, CultureInfo.InvariantCulture, out int count) && count > 0,
         "wc" => arguments.Count == 2 && arguments[0] == "-l",
-        "grep" => arguments.Count is 1 or 2,
+        "grep" => arguments.Count >= 1,
         _ => false,
     };
 

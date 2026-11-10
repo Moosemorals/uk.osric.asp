@@ -47,10 +47,25 @@ public sealed class ShellHelpTests {
     }
 
     [Test]
-    public void OneCommandIsItsOwnLine() {
+    public void OneCommandIsItsLineAndItsNotes() {
         Assert.That(ShellHelp.TryGet("grep", out ShellHelpEntry? entry), Is.True);
-        Assert.That(ShellHelp.Text(entry), Is.EqualTo(entry!.Usage + ": " + entry.Description));
-        Assert.That(ShellHelp.Text(entry), Does.Not.Contain("\n"));
+
+        string[] lines = ShellHelp.Text(entry).Split('\n');
+        Assert.Multiple(() => {
+            Assert.That(lines[0], Is.EqualTo(entry!.Usage + ": " + entry.Description));
+            Assert.That(lines, Has.Length.GreaterThan(1), "grep has syntax that one line cannot carry");
+            Assert.That(ShellHelp.Text(entry), Does.Contain("basic regular expression"));
+        });
+    }
+
+    [Test]
+    public void ACommandWithNoNotesIsOneLine() {
+        Assert.That(ShellHelp.TryGet("wc", out ShellHelpEntry? entry), Is.True);
+
+        Assert.Multiple(() => {
+            Assert.That(entry!.Notes, Is.Null);
+            Assert.That(ShellHelp.Text(entry), Does.Not.Contain("\n"));
+        });
     }
 
     [Test]

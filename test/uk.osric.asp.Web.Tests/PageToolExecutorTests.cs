@@ -459,7 +459,28 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task ShellListReturnsLiveKeysWithTheirPermissionAsync() {
+    public async Task ShellListGivesTheChildrenOfAPathAndNothingDeeperAsync() {
+        FakePageStore storage = new();
+        storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha");
+        storage["/a/child"] = new PageTemplate(PageHarness.Key("/a/child"), "alpha");
+        storage["/a/child/grandchild"] = new PageTemplate(PageHarness.Key("/a/child/grandchild"), "alpha");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult plain = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"ls /a\"}", Context, CancellationToken.None);
+        ToolExecutionResult deeper = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"ls -R /a\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(Output(plain), Is.EqualTo("/a/child"), "ls names what is at the path, as a filesystem does");
+            Assert.That(Output(deeper).Split('\n'), Is.EqualTo((string[])["/a/child", "/a/child/grandchild"]));
+        });
+    }
+
+    [Test]
+    public async Task ShellListLongAddsThePermissionAndMarksAFolderAsync() {
         FakePageStore storage = new();
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha");
         storage["/a/child"] = new PageTemplate(PageHarness.Key("/a/child"), "alpha");
@@ -469,11 +490,34 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync(
-            "shell", "{\"command\":\"ls /a\"}", Context, CancellationToken.None);
+        ToolExecutionResult root = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"ls -l /\"}", Context, CancellationToken.None);
+        ToolExecutionResult folder = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"ls -l /a\"}", Context, CancellationToken.None);
 
-        Assert.That(result.IsSuccess, Is.True, result.Content);
-        Assert.That(Output(result), Is.EqualTo("-rw-r--r-- /a\n-rw-r--r-- /a/child"));
+        Assert.Multiple(() => {
+            Assert.That(Output(root).Split('\n'), Does.Contain("drwxr-xr-x /a"), "a key with keys beneath it is a folder");
+            Assert.That(Output(root).Split('\n'), Does.Not.Contain("-rw-r--r-- /b"), "a deleted page is not listed");
+            Assert.That(Output(folder), Is.EqualTo("-rw-r--r-- /a/child"));
+        });
+    }
+
+    [Test]
+    public async Task ShellFindIsTheLongListingOfEverythingBelowAsync() {
+        FakePageStore storage = new();
+        storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha");
+        storage["/a/b/c"] = new PageTemplate(PageHarness.Key("/a/b/c"), "alpha");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"find /a\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(Output(result).Split('\n'), Does.Contain("drwxr-xr-x /a/b"), "the folder that only exists below a key");
+            Assert.That(Output(result).Split('\n'), Does.Contain("-rw-r--r-- /a/b/c"));
+        });
     }
 
     [Test]
@@ -484,8 +528,8 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult root = await tools.ExecuteAsync("shell", "{\"command\":\"ls /\"}", Context, CancellationToken.None);
-        ToolExecutionResult route = await tools.ExecuteAsync("shell", "{\"command\":\"ls /edit\"}", Context, CancellationToken.None);
+        ToolExecutionResult root = await tools.ExecuteAsync("shell", "{\"command\":\"ls -l /\"}", Context, CancellationToken.None);
+        ToolExecutionResult route = await tools.ExecuteAsync("shell", "{\"command\":\"ls -l /edit\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(Output(root).Split('\n'), Does.Contain("-r--r--r-- /edit"));
@@ -598,6 +642,154 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
+    public async Task ShellGrepReadsOneLevelUnlessItIsToldToDescendAsync() {
+        FakePageStore storage = new();
+        storage["/top"] = new PageTemplate(PageHarness.Key("/top"), "needle here");
+        storage["/folder/deep"] = new PageTemplate(PageHarness.Key("/folder/deep"), "needle below");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult flat = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"grep needle /\"}", Context, CancellationToken.None);
+        ToolExecutionResult deep = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"grep -r needle /\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(Output(flat), Is.EqualTo("/top:1: needle here"),
+                "a search reads the level it was given, as a filesystem search does");
+            Assert.That(Output(deep).Split('\n'),
+                Is.EqualTo((string[])["/folder/deep:1: needle below", "/top:1: needle here"]));
+        });
+    }
+
+    [Test]
+    public async Task ShellGrepSaysWhenTheMatchIsBelowTheLevelItReadAsync() {
+        FakePageStore storage = new();
+        storage["/folder/deep"] = new PageTemplate(PageHarness.Key("/folder/deep"), "needle below");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"grep needle /\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(Output(result), Does.StartWith("No match at this level."));
+            Assert.That(Output(result), Does.Contain("matches below this level"),
+                "an empty answer says what it did not read");
+        });
+    }
+
+    [Test]
+    public async Task ShellGrepTakesMoreThanOnePathAsync() {
+        FakePageStore storage = new();
+        storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha");
+        storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "alpha");
+        storage["/c"] = new PageTemplate(PageHarness.Key("/c"), "alpha");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"grep alpha /a /b\"}", Context, CancellationToken.None);
+
+        Assert.That(Output(result).Split('\n'), Is.EqualTo((string[])["/a:1: alpha", "/b:1: alpha"]));
+    }
+
+    [Test]
+    public async Task ShellGrepReportsThePatternItCannotReadAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"grep 'a[bc' /\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("character class that is not closed").And.Contain("Run help grep"));
+        });
+    }
+
+    [Test]
+    public async Task ShellGrepSaysWhenItStoppedAtItsLimitAsync() {
+        FakePageStore storage = new();
+        storage["/many"] = new PageTemplate(PageHarness.Key("/many"),
+            string.Join('\n', Enumerable.Repeat("needle", 120)));
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"grep needle /many\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Output(result), Does.Contain("100 matches shown"), "a capped answer says it was capped");
+            Assert.That(Data(result).GetProperty("truncated").GetBoolean(), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task ShellListSaysWhenItStoppedAtItsLimitAsync() {
+        FakePageStore storage = new();
+        for (int index = 0; index < 600; index++) {
+            string key = $"/p{index}";
+            storage[key] = new PageTemplate(PageHarness.Key(key), "alpha");
+        }
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services, new AssistantOptions {
+            MaxToolArgumentChars = 4096,
+            MaxToolResultChars = 65536,
+            MaxPageChars = 4096,
+        });
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"ls /\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Output(result), Does.Contain("500 entries shown"), "a capped listing says it was capped");
+            Assert.That(Data(result).GetProperty("truncated").GetBoolean(), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task ShellCatSaysWhenThePathIsAFolderAsync() {
+        FakePageStore storage = new();
+        storage["/folder/deep"] = new PageTemplate(PageHarness.Key("/folder/deep"), "alpha");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"cat /folder\"}", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("is a folder, not a page"));
+            Assert.That(result.Content, Does.Contain("ls /folder"));
+        });
+    }
+
+    [Test]
+    public async Task ShellListOnAPageNamesThePageAsync() {
+        FakePageStore storage = new();
+        storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "alpha");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "shell", "{\"command\":\"ls /notes\"}", Context, CancellationToken.None);
+
+        Assert.That(Output(result), Is.EqualTo("/notes"), "ls on a file names the file");
+    }
+
+    [Test]
     public async Task ShellHelpListsEveryCommandWithoutReadingAPageAsync() {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "one");
@@ -611,7 +803,7 @@ public sealed class PageToolExecutorTests {
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
             Assert.That(Output(result), Does.Contain("cat [-n] <key>: "));
-            Assert.That(Output(result), Does.Contain("grep [-i] [-n] <query> [prefix]: "));
+            Assert.That(Output(result), Does.Contain("grep [-i] [-n] [-r] <query> [prefix ...]: "));
             Assert.That(Output(result), Does.Contain("help [command]: "));
             Assert.That(storage.ReadCount, Is.Zero, "help reads the table, not the store");
         });
@@ -629,7 +821,7 @@ public sealed class PageToolExecutorTests {
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Output(result), Does.StartWith("grep [-i] [-n] <query> [prefix]: "));
+            Assert.That(Output(result), Does.StartWith("grep [-i] [-n] [-r] <query> [prefix ...]: "));
             Assert.That(Output(result), Does.Not.Contain("cat [-n]"));
         });
     }
@@ -979,7 +1171,7 @@ public sealed class PageToolExecutorTests {
             "shell", "{\"command\":\"cat /long\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
-        Assert.That(Output(result), Does.EndWith("[truncated]"));
+        Assert.That(Output(result), Does.EndWith("[truncated: read a line range instead]"));
         Assert.That(Output(result).Length, Is.LessThanOrEqualTo(1024));
     }
 

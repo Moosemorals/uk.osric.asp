@@ -37,6 +37,7 @@ internal sealed class PageToolExecutor(
     IAssistantFetcher fetcher) {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly PagePath s_root = PagePath.Normalize("/");
 
     private const int MatchLimit = 100;
     private const int ListingLimit = 500;
@@ -95,7 +96,7 @@ internal sealed class PageToolExecutor(
             + "in a URL.",
             true,
             [new("url", ToolArgumentType.String, true)]),
-        new("shell", "Run a read-only virtual-shell command over stored pages and the shell's files. Run help for the commands, their options and their arguments. ls and find print one entry per line as mode then key.", false, [
+        new("shell", "Run a read-only virtual-shell command over stored pages and the shell's files. Run help for the commands, their options and their arguments. A path names a page or a folder, and grep's query is a regular expression.", false, [
             new("command", ToolArgumentType.String, true),
         ]),
         new("remember",
@@ -454,7 +455,8 @@ internal sealed class PageToolExecutor(
         StringComparison comparison = Boolean(arguments, "caseSensitive")
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
-        (List<object> matches, bool truncated) = await FindMatchesAsync<object>(pages, prefix, query, comparison,
+        (List<object> matches, bool truncated) = await FindMatchesAsync<object>(pages, [prefix],
+            line => line.Contains(query, comparison), recursive: true,
             (path, line, text) => new { path = path.Key, line, text = text[..Math.Min(text.Length, 240)] },
             cancellationToken);
 
@@ -612,44 +614,101 @@ internal sealed class PageToolExecutor(
         }
 
         VirtualShellCommand command = parsed.Command;
-        if (command.Name == "help") {
-            return Help(command);
-        }
-
-        string? prefixText = command.Name switch {
-            "ls" or "find" => command.Arguments.Count > 0 ? command.Arguments[0] : null,
-            "grep" => command.Arguments.Count > 1 ? command.Arguments[^1] : null,
-            _ => null,
+        return command.Name switch {
+            "help" => Help(command),
+            "find" or "ls" => await ListAsync(command, pages, cancellationToken),
+            "grep" => await GrepAsync(command, pages, cancellationToken),
+            _ => await ReadAsync(command, pages, cancellationToken),
         };
-        PathValidationResult checkedPrefix = PagePathPolicy.ValidatePrefix(prefixText);
+    }
+
+    // The store's keys are a tree, and the shell speaks of it as one: a path names a folder as readily
+    // as a page, ls lists what is at the path, -R and -r reach everything below it, and reaching a
+    // limit is said out loud rather than left to look like the whole answer.
+    private async Task<ToolExecutionResult> ListAsync(
+        VirtualShellCommand command,
+        PageEditor pages,
+        CancellationToken cancellationToken) {
+        // find is the long listing of everything below the path, which is why it is the same as
+        // ls -Rl and takes no options of its own.
+        bool longListing = command.Name == "find" || command.Options.HasFlag(VirtualShellOptions.Long);
+        bool recursive = command.Name == "find" || command.Options.HasFlag(VirtualShellOptions.Recursive);
+
+        PathValidationResult checkedPrefix = PagePathPolicy.ValidatePrefix(
+            command.Arguments.Count > 0 ? command.Arguments[0] : null);
         if (!checkedPrefix.IsSuccess) {
             return Failure(checkedPrefix.Error!, "Shell command refused");
         }
 
         PagePath? prefix = checkedPrefix.Path;
+        List<ShellNode> nodes = await ShellTreeAsync(pages, prefix, recursive, cancellationToken);
+        bool truncated = nodes.Count > ListingLimit;
+        string output = string.Join('\n', nodes.Take(ListingLimit)
+            .Select(node => longListing ? $"{Mode(node)} {node.Path.Key}" : node.Path.Key));
 
-        if (command.Name is "ls" or "find") {
-            List<Entry> entries = await EntriesAsync(pages, includeDeleted: false, prefix, cancellationToken);
-            string shellOutput = string.Join('\n', entries.Take(ListingLimit).Select(entry => $"{Mode(entry.Path)} {entry.Path.Key}"));
-            return Success(new { output = shellOutput }, prefix is null ? command.Name : $"{command.Name} {Describe(prefix)}");
+        if (output.Length == 0) {
+            output = $"Nothing is stored at {Describe(prefix ?? s_root)}.";
+        }
+        if (truncated) {
+            output += $"\n[{ListingLimit} entries shown, and there are more. List a path to see the rest.]";
         }
 
+        return Success(new { output, truncated }, prefix is null ? command.Name : $"{command.Name} {Describe(prefix)}");
+    }
+
+    private async Task<ToolExecutionResult> GrepAsync(
+        VirtualShellCommand command,
+        PageEditor pages,
+        CancellationToken cancellationToken) {
+        string query = command.Arguments[0];
+        if (!GrepPattern.TryCompile(query, command.Options.HasFlag(VirtualShellOptions.IgnoreCase), out GrepPattern? compiled, out string? error)) {
+            return Failure(error!, $"grep {MessageText.Sanitize(query)}: refused");
+        }
+
+        GrepPattern pattern = compiled!;
+        List<PagePath?> prefixes = [];
+        foreach (string prefixText in command.Arguments.Skip(1)) {
+            PathValidationResult checkedPrefix = PagePathPolicy.ValidatePrefix(prefixText);
+            if (!checkedPrefix.IsSuccess) {
+                return Failure(checkedPrefix.Error!, "Shell command refused");
+            }
+            prefixes.Add(checkedPrefix.Path);
+        }
+        if (prefixes.Count == 0) {
+            prefixes.Add(null);
+        }
+
+        bool recursive = command.Options.HasFlag(VirtualShellOptions.Recursive);
+        (List<string> found, bool truncated) = await FindMatchesAsync(pages, prefixes, pattern.IsMatch, recursive,
+            (path, line, text) => $"{path.Key}:{line}: {text}", cancellationToken);
+
+        string output = found.Count > 0
+            ? string.Join('\n', found)
+            : recursive ? "No match." : "No match at this level.";
+        if (truncated) {
+            output += $"\n[{MatchLimit} matches shown, in key order, and there are more. Narrow the query or the path.]";
+        }
+        if (found.Count == 0 && !recursive) {
+            // "No match" about a folder whose folders were never read invites the wrong conclusion, so
+            // a search that would have found something one level down says so.
+            (List<string> deeper, _) = await FindMatchesAsync(pages, prefixes, pattern.IsMatch, recursive: true,
+                (path, line, text) => path.Key, cancellationToken);
+            if (deeper.Count > 0) {
+                output += "\n[There are matches below this level: grep -r reads the folders too.]";
+            }
+        }
+
+        return Success(new { output, truncated }, $"grep {MessageText.Sanitize(query)}");
+    }
+
+    private async Task<ToolExecutionResult> ReadAsync(
+        VirtualShellCommand command,
+        PageEditor pages,
+        CancellationToken cancellationToken) {
         string pathText = command.Name switch {
             "head" or "tail" => command.Arguments[2],
-            "wc" or "stat" or "cat" => command.Arguments[^1],
-            "grep" => prefix?.Key ?? "/",
-            _ => "",
+            _ => command.Arguments[^1],
         };
-        if (command.Name == "grep") {
-            string query = command.Arguments[0];
-            StringComparison comparison = command.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            (List<string> found, _) = await FindMatchesAsync(pages, prefix, query, comparison,
-                (path, line, text) => $"{path.Key}:{line}: {text}",
-                cancellationToken);
-
-            return Success(new { output = string.Join('\n', found) }, $"grep {MessageText.Sanitize(query)}");
-        }
-
         PathValidationResult checkedPath = paths.Validate(pathText, write: false);
         if (!checkedPath.IsSuccess) {
             return Failure(checkedPath.Error!, "Shell path refused");
@@ -666,14 +725,16 @@ internal sealed class PageToolExecutor(
         } else {
             target = await pages.GetAsync(path, cancellationToken);
             if (target is null) {
-                return Failure($"Page {Describe(path)} was not found.", $"{command.Name} {Describe(path)}: not found");
+                return await HasKeysBelowAsync(pages, path, cancellationToken)
+                    ? Failure($"{Describe(path)} is a folder, not a page. ls {Describe(path)} lists what is in it.", $"{command.Name} {Describe(path)}: a folder")
+                    : Failure($"Page {Describe(path)} was not found.", $"{command.Name} {Describe(path)}: not found");
             }
             source = target.Template;
         }
 
         string[] sourceLines = ReadLines(source);
         string output = command.Name switch {
-            "cat" => command.NumberLines ? Number(sourceLines) : source,
+            "cat" => command.Options.HasFlag(VirtualShellOptions.Numbers) ? Number(sourceLines) : source,
             "head" => string.Join('\n', sourceLines.Take(ParseCount(command.Arguments[1]))),
             "tail" => string.Join('\n', sourceLines.TakeLast(ParseCount(command.Arguments[1]))),
             "wc" => sourceLines.Length.ToString(CultureInfo.InvariantCulture),
@@ -686,7 +747,7 @@ internal sealed class PageToolExecutor(
         // room for escaping; the same rule read_page uses.
         int budget = options.MaxToolResultChars / 2;
         if (output.Length > budget) {
-            output = output[..budget] + "\n[truncated]";
+            output = output[..budget] + "\n[truncated: read a line range instead]";
         }
         return Success(new { output }, $"{command.Name} {Describe(path)}");
     }
@@ -720,23 +781,24 @@ internal sealed class PageToolExecutor(
     }
 
     // Both search_pages and the shell's grep walk the same live pages and shell records under the same
-    // rules, so the scan lives here once and the caller decides what a match becomes. It looks one
-    // match past the limit so the caller can say whether anything was left behind rather than
-    // guessing from the count. Keys are visited in ordinal order, so a result reads like a listing.
+    // rules, so the scan lives here once and the caller decides what a match becomes and how far down
+    // to read. It stops one match past the limit so the caller can say that something was left behind
+    // rather than guess from the count. Keys are visited in ordinal order, so a result reads like a
+    // listing.
     private async Task<(List<T> Matches, bool Truncated)> FindMatchesAsync<T>(
         PageEditor pages,
-        PagePath? prefix,
-        string query,
-        StringComparison comparison,
+        IReadOnlyList<PagePath?> prefixes,
+        Func<string, bool> matches,
+        bool recursive,
         Func<PagePath, int, string, T> project,
         CancellationToken cancellationToken) {
-        List<T> matches = [];
+        List<T> found = [];
         List<(PagePath Path, string Text)> sources = [.. paths.Reserved
-            .Where(path => IsUnderPrefix(path, prefix))
+            .Where(path => IsInScope(path, prefixes, recursive))
             .Select(path => (path, ShellRoutes.Text(path)))];
 
         foreach (PageListing head in await pages.ListAsync(cancellationToken)) {
-            if (head.IsDeleted || paths.IsReserved(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
+            if (head.IsDeleted || paths.IsReserved(head.Path) || !IsInScope(head.Path, prefixes, recursive)) {
                 continue;
             }
 
@@ -751,17 +813,111 @@ internal sealed class PageToolExecutor(
         foreach ((PagePath path, string text) in sources) {
             string[] lines = ReadLines(text);
             for (int index = 0; index < lines.Length; index++) {
-                if (!lines[index].Contains(query, comparison)) {
+                if (!matches(lines[index])) {
                     continue;
                 }
-                if (matches.Count == MatchLimit) {
-                    return (matches, true);
+                if (found.Count == MatchLimit) {
+                    return (found, true);
                 }
-                matches.Add(project(path, index + 1, lines[index]));
+                found.Add(project(path, index + 1, lines[index]));
             }
         }
 
-        return (matches, false);
+        return (found, false);
+    }
+
+    // Whether a key is inside what a command was told to read. A path names a file as readily as a
+    // folder, so the key it names is always in scope; what lives below it is in scope only when the
+    // caller asked for a search that descends.
+    private static bool IsInScope(PagePath key, IReadOnlyList<PagePath?> prefixes, bool recursive) {
+        foreach (PagePath? prefix in prefixes) {
+            PagePath scope = prefix ?? s_root;
+            if (string.Equals(key.Key, scope.Key, StringComparison.Ordinal)) {
+                return true;
+            }
+            if (recursive ? IsBelow(key, scope) : IsDirectlyBelow(key, scope)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Whether a key lives anywhere below a path.
+    private static bool IsBelow(PagePath key, PagePath prefix) => prefix.Key == "/"
+        ? key.Key.Length > 1
+        : key.Key.StartsWith(prefix.Key + "/", StringComparison.Ordinal);
+
+    // Whether a key is an entry of a path: below it, and no deeper than one segment.
+    private static bool IsDirectlyBelow(PagePath key, PagePath prefix) {
+        if (!IsBelow(key, prefix)) {
+            return false;
+        }
+
+        string rest = prefix.Key == "/" ? key.Key[1..] : key.Key[(prefix.Key.Length + 1)..];
+        return !rest.Contains('/');
+    }
+
+    private async Task<bool> HasKeysBelowAsync(PageEditor pages, PagePath path, CancellationToken cancellationToken) {
+        foreach (PageListing head in await pages.ListAsync(cancellationToken)) {
+            if (!head.IsDeleted && IsBelow(head.Path, path)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // One line of the store's tree: a key, and whether anything lives beneath it. A folder that exists
+    // only because a key lives below it is still an entry, because a folder that cannot be listed is
+    // one the model can never find.
+    private sealed record ShellNode(PagePath Path, bool IsDirectory);
+
+    private async Task<List<ShellNode>> ShellTreeAsync(
+        PageEditor pages,
+        PagePath? prefix,
+        bool recursive,
+        CancellationToken cancellationToken) {
+        PagePath scope = prefix ?? s_root;
+        SortedSet<string> nodes = new(StringComparer.Ordinal);
+        HashSet<string> folders = new(StringComparer.Ordinal);
+
+        List<PagePath> keys = [.. paths.Reserved];
+        foreach (PageListing head in await pages.ListAsync(cancellationToken)) {
+            if (!head.IsDeleted && !paths.IsReserved(head.Path)) {
+                keys.Add(head.Path);
+            }
+        }
+
+        foreach (PagePath key in keys) {
+            _ = nodes.Add(key.Key);
+            for (string? folder = FolderOf(key.Key); folder is not null; folder = FolderOf(folder)) {
+                _ = nodes.Add(folder);
+                _ = folders.Add(folder);
+            }
+        }
+
+        List<ShellNode> entries = [];
+        foreach (string node in nodes) {
+            PagePath path = PagePath.Normalize(node);
+            if (IsDirectlyBelow(path, scope) || (recursive && IsBelow(path, scope))) {
+                entries.Add(new ShellNode(path, folders.Contains(node)));
+            }
+        }
+
+        // ls on a page names the page, the way ls on a file names the file.
+        if (entries.Count == 0 && prefix is not null && nodes.Contains(prefix.Key)) {
+            entries.Add(new ShellNode(prefix, folders.Contains(prefix.Key)));
+        }
+
+        return entries;
+    }
+
+    // The folder a key lives in, or null when that folder is the root: the root is the whole store and
+    // is never an entry of itself.
+    private static string? FolderOf(string key) {
+        int separator = key.LastIndexOf('/');
+        return separator <= 0 ? null : key[..separator];
     }
 
     // One row of a listing: a stored page or one of the shell's own files. A shell file has no head,
@@ -798,9 +954,16 @@ internal sealed class PageToolExecutor(
             ? Failure($"The key {Describe(path)} is beneath the shell file {Describe(owner)}. Read {Describe(owner)} instead.", $"Read {Describe(path)}: beneath {Describe(owner)}")
             : null;
 
-    // The first column of `ls -l`: the assistant's own permission on the entry, not a host file mode.
-    // There is no host filesystem here; the column says whether write_page would be accepted.
+    // The first column of `ls -l`: d for a folder, so a key with anything beneath it can be told from
+    // a page at a glance, and w only where a save would be accepted. There is no host file mode here.
     private string Mode(PagePath path) => paths.CanWrite(path) ? "-rw-r--r--" : "-r--r--r--";
+
+    private string Mode(ShellNode node) => (node.IsDirectory, paths.CanWrite(node.Path)) switch {
+        (true, true) => "drwxr-xr-x",
+        (true, false) => "dr-xr-xr-x",
+        (false, true) => "-rw-r--r--",
+        (false, false) => "-r--r--r--",
+    };
 
     private static string Verb(string name) => name switch {
         "edit_page" => "Edit",

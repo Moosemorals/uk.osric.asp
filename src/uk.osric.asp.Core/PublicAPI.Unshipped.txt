@@ -21,6 +21,7 @@ override uk.osric.asp.Core.Charting.ChartFrame.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Charting.ChartFrame.GetHashCode() -> int
 override uk.osric.asp.Core.Charting.ChartFrame.ToString() -> string!
 static uk.osric.asp.Core.Assistant.BudgetAmount.Format(double value) -> string!
+static uk.osric.asp.Core.Assistant.GrepPattern.TryCompile(string! query, bool ignoreCase, out uk.osric.asp.Core.Assistant.GrepPattern? pattern, out string? error) -> bool
 static uk.osric.asp.Core.Assistant.MemoryCandidate.operator !=(uk.osric.asp.Core.Assistant.MemoryCandidate? left, uk.osric.asp.Core.Assistant.MemoryCandidate? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryCandidate.operator ==(uk.osric.asp.Core.Assistant.MemoryCandidate? left, uk.osric.asp.Core.Assistant.MemoryCandidate? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryContent.Normalise(string? content, int maximumChars) -> uk.osric.asp.Core.Assistant.MemoryContentResult!
@@ -50,6 +51,8 @@ static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IRea
 static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
 static uk.osric.asp.Core.Charting.StackedAreaChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
 static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool
+uk.osric.asp.Core.Assistant.GrepPattern
+uk.osric.asp.Core.Assistant.GrepPattern.IsMatch(string! line) -> bool
 uk.osric.asp.Core.Assistant.MemoryCandidate
 uk.osric.asp.Core.Assistant.MemoryCandidate.<Clone>$() -> uk.osric.asp.Core.Assistant.MemoryCandidate!
 uk.osric.asp.Core.Assistant.MemoryCandidate.Content.get -> string!
@@ -116,13 +119,17 @@ uk.osric.asp.Core.Assistant.MemorySelection.MemorySelection(System.Collections.G
 uk.osric.asp.Core.Assistant.MemorySelection.Truncated.get -> bool
 uk.osric.asp.Core.Assistant.MemorySelection.Truncated.init -> void
 *REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.Deconstruct(out string! Name, out System.Collections.Generic.IReadOnlyList<string!>! Arguments) -> void
-uk.osric.asp.Core.Assistant.VirtualShellCommand.Deconstruct(out string! Name, out System.Collections.Generic.IReadOnlyList<string!>! Arguments, out bool NumberLines, out bool IgnoreCase) -> void
-uk.osric.asp.Core.Assistant.VirtualShellCommand.IgnoreCase.get -> bool
-uk.osric.asp.Core.Assistant.VirtualShellCommand.IgnoreCase.init -> void
-uk.osric.asp.Core.Assistant.VirtualShellCommand.NumberLines.get -> bool
-uk.osric.asp.Core.Assistant.VirtualShellCommand.NumberLines.init -> void
 *REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.VirtualShellCommand(string! Name, System.Collections.Generic.IReadOnlyList<string!>! Arguments) -> void
-uk.osric.asp.Core.Assistant.VirtualShellCommand.VirtualShellCommand(string! Name, System.Collections.Generic.IReadOnlyList<string!>! Arguments, bool NumberLines = false, bool IgnoreCase = false) -> void
+uk.osric.asp.Core.Assistant.VirtualShellCommand.Deconstruct(out string! Name, out System.Collections.Generic.IReadOnlyList<string!>! Arguments, out uk.osric.asp.Core.Assistant.VirtualShellOptions Options) -> void
+uk.osric.asp.Core.Assistant.VirtualShellCommand.Options.get -> uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellCommand.Options.init -> void
+uk.osric.asp.Core.Assistant.VirtualShellCommand.VirtualShellCommand(string! Name, System.Collections.Generic.IReadOnlyList<string!>! Arguments, uk.osric.asp.Core.Assistant.VirtualShellOptions Options = uk.osric.asp.Core.Assistant.VirtualShellOptions.None) -> void
+uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellOptions.IgnoreCase = 2 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellOptions.Long = 4 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellOptions.None = 0 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellOptions.Numbers = 1 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
+uk.osric.asp.Core.Assistant.VirtualShellOptions.Recursive = 8 -> uk.osric.asp.Core.Assistant.VirtualShellOptions
 uk.osric.asp.Core.Charting.ChartFrame
 uk.osric.asp.Core.Charting.ChartFrame.<Clone>$() -> uk.osric.asp.Core.Charting.ChartFrame!
 *REMOVED*uk.osric.asp.Core.Charting.ChartFrame.ChartFrame(string! Id, string! Title, string! YTitle, string! EmptyText, System.TimeZoneInfo! Zone) -> void

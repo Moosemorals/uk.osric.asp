@@ -10,7 +10,12 @@ using uk.osric.asp.Core.Pages;
 /// <param name="Name">The command word, which is also the word <c>help</c> takes.</param>
 /// <param name="Usage">The form it is called in, options and arguments included.</param>
 /// <param name="Description">What it does, on one line, never wrapped.</param>
-internal sealed record ShellHelpEntry(string Name, string Usage, string Description);
+/// <param name="Notes">The syntax a caller cannot guess, when one line is not enough to say it.</param>
+internal sealed record ShellHelpEntry(
+    string Name,
+    string Usage,
+    string Description,
+    string? Notes = null);
 
 /// <summary>What the virtual shell's <c>help</c> command answers.</summary>
 /// <remarks>
@@ -27,7 +32,8 @@ internal static class ShellHelp {
 
     /// <summary>The preface: what the shell is not, before what it is.</summary>
     public const string Preface =
-        "A read-only shell over the page store. Keys are page keys like /notes, never host paths.\n"
+        "A read-only shell over the page store, which is a tree of keys: /notes is a page, and /vim\n"
+        + "is a folder when a key lives beneath it. A key is a key, never a host path.\n"
         + "One command per line: there are no pipes, redirects, separators, globbing or expansion.\n"
         + "Quote a word with ' ' or \" \" to keep its spaces and punctuation literal, or escape one\n"
         + "character with a backslash: grep 'a|b' is a query, grep a|b is refused.";
@@ -36,12 +42,17 @@ internal static class ShellHelp {
     public static IReadOnlyList<ShellHelpEntry> All { get; } = [
         new("cat", "cat [-n] <key>",
             "Print a page's source. -n puts each line's number and a tab before it."),
-        new("find", "find [prefix]", "List the pages and shell files under prefix. The same listing as ls."),
-        new("grep", "grep [-i] [-n] <query> [prefix]",
-            "Print key, line and text for every matching line at or under prefix. The query is literal text, not a pattern. -i ignores case, and -n changes nothing, because a match always carries its line."),
+        new("find", "find [prefix]",
+            "Print the long listing of everything below prefix, the same as ls -Rl."),
+        new("grep", "grep [-i] [-n] [-r] <query> [prefix ...]",
+            "Print key, line and text for every matching line at each prefix, or below it with -r.",
+            "The query is a basic regular expression: ^ $ . * and [abc] are metacharacters, \\| is\n"
+            + "either-this-or-that, and every other character is the literal one. -n changes nothing,\n"
+            + "because a match always carries its line, and -i ignores case."),
         new("head", "head -n <count> <key>", "Print the first count lines of a page."),
-        new("help", "help [command]", "Print this list, or the one line for a command."),
-        new("ls", "ls [prefix]", "List the pages and shell files under prefix as permission, a space, then the key."),
+        new("help", "help [command]", "Print this list, or the one command's usage and syntax."),
+        new("ls", "ls [-l] [-R] [prefix]",
+            "List the keys at prefix. -l puts the permission in front, and -R lists everything below."),
         new("stat", "stat <key>", "Print a page's key, permission, size, revision hash, saved time and compile state."),
         new("tail", "tail -n <count> <key>", "Print the last count lines of a page."),
         new("wc", "wc -l <key>", "Print the number of lines in a page."),
@@ -57,10 +68,13 @@ internal static class ShellHelp {
 
     /// <summary>One entry's line, or every entry's, as the model receives it.</summary>
     /// <param name="entry">The command to describe, or null for the whole table.</param>
-    /// <remarks>No trailing line break, so a five-line answer is five lines.</remarks>
+    /// <remarks>
+    /// The list is one line per command so an answer stays cheap and a reader can find one; a single
+    /// command also gets its notes, because that is the caller who has already chosen it.
+    /// </remarks>
     public static string Text(ShellHelpEntry? entry = null) => entry is null
         ? Preface + "\n\n" + string.Join('\n', All.Select(Line))
-        : Line(entry);
+        : entry.Notes is null ? Line(entry) : Line(entry) + "\n" + entry.Notes;
 
     private static string Line(ShellHelpEntry entry) => string.Concat(entry.Usage, ": ", entry.Description);
 }

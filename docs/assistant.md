@@ -39,23 +39,28 @@ The tools also see the shell's own files, which are the site's routes (DEC-198).
 `Pages:ReservedPaths` — `/edit`, `/login`, `/logout`, `/assistant`, `/admin/import`,
 `/admin/export`, `/metrics`, `/status`, `/heath` and `/favicon.ico` — is listed, searched and
 readable: `cat` and `read_page` return a host-written record of the route's methods, access and
-purpose rather than source, because the running image carries the assembly and not the source tree,
-and `ShellRoutesTests` pins the records to `ReservedPaths.Default` in both directions. Every listing
-row and `ls` line carries the assistant's own permission in the `ls -l` first column —
-`-rw-r--r--` where a save would be accepted, `-r--r--r--` where it would not — and `list_pages`
-also marks the row `kind: shell` or `kind: page`. The shell describes itself: `help` lists every
-command with its options and arguments, `help <command>` prints one, and a refused call names
-`help`, so the accepted form is one call away rather than in the prompt or here. `-n` numbers
-the lines `cat` prints, and `grep` accepts it and changes nothing, because a match already
-carries its line (DEC-217). The line is lexed before it is judged (DEC-218): a quoted or escaped
-character is data, so `grep '&mdash;'` searches for one and an unquoted `&` is refused, and a
-first word that is not a command is refused as that word rather than as the punctuation inside
-its quotes. A save to a shell file answers "Not permitted": only the owner changes the shell, in
-code. The seeded assets are ordinary pages the assistant may edit; `Assistant:ProtectedPaths`
-(empty unless an operator fills it) is a separate, extra lock over a single page, which still
-reads as its own source. `RequireApproval` asks the path policy before it asks the owner, so a
-save it has already refused never becomes an approval nobody can grant. `check_script` stays a
-page-source check, so a shell file is refused there.
+purpose rather than source, because the running image carries the assembly and not the source
+tree, and `ShellRoutesTests` pins the records to `ReservedPaths.Default` in both directions.
+Every `list_pages` row and `ls -l` line carries the assistant's own permission in a long
+listing's first column — `-rw-r--r--` where a save would be accepted, `-r--r--r--` where it
+would not — and `list_pages` also marks the row `kind: shell` or `kind: page`. The shell
+describes itself: `help` lists every command with its options and arguments, `help <command>`
+prints one, and a refused call names `help`, so the accepted form is one call away rather than
+in the prompt or here. `-n` numbers the lines `cat` prints, and `grep` accepts it and changes
+nothing, because a match already carries its line (DEC-217). The line is lexed before it is
+judged (DEC-218): a quoted or escaped character is data, so `grep '&mdash;'` searches for one
+and an unquoted `&` is refused, and a first word that is not a command is refused as that word
+rather than as the punctuation inside its quotes. The store is a tree, and the shell reads it as
+one (DEC-219): `ls` lists what is at a path and `ls -R`/`find` list everything below it, `grep`
+reads one level and `grep -r` descends, and `grep`'s query is a basic regular expression whose
+`\|` is alternation while every other punctuation character is literal. A capped listing, a
+capped match, or a match that lies below the level a search read, is said in the answer rather
+than left to be misread. A save to a shell file answers "Not permitted": only the owner changes
+the shell, in code. The seeded assets are ordinary pages the assistant may edit;
+`Assistant:ProtectedPaths` (empty unless an operator fills it) is a separate, extra lock over a
+single page, which still reads as its own source. `RequireApproval` asks the path policy before
+it asks the owner, so a save it has already refused never becomes an approval nobody can grant.
+`check_script` stays a page-source check, so a shell file is refused there.
 
 The assistant has a small memory of its own, one owner's and nobody else's (DEC-184–DEC-188). A memory
 is a note — a preference, a fact about this site, a correction, a reference to where something lives —
