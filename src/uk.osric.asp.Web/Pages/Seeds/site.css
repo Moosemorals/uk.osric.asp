@@ -46,3 +46,58 @@ h6 {
 .diagnostics .diagnostic-warning {
     color: #8a5a00;
 }
+
+/* The diff renderer's table. The row class is the look; the + and - markers and the hidden words
+   are what carry the meaning without colour. */
+.diff {
+    border-collapse: collapse;
+    font: 0.8125rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.diff th,
+.diff td {
+    padding: 0.125rem 0.5rem;
+    vertical-align: top;
+}
+
+.diff thead th {
+    text-align: start;
+}
+
+.diff td {
+    white-space: pre;
+}
+
+.diff td:nth-child(1),
+.diff td:nth-child(2) {
+    color: #595959;
+    text-align: right;
+    user-select: none;
+}
+
+.diff td:nth-child(3) {
+    font-weight: 600;
+    text-align: center;
+    user-select: none;
+}
+
+.diff .diff-added {
+    background-color: #e6ffec;
+}
+
+.diff .diff-removed {
+    background-color: #ffebe9;
+}
+
+.diff .diff-hunk td {
+    background-color: #f0f0f0;
+    color: #4a4a4a;
+    border-block: 1px solid #ddd;
+}
+
+.diff-empty,
+.diff-coarse {
+    padding: 0.5rem;
+    background-color: #f5f5f5;
+    border-left: 0.25rem solid #999;
+}

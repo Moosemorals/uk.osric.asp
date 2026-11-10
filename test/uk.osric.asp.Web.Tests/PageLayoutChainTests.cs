@@ -649,7 +649,8 @@ public sealed class PageLayoutChainTests {
             _fetcher,
             _metrics,
             _antiforgery,
-            new MarkdownRenderer());
+            new MarkdownRenderer(),
+            new DiffRenderer());
 
         await PageEndpoint.HandleAsync(context, CreateRenderer(options), NullLoggerFactory.Instance, environment);
 

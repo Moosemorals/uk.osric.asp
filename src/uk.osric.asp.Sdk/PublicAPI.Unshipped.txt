@@ -104,3 +104,6 @@ uk.osric.asp.Sdk.PageSaveResult.Hash.init -> void
 uk.osric.asp.Sdk.PageSaveResult.PageSaveResult(string! Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
 ~override uk.osric.asp.Sdk.PageDiagnostic.Equals(object obj) -> bool
 ~override uk.osric.asp.Sdk.PageDiagnostic.ToString() -> string
+
+uk.osric.asp.Sdk.IDiffRenderer
+uk.osric.asp.Sdk.IDiffRenderer.ToHtml(string! before, string! after) -> string!

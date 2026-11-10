@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
@@ -639,7 +640,7 @@ public sealed class RunProcessorTests {
         RunRegistry registry = new(options, TimeProvider.System);
         Assert.That(registry.TryStart(started.RunId!, conversation.Id, out RunStream? stream), Is.True);
         PagePathPolicy paths = new(new ReservedPaths(ReservedPaths.Default), options);
-        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, options, new AssistantMetrics(), new FakeAssistantFetcher());
+        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, options, new AssistantMetrics(), new FakeAssistantFetcher(), new DiffRenderer());
         RunProcessor processor = new(
             services.GetRequiredService<IServiceScopeFactory>(),
             client,

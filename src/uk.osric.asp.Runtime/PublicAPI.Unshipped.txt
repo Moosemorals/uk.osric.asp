@@ -3,3 +3,10 @@ uk.osric.asp.Runtime.MarkdownRenderer
 uk.osric.asp.Runtime.MarkdownRenderer.MarkdownRenderer() -> void
 uk.osric.asp.Runtime.MarkdownRenderer.ToHtml(string! markdown) -> string!
 uk.osric.asp.Runtime.MarkdownRenderer.ToRestrictedHtml(string! markdown) -> string!
+
+uk.osric.asp.Runtime.DiffRenderer
+uk.osric.asp.Runtime.DiffRenderer.DiffRenderer() -> void
+uk.osric.asp.Runtime.DiffRenderer.ToHtml(string! before, string! after) -> string!
+uk.osric.asp.Runtime.DiffRenderer.ToUnifiedDiff(string! before, string! after) -> string!
+uk.osric.asp.Runtime.DiffRenderer.Compare(string! before, string! after) -> uk.osric.asp.Core.Diff.DiffDocument!
+uk.osric.asp.Runtime.DiffRenderer.ToUnifiedDiff(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!

@@ -10,6 +10,7 @@ using System.Globalization;
 using System.Net;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
@@ -26,7 +27,12 @@ internal sealed class EditorEndpoint {
 
     internal const string MessageKey = "editor.message";
 
-    public static async Task HandleAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, IAntiforgery antiforgery) {
+    public static async Task HandleAsync(
+        HttpContext context,
+        PageEditor pages,
+        DiffRenderer diff,
+        ReservedPaths reserved,
+        IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
 
         if (context.Request.Method is not ("GET" or "POST")) {
@@ -123,6 +129,17 @@ internal sealed class EditorEndpoint {
                     return;
                 }
                 await WriteRevisionAsync(context, pages, path, hash);
+                return;
+            case "diff":
+                if (!TryGetRevisionPair(context, out string fromHash, out string toHash)) {
+                    await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+                        "editor.diff_link",
+                        "That comparison link is not valid",
+                        "A comparison link needs two 64-character SHA-256 hashes, one in from and one in to. Open the page history and choose two revisions.",
+                        [new(PageUrls.EditorCommand(path, "history"), "Back to history"), new(PageUrls.Editor(path), "Back to editor")]));
+                    return;
+                }
+                await WriteDiffAsync(context, pages, diff, path, fromHash, toHash);
                 return;
             case "delete":
                 await WriteDeleteConfirmationAsync(context, pages, antiforgery, path);
@@ -619,14 +636,25 @@ internal sealed class EditorEndpoint {
     // A command missing from a POST is a save: that is what the editor's form means, and it is what
     // a browser sends for an implicit submission (the Enter key) that names no button.
     private static bool IsAllowedCommand(string method, string? command) => method switch {
-        "GET" => command is null or "history" or "revision" or "delete" or "scrub",
+        "GET" => command is null or "history" or "revision" or "diff" or "delete" or "scrub",
         "POST" => command is null or "save" or "save-and-view" or "new" or "delete" or "scrub" or "restore",
         _ => false,
     };
 
     private static bool TryGetRevisionHash(HttpContext context, out string hash) {
+        return TryGetHash(context, "hash", out hash);
+    }
+
+    private static bool TryGetRevisionPair(HttpContext context, out string from, out string to) {
+        from = string.Empty;
+        to = string.Empty;
+
+        return TryGetHash(context, "from", out from) && TryGetHash(context, "to", out to);
+    }
+
+    private static bool TryGetHash(HttpContext context, string name, out string hash) {
         hash = string.Empty;
-        if (!context.Request.Query.TryGetValue("hash", out StringValues values)
+        if (!context.Request.Query.TryGetValue(name, out StringValues values)
             || values.Count != 1
             || values[0] is not { Length: 64 } value
             || !value.All(Uri.IsHexDigit)) {
@@ -670,7 +698,7 @@ internal sealed class EditorEndpoint {
 
         IReadOnlyList<PageRevisionSummary> revisions = await pages.ListRevisionsAsync(path, context.RequestAborted);
         await ShellDocument.BeginAsync(context, "Page history",
-            SiteNavigation.For(context));
+            SiteNavigation.For(context), stylesheets: ["/editor.css"]);
         await context.Response.WriteAsync($"<h1>History for {WebUtility.HtmlEncode(path.Key)}</h1>");
         if (head.IsDeleted) {
             await context.Response.WriteAsync("<p>This page is deleted. Its revisions remain available here.</p>");
@@ -690,7 +718,84 @@ internal sealed class EditorEndpoint {
                 await context.Response.WriteAsync($"<tr><td>{WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}</td><td><a href=\"{url}\">{hash}</a></td><td>{state}</td><td>{WebUtility.HtmlEncode(revision.ImageState.Describe())}</td><td>{WebUtility.HtmlEncode(revision.CreationRuntimeId)}</td></tr>");
             }
             await context.Response.WriteAsync("</tbody></table>");
+            if (revisions.Count >= 2) {
+                await WriteRevisionCompareFormAsync(context, revisions);
+            } else {
+                await context.Response.WriteAsync("<p>Only one revision is saved; there is nothing to compare yet.</p>");
+            }
         }
+        await ShellDocument.EndAsync(context);
+    }
+
+    private static async Task WriteRevisionCompareFormAsync(
+        HttpContext context,
+        IReadOnlyList<PageRevisionSummary> revisions) {
+        await context.Response.WriteAsync("""
+            <form method="get" action="?" class="revision-compare">
+                <input type="hidden" name="cmd" value="diff">
+                <label for="diff-from">Compare</label>
+                <select id="diff-from" name="from">
+            """);
+        await WriteRevisionOptionsAsync(context, revisions, revisions[1].Hash);
+        await context.Response.WriteAsync("</select><label for=\"diff-to\">with</label><select id=\"diff-to\" name=\"to\">");
+        await WriteRevisionOptionsAsync(context, revisions, revisions[0].Hash);
+        await context.Response.WriteAsync("</select><button type=\"submit\">Compare revisions</button></form>");
+    }
+
+    private static async Task WriteRevisionOptionsAsync(
+        HttpContext context,
+        IReadOnlyList<PageRevisionSummary> revisions,
+        string selectedHash) {
+        foreach (PageRevisionSummary revision in revisions) {
+            string hash = WebUtility.HtmlEncode(revision.Hash);
+            string savedAt = WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture));
+            string selected = string.Equals(revision.Hash, selectedHash, StringComparison.Ordinal) ? " selected" : string.Empty;
+            string current = revision.IsCurrent ? " · Current" : string.Empty;
+            await context.Response.WriteAsync(
+                $"<option value=\"{hash}\"{selected}>{savedAt} · {hash[..12]}{current}</option>");
+        }
+    }
+
+    private static async Task WriteDiffAsync(
+        HttpContext context,
+        PageEditor pages,
+        DiffRenderer diff,
+        PagePath path,
+        string fromHash,
+        string toHash) {
+        PageHeadSummary? head = await pages.GetHeadAsync(path, context.RequestAborted);
+        if (head is null) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+
+        PageRevisionTemplate? from = await pages.GetRevisionTemplateByHashAsync(fromHash, context.RequestAborted);
+        PageRevisionTemplate? to = await pages.GetRevisionTemplateByHashAsync(toHash, context.RequestAborted);
+        if (from is null || from.Path != path || to is null || to.Path != path) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+
+        await ShellDocument.BeginAsync(context, "Compare revisions",
+            SiteNavigation.For(context), stylesheets: ["/editor.css"]);
+        await context.Response.WriteAsync($"<h1>Changes to {WebUtility.HtmlEncode(path.Key)}</h1>");
+        if (head.IsDeleted) {
+            await context.Response.WriteAsync("<p>This page is deleted. Its revisions remain available here.</p>");
+        }
+        await context.Response.WriteAsync(PageDocument.Nav("Editor navigation", [
+            new(PageUrls.EditorCommand(path, "history"), "Back to history"),
+            new(PageUrls.Editor(path), "Back to editor"),
+        ], "editor-menu"));
+
+        string fromUrl = WebUtility.HtmlEncode(PageUrls.EditorRevision(path, from.Hash));
+        string toUrl = WebUtility.HtmlEncode(PageUrls.EditorRevision(path, to.Hash));
+        string fromSavedAt = WebUtility.HtmlEncode(from.SavedAt.ToString("O", CultureInfo.InvariantCulture));
+        string toSavedAt = WebUtility.HtmlEncode(to.SavedAt.ToString("O", CultureInfo.InvariantCulture));
+        await context.Response.WriteAsync($"""
+            <p>From <a href="{fromUrl}">{WebUtility.HtmlEncode(from.Hash)}</a> saved <time datetime="{fromSavedAt}">{fromSavedAt}</time>, to <a href="{toUrl}">{WebUtility.HtmlEncode(to.Hash)}</a> saved <time datetime="{toSavedAt}">{toSavedAt}</time>.</p>
+            """);
+
+        await context.Response.WriteAsync(diff.ToHtml(from.Template, to.Template));
         await ShellDocument.EndAsync(context);
     }
 

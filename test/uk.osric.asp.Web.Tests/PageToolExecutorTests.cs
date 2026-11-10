@@ -8,6 +8,7 @@ using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
@@ -1602,5 +1603,6 @@ public sealed class PageToolExecutorTests {
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions { ProtectedPaths = ["/editor.js"] }),
         options ?? new AssistantOptions { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
         new AssistantMetrics(),
-        new FakeAssistantFetcher());
+        new FakeAssistantFetcher(),
+        new DiffRenderer());
 }

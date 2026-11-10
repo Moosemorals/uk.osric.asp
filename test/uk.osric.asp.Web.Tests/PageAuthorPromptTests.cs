@@ -146,7 +146,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v16"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v17"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -279,7 +279,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v16"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v17"));
         });
     }
 
@@ -309,6 +309,20 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("pipe tables"), "the assistant may use tables");
             Assert.That(prompt, Does.Contain("images, raw HTML,"));
             Assert.That(prompt, Does.Contain("h3"));
+        });
+    }
+
+    [Test]
+    public void TheDiffSectionTeachesTheCapabilityAndTheTool() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Diff"));
+            Assert.That(prompt, Does.Contain("ctx.Features.GetRequired<IDiffRenderer>()"));
+            Assert.That(prompt, Does.Contain("diff_page"));
+            Assert.That(prompt, Does.Contain("unified diff"));
+            Assert.That(prompt, Does.Contain("Every source line is escaped"));
+            Assert.That(prompt, Does.Contain("needs no approval"));
         });
     }
 }

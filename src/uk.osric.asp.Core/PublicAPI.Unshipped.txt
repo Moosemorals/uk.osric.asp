@@ -5,6 +5,9 @@ const uk.osric.asp.Core.Assistant.MemorySecrets.Assignment = "a password or key 
 const uk.osric.asp.Core.Assistant.MemorySecrets.EncodedValue = "a long encoded value" -> string!
 const uk.osric.asp.Core.Assistant.MemorySecrets.PrivateKey = "a private key" -> string!
 const uk.osric.asp.Core.Assistant.MemorySecrets.ProviderKey = "a provider key" -> string!
+const uk.osric.asp.Core.Diff.LineDiff.ContextLines = 3 -> int
+const uk.osric.asp.Core.Diff.LineDiff.MaxEditDistance = 1000 -> int
+const uk.osric.asp.Core.Diff.LineDiff.MaxLines = 100000 -> int
 override uk.osric.asp.Core.Assistant.MemoryCandidate.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Assistant.MemoryCandidate.GetHashCode() -> int
 override uk.osric.asp.Core.Assistant.MemoryCandidate.ToString() -> string!
@@ -20,6 +23,11 @@ override uk.osric.asp.Core.Assistant.MemorySelection.ToString() -> string!
 override uk.osric.asp.Core.Charting.ChartFrame.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Charting.ChartFrame.GetHashCode() -> int
 override uk.osric.asp.Core.Charting.ChartFrame.ToString() -> string!
+override uk.osric.asp.Core.Diff.DiffDocument.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Diff.DiffDocument.GetHashCode() -> int
+override uk.osric.asp.Core.Diff.DiffDocument.ToString() -> string!
+override uk.osric.asp.Core.Diff.DiffHunk.GetHashCode() -> int
+override uk.osric.asp.Core.Diff.DiffLine.GetHashCode() -> int
 static uk.osric.asp.Core.Assistant.BudgetAmount.Format(double value) -> string!
 static uk.osric.asp.Core.Assistant.GrepPattern.TryCompile(string! query, bool ignoreCase, out uk.osric.asp.Core.Assistant.GrepPattern? pattern, out string? error) -> bool
 static uk.osric.asp.Core.Assistant.MemoryCandidate.operator !=(uk.osric.asp.Core.Assistant.MemoryCandidate? left, uk.osric.asp.Core.Assistant.MemoryCandidate? right) -> bool
@@ -50,6 +58,14 @@ static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IRea
 *REMOVED*static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size) -> string!
 static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
 static uk.osric.asp.Core.Charting.StackedAreaChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
+static uk.osric.asp.Core.Diff.DiffDocument.operator !=(uk.osric.asp.Core.Diff.DiffDocument? left, uk.osric.asp.Core.Diff.DiffDocument? right) -> bool
+static uk.osric.asp.Core.Diff.DiffDocument.operator ==(uk.osric.asp.Core.Diff.DiffDocument? left, uk.osric.asp.Core.Diff.DiffDocument? right) -> bool
+static uk.osric.asp.Core.Diff.DiffHunk.operator !=(uk.osric.asp.Core.Diff.DiffHunk left, uk.osric.asp.Core.Diff.DiffHunk right) -> bool
+static uk.osric.asp.Core.Diff.DiffHunk.operator ==(uk.osric.asp.Core.Diff.DiffHunk left, uk.osric.asp.Core.Diff.DiffHunk right) -> bool
+static uk.osric.asp.Core.Diff.DiffLine.operator !=(uk.osric.asp.Core.Diff.DiffLine left, uk.osric.asp.Core.Diff.DiffLine right) -> bool
+static uk.osric.asp.Core.Diff.DiffLine.operator ==(uk.osric.asp.Core.Diff.DiffLine left, uk.osric.asp.Core.Diff.DiffLine right) -> bool
+static uk.osric.asp.Core.Diff.LineDiff.Compare(string! before, string! after) -> uk.osric.asp.Core.Diff.DiffDocument!
+static uk.osric.asp.Core.Diff.UnifiedDiff.Format(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
 static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool
 uk.osric.asp.Core.Assistant.GrepPattern
 uk.osric.asp.Core.Assistant.GrepPattern.IsMatch(string! line) -> bool
@@ -153,6 +169,54 @@ uk.osric.asp.Core.Charting.ChartFrame.YTitle.init -> void
 uk.osric.asp.Core.Charting.ChartFrame.Zone.get -> System.TimeZoneInfo!
 uk.osric.asp.Core.Charting.ChartFrame.Zone.init -> void
 uk.osric.asp.Core.Charting.StackedAreaChart
+uk.osric.asp.Core.Diff.DiffDocument
+uk.osric.asp.Core.Diff.DiffDocument.<Clone>$() -> uk.osric.asp.Core.Diff.DiffDocument!
+uk.osric.asp.Core.Diff.DiffDocument.AddedLines.get -> int
+uk.osric.asp.Core.Diff.DiffDocument.AddedLines.init -> void
+uk.osric.asp.Core.Diff.DiffDocument.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Diff.DiffHunk>! Hunks, out int AddedLines, out int RemovedLines, out bool IsCoarse) -> void
+uk.osric.asp.Core.Diff.DiffDocument.DiffDocument(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Diff.DiffHunk>! Hunks, int AddedLines, int RemovedLines, bool IsCoarse) -> void
+uk.osric.asp.Core.Diff.DiffDocument.Equals(uk.osric.asp.Core.Diff.DiffDocument? other) -> bool
+uk.osric.asp.Core.Diff.DiffDocument.Hunks.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Diff.DiffHunk>!
+uk.osric.asp.Core.Diff.DiffDocument.Hunks.init -> void
+uk.osric.asp.Core.Diff.DiffDocument.IsCoarse.get -> bool
+uk.osric.asp.Core.Diff.DiffDocument.IsCoarse.init -> void
+uk.osric.asp.Core.Diff.DiffDocument.IsEmpty.get -> bool
+uk.osric.asp.Core.Diff.DiffDocument.RemovedLines.get -> int
+uk.osric.asp.Core.Diff.DiffDocument.RemovedLines.init -> void
+uk.osric.asp.Core.Diff.DiffHunk
+uk.osric.asp.Core.Diff.DiffHunk.AfterCount.get -> int
+uk.osric.asp.Core.Diff.DiffHunk.AfterCount.init -> void
+uk.osric.asp.Core.Diff.DiffHunk.AfterStart.get -> int
+uk.osric.asp.Core.Diff.DiffHunk.AfterStart.init -> void
+uk.osric.asp.Core.Diff.DiffHunk.BeforeCount.get -> int
+uk.osric.asp.Core.Diff.DiffHunk.BeforeCount.init -> void
+uk.osric.asp.Core.Diff.DiffHunk.BeforeStart.get -> int
+uk.osric.asp.Core.Diff.DiffHunk.BeforeStart.init -> void
+uk.osric.asp.Core.Diff.DiffHunk.Deconstruct(out int BeforeStart, out int BeforeCount, out int AfterStart, out int AfterCount, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Diff.DiffLine>! Lines) -> void
+uk.osric.asp.Core.Diff.DiffHunk.DiffHunk() -> void
+uk.osric.asp.Core.Diff.DiffHunk.DiffHunk(int BeforeStart, int BeforeCount, int AfterStart, int AfterCount, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Diff.DiffLine>! Lines) -> void
+uk.osric.asp.Core.Diff.DiffHunk.Equals(uk.osric.asp.Core.Diff.DiffHunk other) -> bool
+uk.osric.asp.Core.Diff.DiffHunk.Lines.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Diff.DiffLine>!
+uk.osric.asp.Core.Diff.DiffHunk.Lines.init -> void
+uk.osric.asp.Core.Diff.DiffLine
+uk.osric.asp.Core.Diff.DiffLine.AfterLine.get -> int?
+uk.osric.asp.Core.Diff.DiffLine.AfterLine.init -> void
+uk.osric.asp.Core.Diff.DiffLine.BeforeLine.get -> int?
+uk.osric.asp.Core.Diff.DiffLine.BeforeLine.init -> void
+uk.osric.asp.Core.Diff.DiffLine.Deconstruct(out uk.osric.asp.Core.Diff.DiffLineKind Kind, out string! Text, out int? BeforeLine, out int? AfterLine) -> void
+uk.osric.asp.Core.Diff.DiffLine.DiffLine() -> void
+uk.osric.asp.Core.Diff.DiffLine.DiffLine(uk.osric.asp.Core.Diff.DiffLineKind Kind, string! Text, int? BeforeLine, int? AfterLine) -> void
+uk.osric.asp.Core.Diff.DiffLine.Equals(uk.osric.asp.Core.Diff.DiffLine other) -> bool
+uk.osric.asp.Core.Diff.DiffLine.Kind.get -> uk.osric.asp.Core.Diff.DiffLineKind
+uk.osric.asp.Core.Diff.DiffLine.Kind.init -> void
+uk.osric.asp.Core.Diff.DiffLine.Text.get -> string!
+uk.osric.asp.Core.Diff.DiffLine.Text.init -> void
+uk.osric.asp.Core.Diff.DiffLineKind
+uk.osric.asp.Core.Diff.DiffLineKind.Added = 1 -> uk.osric.asp.Core.Diff.DiffLineKind
+uk.osric.asp.Core.Diff.DiffLineKind.Context = 0 -> uk.osric.asp.Core.Diff.DiffLineKind
+uk.osric.asp.Core.Diff.DiffLineKind.Removed = 2 -> uk.osric.asp.Core.Diff.DiffLineKind
+uk.osric.asp.Core.Diff.LineDiff
+uk.osric.asp.Core.Diff.UnifiedDiff
 uk.osric.asp.Core.Markdown.LinkPolicy
 override uk.osric.asp.Core.Assistant.ContextPlan.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Assistant.ContextPlan.GetHashCode() -> int
@@ -275,3 +339,7 @@ uk.osric.asp.Core.Assistant.TokenEstimator.Margin.get -> double
 static uk.osric.asp.Core.Assistant.TokenEstimator.For(uk.osric.asp.Core.Assistant.TokenCalibration? calibration) -> uk.osric.asp.Core.Assistant.TokenEstimator!
 uk.osric.asp.Core.Assistant.TokenEstimator.Estimate(uk.osric.asp.Core.Assistant.ChatRequest! request) -> long
 uk.osric.asp.Core.Assistant.TokenEstimator.Estimate(long requestBytes) -> long
+~override uk.osric.asp.Core.Diff.DiffHunk.Equals(object obj) -> bool
+~override uk.osric.asp.Core.Diff.DiffHunk.ToString() -> string
+~override uk.osric.asp.Core.Diff.DiffLine.Equals(object obj) -> bool
+~override uk.osric.asp.Core.Diff.DiffLine.ToString() -> string

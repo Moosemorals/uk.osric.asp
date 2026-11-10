@@ -31,9 +31,11 @@ clears it in the same transaction as the tombstone.
 runtime id and optional compilation result. A save inserts the revision and advances its
 `PageHeads` row in one transaction. The head is the authoritative current-page pointer; reads do not
 guess the current row from timestamps. The source identity and hash stay fixed while conditional
-compilation updates may fill or refresh only the compilation fields of that revision. Reusing an
-image requires both a matching source fingerprint and the current runtime id, so matching images
-are reused and stale ones are recompiled lazily.
+compilation updates may fill or refresh only the compilation fields of that revision. A diff is not
+a stored value: it is computed from two retained templates when it is asked for, and the only copy
+in the database is the assistant's ordinary tool result in the transcript. Reusing an image
+requires both a matching source fingerprint and the current runtime id, so matching images are
+reused and stale ones are recompiled lazily.
 
 Revision hashes address retained code but are not authorization tokens or rendered-body ETags. An
 indexed hash lookup exists for future immutable asset serving; it is an internal storage operation,

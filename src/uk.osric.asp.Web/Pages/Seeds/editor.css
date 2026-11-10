@@ -139,3 +139,17 @@ body.editor-page {
     max-width: 100%;
     overflow-x: auto;
 }
+
+/* The history page's two revision selects. It is a GET form rather than a .form: there is no
+   submission to save, only two values to name in the query. */
+.revision-compare {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-block: 1rem;
+}
+
+.revision-compare select {
+    max-width: 100%;
+}

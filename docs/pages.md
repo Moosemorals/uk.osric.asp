@@ -30,8 +30,8 @@ returns it or throws naming the interface, so the page decides whether absence i
 decides what is registered — a page cannot add or replace a capability — and a capability is either
 registered or absent, never `null` (DEC-142).
 
-Seven capabilities are registered today — four that do I/O and are bounded by the render, one that
-is the page's slots in its document, one that is a pure renderer, and one that is a fact about 
+Eight capabilities are registered today — four that do I/O and are bounded by the render, one that
+is the page's slots in its document, two that are pure renderers, and one that is a fact about
 the build:
 
 - `IBuildInfo` says which build is answering: `Commit` is the full git commit hash, or `null` when
@@ -72,6 +72,13 @@ the build:
   tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
   sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (DEC-163). A table's header
   cells carry `scope="col"` and no inline style.
+- `IDiffRenderer` renders the line changes between two documents with `ToHtml(before, after)`. It
+  is pure and needs no `await`, and its result is written with `<%== %>`. Every source line is
+  escaped, so unlike Markdown it is safe for a visitor's text, a fetched body or page state: the
+  input is data, not markup. The result is a `table.diff` with line numbers, change markers and a
+  sideways scroll container; an unchanged pair says so, and a comparison too different to align
+  says why. A page compares two revisions by reading both with `IPageCatalog.ReadRevisionAsync`
+  (DEC-217, DEC-218).
 
 A page's log entries are filed under the single `uk.osric.asp.Pages` category with the page's key on
 a `Path` scope, and `SimpleContext` is where that enters the shell, so `Core` never names a logging

@@ -48,7 +48,8 @@ public sealed class PageEndpointTests {
             new FakePageFetcher(),
             _metrics,
             _antiforgery,
-            new MarkdownRenderer());
+            new MarkdownRenderer(),
+            new DiffRenderer());
     }
 
     [TestCase(null, "/", "/")]

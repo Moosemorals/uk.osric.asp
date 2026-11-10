@@ -43,6 +43,7 @@ internal static class ShellViews {
         "editor-with-diagnostics",
         "history",
         "revision",
+        "diff",
         "delete-confirmation",
         "status",
         "error",
@@ -75,6 +76,7 @@ internal static class ShellViews {
         "editor-with-diagnostics" => RenderAsync(name, EditorWithDiagnosticsAsync),
         "history" => RenderAsync(name, () => EditorAsync(NewStore(), "/page", "cmd=history")),
         "revision" => RenderAsync(name, RevisionAsync),
+        "diff" => RenderAsync(name, DiffAsync),
         "delete-confirmation" => RenderAsync(name, () => EditorAsync(NewStore(), "/page", "cmd=delete")),
         "status" => RenderAsync(name, StatusAsync),
         "error" => RenderAsync(name, () => ErrorAsync(withDetails: false)),
@@ -157,7 +159,8 @@ internal static class ShellViews {
                 new FakePageFetcher(),
                 metrics,
                 new TestAntiforgery(),
-                new MarkdownRenderer()));
+                new MarkdownRenderer(),
+                new DiffRenderer()));
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -201,6 +204,16 @@ internal static class ShellViews {
         string hash = PageHarness.Stored(storage, "/page").Hash;
 
         return EditorAsync(storage, "/page", $"cmd=revision&hash={Uri.EscapeDataString(hash)}");
+    }
+
+    private static async Task<string> DiffAsync() {
+        FakePageStore storage = NewStore();
+        PageTemplate before = PageHarness.Stored(storage, "/page");
+        PageTemplate after = PageTemplate.NewRevision(PageHarness.Key("/page"), "<p>after</p>", null, "1:3:test");
+        await storage.SavePageAsync(after);
+
+        return await EditorAsync(storage, "/page",
+            $"cmd=diff&from={Uri.EscapeDataString(before.Hash)}&to={Uri.EscapeDataString(after.Hash)}");
     }
 
     private static async Task<string> StatusAsync() {
@@ -274,7 +287,8 @@ internal static class ShellViews {
                 new FakePageFetcher(),
                 new PageMetrics(),
                 new TestAntiforgery(),
-                new MarkdownRenderer()));
+                new MarkdownRenderer(),
+                new DiffRenderer()));
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -449,7 +463,7 @@ internal static class ShellViews {
             context.Request.QueryString = new QueryString("?" + command);
         }
 
-        await EditorEndpoint.HandleAsync(context, pages.Editor, Reserved, new TestAntiforgery());
+        await EditorEndpoint.HandleAsync(context, pages.Editor, pages.Diff, Reserved, new TestAntiforgery());
 
         return await TestHttp.ReadBodyAsync(context);
     }

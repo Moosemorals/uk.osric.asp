@@ -26,4 +26,8 @@ internal static class PageUrls {
     /// <summary>The editor URL for one saved revision of the page at <paramref name="path"/>.</summary>
     public static string EditorRevision(PagePath path, string hash) =>
         EditorCommand(path, "revision") + "&hash=" + Uri.EscapeDataString(hash);
+
+    /// <summary>The editor URL comparing two saved revisions of the page at <paramref name="path"/>.</summary>
+    public static string EditorDiff(PagePath path, string from, string to) =>
+        EditorCommand(path, "diff") + "&from=" + Uri.EscapeDataString(from) + "&to=" + Uri.EscapeDataString(to);
 }

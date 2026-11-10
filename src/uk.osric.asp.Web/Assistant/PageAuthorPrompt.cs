@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v16";
+    public const string Version = "page-author-v17";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -282,6 +282,23 @@ internal static class PageAuthorPrompt {
         h3. Links must stay on this site or be http(s); images, raw HTML,
         autolinks and every other scheme are shown as text. Write Markdown, not
         HTML, and give a table a header row and its separator row.
+
+        ## Diff
+        A page renders the line changes between two strings with
+        `ctx.Features.GetRequired<IDiffRenderer>()` and `ToHtml`; write the
+        result raw with `<%== … %>`. Every source line is escaped, so unlike
+        Markdown it is safe for a visitor's text, a fetched body or page state.
+        The result is a `table.diff` with line numbers; unchanged, added and
+        removed rows have their own classes and markers. An unchanged pair
+        says so. A page compares two revisions by reading both with
+        `IPageCatalog.ReadRevisionAsync`.
+
+        You can compare two retained revisions of a page yourself with
+        `diff_page`: it returns a unified diff, the two hashes and the editor
+        link. With no hashes it compares the current revision with the one
+        before it. Use it to answer "what changed" or to review your own edit;
+        it writes nothing and needs no approval. The unified diff is data, not
+        markup.
 
         ## Outbound fetch
         `ctx.Features.GetRequired<IHttpFetch>()` makes one bounded HTTP

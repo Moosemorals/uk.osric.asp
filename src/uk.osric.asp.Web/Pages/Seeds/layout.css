@@ -51,9 +51,16 @@ ul.diagnostics {
 }
 
 /* A block that scrolls sideways has to be reachable by keyboard to be scrollable at all. */
-.source:focus-visible {
+.source:focus-visible,
+.diff-scroll:focus-visible {
     outline: 2px solid #005fa3;
     outline-offset: 2px;
+}
+
+/* The diff table can be wider than the page; the wrapper is what scrolls, and it takes focus so a
+   keyboard visitor can scroll it too. */
+.diff-scroll {
+    overflow-x: auto;
 }
 
 /* A <th> in the body is the row's own name — a page key, a revision — so it reads from the same edge

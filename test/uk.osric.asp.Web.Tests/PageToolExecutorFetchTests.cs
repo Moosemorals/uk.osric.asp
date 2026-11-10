@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Pages;
@@ -181,6 +182,7 @@ public sealed class PageToolExecutorFetchTests {
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions()),
             options ?? new AssistantOptions { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
             new AssistantMetrics(),
-            fetcher);
+            fetcher,
+            new DiffRenderer());
     }
 }

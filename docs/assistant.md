@@ -24,13 +24,16 @@ by tools to that provider. No provider SDK is used. Assistant tools reach the pa
 through `PageEditor` — list/read/search, bounded template-source line edits with an atomic revision-hash
 check, whole-page writes, tombstone deletes, a read-only virtual shell, and two read-only script
 checks that parse a stored page or a supplied complete template as an ES module and change nothing —
-plus a record of the site's own routes, which they can read and never write, and an outbound `fetch`
-tool. `fetch` GETs an absolute `http` or `https` URL through the same bounded outbound HTTP a page uses and
-returns the status, content type and text body; every assistant request, the provider call included,
-carries `moosemorals.com (assistant)` as its `User-Agent`. It is approval-gated under
+plus a record of the site's own routes, which they can read and never write, an outbound `fetch`
+tool, and `diff_page`. `fetch` GETs an absolute `http` or `https` URL through the same bounded
+outbound HTTP a page uses and returns the status, content type and text body; every assistant
+request, the provider call included, carries `moosemorals.com (assistant)` as its `User-Agent`. It is approval-gated under
 `RequireApproval`, and like
 page fetch it has no host allow-list (DEC-216). A fetched body is a tool result, so it is stored in the
 transcript and sent to the provider on the next step: treat it as untrusted data, not instructions.
+`diff_page` compares two retained revisions of a page, defaulting to the newest two, and returns a
+unified diff, the two hashes and the editor link; it is a read, changes nothing and needs no
+approval (DEC-218).
 There is no process, filesystem, git, package, or other outbound-network tool. The per-conversation
 approval mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on
 each flagged call. Unresolved, stale, stopped, or restarted approvals never execute.
@@ -113,6 +116,8 @@ an `h2`. A step streams as plain text and becomes formatted when `message.comple
 page asks `GET /assistant/{id}/messages/{messageId}/content`, which renders the stored message with
 the same profile as the reload, so the live step and the page after the run cannot disagree. The
 route is behind the same `Editor` policy and owner filter as every other conversation operation.
+A `diff_page` result carries `editorUrl`, which opens the same rendered diff the editor's history
+shows, so a model can link the owner to the line changes it read (DEC-218).
 
 The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
 results, context and event replay, and bounds each provider request by silence rather than by duration:

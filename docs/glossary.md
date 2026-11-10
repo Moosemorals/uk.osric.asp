@@ -43,6 +43,14 @@ scrape surface.
 
 **Owner:** observability — `StatusEndpoint`, `Dashboard`, `StatusPage`; route `/status`.
 
+## Diff
+
+The line-by-line comparison of two templates. **Not** a revision, a stored value or a second copy of
+the source: a diff is computed from two retained templates when it is asked for.
+
+**Owner:** pages and assistant — `IDiffRenderer`, `DiffRenderer` and `LineDiff`; the editor's
+`cmd=diff` view and the assistant's `diff_page` tool.
+
 ## Exchange
 One user message plus everything it sets off: the run it starts and the messages that run produces.
 

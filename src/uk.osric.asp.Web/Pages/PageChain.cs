@@ -118,7 +118,8 @@ internal sealed class PageChain {
             .Add<IHttpFetch>(fetch)
             .Add<IPageCatalog>(catalog)
             .Add<IPageLayout>(layout)
-            .Add<IMarkdownRenderer>(_environment.Markdown);
+            .Add<IMarkdownRenderer>(_environment.Markdown)
+            .Add<IDiffRenderer>(_environment.Diff);
 
         // A layout is markup, so it is offered the read and not the write: one that saved itself
         // would append a revision on every render it wraps (DEC-194).

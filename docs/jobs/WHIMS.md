@@ -11,4 +11,3 @@ that grows a shape is promoted to an `IDEA-` file and its line is removed; delet
 | ID | Whim |
 | --- | --- |
 | WHIM-01 | Language Server Protocol support for the editor: publish the C# compile diagnostics and the script checker's JavaScript diagnostics to [IDEA-001](IDEA-001.md)'s editor over LSP. |
-| WHIM-02 | A diff viewer that shows what changed between two saves of a page, and that the assistant can use too. Ownership is the open question: as a page it is beyond the assistant's reach, so it may belong as a "render this thing" capability — a pure renderer and/or a route both can call — rather than a view. |

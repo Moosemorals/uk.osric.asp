@@ -123,6 +123,7 @@ internal class Program {
 
         builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
         builder.Services.AddSingleton<MarkdownRenderer>();
+        builder.Services.AddSingleton<DiffRenderer>();
         builder.Services.AddSingleton<IPasswordService, PasswordService>();
         builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
         builder.Services.AddSingleton<PageBudget>();
@@ -163,7 +164,8 @@ internal class Program {
             services.GetRequiredService<IPageFetcher>(),
             services.GetRequiredService<PageMetrics>(),
             services.GetRequiredService<IAntiforgery>(),
-            services.GetRequiredService<MarkdownRenderer>()));
+            services.GetRequiredService<MarkdownRenderer>(),
+            services.GetRequiredService<DiffRenderer>()));
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         // Registered whether or not the assistant is enabled: the tables are migrated either way, and

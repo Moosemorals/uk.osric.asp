@@ -32,12 +32,14 @@ internal sealed class PageHarness : IDisposable {
         ILogger<PageRenderer>? rendererLogger = null,
         PageFetchOptions? fetchOptions = null,
         PageContentTypes? contentTypes = null,
-        MarkdownRenderer? markdown = null) {
+        MarkdownRenderer? markdown = null,
+        DiffRenderer? diff = null) {
         State = state ?? new FakePageStateStore();
         Fetch = fetch ?? new FakePageFetcher();
         ReadStore = readStore ?? new FakePageReadStore();
         ContentTypes = contentTypes ?? TestContentTypes.Shipped;
         Markdown = markdown ?? new MarkdownRenderer();
+        Diff = diff ?? new DiffRenderer();
         StorageOptions = storageOptions ?? new PageStorageOptions();
         FetchOptions = fetchOptions ?? new PageFetchOptions();
         ReadOptions = new PageReadOptions();
@@ -80,6 +82,9 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>The Markdown renderer every context in this harness offers.</summary>
     public MarkdownRenderer Markdown { get; }
+
+    /// <summary>The diff renderer every context in this harness offers.</summary>
+    public DiffRenderer Diff { get; }
 
     public PageStorageOptions StorageOptions { get; }
 
@@ -166,6 +171,7 @@ internal sealed class PageHarness : IDisposable {
         }
 
         features.Add<IMarkdownRenderer>(Markdown);
+        features.Add<IDiffRenderer>(Diff);
 
         if (withCatalog) {
             PageCatalogScope catalog = new(

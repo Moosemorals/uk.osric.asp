@@ -15,6 +15,7 @@ can improve it at <a href="/edit/help">/edit/help</a>.</p>
         <li><a href="#catalog">Reading the page store</a></li>
         <li><a href="#writing">Saving the page you are</a></li>
         <li><a href="#markdown">Markdown</a></li>
+        <li><a href="#diff">Diff</a></li>
         <li><a href="#private">Private pages and forms</a></li>
         <li><a href="#assets">Assets, seeds and recovery</a></li>
         <li><a href="#keeping-current">Keeping this page current</a></li>
@@ -36,7 +37,7 @@ its path, and every live and deleted page has its own editor at <code>/edit/&lt;
     when the image was built by an earlier deploy. A page compiled elsewhere says <em>Stale</em>
     until it is next requested, which recompiles it.</li>
     <li><strong>History</strong> lists the saved revisions of a page. Choosing one shows its stored
-    source without compiling it.</li>
+    source without compiling it; choosing two compares them line by line.</li>
     <li><strong>Delete</strong> hides a page but keeps its template and history. <strong>Scrub</strong>
     permanently removes a deleted page and its retained history; use it only when you mean it.</li>
     <li><strong>Restore from seed</strong> is offered for the pages the site ships with, such as
@@ -290,6 +291,19 @@ sanitiser, so escape a visitor's or a fetched value with <code>ctx.Write</code> 
 rendering it. An image must be served by this site, because the response's policy allows images
 only from the same origin. A table's header cells are written with <code>scope="col"</code>, and
 column alignment markers are ignored because the site's policy forbids inline styles.</p>
+
+<h2 id="diff">Diff</h2>
+<p><code>IDiffRenderer</code> renders the line changes between two strings as HTML. Write its
+result raw:</p>
+<pre class="source" tabindex="0"><code>&lt;% IDiffRenderer diff = ctx.Features.GetRequired&lt;IDiffRenderer&gt;(); %&gt;
+&lt;%== diff.ToHtml(before, after) %&gt;</code></pre>
+<p>Every source line is escaped, so unlike Markdown this renderer is safe for a visitor's text, a
+fetched body or page state. The result is a <code>table.diff</code> with one row per changed or
+context line and its line numbers; added and removed rows carry a <code>+</code> or <code>-</code>
+as well as their class, and the table scrolls sideways. An unchanged pair says so, and a pair too
+different to align line by line says that the changed middle is shown as replacement blocks. A page
+that compares two revisions reads them with <code>IPageCatalog.ReadRevisionAsync</code>; the
+editor's history page compares two revisions for you.</p>
 
 <h2 id="private">Private pages and forms</h2>
 <p>Pages are public unless their own code checks <code>ctx.User</code>. Put the guard at the top and

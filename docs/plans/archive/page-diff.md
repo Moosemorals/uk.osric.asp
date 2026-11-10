@@ -7,11 +7,17 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started; written 2026-11-10 |
+| Status | Implemented 2026-11-10 |
 | Size | Medium — a pure line diff, one capability, one renderer, one assistant tool, one editor view, and the tests for each |
 | Spike | None. The BCL has no diff, and the algorithm is a page of code rather than a dependency to measure |
-| Decisions | DEC-217–DEC-219 (proposed; the rows land with the implementation) |
-| Backlog | [WHIM-02](../jobs/WHIMS.md) — the diff viewer |
+| Decisions | DEC-217–DEC-219, recorded in [decisions](../../decisions.md#page-contract-and-threat-model) |
+| Backlog | [WHIM-02](../../jobs/WHIMS.md) — the diff viewer; the whim was removed when this landed |
+
+Implementation notes, where the code differs from the plan: the compare form sits **below** the
+history table, so the table stays newest first; `DiffRenderer` exposes `Compare` and a
+`ToUnifiedDiff(DiffDocument)` overload as well as `ToUnifiedDiff(string, string)`, so the assistant
+tool computes the comparison once for its counts and its text; and the page-author prompt moved to
+`page-author-v17` with the Diff section.
 
 ## The short version
 
@@ -523,7 +529,7 @@ Each phase ends with a green `make check` and its tests written first.
 
 ### Phase 0 — decisions and the pure diff (half a day)
 
-- Record DEC-217–DEC-219 in [decisions](../decisions.md).
+- Record DEC-217–DEC-219 in [decisions](../../decisions.md).
 - Write `DiffLineKind`, `DiffLine`, `DiffHunk`, `DiffDocument`, `LineDiff` and `UnifiedDiff` against
   their failing tests.
 - Add the Core public-API entries with the analyzer, as the build requires.

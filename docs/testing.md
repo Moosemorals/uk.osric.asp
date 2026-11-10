@@ -93,8 +93,18 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   rendered heading and table. `Web.IntegrationTests` fetches a completed step's content through the
   real authenticated host. `Pages/Seeds/help` and `PageAuthorPrompt` are updated with the API, so
   the author manual and the model learn the same rule.
+- **Diff** is split the same way: `Core.Tests` pins `LineDiff` — prefix and suffix trimming, context
+  and hunk ranges, CRLF and a final newline, the `0,0` header for an empty side and the coarse
+  fallback past the work caps — and `UnifiedDiff`'s exact text. `Runtime.Tests` proves
+  `DiffRenderer` escapes every source line, writes the scoped table and its markers, says when a
+  pair is unchanged or coarse, writes no inline style, and offers the same comparison as unified
+  text. `Web.Tests` renders a real page through `IDiffRenderer`, drives the editor's history form
+  and `cmd=diff` view (including malformed, foreign and same-hash links, and that nothing compiles
+  or writes), and proves `diff_page`'s defaults, explicit hashes and refusals; `ShellViews` adds the
+  diff view to the accessibility sweep, and `PageAuthorPromptTests` pins the new section. The
+  browser suite saves two revisions and compares them in `EditorFlowTests`.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
-  `ShellViews` renders all twenty-seven shell views once each — the sign-in form and its failure, the
+  `ShellViews` renders all twenty-eight shell views once each — the sign-in form and its failure, the
   sign-out confirmation, the listing with an edited seed and a matching one so its restore buttons
   are swept too, the editor clean and with diagnostics, history, a saved revision, the delete
   confirmation, status, the error page, the error page with details, a not-found page, the compile
@@ -233,6 +243,8 @@ serves with Playwright and Firefox — the browser the site is read in.
   deleted one takes it away, the numbers stay right-aligned and step with the text's own rows, a
   diagnostic's link scrolls its row to the top, a save puts the caret and selection back, the gutter is
   clipped to the rows the textarea shows, and the form still saves with scripts blocked.
+  `EditorFlowTests` covers the editor round trip, including the history table and the two-revision
+  diff the compare form opens.
 - Fixtures that need different assistant limits start their own `BrowserHost`; the shared one signs in
   once and every test starts from that browser state, so a suite run does not spend the sign-in
   throttle's allowance on itself.

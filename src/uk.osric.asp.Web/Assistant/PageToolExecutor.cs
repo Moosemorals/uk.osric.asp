@@ -8,10 +8,12 @@ using System.Text;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Diff;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Editor;
+using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>What one tool call produced, as the model receives it.</summary>
@@ -34,7 +36,8 @@ internal sealed class PageToolExecutor(
     PagePathPolicy paths,
     AssistantOptions options,
     AssistantMetrics metrics,
-    IAssistantFetcher fetcher) {
+    IAssistantFetcher fetcher,
+    DiffRenderer diff) {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly PagePath s_root = PagePath.Normalize("/");
@@ -55,6 +58,16 @@ internal sealed class PageToolExecutor(
             new("startLine", ToolArgumentType.Integer, false),
             new("endLine", ToolArgumentType.Integer, false),
         ]),
+        new("diff_page",
+            "Compare two retained revisions of a page and return a unified diff, the two revision "
+            + "hashes and the editor link. With no hashes, compares the current revision with the one "
+            + "before it. Read-only: it changes nothing and does not need approval.",
+            false,
+            [
+                new("path", ToolArgumentType.String, true),
+                new("fromHash", ToolArgumentType.String, false),
+                new("toHash", ToolArgumentType.String, false),
+            ]),
         new("edit_page", "Replace an inclusive range of 1-based physical template-source lines if the current revision hash still matches. Lines include literal HTML and template delimiters as authored, not generated C# or rendered HTML. A shell file is refused: the owner changes the shell in code.", true, [
             new("path", ToolArgumentType.String, true),
             new("startLine", ToolArgumentType.Integer, true),
@@ -163,6 +176,7 @@ internal sealed class PageToolExecutor(
             "update_memory" => await UpdateMemoryAsync(parsed.Values, context, scope.ServiceProvider.GetRequiredService<IMemoryStore>(), cancellationToken),
             "forget_memory" => await ForgetMemoryAsync(parsed.Values, context, scope.ServiceProvider.GetRequiredService<IMemoryStore>(), cancellationToken),
             "search_memories" => await SearchMemoriesAsync(parsed.Values, context, scope.ServiceProvider.GetRequiredService<IMemoryStore>(), cancellationToken),
+            "diff_page" => await DiffPageAsync(parsed.Values, scope.ServiceProvider.GetRequiredService<PageEditor>(), cancellationToken),
             _ => await PageToolAsync(name, parsed.Values, scope.ServiceProvider.GetRequiredService<PageEditor>(), cancellationToken),
         };
     }
@@ -313,6 +327,84 @@ internal sealed class PageToolExecutor(
             source,
         };
         return Success(data, $"Read {Describe(path)}");
+    }
+
+    private async Task<ToolExecutionResult> DiffPageAsync(
+        IReadOnlyDictionary<string, JsonElement> arguments,
+        PageEditor pages,
+        CancellationToken cancellationToken) {
+        PathValidationResult checkedPath = paths.Validate(String(arguments, "path"), write: false);
+        if (!checkedPath.IsSuccess) {
+            return Failure(checkedPath.Error!, "Diff refused");
+        }
+
+        PagePath path = checkedPath.Path!;
+        if (ShadowedKey(path) is { } shadowed) {
+            return shadowed;
+        }
+        if (paths.IsReserved(path)) {
+            return Failure(
+                $"diff_page reads retained revisions, and {Describe(path)} is a shell file with no page source. read_page describes it instead.",
+                "Diff refused");
+        }
+
+        string? fromHash = String(arguments, "fromHash");
+        string? toHash = String(arguments, "toHash");
+        if ((fromHash is not null && !IsRevisionHash(fromHash))
+            || (toHash is not null && !IsRevisionHash(toHash))) {
+            return Failure(
+                "A revision hash is 64 hexadecimal characters; use the hash read_page returned.",
+                "Invalid revision hash");
+        }
+
+        IReadOnlyList<PageRevisionSummary> revisions = await pages.ListRevisionsAsync(path, cancellationToken);
+        if (revisions.Count == 0) {
+            return Failure($"Page {Describe(path)} has no saved revisions to compare.", $"Diff {Describe(path)}: no revisions");
+        }
+
+        PageRevisionSummary current = revisions.FirstOrDefault(revision => revision.IsCurrent) ?? revisions[0];
+        string resolvedTo = toHash ?? current.Hash;
+        string resolvedFrom;
+        if (fromHash is not null) {
+            resolvedFrom = fromHash;
+        } else {
+            PageRevisionSummary? previous = revisions.FirstOrDefault(
+                revision => !string.Equals(revision.Hash, resolvedTo, StringComparison.Ordinal));
+            if (previous is null) {
+                return Failure(
+                    $"Page {Describe(path)} has one saved revision. Save it again, or pass two hashes, before comparing.",
+                    $"Diff {Describe(path)}: one revision");
+            }
+            resolvedFrom = previous.Hash;
+        }
+
+        PageRevisionTemplate? before = await pages.GetRevisionTemplateByHashAsync(resolvedFrom, cancellationToken);
+        PageRevisionTemplate? after = await pages.GetRevisionTemplateByHashAsync(resolvedTo, cancellationToken);
+        if (before is null || before.Path != path || after is null || after.Path != path) {
+            return Failure($"One of those revisions is not a revision of {Describe(path)}.", "Revision not found");
+        }
+
+        DiffDocument comparison = diff.Compare(before.Template, after.Template);
+        string text = diff.ToUnifiedDiff(comparison);
+        int budget = options.MaxToolResultChars / 2;
+        bool truncated = text.Length > budget;
+        if (truncated) {
+            text = text[..budget] + "\n[truncated]";
+        }
+
+        object data = new {
+            path = path.Key,
+            from = new { hash = before.Hash, savedAt = before.SavedAt },
+            to = new { hash = after.Hash, savedAt = after.SavedAt },
+            changed = !comparison.IsEmpty,
+            addedLines = comparison.AddedLines,
+            removedLines = comparison.RemovedLines,
+            coarse = comparison.IsCoarse,
+            truncated,
+            diff = text,
+            editorUrl = PageUrls.EditorDiff(path, before.Hash, after.Hash),
+        };
+        return Success(data, $"Compared 2 revisions of {Describe(path)}");
     }
 
     private async Task<ToolExecutionResult> CheckScriptAsync(
@@ -1099,6 +1191,9 @@ internal sealed class PageToolExecutor(
         ToolArgumentType.Boolean => "boolean",
         _ => "string",
     };
+
+    private static bool IsRevisionHash(string? hash) =>
+        hash is { Length: 64 } value && value.All(Uri.IsHexDigit);
 
     private static string? String(IReadOnlyDictionary<string, JsonElement> values, string name) =>
         values.TryGetValue(name, out JsonElement value) ? value.GetString() : null;

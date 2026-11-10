@@ -58,6 +58,22 @@ internal sealed class EditorFlowTests : BrowserTest {
     }
 
     [Test]
+    public async Task ChoosingTwoRevisionsShowsTheirDiffAsync() {
+        string path = UniquePath("diff");
+
+        await SavePageAsync(path, "<p>first draft</p>");
+        await SavePageAsync(path, "<p>second draft</p>");
+        await Page.GotoAsync($"edit{path}?cmd=history");
+        await Page.SelectOptionAsync("#diff-from", new SelectOptionValue { Index = 1 });
+        await Page.SelectOptionAsync("#diff-to", new SelectOptionValue { Index = 0 });
+        await Page.ClickAsync("button[type=submit]");
+        await Page.WaitForURLAsync("**cmd=diff**");
+
+        await Assertions.Expect(Page.Locator("tr.diff-removed")).ToContainTextAsync("first draft");
+        await Assertions.Expect(Page.Locator("tr.diff-added")).ToContainTextAsync("second draft");
+    }
+
+    [Test]
     public async Task ARevisionPageShowsTheTemplateSavedAtThatRevisionAsync() {
         string path = UniquePath("revision");
 
