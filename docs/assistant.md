@@ -47,12 +47,15 @@ also marks the row `kind: shell` or `kind: page`. The shell describes itself: `h
 command with its options and arguments, `help <command>` prints one, and a refused call names
 `help`, so the accepted form is one call away rather than in the prompt or here. `-n` numbers
 the lines `cat` prints, and `grep` accepts it and changes nothing, because a match already
-carries its line (DEC-217). A save to a shell file answers "Not permitted": only the owner
-changes the shell, in code. The seeded assets are ordinary pages the assistant may edit;
-`Assistant:ProtectedPaths` (empty unless an operator fills it) is a separate, extra lock over a
-single page, which still reads as its own source. `RequireApproval` asks the path policy before
-it asks the owner, so a save it has already refused never becomes an approval nobody can grant.
-`check_script` stays a page-source check, so a shell file is refused there.
+carries its line (DEC-217). The line is lexed before it is judged (DEC-218): a quoted or escaped
+character is data, so `grep '&mdash;'` searches for one and an unquoted `&` is refused, and a
+first word that is not a command is refused as that word rather than as the punctuation inside
+its quotes. A save to a shell file answers "Not permitted": only the owner changes the shell, in
+code. The seeded assets are ordinary pages the assistant may edit; `Assistant:ProtectedPaths`
+(empty unless an operator fills it) is a separate, extra lock over a single page, which still
+reads as its own source. `RequireApproval` asks the path policy before it asks the owner, so a
+save it has already refused never becomes an approval nobody can grant. `check_script` stays a
+page-source check, so a shell file is refused there.
 
 The assistant has a small memory of its own, one owner's and nobody else's (DEC-184–DEC-188). A memory
 is a note — a preference, a fact about this site, a correction, a reference to where something lives —

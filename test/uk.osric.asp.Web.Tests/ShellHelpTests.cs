@@ -35,13 +35,14 @@ public sealed class ShellHelpTests {
     [Test]
     public void TheWholeTableIsThePrefaceAndOneLinePerCommand() {
         string[] lines = ShellHelp.Text().Split('\n');
+        int preface = ShellHelp.Preface.Split('\n').Length;
 
         Assert.Multiple(() => {
-            Assert.That(lines, Has.Length.EqualTo(ShellHelp.All.Count + 3),
-                "two preface lines, a blank line, then one line per command");
+            Assert.That(lines, Has.Length.EqualTo(ShellHelp.All.Count + preface + 1),
+                "the preface, a blank line, then one line per command");
             Assert.That(lines[0], Does.StartWith("A read-only shell"));
-            Assert.That(lines[2], Is.Empty);
-            Assert.That(lines[3], Does.StartWith("cat "));
+            Assert.That(lines[preface], Is.Empty);
+            Assert.That(lines[preface + 1], Does.StartWith("cat "));
         });
     }
 

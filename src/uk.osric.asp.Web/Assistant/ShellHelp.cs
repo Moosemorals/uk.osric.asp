@@ -28,7 +28,9 @@ internal static class ShellHelp {
     /// <summary>The preface: what the shell is not, before what it is.</summary>
     public const string Preface =
         "A read-only shell over the page store. Keys are page keys like /notes, never host paths.\n"
-        + "There are no pipes, redirects, globs or command substitution, and quotes only group words.";
+        + "One command per line: there are no pipes, redirects, separators, globbing or expansion.\n"
+        + "Quote a word with ' ' or \" \" to keep its spaces and punctuation literal, or escape one\n"
+        + "character with a backslash: grep 'a|b' is a query, grep a|b is refused.";
 
     /// <summary>One entry per command, in ordinal order.</summary>
     public static IReadOnlyList<ShellHelpEntry> All { get; } = [
@@ -36,7 +38,7 @@ internal static class ShellHelp {
             "Print a page's source. -n puts each line's number and a tab before it."),
         new("find", "find [prefix]", "List the pages and shell files under prefix. The same listing as ls."),
         new("grep", "grep [-i] [-n] <query> [prefix]",
-            "Print key, line and text for every matching line at or under prefix. -i ignores case, and -n changes nothing, because a match always carries its line."),
+            "Print key, line and text for every matching line at or under prefix. The query is literal text, not a pattern. -i ignores case, and -n changes nothing, because a match always carries its line."),
         new("head", "head -n <count> <key>", "Print the first count lines of a page."),
         new("help", "help [command]", "Print this list, or the one line for a command."),
         new("ls", "ls [prefix]", "List the pages and shell files under prefix as permission, a space, then the key."),

@@ -57,10 +57,13 @@ public sealed class VirtualShellTests {
     [TestCase("cat -n /vim.js", "cat", "/vim.js")]
     [TestCase("grep -n \"editor-page\" /vim.css", "grep", "editor-page", "/vim.css")]
     [TestCase("grep -n -i \"data-vim-only\" /vim-keys.js", "grep", "data-vim-only", "/vim-keys.js")]
+    [TestCase("grep -n \"table\\|th\\b\\|\\.pages\\|listing\" /site.css", "grep", "table\\|th\\b\\|\\.pages\\|listing", "/site.css")]
+    [TestCase("grep -n \"&mdash;\" /vim", "grep", "&mdash;", "/vim")]
     [TestCase("help", "help")]
     public void ParsesTheFormsTheAssistantTypedInProduction(string command, params string[] expected) {
-        // From the live log (2026-11-10): of the 31 shell calls made there, 26 were refused, and
-        // every refusal was a host-shell form like one of these. They run now.
+        // From the live log (2026-11-10): of the 31 shell calls made there, 26 were refused. Some
+        // were a host-shell form like one of these, and these run now; the rest are a pipe, an
+        // option the shell does not have, or a command it does not answer.
         VirtualShellParseResult result = VirtualShellParser.Parse(command);
 
         Assert.That(result.Error, Is.Null);
@@ -76,11 +79,56 @@ public sealed class VirtualShellTests {
         Assert.That(VirtualShellParser.Parse(command).Error, Is.Not.Null);
     }
 
+    [TestCase("grep '&mdash;' /vim", "grep", "&mdash;", "/vim")]
+    [TestCase("grep 'a|b' /vim", "grep", "a|b", "/vim")]
+    [TestCase("grep \"a|b\" /vim", "grep", "a|b", "/vim")]
+    [TestCase("grep a\\|b /vim", "grep", "a|b", "/vim")]
+    [TestCase("grep 'a\\|b' /vim", "grep", "a\\|b", "/vim")]
+    [TestCase("grep '$(' /vim.js", "grep", "$(", "/vim.js")]
+    [TestCase("grep \"\\$HOME\" /vim", "grep", "$HOME", "/vim")]
+    [TestCase("cat /my\\ page", "cat", "/my page")]
+    [TestCase("cat '/page; rm /page'", "cat", "/page; rm /page")]
+    [TestCase("grep pre\"fix\" /vim", "grep", "prefix", "/vim")]
+    [TestCase("help 'cat'", "help", "cat")]
+    public void QuotingAndEscapingMakeAPunctuationCharacterData(string command, params string[] expected) {
+        VirtualShellParseResult result = VirtualShellParser.Parse(command);
+
+        Assert.That(result.Error, Is.Null);
+        Assert.That(new[] { result.Command!.Name }.Concat(result.Command.Arguments), Is.EqualTo(expected));
+    }
+
+    [TestCase("grep $HOME /vim")]
+    [TestCase("grep \"$HOME\" /vim")]
+    [TestCase("cat `pwd`")]
+    [TestCase("grep \"$(id)\" /vim")]
+    public void RefusesExpansionRatherThanPassingItThrough(string command) {
+        string? error = VirtualShellParser.Parse(command).Error;
+
+        Assert.That(error, Is.Not.Null);
+        Assert.That(error, Does.Contain("no variable or command expansion"));
+    }
+
     [Test]
     public void RefusesUnknownCommandsAndUnclosedQuotes() {
         Assert.Multiple(() => {
             Assert.That(VirtualShellParser.Parse("rm /page").Error, Is.Not.Null);
             Assert.That(VirtualShellParser.Parse("cat 'unfinished").Error, Is.Not.Null);
+            Assert.That(VirtualShellParser.Parse("cat \"unfinished").Error, Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public void AnUnknownCommandIsRefusedAsThatCommandWhateverElseTheLineCarries() {
+        // The shape the live log produced: the quoting is legal and the punctuation inside it is
+        // data, so the only thing wrong with the line is the command, and that is what it says.
+        VirtualShellParseResult result = VirtualShellParser.Parse(
+            "awk '{o+=gsub(/{/,\"{\"); c+=gsub(/}/,\"}\")} END {print \"open=\" o, \"close=\" c}' /vim.js");
+
+        Assert.Multiple(() => {
+            Assert.That(result.Error, Is.Not.Null);
+            Assert.That(result.Error, Does.Contain("awk"));
+            Assert.That(result.Error, Does.Not.Contain("pipe"));
+            Assert.That(result.Error, Does.Not.Contain("separator"));
         });
     }
 
@@ -115,9 +163,9 @@ public sealed class VirtualShellTests {
 
     [Test]
     public void EveryGrammarRefusalSaysWhereTheFormIsWrittenDown() {
-        // The unclosed-quote error is about the text itself and needs no signpost; the rest are
-        // guesses at a host shell, and the model has to be told how to find the accepted form.
-        foreach (string command in new[] { "", "rm /page", "ls /blog | cat", "cat", "cat -i /page" }) {
+        // Every refusal is a guess at a host shell, and the model has to be told how to find the
+        // accepted form rather than being left to guess again.
+        foreach (string command in new[] { "", "rm /page", "ls /blog | cat", "cat", "cat -i /page", "cat 'open", "grep $HOME /vim" }) {
             string? error = VirtualShellParser.Parse(command).Error;
 
             Assert.That(error, Is.Not.Null, command);
