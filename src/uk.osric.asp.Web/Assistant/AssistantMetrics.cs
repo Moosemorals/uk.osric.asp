@@ -39,7 +39,7 @@ internal sealed class AssistantMetrics : IDisposable {
 
     /// <summary>Buckets for <c>assistant.run.tool_calls</c>, in calls.</summary>
     /// <remarks>The top boundary is past <c>Assistant:MaxToolCalls</c> for the same reason (DEC-214).</remarks>
-    public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32, 64, 96, 128, 160, 192];
+    public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32, 64, 128, 192];
 
     /// <summary>Buckets for <c>assistant.run.duration</c>, in seconds.</summary>
     /// <remarks>

@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -85,21 +86,23 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         string conversation = await CreateConversationAsync(client);
 
         string body = await RunAndReloadAsync(client, conversation);
+        AssistantOptions options = await WithServicesAsync(services =>
+            Task.FromResult(services.GetRequiredService<AssistantOptions>()));
 
         Assert.That(body, Does.Contain("<dt>Message</dt>"));
         Assert.That(body, Does.Contain("<dt>Request</dt>"));
         Assert.That(body, Does.Contain("<span id=\"assistant-budget-message\">0</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-message-limit\">16k</span> chars</span>"));
-        Assert.That(body, Does.Contain("id=\"assistant-budget-context-limit\">500k</span>"), "the request budget is missing");
-        Assert.That(body, Does.Contain("id=\"assistant-budget-steps-limit\">160</span>"), "the step budget is missing");
-        Assert.That(body, Does.Contain("id=\"assistant-budget-tool-calls-limit\">128</span>"), "the tool-call budget is missing");
-        Assert.That(body, Does.Contain("id=\"assistant-budget-output-limit\">393k</span>"), "the output budget is missing");
+        Assert.That(body, Does.Contain("id=\"assistant-budget-context-limit\">90k</span>"), "the request budget is missing");
+        Assert.That(body, Does.Contain($"id=\"assistant-budget-steps-limit\">{options.MaxSteps}</span>"), "the step budget is missing");
+        Assert.That(body, Does.Contain($"id=\"assistant-budget-tool-calls-limit\">{options.MaxToolCalls}</span>"), "the tool-call budget is missing");
+        Assert.That(body, Does.Contain("id=\"assistant-budget-output-limit\">33k</span>"), "the output budget is missing");
 
         // The system prompt and tool definitions alone are already spent, and the run's own steps are
         // counted from the store.
-        Assert.That(body, Does.Match("<meter id=\"assistant-budget-context-meter\" aria-hidden=\"true\" min=\"0\" max=\"500000\" value=\"[1-9][0-9]*\""));
-        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-steps\">2</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-steps-limit\">160</span> steps</span>"),
+        Assert.That(body, Does.Match("<meter id=\"assistant-budget-context-meter\" aria-hidden=\"true\" min=\"0\" max=\"90000\" value=\"[1-9][0-9]*\""));
+        Assert.That(body, Does.Contain($"<span class=\"assistant-budget-count\"><span id=\"assistant-budget-steps\">2</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-steps-limit\">{options.MaxSteps}</span> steps</span>"),
             "the answered run took two steps: the tool call and the answer");
-        Assert.That(body, Does.Contain("<span class=\"assistant-budget-count\"><span id=\"assistant-budget-tool-calls\">1</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-tool-calls-limit\">128</span> calls</span>"));
+        Assert.That(body, Does.Contain($"<span class=\"assistant-budget-count\"><span id=\"assistant-budget-tool-calls\">1</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-tool-calls-limit\">{options.MaxToolCalls}</span> calls</span>"));
 
         // Every row carries the name the page's script looks it up by.
         foreach (string row in new[] { "message", "context", "steps", "tool-calls", "tool-arguments", "tool-result", "output" }) {
