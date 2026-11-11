@@ -462,8 +462,13 @@ if (root) {
             // A stop needs the token and nothing else; the draft in the box is not part of it.
             const body = new FormData();
             body.append('__RequestVerificationToken', token);
-            await fetch(stopButton.formAction, { method: 'POST', body });
-            statusLine.textContent = 'Stopping run';
+            try {
+                await fetch(stopButton.formAction, { method: 'POST', body });
+                statusLine.textContent = 'Stopping run';
+            } catch {
+                // Stopping is what makes the run end, and the run's end is what reloads the page, so
+                // the reload can abort this request before it answers. The reload shows the outcome.
+            }
             return;
         }
         if (!input.value.trim()) {
