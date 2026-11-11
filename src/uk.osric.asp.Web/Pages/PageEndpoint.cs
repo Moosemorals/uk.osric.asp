@@ -141,14 +141,12 @@ internal sealed class PageEndpoint() {
                 return;
         }
 
-        switch (await chain.WrapAsync(session, path, contentLayout, page.ToResponse(), page.GetBody())) {
-            case PageChainResult.Failed failure:
-                await ErrorResponses.WriteAsync(context, failure.StatusCode, failure.Error);
-                break;
-            case PageChainResult.Served served:
-                await WritePageAsync(context, served.Response, served.Body, authenticated);
-                break;
-        }
+        Task write = (await chain.WrapAsync(session, path, contentLayout, page.ToResponse(), page.GetBody())) switch {
+            PageChainResult.Failed failure => ErrorResponses.WriteAsync(context, failure.StatusCode, failure.Error),
+            PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, authenticated),
+        };
+
+        await write;
     }
 
     // An authenticated identity without a name is anonymous as far as a page is concerned: a

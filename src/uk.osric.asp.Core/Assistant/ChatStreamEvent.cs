@@ -4,7 +4,11 @@
 namespace uk.osric.asp.Core.Assistant;
 
 /// <summary>One event emitted while a provider streams a completion.</summary>
-public abstract record ChatStreamEvent;
+/// <remarks>
+/// Closed: a provider emits one of these five, and nothing outside this assembly may add a sixth,
+/// so a matcher can rely on the set.
+/// </remarks>
+public closed record ChatStreamEvent;
 
 /// <summary>A fragment of assistant response text.</summary>
 public sealed record ContentDelta(string Text) : ChatStreamEvent;

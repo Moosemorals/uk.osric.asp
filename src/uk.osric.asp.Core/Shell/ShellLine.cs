@@ -6,7 +6,11 @@ namespace uk.osric.asp.Core.Shell;
 using System.Text;
 
 /// <summary>One token of a command line.</summary>
-public abstract record ShellToken;
+/// <remarks>
+/// Closed: a line holds words and operators, and nothing outside this assembly may add a third
+/// token kind, so a matcher can rely on the set.
+/// </remarks>
+public closed record ShellToken;
 
 /// <summary>One run of a word's characters, and whether the line made them literal.</summary>
 /// <param name="Text">The characters, with the quote or backslash that made them literal removed.</param>
