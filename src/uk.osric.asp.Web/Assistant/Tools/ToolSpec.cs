@@ -31,10 +31,12 @@ internal sealed record ToolSpec(
 }
 
 /// <summary>What one tool does once its arguments are validated.</summary>
+/// <param name="Spec">The tool itself, so its refusals can use its name and verb.</param>
 /// <param name="Values">The validated arguments.</param>
 /// <param name="Services">The caller and the services this call may use.</param>
 /// <param name="CancellationToken">The run's token.</param>
 internal delegate Task<ToolExecutionResult> ToolRun(
-    IReadOnlyDictionary<string, JsonElement> Values,
+    ToolSpec Spec,
+    ToolValues Values,
     ToolServices Services,
     CancellationToken CancellationToken);

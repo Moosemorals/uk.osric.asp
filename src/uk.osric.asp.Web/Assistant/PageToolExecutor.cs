@@ -170,7 +170,7 @@ internal sealed class PageToolExecutor(
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
         ToolServices services = new(scope.ServiceProvider, context, paths, options, metrics, fetcher, diff);
-        return await spec.Run(parsed.Values, services, cancellationToken);
+        return await spec.Run(spec, new ToolValues(parsed.Values), services, cancellationToken);
     }
 
     /// <summary>The refusal the path policy gives a mutating call, or null when the call may run.</summary>
@@ -196,34 +196,33 @@ internal sealed class PageToolExecutor(
         }
 
         ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, spec.Arguments, options.MaxToolArgumentChars);
-        if (!parsed.IsSuccess
-            || !parsed.Values.TryGetValue(pathArgument, out JsonElement value)
-            || value.ValueKind != JsonValueKind.String) {
+        if (!parsed.IsSuccess || new ToolValues(parsed.Values).String(pathArgument) is not { } pathText) {
             return null;
         }
 
-        PathValidationResult checkedPath = paths.Validate(value.GetString(), write: true);
+        PathValidationResult checkedPath = paths.Validate(pathText, write: true);
         return checkedPath.IsSuccess ? null : _results.Failure(checkedPath.Error!, $"{spec.Verb} refused");
     }
 
     private static async Task<ToolExecutionResult> ListPagesAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        string? prefixText = String(arguments, "prefix");
+        string? prefixText = values.String("prefix");
         PagePath? prefix = prefixText is null ? null : PagePath.Normalize(prefixText);
         if (prefix is { IsAddressable: false }) {
             return services.Results.Failure("The prefix is not an addressable page path.", "Invalid page prefix");
         }
 
-        bool includeDeleted = Boolean(arguments, "includeDeleted");
+        bool includeDeleted = values.Boolean("includeDeleted");
         List<Entry> matching = await EntriesAsync(services, includeDeleted, prefix, cancellationToken);
         bool truncated = matching.Count > ListingLimit;
         object data = new {
             pages = matching.Take(ListingLimit).Select(item => new {
                 path = item.Path.Key,
                 kind = item.IsShellFile ? "shell" : "page",
-                mode = Mode(services, item.Path),
+                mode = PageMode.Describe(services.Paths.CanWrite(item.Path)),
                 deleted = item.IsDeleted,
                 status = item.Status,
             }),
@@ -233,14 +232,16 @@ internal sealed class PageToolExecutor(
     }
 
     private static async Task<ToolExecutionResult> ReadPageAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        PathValidationResult checkedPath = services.Paths.Validate(String(arguments, "path"), write: false);
-        if (!checkedPath.IsSuccess) {
-            return services.Results.Failure(checkedPath.Error!, "Read refused");
+        (PagePath? path, ToolExecutionResult? refusal) = ToolPaths.ResolveRead(spec, values, "path", services);
+        if (refusal is not null) {
+            return refusal;
         }
-        return await ReadPageAtAsync(checkedPath.Path!, Integer(arguments, "startLine"), Integer(arguments, "endLine"), services, cancellationToken);
+
+        return await ReadPageAtAsync(path!, values.Integer("startLine"), values.Integer("endLine"), services, cancellationToken);
     }
 
     private static async Task<ToolExecutionResult> ReadPageAtAsync(
@@ -249,10 +250,6 @@ internal sealed class PageToolExecutor(
         int? requestedEnd,
         ToolServices services,
         CancellationToken cancellationToken) {
-        if (ShadowedKey(services, path) is { } shadowed) {
-            return shadowed;
-        }
-
         string text;
         string? revisionHash = null;
         DateTimeOffset? savedAt = null;
@@ -273,7 +270,7 @@ internal sealed class PageToolExecutor(
             diagnostics = Diagnostics(page);
         }
 
-        string[] lines = ReadLines(text);
+        string[] lines = TemplateSourceLines(text);
         int start = requestedStart ?? 1;
         int end = requestedEnd ?? (requestedStart is null ? lines.Length : start);
         if (start < 1 || end < start || end > lines.Length) {
@@ -292,7 +289,7 @@ internal sealed class PageToolExecutor(
         object data = new {
             path = path.Key,
             kind = services.Paths.IsReserved(path) ? "shell" : "page",
-            mode = Mode(services, path),
+            mode = PageMode.Describe(services.Paths.CanWrite(path)),
             revisionHash,
             savedAt,
             compileStatus,
@@ -307,26 +304,22 @@ internal sealed class PageToolExecutor(
     }
 
     private static async Task<ToolExecutionResult> DiffPageAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        PathValidationResult checkedPath = services.Paths.Validate(String(arguments, "path"), write: false);
-        if (!checkedPath.IsSuccess) {
-            return services.Results.Failure(checkedPath.Error!, "Diff refused");
+        (PagePath? resolved, ToolExecutionResult? refusal) = ToolPaths.ResolveRead(spec, values, "path", services);
+        if (refusal is not null) {
+            return refusal;
         }
 
-        PagePath path = checkedPath.Path!;
-        if (ShadowedKey(services, path) is { } shadowed) {
-            return shadowed;
-        }
-        if (services.Paths.IsReserved(path)) {
-            return services.Results.Failure(
-                $"diff_page reads retained revisions, and {Describe(path)} is a shell file with no page source. read_page describes it instead.",
-                "Diff refused");
+        PagePath path = resolved!;
+        if (ToolPaths.RequirePageSource(spec, path, "reads retained revisions", services) is { } noSource) {
+            return noSource;
         }
 
-        string? fromHash = String(arguments, "fromHash");
-        string? toHash = String(arguments, "toHash");
+        string? fromHash = values.String("fromHash");
+        string? toHash = values.String("toHash");
         if ((fromHash is not null && !IsRevisionHash(fromHash))
             || (toHash is not null && !IsRevisionHash(toHash))) {
             return services.Results.Failure(
@@ -385,22 +378,18 @@ internal sealed class PageToolExecutor(
     }
 
     private static async Task<ToolExecutionResult> CheckScriptAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        PathValidationResult checkedPath = services.Paths.Validate(String(arguments, "path"), write: false);
-        if (!checkedPath.IsSuccess) {
-            return services.Results.Failure(checkedPath.Error!, "Check refused");
+        (PagePath? resolved, ToolExecutionResult? refusal) = ToolPaths.ResolveRead(spec, values, "path", services);
+        if (refusal is not null) {
+            return refusal;
         }
 
-        PagePath path = checkedPath.Path!;
-        if (ShadowedKey(services, path) is { } shadowed) {
-            return shadowed;
-        }
-        if (services.Paths.IsReserved(path)) {
-            return services.Results.Failure(
-                $"check_script reads page source, and {Describe(path)} is a shell file with no page source. read_page describes it instead.",
-                "Check refused");
+        PagePath path = resolved!;
+        if (ToolPaths.RequirePageSource(spec, path, "reads page source", services) is { } noSource) {
+            return noSource;
         }
 
         PageTemplate? page = await services.Pages.GetAsync(path, cancellationToken);
@@ -412,10 +401,11 @@ internal sealed class PageToolExecutor(
     }
 
     private static Task<ToolExecutionResult> CheckScriptText(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) =>
-        Task.FromResult(CheckTemplate(services, String(arguments, "content")!, path: null));
+        Task.FromResult(CheckTemplate(services, values.RequiredString("content"), path: null));
 
     // A skeleton that could not be built is reported beside the parser's own errors, so a page with
     // an unterminated template block says so instead of failing the tool call.
@@ -437,95 +427,98 @@ internal sealed class PageToolExecutor(
     }
 
     private static async Task<ToolExecutionResult> EditPageAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        string pathText = String(arguments, "path")!;
-        PathValidationResult checkedPath = services.Paths.Validate(pathText, write: true);
-        if (!checkedPath.IsSuccess) {
-            return services.Results.Failure(checkedPath.Error!, "Edit refused");
+        (PagePath? path, ToolExecutionResult? refusal) = ToolPaths.ResolveWrite(spec, values, "path", services);
+        if (refusal is not null) {
+            return refusal;
         }
 
-        string expectedHash = String(arguments, "expectedRevisionHash")!;
-        PageTemplate? current = await services.Pages.GetAsync(checkedPath.Path!, cancellationToken);
+        string expectedHash = values.RequiredString("expectedRevisionHash");
+        PageTemplate? current = await services.Pages.GetAsync(path!, cancellationToken);
         if (current is null) {
-            return services.Results.Failure($"Page {Describe(checkedPath.Path!)} was not found. Use write_page to create it.", "Edit target not found");
+            return services.Results.Failure($"Page {Describe(path!)} was not found. Use write_page to create it.", "Edit target not found");
         }
         if (!string.Equals(current.Hash, expectedHash, StringComparison.Ordinal)) {
-            return services.Results.Failure("The page has changed since read_page. Re-read it and reconcile before editing.", $"Edit {Describe(checkedPath.Path!)}: stale revision");
+            return services.Results.Failure("The page has changed since read_page. Re-read it and reconcile before editing.", $"Edit {Describe(path!)}: stale revision");
         }
 
         PageRangeEditResult edited = PageRangeEditor.Replace(
             current.Template,
-            Integer(arguments, "startLine")!.Value,
-            Integer(arguments, "endLine")!.Value,
-            String(arguments, "replacement")!,
+            values.RequiredInteger("startLine"),
+            values.RequiredInteger("endLine"),
+            values.RequiredString("replacement"),
             services.Options.MaxPageChars);
         if (!edited.IsSuccess) {
-            return services.Results.Failure(edited.Error!, $"Edit {Describe(checkedPath.Path!)}: rejected");
+            return services.Results.Failure(edited.Error!, $"Edit {Describe(path!)}: rejected");
         }
 
         ConditionalPageSaveResult saved = await services.Pages.SaveIfRevisionAsync(
-            checkedPath.Path!, edited.Content!, expectedHash, cancellationToken);
+            path!, edited.Content!, expectedHash, cancellationToken);
         if (!saved.Saved) {
-            return services.Results.Failure("The page changed while the edit was being saved. Re-read and reconcile before retrying.", $"Edit {Describe(checkedPath.Path!)}: stale revision");
+            return services.Results.Failure("The page changed while the edit was being saved. Re-read and reconcile before retrying.", $"Edit {Describe(path!)}: stale revision");
         }
 
-        return services.Results.Success(new { path = checkedPath.Path!.Key, revisionHash = saved.RevisionHash, diagnostics = DiagnosticData(saved.Diagnostics) },
-            $"Edited {Describe(checkedPath.Path)} ({saved.Diagnostics.Count} diagnostics)");
+        return services.Results.Success(new { path = path!.Key, revisionHash = saved.RevisionHash, diagnostics = DiagnosticData(saved.Diagnostics) },
+            $"Edited {Describe(path)} ({saved.Diagnostics.Count} diagnostics)");
     }
 
     private static async Task<ToolExecutionResult> WritePageAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        PathValidationResult checkedPath = services.Paths.Validate(String(arguments, "path"), write: true);
-        if (!checkedPath.IsSuccess) {
-            return services.Results.Failure(checkedPath.Error!, "Write refused");
+        (PagePath? path, ToolExecutionResult? refusal) = ToolPaths.ResolveWrite(spec, values, "path", services);
+        if (refusal is not null) {
+            return refusal;
         }
 
-        string content = String(arguments, "content")!;
+        string content = values.RequiredString("content");
         if (content.Length > services.Options.MaxPageChars) {
-            return services.Results.Failure("The page exceeds Assistant:MaxPageChars.", $"Write {Describe(checkedPath.Path!)}: too large");
+            return services.Results.Failure("The page exceeds Assistant:MaxPageChars.", $"Write {Describe(path!)}: too large");
         }
 
         IReadOnlyList<Core.Compilation.PageDiagnostic> diagnostics =
-            await services.Pages.SaveAsync(checkedPath.Path!, content, cancellationToken);
-        PageTemplate saved = (await services.Pages.GetAsync(checkedPath.Path!, cancellationToken))!;
-        return services.Results.Success(new { path = checkedPath.Path!.Key, revisionHash = saved.Hash, diagnostics = DiagnosticData(diagnostics) },
-            $"Wrote {Describe(checkedPath.Path)} ({diagnostics.Count} diagnostics)");
+            await services.Pages.SaveAsync(path!, content, cancellationToken);
+        PageTemplate saved = (await services.Pages.GetAsync(path!, cancellationToken))!;
+        return services.Results.Success(new { path = path!.Key, revisionHash = saved.Hash, diagnostics = DiagnosticData(diagnostics) },
+            $"Wrote {Describe(path)} ({diagnostics.Count} diagnostics)");
     }
 
     private static async Task<ToolExecutionResult> DeletePageAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        PathValidationResult checkedPath = services.Paths.Validate(String(arguments, "path"), write: true);
-        if (!checkedPath.IsSuccess) {
-            return services.Results.Failure(checkedPath.Error!, "Delete refused");
+        (PagePath? path, ToolExecutionResult? refusal) = ToolPaths.ResolveWrite(spec, values, "path", services);
+        if (refusal is not null) {
+            return refusal;
         }
 
-        bool deleted = await services.Pages.DeleteAsync(checkedPath.Path!, cancellationToken);
-        return services.Results.Success(new { path = checkedPath.Path!.Key, deleted },
-            deleted ? $"Deleted {Describe(checkedPath.Path)}" : $"Delete {Describe(checkedPath.Path)}: not live");
+        bool deleted = await services.Pages.DeleteAsync(path!, cancellationToken);
+        return services.Results.Success(new { path = path!.Key, deleted },
+            deleted ? $"Deleted {Describe(path)}" : $"Delete {Describe(path)}: not live");
     }
 
     private static async Task<ToolExecutionResult> SearchPagesAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        string query = String(arguments, "query")!;
+        string query = values.RequiredString("query");
         if (query.Length == 0) {
             return services.Results.Failure("The search query must not be empty.", "Search query is empty");
         }
-        PathValidationResult checkedPrefix = PagePathPolicy.ValidatePrefix(String(arguments, "prefix"));
+        PathValidationResult checkedPrefix = PagePathPolicy.ValidatePrefix(values.String("prefix"));
         if (!checkedPrefix.IsSuccess) {
-            return services.Results.Failure(checkedPrefix.Error!, "Search refused");
+            return services.Results.Failure(checkedPrefix.Error!, $"{spec.Verb} refused");
         }
 
         PagePath? prefix = checkedPrefix.Path;
 
-        StringComparison comparison = Boolean(arguments, "caseSensitive")
+        StringComparison comparison = values.Boolean("caseSensitive")
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
         (List<object> matches, bool truncated) = await FindMatchesAsync<object>(services, [prefix],
@@ -537,40 +530,43 @@ internal sealed class PageToolExecutor(
     }
 
     private static async Task<ToolExecutionResult> RememberAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        string kindText = String(arguments, "kind")!;
+        string kindText = values.RequiredString("kind");
         if (!MemoryKinds.TryParse(kindText, out MemoryKind kind)) {
             return RefusedWrite(services, "remember", "Remember", kind: null,
                 $"The kind must be one of {string.Join(", ", MemoryKinds.All.Select(MemoryKinds.Name))}.");
         }
 
         MemoryWriteResult written = await services.Memories.RememberAsync(
-            services.Context.Owner, kind, String(arguments, "content")!, services.Context.Source, cancellationToken);
+            services.Context.Owner, kind, values.RequiredString("content"), services.Context.Source, cancellationToken);
         return MemoryResult(services, written, "remember", kind, "Remember", $"Remembered a {MemoryKinds.Name(kind)}");
     }
 
     private static async Task<ToolExecutionResult> UpdateMemoryAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        long id = Integer(arguments, "id")!.Value;
+        long id = values.RequiredInteger("id");
         MemoryWriteResult written = await services.Memories.UpdateAsync(
             services.Context.Owner,
             id,
-            Integer(arguments, "expectedVersion")!.Value,
-            String(arguments, "content")!,
+            values.RequiredInteger("expectedVersion"),
+            values.RequiredString("content"),
             services.Context.Source,
             cancellationToken);
         return MemoryResult(services, written, "update", kind: null, "Update memory", $"Updated memory {id}");
     }
 
     private static async Task<ToolExecutionResult> ForgetMemoryAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        long id = Integer(arguments, "id")!.Value;
+        long id = values.RequiredInteger("id");
         bool forgotten = await services.Memories.ForgetAsync(services.Context.Owner, id, cancellationToken);
         if (!forgotten) {
             services.Metrics.RecordMemoryWrite("forget", kind: null, success: false);
@@ -582,17 +578,18 @@ internal sealed class PageToolExecutor(
     }
 
     private static async Task<ToolExecutionResult> SearchMemoriesAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        string query = String(arguments, "query")!;
+        string query = values.RequiredString("query");
         string terms = MemoryQuery.Terms(query, services.Options.MaxMemoryQueryTerms);
         if (terms.Length == 0) {
             return services.Results.Failure("The query has no word long enough to search for.", "Searched memories: nothing to search for");
         }
 
         // The limit is the caller's, bounded by the configured maximum rather than trusted.
-        int limit = Math.Clamp(Integer(arguments, "limit") ?? services.Options.MaxMemorySearchResults, 1, services.Options.MaxMemorySearchResults);
+        int limit = Math.Clamp(values.Integer("limit") ?? services.Options.MaxMemorySearchResults, 1, services.Options.MaxMemorySearchResults);
         IReadOnlyList<MemoryCandidate> found = await services.Memories.RecallAsync(services.Context.Owner, terms, limit, cancellationToken);
         return services.Results.Success(new { query, memories = found.Select(MemoryData).ToArray() }, $"Searched memories ({found.Count} found)");
     }
@@ -627,10 +624,11 @@ internal sealed class PageToolExecutor(
     };
 
     private static async Task<ToolExecutionResult> FetchAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
-        string url = String(arguments, "url")!;
+        string url = values.RequiredString("url");
         Sdk.HttpFetchResponse response = await services.Fetcher.FetchAsync(url, cancellationToken);
 
         // A timeout or a stop surfaces as a cancelled token rather than a value, so the run's own
@@ -674,11 +672,12 @@ internal sealed class PageToolExecutor(
     }
 
     private static async Task<ToolExecutionResult> ShellAsync(
-        IReadOnlyDictionary<string, JsonElement> arguments,
+        ToolSpec spec,
+        ToolValues values,
         ToolServices services,
         CancellationToken cancellationToken) {
         ShellOutcome outcome = await ShellRunner.RunAsync(
-            String(arguments, "command")!, services.Pages, services.Paths, services.Options, cancellationToken);
+            values.RequiredString("command"), services.Pages, services.Paths, services.Options, cancellationToken);
 
         return outcome.IsSuccess
             ? services.Results.Success(new { output = outcome.Output, truncated = outcome.Truncated }, outcome.Summary)
@@ -697,7 +696,7 @@ internal sealed class PageToolExecutor(
         CancellationToken cancellationToken) {
         List<T> found = [];
         foreach ((PagePath path, string text) in await SourcesAsync(services, prefixes, recursive, cancellationToken)) {
-            string[] lines = ReadLines(text);
+            string[] lines = TemplateSourceLines(text);
             for (int index = 0; index < lines.Length; index++) {
                 if (!matches(lines[index])) {
                     continue;
@@ -796,17 +795,6 @@ internal sealed class PageToolExecutor(
         return entries;
     }
 
-    // A key beneath a reserved route is answered by that route, not by a page, so a read of it can
-    // only point at the shell file that owns it.
-    private static ToolExecutionResult? ShadowedKey(ToolServices services, PagePath path) => services.Paths.ShadowedBy(path) is { } owner
-        && !string.Equals(owner.Key, path.Key, StringComparison.Ordinal)
-            ? services.Results.Failure($"The key {Describe(path)} is beneath the shell file {Describe(owner)}. Read {Describe(owner)} instead.", $"Read {Describe(path)}: beneath {Describe(owner)}")
-            : null;
-
-    // The first column of `ls -l`: d for a folder, so a key with anything beneath it can be told from
-    // a page at a glance, and w only where a save would be accepted. There is no host file mode here.
-    private static string Mode(ToolServices services, PagePath path) => services.Paths.CanWrite(path) ? "-rw-r--r--" : "-r--r--r--";
-
     private static string ParametersJson(IReadOnlyList<ToolArgumentSchema> arguments) {
         Dictionary<string, object> properties = [];
         foreach (ToolArgumentSchema argument in arguments) {
@@ -833,23 +821,14 @@ internal sealed class PageToolExecutor(
     private static bool IsRevisionHash(string? hash) =>
         hash is { Length: 64 } value && value.All(Uri.IsHexDigit);
 
-    private static string? String(IReadOnlyDictionary<string, JsonElement> values, string name) =>
-        values.TryGetValue(name, out JsonElement value) ? value.GetString() : null;
-
-    private static int? Integer(IReadOnlyDictionary<string, JsonElement> values, string name) =>
-        values.TryGetValue(name, out JsonElement value) ? value.GetInt32() : null;
-
-    private static bool Boolean(IReadOnlyDictionary<string, JsonElement> values, string name) =>
-        values.TryGetValue(name, out JsonElement value) && value.GetBoolean();
-
-    private static string Describe(PagePath path) => MessageText.Sanitize(path.Key);
+    private static string Describe(PagePath path) => ToolPaths.Describe(path);
 
     private static bool IsUnderPrefix(PagePath path, PagePath? prefix) => prefix is null
         || string.Equals(path.Key, prefix.Key, StringComparison.Ordinal)
         || prefix.Key == "/"
         || path.Key.StartsWith(prefix.Key + "/", StringComparison.Ordinal);
 
-    private static string[] ReadLines(string content) {
+    private static string[] TemplateSourceLines(string content) {
         List<string> lines = [];
         using StringReader reader = new(content);
         string? line;

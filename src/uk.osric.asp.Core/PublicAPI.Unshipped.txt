@@ -107,6 +107,8 @@ static uk.osric.asp.Core.Diff.LineDiff.Compare(string! before, string! after, in
 static uk.osric.asp.Core.Diff.NormalDiff.Format(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
 static uk.osric.asp.Core.Diff.UnifiedDiff.Format(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
 static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool
+static uk.osric.asp.Core.Pages.PageMode.Describe(bool canWrite) -> string!
+static uk.osric.asp.Core.Pages.PageMode.DescribeFolder(bool canWrite) -> string!
 static uk.osric.asp.Core.Pages.PageGlob.IsMatch(string! pattern, string! key) -> bool
 static uk.osric.asp.Core.Pages.PageGlob.IsMatch(uk.osric.asp.Core.Shell.ShellWord! pattern, string! key) -> bool
 static uk.osric.asp.Core.Shell.ShellArgument.operator !=(uk.osric.asp.Core.Shell.ShellArgument? left, uk.osric.asp.Core.Shell.ShellArgument? right) -> bool
@@ -422,6 +424,7 @@ uk.osric.asp.Core.Assistant.TokenEstimator.Margin.get -> double
 static uk.osric.asp.Core.Assistant.TokenEstimator.For(uk.osric.asp.Core.Assistant.TokenCalibration? calibration) -> uk.osric.asp.Core.Assistant.TokenEstimator!
 uk.osric.asp.Core.Assistant.TokenEstimator.Estimate(uk.osric.asp.Core.Assistant.ChatRequest! request) -> long
 uk.osric.asp.Core.Assistant.TokenEstimator.Estimate(long requestBytes) -> long
+uk.osric.asp.Core.Pages.PageMode
 uk.osric.asp.Core.Pages.PageGlob
 uk.osric.asp.Core.Shell.ShellArgument
 uk.osric.asp.Core.Shell.ShellArgument.<Clone>$() -> uk.osric.asp.Core.Shell.ShellArgument!

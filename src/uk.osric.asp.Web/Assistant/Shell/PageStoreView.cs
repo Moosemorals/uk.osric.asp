@@ -122,10 +122,7 @@ internal sealed class PageStoreView(PageEditor pages, PagePathPolicy paths) : IP
 
     // The permission column: d for a folder, and w only where a save would be accepted. There is no
     // host file mode here.
-    private string Mode(PagePath path, bool isFolder) => (isFolder, paths.CanWrite(path)) switch {
-        (true, true) => "drwxr-xr-x",
-        (true, false) => "dr-xr-xr-x",
-        (false, true) => "-rw-r--r--",
-        (false, false) => "-r--r--r--",
-    };
+    private string Mode(PagePath path, bool isFolder) => isFolder
+        ? PageMode.DescribeFolder(paths.CanWrite(path))
+        : PageMode.Describe(paths.CanWrite(path));
 }
