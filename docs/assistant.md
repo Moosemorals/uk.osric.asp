@@ -24,7 +24,7 @@ by tools to that provider. No provider SDK is used. The tools are fifteen types 
 `Assistant/Tools`, each carrying its name, its description, its argument schema, its approval flag,
 the verb its refusals use, whether it changes a page and its own run, beside the code that runs it;
 `ToolRegistry` is the only list, so the model's definitions, the dispatcher and the approval gate
-cannot drift from each other (DEC-230). Assistant tools reach the page store
+cannot drift from each other (DEC-231). Assistant tools reach the page store
 through `PageEditor` — list/read/search, bounded template-source line edits with an atomic revision-hash
 check, whole-page writes, tombstone deletes, a read-only virtual shell, and two read-only script
 checks that parse a stored page or a supplied complete template as an ES module and change nothing —

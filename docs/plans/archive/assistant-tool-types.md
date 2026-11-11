@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Implemented 2026-11-11; phases 1–3 landed, and the name-taking `PageWrites.Written` was removed rather than kept, because nothing in the solution is packaged |
 | Size | Medium — a tool type and its registry, three shared helpers, fifteen tools moved into five files by family, and the tests that pin the new wiring. No tool changes what it does |
 | Spike | None. The shape is the shell's, proved in DEC-226, and the tool surface is already a table with one row per tool |
-| Decisions | DEC-230 (a tool is one type and the registry is the only table), recorded with this plan. DEC-228 belongs to [capability naming](capability-naming.md) and is not claimed here |
+| Decisions | DEC-231 (a tool is one type and the registry is the only table), recorded with this plan. DEC-228 belongs to [capability naming](capability-naming.md) and is not claimed here |
 | Backlog | Nothing waits on this. [ARCH-15](../../jobs/ARCH-15.md) rewrites the same pre-approval refusal and should land first, or phase 2 absorbs it |
 
 ## The short version
@@ -232,7 +232,7 @@ beside the code they describe, which is the one real gain over the table.
 
 ## What this plan decides
 
-> **DEC-230.** An assistant tool is one type: it carries its name, its description, its
+> **DEC-231.** An assistant tool is one type: it carries its name, its description, its
 > argument schema, its approval flag, the verb its refusals use, whether a successful call changes a
 > stored page, the argument the path policy refuses before a prompt, and the code that runs it. The
 > registry is the only list — the model's `Definitions`, the dispatcher, the approval gate and the
@@ -294,7 +294,7 @@ own so a bisect can tell the wiring change from the helper change.
 2. Phase 2 in one commit per helper, each converting the call sites it touches.
 3. Phase 3 one family per commit — memory, fetch, shell, script, diff, page — so the page family,
    which is where the line-number and store logic lives, lands last and alone.
-4. When the work lands, record DEC-230 in [decisions.md](../../decisions.md) with the plan archived, and
+4. When the work lands, record DEC-231 in [decisions.md](../../decisions.md) with the plan archived, and
    add one paragraph to [assistant.md](../../assistant.md) where it currently says the tools "reach the
    page store through `PageEditor`" — the paragraph gains the registry sentence, not a rewrite.
 

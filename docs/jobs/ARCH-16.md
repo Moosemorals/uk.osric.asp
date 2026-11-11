@@ -43,7 +43,7 @@ be found and made in both places, and the next read tool will copy a third.
    its case flag) and `grep` (a basic regular expression) share the walk, the match limit and the
    truncation flag while keeping their own projection, wording and result shape.
 4. Leave the two front-ends alone. A tool keeps its JSON schema, approval flag, write fact and
-   declaration order; an applet keeps `ShellSyntax`, POSIX text and a sorted registry (DEC-230,
+   declaration order; an applet keeps `ShellSyntax`, POSIX text and a sorted registry (DEC-231,
    DEC-224). The two line rules also stay apart: `PageToolData.TemplateSourceLines` counts physical
    template lines that the editor and `edit_page` name, and `ShellText.Split` counts terminated lines
    as POSIX does.

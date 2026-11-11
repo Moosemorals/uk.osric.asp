@@ -37,7 +37,7 @@ still does because a page cannot (an archive, and a live run). IDEA-026 came out
 [capability-naming plan](../plans/archive/capability-naming.md) of 2026-11-10 (DEC-228): it is the
 release that removes the deprecated `Features` alias once the page store has no page that needs it.
 ARCH-16 came out of the [tool-types work](../plans/archive/assistant-tool-types.md) of 2026-11-11
-(DEC-230): making a tool one type showed that the page tools and the shell answer the same questions
+(DEC-231): making a tool one type showed that the page tools and the shell answer the same questions
 about the page store through two implementations.
 
 | ID | Severity | Size | Job |
