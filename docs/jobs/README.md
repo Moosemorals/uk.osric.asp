@@ -36,6 +36,9 @@ has now built it. IDEA-024 and IDEA-025 came out of [the page-first plan](../pla
 still does because a page cannot (an archive, and a live run). IDEA-026 came out of the
 [capability-naming plan](../plans/archive/capability-naming.md) of 2026-11-10 (DEC-228): it is the
 release that removes the deprecated `Features` alias once the page store has no page that needs it.
+ARCH-16 came out of the [tool-types work](../plans/archive/assistant-tool-types.md) of 2026-11-11
+(DEC-231): making a tool one type showed that the page tools and the shell answer the same questions
+about the page store through two implementations.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -43,6 +46,7 @@ release that removes the deprecated `Features` alias once the page store has no 
 | [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore action |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
 | [ARCH-15](ARCH-15.md) | Low | S | An assistant-only list is a second, invisible kind of read-only page |
+| [ARCH-16](ARCH-16.md) | Low | M | The assistant asks the page store the same questions twice |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |

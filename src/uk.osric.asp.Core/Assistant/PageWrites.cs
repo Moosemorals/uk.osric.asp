@@ -15,18 +15,13 @@ using uk.osric.asp.Core.Pages;
 /// </remarks>
 public static class PageWrites {
 
-    /// <summary>Whether the named tool changes a stored page.</summary>
-    /// <param name="toolName">The tool the model called, as the transcript stored it.</param>
-    private static bool IsWrite(string? toolName) =>
-        toolName is "write_page" or "edit_page";
-
     /// <summary>The page a successful write or edit reported.</summary>
-    /// <param name="toolName">The tool the model called, as the transcript stored it.</param>
+    /// <param name="changesPages">Whether the tool changes a stored page, as the tool itself says.</param>
     /// <param name="resultJson">The stored result of that call.</param>
     /// <returns>The canonical key of the changed page, or <see langword="null"/> when the call was not
     /// a page write, did not succeed, or named a key no request can address.</returns>
-    public static PagePath? Written(string? toolName, string? resultJson) {
-        if (!IsWrite(toolName) || string.IsNullOrEmpty(resultJson)) {
+    public static PagePath? Written(bool changesPages, string? resultJson) {
+        if (!changesPages || string.IsNullOrEmpty(resultJson)) {
             return null;
         }
 

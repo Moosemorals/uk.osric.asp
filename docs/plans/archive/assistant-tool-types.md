@@ -7,16 +7,16 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started |
+| Status | Implemented 2026-11-11; phases 1–3 landed, and the name-taking `PageWrites.Written` was removed rather than kept, because nothing in the solution is packaged |
 | Size | Medium — a tool type and its registry, three shared helpers, fifteen tools moved into five files by family, and the tests that pin the new wiring. No tool changes what it does |
 | Spike | None. The shape is the shell's, proved in DEC-226, and the tool surface is already a table with one row per tool |
-| Decisions | DEC-229 (proposed — a tool is one type and the registry is the only table), recorded with this plan. DEC-228 belongs to [capability naming](capability-naming.md) and is not claimed here |
-| Backlog | Nothing waits on this. [ARCH-15](../jobs/ARCH-15.md) rewrites the same pre-approval refusal and should land first, or phase 2 absorbs it |
+| Decisions | DEC-231 (a tool is one type and the registry is the only table), recorded with this plan. DEC-228 belongs to [capability naming](capability-naming.md) and is not claimed here |
+| Backlog | Nothing waits on this. [ARCH-15](../../jobs/ARCH-15.md) rewrites the same pre-approval refusal and should land first, or phase 2 absorbs it |
 
 ## The short version
 
 The assistant's fifteen tools live in one 939-line class,
-[PageToolExecutor](../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs). The virtual shell had the
+[PageToolExecutor](../../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs). The virtual shell had the
 same shape until this week's rewrite (DEC-226): a command became one type carrying its name, its
 usage, its syntax and its behaviour, and the kernel did the once-only work. This plan applies the
 part of that idea that fits, and says why the rest does not.
@@ -25,7 +25,7 @@ Three things are wrong with the tools today, and the shell had the first and the
 
 1. **A tool is named in four places.** A row in `s_tools`, a case in `ExecuteAsync`'s switch, a case
    in `PageToolAsync`'s switch, and a case in `Verb()`. A fifth list lives in `Core`, where
-   [`PageWrites.IsWrite`](../../src/uk.osric.asp.Core/Assistant/PageWrites.cs:22) hard-codes the two
+   [`PageWrites.IsWrite`](../../../src/uk.osric.asp.Core/Assistant/PageWrites.cs:22) hard-codes the two
    tools that change a page. Add a row and forget a case and it still **compiles**: the call falls
    through to `"Unknown tool."`, and the only thing that catches it is the test written for that
    tool.
@@ -80,16 +80,16 @@ types and resolving each one on demand.
 Two more duplications the plan should not silently leave:
 
 - The long-listing mode string is produced in two places —
-  [`Mode`](../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs:842) for `list_pages` and
-  `read_page`, and [`PageStoreView`](../../src/uk.osric.asp.Web/Assistant/Shell/PageStoreView.cs:128)
+  [`Mode`](../../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs:842) for `list_pages` and
+  `read_page`, and [`PageStoreView`](../../../src/uk.osric.asp.Web/Assistant/Shell/PageStoreView.cs:128)
   for `ls -l` and `stat` — and described in a third
-  ([`PageAuthorPrompt`](../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs:341)). One pure
+  ([`PageAuthorPrompt`](../../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs:341)). One pure
   function in `Core` should answer it.
 - There are two line-splitting rules and they are **not** the same:
-  [`ReadLines`](../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs:893) adds a final empty line
+  [`ReadLines`](../../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs:893) adds a final empty line
   after a trailing break, because `read_page`/`edit_page` line numbers name physical lines of the
   stored template as the editor shows them, while
-  [`ShellText.Split`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellText.cs:17) does not, because
+  [`ShellText.Split`](../../../src/uk.osric.asp.Web/Assistant/Shell/ShellText.cs:17) does not, because
   POSIX counts a terminated line as one line. Unifying them would be a bug in whichever caller lost.
   The plan renames `ReadLines` to say which rule it is and leaves both.
 
@@ -114,7 +114,7 @@ Two more duplications the plan should not silently leave:
 - **Changing the model's tool list.** The order of `Definitions` is part of the request body and
   therefore of the provider's cached prefix. The registry keeps declaration order; it does not sort
   the way `ShellRegistry` does for `help`.
-- **Touching a description or a prompt.** [PageAuthorPrompt](../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs)
+- **Touching a description or a prompt.** [PageAuthorPrompt](../../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs)
   names tools in prose; prose stays prose. A test that scanned the prompt for tool words would match
   "shell" and "fetch" as English, so it is not written.
 - **`/help`.** It is the page author's manual. Tools are not a page capability, so nothing about this
@@ -156,8 +156,8 @@ its own.
 
 Two constraints that decide the details:
 
-- `Definitions` is read statically by [AssistantEndpoint](../../src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs:184)
-  and twice by [RunProcessor](../../src/uk.osric.asp.Web/Assistant/RunProcessor.cs:142), so the
+- `Definitions` is read statically by [AssistantEndpoint](../../../src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs:184)
+  and twice by [RunProcessor](../../../src/uk.osric.asp.Web/Assistant/RunProcessor.cs:142), so the
   registry has to answer without an instance — which is why `Run` is a `Func` over a per-call
   `ToolServices` rather than a method on the singleton, and why the tools can stay static.
 - `ToolServices` is built once per call from the singletons the executor already holds plus the one
@@ -232,7 +232,7 @@ beside the code they describe, which is the one real gain over the table.
 
 ## What this plan decides
 
-> **DEC-229 (proposed).** An assistant tool is one type: it carries its name, its description, its
+> **DEC-231.** An assistant tool is one type: it carries its name, its description, its
 > argument schema, its approval flag, the verb its refusals use, whether a successful call changes a
 > stored page, the argument the path policy refuses before a prompt, and the code that runs it. The
 > registry is the only list — the model's `Definitions`, the dispatcher, the approval gate and the
@@ -294,8 +294,8 @@ own so a bisect can tell the wiring change from the helper change.
 2. Phase 2 in one commit per helper, each converting the call sites it touches.
 3. Phase 3 one family per commit — memory, fetch, shell, script, diff, page — so the page family,
    which is where the line-number and store logic lives, lands last and alone.
-4. When the work lands, record DEC-229 in [decisions.md](../decisions.md) with the plan archived, and
-   add one paragraph to [assistant.md](../assistant.md) where it currently says the tools "reach the
+4. When the work lands, record DEC-231 in [decisions.md](../../decisions.md) with the plan archived, and
+   add one paragraph to [assistant.md](../../assistant.md) where it currently says the tools "reach the
    page store through `PageEditor`" — the paragraph gains the registry sentence, not a rewrite.
 
 Nothing in `Pages/Seeds` changes, no configuration key moves, no migration is needed, and no stored
