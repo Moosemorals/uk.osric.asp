@@ -88,7 +88,6 @@ public sealed class ToolPathsTests {
 
     private static ToolSpec Spec(string name, string verb) => new(name, "test", false, []) {
         Verb = verb,
-        Run = (_, _, _, _) => throw new NotSupportedException(),
     };
 
     private static ToolValues Values(string path) =>

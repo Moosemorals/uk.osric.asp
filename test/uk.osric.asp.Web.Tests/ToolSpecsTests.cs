@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using System.Reflection;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Assistant.Tools;
 
@@ -60,6 +61,33 @@ public sealed class ToolSpecsTests {
         string[] withoutVerb = [.. PageToolExecutor.Specs.Where(tool => tool.Verb.Length == 0).Select(tool => tool.Name)];
 
         Assert.That(withoutVerb, Is.Empty);
+    }
+
+    [Test]
+    public void TheRegistryHoldsEveryTool() {
+        Assert.That(ToolRegistry.Default.All, Has.Count.EqualTo(15));
+    }
+
+    [Test]
+    public void EveryToolTypeIsConcreteAndOverridesItsRun() {
+        MethodInfo run = typeof(AssistantTool).GetMethod(nameof(AssistantTool.RunAsync))!;
+
+        IEnumerable<string> unimplemented = ToolRegistry.Default.All
+            .Where(tool => tool.GetType().IsAbstract || tool.GetType().GetMethod(nameof(AssistantTool.RunAsync))!.DeclaringType == run.DeclaringType)
+            .Select(tool => tool.GetType().Name);
+
+        Assert.That(unimplemented, Is.Empty);
+    }
+
+    [Test]
+    public void EveryToolTypeIsRegistered() {
+        HashSet<Type> registered = [.. ToolRegistry.Default.All.Select(tool => tool.GetType())];
+
+        IEnumerable<string?> unregistered = typeof(AssistantTool).Assembly.GetTypes()
+            .Where(type => type.IsSubclassOf(typeof(AssistantTool)) && !type.IsAbstract && !registered.Contains(type))
+            .Select(type => type.FullName);
+
+        Assert.That(unregistered, Is.Empty);
     }
 
     [TestCase("write_page", ExpectedResult = true)]

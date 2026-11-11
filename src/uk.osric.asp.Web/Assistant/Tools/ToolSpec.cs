@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Assistant.Tools;
 
-using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 
 /// <summary>One tool as it is offered to the model and validated when it is called.</summary>
@@ -20,23 +19,9 @@ internal sealed record ToolSpec(
     /// <summary>The one word the tool's refusals use, as in "Edit refused".</summary>
     public required string Verb { get; init; }
 
-    /// <summary>Runs the tool over arguments that have already been validated.</summary>
-    public required ToolRun Run { get; init; }
-
     /// <summary>Whether a successful call changes a stored page.</summary>
     public bool Writes { get; init; }
 
     /// <summary>The argument the path policy refuses before the owner is asked, or null.</summary>
     public string? PathArgument { get; init; }
 }
-
-/// <summary>What one tool does once its arguments are validated.</summary>
-/// <param name="Spec">The tool itself, so its refusals can use its name and verb.</param>
-/// <param name="Values">The validated arguments.</param>
-/// <param name="Services">The caller and the services this call may use.</param>
-/// <param name="CancellationToken">The run's token.</param>
-internal delegate Task<ToolExecutionResult> ToolRun(
-    ToolSpec Spec,
-    ToolValues Values,
-    ToolServices Services,
-    CancellationToken CancellationToken);
