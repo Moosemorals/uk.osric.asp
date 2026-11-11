@@ -27,7 +27,7 @@ internal sealed class ToolResults(AssistantOptions options) {
     /// <param name="envelope">The envelope to serialize.</param>
     /// <param name="summary">One line for the transcript.</param>
     /// <param name="success">Whether the call did what it was asked.</param>
-    public ToolExecutionResult Bounded(object envelope, string summary, bool success = true) {
+    private ToolExecutionResult Bounded(object envelope, string summary, bool success = true) {
         string json = JsonSerializer.Serialize(envelope, s_jsonOptions);
         return json.Length <= options.MaxToolResultChars
             ? new ToolExecutionResult(success, json, summary)

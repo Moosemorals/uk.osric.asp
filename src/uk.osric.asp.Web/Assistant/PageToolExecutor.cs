@@ -25,16 +25,10 @@ internal sealed class PageToolExecutor(
     IAssistantFetcher fetcher,
     DiffRenderer diff) {
 
-    private static readonly IReadOnlyList<ToolSpec> s_specs =
-        [.. ToolRegistry.Default.All.Select(tool => tool.Spec)];
-
     private readonly ToolResults _results = new(options);
 
     /// <summary>What the model is offered, in declaration order.</summary>
     public static IReadOnlyList<ToolDefinition> Definitions => ToolRegistry.Default.Definitions;
-
-    /// <summary>The registry's tools, for the contract tests that keep it honest.</summary>
-    internal static IReadOnlyList<ToolSpec> Specs => s_specs;
 
     /// <summary>Whether the named tool changes a stored page when it succeeds.</summary>
     /// <param name="toolName">The tool the model called, as the transcript stored it.</param>

@@ -15,16 +15,18 @@ using uk.osric.asp.Web.Assistant.Tools;
 [TestFixture]
 public sealed class ToolSpecsTests {
 
+    private static IEnumerable<ToolSpec> Specs => ToolRegistry.Default.All.Select(tool => tool.Spec);
+
     [Test]
     public void EveryToolHasAUniqueName() {
-        string[] names = [.. PageToolExecutor.Specs.Select(tool => tool.Name)];
+        string[] names = [.. Specs.Select(tool => tool.Name)];
 
         Assert.That(names, Is.Unique);
     }
 
     [Test]
     public void TheModelIsOfferedEveryToolInDeclarationOrder() {
-        string[] declared = [.. PageToolExecutor.Specs.Select(tool => tool.Name)];
+        string[] declared = [.. Specs.Select(tool => tool.Name)];
         string[] offered = [.. PageToolExecutor.Definitions.Select(tool => tool.Name)];
 
         Assert.That(offered, Is.EqualTo(declared));
@@ -32,14 +34,14 @@ public sealed class ToolSpecsTests {
 
     [Test]
     public void EveryToolThatWritesIsApprovalGated() {
-        ToolSpec[] ungated = [.. PageToolExecutor.Specs.Where(tool => tool.Writes && !tool.NeedsApproval)];
+        ToolSpec[] ungated = [.. Specs.Where(tool => tool.Writes && !tool.NeedsApproval)];
 
         Assert.That(ungated, Is.Empty);
     }
 
     [Test]
     public void EveryPathArgumentIsOneTheToolDeclares() {
-        IEnumerable<string> undeclared = PageToolExecutor.Specs
+        IEnumerable<string> undeclared = Specs
             .Where(tool => tool.PathArgument is not null)
             .Where(tool => !tool.Arguments.Any(argument => argument.Name == tool.PathArgument))
             .Select(tool => tool.Name);
@@ -49,7 +51,7 @@ public sealed class ToolSpecsTests {
 
     [Test]
     public void OnlyAnApprovalGatedToolRefusesAPathBeforeThePrompt() {
-        IEnumerable<string> ungated = PageToolExecutor.Specs
+        IEnumerable<string> ungated = Specs
             .Where(tool => tool.PathArgument is not null && !tool.NeedsApproval)
             .Select(tool => tool.Name);
 
@@ -58,7 +60,7 @@ public sealed class ToolSpecsTests {
 
     [Test]
     public void EveryToolCarriesTheVerbItsRefusalsUse() {
-        string[] withoutVerb = [.. PageToolExecutor.Specs.Where(tool => tool.Verb.Length == 0).Select(tool => tool.Name)];
+        string[] withoutVerb = [.. Specs.Where(tool => tool.Verb.Length == 0).Select(tool => tool.Name)];
 
         Assert.That(withoutVerb, Is.Empty);
     }
