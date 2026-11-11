@@ -267,5 +267,9 @@ throws for a zone the image does not know. Building it as a self-contained singl
 make the image smaller (64 MB) but would move ~52 MB on every release, which is the wrong trade when
 a registry is available.
 
-Trimming would reach ~29 MB, but ASP.NET Core does not support trimming a hosted web app here: the
-trimmed image dies at startup with `TypeLoadException`. It is deliberately off.
+Trimming is deliberately off, and the measurements say it should stay off: it cannot be combined
+with the shared framework (a framework-dependent `PublishTrimmed` publish is refused with
+`NETSDK1102`), so a trimmed release would move 54–58 MB instead of today's 27 MB, and the parts that
+would have shrunk are the parts that have to be kept — EF, the migrations assembly and
+`System.Private.CoreLib`. [The trimming spike](../docs/spikes/trimmed-host.md) has the numbers, the
+failure chain and the one thing it does buy (about 92 MB of RSS).
