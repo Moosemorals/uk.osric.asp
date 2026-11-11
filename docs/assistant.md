@@ -20,7 +20,11 @@ tool calls receive synthetic results rather than being replayed to the provider.
 
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
 endpoint. Enabling the feature sends the system prompt, conversation transcript, and page source read
-by tools to that provider. No provider SDK is used. Assistant tools reach the page store
+by tools to that provider. No provider SDK is used. The tools are fifteen types under
+`Assistant/Tools`, each carrying its name, its description, its argument schema, its approval flag,
+the verb its refusals use, whether it changes a page and its own run, beside the code that runs it;
+`ToolRegistry` is the only list, so the model's definitions, the dispatcher and the approval gate
+cannot drift from each other (DEC-230). Assistant tools reach the page store
 through `PageEditor` — list/read/search, bounded template-source line edits with an atomic revision-hash
 check, whole-page writes, tombstone deletes, a read-only virtual shell, and two read-only script
 checks that parse a stored page or a supplied complete template as an ES module and change nothing —
@@ -174,7 +178,8 @@ the top rather than scrolling a growing column.
 
 Each finished turn of the transcript leads with a changed-pages card: the live pages its `write_page`
 and `edit_page` calls reported saving, each linked to the page and to its editor. It is read from the
-stored tool results by `PageWrites` rather than published live, because the page reloads on the run's
+stored tool results by `PageWrites`, told by the tool itself whether its call writes a page, rather
+than published live, because the page reloads on the run's
 terminal event and a result the run itself reported is what that reload would show. A refused write
 changed nothing, so it is absent; the run still going has no card, so a reader never sees a page
 listed before the turn that changed it has ended.
