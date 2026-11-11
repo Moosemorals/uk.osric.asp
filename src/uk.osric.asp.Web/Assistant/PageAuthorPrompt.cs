@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v18";
+    public const string Version = "page-author-v19";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -315,6 +315,13 @@ internal static class PageAuthorPrompt {
         address a page was not asked to reach. The host sends
         `moosemorals.com (page)` as the `User-Agent`, whatever header the page
         names, so a page cannot claim to be another client.
+
+        A request may name an operator-configured credential with
+        `Credential = "name"` on `HttpFetchRequest`. The host adds the header,
+        only to that credential's host and only from the page it is bound to;
+        the page never sees the value. Use the name the owner supplies, never a
+        token, never a value in a URL or the page source, and never invent one:
+        an unknown name is an `InvalidRequest`.
 
         ## Page API policy
         The `uk.osric.asp.Sdk` contract is allowed.

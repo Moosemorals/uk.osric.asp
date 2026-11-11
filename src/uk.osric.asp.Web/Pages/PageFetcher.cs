@@ -11,11 +11,14 @@ using uk.osric.asp.Sdk;
 /// <remarks>
 /// The request itself belongs to <see cref="OutboundFetcher"/>; this is the page-shaped edge that
 /// names the page in the metric and holds the page's key to the same value contract as the SDK. A
-/// page may fetch any <c>http</c> or <c>https</c> host (DEC-216).
+/// page may fetch any <c>http</c> or <c>https</c> host (DEC-216). A named credential is resolved and
+/// bound to this page here, before <see cref="OutboundFetcher"/> opens a socket.
 /// </remarks>
 internal sealed class PageFetcher(
     OutboundFetcher fetcher,
-    PageMetrics metrics) : IPageFetcher {
+    PageFetchOptions options,
+    PageMetrics metrics,
+    ILogger<PageFetcher> logger) : IPageFetcher {
 
     /// <inheritdoc/>
     public async Task<HttpFetchResponse> FetchAsync(
@@ -26,12 +29,49 @@ internal sealed class PageFetcher(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(pagePath);
 
+        PagePath path = PagePath.Normalize(pagePath);
         long start = Stopwatch.GetTimestamp();
-        HttpFetchResponse response = await fetcher.FetchAsync(request, pagePath, OutboundOrigin.Page, aborted, deadline);
+        HttpFetchResponse response = await SendAsync(request, path, aborted, deadline);
 
-        metrics.RecordFetch(PagePath.Normalize(pagePath), OutcomeOf(response), Stopwatch.GetElapsedTime(start));
+        metrics.RecordFetch(path, OutcomeOf(response), Stopwatch.GetElapsedTime(start));
 
         return response;
+    }
+
+    private async Task<HttpFetchResponse> SendAsync(
+        HttpFetchRequest request,
+        PagePath path,
+        CancellationToken aborted,
+        CancellationToken deadline) {
+        PageCredential? credential = null;
+
+        if (request.Credential is not null) {
+            if (!options.Credentials.TryGetValue(request.Credential, out credential)) {
+                return Refuse(path, request.Url, "an unknown credential was named");
+            }
+
+            if (!credential.IsBoundTo(path.Key)) {
+                return Refuse(path, request.Url, $"{credential.Name} is bound to another page");
+            }
+
+            if (request.Headers.Keys.Any(header => string.Equals(header, credential.Header, StringComparison.OrdinalIgnoreCase))) {
+                return Refuse(path, request.Url, $"the request sets {credential.Header}, which {credential.Name} also sets");
+            }
+        }
+
+        return await fetcher.FetchAsync(request, path.Key, OutboundOrigin.Page, credential, aborted, deadline);
+    }
+
+    private HttpFetchResponse Refuse(PagePath path, string url, string reason) {
+        string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed) ? parsed.IdnHost : "(unparsed)";
+        logger.LogWarning("Page {Path} was refused a fetch to {Host}: {Reason}", path.Key, host, reason);
+
+        return new HttpFetchResponse(
+            0,
+            new Dictionary<string, string>(),
+            string.Empty,
+            HttpFetchFailure.InvalidRequest,
+            false);
     }
 
     private static string OutcomeOf(HttpFetchResponse response) {

@@ -11,6 +11,8 @@ static uk.osric.asp.Sdk.PageRevisionInfo.operator !=(uk.osric.asp.Sdk.PageRevisi
 static uk.osric.asp.Sdk.PageRevisionInfo.operator ==(uk.osric.asp.Sdk.PageRevisionInfo left, uk.osric.asp.Sdk.PageRevisionInfo right) -> bool
 static uk.osric.asp.Sdk.PageSource.operator !=(uk.osric.asp.Sdk.PageSource? left, uk.osric.asp.Sdk.PageSource? right) -> bool
 static uk.osric.asp.Sdk.PageSource.operator ==(uk.osric.asp.Sdk.PageSource? left, uk.osric.asp.Sdk.PageSource? right) -> bool
+uk.osric.asp.Sdk.HttpFetchRequest.Credential.get -> string?
+uk.osric.asp.Sdk.HttpFetchRequest.Credential.init -> void
 uk.osric.asp.Sdk.IBuildInfo
 uk.osric.asp.Sdk.IBuildInfo.Commit.get -> string?
 uk.osric.asp.Sdk.IPageCatalog

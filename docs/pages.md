@@ -50,7 +50,9 @@ the build:
   page cannot claim to be another client. `GetAsync` and `PostAsync` sit over
   `SendAsync(HttpFetchRequest)`; every failure is a value rather than an exception, and the
   render's shared request count, the deadline and abandonment all bound it (DEC-216, DEC-129,
-  DEC-143).
+  DEC-143). A request may name an operator-configured credential with `Credential`: the host
+  supplies the header, only to that credential's host and only from the page the credential is
+  bound to, and the page never reads the value. An unknown name is an `InvalidRequest` (DEC-230).
 - `IPageCatalog` reads the page store: `ListAsync(prefix)` lists the heads under a subtree,
   `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a page's history and
   `ReadRevisionAsync(key, hash)` reads one retained revision. It reads and never writes. The read is

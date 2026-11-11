@@ -36,26 +36,57 @@ internal sealed class OutboundFetcher(
     /// <param name="origin">Whether page code or the assistant asked, for the <c>User-Agent</c>.</param>
     /// <param name="aborted">Cancelled when the caller gives up.</param>
     /// <param name="deadline">Cancelled when the caller's budget expires.</param>
-    public async Task<HttpFetchResponse> FetchAsync(
+    /// <remarks>A caller with no credential, which is every assistant request.</remarks>
+    public Task<HttpFetchResponse> FetchAsync(
         HttpFetchRequest request,
         string caller,
         OutboundOrigin origin,
         CancellationToken aborted,
         CancellationToken deadline) {
+        return FetchAsync(request, caller, origin, credential: null, aborted, deadline);
+    }
+
+    /// <summary>Performs one request, attaching <paramref name="credential"/> only where it applies.</summary>
+    /// <param name="request">The request to make.</param>
+    /// <param name="caller">Who asked, for the log line: a page key or a tool name.</param>
+    /// <param name="origin">Whether page code or the assistant asked, for the <c>User-Agent</c>.</param>
+    /// <param name="credential">A page-bound credential, or <see langword="null"/> for none.</param>
+    /// <param name="aborted">Cancelled when the caller gives up.</param>
+    /// <param name="deadline">Cancelled when the caller's budget expires.</param>
+    public async Task<HttpFetchResponse> FetchAsync(
+        HttpFetchRequest request,
+        string caller,
+        OutboundOrigin origin,
+        PageCredential? credential,
+        CancellationToken aborted,
+        CancellationToken deadline) {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(caller);
 
-        return await SendAsync(request, caller, origin, aborted, deadline);
+        return await SendAsync(request, caller, origin, credential, aborted, deadline);
     }
 
     private async Task<HttpFetchResponse> SendAsync(
         HttpFetchRequest request,
         string caller,
         OutboundOrigin origin,
+        PageCredential? credential,
         CancellationToken aborted,
         CancellationToken deadline) {
         if (!TryCreateUri(request.Url, out Uri? current) || !TryValidate(request, out string? mediaType)) {
             return Refuse(HttpFetchFailure.InvalidRequest, caller, request.Url, LogLevel.Warning);
+        }
+
+        // A credential is for one host over a secure channel; a request that does not match is a
+        // mistake in the page, refused before any connection is made.
+        if (credential is not null && !credential.AppliesTo(current)) {
+            logger.LogWarning(
+                "Fetch for {Caller} was refused credential {Credential} for {Host}: it is not the credential's host or is not secure",
+                caller,
+                credential.Name,
+                current.IdnHost);
+
+            return Empty(HttpFetchFailure.InvalidRequest);
         }
 
         using CancellationTokenSource budget = CancellationTokenSource.CreateLinkedTokenSource(aborted, deadline);
@@ -78,6 +109,13 @@ internal sealed class OutboundFetcher(
                     message.Headers.TryAddWithoutValidation(name, value);
                 }
             }
+
+            // Per hop, not once for the chain: a redirect to another host or to plaintext is still
+            // followed under the ordinary rules, but it does not carry the credential.
+            if (credential is not null && credential.AppliesTo(current)) {
+                message.Headers.TryAddWithoutValidation(credential.Header, credential.HeaderValue);
+            }
+
             message.Headers.TryAddWithoutValidation("User-Agent", OutboundUserAgent.For(origin));
 
             HttpResponseMessage response;
