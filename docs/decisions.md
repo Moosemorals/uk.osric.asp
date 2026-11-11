@@ -14,6 +14,13 @@ Most of these were settled in conversation and then recorded in a plan, a doc co
 value. Where the only other record is a chat message or a code comment, the entry below is the
 record. Cite the ID (`DEC-41`) in a commit or a plan when changing the behaviour it names.
 
+**A decision is numbered when its work merges, not when it is planned.** A plan, a job or a branch
+that proposes a decision describes it in prose — "the decision this plan records" — and leaves
+`DEC-` numbers alone. The number is taken from the highest number in this file on `trunk` when the
+work lands, and every citation in that branch is updated with it at the same time: the plan, the
+docs and the job. Two branches then cannot claim one number, and neither has to renumber work that
+has already merged.
+
 A decision change is a deliberate edit to this file plus the code it names — not a silent drift. If
 an entry stops being true, move it to [Superseded](#superseded) with the date and what replaced it.
 
@@ -243,6 +250,7 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | DEC-79 | Every file carries SPDX tags (`make license-check`); files that cannot take a comment are listed in `REUSE.toml`. This repository is MIT, which is a deliberate departure from the ISC default in the shared C# instructions. | [REUSE.toml](../REUSE.toml), [LICENSE](../LICENSE) |
 | DEC-122 | A type name does not repeat its namespace, at the start, in the middle or at the end. A namespace names either where code lives or what code is about: a subsystem (`Assistant`, `Metrics`, `Storage`, `Authentication`, `Health`, `Admin`) can lose its name; a domain (`Pages`, `Users`, `Charting`, `Text`, `Editor`) cannot, because there the qualifier is the subject. Where the bare noun collides with something in scope or identifies nothing, the qualifier stays or is replaced by a domain word (`RunEvent`, `TokenUsage`, `PagePathPolicy`) — never by the vertical. Members follow the same idea: `Is*`/`Has*` for booleans, `Async` on every `Task`, `HandleAsync` on a single-route endpoint, and no member repeating its type. | [naming consistency](plans/archive/naming-consistency.md) |
 | DEC-147 | A file declares only the namespaces its own code adds. `ImplicitUsings` supplies the SDK's — `System.*` everywhere, plus hosting and configuration in `Web` — and a test project takes `NUnit.Framework` as one project-wide `<Using>` because every suite asserts. Nothing else is hoisted: a `using` is how a reader sees what a file depends on, so the project and subsystem namespaces stay explicit. | [Directory.Build.props](../Directory.Build.props), [Directory.Build.targets](../Directory.Build.targets) |
+| DEC-232 | A decision is numbered when its work merges, not when it is planned. A plan, a job or a branch refers to the proposed decision in prose and leaves `DEC-` numbers alone; the number is taken from the highest number in this file on `trunk` when the work lands, and every citation in that branch is updated with it. | [instructions](../.github/copilot-instructions.md) |
 
 ## Compiled pages and the assembly surface
 

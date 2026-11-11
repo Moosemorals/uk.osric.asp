@@ -31,6 +31,13 @@ scripts. The ones you need most: `make build` (the default), `make test`, `make 
 New files need their SPDX tags or `make license-check` fails; files that cannot take a comment go in
 `REUSE.toml`.
 
+## Plans and decisions
+
+A plan is written before a large change (DEC-09), but the decision it records is numbered when the
+work merges, not when it is planned: refer to it in prose until then, take the next `DEC-` number
+from `docs/decisions.md` on trunk when the work lands, and update every citation in the branch in
+that merge. See [decisions](../docs/decisions.md).
+
 ## Core and shell
 
 See `docs/architecture.md`. Rules, calculations, parsing and formatting are short, reusable **pure**
