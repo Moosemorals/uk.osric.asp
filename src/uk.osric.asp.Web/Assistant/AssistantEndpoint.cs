@@ -677,7 +677,7 @@ internal static class AssistantEndpoint {
         List<PagePath> changed = [];
         foreach (Message message in turn) {
             if (message.Role == "tool"
-                && PageWrites.Written(message.ToolName, message.Content) is { } path
+                && PageWrites.Written(PageToolExecutor.ChangesPages(message.ToolName), message.Content) is { } path
                 && !changed.Contains(path)) {
                 changed.Add(path);
             }

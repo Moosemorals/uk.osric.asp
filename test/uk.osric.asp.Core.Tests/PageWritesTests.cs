@@ -31,10 +31,24 @@ public sealed class PageWritesTests {
     }
 
     [Test]
+    public void AFactSayingTheToolWritesNoPagesYieldsNothing() {
+        string result = """{"ok":true,"data":{"path":"/blog/hello","revisionHash":"abc"},"error":null}""";
+
+        Assert.That(PageWrites.Written(changesPages: false, result), Is.Null);
+    }
+
+    [Test]
     public void ARefusedWriteYieldsNothing() {
         const string result = """{"ok":false,"data":null,"error":"Write refused"}""";
 
         Assert.That(PageWrites.Written("write_page", result), Is.Null);
+    }
+
+    [Test]
+    public void AFactSayingTheToolWritesPagesYieldsItsPath() {
+        string result = """{"ok":true,"data":{"path":"/blog/hello","revisionHash":"abc"},"error":null}""";
+
+        Assert.That(PageWrites.Written(changesPages: true, result)?.Key, Is.EqualTo("/blog/hello"));
     }
 
     [TestCase(null)]
@@ -45,7 +59,7 @@ public sealed class PageWritesTests {
     [TestCase("""{"ok":true,"data":{"path":null}}""")]
     [TestCase("""{"ok":true,"data":{"path":7}}""")]
     public void AResultWithoutARecognisablePathYieldsNothing(string? result) {
-        Assert.That(PageWrites.Written("write_page", result), Is.Null);
+        Assert.That(PageWrites.Written(changesPages: true, result), Is.Null);
     }
 
     [Test]
