@@ -174,7 +174,8 @@ public static class LineDiff {
     }
 
     private static List<Operation> Replace(string[] before, string[] after) {
-        List<Operation> operations = new(before.Length + after.Length);
+        List<Operation> operations = [];
+        operations.EnsureCapacity(before.Length + after.Length);
         foreach (string line in before) {
             operations.Add(new Operation(DiffOperationKind.Delete, line));
         }
@@ -191,7 +192,8 @@ public static class LineDiff {
         int limit = Math.Min(before.Length + after.Length, MaxEditDistance);
         int offset = limit;
         int[] frontier = new int[(2 * limit) + 1];
-        List<int[]> trace = new(limit + 1);
+        List<int[]> trace = [];
+        trace.EnsureCapacity(limit + 1);
 
         for (int distance = 0; distance <= limit; distance++) {
             trace.Add((int[])frontier.Clone());

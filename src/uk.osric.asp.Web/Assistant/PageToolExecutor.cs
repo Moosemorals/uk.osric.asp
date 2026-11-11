@@ -849,7 +849,7 @@ internal sealed class PageToolExecutor(
     };
 
     private static string ParametersJson(IReadOnlyList<ToolArgumentSchema> arguments) {
-        Dictionary<string, object> properties = new(StringComparer.Ordinal);
+        Dictionary<string, object> properties = [];
         foreach (ToolArgumentSchema argument in arguments) {
             properties[argument.Name] = new { type = JsonTypeOf(argument.Type) };
         }

@@ -191,7 +191,7 @@ internal sealed class OpenAiChatCompletionClient(
         new("provider_invalid_response", "The provider returned an invalid streaming response.");
 
     private static IEnumerable<string> ReasoningFields(string configured) {
-        HashSet<string> fields = new(StringComparer.Ordinal) { "reasoning_content", "reasoning", configured };
+        HashSet<string> fields = ["reasoning_content", "reasoning", configured];
         return fields;
     }
 

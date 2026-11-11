@@ -19,7 +19,7 @@ using System.Collections;
 /// </remarks>
 internal sealed class LogScope : IEnumerable<KeyValuePair<string, object?>> {
 
-    private readonly Dictionary<string, object?> _fields = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, object?> _fields = [];
 
     /// <summary>Adds or replaces a field; a value that is not known adds nothing.</summary>
     /// <param name="name">The field's name, as it appears in the journal.</param>

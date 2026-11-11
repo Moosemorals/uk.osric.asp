@@ -149,7 +149,7 @@ internal sealed class ExportEndpoint {
         }
 
         IReadOnlyList<PageListing> heads = await pages.ListPagesAsync(context.RequestAborted);
-        Dictionary<string, PagePath> reachable = new(StringComparer.Ordinal);
+        Dictionary<string, PagePath> reachable = [];
         foreach (PageListing head in heads) {
             if (IsExportable(head, reserved)) {
                 reachable[head.Path.Key] = head.Path;

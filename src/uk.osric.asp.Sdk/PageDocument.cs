@@ -142,7 +142,7 @@ public static class PageDocument {
     // Order is the cascade, so a page is the last word on how it looks: an exact duplicate is
     // linked once, and anything that is not on this site is refused rather than blocked silently.
     private static IEnumerable<string> Deduplicated(IReadOnlyList<string> stylesheets) {
-        HashSet<string> seen = new(StringComparer.Ordinal);
+        HashSet<string> seen = [];
 
         foreach (string href in stylesheets) {
             if (!IsSiteRelative(href)) {

@@ -54,17 +54,17 @@ GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null)
 AUTHFILE ?= $(HOME)/.config/containers/auth.json
 REMOTE_AUTHFILE ?= /home/deploy/.config/containers/auth.json
 
-# The base is pinned by digest, here and in deploy/Containerfile: a tag would let the base move
-# between two builds of the same commit. `podman image inspect --format '{{json .RepoDigests}}'` lists
-# both digests for the tag, and the manifest list is the one that resolves for amd64 and arm64.
+# The base is pinned by its arm64 image digest, here and in deploy/Containerfile: a tag would let the
+# base move between two builds of the same commit. MCR does not resolve its manifest-list digest, so
+# an x86 build must override CONTAINER_BASE_IMAGE with the matching amd64 image digest.
 # `-extra` rather than plain alpine: the status page labels its time axis in Europe/London, and only
 # the extra flavour carries tzdata. It costs about 38 MB in shared base layers, once.
-CONTAINER_BASE_IMAGE ?= mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra@sha256:78bec9181ad577eff1f78e738d19603ece6f3170819c7f268eae6a7566c9f600
+CONTAINER_BASE_IMAGE ?= mcr.microsoft.com/dotnet/aspnet:11.0-alpine-extra@sha256:e6abc337f78cea3273eb7d91fc7b2cf1360b21e928df6e5cb8a338fb1b5c6ac8
 # RID of the server. The host is a Hetzner CAX21 (Ampere, arm64), so arm64 is the default; an x86
 # host builds with CONTAINER_RID=linux-musl-x64.
 CONTAINER_RID ?= linux-musl-arm64
 # The platform podman builds for, which has to agree with CONTAINER_RID: musl-arm64 is linux/arm64.
-# The base image is a manifest list, so cross-building on an amd64 machine pulls the arm64 variant.
+# The base image is pinned to arm64; x86 builds must override CONTAINER_BASE_IMAGE as well.
 CONTAINER_PLATFORM ?= linux/arm64
 # The two builds inside `image-check` must not share a layer cache.
 IMAGE_CHECK_FLAGS ?= --no-cache

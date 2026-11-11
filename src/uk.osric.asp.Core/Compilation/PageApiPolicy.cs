@@ -107,7 +107,7 @@ public static class PageApiPolicy {
         ArgumentNullException.ThrowIfNull(used);
 
         List<PageDiagnostic> diagnostics = [];
-        HashSet<string> reported = new(StringComparer.Ordinal);
+        HashSet<string> reported = [];
 
         foreach (ApiReference reference in used) {
             if (IsAllowed(reference)) {

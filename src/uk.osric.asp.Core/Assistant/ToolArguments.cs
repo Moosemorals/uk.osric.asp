@@ -62,7 +62,7 @@ public static class ToolArguments {
             }
 
             Dictionary<string, ToolArgumentSchema> allowed = schema.ToDictionary(item => item.Name, StringComparer.Ordinal);
-            Dictionary<string, JsonElement> values = new(StringComparer.Ordinal);
+            Dictionary<string, JsonElement> values = [];
             foreach (JsonProperty property in document.RootElement.EnumerateObject()) {
                 if (!allowed.TryGetValue(property.Name, out ToolArgumentSchema? definition)) {
                     return Invalid($"Unknown tool argument '{MessageText.Sanitize(property.Name)}'.");

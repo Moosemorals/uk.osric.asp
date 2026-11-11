@@ -183,7 +183,7 @@ internal sealed class PageChain {
         PageLayoutState inner = contentLayout;
         string innerBody = body;
         int depth = 0;
-        HashSet<string> seen = new(StringComparer.Ordinal) { path.Key };
+        HashSet<string> seen = [path.Key];
 
         while (target is not null) {
             if (depth >= _environment.Render.MaxLayoutDepth) {

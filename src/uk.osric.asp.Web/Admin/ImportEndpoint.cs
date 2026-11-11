@@ -161,7 +161,7 @@ internal sealed class ImportEndpoint {
             return;
         }
 
-        Dictionary<string, PageListing> heads = new(StringComparer.Ordinal);
+        Dictionary<string, PageListing> heads = [];
         foreach (PageListing head in await pages.ListPagesAsync(context.RequestAborted)) {
             heads[head.Path.Key] = head;
         }

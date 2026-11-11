@@ -55,7 +55,7 @@ internal sealed class LsApplet : ShellApplet {
         }
 
         List<ShellPath> unique = [];
-        HashSet<string> seen = new(StringComparer.Ordinal);
+        HashSet<string> seen = [];
         foreach (ShellPath entry in entries) {
             if (seen.Add(entry.Key.Key)) {
                 unique.Add(entry);

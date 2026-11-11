@@ -27,7 +27,9 @@ internal static class PageRequestSnapshot {
     }
 
     private static Dictionary<string, string> SingleValuePerName(IEnumerable<KeyValuePair<string, StringValues>> values) {
+#pragma warning disable IDE0028 // A collection expression would discard the case-insensitive comparer.
         Dictionary<string, string> snapshot = new(StringComparer.OrdinalIgnoreCase);
+#pragma warning restore IDE0028
 
         foreach (KeyValuePair<string, StringValues> value in values) {
             snapshot[value.Key] = First(value.Value);
@@ -37,7 +39,9 @@ internal static class PageRequestSnapshot {
     }
 
     private static Dictionary<string, string> Cookies(IRequestCookieCollection cookies) {
+#pragma warning disable IDE0028 // A collection expression would discard the case-insensitive comparer.
         Dictionary<string, string> snapshot = new(StringComparer.OrdinalIgnoreCase);
+#pragma warning restore IDE0028
 
         foreach (KeyValuePair<string, string> cookie in cookies) {
             snapshot[cookie.Key] = cookie.Value;

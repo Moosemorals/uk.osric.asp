@@ -254,16 +254,18 @@ Every image goes through `registry.osric.uk`, so the layout is chosen for layers
 
 | base | app layer per deploy | image |
 | --- | --- | --- |
-| `mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra` | 177 kB (framework-dependent) | 160 MB |
+| `mcr.microsoft.com/dotnet/aspnet:11.0-alpine-extra` | 26.7 MiB (framework-dependent) | 190.7 MiB |
 
-The base is a manifest list, and `--platform linux/arm64` selects the arm64 variant that the CAX21
-needs; the same digest also carries amd64, so a build on an x86 machine uses the same pin. The
-~160 MB .NET runtime lives in the base image's layers, which are pulled once and cached by both
-the registry and the host. Each release therefore pushes and pulls only the app layer. The `-extra`
-flavour costs about 38 MB over plain alpine and is chosen for its `/usr/share/zoneinfo`: the status
-page labels its time axis in Europe/London, and `TimeZoneInfo` throws for a zone the image does not
-know. Building it as a self-contained single file instead would make the image smaller (64 MB) but
-would move ~52 MB on every release, which is the wrong trade when a registry is available.
+The default pin is the arm64 image digest, which `--platform linux/arm64` selects for the CAX21. MCR
+does not resolve its manifest-list digest by digest, so an x86 build must set `CONTAINER_BASE_IMAGE`
+to the matching amd64 image digest as well as setting `CONTAINER_PLATFORM=linux/amd64` and
+`CONTAINER_RID=linux-musl-x64`. The ~164 MiB .NET runtime lives in the base image's layers, which are
+pulled once and cached by both the registry and the host. Each release therefore pushes and pulls
+only the app layer. The `-extra` flavour costs about 38 MB over plain alpine and is chosen for its
+`/usr/share/zoneinfo`: the status page labels its time axis in Europe/London, and `TimeZoneInfo`
+throws for a zone the image does not know. Building it as a self-contained single file instead would
+make the image smaller (64 MB) but would move ~52 MB on every release, which is the wrong trade when
+a registry is available.
 
 Trimming would reach ~29 MB, but ASP.NET Core does not support trimming a hosted web app here: the
 trimmed image dies at startup with `TypeLoadException`. It is deliberately off.

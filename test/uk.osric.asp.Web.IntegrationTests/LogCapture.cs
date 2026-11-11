@@ -54,7 +54,9 @@ public sealed class LogCapture : ILoggerProvider, ISupportExternalScope {
             Func<TState, Exception?, string> formatter) {
             ArgumentNullException.ThrowIfNull(formatter);
 
+#pragma warning disable IDE0028 // A collection expression would discard the case-insensitive comparer.
             Dictionary<string, object?> scope = new(StringComparer.OrdinalIgnoreCase);
+#pragma warning restore IDE0028
             capture.Scopes.ForEachScope((open, collected) => {
                 if (open is IEnumerable<KeyValuePair<string, object?>> values) {
                     foreach (KeyValuePair<string, object?> value in values) {

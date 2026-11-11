@@ -14,9 +14,9 @@ using System.Net;
 /// </remarks>
 internal sealed class MarkupReader {
 
-    private static readonly HashSet<string> VoidElements = new(StringComparer.Ordinal) {
+    private static readonly HashSet<string> VoidElements = [
         "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr",
-    };
+    ];
 
     private MarkupReader(MarkupElement root) => Root = root;
 

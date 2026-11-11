@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Copilot Instructions
 
-ASP.NET Core **minimal endpoints** on .NET 10 — no MVC controllers, no Razor views: pages are C#
+ASP.NET Core **minimal endpoints** on .NET 11 — no MVC controllers, no Razor views: pages are C#
 held in the database, compiled when saved, and rendered through `IContext`. Developed on **Linux** —
 assume Linux tooling, paths and scripts, with `/` separators.
 

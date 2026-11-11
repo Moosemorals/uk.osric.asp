@@ -147,9 +147,9 @@ public sealed class StatusCatalogueTests {
         return stripped.ToString();
     }
 
-    private static readonly HashSet<string> Keywords = new(StringComparer.Ordinal) {
+    private static readonly HashSet<string> Keywords = [
         "sum", "rate", "irate", "avg", "min", "max", "count", "topk", "bottomk", "by", "without", "le",
-    };
+    ];
 
     private static bool KnownRuntimeFamily(string identifier) =>
         identifier.StartsWith("dotnet_", StringComparison.Ordinal)

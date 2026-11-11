@@ -202,7 +202,7 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   Prometheus refuses a range query over 11,000 points. Each window is cached separately, in a bounded
   map, so switching back does not re-query and a link cannot grow it without limit.
 - **The image carries tzdata.** Only the axis labels are local; the positions, queries and samples are
-  UTC. The base is `aspnet:10.0-alpine-extra` (DEC-82) because plain alpine has no
+  UTC. The base is `aspnet:11.0-alpine-extra` (DEC-82) because plain alpine has no
   `/usr/share/zoneinfo` and resolving `Europe/London` inside it throws.
 
 `/status.css` is a seeded page like every other sheet, so an installation that already has it keeps

@@ -43,7 +43,8 @@ internal sealed class PageCatalogScope(
                 + "Use a prefix to list a subtree, or raise Pages:Read:MaxRowsPerList.");
         }
 
-        List<PageEntry> entries = new(rows.Count);
+        List<PageEntry> entries = [];
+        entries.EnsureCapacity(rows.Count);
         foreach (PageReadHead row in rows) {
             entries.Add(new PageEntry(
                 row.Key,

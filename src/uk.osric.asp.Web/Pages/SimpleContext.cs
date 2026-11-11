@@ -24,6 +24,7 @@ internal sealed class SimpleContext : IContext {
 
     // A page must not be able to clobber the shell's own cookies or framing. Everything that changes
     // the meaning of the body is reachable through a dedicated member instead.
+#pragma warning disable IDE0028 // A collection expression would discard the case-insensitive comparer.
     private static readonly HashSet<string> s_allowedHeaders = new(StringComparer.OrdinalIgnoreCase) {
         "Cache-Control",
         "Content-Language",
@@ -31,6 +32,7 @@ internal sealed class SimpleContext : IContext {
         "Expires",
         "Vary",
     };
+#pragma warning restore IDE0028
 
     private const string CustomHeaderPrefix = "X-";
 
@@ -43,7 +45,9 @@ internal sealed class SimpleContext : IContext {
     private readonly Func<string>? _antiforgeryFactory;
     private readonly Lock _body = new();
     private readonly PageCapabilities _capabilities;
+#pragma warning disable IDE0028 // A collection expression would discard the case-insensitive comparer.
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
+#pragma warning restore IDE0028
     private readonly string _loginRedirect;
     private readonly BodyBudget _bodyBudget;
     private readonly bool _isLayout;

@@ -269,7 +269,7 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         ParseEvents(eventStream).Last(item => item.Type == "budget.updated").Data.GetProperty("budgets");
 
     private static IReadOnlyDictionary<string, string> RenderedBudgets(string body) {
-        Dictionary<string, string> budgets = new(StringComparer.Ordinal);
+        Dictionary<string, string> budgets = [];
         foreach (Match match in BudgetCount().Matches(body)) {
             budgets[match.Groups["row"].Value] = match.Groups["used"].Value;
         }

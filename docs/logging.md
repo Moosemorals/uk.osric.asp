@@ -15,7 +15,7 @@ object per line, scopes included, UTC timestamps. Podman hands the container's s
 one line is one journal entry and every field survives intact.
 
 The console provider is part of the `Microsoft.AspNetCore.App` shared framework, so it is configured
-rather than referenced: .NET 10 refuses an explicit `PackageReference` for a package the framework
+rather than referenced: .NET 11 refuses an explicit `PackageReference` for a package the framework
 already carries (`NU1510`), and `Directory.Build.props` treats that as an error.
 
 ```csharp

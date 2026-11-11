@@ -197,7 +197,9 @@ internal sealed class OutboundFetcher(
         bool truncated = body.Length > options.MaxResponseBytes;
         string text = Decode(response, truncated ? body[..options.MaxResponseBytes] : body);
 
+#pragma warning disable IDE0028 // A collection expression would discard the case-insensitive comparer.
         Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
+#pragma warning restore IDE0028
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers) {
             if (PageFetchHeaders.IsResponseAllowed(header.Key)) {
                 headers[header.Key] = string.Join(", ", header.Value);

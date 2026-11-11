@@ -243,9 +243,9 @@ make migration NAME=DescribeTheSchemaChange
 make test-web
 ```
 
-The target restores the repository's pinned local `dotnet-ef` tool (10.0.14), builds using the normal
+The target restores the repository's pinned local `dotnet-ef` tool (11.0.0), builds using the normal
 Makefile target, and writes migration sources to the Web project's `Storage/Migrations` directory.
-EF 10 reads the evaluated MSBuild output paths, including `artifacts/obj/uk.osric.asp.Web/`. Commit and review the generated migration
+EF 11 reads the evaluated MSBuild output paths, including `artifacts/obj/uk.osric.asp.Web/`. Commit and review the generated migration
 with the model change. `make test` includes the Web storage and integration tests as well as the core
 and runtime tests.
 

@@ -41,7 +41,7 @@ internal sealed class SqliteConversationStore(
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
         return await database.Set<Conversation>()
-            .FromSqlInterpolated($"SELECT * FROM \"AssistantConversations\" WHERE \"Owner\" = {owner} ORDER BY \"UpdatedAt\" DESC, \"Id\" DESC")
+            .FromSql($"SELECT * FROM \"AssistantConversations\" WHERE \"Owner\" = {owner} ORDER BY \"UpdatedAt\" DESC, \"Id\" DESC")
             .AsNoTracking()
             .Select(conversation => new ConversationListItem(
                 conversation.Id,
@@ -476,7 +476,7 @@ internal sealed class SqliteConversationStore(
 
         string status = decision == "approve" ? "approved" : "denied";
         DateTimeOffset now = clock.GetUtcNow();
-        int updated = await database.Database.ExecuteSqlInterpolatedAsync($"""
+        int updated = await database.Database.ExecuteSqlAsync($"""
                 UPDATE "AssistantToolApprovals"
                 SET "Status" = {status}, "ResolvedAt" = {now}, "ResolvedBy" = {owner}
                 WHERE "RunId" = {runId} AND "ToolCallId" = {toolCallId} AND "Status" = 'pending'

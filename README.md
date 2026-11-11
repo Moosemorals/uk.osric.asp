@@ -133,7 +133,7 @@ are the things NuGet cannot give you, and a fresh machine has none of them.
 
 | Tool | Needed for | Notes |
 | --- | --- | --- |
-| .NET SDK 10.0.403 | Everything | Pinned in `global.json`, with roll-forward |
+| .NET SDK 11.0.100 | Everything | Pinned in `global.json`, with roll-forward |
 | make | Everything | The task runner; also uses `find`, `sed` and `printf` |
 | git | Getting the source | |
 | reuse | `make license-check` | `apt install reuse`, or `pipx install reuse` |

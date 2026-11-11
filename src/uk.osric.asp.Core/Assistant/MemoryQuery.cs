@@ -18,7 +18,7 @@ public static class MemoryQuery {
     // Words that appear in almost every message, so matching on them would rank a memory that shares
     // one as relevant. Kept deliberately short: a stopword list is a bias, and a missed term is a
     // missed memory.
-    private static readonly HashSet<string> s_stopwords = new(StringComparer.Ordinal) {
+    private static readonly HashSet<string> s_stopwords = [
         "about", "after", "again", "all", "also", "am", "an", "and", "any", "are", "as", "at", "be",
         "because", "been", "before", "being", "but", "by", "can", "could", "did", "do", "does", "doing",
         "done", "for", "from", "get", "had", "has", "have", "here", "her", "him", "his", "how", "if",
@@ -28,7 +28,7 @@ public static class MemoryQuery {
         "that", "the", "their", "them", "then", "there", "these", "they", "this", "those", "through",
         "to", "too", "under", "until", "very", "want", "was", "we", "well", "were", "what", "when",
         "where", "which", "while", "who", "why", "will", "with", "would", "you", "your",
-    };
+    ];
 
     /// <summary>The quoted prefix terms a message is searched with.</summary>
     /// <param name="message">The newest user message.</param>
@@ -40,7 +40,7 @@ public static class MemoryQuery {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximum);
 
         List<string> terms = [];
-        HashSet<string> seen = new(StringComparer.Ordinal);
+        HashSet<string> seen = [];
         foreach (string word in Words(message)) {
             string term = word.ToLowerInvariant();
             if (term.Length < MinimumTermLength || s_stopwords.Contains(term) || !seen.Add(term)) {

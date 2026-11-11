@@ -247,7 +247,7 @@ internal sealed class PageArchiveReader(
         }
 
         List<PageArchiveEntry> pages = [];
-        HashSet<string> seen = new(StringComparer.Ordinal);
+        HashSet<string> seen = [];
 
         using (SqliteCommand command = connection.CreateCommand()) {
             command.CommandText = """
@@ -300,8 +300,8 @@ internal sealed class PageArchiveReader(
 
     private void ReadState(SqliteConnection connection, List<PageArchiveEntry> pages, List<string> problems) {
         Dictionary<string, PageArchiveEntry> byKey = pages.ToDictionary(page => page.Path.Key, StringComparer.Ordinal);
-        Dictionary<string, List<PageStateValue>> state = new(StringComparer.Ordinal);
-        Dictionary<string, long> byteTotals = new(StringComparer.Ordinal);
+        Dictionary<string, List<PageStateValue>> state = [];
+        Dictionary<string, long> byteTotals = [];
 
         using (SqliteCommand command = connection.CreateCommand()) {
             command.CommandText = """

@@ -73,7 +73,7 @@ internal sealed class SqlitePageStateStore(
         // One statement carries every rule: the head must still be live, the page must stay within its
         // key count, and the total must stay within its byte cap. A concurrent writer therefore either
         // fits or is refused; it cannot slip over the cap through a read-then-write race in the host.
-        return database.Database.ExecuteSqlInterpolatedAsync($"""
+        return database.Database.ExecuteSqlAsync($"""
             INSERT INTO "PageState" ("PagePath", "Key", "Value", "UpdatedAt")
             SELECT {path.Key}, {key}, {value}, {updatedAt.ToString("O", CultureInfo.InvariantCulture)}
             WHERE EXISTS (

@@ -17,7 +17,7 @@ internal sealed class ImportStageStore(ArchiveOptions options, TimeProvider cloc
     /// <summary>The length of a stage identifier: 32 hexadecimal characters.</summary>
     public const int IdLength = 32;
 
-    private readonly Dictionary<string, ImportStage> _stages = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ImportStage> _stages = [];
     private readonly Lock _lock = new();
 
     /// <summary>How many stages are held; a fixture uses it to prove a rejection staged nothing.</summary>

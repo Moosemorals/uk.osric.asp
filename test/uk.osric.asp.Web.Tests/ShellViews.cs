@@ -390,7 +390,7 @@ internal static class ShellViews {
         context.Request.ContentType = "multipart/form-data";
 
         FormFileCollection files = [new FormFile(new MemoryStream("not a database"u8.ToArray()), 0, 15, "archive", "pages.sqlite")];
-        Dictionary<string, StringValues> noFields = new(StringComparer.Ordinal);
+        Dictionary<string, StringValues> noFields = [];
         context.Request.Form = new FormCollection(noFields, files);
 
         await ImportEndpoint.UploadAsync(

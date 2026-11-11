@@ -40,7 +40,7 @@ internal static class PageApiChecker {
 
         List<PageDiagnostic> diagnostics = [];
         List<ApiReference> used = [];
-        HashSet<string> banned = new(StringComparer.Ordinal);
+        HashSet<string> banned = [];
 
         foreach (SyntaxNode node in tree.GetRoot().DescendantNodes()) {
             TemplatePosition? position = TemplatePositionOf(node);

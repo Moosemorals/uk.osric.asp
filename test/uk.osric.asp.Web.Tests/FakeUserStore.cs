@@ -8,7 +8,7 @@ using uk.osric.asp.Web.Users;
 /// <summary>An in-memory account store for endpoint and command tests.</summary>
 internal sealed class FakeUserStore : IUserStore {
 
-    public Dictionary<string, LocalUser> Users { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, LocalUser> Users { get; } = [];
 
     public int HashUpdates { get; private set; }
 

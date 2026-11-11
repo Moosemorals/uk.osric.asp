@@ -158,7 +158,7 @@ internal sealed class StubProvider : IAsyncDisposable {
     }
 
     private static Dictionary<string, object?> Delta(StubChunk chunk) {
-        Dictionary<string, object?> delta = new(StringComparer.Ordinal);
+        Dictionary<string, object?> delta = [];
         if (chunk.Reasoning is not null) {
             delta["reasoning_content"] = chunk.Reasoning;
         }

@@ -9,7 +9,9 @@ using System.Text;
 internal sealed class MarkupElement {
 
     private readonly List<MarkupElement> _children = [];
+#pragma warning disable IDE0028 // A collection expression would discard the case-insensitive comparer.
     private readonly Dictionary<string, string> _attributes = new(StringComparer.OrdinalIgnoreCase);
+#pragma warning restore IDE0028
     private readonly StringBuilder _text = new();
 
     internal MarkupElement(string name, MarkupElement? parent = null) {

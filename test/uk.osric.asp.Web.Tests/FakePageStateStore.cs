@@ -13,14 +13,14 @@ using uk.osric.asp.Web.Pages;
 /// </remarks>
 internal sealed class FakePageStateStore(PageStorageOptions? options = null) : IPageStateStore {
 
-    private readonly Dictionary<string, Dictionary<string, string>> _pages = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Dictionary<string, string>> _pages = [];
     private readonly PageStorageOptions _options = options ?? new PageStorageOptions();
 
     /// <summary>How long a read takes, so a test can leave a page suspended in an <c>await</c>.</summary>
     public TimeSpan ReadDelay { get; set; }
 
     /// <summary>Pages whose head is live; a write to any other page is refused.</summary>
-    public HashSet<string> LivePages { get; } = new(StringComparer.Ordinal);
+    public HashSet<string> LivePages { get; } = [];
 
     public int WriteCount { get; private set; }
 
@@ -45,7 +45,7 @@ internal sealed class FakePageStateStore(PageStorageOptions? options = null) : I
 
         Dictionary<string, string> keys = _pages.TryGetValue(path.Key, out Dictionary<string, string>? existing)
             ? existing
-            : _pages[path.Key] = new Dictionary<string, string>(StringComparer.Ordinal);
+            : _pages[path.Key] = [];
 
         bool isNew = !keys.ContainsKey(key);
         if (isNew && keys.Count >= _options.MaxKeysPerPage) {
@@ -101,7 +101,7 @@ internal sealed class FakePageStateStore(PageStorageOptions? options = null) : I
     /// <summary>Puts a value in without the caps, as a direct database write would.</summary>
     public void Seed(string pagePath, string key, string value) {
         if (!_pages.TryGetValue(pagePath, out Dictionary<string, string>? keys)) {
-            keys = _pages[pagePath] = new Dictionary<string, string>(StringComparer.Ordinal);
+            keys = _pages[pagePath] = [];
         }
 
         keys[key] = value;

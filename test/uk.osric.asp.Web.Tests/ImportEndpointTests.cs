@@ -268,7 +268,7 @@ public sealed partial class ImportEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext(null, "POST", "/admin/import");
         context.Request.ContentType = "multipart/form-data";
         FormFileCollection files = [new FormFile(new MemoryStream(archive), 0, archive.Length, "archive", "pages.sqlite")];
-        Dictionary<string, StringValues> noFields = new(StringComparer.Ordinal);
+        Dictionary<string, StringValues> noFields = [];
         context.Request.Form = new FormCollection(noFields, files);
 
         await ImportEndpoint.UploadAsync(context, harness.Reader, harness.Stages, harness.Options, NullLoggerFactory.Instance);

@@ -23,7 +23,28 @@ public static class BudgetAmount {
     public static string Format(long value) {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
 
-        return Format((double)value);
+        if (value < 1_000) {
+            return value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        decimal magnitude = value;
+        int unit = -1;
+        while (magnitude >= 1_000 && unit < Units.Length - 1) {
+            magnitude /= 1_000;
+            unit++;
+        }
+
+        // Keep integer midpoints exact; converting 9,950 to double makes 9.95 fall just below its tie.
+        magnitude = magnitude < 10
+            ? decimal.Round(magnitude, 1, MidpointRounding.AwayFromZero)
+            : decimal.Round(magnitude, 0, MidpointRounding.AwayFromZero);
+
+        if (magnitude >= 1_000 && unit < Units.Length - 1) {
+            magnitude /= 1_000;
+            unit++;
+        }
+
+        return magnitude.ToString("0.#", CultureInfo.InvariantCulture) + Units[unit];
     }
 
     /// <summary>Formats a measured value as at most three significant figures and a unit letter.</summary>

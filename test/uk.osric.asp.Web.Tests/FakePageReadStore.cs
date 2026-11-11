@@ -12,8 +12,8 @@ using uk.osric.asp.Web.Pages;
 /// </remarks>
 internal sealed class FakePageReadStore : IPageReadStore {
 
-    private readonly Dictionary<string, List<FakeRevision>> _pages = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _deleted = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<FakeRevision>> _pages = [];
+    private readonly HashSet<string> _deleted = [];
     private DateTimeOffset _clock = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     /// <summary>How long a read takes, so a test can leave a page suspended in an <c>await</c>.</summary>

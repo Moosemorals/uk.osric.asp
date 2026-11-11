@@ -858,7 +858,7 @@ internal static class AssistantEndpoint {
     };
 
     internal static Dictionary<string, (string Name, string Arguments)> ReadToolCalls(IEnumerable<Message> messages) {
-        Dictionary<string, (string Name, string Arguments)> calls = new(StringComparer.Ordinal);
+        Dictionary<string, (string Name, string Arguments)> calls = [];
         foreach (Message message in messages.Where(message => message.ToolCallsJson is not null)) {
             using JsonDocument document = JsonDocument.Parse(message.ToolCallsJson!);
             foreach (JsonElement call in document.RootElement.EnumerateArray()) {

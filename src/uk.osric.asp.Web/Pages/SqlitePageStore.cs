@@ -211,7 +211,7 @@ internal sealed class SqlitePageStore(
     /// <param name="template">The revision the head should point at.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     internal static Task WriteHeadAsync(StorageDbContext database, PageTemplate template, CancellationToken cancellationToken) {
-        return database.Database.ExecuteSqlInterpolatedAsync($"""
+        return database.Database.ExecuteSqlAsync($"""
             INSERT INTO "PageHeads" ("Path", "RevisionId", "IsDeleted")
             VALUES ({template.Path.Key}, {template.RevisionId}, 0)
             ON CONFLICT ("Path") DO UPDATE SET
@@ -239,7 +239,7 @@ internal sealed class SqlitePageStore(
             PageRevision row = ToRevision(revision);
             try {
                 await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
-                int matched = await database.Database.ExecuteSqlInterpolatedAsync($"""
+                int matched = await database.Database.ExecuteSqlAsync($"""
                     UPDATE "PageHeads" SET "RevisionId" = "RevisionId"
                     WHERE "Path" = {revision.Path.Key} AND "IsDeleted" = 0
                         AND EXISTS (
@@ -255,7 +255,7 @@ internal sealed class SqlitePageStore(
 
                 database.Add(row);
                 await database.SaveChangesAsync(cancellationToken);
-                await database.Database.ExecuteSqlInterpolatedAsync($"""
+                await database.Database.ExecuteSqlAsync($"""
                     UPDATE "PageHeads" SET "RevisionId" = {revision.RevisionId}
                     WHERE "Path" = {revision.Path.Key} AND "IsDeleted" = 0
                     """, cancellationToken);

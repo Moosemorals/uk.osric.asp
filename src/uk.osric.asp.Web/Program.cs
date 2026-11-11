@@ -61,7 +61,9 @@ internal class Program {
         }
         string connectionString = builder.Configuration.GetConnectionString("Storage")
             ?? throw new InvalidOperationException("ConnectionStrings:Storage must be configured.");
+#pragma warning disable IDE0028 // This constructor parses a connection string; it is not collection data.
         SqliteConnectionStringBuilder connection = new(connectionString);
+#pragma warning restore IDE0028
         if (connection.DataSource.Length > 0 && connection.DataSource != ":memory:") {
             connection.DataSource = Path.GetFullPath(connection.DataSource, builder.Environment.ContentRootPath);
             Directory.CreateDirectory(Path.GetDirectoryName(connection.DataSource)
