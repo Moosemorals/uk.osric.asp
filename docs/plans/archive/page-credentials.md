@@ -7,9 +7,16 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started |
+| Status | Implemented 2026-11-11 |
 | Size | Small — one SDK property, one options parser, one injection path, and their tests |
-| Decisions | DEC-212 (proposed; add the row when this is implemented) |
+| Decisions | DEC-230, recorded in [decisions](../../decisions.md#page-contract-and-threat-model) |
+
+Implementation notes, where the code differs from the plan: the proposed DEC-212 number had already
+been used by the bucket-scale decision, so this is DEC-230. The prompt moved from `page-author-v18`
+to `page-author-v19`; the plan's `v14` was written before the intervening prompts landed.
+`PageFetcher` gained `ILogger<PageFetcher>` for credential refusals, and the host and scheme check
+sits in `OutboundFetcher` beside the URL validation and redirect loop that already decide where a
+request goes; `PageFetcher` resolves the name and enforces the page binding before delegating.
 
 > **Update 2026-11-10:** DEC-216 removed the `Pages:Fetch:AllowedHosts` allow-list this plan assumed.
 > A credential's `Host` is now its own scope, and a credential is not widened by a host list because
@@ -184,7 +191,7 @@ The seeded `/help` page gains a short paragraph and example beside the existing 
 > unknown name is an `InvalidRequest`.
 
 `PageAuthorPrompt` gains the same rule in its "Outbound fetch" section and moves to
-`page-author-v14`: never ask for or invent a credential value, never put a secret in a URL or page
+`page-author-v19`: never ask for or invent a credential value, never put a secret in a URL or page
 source, and use a credential name only when the owner supplies it.
 
 ## What this touches
@@ -197,14 +204,14 @@ source, and use a credential name only when the owner supplies it.
 | `src/uk.osric.asp.Web/Pages/PageFetchOptions.cs` | `Credentials` property, `FromConfiguration` parsing and validation |
 | `src/uk.osric.asp.Web/Pages/PageFetcher.cs` | Resolve the credential, refuse bad or misbound targets, inject per hop only on the matching host and secure scheme |
 | `src/uk.osric.asp.Web/appsettings.json` | Empty `Pages:Fetch:Credentials` object as a discoverable placeholder; no secret |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | One paragraph in "Outbound fetch"; `page-author-v14` |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | One paragraph in "Outbound fetch"; `page-author-v19` |
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | Teach `Credential` in the fetch section |
 | `docs/pages.md` | `IHttpFetch` bullet: operator config, host-injected, page never reads the value |
-| `docs/decisions.md` | DEC-212 records the choice and the rejected alternatives |
+| `docs/decisions.md` | DEC-230 records the choice and the rejected alternatives |
 | `deploy/README.md` | Operator example for `Pages__Fetch__Credentials__*` |
 | `test/uk.osric.asp.Web.Tests/PageFetcherTests.cs` | Injection, binding, refusal, redirect, plaintext, config validation, redaction |
 | `test/uk.osric.asp.Web.Tests/PageFetchRenderTests.cs` | A compiled page sets `Credential` and the fetcher sees it |
-| `test/uk.osric.asp.Web.Tests/PageAuthorPromptTests.cs` | Prompt mentions the rule; version assertions move to `page-author-v14` |
+| `test/uk.osric.asp.Web.Tests/PageAuthorPromptTests.cs` | Prompt mentions the rule; version assertions move to `page-author-v19` |
 
 No database migration. `Program.cs` does not change: it already builds `PageFetchOptions` from
 configuration once at startup and registers it as a singleton.
@@ -231,7 +238,7 @@ configuration once at startup and registers it as a singleton.
 `PageAuthorPromptTests`:
 
 - The prompt says the credential is a name and the page never sees the value.
-- The version assertions become `page-author-v14`.
+- The version assertions become `page-author-v19`.
 
 ## Verification
 
@@ -254,4 +261,4 @@ configuration once at startup and registers it as a singleton.
 
 Add to `docs/decisions.md` when implementing:
 
-> **DEC-212** — A page names an operator-configured credential, never its value. `HttpFetchRequest.Credential` is a key into `Pages:Fetch:Credentials`, whose entries hold the host, header, optional scheme and value, and are bound to one canonical page key. The host attaches the header only to that host, only from that page, only over HTTPS unless loopback, and drops it on a redirect to another host or to plaintext. The value is never in page source, page state, a revision, an export archive or the assistant transcript, and a page that names an unknown credential gets an `InvalidRequest` rather than an exception. | [pages](pages.md#page-contract), [PageFetcher](../src/uk.osric.asp.Web/Pages/PageFetcher.cs) |
+> **DEC-230** — A page names an operator-configured credential, never its value. `HttpFetchRequest.Credential` is a key into `Pages:Fetch:Credentials`, whose entries hold the host, header, optional scheme and value, and are bound to one canonical page key. The host attaches the header only to that host, only from that page, only over HTTPS unless loopback, and drops it on a redirect to another host or to plaintext. The value is never in page source, page state, a revision, an export archive or the assistant transcript, and a page that names an unknown credential gets an `InvalidRequest` rather than an exception. | [pages](../../pages.md#page-contract), [PageFetcher](../../../src/uk.osric.asp.Web/Pages/PageFetcher.cs) |

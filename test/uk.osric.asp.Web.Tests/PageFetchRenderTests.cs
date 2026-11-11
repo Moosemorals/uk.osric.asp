@@ -140,6 +140,30 @@ public sealed class PageFetchRenderTests {
     }
 
     [Test]
+    public async Task APageCanNameAnOperatorCredentialAsync() {
+        FakePageFetcher fetcher = new(_ => new HttpFetchResponse(
+            200,
+            new Dictionary<string, string>(),
+            "ok",
+            HttpFetchFailure.None,
+            false));
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
+        await pages.StoreCompiledAsync("/live", """
+            <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+               HttpFetchResponse response = await fetch.SendAsync(new HttpFetchRequest("https://api.example.com/") {
+                   Credential = "assistant",
+               }); %>
+            <p><%= response.Failure.ToString() %></p>
+            """);
+
+        (RenderResult result, string output) = await pages.RenderAsync("/live");
+
+        Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
+        Assert.That(output, Does.Contain("None"));
+        Assert.That(fetcher.Requests.Single().Credential, Is.EqualTo("assistant"));
+    }
+
+    [Test]
     public async Task TwoLayersSharingABudgetMakeOneRequestTooManyAsync() {
         FakePageFetcher fetcher = new();
         PageFetchOptions options = new() { MaxRequestsPerRender = 1 };
