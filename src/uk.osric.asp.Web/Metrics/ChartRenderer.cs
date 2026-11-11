@@ -14,13 +14,10 @@ using uk.osric.asp.Core.Charting;
 /// <param name="options">The zone the time labels are written in.</param>
 internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions options) {
 
-    // Twenty per cent larger than the first draft: twenty-eight small multiples is dense enough
-    // without the plots themselves being cramped.
-    private static readonly ChartSize LineSize = new(504, 216);
-    private static readonly ChartSize StackedSize = new(504, 240);
-    private static readonly ChartSize HeatmapSize = new(504, 336);
-    private const string HeatmapValueUnit = "per second";
-    private const string EmptyText = "No data in this window.";
+    // One size for every drawing: twenty-eight small multiples read as a grid only when their plots
+    // line up, and a bucket map is the tallest thing the grid has to hold.
+    private static readonly ChartSize PanelSize = new(504, 336);
+    private const string EmptyText = "No data";
 
     /// <summary>Draws one panel for one window.</summary>
     /// <param name="panel">The panel, whose chart kind decides the drawing.</param>
@@ -61,13 +58,13 @@ internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions option
 
         return panel.Chart switch {
             PanelChart.Heatmap => new ChartResult(
-                Heatmap.Render(ToRows(series), time, HeatmapSize, frame, HeatmapValueUnit),
+                Heatmap.Render(ToRows(series), time, PanelSize, frame, panel.CellUnit),
                 null),
             PanelChart.StackedArea => new ChartResult(
-                StackedAreaChart.Render(series, time, ValueAxis(panel, series), StackedSize, frame),
+                StackedAreaChart.Render(series, time, ValueAxis(panel, series), PanelSize, frame),
                 null),
             _ => new ChartResult(
-                LineChart.Render(series, time, ValueAxis(panel, series), LineSize, frame),
+                LineChart.Render(series, time, ValueAxis(panel, series), PanelSize, frame),
                 null),
         };
     }
@@ -83,7 +80,9 @@ internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions option
         if (panel.Unit == PanelUnit.Bytes) {
             ChartScale scale = ValueUnit.ForBytes(min, max);
 
-            return new ChartAxis(scale.Unit, NiceTicks.ForValue(scale.Min, scale.Max));
+            // The axis carries the divisor as well as the labels: a rescaled axis whose samples stay in
+            // bytes draws its line off the canvas.
+            return new ChartAxis(scale.Unit, NiceTicks.ForValue(scale.Min, scale.Max), scale.Divisor);
         }
 
         return new ChartAxis(panel.YTitle, NiceTicks.ForValue(min, max));

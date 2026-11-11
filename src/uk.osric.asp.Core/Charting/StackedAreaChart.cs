@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Core.Charting;
 
 using System.Text;
-using uk.osric.asp.Core.Assistant;
 
 /// <summary>Draws a stacked area chart as SVG.</summary>
 /// <remarks>
@@ -21,9 +20,6 @@ using uk.osric.asp.Core.Assistant;
 /// </remarks>
 public static class StackedAreaChart {
 
-    private const double LeftMargin = 40 * SvgText.TypeScale;
-    private const double RightMargin = 12;
-    private const double BottomMargin = 22 * SvgText.TypeScale;
     private const double LabelHeight = 11 * SvgText.TypeScale;
     private const double FillOpacity = 0.35;
 
@@ -50,53 +46,36 @@ public static class StackedAreaChart {
         ArgumentNullException.ThrowIfNull(y);
         ArgumentNullException.ThrowIfNull(frame);
 
-        double plotWidth = size.Width - LeftMargin - RightMargin;
-        if (plotWidth <= 0) {
-            throw new ArgumentOutOfRangeException(nameof(size), size, "The chart is too small for its labels.");
-        }
-
         IReadOnlyList<ChartSeries> ordered = [.. series.OrderBy(line => line.Label, StringComparer.Ordinal)];
 
         StringBuilder svg = new();
-        double top = ChartChrome.Begin(svg, size, "stacked", frame, ChartChrome.Describe(x, y));
-        IReadOnlyList<LegendEntry> legend = ChartChrome.LayoutLegend(
-            size, top, [.. ordered.Select(line => line.Label)], out double plotTop);
-
-        double plotHeight = size.Height - plotTop - BottomMargin;
-        if (plotHeight <= 0) {
-            throw new ArgumentOutOfRangeException(nameof(size), size, "The chart is too small for its labels.");
-        }
-
-        WriteAxisTitle(svg, y.Title, plotTop, plotHeight);
+        ChartPlot plot = ChartChrome.BeginPlot(svg, size, "stacked", frame, ChartChrome.Describe(x, y),
+            [.. ordered.Select(line => line.Label)], out IReadOnlyList<LegendEntry> legend);
 
         IReadOnlyList<ChartPoint> timeline = Timeline(ordered);
-        if (timeline.Count == 0) {
-            ChartChrome.Empty(svg, size, plotTop, frame.EmptyText);
-            svg.Append("</svg>\n");
-
-            return svg.ToString();
-        }
-
         double[][] values = [.. ordered.Select(line => ValuesAt(line, timeline))];
-        double[] totals = Totals(values, timeline.Count);
-        double max = totals.Max();
-        if (max <= 0) {
-            ChartChrome.Empty(svg, size, plotTop, frame.EmptyText);
-            svg.Append("</svg>\n");
-
-            return svg.ToString();
-        }
+        double max = timeline.Count == 0 ? 0 : Totals(values, timeline.Count).Max();
 
         // The axis is the sum, not any one series, so the ticks are chosen here rather than passed in.
-        IReadOnlyList<ChartTick> ticks = NiceTicks.ForValue(0, max);
-        double axisMax = Math.Max(max, ticks.Max(tick => tick.Position));
-        double span = Math.Max((timeline[^1].At - timeline[0].At).TotalSeconds, 1);
+        // An empty stack still gets a scale, which is what keeps its grid on the page.
+        IReadOnlyList<ChartTick> ticks = NiceTicks.ForValue(0, max > 0 ? max : 1);
+        double axisMax = Math.Max(max > 0 ? max : 1, ticks.Count == 0 ? 1 : ticks.Max(tick => tick.Position));
+        double sampleSpan = timeline.Count < 2 ? 0 : (timeline[^1].At - timeline[0].At).TotalSeconds;
+        double span = ChartSamples.TimeSpan(sampleSpan, x.Ticks);
 
-        WriteGrid(svg, x, ticks, plotTop, plotHeight, plotWidth, size, span, axisMax);
-        ChartChrome.Border(svg, LeftMargin, plotTop, plotWidth, plotHeight);
+        ChartChrome.WriteAxisTitle(svg, y.Title, plot);
+        ChartChrome.WriteValueGrid(svg, ticks, plot, tick => plot.Value(tick, 0, axisMax));
+        ChartChrome.WriteTimeGrid(svg, x.Ticks, plot, size, tick => plot.Time(tick, span));
+        ChartChrome.Border(svg, plot);
+
+        if (max <= 0) {
+            ChartChrome.Empty(svg, plot, frame.EmptyText);
+            svg.Append("</svg>\n");
+
+            return svg.ToString();
+        }
 
         double[] below = new double[timeline.Count];
-        double right = LeftMargin + plotWidth;
 
         for (int index = 0; index < ordered.Count; index++) {
             ChartSeries line = ordered[index];
@@ -104,87 +83,29 @@ public static class StackedAreaChart {
             string dash = SvgText.SeriesDash(index) is { } pattern
                 ? " stroke-dasharray=\"" + pattern + "\""
                 : string.Empty;
-            string id = frame.Id + "-s" + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
 
             double[] tops = new double[timeline.Count];
             for (int column = 0; column < timeline.Count; column++) {
                 tops[column] = below[column] + values[index][column];
             }
 
-            svg.Append("<a class=\"series-link ").Append(SvgText.SeriesColour(index))
-                .Append("\" id=\"").Append(SvgText.Escape(id))
-                .Append("\" href=\"#").Append(SvgText.Escape(id)).Append("\" tabindex=\"-1\">\n");
-            svg.Append("<title>").Append(SvgText.Escape(line.Label)).Append("</title>\n");
-            ChartChrome.WriteLegendItem(svg, legend[index], line.Label);
+            ChartChrome.BeginSeries(svg, frame, index, line.Label, legend[index]);
             svg.Append("<path class=\"series area ").Append(SvgText.SeriesColour(index))
-                .Append("\" d=\"").Append(Area(timeline, below, tops, span, plotWidth, plotTop, plotHeight, axisMax))
+                .Append("\" d=\"").Append(Area(timeline, below, tops, span, plot, axisMax))
                 .Append("\" fill=\"").Append(colour).Append("\" fill-opacity=\"")
                 .Append(SvgText.Number(FillOpacity)).Append("\" stroke=\"none\"/>\n");
             svg.Append("<polyline class=\"series ").Append(SvgText.SeriesColour(index))
-                .Append("\" points=\"").Append(Top(timeline, tops, span, plotWidth, plotTop, plotHeight, axisMax))
+                .Append("\" points=\"").Append(Top(timeline, tops, span, plot, axisMax))
                 .Append("\" fill=\"none\" stroke=\"").Append(colour)
                 .Append("\" stroke-width=\"2\"").Append(dash).Append("/>\n");
-            svg.Append("</a>\n");
+            ChartChrome.EndSeries(svg);
 
-            WriteEndLabel(svg, line.Label, colour, timeline, below, tops, span, plotWidth, plotTop, plotHeight, axisMax, right);
+            WriteEndLabel(svg, line.Label, colour, timeline, below, tops, span, plot, axisMax);
             below = tops;
         }
 
         svg.Append("</svg>\n");
         return svg.ToString();
-    }
-
-    private static void WriteGrid(
-        StringBuilder svg,
-        ChartAxis x,
-        IReadOnlyList<ChartTick> ticks,
-        double top,
-        double plotHeight,
-        double plotWidth,
-        ChartSize size,
-        double span,
-        double axisMax) {
-
-        foreach (ChartTick tick in ticks.OrderBy(tick => tick.Position)) {
-            double at = top + ((1 - (tick.Position / axisMax)) * plotHeight);
-            svg.Append("<line class=\"chart-grid\" x1=\"").Append(SvgText.Number(LeftMargin))
-                .Append("\" y1=\"").Append(SvgText.Number(at))
-                .Append("\" x2=\"").Append(SvgText.Number(LeftMargin + plotWidth))
-                .Append("\" y2=\"").Append(SvgText.Number(at))
-                .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
-            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(LeftMargin - 4))
-                .Append("\" y=\"").Append(SvgText.Number(at + (4 * SvgText.TypeScale)))
-                .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
-                .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BudgetAmount.Format(tick.Position)))
-                .Append("</text>\n");
-        }
-
-        foreach (ChartTick tick in x.Ticks.OrderBy(tick => tick.Position)) {
-            double at = LeftMargin + ((tick.Position / span) * plotWidth);
-            svg.Append("<line class=\"chart-grid\" x1=\"").Append(SvgText.Number(at))
-                .Append("\" y1=\"").Append(SvgText.Number(top))
-                .Append("\" x2=\"").Append(SvgText.Number(at))
-                .Append("\" y2=\"").Append(SvgText.Number(top + plotHeight))
-                .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
-            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(at))
-                .Append("\" y=\"").Append(SvgText.Number(size.Height - (6 * SvgText.TypeScale)))
-                .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
-                .Append("\" fill=\"#444444\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label))
-                .Append("</text>\n");
-        }
-    }
-
-    private static void WriteAxisTitle(StringBuilder svg, string title, double top, double plotHeight) {
-        double middle = top + (plotHeight / 2);
-        double x = 10 * SvgText.TypeScale;
-
-        svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 ").Append(SvgText.Number(x))
-            .Append(' ').Append(SvgText.Number(middle))
-            .Append(")\" x=\"").Append(SvgText.Number(x))
-            .Append("\" y=\"").Append(SvgText.Number(middle))
-            .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
-            .Append("\" fill=\"#666666\" text-anchor=\"middle\">").Append(SvgText.Escape(title))
-            .Append("</text>\n");
     }
 
     private static void WriteEndLabel(
@@ -195,24 +116,21 @@ public static class StackedAreaChart {
         double[] below,
         double[] tops,
         double span,
-        double plotWidth,
-        double top,
-        double plotHeight,
-        double axisMax,
-        double right) {
+        ChartPlot plot,
+        double axisMax) {
 
         if (string.IsNullOrWhiteSpace(label) || timeline.Count == 0) {
             return;
         }
 
         int last = timeline.Count - 1;
-        double bottom = Position(below[last], top, plotHeight, axisMax);
-        double upper = Position(tops[last], top, plotHeight, axisMax);
+        double bottom = plot.Value(below[last], 0, axisMax);
+        double upper = plot.Value(tops[last], 0, axisMax);
         if (bottom - upper < LabelHeight) {
             return;
         }
 
-        double x = Math.Min(right, LeftMargin + (((timeline[last].At - timeline[0].At).TotalSeconds / span) * plotWidth));
+        double x = plot.Time((timeline[last].At - timeline[0].At).TotalSeconds, span);
         double y = (bottom + upper) / 2;
 
         svg.Append("<text class=\"series-label\" x=\"").Append(SvgText.Number(x - (4 * SvgText.TypeScale)))
@@ -227,21 +145,19 @@ public static class StackedAreaChart {
         double[] below,
         double[] tops,
         double span,
-        double plotWidth,
-        double top,
-        double plotHeight,
+        ChartPlot plot,
         double axisMax) {
 
         StringBuilder path = new();
         for (int column = 0; column < timeline.Count; column++) {
-            double x = LeftMargin + (((timeline[column].At - timeline[0].At).TotalSeconds / span) * plotWidth);
-            double y = Position(tops[column], top, plotHeight, axisMax);
+            double x = plot.Time((timeline[column].At - timeline[0].At).TotalSeconds, span);
+            double y = plot.Value(tops[column], 0, axisMax);
             path.Append(column == 0 ? "M" : "L").Append(SvgText.Number(x)).Append(' ').Append(SvgText.Number(y)).Append(' ');
         }
 
         for (int column = timeline.Count - 1; column >= 0; column--) {
-            double x = LeftMargin + (((timeline[column].At - timeline[0].At).TotalSeconds / span) * plotWidth);
-            double y = Position(below[column], top, plotHeight, axisMax);
+            double x = plot.Time((timeline[column].At - timeline[0].At).TotalSeconds, span);
+            double y = plot.Value(below[column], 0, axisMax);
             path.Append('L').Append(SvgText.Number(x)).Append(' ').Append(SvgText.Number(y)).Append(' ');
         }
 
@@ -252,14 +168,12 @@ public static class StackedAreaChart {
         IReadOnlyList<ChartPoint> timeline,
         double[] tops,
         double span,
-        double plotWidth,
-        double top,
-        double plotHeight,
+        ChartPlot plot,
         double axisMax) {
 
         return string.Join(' ', timeline.Select((point, column) =>
-            SvgText.Number(LeftMargin + (((point.At - timeline[0].At).TotalSeconds / span) * plotWidth)) + "," +
-            SvgText.Number(Position(tops[column], top, plotHeight, axisMax))));
+            SvgText.Number(plot.Time((point.At - timeline[0].At).TotalSeconds, span)) + "," +
+            SvgText.Number(plot.Value(tops[column], 0, axisMax))));
     }
 
     private static IReadOnlyList<ChartPoint> Timeline(IReadOnlyList<ChartSeries> series) {
@@ -297,7 +211,4 @@ public static class StackedAreaChart {
 
         return totals;
     }
-
-    private static double Position(double value, double top, double plotHeight, double axisMax) =>
-        top + ((1 - (value / axisMax)) * plotHeight);
 }

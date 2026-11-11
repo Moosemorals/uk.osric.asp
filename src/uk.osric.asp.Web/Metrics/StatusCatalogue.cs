@@ -28,15 +28,15 @@ internal static class StatusCatalogue {
     /// <summary>Every panel, in the order the page draws them.</summary>
     public static IReadOnlyList<Panel> Panels { get; } = [
         // Pages: nine histograms, four counters, three gauges.
-        Heatmap(Page("page.render.duration"), "Render duration", "seconds"),
-        Heatmap(Page("page.render.wait"), "Render slot wait", "seconds"),
-        Heatmap(Page("page.compile.duration"), "Compile duration", "seconds"),
-        Heatmap(Page("page.load.duration"), "Loaded image duration", "seconds"),
-        Heatmap(Page("page.invoke.duration"), "Page code duration", "seconds"),
-        Heatmap(Page("page.save.duration"), "Save duration", "seconds"),
-        Heatmap(Page("page.fetch.duration"), "Fetch duration", "seconds"),
-        Heatmap(Page("page.import.duration"), "Import duration", "seconds"),
-        Heatmap(Page("page.image.size"), "Assembly size", "bytes"),
+        Heatmap(Page("page.render.duration"), "Render duration", "seconds", "renders/s"),
+        Heatmap(Page("page.render.wait"), "Render slot wait", "seconds", "waits/s"),
+        Heatmap(Page("page.compile.duration"), "Compile duration", "seconds", "compiles/s"),
+        Heatmap(Page("page.load.duration"), "Loaded image duration", "seconds", "loads/s"),
+        Heatmap(Page("page.invoke.duration"), "Page code duration", "seconds", "invokes/s"),
+        Heatmap(Page("page.save.duration"), "Save duration", "seconds", "saves/s"),
+        Heatmap(Page("page.fetch.duration"), "Fetch duration", "seconds", "fetches/s"),
+        Heatmap(Page("page.import.duration"), "Import duration", "seconds", "imports/s"),
+        Heatmap(Page("page.image.size"), "Assembly size", "bytes", "assemblies/s"),
         Line(Page("page.render.abandoned"), "Abandoned renders", "renders/s", topk: "page_path"),
         Stacked(Page("page.cache.lookups"), "Cache lookups", "lookups/s", split: "result"),
         Stacked(Page("page.cache.staleness"), "Stale images", "images/s", split: "reason"),
@@ -46,15 +46,15 @@ internal static class StatusCatalogue {
         Line(Page("page.storage.volume.capacity"), "Volume capacity", "bytes", unit: PanelUnit.Bytes),
 
         // Assistant: eight histograms and the two counters.
-        Heatmap(Assistant("assistant.run.duration"), "Run duration", "seconds"),
-        Heatmap(Assistant("assistant.run.steps"), "Steps per run", "steps"),
-        Heatmap(Assistant("assistant.run.tool_calls"), "Tool calls per run", "calls"),
-        Heatmap(Assistant("assistant.provider.first_token.duration"), "First token latency", "seconds"),
-        Heatmap(Assistant("assistant.provider.request.duration"), "Provider request duration", "seconds"),
-        Heatmap(Assistant("assistant.tool.duration"), "Tool duration", "seconds"),
+        Heatmap(Assistant("assistant.run.duration"), "Run duration", "seconds", "runs/s"),
+        Heatmap(Assistant("assistant.run.steps"), "Steps per run", "steps", "runs/s"),
+        Heatmap(Assistant("assistant.run.tool_calls"), "Tool calls per run", "calls", "runs/s"),
+        Heatmap(Assistant("assistant.provider.first_token.duration"), "First token latency", "seconds", "requests/s"),
+        Heatmap(Assistant("assistant.provider.request.duration"), "Provider request duration", "seconds", "requests/s"),
+        Heatmap(Assistant("assistant.tool.duration"), "Tool duration", "seconds", "calls/s"),
         Line(Assistant("assistant.tokens"), "Tokens", "tokens/s", topk: "kind"),
-        Heatmap(Assistant("assistant.memory.recalled"), "Memories per run", "memories"),
-        Heatmap(Assistant("assistant.memory.chars"), "Memory characters per run", "chars"),
+        Heatmap(Assistant("assistant.memory.recalled"), "Memories per run", "memories", "runs/s"),
+        Heatmap(Assistant("assistant.memory.chars"), "Memory characters per run", "chars", "runs/s"),
         Stacked(Assistant("assistant.memory.writes"), "Memory writes", "writes/s", split: "outcome"),
 
         // Host: the framework's meters, which are not instruments this repository registers.
@@ -97,6 +97,7 @@ internal static class StatusCatalogue {
             Group = "Host",
             Title = "Request duration",
             YTitle = "seconds",
+            CellUnit = "requests/s",
             Chart = PanelChart.Heatmap,
             Queries = [new PanelQuery("sum by (le) (rate(http_server_request_duration_seconds_bucket[5m]))", string.Empty)],
             Unit = PanelUnit.Plain,
@@ -129,7 +130,7 @@ internal static class StatusCatalogue {
     public static Panel? Find(string? id) =>
         Panels.FirstOrDefault(panel => string.Equals(panel.Id, id, StringComparison.Ordinal));
 
-    private static Panel Heatmap(MetricInstrument instrument, string title, string yTitle) => new() {
+    private static Panel Heatmap(MetricInstrument instrument, string title, string yTitle, string cellUnit) => new() {
         Id = instrument.Name,
         Group = GroupOf(instrument.Name),
         Title = title,
@@ -138,12 +139,17 @@ internal static class StatusCatalogue {
         Queries = [new PanelQuery($"sum by (le) (rate({PrometheusNames.Buckets(instrument)}[5m]))", string.Empty)],
         Unit = PanelUnit.Plain,
         InstrumentName = instrument.Name,
+        CellUnit = cellUnit,
     };
 
     private static Panel Line(MetricInstrument instrument, string title, string yTitle, string? topk = null, PanelUnit unit = PanelUnit.Plain) {
-        string query = topk is null
-            ? $"sum(rate({PrometheusNames.Total(instrument)}[5m]))"
-            : $"topk(8, sum by ({topk}) (rate({PrometheusNames.Total(instrument)}[5m])))";
+        // A gauge is a level, not a counter: rate() over it asks for a _total family the exporter never
+        // writes, which empties the panel rather than drawing it.
+        string query = instrument.Kind == InstrumentKind.Gauge
+            ? $"max({PrometheusNames.Family(instrument)})"
+            : topk is null
+                ? $"sum(rate({PrometheusNames.Total(instrument)}[5m]))"
+                : $"topk(8, sum by ({topk}) (rate({PrometheusNames.Total(instrument)}[5m])))";
 
         return new Panel {
             Id = instrument.Name,
@@ -198,6 +204,9 @@ internal sealed record Panel {
 
     /// <summary>How a line chart's value axis is rescaled.</summary>
     public PanelUnit Unit { get; init; } = PanelUnit.Plain;
+
+    /// <summary>What a heatmap's cells count, per second, for its legend and its hover text.</summary>
+    public string CellUnit { get; init; } = string.Empty;
 
     /// <summary>The instrument the panel draws, or null for a Host panel.</summary>
     public string? InstrumentName { get; init; }

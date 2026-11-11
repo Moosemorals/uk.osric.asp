@@ -98,13 +98,19 @@ twice. `assistant.memory.writes` is the other way round: every write carries one
 
 A heatmap aggregates every tag but `le`: `assistant.tool.duration` merges every tool into one
 distribution, exactly as `page.render.duration` merges every path. The panel's title says so, and
-splitting a heatmap by a tag would be a grid of small multiples rather than one chart.
+splitting a heatmap by a tag would be a grid of small multiples rather than one chart. Its cells are
+rates of the bucket counter, so the panel names what it counts per second — `renders/s` for a render
+duration, `assemblies/s` for the assembly-size histogram — and that unit labels the shade scale. A
+bare "per second" beside a byte scale reads as a size, which is why the unit is a property of the
+panel rather than a constant of the renderer.
 
 The page is a grid of `<figure>`s under three headings, and each drawing carries its own title and
 legend inside its SVG (DEC-181). The page adds nothing to a figure: the drawing's own title is the
-link that opens that chart on its own. A panel whose answer was empty draws its own "No data in this
-window." rather than a gap in the grid, which is a different statement from the banner that says
-Prometheus itself is unwell.
+link that opens that chart on its own. A panel whose answer was empty still draws its axes and its
+frame and says "No data" over them, rather than becoming a gap in the grid or a blank rectangle; that
+is a different statement from the banner that says Prometheus itself is unwell. Every drawing is the
+same size, so the small multiples line up, and the title, the legend and the value axis all start at
+the same x, so the band reads as one column rather than a label strip beside a chart.
 
 Every plot is framed — a line at each edge of the drawn area — and its value axis is labelled with
 `BudgetAmount.Format`, the same three-significant-figures-and-SI-suffix code the assistant's budget
@@ -148,7 +154,7 @@ GET /status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration
 
 - `panel` is a catalogue id: the instrument's name, or a `host.` id for a Host panel.
 - `start` is an ISO-8601 instant, defaulting to now; `duration` is a window token (`1h`, `3h`, `8h`,
-  `1d`, `7d`, `30d`) or a whole number of minutes, defaulting to `1h`.
+  `1d`, `7d`, `30d`) or a whole number of minutes, defaulting to `1d`.
 - The window is snapped to the sample step, so the same start and duration draw the same picture and
   a link reproduces what it showed.
 - The response is `image/svg+xml; charset=utf-8` with `Cache-Control: no-store`, under the same owner
@@ -171,6 +177,10 @@ provider, no logger provider, and no instrumentation packages, because the frame
 already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kestrel`,
 `System.Runtime`).
 
+- **A gauge is a level, not a counter.** The storage gauges are queried with `max(<family>)` rather
+  than `rate(<family>_total[5m])`: a gauge has no `_total` family, so a rate over one is a query that
+  matches nothing and a panel that is always empty. A byte axis also names the divisor it rescaled
+  by, so the samples are drawn in the unit its labels are in.
 - **Naming is the contract.** `page.render.duration` becomes `page_render_duration_seconds_bucket`, and
   the catalogue hard-codes that. Renaming an instrument or changing its unit empties a panel, which is
   what `MetricNamesTests` and the family test exist to catch. Tag names are sanitised the same way —
@@ -195,7 +205,7 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   `NiceTicks`); it is owner-only, cached for fifteen seconds, and a Prometheus failure is a banner
   rather than a `500`, because the page is what gets opened when something is broken. The window is
   chosen by a `duration` token — `1h`, `3h`, `8h`, `1d`, `7d` or `30d`; the token is matched against
-  that list, never parsed as a length of time, and anything unrecognised is the default hour. The nav
+  that list, never parsed as a length of time, and anything unrecognised is the default day. The nav
   shows every token, with the current one as text rather than a link to itself. A token sets two
   things: how far back the queries reach and the sample step, which widens in whole minutes so a
   thirty-day view asks for a few hundred points rather than the 43,200 a minute step would, because

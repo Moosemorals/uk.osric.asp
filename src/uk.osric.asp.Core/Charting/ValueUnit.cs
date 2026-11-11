@@ -6,7 +6,8 @@ namespace uk.osric.asp.Core.Charting;
 /// <summary>Chooses the unit a byte axis is drawn in.</summary>
 /// <remarks>
 /// Stored sizes stay bytes; a scale whose top is megabytes reads as <c>180</c> rather than
-/// <c>180000000</c>, so the axis labels stay short.
+/// <c>180000000</c>, so the axis labels stay short. The scale names the divisor it used, which is what
+/// lets the chart draw the samples in the same unit as its labels.
 /// </remarks>
 public static class ValueUnit {
 
@@ -16,11 +17,11 @@ public static class ValueUnit {
     /// <returns>The range in the largest unit that keeps the labels short.</returns>
     public static ChartScale ForBytes(double min, double max) {
         if (double.IsFinite(max) && max >= 1_000_000) {
-            return new ChartScale(min / 1_000_000, max / 1_000_000, "megabytes");
+            return new ChartScale(min / 1_000_000, max / 1_000_000, "megabytes") { Divisor = 1_000_000 };
         }
 
         if (double.IsFinite(max) && max >= 1_000) {
-            return new ChartScale(min / 1_000, max / 1_000, "kilobytes");
+            return new ChartScale(min / 1_000, max / 1_000, "kilobytes") { Divisor = 1_000 };
         }
 
         return new ChartScale(min, max, "bytes");

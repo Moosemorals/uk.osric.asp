@@ -114,7 +114,82 @@ public sealed class DashboardTests {
         StatusPage page = await dashboard.GetAsync(ChartWindow.At(Now, TimeSpan.FromHours(1)), CancellationToken.None);
 
         Assert.That(page.Panels, Has.Count.EqualTo(StatusCatalogue.Panels.Count));
-        Assert.That(page.Panels.Select(panel => panel.Svg), Is.All.Contain("No data in this window."));
+        Assert.That(page.Panels.Select(panel => panel.Svg), Is.All.Contain(">No data</text>"));
+    }
+
+    [Test]
+    public async Task EveryPanelIsDrawnAtTheSameSize() {
+        Dashboard dashboard = New(new FakeMetricsSource(_ => Answer()), new TestClock { Now = Now });
+
+        StatusPage page = await dashboard.GetAsync(ChartWindow.At(Now, TimeSpan.FromHours(1)), CancellationToken.None);
+
+        string[] viewBoxes = [.. page.Panels.Select(panel => {
+            (double width, double height) = ViewBox(panel.Svg);
+            return width.ToString(CultureInfo.InvariantCulture) + "x" + height.ToString(CultureInfo.InvariantCulture);
+        })];
+
+        Assert.That(viewBoxes.Distinct(StringComparer.Ordinal).Count(), Is.EqualTo(1), "the grid only lines up at one size");
+    }
+
+    [Test]
+    public async Task AHeatmapNamesWhatItsCellsCount() {
+        Dashboard dashboard = New(new FakeMetricsSource(_ => Answer()), new TestClock { Now = Now });
+
+        StatusPage page = await dashboard.GetAsync(ChartWindow.At(Now, TimeSpan.FromHours(1)), CancellationToken.None);
+
+        string svg = page.Panels.Single(panel => panel.Panel.Id == "page.image.size").Svg;
+
+        Assert.That(svg, Does.Contain("assemblies/s"), "an assembly size histogram counts assemblies, not seconds");
+        Assert.That(svg, Does.Not.Contain("per second"));
+    }
+
+    [Test]
+    public async Task ABytePanelDrawsItsLevelInsideThePlot() {
+        // A gauge answers in bytes and its axis is labelled in megabytes; the line belongs on that axis.
+        Dashboard dashboard = New(
+            new FakeMetricsSource(_ => new MetricsMatrix([
+                new ChartSeries("working set", [
+                    new ChartPoint(Now.AddMinutes(-30), 180_000_000),
+                    new ChartPoint(Now, 200_000_000),
+                ]),
+            ])),
+            new TestClock { Now = Now });
+
+        StatusPage page = await dashboard.GetAsync(ChartWindow.At(Now, TimeSpan.FromHours(1)), CancellationToken.None);
+
+        string svg = page.Panels.Single(panel => panel.Panel.Id == "host.memory").Svg;
+        double height = ViewBox(svg).Height;
+        double[] ys = [.. PolylinePoints(svg).Select(point => point.Y)];
+
+        Assert.That(svg, Does.Contain(">megabytes</text>"), "the axis says what unit it labels");
+        Assert.That(ys, Is.Not.Empty, "the line is drawn");
+        Assert.That(ys, Is.All.InRange(0d, height), "every sample lands inside the drawing");
+    }
+
+    private static (double Width, double Height) ViewBox(string svg) {
+        const string marker = "viewBox=\"0 0 ";
+        int start = svg.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
+        Assert.That(start, Is.GreaterThanOrEqualTo(marker.Length), "the drawing has no viewBox");
+
+        string[] parts = svg[start..svg.IndexOf('"', start)].Split(' ');
+        return (
+            double.Parse(parts[0], CultureInfo.InvariantCulture),
+            double.Parse(parts[1], CultureInfo.InvariantCulture));
+    }
+
+    private static IEnumerable<(double X, double Y)> PolylinePoints(string svg) {
+        const string marker = "<polyline class=\"series series-1\" points=\"";
+        int start = svg.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
+        Assert.That(start, Is.GreaterThanOrEqualTo(marker.Length), "the series is not drawn");
+
+        return svg[start..svg.IndexOf('"', start)]
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(pair => {
+                string[] parts = pair.Split(',');
+                return (
+                    double.Parse(parts[0], CultureInfo.InvariantCulture),
+                    double.Parse(parts[1], CultureInfo.InvariantCulture));
+            });
     }
 
     private static Dashboard New(IMetricsSource source, TimeProvider clock) =>

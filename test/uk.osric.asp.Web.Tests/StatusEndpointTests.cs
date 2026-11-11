@@ -80,7 +80,7 @@ public sealed class StatusEndpointTests {
     public async Task AnUnknownDurationIsTheDefaultWindow() {
         string body = await RenderAsync("duration=2w");
 
-        Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">1h</span>"));
+        Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">1d</span>"));
     }
 
     [Test]
@@ -96,7 +96,7 @@ public sealed class StatusEndpointTests {
         string body = await RenderAsync("", _ => new MetricsMatrix([]));
 
         Assert.That(Count(body, "<figure class=\"panel\">"), Is.EqualTo(StatusCatalogue.Panels.Count));
-        Assert.That(body, Does.Contain("No data in this window."));
+        Assert.That(body, Does.Contain(">No data</text>"));
     }
 
     [Test]

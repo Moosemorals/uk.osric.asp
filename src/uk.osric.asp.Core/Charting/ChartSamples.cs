@@ -32,6 +32,21 @@ internal static class ChartSamples {
             : (DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch);
     }
 
+    /// <summary>How far a time plot reaches: the samples it has, or the window the axis names.</summary>
+    /// <param name="sampleSpan">The seconds between the first and last sample, or 1 when there are none.</param>
+    /// <param name="ticks">The time ticks, positioned in seconds after the window's start.</param>
+    /// <returns>
+    /// The wider of the two. An answer with no samples would otherwise put a window's ticks past the
+    /// plot, and a sparse answer would stretch them beyond it.
+    /// </returns>
+    internal static double TimeSpan(double sampleSpan, IReadOnlyList<ChartTick> ticks) {
+        ArgumentNullException.ThrowIfNull(ticks);
+
+        double axis = ticks.Count == 0 ? 0 : ticks.Max(tick => tick.Position);
+
+        return Math.Max(Math.Max(sampleSpan, axis), 1);
+    }
+
     /// <summary>Widens a flat range so a line does not sit on the axis.</summary>
     /// <param name="min">The lowest value.</param>
     /// <param name="max">The highest value, equal to <paramref name="min"/>.</param>

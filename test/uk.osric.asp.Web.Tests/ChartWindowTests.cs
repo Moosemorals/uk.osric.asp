@@ -19,6 +19,13 @@ public sealed class ChartWindowTests {
     }
 
     [Test]
+    public void TheDefaultWindowIsADay() {
+        Assert.That(ChartWindow.DefaultLength, Is.EqualTo(TimeSpan.FromDays(1)));
+        Assert.That(ChartWindow.Tokens.Single(token => token.Token == ChartWindow.DefaultToken).Length,
+            Is.EqualTo(ChartWindow.DefaultLength));
+    }
+
+    [Test]
     public void EachTokenSelectsItsOwnLength() {
         Assert.That(ChartWindow.LengthForToken("1h"), Is.EqualTo(TimeSpan.FromHours(1)));
         Assert.That(ChartWindow.LengthForToken("1d"), Is.EqualTo(TimeSpan.FromDays(1)));
@@ -30,8 +37,8 @@ public sealed class ChartWindowTests {
         Assert.That(ChartWindow.LengthForToken(null), Is.EqualTo(ChartWindow.DefaultLength));
         Assert.That(ChartWindow.LengthForToken("2w"), Is.EqualTo(ChartWindow.DefaultLength));
         Assert.That(ChartWindow.LengthForToken("1H"), Is.EqualTo(ChartWindow.DefaultLength));
-        Assert.That(ChartWindow.TokenFor(null), Is.EqualTo("1h"));
-        Assert.That(ChartWindow.TokenFor("2w"), Is.EqualTo("1h"));
+        Assert.That(ChartWindow.TokenFor(null), Is.EqualTo("1d"));
+        Assert.That(ChartWindow.TokenFor("2w"), Is.EqualTo("1d"));
     }
 
     [Test]
