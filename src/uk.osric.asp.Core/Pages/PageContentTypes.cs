@@ -47,9 +47,7 @@ public sealed class PageContentTypes {
         ArgumentException.ThrowIfNullOrWhiteSpace(fallback);
         ArgumentNullException.ThrowIfNull(extensions);
 
-#pragma warning disable IDE0028 // A collection expression would discard the case-insensitive comparer.
-        Dictionary<string, string> rows = new(StringComparer.OrdinalIgnoreCase);
-#pragma warning restore IDE0028
+        Dictionary<string, string> rows = [with(StringComparer.OrdinalIgnoreCase)];
 
         foreach ((string? key, string? mediaType) in extensions) {
             if (string.IsNullOrWhiteSpace(key) && string.IsNullOrWhiteSpace(mediaType)) {

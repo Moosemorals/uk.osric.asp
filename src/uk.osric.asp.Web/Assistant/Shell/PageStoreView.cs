@@ -50,9 +50,7 @@ internal sealed class PageStoreView(PageEditor pages, PagePathPolicy paths) : IP
             }
         }
 
-#pragma warning disable IDE0028 // Keep the explicit ordinal comparer; the default is culture-sensitive.
-        SortedSet<string> nodes = new(StringComparer.Ordinal) { s_root.Key };
-#pragma warning restore IDE0028
+        SortedSet<string> nodes = [with(StringComparer.Ordinal), s_root.Key];
         foreach (PagePath key in keys) {
             _ = nodes.Add(key.Key);
             for (string? folder = ShellTree.FolderOf(key.Key); folder is not null; folder = ShellTree.FolderOf(folder)) {

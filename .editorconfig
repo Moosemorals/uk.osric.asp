@@ -44,8 +44,8 @@ csharp_style_prefer_primary_constructors = true:warning
 csharp_prefer_braces = true:warning
 csharp_prefer_static_local_function = true:warning
 csharp_style_prefer_switch_expression = true:warning
-# A collection expression takes no constructor arguments, so a collection that needs an explicit
-# comparer keeps its constructor, with a line-scoped `#pragma warning disable IDE0028` saying why.
+# A collection expression that needs an explicit comparer or capacity says so with `with(...)`:
+# `[with(StringComparer.OrdinalIgnoreCase)]`, not a constructor and a pragma.
 dotnet_style_prefer_collection_expression = when_types_loosely_match:warning
 csharp_preferred_modifier_order = public,private,protected,internal,file,const,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,required,volatile,async:suggestion
 dotnet_style_readonly_field = true:warning
