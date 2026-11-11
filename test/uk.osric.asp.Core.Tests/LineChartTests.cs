@@ -143,6 +143,21 @@ public sealed class LineChartTests {
     }
 
     [Test]
+    public void TheTitleCarriesTheDescriptionOnHoverAndToAssistiveTechnology() {
+        ChartFrame described = Frame with { Description = "How long a render takes, by duration bucket." };
+
+        string svg = LineChart.Render([Series("ok", (0, 0), (600, 1))], TimeAxis, CountAxis, Size, described);
+
+        int start = svg.IndexOf("class=\"chart-title\"", StringComparison.Ordinal);
+        string title = svg[start..svg.IndexOf("</text>", start, StringComparison.Ordinal)];
+
+        Assert.That(title, Does.Contain("<title>How long a render takes, by duration bucket.</title>"),
+            "the visible title explains itself when hovered");
+        Assert.That(svg, Does.Contain("<desc>How long a render takes, by duration bucket.</desc>"),
+            "and the drawing says the same thing to a screen reader");
+    }
+
+    [Test]
     public void TheTitleLinksToTheChartOnItsOwnOnlyWhenItIsGivenSomewhereToGo() {
         ChartFrame linked = Frame with { TitleHref = "/status/chart?panel=test" };
 

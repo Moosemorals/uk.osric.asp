@@ -211,6 +211,8 @@ uk.osric.asp.Core.Charting.ChartFrame.<Clone>$() -> uk.osric.asp.Core.Charting.C
 uk.osric.asp.Core.Charting.ChartFrame.ChartFrame(string! Id, string! Title, string! YTitle, string! EmptyText, System.TimeZoneInfo! Zone, string? TitleHref = null) -> void
 *REMOVED*uk.osric.asp.Core.Charting.ChartFrame.Deconstruct(out string! Id, out string! Title, out string! YTitle, out string! EmptyText, out System.TimeZoneInfo! Zone) -> void
 uk.osric.asp.Core.Charting.ChartFrame.Deconstruct(out string! Id, out string! Title, out string! YTitle, out string! EmptyText, out System.TimeZoneInfo! Zone, out string? TitleHref) -> void
+uk.osric.asp.Core.Charting.ChartFrame.Description.get -> string?
+uk.osric.asp.Core.Charting.ChartFrame.Description.init -> void
 uk.osric.asp.Core.Charting.ChartFrame.EmptyText.get -> string!
 uk.osric.asp.Core.Charting.ChartFrame.EmptyText.init -> void
 uk.osric.asp.Core.Charting.ChartFrame.Equals(uk.osric.asp.Core.Charting.ChartFrame? other) -> bool
@@ -555,5 +557,23 @@ uk.osric.asp.Core.Charting.ChartAxis.ChartAxis(string! Title, System.Collections
 uk.osric.asp.Core.Charting.ChartAxis.Deconstruct(out string! Title, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>! Ticks, out double Divisor) -> void
 uk.osric.asp.Core.Charting.ChartAxis.Divisor.get -> double
 uk.osric.asp.Core.Charting.ChartAxis.Divisor.init -> void
-uk.osric.asp.Core.Charting.ChartScale.Divisor.get -> double
-uk.osric.asp.Core.Charting.ChartScale.Divisor.init -> void
+*REMOVED*override uk.osric.asp.Core.Charting.ChartScale.GetHashCode() -> int
+*REMOVED*static uk.osric.asp.Core.Charting.ChartScale.operator !=(uk.osric.asp.Core.Charting.ChartScale left, uk.osric.asp.Core.Charting.ChartScale right) -> bool
+*REMOVED*static uk.osric.asp.Core.Charting.ChartScale.operator ==(uk.osric.asp.Core.Charting.ChartScale left, uk.osric.asp.Core.Charting.ChartScale right) -> bool
+*REMOVED*static uk.osric.asp.Core.Charting.ValueUnit.ForBytes(double min, double max) -> uk.osric.asp.Core.Charting.ChartScale
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.ChartScale() -> void
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.ChartScale(double Min, double Max, string! Unit) -> void
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.Deconstruct(out double Min, out double Max, out string! Unit) -> void
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.Divisor.get -> double
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.Divisor.init -> void
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.Equals(uk.osric.asp.Core.Charting.ChartScale other) -> bool
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.Max.get -> double
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.Max.init -> void
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.Min.get -> double
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.Min.init -> void
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.Unit.get -> string!
+*REMOVED*uk.osric.asp.Core.Charting.ChartScale.Unit.init -> void
+*REMOVED*uk.osric.asp.Core.Charting.ValueUnit
+*REMOVED*~override uk.osric.asp.Core.Charting.ChartScale.Equals(object obj) -> bool
+*REMOVED*~override uk.osric.asp.Core.Charting.ChartScale.ToString() -> string

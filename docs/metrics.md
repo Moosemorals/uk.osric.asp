@@ -100,13 +100,17 @@ A heatmap aggregates every tag but `le`: `assistant.tool.duration` merges every 
 distribution, exactly as `page.render.duration` merges every path. The panel's title says so, and
 splitting a heatmap by a tag would be a grid of small multiples rather than one chart. Its cells are
 rates of the bucket counter, so the panel names what it counts per second — `renders/s` for a render
-duration, `assemblies/s` for the assembly-size histogram — and that unit labels the shade scale. A
-bare "per second" beside a byte scale reads as a size, which is why the unit is a property of the
-panel rather than a constant of the renderer.
+duration, `compiles/s` for the assembly-size histogram — and that unit labels the shade scale. The
+unit names the work that was measured rather than the measurement: every wait belongs to a render and
+every emitted assembly to a compile, so `renders/s` and `compiles/s` say more than `waits/s` and
+`assemblies/s` did. A bare "per second" beside a byte scale reads as a size, which is why the unit is
+a property of the panel rather than a constant of the renderer.
 
 The page is a grid of `<figure>`s under three headings, and each drawing carries its own title and
 legend inside its SVG (DEC-181). The page adds nothing to a figure: the drawing's own title is the
-link that opens that chart on its own. A panel whose answer was empty still draws its axes and its
+link that opens that chart on its own, and hovering it shows the catalogue's sentence explaining what
+the chart means — the same sentence is the drawing's `desc`, so a mouse and a screen reader get one
+answer. A panel whose answer was empty still draws its axes and its
 frame and says "No data" over them, rather than becoming a gap in the grid or a blank rectangle; that
 is a different statement from the banner that says Prometheus itself is unwell. Every drawing is the
 same size, so the small multiples line up, and the title, the legend and the value axis all start at
@@ -114,7 +118,10 @@ the same x, so the band reads as one column rather than a label strip beside a c
 
 Every plot is framed — a line at each edge of the drawn area — and its value axis is labelled with
 `BudgetAmount.Format`, the same three-significant-figures-and-SI-suffix code the assistant's budget
-gauges use, so a bucket boundary read `1M` rather than `1.048576e+06`.
+gauges use, so a bucket boundary read `1M` rather than `1.048576e+06`. The axis title always names
+the unit the instrument records — `bytes`, `seconds`, a rate — and only the tick text is shortened:
+the volume-capacity axis is titled `bytes` and reads `70G` to `90G`, because a title that says
+`megabytes` misdescribes samples that are in bytes.
 
 **The inventory is the catalogue.** Each meter publishes its instruments, the catalogue maps them
 one-to-one, and tests fail when either side gains an entry the other lacks, when a type disagrees

@@ -53,7 +53,9 @@ internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions option
             }
         }
 
-        ChartFrame frame = new(panel.Id, panel.Title, panel.YTitle, EmptyText, options.TimeZone, titleHref);
+        ChartFrame frame = new(panel.Id, panel.Title, panel.YTitle, EmptyText, options.TimeZone, titleHref) {
+            Description = panel.Description,
+        };
         ChartAxis time = new("time", NiceTicks.ForTime(window.Start, window.End, options.TimeZone));
 
         return panel.Chart switch {
@@ -74,16 +76,11 @@ internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions option
     private static IReadOnlyList<HeatmapRow> ToRows(IReadOnlyList<ChartSeries> series) =>
         [.. Heatmap.FromCumulative([.. series.Select(line => new HeatmapRow(line.Label, line.Points))])];
 
+    // Every axis stays in the unit the instrument records — bytes, seconds, counts — because the axis
+    // title is a claim about the samples. Only the tick text is shortened, by BudgetAmount.Format, so a
+    // byte axis reads 70G while still saying that its values are bytes.
     private static ChartAxis ValueAxis(Panel panel, IReadOnlyList<ChartSeries> series) {
         (double min, double max) = Extremes(series);
-
-        if (panel.Unit == PanelUnit.Bytes) {
-            ChartScale scale = ValueUnit.ForBytes(min, max);
-
-            // The axis carries the divisor as well as the labels: a rescaled axis whose samples stay in
-            // bytes draws its line off the canvas.
-            return new ChartAxis(scale.Unit, NiceTicks.ForValue(scale.Min, scale.Max), scale.Divisor);
-        }
 
         return new ChartAxis(panel.YTitle, NiceTicks.ForValue(min, max));
     }

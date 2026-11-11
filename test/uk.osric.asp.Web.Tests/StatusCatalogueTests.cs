@@ -114,6 +114,24 @@ public sealed class StatusCatalogueTests {
     }
 
     [Test]
+    public void AHistogramsCellUnitNamesTheObservationNotTheRate() {
+        // "waits/s" and "assemblies/s" taught the reader nothing: every wait belongs to a render and
+        // every emitted assembly to a compile, so the cell unit names the work that was measured.
+        Assert.That(StatusCatalogue.Panels.Single(panel => panel.Id == "page.render.wait").CellUnit,
+            Is.EqualTo("renders/s"));
+        Assert.That(StatusCatalogue.Panels.Single(panel => panel.Id == "page.image.size").CellUnit,
+            Is.EqualTo("compiles/s"));
+    }
+
+    [Test]
+    public void EveryPanelDescribesWhatItShows() {
+        foreach (Panel panel in StatusCatalogue.Panels) {
+            Assert.That(panel.Description, Is.Not.Null.And.Not.Empty, $"{panel.Id} has no description");
+            Assert.That(panel.Description, Does.EndWith("."), $"{panel.Id}'s description is a sentence");
+        }
+    }
+
+    [Test]
     public void EveryPanelIdIsUniqueAndNamedForItsInstrument() {
         string[] ids = [.. StatusCatalogue.Panels.Select(panel => panel.Id)];
 

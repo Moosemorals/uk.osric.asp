@@ -58,13 +58,17 @@ internal static class ChartChrome {
         ArgumentNullException.ThrowIfNull(frame);
         frame.Validate();
 
+        // A frame that explains itself says the same thing to a screen reader and to a mouse: the
+        // catalogue's sentence replaces the generated axis summary rather than sitting beside it.
+        string explained = frame.Description is { Length: > 0 } ? frame.Description : description;
+
         // The namespace is implied inside an HTML page and required in a standalone document: without
         // it a browser opening /status/chart on its own shows the markup as a tree, not as a drawing.
         svg.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"").Append(cssClass).Append("\" viewBox=\"0 0 ")
             .Append(SvgText.Number(size.Width)).Append(' ').Append(SvgText.Number(size.Height))
             .Append("\" role=\"img\">\n");
         svg.Append("<title>").Append(SvgText.Escape(frame.Title)).Append("</title>\n");
-        svg.Append("<desc>").Append(SvgText.Escape(description)).Append("</desc>\n");
+        svg.Append("<desc>").Append(SvgText.Escape(explained)).Append("</desc>\n");
 
         // The title is what a reader reaches for, so it is the link that opens the chart on its own.
         if (frame.TitleHref is { Length: > 0 } href) {
@@ -74,8 +78,15 @@ internal static class ChartChrome {
         svg.Append("<text class=\"chart-title\" x=\"").Append(SvgText.Number(LeftMargin))
             .Append("\" y=\"").Append(SvgText.Number(TitleFontSize + (2 * SvgText.TypeScale)))
             .Append("\" font-size=\"").Append(SvgText.Number(TitleFontSize))
-            .Append("\" fill=\"#222222\" text-anchor=\"start\">").Append(SvgText.Escape(frame.Title))
-            .Append("</text>");
+            .Append("\" fill=\"#222222\" text-anchor=\"start\">");
+
+        // A title element inside the text is what a browser shows as a tooltip when the title is
+        // hovered; it also gives the link a name that says what the chart is for.
+        if (frame.Description is { Length: > 0 } hover) {
+            svg.Append("<title>").Append(SvgText.Escape(hover)).Append("</title>");
+        }
+
+        svg.Append(SvgText.Escape(frame.Title)).Append("</text>");
 
         if (frame.TitleHref is { Length: > 0 }) {
             svg.Append("</a>");

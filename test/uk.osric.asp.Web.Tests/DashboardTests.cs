@@ -139,13 +139,13 @@ public sealed class DashboardTests {
 
         string svg = page.Panels.Single(panel => panel.Panel.Id == "page.image.size").Svg;
 
-        Assert.That(svg, Does.Contain("assemblies/s"), "an assembly size histogram counts assemblies, not seconds");
+        Assert.That(svg, Does.Contain("compiles/s"), "an assembly size histogram counts the compiles that emitted one");
         Assert.That(svg, Does.Not.Contain("per second"));
     }
 
     [Test]
     public async Task ABytePanelDrawsItsLevelInsideThePlot() {
-        // A gauge answers in bytes and its axis is labelled in megabytes; the line belongs on that axis.
+        // A gauge answers in bytes and its axis says so; only the tick text is shortened.
         Dashboard dashboard = New(
             new FakeMetricsSource(_ => new MetricsMatrix([
                 new ChartSeries("working set", [
@@ -161,9 +161,31 @@ public sealed class DashboardTests {
         double height = ViewBox(svg).Height;
         double[] ys = [.. PolylinePoints(svg).Select(point => point.Y)];
 
-        Assert.That(svg, Does.Contain(">megabytes</text>"), "the axis says what unit it labels");
+        Assert.That(svg, Does.Contain(">bytes</text>"), "the axis names the recorded unit");
+        Assert.That(svg, Does.Contain(">200M</text>"), "and its tick text is shortened rather than rescaled");
         Assert.That(ys, Is.Not.Empty, "the line is drawn");
         Assert.That(ys, Is.All.InRange(0d, height), "every sample lands inside the drawing");
+    }
+
+    [Test]
+    public async Task AVolumeCapacityAxisLabelsGigabytesUnderABytesTitle() {
+        Dashboard dashboard = New(
+            new FakeMetricsSource(_ => new MetricsMatrix([
+                new ChartSeries("capacity", [
+                    new ChartPoint(Now.AddMinutes(-30), 73_000_000_000),
+                    new ChartPoint(Now, 90_000_000_000),
+                ]),
+            ])),
+            new TestClock { Now = Now });
+
+        StatusPage page = await dashboard.GetAsync(ChartWindow.At(Now, TimeSpan.FromHours(1)), CancellationToken.None);
+
+        string svg = page.Panels.Single(panel => panel.Panel.Id == "page.storage.volume.capacity").Svg;
+
+        Assert.That(svg, Does.Contain(">bytes</text>"), "the axis says the samples are bytes");
+        Assert.That(svg, Does.Contain(">70G</text>"), "a tick reads as a short byte figure");
+        Assert.That(svg, Does.Contain(">90G</text>"));
+        Assert.That(svg, Does.Not.Contain("megabytes"));
     }
 
     private static (double Width, double Height) ViewBox(string svg) {

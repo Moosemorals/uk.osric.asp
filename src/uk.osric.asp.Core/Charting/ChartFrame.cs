@@ -26,6 +26,12 @@ public sealed record ChartFrame(
     TimeZoneInfo Zone,
     string? TitleHref = null) {
 
+    /// <summary>
+    /// A sentence explaining what the chart shows, shown when the title is hovered and read by
+    /// assistive technology. Null falls back to the axis summary the renderer generates.
+    /// </summary>
+    public string? Description { get; init; }
+
     /// <summary>Checks the frame before a renderer draws it.</summary>
     /// <exception cref="ArgumentException">The id or the title is blank.</exception>
     internal void Validate() {
