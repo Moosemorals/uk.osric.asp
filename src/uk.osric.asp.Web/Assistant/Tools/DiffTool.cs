@@ -49,7 +49,7 @@ internal sealed class DiffPageTool : AssistantTool {
 
         IReadOnlyList<PageRevisionSummary> revisions = await services.Pages.ListRevisionsAsync(path, cancellationToken);
         if (revisions.Count == 0) {
-            return services.Results.Failure($"Page {ToolPaths.Describe(path)} has no saved revisions to compare.", $"Diff {ToolPaths.Describe(path)}: no revisions");
+            return services.Results.Failure($"Page {ToolPaths.Describe(path)} has no saved revisions to compare.", $"{Spec.Verb} {ToolPaths.Describe(path)}: no revisions");
         }
 
         PageRevisionSummary current = revisions.FirstOrDefault(revision => revision.IsCurrent) ?? revisions[0];
@@ -63,7 +63,7 @@ internal sealed class DiffPageTool : AssistantTool {
             if (previous is null) {
                 return services.Results.Failure(
                     $"Page {ToolPaths.Describe(path)} has one saved revision. Save it again, or pass two hashes, before comparing.",
-                    $"Diff {ToolPaths.Describe(path)}: one revision");
+                    $"{Spec.Verb} {ToolPaths.Describe(path)}: one revision");
             }
             resolvedFrom = previous.Hash;
         }

@@ -37,7 +37,7 @@ internal sealed class CheckScriptTool : AssistantTool {
 
         PageTemplate? page = await services.Pages.GetAsync(path, cancellationToken);
         if (page is null) {
-            return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"Check {ToolPaths.Describe(path)}: not found");
+            return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
         }
 
         return CheckTemplate(services, page.Template, path);

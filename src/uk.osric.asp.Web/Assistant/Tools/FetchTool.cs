@@ -33,7 +33,7 @@ internal sealed class FetchTool : AssistantTool {
 
         switch (response.Failure) {
             case Sdk.HttpFetchFailure.InvalidRequest:
-                return services.Results.Failure("The URL must be an absolute http or https URL with no credentials and no fragment.", "Fetch refused");
+                return services.Results.Failure("The URL must be an absolute http or https URL with no credentials and no fragment.", $"{Spec.Verb} refused");
             case Sdk.HttpFetchFailure.Network:
                 return services.Results.Failure("The host could not be reached.", "Fetch failed: network");
             case Sdk.HttpFetchFailure.Timeout:

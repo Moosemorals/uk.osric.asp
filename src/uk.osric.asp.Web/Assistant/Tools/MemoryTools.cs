@@ -23,13 +23,13 @@ internal sealed class RememberTool : AssistantTool {
         CancellationToken cancellationToken) {
         string kindText = values.RequiredString("kind");
         if (!MemoryKinds.TryParse(kindText, out MemoryKind kind)) {
-            return MemoryTools.RefusedWrite(services, "remember", "Remember", kind: null,
+            return MemoryTools.RefusedWrite(services, "remember", Spec.Verb, kind: null,
                 $"The kind must be one of {string.Join(", ", MemoryKinds.All.Select(MemoryKinds.Name))}.");
         }
 
         MemoryWriteResult written = await services.Memories.RememberAsync(
             services.Context.Owner, kind, values.RequiredString("content"), services.Context.Source, cancellationToken);
-        return MemoryTools.Result(services, written, "remember", kind, "Remember", $"Remembered a {MemoryKinds.Name(kind)}");
+        return MemoryTools.Result(services, written, "remember", kind, Spec.Verb, $"Remembered a {MemoryKinds.Name(kind)}");
     }
 }
 
@@ -60,7 +60,7 @@ internal sealed class UpdateMemoryTool : AssistantTool {
             values.RequiredString("content"),
             services.Context.Source,
             cancellationToken);
-        return MemoryTools.Result(services, written, "update", kind: null, "Update memory", $"Updated memory {id}");
+        return MemoryTools.Result(services, written, "update", kind: null, Spec.Verb, $"Updated memory {id}");
     }
 }
 
@@ -82,7 +82,7 @@ internal sealed class ForgetMemoryTool : AssistantTool {
         bool forgotten = await services.Memories.ForgetAsync(services.Context.Owner, id, cancellationToken);
         if (!forgotten) {
             services.Metrics.RecordMemoryWrite("forget", kind: null, success: false);
-            return services.Results.Failure($"No memory with id {id}.", $"Forget memory {id}: not found");
+            return services.Results.Failure($"No memory with id {id}.", $"{Spec.Verb} {id}: not found");
         }
 
         services.Metrics.RecordMemoryWrite("forget", kind: null, success: true);

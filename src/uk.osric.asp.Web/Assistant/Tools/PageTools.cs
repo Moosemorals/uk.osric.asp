@@ -76,7 +76,7 @@ internal sealed class ReadPageTool : AssistantTool {
         return await ReadAsync(path!, values.Integer("startLine"), values.Integer("endLine"), services, cancellationToken);
     }
 
-    private static async Task<ToolExecutionResult> ReadAsync(
+    private async Task<ToolExecutionResult> ReadAsync(
         PagePath path,
         int? requestedStart,
         int? requestedEnd,
@@ -92,7 +92,7 @@ internal sealed class ReadPageTool : AssistantTool {
         } else {
             PageTemplate? page = await services.Pages.GetAsync(path, cancellationToken);
             if (page is null) {
-                return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"Read {ToolPaths.Describe(path)}: not found");
+                return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
             }
 
             text = page.Template;
@@ -106,7 +106,7 @@ internal sealed class ReadPageTool : AssistantTool {
         int start = requestedStart ?? 1;
         int end = requestedEnd ?? (requestedStart is null ? lines.Length : start);
         if (start < 1 || end < start || end > lines.Length) {
-            return services.Results.Failure("The requested line range is outside the page.", $"Read {ToolPaths.Describe(path)}: invalid range");
+            return services.Results.Failure("The requested line range is outside the page.", $"{Spec.Verb} {ToolPaths.Describe(path)}: invalid range");
         }
 
         string source = string.Join('\n', lines.Skip(start - 1).Take(end - start + 1));
@@ -132,7 +132,7 @@ internal sealed class ReadPageTool : AssistantTool {
             truncated,
             source,
         };
-        return services.Results.Success(data, $"Read {ToolPaths.Describe(path)}");
+        return services.Results.Success(data, $"{Spec.Verb} {ToolPaths.Describe(path)}");
     }
 }
 
@@ -167,10 +167,10 @@ internal sealed class EditPageTool : AssistantTool {
         string expectedHash = values.RequiredString("expectedRevisionHash");
         PageTemplate? current = await services.Pages.GetAsync(path!, cancellationToken);
         if (current is null) {
-            return services.Results.Failure($"Page {ToolPaths.Describe(path!)} was not found. Use write_page to create it.", "Edit target not found");
+            return services.Results.Failure($"Page {ToolPaths.Describe(path!)} was not found. Use write_page to create it.", $"{Spec.Verb} target not found");
         }
         if (!string.Equals(current.Hash, expectedHash, StringComparison.Ordinal)) {
-            return services.Results.Failure("The page has changed since read_page. Re-read it and reconcile before editing.", $"Edit {ToolPaths.Describe(path!)}: stale revision");
+            return services.Results.Failure("The page has changed since read_page. Re-read it and reconcile before editing.", $"{Spec.Verb} {ToolPaths.Describe(path!)}: stale revision");
         }
 
         PageRangeEditResult edited = PageRangeEditor.Replace(
@@ -180,13 +180,13 @@ internal sealed class EditPageTool : AssistantTool {
             values.RequiredString("replacement"),
             services.Options.MaxPageChars);
         if (!edited.IsSuccess) {
-            return services.Results.Failure(edited.Error!, $"Edit {ToolPaths.Describe(path!)}: rejected");
+            return services.Results.Failure(edited.Error!, $"{Spec.Verb} {ToolPaths.Describe(path!)}: rejected");
         }
 
         ConditionalPageSaveResult saved = await services.Pages.SaveIfRevisionAsync(
             path!, edited.Content!, expectedHash, cancellationToken);
         if (!saved.Saved) {
-            return services.Results.Failure("The page changed while the edit was being saved. Re-read and reconcile before retrying.", $"Edit {ToolPaths.Describe(path!)}: stale revision");
+            return services.Results.Failure("The page changed while the edit was being saved. Re-read and reconcile before retrying.", $"{Spec.Verb} {ToolPaths.Describe(path!)}: stale revision");
         }
 
         return services.Results.Success(new { path = path!.Key, revisionHash = saved.RevisionHash, diagnostics = PageToolData.DiagnosticData(saved.Diagnostics) },
@@ -221,7 +221,7 @@ internal sealed class WritePageTool : AssistantTool {
 
         string content = values.RequiredString("content");
         if (content.Length > services.Options.MaxPageChars) {
-            return services.Results.Failure("The page exceeds Assistant:MaxPageChars.", $"Write {ToolPaths.Describe(path!)}: too large");
+            return services.Results.Failure("The page exceeds Assistant:MaxPageChars.", $"{Spec.Verb} {ToolPaths.Describe(path!)}: too large");
         }
 
         IReadOnlyList<PageDiagnostic> diagnostics =
@@ -255,7 +255,7 @@ internal sealed class DeletePageTool : AssistantTool {
 
         bool deleted = await services.Pages.DeleteAsync(path!, cancellationToken);
         return services.Results.Success(new { path = path!.Key, deleted },
-            deleted ? $"Deleted {ToolPaths.Describe(path)}" : $"Delete {ToolPaths.Describe(path)}: not live");
+            deleted ? $"Deleted {ToolPaths.Describe(path)}" : $"{Spec.Verb} {ToolPaths.Describe(path)}: not live");
     }
 }
 
