@@ -23,9 +23,6 @@ using uk.osric.asp.Core.Assistant;
 /// </remarks>
 public static class Heatmap {
 
-    private const double LeftMargin = 60 * SvgText.TypeScale;
-    private const double RightMargin = 10;
-    private const double BottomMargin = 22 * SvgText.TypeScale;
     private const double LegendHeight = 18 * SvgText.TypeScale;
     private const double SwatchWidth = 14;
     private const double SwatchHeight = 10;
@@ -93,53 +90,35 @@ public static class Heatmap {
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(valueUnit);
 
-        double plotWidth = size.Width - LeftMargin - RightMargin;
-        if (plotWidth <= 0) {
-            throw new ArgumentOutOfRangeException(nameof(size), size, "The heatmap is too small for its labels.");
-        }
-
         StringBuilder svg = new();
-        double top = ChartChrome.Begin(svg, size, "heatmap", frame, $"{frame.Title}: {frame.YTitle} buckets");
-        double plotTop = top + LegendHeight;
-        double plotHeight = size.Height - plotTop - BottomMargin;
-        if (plotHeight <= 0) {
-            throw new ArgumentOutOfRangeException(nameof(size), size, "The heatmap is too small for its labels.");
-        }
+        double band = ChartChrome.Begin(svg, size, "heatmap", frame, $"{frame.Title}: {frame.YTitle} buckets");
+        ChartPlot plot = ChartChrome.Plot(size, band + LegendHeight);
 
         IReadOnlyList<HeatmapRow> folded = Fold(rows, MaxColumns);
         (DateTimeOffset earliest, DateTimeOffset latest) = ChartSamples.Instants(folded.SelectMany(row => row.Points));
-        double span = Math.Max((latest - earliest).TotalSeconds, 1);
+        double span = ChartSamples.TimeSpan((latest - earliest).TotalSeconds, x.Ticks);
         int columns = folded.Count == 0 ? 0 : folded.Max(row => row.Points.Count);
         double max = Maximum(folded);
 
-        WriteAxisTitle(svg, frame.YTitle, plotTop, plotHeight);
+        ChartChrome.WriteAxisTitle(svg, frame.YTitle, plot);
 
         // The shade legend sits under the title, where the line charts put theirs, so it never lands on
         // the time axis.
-        WriteLegend(svg, top, max, valueUnit);
+        WriteLegend(svg, band, max, valueUnit);
+        ChartChrome.WriteTimeLabels(svg, x.Ticks, plot, size, tick => plot.Time(tick, span));
+        ChartChrome.Border(svg, plot);
 
-        if (columns == 0 || max <= 0) {
-            ChartChrome.Empty(svg, size, plotTop, frame.EmptyText);
-            svg.Append("</svg>\n");
+        double cellWidth = columns == 0 ? plot.Width : plot.Width / columns;
+        double cellHeight = folded.Count == 0 ? plot.Height : plot.Height / folded.Count;
 
-            return svg.ToString();
+        // A bucket map with no observations keeps its rows as lines, so the buckets and their order are
+        // still readable rather than an empty rectangle.
+        WriteRows(svg, folded, frame, valueUnit, plot, cellHeight, cellWidth, max, latest - earliest);
+
+        if (max <= 0) {
+            ChartChrome.Empty(svg, plot, frame.EmptyText);
         }
 
-        double cellWidth = plotWidth / columns;
-        double cellHeight = plotHeight / folded.Count;
-
-        WriteRows(svg, folded, frame, valueUnit, plotTop, cellHeight, cellWidth, max, latest - earliest);
-
-        foreach (ChartTick tick in x.Ticks.OrderBy(tick => tick.Position)) {
-            double at = LeftMargin + ((tick.Position / span) * plotWidth);
-            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(at))
-                .Append("\" y=\"").Append(SvgText.Number(plotTop + plotHeight + (14 * SvgText.TypeScale)))
-                .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
-                .Append("\" fill=\"#444444\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label))
-                .Append("</text>\n");
-        }
-
-        ChartChrome.Border(svg, LeftMargin, plotTop, plotWidth, plotHeight);
         svg.Append("</svg>\n");
 
         return svg.ToString();
@@ -180,7 +159,7 @@ public static class Heatmap {
         IReadOnlyList<HeatmapRow> rows,
         ChartFrame frame,
         string valueUnit,
-        double top,
+        ChartPlot plot,
         double cellHeight,
         double cellWidth,
         double max,
@@ -190,19 +169,28 @@ public static class Heatmap {
             HeatmapRow line = rows[row];
             // Rows arrive ordered by boundary; drawing from the bottom up puts the smallest bucket at
             // the bottom and +Inf at the top, which is how a latency heatmap is read.
-            double y = top + ((rows.Count - 1 - row) * cellHeight);
+            double y = plot.Top + ((rows.Count - 1 - row) * cellHeight);
             string id = frame.Id + "-r" + (row + 1).ToString(CultureInfo.InvariantCulture);
+
+            // A row with nothing to shade keeps its edge, so an empty bucket map still shows its scale.
+            if (max <= 0) {
+                svg.Append("<line class=\"chart-grid\" x1=\"").Append(SvgText.Number(plot.Left))
+                    .Append("\" y1=\"").Append(SvgText.Number(y + cellHeight))
+                    .Append("\" x2=\"").Append(SvgText.Number(plot.Right))
+                    .Append("\" y2=\"").Append(SvgText.Number(y + cellHeight))
+                    .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
+            }
 
             svg.Append("<a class=\"heat-row\" id=\"").Append(SvgText.Escape(id))
                 .Append("\" href=\"#").Append(SvgText.Escape(id)).Append("\" tabindex=\"-1\">\n");
             svg.Append("<title>").Append(SvgText.Escape($"{BucketLabel(line.Label)} {frame.YTitle}")).Append("</title>\n");
-            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(LeftMargin - 4))
+            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(plot.Left - 4))
                 .Append("\" y=\"").Append(SvgText.Number(y + (cellHeight / 2) + (4 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
                 .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BucketLabel(line.Label)))
                 .Append("</text>\n");
 
-            WriteRuns(svg, line, frame, valueUnit, span, y, cellHeight, cellWidth, max);
+            WriteRuns(svg, line, frame, valueUnit, span, plot, y, cellHeight, cellWidth, max);
             svg.Append("</a>\n");
         }
     }
@@ -213,6 +201,7 @@ public static class Heatmap {
         ChartFrame frame,
         string valueUnit,
         TimeSpan span,
+        ChartPlot plot,
         double y,
         double cellHeight,
         double cellWidth,
@@ -237,7 +226,7 @@ public static class Heatmap {
             }
 
             if (start >= 0) {
-                WriteRun(svg, line.Label, frame, valueUnit, span, y, cellHeight, cellWidth,
+                WriteRun(svg, line.Label, frame, valueUnit, span, plot, y, cellHeight, cellWidth,
                     start, column - 1, level, total, from, to);
             }
 
@@ -259,6 +248,7 @@ public static class Heatmap {
         ChartFrame frame,
         string valueUnit,
         TimeSpan span,
+        ChartPlot plot,
         double y,
         double cellHeight,
         double cellWidth,
@@ -270,7 +260,7 @@ public static class Heatmap {
         DateTimeOffset to) {
 
         // No gap: a histogram is contiguous, and its blocks should touch.
-        double left = LeftMargin + (start * cellWidth);
+        double left = plot.Left + (start * cellWidth);
         double width = (end - start + 1) * cellWidth;
         string when = start == end
             ? ChartChrome.Instant(from, frame.Zone, span)
@@ -285,24 +275,11 @@ public static class Heatmap {
             .Append("</title></rect>\n");
     }
 
-    private static void WriteAxisTitle(StringBuilder svg, string yTitle, double top, double plotHeight) {
-        double middle = top + (plotHeight / 2);
-        double x = 12 * SvgText.TypeScale;
-
-        svg.Append("<text class=\"chart-axis-title\" transform=\"rotate(-90 ").Append(SvgText.Number(x))
-            .Append(' ').Append(SvgText.Number(middle))
-            .Append(")\" x=\"").Append(SvgText.Number(x))
-            .Append("\" y=\"").Append(SvgText.Number(middle))
-            .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
-            .Append("\" fill=\"#666666\" text-anchor=\"middle\">").Append(SvgText.Escape(yTitle))
-            .Append("</text>\n");
-    }
-
     // The shades are a log scale, so the legend gives the two ends of the range and each run names its
     // own value on hover; five printed ranges would be more precise than the colours are.
     private static void WriteLegend(StringBuilder svg, double top, double max, string valueUnit) {
         double y = top + 2;
-        double x = ChartChrome.LeftPad;
+        double x = ChartChrome.LeftMargin;
 
         svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(x))
             .Append("\" y=\"").Append(SvgText.Number(y + SwatchHeight))

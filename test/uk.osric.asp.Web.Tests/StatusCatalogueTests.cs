@@ -88,6 +88,32 @@ public sealed class StatusCatalogueTests {
     }
 
     [Test]
+    public void AGaugeIsQueriedAsALevelRatherThanARate() {
+        foreach (Panel panel in StatusCatalogue.Panels.Where(panel => panel.InstrumentName is not null)) {
+            MetricInstrument instrument = Instruments.Single(candidate => candidate.Name == panel.InstrumentName);
+            if (instrument.Kind != InstrumentKind.Gauge) {
+                continue;
+            }
+
+            string query = panel.Queries.Single().Query;
+
+            Assert.That(query, Does.Not.Contain("_total"),
+                $"{panel.Id} asks for the counter family a gauge does not have");
+            Assert.That(query, Does.Not.Contain("rate("), $"{panel.Id} rates a gauge");
+            Assert.That(query, Does.Contain(PrometheusNames.Family(instrument)), panel.Id);
+        }
+    }
+
+    [Test]
+    public void EveryHeatmapNamesTheUnitOfItsCells() {
+        foreach (Panel panel in StatusCatalogue.Panels.Where(panel => panel.Chart == PanelChart.Heatmap)) {
+            Assert.That(panel.CellUnit, Is.Not.Null.And.Not.Empty, $"{panel.Id} has no cell unit");
+            Assert.That(panel.CellUnit, Is.Not.EqualTo("per second"),
+                $"{panel.Id} says only that its cells are rates, not what they count");
+        }
+    }
+
+    [Test]
     public void EveryPanelIdIsUniqueAndNamedForItsInstrument() {
         string[] ids = [.. StatusCatalogue.Panels.Select(panel => panel.Id)];
 

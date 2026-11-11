@@ -28,6 +28,20 @@ public sealed class LineChartTests {
     private static string Render(params ChartSeries[] series) =>
         LineChart.Render(series, TimeAxis, CountAxis, Size, Frame);
 
+    private static IEnumerable<(double X, double Y)> PolylinePoints(string svg) {
+        const string marker = "<polyline class=\"series series-1\" points=\"";
+        int start = svg.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
+        Assert.That(start, Is.GreaterThanOrEqualTo(marker.Length), "the first series is not drawn");
+        string points = svg[start..svg.IndexOf('"', start)];
+
+        return points.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(pair => {
+            string[] parts = pair.Split(',');
+            return (
+                double.Parse(parts[0], CultureInfo.InvariantCulture),
+                double.Parse(parts[1], CultureInfo.InvariantCulture));
+        });
+    }
+
     [Test]
     public void TheDrawingCarriesItsOwnTitleAndLegend() {
         string svg = Render(Series("ok", (0, 0), (600, 1)));
@@ -140,6 +154,23 @@ public sealed class LineChartTests {
     }
 
     [Test]
+    public void ARescaledAxisDrawsItsSamplesInTheUnitItsLabelsName() {
+        ChartAxis megabytes = new("megabytes", [new ChartTick(180, "180"), new ChartTick(200, "200")], Divisor: 1_000_000);
+
+        string svg = LineChart.Render(
+            [Series("memory", (0, 180_000_000), (600, 200_000_000))],
+            TimeAxis,
+            megabytes,
+            Size,
+            Frame);
+
+        double[] ys = [.. PolylinePoints(svg).Select(point => point.Y)];
+
+        Assert.That(ys, Is.All.InRange(0d, Size.Height), "a sample in bytes belongs on the axis its labels name");
+        Assert.That(ys[0], Is.GreaterThan(ys[1]), "180 megabytes sits below 200");
+    }
+
+    [Test]
     public void TheDrawnAreaIsFramed() {
         string svg = Render(Series("ok", (0, 0), (600, 1)));
 
@@ -179,7 +210,7 @@ public sealed class LineChartTests {
 
         Assert.That(
             svg,
-            Does.Contain("class=\"chart-title\" x=\"6\" y=\"15.4\" font-size=\"13.2\""),
+            Does.Contain("class=\"chart-title\" x=\"66\" y=\"15.4\" font-size=\"13.2\""),
             "the title is twelve pixels plus a tenth, in a band that grew with it");
         Assert.That(svg, Does.Contain("\" font-size=\"12.1\""), "the axis labels are eleven pixels plus a tenth");
     }

@@ -15,6 +15,7 @@ public sealed class ValueUnitTests {
         Assert.That(scale.Unit, Is.EqualTo("megabytes"));
         Assert.That(scale.Min, Is.EqualTo(1));
         Assert.That(scale.Max, Is.EqualTo(2));
+        Assert.That(scale.Divisor, Is.EqualTo(1_000_000), "the chart divides its samples by this");
     }
 
     [Test]
@@ -24,6 +25,7 @@ public sealed class ValueUnitTests {
         Assert.That(scale.Unit, Is.EqualTo("kilobytes"));
         Assert.That(scale.Min, Is.EqualTo(1));
         Assert.That(scale.Max, Is.EqualTo(2));
+        Assert.That(scale.Divisor, Is.EqualTo(1_000));
     }
 
     [Test]
@@ -47,5 +49,6 @@ public sealed class ValueUnitTests {
         ChartScale scale = ValueUnit.ForBytes(10, 900);
 
         Assert.That(scale.Unit, Is.EqualTo("bytes"));
+        Assert.That(scale.Divisor, Is.EqualTo(1), "nothing is rescaled");
     }
 }

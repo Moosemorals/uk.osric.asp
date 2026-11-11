@@ -17,8 +17,15 @@ internal sealed record ChartWindow(DateTimeOffset Start, TimeSpan Length) {
     // sample, so a long window samples more sparsely instead of sending 43,200 points for 30 days.
     private const int TargetSamples = 500;
 
+    /// <summary>The token a request that names no window gets.</summary>
+    /// <remarks>
+    /// A day, not an hour: a day is long enough to show a trend and short enough to stay a useful
+    /// number of samples, and it is what the page is opened to look at.
+    /// </remarks>
+    public const string DefaultToken = "1d";
+
     /// <summary>The length a request that names no window gets.</summary>
-    public static TimeSpan DefaultLength { get; } = TimeSpan.FromHours(1);
+    public static TimeSpan DefaultLength { get; } = TimeSpan.FromDays(1);
 
     /// <summary>The windows the nav offers, in the order it lists them.</summary>
     /// <remarks>
@@ -27,7 +34,7 @@ internal sealed record ChartWindow(DateTimeOffset Start, TimeSpan Length) {
     /// rather than an error, because the page is opened by hand.
     /// </remarks>
     public static IReadOnlyList<WindowToken> Tokens { get; } = [
-        new("1h", DefaultLength),
+        new("1h", TimeSpan.FromHours(1)),
         new("3h", TimeSpan.FromHours(3)),
         new("8h", TimeSpan.FromHours(8)),
         new("1d", TimeSpan.FromDays(1)),
@@ -65,7 +72,7 @@ internal sealed record ChartWindow(DateTimeOffset Start, TimeSpan Length) {
     public static string TokenFor(string? token) =>
         Tokens.Any(candidate => string.Equals(candidate.Token, token, StringComparison.Ordinal))
             ? token!
-            : Tokens[0].Token;
+            : DefaultToken;
 
     /// <summary>The length a token names, or the default when it names none.</summary>
     /// <param name="token">The token from the query string; null or unknown means the default.</param>
