@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Implemented 2026-11-11; phases 1–3 landed |
+| Status | Implemented 2026-11-11; phases 1–3 landed, and the name-taking `PageWrites.Written` was removed rather than kept, because nothing in the solution is packaged |
 | Size | Medium — a tool type and its registry, three shared helpers, fifteen tools moved into five files by family, and the tests that pin the new wiring. No tool changes what it does |
 | Spike | None. The shape is the shell's, proved in DEC-226, and the tool surface is already a table with one row per tool |
 | Decisions | DEC-230 (a tool is one type and the registry is the only table), recorded with this plan. DEC-228 belongs to [capability naming](capability-naming.md) and is not claimed here |

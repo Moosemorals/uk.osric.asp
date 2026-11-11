@@ -101,6 +101,7 @@ static uk.osric.asp.Core.Diff.DiffHunk.operator !=(uk.osric.asp.Core.Diff.DiffHu
 static uk.osric.asp.Core.Diff.DiffHunk.operator ==(uk.osric.asp.Core.Diff.DiffHunk left, uk.osric.asp.Core.Diff.DiffHunk right) -> bool
 static uk.osric.asp.Core.Diff.DiffLine.operator !=(uk.osric.asp.Core.Diff.DiffLine left, uk.osric.asp.Core.Diff.DiffLine right) -> bool
 static uk.osric.asp.Core.Diff.DiffLine.operator ==(uk.osric.asp.Core.Diff.DiffLine left, uk.osric.asp.Core.Diff.DiffLine right) -> bool
+*REMOVED*static uk.osric.asp.Core.Assistant.PageWrites.Written(string? toolName, string? resultJson) -> uk.osric.asp.Core.Pages.PagePath?
 static uk.osric.asp.Core.Assistant.PageWrites.Written(bool changesPages, string? resultJson) -> uk.osric.asp.Core.Pages.PagePath?
 static uk.osric.asp.Core.Diff.LineDiff.Compare(string! before, string! after) -> uk.osric.asp.Core.Diff.DiffDocument!
 static uk.osric.asp.Core.Diff.LineDiff.Compare(string! before, string! after, int contextLines, bool ignoreSpaceChange) -> uk.osric.asp.Core.Diff.DiffDocument!
