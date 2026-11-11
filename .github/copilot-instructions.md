@@ -79,10 +79,11 @@ structures, caching or premature abstraction. Optimise only what a measurement s
 ## Deployment
 
 Detail is in `deploy/README.md`. The quadlets in `deploy/` are the source of truth for the server —
-edit them there, not on the host. The image is built by podman from `deploy/Containerfile` around the
-publish output for `linux-musl-arm64`/`linux/arm64` (the Hetzner CAX21 host; override both in the
-Makefile for x86), the SDK never enters the image, the app runs rootless as the `deploy` user, and
-Caddy is the only rootful unit. Keep the build reproducible: pinned base digest, `--timestamp` from the commit,
+edit them there, not on the host. The image is built by the SDK's container targets
+(`dotnet publish -t:PublishContainer`) around the publish output for
+`linux-musl-arm64`/`linux/arm64` (the Hetzner CAX21 host; override both in the Makefile for x86),
+the SDK never enters the image, the app runs rootless as the `deploy` user, and Caddy is the only
+rootful unit. Keep the build reproducible: pinned base digest, `SOURCE_DATE_EPOCH` from the commit,
 nothing in the image that records the time of the build. Do not enable trimming: a trimmed ASP.NET
 Core host dies at startup.
 

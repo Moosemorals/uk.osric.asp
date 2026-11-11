@@ -54,20 +54,18 @@ GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null)
 AUTHFILE ?= $(HOME)/.config/containers/auth.json
 REMOTE_AUTHFILE ?= /home/deploy/.config/containers/auth.json
 
-# The base is pinned by its arm64 image digest, here and in deploy/Containerfile: a tag would let the
-# base move between two builds of the same commit. MCR does not resolve its manifest-list digest, so
-# an x86 build must override CONTAINER_BASE_IMAGE with the matching amd64 image digest.
-# `-extra` rather than plain alpine: the status page labels its time axis in Europe/London, and only
-# the extra flavour carries tzdata. It costs about 38 MB in shared base layers, once.
+# The base is pinned by its arm64 image digest: a tag would let the base move between two builds of
+# the same commit. MCR does not resolve its manifest-list digest, so an x86 build must override
+# CONTAINER_BASE_IMAGE with the matching amd64 image digest. `-extra` rather than plain alpine: the
+# status page labels its time axis in Europe/London, and only the extra flavour carries tzdata. It
+# costs about 38 MB in shared base layers, once.
 CONTAINER_BASE_IMAGE ?= mcr.microsoft.com/dotnet/aspnet:11.0-alpine-extra@sha256:e6abc337f78cea3273eb7d91fc7b2cf1360b21e928df6e5cb8a338fb1b5c6ac8
 # RID of the server. The host is a Hetzner CAX21 (Ampere, arm64), so arm64 is the default; an x86
-# host builds with CONTAINER_RID=linux-musl-x64.
+# host builds with CONTAINER_RID=linux-musl-x64. The RID is also the image's platform.
 CONTAINER_RID ?= linux-musl-arm64
-# The platform podman builds for, which has to agree with CONTAINER_RID: musl-arm64 is linux/arm64.
-# The base image is pinned to arm64; x86 builds must override CONTAINER_BASE_IMAGE as well.
-CONTAINER_PLATFORM ?= linux/arm64
-# The two builds inside `image-check` must not share a layer cache.
-IMAGE_CHECK_FLAGS ?= --no-cache
+# The SDK keeps the layers it has packed in a content-addressed cache; `image-check` empties it so
+# the second build has to pack and compress the layers again rather than reuse the first one's work.
+CONTAINER_CACHE := $(HOME)/.cache/dotnet/Containers/Content
 # The commit's own timestamp: fixed for a commit, meaningful in the image, and the reason two builds
 # of one commit produce one image. Override to reproduce a build whose commit history has moved.
 SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct 2>/dev/null)
@@ -149,7 +147,7 @@ help:
 		'remote-user-remove Same as user-remove, in the container on HOST=...' \
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
-		'image              Build the container image with podman; the Containerfile is in deploy/.' \
+		'image              Build the container image with the SDK; the base is pinned in the Makefile.' \
 		'image-check        Build it twice and fail if the two builds are not the same image.' \
 		'deploy             Gate with the browser suite, build, push to $(REGISTRY) and restart on HOST=deploy@server.' \
 		'format             Apply formatting and style fixes.' \
@@ -334,42 +332,42 @@ run:
 publish:
 	$(DOTNET) publish $(WEB_PROJECT) -c Release
 
-# The publish output the Containerfile packs: UseArtifactsOutput puts a RID-specific publish beside
-# the plain one, so `make publish` and the image do not overwrite each other.
+# The publish output the image packs: UseArtifactsOutput puts a RID-specific publish beside the
+# plain one, so `make publish` and the image do not overwrite each other.
 IMAGE_PUBLISH_DIR := $(ARTIFACTS)/publish/uk.osric.asp.Web/release_$(CONTAINER_RID)
 
 # One line, so `image` and `image-check` can call it without repeating the flags — and so no recipe
 # line contains `$(MAKE)`, which make would run even under `-n`.
 #
-# --timestamp is what makes the build reproducible: without it the config's created time and every
-# file mtime in the layer are "now", so two builds of one commit are two different images. The value
-# is the commit's own timestamp, so the image says when its source was written and says it the same
-# way every time. $(1) is the tag; $(2) carries extra flags, which is how `image-check` forces a real
-# build instead of comparing a cache with itself.
-image_command = $(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) && podman build $(2) --timestamp $(SOURCE_DATE_EPOCH) --platform $(CONTAINER_PLATFORM) --build-arg BASE_IMAGE=$(CONTAINER_BASE_IMAGE) --build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(1) -f deploy/Containerfile $(IMAGE_PUBLISH_DIR)
+# SOURCE_DATE_EPOCH is what makes the SDK's image reproducible: it stamps the config's created time,
+# the history entries and the layer mtimes, so two builds of one commit are one image. The value is
+# the commit's own timestamp, so the image says when its source was written, and says it the same way
+# every time. $(1) is the tag; $(2) carries extra flags.
+image_command = SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) $(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) -t:PublishContainer -p:ContainerBaseImage=$(CONTAINER_BASE_IMAGE) -p:ContainerImageTags=$(1) -p:GIT_COMMIT=$(GIT_COMMIT) $(2)
 
-# podman packs the publish output; the SDK is not in the image at all.
+# The SDK builds the OCI image and hands it to podman; there is no Containerfile, and the SDK is not
+# in the image.
 image:
-	rm -rf $(IMAGE_PUBLISH_DIR)
-	$(call image_command,$(LOCAL_IMAGE))
+	@rm -rf $(IMAGE_PUBLISH_DIR)
+	$(call image_command,$(IMAGE_TAG))
 
 # Reproducibility is a property that regresses silently, so it is a target: two fresh publishes and
-# two uncached builds of one commit have to produce one image id. The publish directory is deleted
+# two uncached packs of one commit have to produce one image id. The publish directory is deleted
 # between the builds, because an incremental publish leaves the files it already has and their
-# mtimes alone — which would let the check compare one set of timestamps with itself.
+# mtimes alone — and the layer cache is emptied so the second pack is not the first one's work.
 image-check:
-	@rm -rf $(IMAGE_PUBLISH_DIR)
-	@$(call image_command,localhost/$(IMAGE_REPOSITORY):reproducible-1,$(IMAGE_CHECK_FLAGS))
-	@rm -rf $(IMAGE_PUBLISH_DIR)
-	@$(call image_command,localhost/$(IMAGE_REPOSITORY):reproducible-2,$(IMAGE_CHECK_FLAGS))
-	@a=$$(podman image inspect --format '{{.Id}}' localhost/$(IMAGE_REPOSITORY):reproducible-1); \
-	b=$$(podman image inspect --format '{{.Id}}' localhost/$(IMAGE_REPOSITORY):reproducible-2); \
-	podman rmi localhost/$(IMAGE_REPOSITORY):reproducible-1 localhost/$(IMAGE_REPOSITORY):reproducible-2 >/dev/null; \
+	@rm -rf $(IMAGE_PUBLISH_DIR) $(CONTAINER_CACHE)
+	@$(call image_command,reproducible-1)
+	@rm -rf $(IMAGE_PUBLISH_DIR) $(CONTAINER_CACHE)
+	@$(call image_command,reproducible-2)
+	@a=$$(podman image inspect --format '{{.Id}}' $(IMAGE_REPOSITORY):reproducible-1); \
+	b=$$(podman image inspect --format '{{.Id}}' $(IMAGE_REPOSITORY):reproducible-2); \
+	podman rmi $(IMAGE_REPOSITORY):reproducible-1 $(IMAGE_REPOSITORY):reproducible-2 >/dev/null; \
 	if [ "$$a" != "$$b" ]; then \
 		echo "the image is not reproducible:"; \
 		echo "  build 1: $$a"; \
 		echo "  build 2: $$b"; \
-		echo "look for a file mtime or a base tag that moves between builds"; \
+		echo "look for a timestamp or a base tag that moves between builds"; \
 		exit 1; \
 	fi; \
 	echo "reproducible: $$a"

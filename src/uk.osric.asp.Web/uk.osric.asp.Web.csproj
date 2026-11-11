@@ -6,9 +6,19 @@ SPDX-License-Identifier: MIT
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <!-- Built with the SDK's container support (make image); see deploy/. -->
+    <!-- Built with the SDK's container support (make image). The base image and tag come from the
+         Makefile; the user is the non-root account the base image creates. -->
     <ContainerRepository>uk.osric.asp</ContainerRepository>
+    <ContainerUser>1654</ContainerUser>
+    <ContainerTitle>uk.osric.asp</ContainerTitle>
+    <ContainerDescription>A web server whose pages are C# and can edit themselves.</ContainerDescription>
+    <ContainerInformationUrl>https://github.com/Moosemorals/uk.osric.asp</ContainerInformationUrl>
+    <ContainerLicenseExpression>MIT</ContainerLicenseExpression>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ContainerLabel Include="org.opencontainers.image.revision" Value="$(GIT_COMMIT)" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
