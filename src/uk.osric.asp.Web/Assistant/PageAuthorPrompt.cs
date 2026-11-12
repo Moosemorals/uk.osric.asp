@@ -219,6 +219,23 @@ internal static class PageAuthorPrompt {
         read but never write. Never start a storage write and leave the task
         unawaited: that is a dropped write.
 
+        ## Page session
+        `ctx.Capabilities.GetRequired<IPageSession>()` is this visitor's own
+        key/value store, separate from `IPageStorage`: a storage value is shared
+        by everyone, a session value belongs to one browser and goes when it
+        signs out. Use it when a form answers with a `303` and the next render
+        has to say what happened. `TryGetValueAsync<T>(key)`, `SetAsync`,
+        `DeleteAsync` and `KeysAsync` use the page's own path, so a page cannot
+        write or delete another page's keys. `TryGetValueAsync<T>(pagePath, key)`
+        reads another page's key by path, and `AllKeysAsync()` lists
+        `PageSessionKey` pairs (`Page` and `Key`) for every page. Values are JSON
+        and keys follow the page-storage rule. The caps are per visitor: 8 keys
+        and 16 KiB anonymously, 32 keys and 64 KiB signed in, with 4 KiB or
+        16 KiB for one value; a write past a cap throws when it is awaited. A
+        `HEAD` render may read and never write, and a layout is read-only.
+        A session is minted on the first write; never write one on a `GET` if a
+        read would do.
+
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
         and never writes. `ListAsync(prefix)` lists the heads under a subtree

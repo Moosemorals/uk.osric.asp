@@ -49,7 +49,7 @@ job was [IDEA-016](../../jobs/README.md#closed).
 - The authority question is answered once, in the capability, in the direction the site already
   answers it: a write needs an identity, a read does not (DEC-190).
 - A page that saves can render its own answer — clean, warnings, or errors with positions — without
-  a second render and without a per-visitor message (that is [IDEA-014](../../jobs/IDEA-014.md)).
+  a second render and without a per-visitor message (that is [IDEA-014](../../jobs/README.md)).
 - Nothing a page can name comes from `Core` or `Web` (DEC-88).
 
 ## Non-goals
@@ -145,7 +145,7 @@ Checked against the code on 2026-11-09.
 | [IDEA-016](../../jobs/README.md#closed) | A page cannot save its own source; no write member and no `Sdk` diagnostic; a save bound to `ctx.Path`, compiled before it is stored, answering with diagnostics and the hash; authority stays with the shell | **Implements it**, as a capability rather than an `IContext` member, with the check in the capability rather than in `SimpleContext` (DEC-189, DEC-190) |
 | [IDEA-015](../../jobs/README.md) (closed) | The read is a capability, public by default, and the shell keeps every write (DEC-168–DEC-175) | Follows the shape and reverses the authority for the write, on purpose: a disclosure and a change are not the same act (DEC-190) |
 | [IDEA-017](../../jobs/IDEA-017.md) | A page cannot edit another page; the full editor is the last of the capability jobs | Hands it the saver and the capability; what it adds is a key (DEC-192) |
-| [IDEA-014](../../jobs/IDEA-014.md) | A page cannot keep per-visitor state, so a form cannot redirect and say why | Untouched, and the reason the demo page answers the save in the response it is already writing (DEC-195) |
+| [IDEA-014](../../jobs/README.md) | A page cannot keep per-visitor state, so a form cannot redirect and say why | Untouched, and the reason the demo page answers the save in the response it is already writing (DEC-195) |
 | DEC-168, DEC-169 | The store read is a capability and is public | The pattern, applied with the opposite answer for authority |
 | DEC-175 | The shell keeps every write; IDEA-016 reuses `PageEditor.SaveAsync` rather than opening a second writer | Kept literally: the saver and the insert move, they are not copied (DEC-192) |
 | DEC-125, DEC-126 | `IPageStorage` is bound to the page's key; a `HEAD` reads but never writes | Followed in shape: this handle is bound to `ctx.Path` and refuses a `HEAD` |
@@ -276,7 +276,7 @@ Three consequences, all of which the plan states rather than smooths over:
   page and the submitted template still in the textarea (the demo page, and the only pattern that
   works without per-visitor state). **Save and redirect** — `ctx.Redirect(ctx.Path, 303)` sends the
   visitor to the page the next request will serve, at the cost of saying nothing about the compile
-  unless the page keeps state ([IDEA-014](../../jobs/IDEA-014.md)).
+  unless the page keeps state ([IDEA-014](../../jobs/README.md)).
 
 ### D5 — What bounds a save, without a new setting
 
@@ -590,7 +590,7 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
   does a slow fetch before saving can lose the post; a template over the 1 MiB request cap never
   reaches the page; and a browser that drops the connection mid-post loses it as it would anywhere
   else. The demo page keeps the submitted template in the textarea of the response it sends, which is
-  the only mitigation a page without per-visitor state has ([IDEA-014](../../jobs/IDEA-014.md)).
+  the only mitigation a page without per-visitor state has ([IDEA-014](../../jobs/README.md)).
 - **A save is a compile, and compiles are serialised.** One compile slot means a save queues behind
   every other compile; the slot wait ends at the render deadline, so under load a visitor meets `504`
   while their edit still lands (D6). Worth watching: the page list will show revisions whose authors

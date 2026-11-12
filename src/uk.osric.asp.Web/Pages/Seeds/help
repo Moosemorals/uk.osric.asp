@@ -17,6 +17,7 @@ can improve it at <a href="/edit/help">/edit/help</a>.</p>
         <li><a href="#markdown">Markdown</a></li>
         <li><a href="#diff">Diff</a></li>
         <li><a href="#private">Private pages and forms</a></li>
+        <li><a href="#session">Per-visitor state</a></li>
         <li><a href="#assets">Assets, seeds and recovery</a></li>
         <li><a href="#keeping-current">Keeping this page current</a></li>
     </ul>
@@ -172,7 +173,9 @@ sealed class Amount {
 response, and nothing else:</p>
 <ul>
     <li><code>ctx.Request</code> is a <code>PageRequest</code> with read-only <code>Query</code>,
-    <code>Form</code>, <code>Headers</code> and <code>Cookies</code> dictionaries.</li>
+    <code>Form</code>, <code>Headers</code> and <code>Cookies</code> dictionaries. The shell's own
+    cookies &mdash; the sign-in ticket, the antiforgery pair and the page session id &mdash; are not in
+    <code>Cookies</code>, because they are the shell's identity rather than the page's.</li>
     <li><code>ctx.Path</code> is the page's canonical key; <code>ctx.User</code> is the signed-in
     <code>PageUser</code> or <code>null</code>; <code>ctx.Aborted</code> is cancelled when the
     visitor abandons the request.</li>
@@ -313,6 +316,39 @@ different to align line by line says that the changed middle is shown as replace
 that compares two revisions reads them with <code>IPageCatalog.ReadRevisionAsync</code>; the
 editor's history page compares two revisions for you.</p>
 
+<h2 id="session">Per-visitor state</h2>
+<p><code>IPageSession</code> is a store of this visitor's own, separate from
+<code>IPageStorage</code>: a page storage value is shared by everyone, and a session value belongs to
+one browser. That is what a form needs when it answers with a <code>303</code> and the next render has
+to say what happened.</p>
+<pre class="source" tabindex="0"><code>&lt;% IPageSession session = ctx.Capabilities.GetRequired&lt;IPageSession&gt;();
+   if (ctx.Request.Method == "POST") {
+       await session.SetAsync("notice", "Your note was saved.");
+       ctx.Redirect(ctx.Path, 303);
+       return;
+   }
+   PageValue&lt;string&gt; notice = await session.TryGetValueAsync&lt;string&gt;("notice");
+   if (notice.Found) {
+       await session.DeleteAsync("notice");
+       ctx.Write("&lt;p&gt;" + notice.Value! + "&lt;/p&gt;");
+   } %&gt;</code></pre>
+<p>A page writes, deletes and lists only its own keys: <code>SetAsync</code>,
+<code>DeleteAsync</code> and <code>KeysAsync</code> are bound to this page's path. Reading is open, so
+a page can show what another page left for it — <code>TryGetValueAsync&lt;T&gt;(pagePath, key)</code>
+takes the other page's path, normalised before use. <code>AllKeysAsync()</code> lists every
+<code>PageSessionKey</code> (a <code>Page</code> and a <code>Key</code>) this visitor holds, because a
+bare key cannot be read without knowing which page wrote it.</p>
+<p>The store is JSON like page storage, keys follow the same rule, and the caps are per visitor
+rather than per page: 8 keys and 16 KiB in total for an anonymous visitor, 32 keys and 64 KiB signed
+in, with 4 KiB or 16 KiB for one value. A write past a cap throws when it is awaited. A session is
+minted when the page first writes and travels in an <code>HttpOnly</code>, <code>SameSite=Strict</code>
+cookie, so a page that only reads sets no cookie. It lasts 30 minutes without a visit, or 8 hours
+when signed in, is cleared when the visitor signs out, and a session that belongs to an account is
+never handed to an anonymous visitor.</p>
+<p>A <code>HEAD</code> render may read and may not write, exactly as page storage behaves, and a
+layout is offered the read and not the write. The seeded <a href="/privacy">/privacy</a> page says
+what the session cookie is for.</p>
+
 <h2 id="private">Private pages and forms</h2>
 <p>Pages are public unless their own code checks <code>ctx.User</code>. Put the guard at the top and
 return after redirecting:</p>
@@ -330,8 +366,9 @@ because the host refuses an authenticated <code>POST</code> without that pair:</
     &lt;button type="submit"&gt;Save&lt;/button&gt;
 &lt;/form&gt;</code></pre>
 <p>Do not write a sign-in form, handle a password or read the authentication cookie:
-<code>/login</code> and <code>/logout</code> already exist and are reserved. A response rendered for
-a signed-in visitor is sent <code>no-store</code> and without an <code>ETag</code>.</p>
+<code>/login</code> and <code>/logout</code> already exist and are reserved. Every stored page is
+sent <code>no-store</code> without an <code>ETag</code>, whoever asked, because a page can keep
+per-visitor state.</p>
 
 <h2 id="assets">Assets, seeds and recovery</h2>
 <p>A page whose key has a known extension is served with that content type, so stylesheets, scripts

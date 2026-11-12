@@ -137,9 +137,10 @@ comes back without discarding its earlier revisions.
 - Passwords are PBKDF2-HMAC-SHA256 hashes from `PasswordHasher<LocalUser>`; the plaintext exists only
   at the CLI prompt and in the login request. The policy is a 12-character minimum and a 1024
   maximum, with no composition rules.
-- The session is a cookie from `Microsoft.AspNetCore.Authentication.Cookies`. It slides for 30 days
-  of inactivity, and the login form's **Keep me signed in** checkbox makes it persistent across
-  browser restarts.
+- The sign-in is a cookie from `Microsoft.AspNetCore.Authentication.Cookies`, named `a`. It slides
+  for 30 days of inactivity, and the login form's **Keep me signed in** checkbox makes it persistent
+  across browser restarts. It is not the page session, which is a different cookie with its own
+  lifetime.
 - The cookie carries a random 128-bit key, not the identity: the framework's own data-protected
   ticket lives in the `AuthTickets` table in the same SQLite database, so the request header stays
   small and serialisation stays the framework's. A sign-in always mints a new key; only a sliding
@@ -164,10 +165,58 @@ comes back without discarding its earlier revisions.
 - Login, logout and editor POSTs validate an antiforgery token. A rejected request is answered
   `400` before it reads the form or touches storage. Pages are not endpoints with metadata, so
   `PageEndpoint` checks an authenticated page `POST` itself, before the page runs. The editor's save
-  message lives in the session, not in a cookie, and a successful save answers `303` so the browser
-  follows with a `GET`.
+  message is a page-session key under the path of the view that reads it, not a cookie, and a
+  successful save answers `303` so the browser follows with a `GET`.
 - The data-protection key ring is persisted on a volume. That is what lets the 30-day cookie and
   in-flight antiforgery tokens survive a redeploy.
+
+### Cookies
+
+Three cookies are the shell's, and each has a one-character name because a browser's cookie pane
+stops being self-explanatory:
+
+| Name | What it is |
+| --- | --- |
+| `a` | The authentication ticket: the key whose row lives in `AuthTickets` |
+| `f` | The antiforgery pair's cookie |
+| `s` | The per-visitor page session: 128 random bits, one row in `PageSessions` |
+
+A page cannot read or set any of them: `Set-Cookie` is refused by the header allow-list, all three
+are `HttpOnly`, and `PageRequestSnapshot` leaves them out of the `Cookies` a page sees. The names
+live in one place, `ShellCookies`. `a` is `SameSite=Lax` so a link from elsewhere still arrives
+signed in; `f` and `s` are `Strict`. All three follow the same `SecurePolicy`, which is `Always` in
+production. The names are short rather than long on purpose — the session cookie's value changed
+meaning with the [page-session plan](../plans/page-session.md), and this was the cheapest moment to
+rename the other two.
+
+### Page sessions
+
+A page keeps per-visitor state through `ctx.Capabilities.GetRequired<IPageSession>()` (see
+[pages](pages.md#page-contract)). The shell owns the identity:
+
+- **Minted lazily.** `PageEndpoint` resolves the visitor's session once per request, before any layer
+  runs. A row is created on the page's first write and the cookie is set on the response that wrote
+  it, so a page that only reads sets no cookie and costs no row.
+- **Bound to the request, not the page.** Every layer of the chain — the page and each layout —
+  shares one session id, so two layers cannot see different sessions. A layout and a `HEAD` render
+  get a read-only handle.
+- **Slid once.** Reading or writing slides the idle timer with one `UPDATE` per request, never one
+  per key, and a `HEAD` render does not slide it. An anonymous session lives 30 minutes, a
+  signed-in one 8 hours.
+- **Rotated on sign-in.** A session row carries the account it belongs to. Signing in deletes the
+  row the browser presented and mints one for the account, so a stale cookie cannot inherit what an
+  anonymous visitor or a previous account left behind. Signing out deletes the row and clears the
+  cookie. Neither writes a flash message: a message written after a sign-out has nowhere to live.
+- **Swept on a timer.** `PageSessionCleanupService` removes expired rows every five minutes, and the
+  mint path deletes expired rows before it evicts anything live, so a burst of new visitors cannot
+  push a live session out because stale ones are holding the room.
+- **Capped.** `Pages:Session` bounds the values (see [storage](storage.md#page-sessions)). A live
+  session cap evicts the most idle **anonymous** session first and only touches a signed-in one when
+  no anonymous session is left, so a flood sheds strangers rather than the person using the site.
+
+The shell's own session keys are ordinary page-session keys with reserved paths:
+`/edit` carries the page list's flash message and `/edit/{path}` the editor's. Both are reserved, so
+no page can occupy those namespaces, and a page can read them but not write or delete them.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
   starts (DEC-93). The editor, assistant and admin views widen the policy to `script-src 'self'` for
   their own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` (DEC-138);

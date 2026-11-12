@@ -13,8 +13,10 @@ where this code lives and why; [the shell](shell.md) is what wraps a page's answ
 ## Page contract
 
 A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it
-touches is a plain record in `Sdk`. `IContext` is the surface every page has — `Request` (method,
-path, query, form, headers, cookies), `Path`, `User`, `Aborted`, `Log`/`LogWarning`/`LogError`,
+touches is a plain record in `Sdk`. `Request` carries the method, path, query, form, headers and the
+visitor's own cookies; the shell's three cookies (`a`, `f`, `s`) are filtered out, because they are
+the shell's identity and one visitor's state rather than anything a page owns. `IContext` is the
+surface every page has — `Request`, `Path`, `User`, `Aborted`, `Log`/`LogWarning`/`LogError`,
 `Write`/`WriteRaw`, `SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect`,
 `RedirectToLogin`, `AntiforgeryField` and `Capabilities`.
 
@@ -33,7 +35,7 @@ registered or absent, never `null` (DEC-142). The type that declares them is `IP
 release so a stored page that says them still compiles, with a `PAGE005` warning that names the
 replacement (DEC-228).
 
-Eight capabilities are registered today — four that do I/O and are bounded by the render, one that
+Nine capabilities are registered today — five that do I/O and are bounded by the render, one that
 is the page's slots in its document, two that are pure renderers, and one that is a fact about
 the build:
 
@@ -44,6 +46,19 @@ the build:
   name another page's state; the handle is the isolation. Values are JSON round-tripped by the
   host, keys are ordinal, and writes are last-write-wins. A `HEAD` render may read but never write
   (DEC-125, DEC-126, DEC-127).
+- `IPageSession` is one visitor's key/value store, separate from `IPageStorage`: a page session
+  value belongs to the browser that wrote it, is bounded per visitor, and goes when the visitor
+  signs out. `TryGetValueAsync<T>(key)` reads the caller's own key and
+  `TryGetValueAsync<T>(pagePath, key)` reads another page's by path, which is how a page shows what
+  another page left for it. `SetAsync`, `DeleteAsync` and `KeysAsync` are bound to the caller's
+  path, so a page cannot write, delete or list another page's keys; `AllKeysAsync` returns
+  `PageSessionKey` (`Page` and `Key`) pairs because a bare key cannot be read. Values are JSON like
+  page storage, keys follow the same rule, and the caps are per session (8 keys and 16 KiB
+  anonymously, 32 keys and 64 KiB signed in). A session is minted on the first write, lives in an
+  `HttpOnly` cookie the shell owns, slides for 30 minutes (8 hours signed in) and is cleared on
+  sign-out. A `HEAD` render and a layout may read and not write. The identity, ownership and caps
+  are the decisions the page-session plan records, numbered when it merges; see
+  [storage](storage.md#page-sessions).
 - `IHttpFetch` makes one outbound HTTP request from the host, not the browser, to any `http` or
   `https` host the URL names: there is no host allow-list (DEC-216). Every request carries
   `moosemorals.com (page)` as its `User-Agent`, set by the host after the page's own headers, so a
@@ -93,29 +108,23 @@ Two rules keep the response safe:
 
 - The body is buffered. Status, content type and headers are applied after `HandleAsync` completes,
   so a page that throws sends the error page rather than half a document.
-- Headers are bounded by an allow-list in `SimpleContext`: `Cache-Control`, `Content-Language`,
-  `ETag`, `Expires`, `Vary` and any `X-` name. `Set-Cookie`, `Location`, `Content-Type` and the
-  framing headers are refused, so a page cannot clobber the editor's authentication, antiforgery or
-  session cookie. Redirects go through `Redirect`; content type through `SetContentType`, and the
-  script permission through `AllowScripts` — the `Content-Security-Policy` header itself stays
-  shell-owned. The extension is only a default: a key's last segment selects the initial content
-  type through `Pages:ContentTypes` (DEC-144), which ships `.js`, `.mjs`, `.css`, `.json`, `.svg` and
-  `.txt` (DEC-197), and `SetContentType` always wins. Every rendered page
-  also starts with `Cache-Control: no-cache`, and a page opts out by setting its own header.
+- Headers are bounded by an allow-list in `SimpleContext`: `Content-Language` and any `X-` name.
+  `Set-Cookie`, `Location`, `Content-Type`, the framing headers and the caching headers
+  (`Cache-Control`, `ETag`, `Expires`, `Vary`) are refused, so a page cannot clobber the editor's
+  authentication, antiforgery or session cookie, or claim a cache policy the host overrides.
+  Redirects go through `Redirect`; content type through `SetContentType`, and the script permission
+  through `AllowScripts` — the `Content-Security-Policy` header itself stays shell-owned. The
+  extension is only a default: a key's last segment selects the initial content type through
+  `Pages:ContentTypes` (DEC-144), which ships `.js`, `.mjs`, `.css`, `.json`, `.svg` and `.txt`
+  (DEC-197), and `SetContentType` always wins.
 
-Successful page responses receive a strong `ETag` computed from the UTF-8 bytes of the rendered
-body. The host also sets `Content-Length` from those encoded bytes for responses that may carry a
-body; `HEAD` retains the representation length, while `304` has no body or length. `GET` and `HEAD`
-honor `If-None-Match` with a bodyless `304`; the page still runs to produce the representation, so
-this is HTTP revalidation rather than an execution cache. The host writes the validator after page
-headers, so a page cannot preserve a stale one after an edit.
-
-A response rendered for a signed-in visitor is the exception: it is sent `Cache-Control: no-store`
-and without an `ETag`, and every page redirect is `no-store` too. The identity is known before the
-page runs and the body is already per-request, so the risk being closed is a shared cache or a
-conditional request turning one owner's render into another visitor's answer. The page's own headers
-are copied first and `Cache-Control` is then overridden for that response, so a page cannot weaken
-it. Public pages keep their strong validator and their revalidation.
+Every stored page is `Cache-Control: no-store` with no validator, whoever asked: a page can keep
+per-visitor state, so its body has no business in a shared cache and no business inviting a
+conditional request. `PageEndpoint` writes the header after the page's own and removes `ETag`, so a
+page cannot weaken it, and `If-None-Match` is ignored — there is no `304` path at all. A page
+redirect is `no-store` too. The host still sets `Content-Length` from the encoded body for a
+response that may carry one, and `HEAD` retains the representation length. Serving a stored asset
+with a validator comes back with [IDEA-010](jobs/IDEA-010.md).
 
 Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
 over 1 MiB is refused with 413 before it is read. A page that outruns its execution budget is answered

@@ -153,6 +153,20 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void ThePromptTeachesThePageSessionAsDistinctFromPageStorage() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Page session"));
+            Assert.That(prompt, Does.Contain("IPageSession"));
+            Assert.That(prompt, Does.Contain("separate from `IPageStorage`"));
+            Assert.That(prompt, Does.Contain("TryGetValueAsync<T>(pagePath, key)"));
+            Assert.That(prompt, Does.Contain("AllKeysAsync()"));
+            Assert.That(prompt, Does.Contain("`HEAD` render may read and never write"));
+        });
+    }
+
+    [Test]
     public void TheLayoutSectionTeachesAFragmentAndATitle() {
         string prompt = PageAuthorPrompt.Build();
 
