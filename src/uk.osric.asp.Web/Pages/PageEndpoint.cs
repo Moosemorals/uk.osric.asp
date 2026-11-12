@@ -3,9 +3,7 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-using Microsoft.Net.Http.Headers;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
@@ -149,7 +147,7 @@ internal sealed class PageEndpoint() {
 
         Task write = (await chain.WrapAsync(render, path, contentLayout, page.ToResponse(), page.GetBody())) switch {
             PageChainResult.Failed failure => ErrorResponses.WriteAsync(context, failure.StatusCode, failure.Error),
-            PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, authenticated, environment, session),
+            PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, environment, session),
         };
 
         await write;
@@ -173,7 +171,6 @@ internal sealed class PageEndpoint() {
         HttpContext context,
         PageResponse response,
         string body,
-        bool authenticated,
         PageEnvironment environment,
         PageSessionRequest session) {
         if (response.Location is not null) {
@@ -197,32 +194,13 @@ internal sealed class PageEndpoint() {
         }
 
         byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
-        EntityTagHeaderValue? entityTag = null;
 
+        // Every stored page is per-visitor now: a page session can be written by any render, so the
+        // body has no business in a shared cache and no business inviting a conditional request.
+        // Copies first, then overrides, so a page cannot weaken it with SetHeader.
+        SecurityHeaders.NoStore(context);
+        context.Response.Headers.Remove("ETag");
         WriteSessionCookie(context, environment, session);
-
-        if (authenticated) {
-            // Copies first, then overrides, so a page cannot weaken it with SetHeader. A response
-            // rendered for one owner must never be a shared cache's answer to another visitor, and a
-            // validator would invite exactly that revalidation.
-            SecurityHeaders.NoStore(context);
-            context.Response.Headers.Remove("ETag");
-        } else if (response.Status is >= StatusCodes.Status200OK and < StatusCodes.Status300MultipleChoices) {
-            byte[] digest = SHA256.HashData(bodyBytes);
-            entityTag = new EntityTagHeaderValue($"\"{Convert.ToHexString(digest)}\"");
-            context.Response.Headers.ETag = entityTag.ToString();
-        }
-
-        if (entityTag is not null
-            && (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
-            && context.Request.GetTypedHeaders().IfNoneMatch?.Any(candidate =>
-                candidate.Tag.Equals(EntityTagHeaderValue.Any.Tag, StringComparison.Ordinal)
-                    || candidate.Tag.Equals(entityTag.Tag, StringComparison.Ordinal)) == true) {
-            context.Response.StatusCode = StatusCodes.Status304NotModified;
-            context.Response.ContentType = null;
-            context.Response.ContentLength = null;
-            return;
-        }
 
         if (response.Status is >= StatusCodes.Status200OK
             and not StatusCodes.Status204NoContent

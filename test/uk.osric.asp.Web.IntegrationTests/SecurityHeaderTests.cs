@@ -121,19 +121,16 @@ public sealed class SecurityHeaderTests : IntegrationTest {
     }
 
     [Test]
-    public async Task ANotModifiedScriptedPageStillCarriesItsPolicy() {
+    public async Task AScriptedPageKeepsItsPolicyAndIsNeverCached() {
         await SavePageAsync("/scripted-cached", "<% ctx.AllowScripts(); %>Scripted.");
         using HttpClient client = CreateClient();
         HttpResponseMessage first = await client.GetAsync("/scripted-cached");
-        Assert.That(first.Headers.ETag, Is.Not.Null);
 
-        using HttpRequestMessage request = new(HttpMethod.Get, "/scripted-cached");
-        request.Headers.IfNoneMatch.Add(first.Headers.ETag!);
-        HttpResponseMessage notModified = await client.SendAsync(request);
-
-        Assert.That(notModified.StatusCode, Is.EqualTo(HttpStatusCode.NotModified));
-        AssertEveryHeader(notModified);
-        Assert.That(Policy(notModified), Is.EqualTo(SecurityHeaders.WithScripts));
+        Assert.That(first.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(first.Headers.ETag, Is.Null, "a stored page has no validator");
+        Assert.That(first.Headers.CacheControl?.NoStore, Is.True);
+        AssertEveryHeader(first);
+        Assert.That(Policy(first), Is.EqualTo(SecurityHeaders.WithScripts));
     }
 
     private static string Policy(HttpResponseMessage response) {

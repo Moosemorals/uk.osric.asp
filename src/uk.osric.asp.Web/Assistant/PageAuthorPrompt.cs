@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v19";
+    public const string Version = "page-author-v20";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -146,8 +146,8 @@ internal static class PageAuthorPrompt {
         Call `ctx.SetContentType` only to override that default, for example a
         `.js` page that sends HTML. Write the script as a native ES module: use
         `import`/`export` rather than globals, and end a side-effect-only script
-        with `export {};`. Every rendered page is `Cache-Control: no-cache`
-        unless the page sets its own `Cache-Control` header. The page that loads
+        with `export {};`. Every stored page is sent `Cache-Control: no-store`
+        with no `ETag`, and a page cannot set either. The page that loads
         it calls `ctx.AllowScripts()` and writes
         `<script type="module" src="/…"></script>`; modules are deferred, so
         the script's position in the document does not matter. Inline
@@ -177,9 +177,10 @@ internal static class PageAuthorPrompt {
         `Commit` is the full git commit hash, or null when the build was not
         made from a checkout.
         Pages run for GET, POST, and HEAD. The header allow-list is
-        Cache-Control, Content-Language, ETag, Expires, Vary, and X-*; pages
-        cannot set cookies, Location, content type through a header, or framing
-        headers. `ctx.AllowScripts()` widens this response to
+        Content-Language and X-*; pages cannot set cookies, Location, content
+        type through a header, framing headers, or caching headers, because
+        every stored page is `no-store` without a validator.
+        `ctx.AllowScripts()` widens this response to
         `script-src 'self'` for same-origin external scripts; inline scripts
         and event-handler attributes stay blocked, so the script must be
         another page, or a seeded asset, served with a JavaScript content type

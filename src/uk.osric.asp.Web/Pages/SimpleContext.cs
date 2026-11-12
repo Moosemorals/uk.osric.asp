@@ -23,9 +23,10 @@ using uk.osric.asp.Web.Http;
 internal sealed class SimpleContext : IContext {
 
     // A page must not be able to clobber the shell's own cookies or framing. Everything that changes
-    // the meaning of the body is reachable through a dedicated member instead.
+    // the meaning of the body is reachable through a dedicated member instead. Caching policy is not
+    // a page's to set: every stored page is per-visitor and the host sends no-store.
     private static readonly HashSet<string> s_allowedHeaders = [with(StringComparer.OrdinalIgnoreCase),
-        "Cache-Control", "Content-Language", "ETag", "Expires", "Vary"];
+        "Content-Language"];
 
     private const string CustomHeaderPrefix = "X-";
 
@@ -145,13 +146,12 @@ internal sealed class SimpleContext : IContext {
 
     /// <summary>What the page asked the response to be.</summary>
     /// <remarks>
-    /// Every rendered page is <c>no-cache</c> unless the page set its own <c>Cache-Control</c>: a
-    /// stored page is something its author changed a moment ago, so a heuristic copy is the wrong
-    /// default for all of it. <c>no-cache</c> requires revalidation rather than forbidding storage,
-    /// and the host's ETag makes that cheap.
+    /// Every stored page is <c>no-store</c>: a page can keep per-visitor state, so its body has no
+    /// business in a shared cache and no business inviting a conditional request. The host writes the
+    /// same header after the page's own, so this is the default rather than the last word.
     /// </remarks>
     public PageResponse ToResponse() {
-        _headers.TryAdd("Cache-Control", "no-cache");
+        _headers.TryAdd("Cache-Control", "no-store");
         return new(_status, _contentType, _headers, _location) { AllowsScripts = _allowsScripts };
     }
 

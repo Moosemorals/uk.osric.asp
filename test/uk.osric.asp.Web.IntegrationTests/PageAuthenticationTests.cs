@@ -144,7 +144,7 @@ public sealed class PageAuthenticationTests : IntegrationTest {
     }
 
     [Test]
-    public async Task APublicPageStillRendersAnonymouslyWithItsValidator() {
+    public async Task APublicPageStillRendersAnonymouslyButIsUncacheable() {
         await SavePageAsync("/public-anonymous", "Hello.");
         using HttpClient client = CreateClient();
 
@@ -152,7 +152,8 @@ public sealed class PageAuthenticationTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("Hello."));
-        Assert.That(response.Headers.ETag, Is.Not.Null);
+        Assert.That(response.Headers.ETag, Is.Null);
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }
 
     // The page's redirect target is relative, so the raw header is used rather than Uri.PathAndQuery.

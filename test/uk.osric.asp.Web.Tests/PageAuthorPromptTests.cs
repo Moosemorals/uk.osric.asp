@@ -147,7 +147,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("response type follows the extension in its key"));
             Assert.That(prompt, Does.Contain("`.js` and `.mjs`"));
             Assert.That(prompt, Does.Contain("only to override that default"));
-            Assert.That(prompt, Does.Contain("Cache-Control: no-cache"));
+            Assert.That(prompt, Does.Contain("Cache-Control: no-store"));
             Assert.That(prompt, Does.Contain("do not assume a fixed list"), "the map belongs to the host");
         });
     }
@@ -169,7 +169,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v19"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v20"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -302,7 +302,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v19"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v20"));
         });
     }
 

@@ -156,6 +156,36 @@ public sealed partial class PageSessionTests : IntegrationTest {
             "a stale owner key cannot hand its session to a stranger");
     }
 
+    [TestCase("GET")]
+    [TestCase("HEAD")]
+    [TestCase("POST")]
+    public async Task EveryStoredPageResponseIsNoStoreWithoutAValidatorAsync(string method) {
+        await SavePageAsync("/session-plain", "Hello.");
+        using HttpClient client = CreateClient();
+        using HttpRequestMessage request = new(new HttpMethod(method), "/session-plain");
+        if (method == "POST") {
+            request.Content = Form(("note", "hi"));
+        }
+
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True, $"{method} must not be cached");
+        Assert.That(response.Headers.ETag, Is.Null, $"{method} carries no validator");
+    }
+
+    [Test]
+    public async Task IfNoneMatchIsIgnoredAsync() {
+        await SavePageAsync("/session-plain", "Hello.");
+        using HttpClient client = CreateClient();
+        using HttpRequestMessage request = new(HttpMethod.Get, "/session-plain");
+        request.Headers.IfNoneMatch.Add(new System.Net.Http.Headers.EntityTagHeaderValue("\"anything\""));
+
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("Hello."));
+    }
+
     [Test]
     public async Task AnAnonymousPostShowsItsMessageOnceTooAsync() {
         await SavePageAsync("/session-flash-anonymous", Flash);
