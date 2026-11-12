@@ -25,15 +25,44 @@ public sealed class StatusCatalogueTests {
     }
 
     [Test]
-    public void EveryPanelNamesAnInstrumentOrKnownHostFamilies() {
+    public void EveryPanelNamesAnInstrumentItsSourcesOrKnownHostFamilies() {
         foreach (Panel panel in StatusCatalogue.Panels) {
             if (panel.InstrumentName is { } name) {
                 Assert.That(Instruments.Any(instrument => instrument.Name == name), Is.True, panel.Id);
                 Assert.That(panel.HostFamilies, Is.Empty, panel.Id);
+                Assert.That(panel.SourceInstruments, Is.Empty, panel.Id);
             } else {
-                Assert.That(panel.HostFamilies, Is.Not.Empty, $"{panel.Id} names neither an instrument nor a family");
+                Assert.That(
+                    panel.HostFamilies.Count + panel.SourceInstruments.Count,
+                    Is.GreaterThan(0),
+                    $"{panel.Id} names neither an instrument, a source nor a family");
+
+                foreach (string source in panel.SourceInstruments) {
+                    Assert.That(Instruments.Any(instrument => instrument.Name == source), Is.True,
+                        $"{panel.Id} composes {source}, which is in no inventory");
+                }
             }
         }
+    }
+
+    [Test]
+    public void TheRenderChainComposesTheFourStagesFromExistingInstruments() {
+        Panel chain = StatusCatalogue.Panels.Single(panel => panel.Id == "page.render.chain");
+
+        Assert.That(chain.Chart, Is.EqualTo(PanelChart.StackedArea));
+        Assert.That(chain.InstrumentName, Is.Null, "the chain owns no instrument");
+        Assert.That(chain.SourceInstruments, Is.EquivalentTo([
+            "page.render.wait", "page.compile.duration", "page.load.duration", "page.invoke.duration",
+        ]));
+
+        string query = chain.Queries.Single().Query;
+
+        Assert.That(query, Does.Contain("by (stage)"), "the stages are the stack's labels");
+        Assert.That(query, Does.Contain("page_render_wait_seconds_sum"));
+        Assert.That(query, Does.Contain("page_compile_duration_seconds_sum{reason=\"lazy\"}"),
+            "only lazy compiles belong to a render");
+        Assert.That(query, Does.Contain("page_load_duration_seconds_sum"));
+        Assert.That(query, Does.Contain("page_invoke_duration_seconds_sum"));
     }
 
     [Test]
@@ -152,6 +181,7 @@ public sealed class StatusCatalogueTests {
         PrometheusNames.Family(instrument),
         PrometheusNames.Buckets(instrument),
         PrometheusNames.Total(instrument),
+        PrometheusNames.Sum(instrument),
     ];
 
     // Function names and keywords are not families; a label inside by (…) or {…} is not one either.
@@ -193,6 +223,7 @@ public sealed class StatusCatalogueTests {
 
     private static readonly HashSet<string> Keywords = [
         "sum", "rate", "irate", "avg", "min", "max", "count", "topk", "bottomk", "by", "without", "le",
+        "or", "label_replace",
     ];
 
     private static bool KnownRuntimeFamily(string identifier) =>

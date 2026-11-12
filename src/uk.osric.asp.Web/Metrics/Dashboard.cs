@@ -7,7 +7,7 @@ using System.Globalization;
 
 /// <summary>Runs the catalogue's queries for one window and remembers the page for a few seconds.</summary>
 /// <remarks>
-/// The page is refreshed by a person and every view runs twenty-eight range queries, so a refresh loop
+/// The page is refreshed by a person and every view runs one range query per panel, so a refresh loop
 /// must not become a load test. Windows are cached by their snapped start and length, in a small
 /// bounded map: a link may name any start, and a route the owner can call must not grow a dictionary
 /// without a limit. A remote failure is a banner, never an exception, so the page still renders.

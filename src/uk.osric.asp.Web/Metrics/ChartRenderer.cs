@@ -14,8 +14,8 @@ using uk.osric.asp.Core.Charting;
 /// <param name="options">The zone the time labels are written in.</param>
 internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions options) {
 
-    // One size for every drawing: twenty-eight small multiples read as a grid only when their plots
-    // line up, and a bucket map is the tallest thing the grid has to hold.
+    // One size for every drawing: the small multiples read as a grid only when their plots line up,
+    // and a bucket map is the tallest thing the grid has to hold.
     private static readonly ChartSize PanelSize = new(504, 336);
     private const string EmptyText = "No data";
 

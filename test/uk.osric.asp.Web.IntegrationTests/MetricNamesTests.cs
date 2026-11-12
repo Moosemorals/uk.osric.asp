@@ -40,6 +40,15 @@ public sealed class MetricNamesTests : IntegrationTest {
             Assert.That(body, Does.Contain(family),
                 $"{panel.Id} queries {family}, which the exporter does not write");
         }
+
+        foreach (Panel panel in StatusCatalogue.Panels.Where(panel => panel.SourceInstruments.Count > 0)) {
+            foreach (string source in panel.SourceInstruments) {
+                MetricInstrument instrument = instruments.Single(candidate => candidate.Name == source);
+
+                Assert.That(body, Does.Contain(PrometheusNames.Sum(instrument)),
+                    $"{panel.Id} composes {source}, whose observations sum the exporter does not write");
+            }
+        }
     }
 
     private static void RecordEveryInstrument() {

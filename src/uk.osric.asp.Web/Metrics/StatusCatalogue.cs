@@ -12,12 +12,13 @@ using uk.osric.asp.Web.Pages;
 /// The catalogue is the only source of panels: <see cref="Dashboard"/> holds no queries. Each entry
 /// names an instrument (or, in the Host group, the framework families it reads), and the chart kind
 /// follows the instrument's kind — a histogram is a heatmap, a counter is a line chart, a gauge is a
-/// line chart, and a counter whose labels partition one total is a stacked area.
+/// line chart, and a counter whose labels partition one total is a stacked area. A panel may instead
+/// compose existing instruments when one question spans them, as the render chain does.
 /// </para>
 /// <para>
-/// <c>StatusCatalogueTests</c> asserts that mapping is a bijection over the meters' inventories and
-/// that every family a query names is accounted for, which is what stops the page drifting from the
-/// instruments it is built from.
+/// <c>StatusCatalogueTests</c> asserts every instrument has exactly one owning panel, that a composed
+/// panel names its sources, and that every family a query names is accounted for, which is what stops
+/// the page drifting from the instruments it is built from.
 /// </para>
 /// </remarks>
 internal static class StatusCatalogue {
@@ -27,13 +28,14 @@ internal static class StatusCatalogue {
 
     /// <summary>Every panel, in the order the page draws them.</summary>
     public static IReadOnlyList<Panel> Panels { get; } = [
-        // Pages: nine histograms, four counters, three gauges.
+        // Pages: nine histograms, four counters, three gauges, and one panel that composes instruments.
         Heatmap(Page("page.render.duration"), "Render duration",
             "How long a render takes from request to response, split into duration buckets so slow renders stand out.",
             "seconds", "renders/s"),
         Heatmap(Page("page.render.wait"), "Render slot wait",
             "How long a render waits for a free render slot before it starts; a growing wait means renders are queuing.",
             "seconds", "renders/s"),
+        RenderChain(),
         Heatmap(Page("page.compile.duration"), "Compile duration",
             "How long Roslyn spends compiling one page, split into duration buckets.",
             "seconds", "compiles/s"),
@@ -227,6 +229,39 @@ internal static class StatusCatalogue {
         PartsOfAWhole = split,
     };
 
+    // One request's stages partition its time, so their rates stack. Each band is the rate of a
+    // histogram's observations sum: its buckets answer "how many were slow", not "how long it took",
+    // so a bucket cannot be the stack's value. label_replace returns the series with a stage label
+    // even after rate() has dropped __name__, because ".*" matches the missing label's empty value;
+    // `or` keeps whichever instruments have samples, so a warm site with no lazy compiles still
+    // draws the load half of load/compile.
+    private static Panel RenderChain() {
+        MetricInstrument wait = Page("page.render.wait");
+        MetricInstrument compile = Page("page.compile.duration");
+        MetricInstrument load = Page("page.load.duration");
+        MetricInstrument invoke = Page("page.invoke.duration");
+
+        string query =
+            "sum by (stage) (" +
+            $"label_replace(rate({PrometheusNames.Sum(wait)}[5m]), \"stage\", \"wait\", \"__name__\", \".*\")" +
+            $" or label_replace(rate({PrometheusNames.Sum(compile)}{{reason=\"lazy\"}}[5m]), \"stage\", \"load/compile\", \"__name__\", \".*\")" +
+            $" or label_replace(rate({PrometheusNames.Sum(load)}[5m]), \"stage\", \"load/compile\", \"__name__\", \".*\")" +
+            $" or label_replace(rate({PrometheusNames.Sum(invoke)}[5m]), \"stage\", \"render\", \"__name__\", \".*\")" +
+            ")";
+
+        return new Panel {
+            Id = "page.render.chain",
+            Group = "Pages",
+            Title = "Render chain",
+            Description = "How a request's time is spent, split into waiting for a slot, loading or compiling the page's image, and running the page's code.",
+            YTitle = "seconds/s",
+            Chart = PanelChart.StackedArea,
+            Queries = [new PanelQuery(query, string.Empty)],
+            SourceInstruments = [wait.Name, compile.Name, load.Name, invoke.Name],
+            PartsOfAWhole = "stage",
+        };
+    }
+
     private static string GroupOf(string instrumentName) =>
         instrumentName.StartsWith("page.", StringComparison.Ordinal) ? "Pages"
         : instrumentName.StartsWith("assistant.", StringComparison.Ordinal) ? "Assistant"
@@ -236,7 +271,7 @@ internal static class StatusCatalogue {
 /// <summary>One chart on the status page.</summary>
 internal sealed record Panel {
 
-    /// <summary>The panel's id: the instrument's name, or a <c>host.</c> name for a framework panel.</summary>
+    /// <summary>The panel's id: the instrument's name, or a named id for a composed or Host panel.</summary>
     public required string Id { get; init; }
 
     /// <summary>The group the panel is listed under.</summary>
@@ -260,8 +295,11 @@ internal sealed record Panel {
     /// <summary>What a heatmap's cells count, per second, for its legend and its hover text.</summary>
     public string CellUnit { get; init; } = string.Empty;
 
-    /// <summary>The instrument the panel draws, or null for a Host panel.</summary>
+    /// <summary>The instrument the panel draws, or null for a panel that composes instruments or reads the framework's.</summary>
     public string? InstrumentName { get; init; }
+
+    /// <summary>The instruments a composed panel reads, when it owns none.</summary>
+    public IReadOnlyList<string> SourceInstruments { get; init; } = [];
 
     /// <summary>The framework families a Host panel reads.</summary>
     public IReadOnlyList<string> HostFamilies { get; init; } = [];

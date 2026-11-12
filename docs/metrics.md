@@ -82,19 +82,29 @@ instrument, and the instrument's type decides the chart (DEC-180).
 | counter whose labels partition one total | stacked area | The parts and the whole are readable, and the top edge of the stack is the total. |
 | gauge | line chart | A level over time. |
 
-`StatusCatalogue` holds the list: sixteen Pages panels (nine heatmaps for the duration and size
-histograms, stacked areas for cache lookups and staleness, line charts for abandoned renders, layout
-fallbacks and the three storage gauges), ten Assistant panels (eight heatmaps, the token counter as a
-line chart and memory writes as a stacked area), and five Host panels from the framework's own meters
+`StatusCatalogue` holds the list: seventeen Pages panels (nine heatmaps for the duration and size
+histograms, stacked areas for the render chain, cache lookups and staleness, line charts for abandoned
+renders, layout fallbacks and the three storage gauges), ten Assistant panels (eight heatmaps, the
+token counter as a line chart and memory writes as a stacked area), and five Host panels from the
+framework's own meters
 — process memory, process CPU, connections and active requests, request duration and the HTTP status
-mix. The Host panels are not instruments this repository registers, so a combined panel there is
-allowed where three series answer one question.
+mix. Combined panels are allowed where several series answer one question: the Host panels read
+meters this repository does not register, and the Pages render chain composes four that it does.
 
 `assistant.tokens` is a line chart, not a stacked area, because its labels do not partition one
 total: cached tokens are already inside prompt tokens and reasoning tokens inside completion tokens.
 The four lines answer "how many of each did the provider report" without drawing the same token
 twice. `assistant.memory.writes` is the other way round: every write carries one `op` and one
 `outcome`, so the stack's top edge is the writes the run made.
+
+`page.render.chain` is the Pages group's one composition: it owns no instrument, but reads the
+observations sum of four. `wait` is `page.render.wait`, `load/compile` adds the lazy compiles from
+`page.compile.duration` to `page.load.duration`, and `render` is `page.invoke.duration`. Each rate is
+seconds of stage time per second, so the top edge is the whole chain — one second of wall clock for a
+render that was the only one running, more when renders overlap. The sum, not the buckets, carries
+the time: a bucket says how many were slow, not how long they took. `load/compile` filters compiles
+to `reason="lazy"`, so saves and imports stay out of the render chain, and it takes whichever of its
+two families has samples, so a warm site with no compile still draws the load half.
 
 A heatmap aggregates every tag but `le`: `assistant.tool.duration` merges every tool into one
 distribution, exactly as `page.render.duration` merges every path. The panel's title says so, and
@@ -123,11 +133,13 @@ the unit the instrument records — `bytes`, `seconds`, a rate — and only the 
 the volume-capacity axis is titled `bytes` and reads `70G` to `90G`, because a title that says
 `megabytes` misdescribes samples that are in bytes.
 
-**The inventory is the catalogue.** Each meter publishes its instruments, the catalogue maps them
-one-to-one, and tests fail when either side gains an entry the other lacks, when a type disagrees
-with the chart, or when a query names a family that is neither an instrument nor a known runtime one
-(DEC-183). `MetricNamesTests` records every instrument and reads the live `/metrics` body, so a
-renamed instrument or a changed unit fails a test rather than emptying a panel.
+**The inventory is the catalogue.** Each meter publishes its instruments, every instrument has
+exactly one owning panel, and tests fail when either side gains an entry the other lacks, when a type
+disagrees with the chart, or when a query names a family that is neither an instrument nor a known
+runtime one (DEC-183). The render chain is the exception that proves the rule: it is an extra panel
+that names the instruments it composes and owns none. `MetricNamesTests` records every instrument and
+reads the live `/metrics` body, so a renamed instrument or a changed unit fails a test rather than
+emptying a panel.
 
 **A heatmap draws runs, not cells.** Neighbouring samples of the same shade merge into one `rect` with
 one hover title, and an answer with more samples than the cap allows is folded into at most sixty

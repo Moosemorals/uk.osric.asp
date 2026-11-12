@@ -32,6 +32,10 @@ internal static class PrometheusNames {
     /// <param name="instrument">The instrument.</param>
     internal static string Buckets(MetricInstrument instrument) => Family(instrument) + "_bucket";
 
+    /// <summary>The family a histogram's observations sum to.</summary>
+    /// <param name="instrument">The instrument.</param>
+    internal static string Sum(MetricInstrument instrument) => Family(instrument) + "_sum";
+
     /// <summary>The family a counter's total is exported under.</summary>
     /// <param name="instrument">The instrument.</param>
     internal static string Total(MetricInstrument instrument) => Family(instrument) + "_total";
