@@ -7,6 +7,7 @@
    var links = new System.Collections.Generic.List<NavLink> {
        new("/", "Home", At("/")),
        new("/about", "About", At("/about")),
+       new("/privacy", "Privacy", At("/privacy")),
    };
    if (ctx.User is null) {
        links.Add(new("/login", "Sign in", At("/login")));

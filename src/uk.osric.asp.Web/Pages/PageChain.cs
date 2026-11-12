@@ -33,6 +33,7 @@ internal sealed class PageChain {
     private readonly string _loginRedirect;
     private readonly ReadBudget _readBudget;
     private readonly PageRequest _request;
+    private readonly PageSessionRequest _session;
     private readonly PageUser? _user;
 
     /// <summary>Creates the chain for one request.</summary>
@@ -40,6 +41,7 @@ internal sealed class PageChain {
     /// <param name="loggerFactory">Creates the logger every layer writes through.</param>
     /// <param name="request">The request snapshot, shared by every layer.</param>
     /// <param name="user">The signed-in account, or <see langword="null"/>.</param>
+    /// <param name="session">The visitor's session, resolved once by the endpoint.</param>
     /// <param name="isHead">Whether the request is a HEAD, which renders but never writes state.</param>
     /// <param name="bodyBudget">The allowance the whole chain shares.</param>
     /// <param name="fetchBudget">The fetch allowance the whole chain shares.</param>
@@ -55,6 +57,7 @@ internal sealed class PageChain {
         ILoggerFactory loggerFactory,
         PageRequest request,
         PageUser? user,
+        PageSessionRequest session,
         bool isHead,
         CancellationToken aborted,
         BodyBudget bodyBudget,
@@ -65,6 +68,7 @@ internal sealed class PageChain {
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(bodyBudget);
         ArgumentNullException.ThrowIfNull(fetchBudget);
         ArgumentNullException.ThrowIfNull(readBudget);
@@ -74,6 +78,7 @@ internal sealed class PageChain {
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(SimpleContext.PageCategory);
         _request = request;
+        _session = session;
         _user = user;
         _isHead = isHead;
         _aborted = aborted;
@@ -95,6 +100,13 @@ internal sealed class PageChain {
         ArgumentNullException.ThrowIfNull(layout);
 
         PageStorageScope storage = new(key, _environment.StateStore, _environment.Storage, writable: !_isHead);
+        PageSessionScope session = new(
+            key,
+            _environment.SessionStore,
+            _environment.Sessions,
+            _session,
+            writable: !_isHead && !isLayout,
+            slides: !_isHead);
         PageHttpFetch fetch = new(
             key,
             _isHead,
@@ -115,6 +127,7 @@ internal sealed class PageChain {
         PageCapabilities capabilities = new PageCapabilities()
             .Add<IBuildInfo>(BuildInfo.Current)
             .Add<IPageStorage>(storage)
+            .Add<IPageSession>(session)
             .Add<IHttpFetch>(fetch)
             .Add<IPageCatalog>(catalog)
             .Add<IPageLayout>(layout)

@@ -117,3 +117,24 @@ uk.osric.asp.Sdk.IPageCapabilities.TryGet<T>(out T? capability) -> bool
 *REMOVED*uk.osric.asp.Sdk.IPageFeatures.Get<T>() -> T?
 *REMOVED*uk.osric.asp.Sdk.IPageFeatures.GetRequired<T>() -> T!
 *REMOVED*uk.osric.asp.Sdk.IPageFeatures.TryGet<T>(out T? feature) -> bool
+uk.osric.asp.Sdk.IPageSession
+uk.osric.asp.Sdk.IPageSession.AllKeysAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageSessionKey>!>!
+uk.osric.asp.Sdk.IPageSession.DeleteAsync(string! key) -> System.Threading.Tasks.Task<bool>!
+uk.osric.asp.Sdk.IPageSession.KeysAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<string!>!>!
+uk.osric.asp.Sdk.IPageSession.SetAsync<T>(string! key, T value) -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IPageSession.TryGetValueAsync<T>(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageValue<T>>!
+uk.osric.asp.Sdk.IPageSession.TryGetValueAsync<T>(string! pagePath, string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageValue<T>>!
+uk.osric.asp.Sdk.PageSessionKey
+uk.osric.asp.Sdk.PageSessionKey.Deconstruct(out string! Page, out string! Key) -> void
+uk.osric.asp.Sdk.PageSessionKey.Equals(uk.osric.asp.Sdk.PageSessionKey other) -> bool
+uk.osric.asp.Sdk.PageSessionKey.Key.get -> string!
+uk.osric.asp.Sdk.PageSessionKey.Key.init -> void
+uk.osric.asp.Sdk.PageSessionKey.Page.get -> string!
+uk.osric.asp.Sdk.PageSessionKey.Page.init -> void
+uk.osric.asp.Sdk.PageSessionKey.PageSessionKey() -> void
+uk.osric.asp.Sdk.PageSessionKey.PageSessionKey(string! Page, string! Key) -> void
+override uk.osric.asp.Sdk.PageSessionKey.GetHashCode() -> int
+~override uk.osric.asp.Sdk.PageSessionKey.ToString() -> string
+static uk.osric.asp.Sdk.PageSessionKey.operator !=(uk.osric.asp.Sdk.PageSessionKey left, uk.osric.asp.Sdk.PageSessionKey right) -> bool
+static uk.osric.asp.Sdk.PageSessionKey.operator ==(uk.osric.asp.Sdk.PageSessionKey left, uk.osric.asp.Sdk.PageSessionKey right) -> bool
+~override uk.osric.asp.Sdk.PageSessionKey.Equals(object obj) -> bool

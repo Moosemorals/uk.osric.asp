@@ -28,6 +28,7 @@ internal sealed class PageHarness : IDisposable {
         FakePageFetcher? fetch = null,
         FakePageReadStore? readStore = null,
         FakePageRevisionStore? revisionStore = null,
+        FakePageSessionStore? sessionStore = null,
         PageStorageOptions? storageOptions = null,
         ILogger<PageRenderer>? rendererLogger = null,
         PageFetchOptions? fetchOptions = null,
@@ -35,6 +36,8 @@ internal sealed class PageHarness : IDisposable {
         MarkdownRenderer? markdown = null,
         DiffRenderer? diff = null) {
         State = state ?? new FakePageStateStore();
+        Sessions = sessionStore ?? new FakePageSessionStore();
+        Session = new PageSessionRequest(uk.osric.asp.Web.Authentication.PageSessionCookie.Mint(), null, presented: false, exists: false);
         Fetch = fetch ?? new FakePageFetcher();
         ReadStore = readStore ?? new FakePageReadStore();
         ContentTypes = contentTypes ?? TestContentTypes.Shipped;
@@ -67,6 +70,12 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>The page state every render in this harness shares.</summary>
     public FakePageStateStore State { get; }
+
+    /// <summary>The session state every render in this harness shares.</summary>
+    public FakePageSessionStore Sessions { get; }
+
+    /// <summary>The request's session, shared by every layer of a render.</summary>
+    public PageSessionRequest Session { get; }
 
     /// <summary>Where every fetch in this harness goes.</summary>
     public FakePageFetcher Fetch { get; }
@@ -128,10 +137,11 @@ internal sealed class PageHarness : IDisposable {
         bool isHead = false,
         PageUser? user = null,
         bool withFetch = true,
-        bool withStorage = true) {
+        bool withStorage = true,
+        bool withSession = true) {
         PagePath key = Key(path);
         SimpleContext context = CreateContext(
-            key, maxBodyChars, isHead, user, withFetch: withFetch, withStorage: withStorage);
+            key, maxBodyChars, isHead, user, withFetch: withFetch, withStorage: withStorage, withSession: withSession);
 
         RenderResult result = await Renderer.RenderAsync(key, context, CancellationToken.None);
 
@@ -149,12 +159,20 @@ internal sealed class PageHarness : IDisposable {
         bool withFetch = true,
         bool withStorage = true,
         bool withCatalog = true,
-        bool withWriter = true) {
+        bool withWriter = true,
+        bool withSession = true,
+        string method = "GET") {
         PageCapabilities capabilities = new();
 
         if (withStorage) {
             PageStorageScope storage = new(path, State, StorageOptions, writable: !isHead);
             capabilities.Add<IPageStorage>(storage);
+        }
+
+        if (withSession) {
+            PageSessionScope session = new(
+                path, Sessions, new PageSessionOptions(), Session, writable: !isHead, slides: !isHead);
+            capabilities.Add<IPageSession>(session);
         }
 
         if (withFetch) {
@@ -191,7 +209,7 @@ internal sealed class PageHarness : IDisposable {
 
         return new SimpleContext(
             NullLoggerFactory.Instance,
-            TestHttp.Request(path.Key, isHead ? "HEAD" : "GET"),
+            TestHttp.Request(path.Key, method),
             CancellationToken.None,
             new StringWriter(),
             capabilities,

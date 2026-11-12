@@ -9,7 +9,8 @@ Reviewed 2026-11-05, after the cookie moved from a data-protected ticket in the 
 random key with the framework's protected ticket in `AuthTickets`. The review read the changed
 code against the .NET 10 `CookieAuthenticationHandler` source and the deployment in `deploy/`.
 Conclusion: no critical, high or medium finding; two narrow key-lifecycle races, both fixed, and
-four accepted risks. Risk 5 was later fixed, as recorded in the table.
+four accepted risks. Risk 5 was later fixed, as recorded in the table. The cookie is named `a` now;
+this review keeps the long name it saw.
 
 ## The scheme under review
 

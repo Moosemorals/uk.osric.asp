@@ -12,6 +12,7 @@ using System.Security.Claims;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
+using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Users;
 
 /// <summary>Renders the sign-in form, accepts its POST and signs the visitor out.</summary>
@@ -49,6 +50,8 @@ internal static class LoginEndpoint {
         IPasswordService passwords,
         IAntiforgery antiforgery,
         IAuthenticationService authentication,
+        IPageSessionStore sessions,
+        PageSessionCookieOptions sessionCookie,
         ILoggerFactory loggers) {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -86,6 +89,11 @@ internal static class LoginEndpoint {
 
             if (result != PasswordVerificationResult.Failed) {
                 logger.LogInformation("Signed in {UserName}", user.UserName);
+                // A session belonging to an account is only honoured for that account, so signing in
+                // starts a fresh one rather than promoting whatever this browser held.
+                if (!await PageSessionCookie.RotateAsync(context, sessions, sessionCookie, user.UserName, context.RequestAborted)) {
+                    logger.LogWarning("Could not mint a page session for {UserName}; the site is at its session cap", user.UserName);
+                }
                 await SignInAsync(context, user, rememberMe, authentication);
                 SecurityHeaders.NoStore(context);
                 Redirect.SeeOther(context, LocalRedirect.Safe(returnUrl));
@@ -134,8 +142,13 @@ internal static class LoginEndpoint {
         await ShellDocument.EndAsync(context);
     }
 
-    /// <summary>Deletes the authentication cookie.</summary>
-    public static async Task LogoutAsync(HttpContext context, IAuthenticationService authentication, ILoggerFactory loggers) {
+    /// <summary>Deletes the authentication cookie and the visitor's page session.</summary>
+    public static async Task LogoutAsync(
+        HttpContext context,
+        IAuthenticationService authentication,
+        IPageSessionStore sessions,
+        PageSessionCookieOptions sessionCookie,
+        ILoggerFactory loggers) {
         ArgumentNullException.ThrowIfNull(loggers);
 
         SecurityHeaders.NoStore(context);
@@ -156,6 +169,9 @@ internal static class LoginEndpoint {
             context,
             CookieAuthenticationDefaults.AuthenticationScheme,
             new AuthenticationProperties());
+
+        // Signing out leaves nothing behind: the rows go with the cookie.
+        await PageSessionCookie.ClearAsync(context, sessions, sessionCookie, context.RequestAborted);
 
         Redirect.SeeOther(context, "/");
     }

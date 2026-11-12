@@ -256,8 +256,10 @@ public sealed class EditorEndpointTests : IntegrationTest {
         Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
         Assert.That(save.Headers.Location?.ToString(), Is.EqualTo("/edit/broken"));
 
+        // Nothing reads a message on the page save-and-view would have redirected to, so the
+        // diagnostics on the editor are what tell the author why they are back here.
         string editor = await (await client.GetAsync("/edit/broken")).Content.ReadAsStringAsync();
-        Assert.That(editor, Does.Contain("The page cannot be shown until the errors are fixed."));
+        Assert.That(editor, Does.Contain("error CS"));
     }
 
     [Test]

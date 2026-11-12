@@ -46,7 +46,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
 
         IReadOnlyList<string> items = await MenuAsync(client, "/public-chrome");
 
-        Assert.That(items, Is.EqualTo((string[])["Home", "About", "Sign in"]));
+        Assert.That(items, Is.EqualTo((string[])["Home", "About", "Privacy", "Sign in"]));
     }
 
     [Test]
@@ -56,7 +56,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
 
         IReadOnlyList<string> items = await MenuAsync(client, "/private-chrome");
 
-        Assert.That(items, Is.EqualTo((string[])["Home", "About", "Assistant", "Pages", "Admin", "Sign out"]));
+        Assert.That(items, Is.EqualTo((string[])["Home", "About", "Privacy", "Assistant", "Pages", "Admin", "Sign out"]));
     }
 
     [Test]
@@ -168,7 +168,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         HttpResponseMessage logout = await client.PostAsync("/logout", Form(("__RequestVerificationToken", token)));
         Assert.That(logout.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
 
-        Assert.That(await MenuAsync(client, "/signed-out"), Is.EqualTo((string[])["Home", "About", "Sign in"]));
+        Assert.That(await MenuAsync(client, "/signed-out"), Is.EqualTo((string[])["Home", "About", "Privacy", "Sign in"]));
     }
 
     [Test]

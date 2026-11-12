@@ -49,7 +49,10 @@ public sealed class PageEndpointTests {
             _metrics,
             _antiforgery,
             new MarkdownRenderer(),
-            new DiffRenderer());
+            new DiffRenderer(),
+            new PageSessionOptions(),
+            new FakePageSessionStore(),
+            TestSessions.Cookie);
     }
 
     [TestCase(null, "/", "/")]
@@ -159,7 +162,7 @@ public sealed class PageEndpointTests {
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/javascript; charset=utf-8"));
-        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-cache"));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("export const answer = 42;"));
     }
 
@@ -177,22 +180,16 @@ public sealed class PageEndpointTests {
 
     [TestCase("GET")]
     [TestCase("HEAD")]
-    public async Task AStoredScriptPageRevalidatesLikeAnyOtherPageAsync(string method) {
+    public async Task AStoredScriptPageIsNeverCachedAsync(string method) {
         FakePageStore storage = new();
         storage["/x.js"] = new PageTemplate(PagePath.Normalize("/x.js"), "export {};");
-        DefaultHttpContext initial = TestHttp.CreateContext("x.js", method, "/x.js");
+        DefaultHttpContext context = TestHttp.CreateContext("x.js", method, "/x.js");
 
-        await PageEndpoint.HandleAsync(initial, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
-        DefaultHttpContext conditional = TestHttp.CreateContext("x.js", method, "/x.js");
-        conditional.Request.Headers.IfNoneMatch = initial.Response.Headers.ETag;
-
-        await PageEndpoint.HandleAsync(conditional, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
-
-        Assert.That(initial.Response.ContentType, Is.EqualTo("text/javascript; charset=utf-8"));
-        Assert.That(conditional.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
-        Assert.That(conditional.Response.ContentType, Is.Null);
-        Assert.That(await TestHttp.ReadBodyAsync(conditional), Is.Empty);
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/javascript; charset=utf-8"));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        Assert.That(context.Response.Headers.ETag, Is.Empty);
     }
 
     [Test]
@@ -448,7 +445,7 @@ public sealed class PageEndpointTests {
 
     [TestCase("GET")]
     [TestCase("HEAD")]
-    public async Task MatchingIfNoneMatchReturnsBodylessNotModifiedAsync(string method) {
+    public async Task IfNoneMatchIsIgnoredAsync(string method) {
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, world!");
         DefaultHttpContext initial = TestHttp.CreateContext("hello.cs", method, "/hello.cs");
@@ -456,13 +453,14 @@ public sealed class PageEndpointTests {
         await PageEndpoint.HandleAsync(initial, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
         DefaultHttpContext conditional = TestHttp.CreateContext("hello.cs", method, "/hello.cs");
-        conditional.Request.Headers.IfNoneMatch = initial.Response.Headers.ETag;
+        conditional.Request.Headers.IfNoneMatch = "*";
 
         await PageEndpoint.HandleAsync(conditional, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
-        Assert.That(conditional.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
-        Assert.That(conditional.Response.Headers.ETag, Is.EqualTo(initial.Response.Headers.ETag));
-        Assert.That(await TestHttp.ReadBodyAsync(conditional), Is.Empty);
+        Assert.That(initial.Response.Headers.ETag, Is.Empty, "a stored page carries no validator");
+        Assert.That(conditional.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(conditional.Response.ContentLength, Is.EqualTo(Encoding.UTF8.GetByteCount("Hello, world!")));
+        Assert.That(await TestHttp.ReadBodyAsync(conditional), Is.EqualTo(method == "HEAD" ? string.Empty : "Hello, world!"));
     }
 
     [Test]
@@ -479,16 +477,16 @@ public sealed class PageEndpointTests {
     }
 
     [Test]
-    public async Task IfNoneMatchWildcardMatchesAnExistingPageAsync() {
-        DefaultHttpContext context = TestHttp.CreateContext("hello.cs", "GET", "/hello.cs");
-        context.Request.Headers.IfNoneMatch = "*";
+    public async Task AnAnonymousPageIsUncacheableTooAsync() {
+        DefaultHttpContext context = CreateContext("public.cs");
         FakePageStore storage = new();
-        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, world!");
+        storage["/public.cs"] = new PageTemplate(PagePath.Normalize("/public.cs"), "Hello.");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
-        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
-        Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        Assert.That(context.Response.Headers.ETag, Is.Empty);
     }
 
     [Test]
@@ -576,7 +574,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext("private.cs", "GET", "/private.cs");
         context.Request.QueryString = new QueryString("?tab=one&tab=two");
         // A cookie the page can read is not an identity: only the authenticated principal is.
-        context.Request.Headers.Cookie = ".uk.osric.asp.auth=forged";
+        context.Request.Headers.Cookie = "a=forged";
         FakePageStore storage = new();
         storage["/private.cs"] = new PageTemplate(PagePath.Normalize("/private.cs"), GuardedPage);
 
@@ -627,17 +625,6 @@ public sealed class PageEndpointTests {
         Assert.That(context.Response.Headers.ETag, Is.Empty);
     }
 
-    [Test]
-    public async Task AnAnonymousPageStillCarriesItsValidatorAsync() {
-        DefaultHttpContext context = CreateContext("public.cs");
-        FakePageStore storage = new();
-        storage["/public.cs"] = new PageTemplate(PagePath.Normalize("/public.cs"), "Hello.");
-
-        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
-
-        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
-        Assert.That(context.Response.Headers.ETag, Is.Not.Empty);
-    }
 
     [Test]
     public async Task AnAuthenticatedPostWithoutAValidTokenIsRefusedBeforeThePageRunsAsync() {

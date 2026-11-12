@@ -5,8 +5,8 @@ SPDX-License-Identifier: MIT
 
 # Storage
 
-The SQLite database behind the site: pages and their revisions, page state, and the archive that
-moves pages between sites. [Pages](pages.md#compiled-pages) says what a stored image is and when it
+The SQLite database behind the site: pages and their revisions, page state, a visitor's session, and
+the archive that moves pages between sites. [Pages](pages.md#compiled-pages) says what a stored image is and when it
 is stale; [running it](../deploy/operations.md#storage-and-migrations) is the volume, the migrations
 and the backups.
 
@@ -26,6 +26,32 @@ primary key of the whole access path, so no separate index is needed. There is n
 deletes that keep state from outliving its page are explicit, and SQLite's enforcement depends on the
 connection. State is per path, not per revision: an edit or a restore keeps it, and deleting the page
 clears it in the same transaction as the tombstone.
+
+### Page sessions
+
+A visitor's session is two tables in the same database, added by one migration. `PageSessions` is one
+row per visitor — the id the `s` cookie carries, the account it belongs to or `NULL`, and a created
+and a sliding timestamp, both UTC ISO-8601 text so a range delete and an eviction order can run
+inside one statement. `PageSessionValues` is one row per value keyed by session, page path and key,
+with the value as JSON and a cascade delete from the session row. The page path is required on every
+row — the shell is a session owner with a reserved path, exactly like a page — so there is no null or
+empty-string area and SQLite's NULL-is-distinct rule never reaches the unique key. Two indexes back
+the sweep and the eviction order: one on `(Account, UpdatedAt)` and one on `UpdatedAt`.
+
+The caps live in `Pages:Session`: one value's bytes, one session's key count and byte total, and the
+idle lifetime, for an anonymous visitor and for a signed-in one, plus the live-session cap and a
+command timeout. The values are clamped to a safe minimum the way `Pages:Storage` is, and the key
+length is `Pages:Storage:MaxKeyChars` because a session key is the same kind of key. Each write is
+one statement that refuses at the cap, the way `SqlitePageStateStore.UpsertAsync` does: the session
+must still exist, the key count must stay inside its cap and the byte total inside its cap. The caps
+are per visitor, not per page, so one page's keys can use the room another would have had.
+
+Expiry is a sliding window per row; the sweep is `PageSessionCleanupService`, a five-minute
+`PeriodicTimer` that deletes expired rows and trims an overfull table, logging one line with the
+counts by kind when it removed anything. A mint pays for housekeeping only when it would otherwise
+have evicted: it deletes expired rows first, then evicts the most idle anonymous session, and only
+reaches a signed-in session when no anonymous one is left. That order is what keeps a flood of new
+anonymous visitors from pushing the owner's own session out.
 
 `PageRevisions` holds every save as a separate row, including its source, revision hash, creation
 runtime id and optional compilation result. A save inserts the revision and advances its
@@ -121,9 +147,10 @@ and `PageState(PagePath, Key, Value)`, identified by `PRAGMA application_id` and
 built in memory with `sqlite3_serialize` and read by deserializing an upload read-only with
 `sqlite3_deserialize`, so neither direction needs a temporary file (DEC-139).
 
-The archive carries source and state and nothing else: revision history, tombstones, users and
-configuration belong to the site that made them, and shipping hashes and runtime ids across sites
-would import code nobody built. Import is additive — pages absent from the archive are untouched and
+The archive carries source and state and nothing else: revision history, tombstones, users, page
+sessions and configuration belong to the site that made them — a session is a visitor's scratch
+space rather than content — and shipping hashes and runtime ids across sites would import code
+nobody built. Import is additive — pages absent from the archive are untouched and
 nothing is deleted — and it never invents a storage path: each approved page becomes a revision
 through the same factory an editor save uses, so an overwrite is an ordinary new revision and the old
 source stays in history.

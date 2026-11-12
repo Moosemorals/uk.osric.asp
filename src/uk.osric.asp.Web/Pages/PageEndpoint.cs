@@ -3,9 +3,7 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-using Microsoft.Net.Http.Headers;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
@@ -96,9 +94,14 @@ internal sealed class PageEndpoint() {
             return;
         }
 
-        // A HEAD request runs the page to produce the representation and its validators, so its state
+        // A HEAD request runs the page to produce the representation and its validator, so its state
         // is readable but never written, and it cannot POST to a remote system.
         bool isHead = HttpMethods.IsHead(context.Request.Method);
+
+        // The visitor's session is resolved once, before any layer runs, so two layers of one chain
+        // cannot see different sessions. The row is only minted once something writes to it.
+        PageSessionRequest session = await PageSessionResolver.ResolveAsync(
+            context, environment.SessionStore, environment.SessionCookie, user, context.RequestAborted);
 
         // The antiforgery pair is minted once per request: a page and the layout around it must be
         // verifiable against the same token, and a second would leave the first unverifiable.
@@ -112,6 +115,7 @@ internal sealed class PageEndpoint() {
             loggerFactory,
             snapshot,
             user,
+            session,
             isHead,
             context.RequestAborted,
             new BodyBudget(environment.Render.MaxBodyChars),
@@ -126,8 +130,8 @@ internal sealed class PageEndpoint() {
 
         // One slot and one deadline for the whole chain, so a wrapped page costs one render rather
         // than two.
-        await using PageRenderer.RenderSession session = await pages.OpenSessionAsync(path, context.RequestAborted);
-        RenderResult result = await session.RenderAsync(path, page);
+        await using PageRenderer.RenderSession render = await pages.OpenSessionAsync(path, context.RequestAborted);
+        RenderResult result = await render.RenderAsync(path, page);
 
         switch (result.Status) {
             case RenderStatus.NotFound:
@@ -141,9 +145,9 @@ internal sealed class PageEndpoint() {
                 return;
         }
 
-        Task write = (await chain.WrapAsync(session, path, contentLayout, page.ToResponse(), page.GetBody())) switch {
+        Task write = (await chain.WrapAsync(render, path, contentLayout, page.ToResponse(), page.GetBody())) switch {
             PageChainResult.Failed failure => ErrorResponses.WriteAsync(context, failure.StatusCode, failure.Error),
-            PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, authenticated),
+            PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, environment, session),
         };
 
         await write;
@@ -167,11 +171,13 @@ internal sealed class PageEndpoint() {
         HttpContext context,
         PageResponse response,
         string body,
-        bool authenticated) {
+        PageEnvironment environment,
+        PageSessionRequest session) {
         if (response.Location is not null) {
             // A redirect can carry the promise of a page the visitor is not yet allowed to see, so it
             // is never cached, whoever asked.
             SecurityHeaders.NoStore(context);
+            WriteSessionCookie(context, environment, session);
             Redirect.To(context, response.Status, response.Location);
             return;
         }
@@ -188,30 +194,13 @@ internal sealed class PageEndpoint() {
         }
 
         byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
-        EntityTagHeaderValue? entityTag = null;
 
-        if (authenticated) {
-            // Copies first, then overrides, so a page cannot weaken it with SetHeader. A response
-            // rendered for one owner must never be a shared cache's answer to another visitor, and a
-            // validator would invite exactly that revalidation.
-            SecurityHeaders.NoStore(context);
-            context.Response.Headers.Remove("ETag");
-        } else if (response.Status is >= StatusCodes.Status200OK and < StatusCodes.Status300MultipleChoices) {
-            byte[] digest = SHA256.HashData(bodyBytes);
-            entityTag = new EntityTagHeaderValue($"\"{Convert.ToHexString(digest)}\"");
-            context.Response.Headers.ETag = entityTag.ToString();
-        }
-
-        if (entityTag is not null
-            && (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
-            && context.Request.GetTypedHeaders().IfNoneMatch?.Any(candidate =>
-                candidate.Tag.Equals(EntityTagHeaderValue.Any.Tag, StringComparison.Ordinal)
-                    || candidate.Tag.Equals(entityTag.Tag, StringComparison.Ordinal)) == true) {
-            context.Response.StatusCode = StatusCodes.Status304NotModified;
-            context.Response.ContentType = null;
-            context.Response.ContentLength = null;
-            return;
-        }
+        // Every stored page is per-visitor now: a page session can be written by any render, so the
+        // body has no business in a shared cache and no business inviting a conditional request.
+        // Copies first, then overrides, so a page cannot weaken it with SetHeader.
+        SecurityHeaders.NoStore(context);
+        context.Response.Headers.Remove("ETag");
+        WriteSessionCookie(context, environment, session);
 
         if (response.Status is >= StatusCodes.Status200OK
             and not StatusCodes.Status204NoContent
@@ -221,6 +210,14 @@ internal sealed class PageEndpoint() {
 
         if (!HttpMethods.IsHead(context.Request.Method)) {
             await context.Response.Body.WriteAsync(bodyBytes.AsMemory(), context.RequestAborted);
+        }
+    }
+
+    // Minted lazily, so a page that only reads costs a visitor no cookie and the next write is the
+    // first thing that needs one.
+    private static void WriteSessionCookie(HttpContext context, PageEnvironment environment, PageSessionRequest session) {
+        if (session.NeedsCookie) {
+            PageSessionCookie.Write(context, session.Id, environment.SessionCookie);
         }
     }
 

@@ -68,6 +68,7 @@ internal static class SiteNavigation {
         List<NavLink> links = [
             new("/", "Home", At(path, "/")),
             new("/about", "About", At(path, "/about")),
+            new("/privacy", "Privacy", At(path, "/privacy")),
         ];
 
         if (!authenticated) {

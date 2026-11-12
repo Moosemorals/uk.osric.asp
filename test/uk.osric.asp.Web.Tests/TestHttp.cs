@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
@@ -31,7 +30,6 @@ internal static class TestHttp {
         context.Request.Path = requestPath;
         context.Request.RouteValues["path"] = path;
         context.Response.Body = new MemoryStream();
-        context.Features.Set<ISessionFeature>(new TestSessionFeature());
         context.RequestServices = s_services;
         return context;
     }

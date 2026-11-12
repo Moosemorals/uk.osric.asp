@@ -161,6 +161,13 @@ and applies them.
   stored in `PageState` in the same database, so `storage.db` carries it and a backup includes
   it. Deleting a page clears its state; editing or restoring it
   keeps it. The caps live under `Pages:Storage` (`Pages__Storage__MaxValueBytes`, and so on).
+- **Page session:** a page can keep per-visitor state through
+  `ctx.Capabilities.GetRequired<IPageSession>()`, stored in `PageSessions` and `PageSessionValues` in the
+  same database. A visitor is identified by the `s` cookie, which is minted on the page's first write
+  and cleared on sign-out; a row lives 30 minutes without a visit, or 8 hours signed in. The caps,
+  lifetimes and live-session cap live under `Pages:Session` (`Pages__Session__Anonymous__MaxKeys`,
+  `Pages__Session__MaxLiveSessions`, and so on), and the table is swept every five minutes. A
+  session is a visitor's scratch space rather than content: an export archive never carries one.
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
   covers `/admin/export`, `/admin/import`, `/assistant`, `/edit`, `/favicon.ico`, `/heath`, `/login`,

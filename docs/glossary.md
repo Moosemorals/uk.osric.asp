@@ -28,9 +28,9 @@ pairs (DEC-141, DEC-159).
 `Pages:Render:MaxBodyChars`, `Pages:Compile:TimeoutSeconds` and `Pages:Compile:Slots`.
 
 ## Capability
-An ability the host grants one render and withholds from the next: storage, outbound fetch, the page
-store read, the page's own save, the layout's slots, the Markdown and diff renderers, and the build
-the site is running. A page asks for one through `ctx.Capabilities`, read-only; the host decides what
+An ability the host grants one render and withholds from the next: storage, the visitor's session,
+outbound fetch, the page store read, the page's own save, the layout's slots, the Markdown and diff
+renderers, and the build the site is running. A page asks for one through `ctx.Capabilities`, read-only; the host decides what
 the render offers, and a capability is registered or absent, never `null`.
 
 **Not** a feature or an extension. A feature is something the product has — the assistant is one, and
@@ -38,7 +38,7 @@ ASP.NET Core's `HttpContext.Features` are another mechanism altogether — and a
 something a third party adds; a capability is something one render offers a page, and it may be
 absent from the next. The accessor was called `ctx.Features` until DEC-228.
 
-**Owner:** pages — `IPageCapabilities`, `IContext.Capabilities` and the eight `Sdk` interfaces a page
+**Owner:** pages — `IPageCapabilities`, `IContext.Capabilities` and the nine `Sdk` interfaces a page
 may ask for; `PageCapabilities` is the shell's registry (DEC-142, DEC-228).
 
 ## Conversation
@@ -308,6 +308,18 @@ estimated tokens, which is what `Assistant:MaxContextTokens` bounds (DEC-204).
 
 **Owner:** assistant — `ChatRequestJson.MeasureBytes` and `ContextPlan.RequestBytes`; the token
 estimate is `TokenEstimator` and `ContextPlan.EstimatedTokens` (DEC-204).
+
+## Session
+One visitor's key/value store, which a page reaches through `IPageSession`: JSON values under short
+keys, bounded per visitor and addressed by the page that wrote them.
+
+**Not** page state. `IPageStorage` is one store per page that every visitor shares, and it is content
+— exported, imported and measured; a session value is a visitor's scratch space, lives in
+`PageSessions` and `PageSessionValues`, and never leaves the site. Nor is it the browser's `ISession`:
+it is not ASP.NET Core's session, has no in-process cache and survives a restart.
+
+**Owner:** pages — `IPageSession`, `PageSessionScope`, the `PageSessions` tables, the
+`Pages:Session` configuration and the `s` cookie.
 
 ## Shell file
 A key the site's own routes answer — `/edit`, `/login`, `/assistant`, `/metrics` and the rest of

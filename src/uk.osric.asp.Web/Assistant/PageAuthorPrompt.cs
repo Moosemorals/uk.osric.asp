@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v19";
+    public const string Version = "page-author-v20";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -146,8 +146,8 @@ internal static class PageAuthorPrompt {
         Call `ctx.SetContentType` only to override that default, for example a
         `.js` page that sends HTML. Write the script as a native ES module: use
         `import`/`export` rather than globals, and end a side-effect-only script
-        with `export {};`. Every rendered page is `Cache-Control: no-cache`
-        unless the page sets its own `Cache-Control` header. The page that loads
+        with `export {};`. Every stored page is sent `Cache-Control: no-store`
+        with no `ETag`, and a page cannot set either. The page that loads
         it calls `ctx.AllowScripts()` and writes
         `<script type="module" src="/…"></script>`; modules are deferred, so
         the script's position in the document does not matter. Inline
@@ -177,9 +177,10 @@ internal static class PageAuthorPrompt {
         `Commit` is the full git commit hash, or null when the build was not
         made from a checkout.
         Pages run for GET, POST, and HEAD. The header allow-list is
-        Cache-Control, Content-Language, ETag, Expires, Vary, and X-*; pages
-        cannot set cookies, Location, content type through a header, or framing
-        headers. `ctx.AllowScripts()` widens this response to
+        Content-Language and X-*; pages cannot set cookies, Location, content
+        type through a header, framing headers, or caching headers, because
+        every stored page is `no-store` without a validator.
+        `ctx.AllowScripts()` widens this response to
         `script-src 'self'` for same-origin external scripts; inline scripts
         and event-handler attributes stay blocked, so the script must be
         another page, or a seeded asset, served with a JavaScript content type
@@ -217,6 +218,23 @@ internal static class PageAuthorPrompt {
         await storage.TryGetValueAsync<int>("visits")`. A `HEAD` render may
         read but never write. Never start a storage write and leave the task
         unawaited: that is a dropped write.
+
+        ## Page session
+        `ctx.Capabilities.GetRequired<IPageSession>()` is this visitor's own
+        key/value store, separate from `IPageStorage`: a storage value is shared
+        by everyone, a session value belongs to one browser and goes when it
+        signs out. Use it when a form answers with a `303` and the next render
+        has to say what happened. `TryGetValueAsync<T>(key)`, `SetAsync`,
+        `DeleteAsync` and `KeysAsync` use the page's own path, so a page cannot
+        write or delete another page's keys. `TryGetValueAsync<T>(pagePath, key)`
+        reads another page's key by path, and `AllKeysAsync()` lists
+        `PageSessionKey` pairs (`Page` and `Key`) for every page. Values are JSON
+        and keys follow the page-storage rule. The caps are per visitor: 8 keys
+        and 16 KiB anonymously, 32 keys and 64 KiB signed in, with 4 KiB or
+        16 KiB for one value; a write past a cap throws when it is awaited. A
+        `HEAD` render may read and never write, and a layout is read-only.
+        A session is minted on the first write; never write one on a `GET` if a
+        read would do.
 
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store

@@ -7,9 +7,9 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started |
+| Status | Implemented 2026-11-12 |
 | Size | Large — an SDK capability, two tables and a store, the shell's cookie and rotation, the loss of `context.Session`, a caching change with a known regression, a cookie rename, and a seeded page |
-| Job | [IDEA-014](../jobs/IDEA-014.md) — a page cannot keep per-visitor state, so a form cannot redirect and say why |
+| Job | IDEA-014 — a page cannot keep per-visitor state, so a form cannot redirect and say why; closed, see [jobs](../jobs/README.md#closed) |
 | Spike | None. The shape is settled; the uncertain part is cost, not behaviour |
 | Decisions | Referred to in prose here and numbered when the work merges: the identity, the caps, the ownership model, pages become uncacheable, and the cookie names |
 
@@ -250,6 +250,22 @@ plan adds the link: the seeded `_layout` gains it, and an existing installation 
   inspector that does not exist.
 - **Keeping the `ETag` and suppressing a `304` only when the session was written.** Correct, and
   harder to keep correct than removing the validator for good.
+
+## What landed
+
+The shape above, with these details worth recording beside it:
+
+- `PageSessionResolver` and `PageSessionRequest` carry the once-per-request decision: the id, whether
+  the row exists, and whether the response owes a cookie. The endpoint resolves it before the chain
+  exists, so every layer shares one session.
+- `Web.Tests` uses `FakePageSessionStore` for the endpoint and capability tests, the way
+  `FakePageStateStore` already stands in for page state, and `SqlitePageSessionStoreTests` proves the
+  real statements, caps, sweep and eviction order against a migrated database.
+- `PageSessions` stores its timestamps as `DateTime` rather than `DateTimeOffset`: SQLite cannot
+  order by an offset, and eviction is an order. Every value written is UTC.
+- The migration regenerated the model snapshot with the EF 11 generator, which reformats the file; the
+  only model changes are the two entities and their indexes. The snapshot it replaced was stale
+  (`ProductVersion` 10.0.14) and had lost the columns `AddRunUsage` added.
 
 ## Components
 

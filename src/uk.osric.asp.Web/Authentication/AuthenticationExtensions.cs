@@ -19,7 +19,7 @@ internal static class AuthenticationExtensions {
     // Routine use renews the ticket; a month without a visit means signing in again.
     private static readonly TimeSpan LongTermWindow = TimeSpan.FromDays(30);
 
-    /// <summary>Adds cookie authentication, authorisation, antiforgery, session and login throttling.</summary>
+    /// <summary>Adds cookie authentication, authorisation, antiforgery and login throttling.</summary>
     /// <param name="services">The service collection.</param>
     /// <param name="environment">The host environment, which decides the cookie secure policy.</param>
     public static IServiceCollection AddEditorAuthentication(this IServiceCollection services, IWebHostEnvironment environment) {
@@ -36,7 +36,7 @@ internal static class AuthenticationExtensions {
 
         services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options => {
-                options.Cookie.Name = ".uk.osric.asp.auth";
+                options.Cookie.Name = ShellCookies.Authentication;
                 options.Cookie.HttpOnly = true;
                 // Lax, so following a link from elsewhere still arrives signed in. Strict would not.
                 options.Cookie.SameSite = SameSiteMode.Lax;
@@ -123,23 +123,13 @@ internal static class AuthenticationExtensions {
             .AddPolicy(EditorPolicy.Name, policy => policy.RequireAuthenticatedUser());
 
         services.AddAntiforgery(options => {
-            options.Cookie.Name = ".uk.osric.asp.antiforgery";
+            options.Cookie.Name = ShellCookies.Antiforgery;
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
             options.Cookie.SecurePolicy = SecurePolicy(environment);
             // One header set owns this: SecurityHeaders sends DENY, which is stricter than the
             // SAMEORIGIN this would add when a token is generated.
             options.SuppressXFrameOptionsHeader = true;
-        });
-
-        services.AddDistributedMemoryCache();
-        services.AddSession(options => {
-            options.Cookie.Name = ".uk.osric.asp.session";
-            options.Cookie.HttpOnly = true;
-            options.Cookie.IsEssential = true;
-            options.Cookie.SameSite = SameSiteMode.Strict;
-            options.Cookie.SecurePolicy = SecurePolicy(environment);
-            options.IdleTimeout = TimeSpan.FromMinutes(20);
         });
 
         services.AddOptions<LoginRateLimitOptions>()

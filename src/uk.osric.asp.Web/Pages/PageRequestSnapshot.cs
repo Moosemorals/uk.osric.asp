@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using Microsoft.Extensions.Primitives;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Http;
 
 /// <summary>Reads the live ASP.NET request once, into the plain values a page sees.</summary>
 internal static class PageRequestSnapshot {
@@ -36,11 +37,16 @@ internal static class PageRequestSnapshot {
         return snapshot;
     }
 
+    // The shell's own cookies are not the page's to read: the session id is a bearer value for one
+    // visitor's state, and the ticket key and antiforgery pair are the shell's identity. A page that
+    // echoed one into a response would hand another visitor its state.
     private static Dictionary<string, string> Cookies(IRequestCookieCollection cookies) {
         Dictionary<string, string> snapshot = [with(StringComparer.OrdinalIgnoreCase)];
 
         foreach (KeyValuePair<string, string> cookie in cookies) {
-            snapshot[cookie.Key] = cookie.Value;
+            if (!ShellCookies.IsOwned(cookie.Key)) {
+                snapshot[cookie.Key] = cookie.Value;
+            }
         }
 
         return snapshot;

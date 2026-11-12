@@ -40,7 +40,7 @@ public sealed class SimpleContextTests {
 
         Assert.That(response.Status, Is.EqualTo(200));
         Assert.That(response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
-        Assert.That(response.Headers["Cache-Control"], Is.EqualTo("no-cache"));
+        Assert.That(response.Headers["Cache-Control"], Is.EqualTo("no-store"));
         Assert.That(response.Location, Is.Null);
         Assert.That(response.AllowsScripts, Is.False);
     }
@@ -78,19 +78,10 @@ public sealed class SimpleContextTests {
     [TestCase("/app.js")]
     [TestCase("/app.css")]
     [TestCase("/notes")]
-    public void EveryPageDefaultsToNoCache(string path) {
+    public void EveryPageDefaultsToNoStore(string path) {
         SimpleContext context = CreateContext(out _, path: path);
 
-        Assert.That(context.ToResponse().Headers["Cache-Control"], Is.EqualTo("no-cache"));
-    }
-
-    [Test]
-    public void APageSetCacheControlWins() {
-        SimpleContext context = CreateContext(out _, path: "/app.js");
-
-        context.SetHeader("Cache-Control", "max-age=3600");
-
-        Assert.That(context.ToResponse().Headers["Cache-Control"], Is.EqualTo("max-age=3600"));
+        Assert.That(context.ToResponse().Headers["Cache-Control"], Is.EqualTo("no-store"));
     }
 
     [Test]
@@ -120,12 +111,8 @@ public sealed class SimpleContextTests {
         Assert.That(context.ToResponse().AllowsScripts, Is.True);
     }
 
-    [TestCase("Cache-Control")]
-    [TestCase("cache-control")]
     [TestCase("Content-Language")]
-    [TestCase("ETag")]
-    [TestCase("Expires")]
-    [TestCase("Vary")]
+    [TestCase("content-language")]
     [TestCase("X-Robots-Tag")]
     public void AllowedHeadersAreRecorded(string name) {
         SimpleContext context = CreateContext(out _);
@@ -141,11 +128,24 @@ public sealed class SimpleContextTests {
     [TestCase("Location")]
     [TestCase("Transfer-Encoding")]
     [TestCase("Connection")]
+    [TestCase("ETag")]
+    [TestCase("Expires")]
+    [TestCase("Vary")]
     public void ReservedHeadersAreRefused(string name) {
         SimpleContext context = CreateContext(out _);
 
         Assert.That(() => context.SetHeader(name, "value"), Throws.ArgumentException);
         Assert.That(context.ToResponse().Headers.ContainsKey(name), Is.False);
+    }
+
+    // A stored page is per-visitor, so caching policy is the host's and a page cannot claim one.
+    [TestCase("Cache-Control")]
+    [TestCase("cache-control")]
+    public void ACachePolicyThePageSetsIsRefused(string name) {
+        SimpleContext context = CreateContext(out _);
+
+        Assert.That(() => context.SetHeader(name, "max-age=3600"), Throws.ArgumentException);
+        Assert.That(context.ToResponse().Headers["Cache-Control"], Is.EqualTo("no-store"));
     }
 
     [TestCase("X-Content-Type-Options")]

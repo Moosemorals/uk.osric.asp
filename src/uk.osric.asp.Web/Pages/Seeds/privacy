@@ -1,0 +1,39 @@
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Privacy"; %>
+<h1>Privacy</h1>
+
+<p><strong>I don't care who you are, and I'm not tracking you.</strong></p>
+
+<p>This is one person's website on one server. There is no analytics, no advertising, no tracking
+pixel, no third-party script, and no cookie set by anyone but this server. The stylesheet and the
+scripts the site uses are served from here.</p>
+
+<h2>What is stored</h2>
+<p>Nothing about you is stored unless something you do needs it.</p>
+<ul>
+    <li><strong>A session.</strong> A page that says &ldquo;saved&rdquo; after a form, or that keeps a
+    half-written message, needs somewhere to put it. That is a random key in a cookie; the values
+    themselves stay on this server and are deleted when the session expires &mdash; 30 minutes
+    without a visit, or 8 hours if you are signed in.</li>
+    <li><strong>A sign-in.</strong> Only if you sign in as the owner: your account name, a hash of
+    your password, and a key that keeps this browser signed in for up to 30 days (or until you close
+    the browser, if you did not tick &ldquo;remember me&rdquo;). Signing out deletes it, and a
+    password change or a removed account ends every signed-in session.</li>
+    <li><strong>A form token.</strong> Pages with a form carry a short-lived token so that another
+    site cannot submit that form as you. It says nothing about you.</li>
+</ul>
+<p>None of these are used to build a profile. Nothing here is shared, sold or sent to anyone else,
+and there is no consent banner because there is nothing to consent to.</p>
+
+<h2>What is logged</h2>
+<p>The server keeps an error log and a log of sign-in attempts, by account name. It does not record
+where visitors come from, which browser they use, or who they are. It counts how often each page is
+rendered, so that I can see what is slow or broken; those are numbers, not identities.</p>
+<p>Database backups keep copies of what is stored, so a deleted session or sign-in can linger in an
+older backup until that backup ages out.</p>
+
+<h2>The assistant</h2>
+<p>The AI assistant is available to the owner only. If you use it, your messages are sent to DeepSeek
+to be answered; nothing is sent unless you use it.</p>
+
+<h2>Questions</h2>
+<p>Write to <a href="mailto:osric@fluffypeople.com">osric@fluffypeople.com</a>.</p>
