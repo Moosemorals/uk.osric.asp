@@ -60,6 +60,7 @@ about the page store through two implementations.
 | [IDEA-024](IDEA-024.md) | — | L | `/admin/import` and `/admin/export` are shell code because an archive is not a form |
 | [IDEA-025](IDEA-025.md) | — | L | The assistant's conversation is a stream and a set of host actions, not a page |
 | [IDEA-026](IDEA-026.md) | — | S | The deprecated `Features` alias is removed when the page store no longer needs it |
+| [IDEA-027](IDEA-027.md) | — | S | A page cannot leave a message for a page it sends a visitor to |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
