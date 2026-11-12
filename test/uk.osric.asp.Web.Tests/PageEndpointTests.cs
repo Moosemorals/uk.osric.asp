@@ -574,7 +574,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext("private.cs", "GET", "/private.cs");
         context.Request.QueryString = new QueryString("?tab=one&tab=two");
         // A cookie the page can read is not an identity: only the authenticated principal is.
-        context.Request.Headers.Cookie = ".uk.osric.asp.auth=forged";
+        context.Request.Headers.Cookie = "a=forged";
         FakePageStore storage = new();
         storage["/private.cs"] = new PageTemplate(PagePath.Normalize("/private.cs"), GuardedPage);
 

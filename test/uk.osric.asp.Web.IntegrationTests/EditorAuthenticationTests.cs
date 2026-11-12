@@ -250,13 +250,13 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
     private static string AuthCookie(HttpResponseMessage response) {
         Assert.That(response.Headers.TryGetValues("Set-Cookie", out IEnumerable<string>? values), Is.True, "the response set no cookies");
 
-        string? cookie = values?.SingleOrDefault(value => value.StartsWith(".uk.osric.asp.auth=", StringComparison.Ordinal));
+        string? cookie = values?.SingleOrDefault(value => value.StartsWith("a=", StringComparison.Ordinal));
         Assert.That(cookie, Is.Not.Null, "the response did not set the authentication cookie");
 
         return cookie ?? string.Empty;
     }
 
     private static string AuthCookieValue(HttpResponseMessage response) {
-        return AuthCookie(response)[".uk.osric.asp.auth=".Length..].Split(';')[0];
+        return AuthCookie(response)["a=".Length..].Split(';')[0];
     }
 }

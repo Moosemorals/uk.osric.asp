@@ -17,7 +17,7 @@ using uk.osric.asp.Web.Storage;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public sealed class StoredTicketDataFormatTests {
 
-    private const string CookieName = ".uk.osric.asp.auth";
+    private const string CookieName = "a";
     private static readonly DateTimeOffset Expiry = DateTimeOffset.UtcNow.AddDays(30);
 
     private static DatabaseTemplate? s_template;

@@ -36,7 +36,7 @@ internal static class AuthenticationExtensions {
 
         services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options => {
-                options.Cookie.Name = ".uk.osric.asp.auth";
+                options.Cookie.Name = ShellCookies.Authentication;
                 options.Cookie.HttpOnly = true;
                 // Lax, so following a link from elsewhere still arrives signed in. Strict would not.
                 options.Cookie.SameSite = SameSiteMode.Lax;
@@ -123,7 +123,7 @@ internal static class AuthenticationExtensions {
             .AddPolicy(EditorPolicy.Name, policy => policy.RequireAuthenticatedUser());
 
         services.AddAntiforgery(options => {
-            options.Cookie.Name = ".uk.osric.asp.antiforgery";
+            options.Cookie.Name = ShellCookies.Antiforgery;
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
             options.Cookie.SecurePolicy = SecurePolicy(environment);
