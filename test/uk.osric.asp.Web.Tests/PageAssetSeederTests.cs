@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/recent", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/_layout", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {
@@ -110,6 +110,18 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("The MIT licence").And.Contain("The ISC licence"));
         Assert.That(template, Does.Contain("Acornima 1.9.1").And.Contain("Markdig 1.6.0"));
         Assert.That(template, Does.Not.Contain("RedirectToLogin"), "the about page is public");
+    }
+
+    [Test]
+    public async Task ThePrivacyPageIsAPublicFragmentAsync() {
+        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/privacy"));
+
+        Assert.That(template, Is.Not.Null);
+        Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
+        Assert.That(template, Does.Contain("Title = \"Privacy\""));
+        Assert.That(template, Does.Contain("<h1>Privacy</h1>"));
+        Assert.That(template, Does.Contain("I don't care who you are, and I'm not tracking you."));
+        Assert.That(template, Does.Not.Contain("ctx.User"), "the privacy page is public");
     }
 
     [Test]

@@ -44,6 +44,7 @@ path = [
   "src/uk.osric.asp.Web/Pages/Seeds/admin",
   "src/uk.osric.asp.Web/Pages/Seeds/help",
   "src/uk.osric.asp.Web/Pages/Seeds/pages",
+  "src/uk.osric.asp.Web/Pages/Seeds/privacy",
   "src/uk.osric.asp.Web/Pages/Seeds/recent",
   "src/uk.osric.asp.Web/Pages/Seeds/scratch",
 ]
