@@ -22,6 +22,7 @@ public sealed class LoginEndpointTests {
     private readonly FakePasswordService _passwords = new();
     private readonly TestAntiforgery _antiforgery = new();
     private readonly RecordingAuthenticationService _authentication = new();
+    private readonly FakePageSessionStore _sessions = new();
 
     [Test]
     public async Task GetRendersTheFormAsync() {
@@ -57,7 +58,7 @@ public sealed class LoginEndpointTests {
         DefaultHttpContext context = FormContext("owner", Password);
         context.Features.Set<IAntiforgeryValidationFeature>(new TestAntiforgeryValidationFeature(false));
 
-        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         // A stale token is recoverable: the reader gets the form back, with a fresh one, not an error.
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
@@ -69,7 +70,7 @@ public sealed class LoginEndpointTests {
     public async Task PostWithANonFormBodyRendersTheFormAgainAsync() {
         DefaultHttpContext context = TestHttp.CreateContext(null, "POST", "/login");
 
-        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("The sign-in form expired"));
@@ -80,7 +81,7 @@ public sealed class LoginEndpointTests {
     public async Task PostWithUnknownUserShowsTheGenericMessageAsync() {
         DefaultHttpContext context = FormContext("missing", Password);
 
-        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
@@ -93,7 +94,7 @@ public sealed class LoginEndpointTests {
         _users.Users["owner"] = User("owner", Password);
         DefaultHttpContext context = FormContext("owner", "the wrong password");
 
-        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("Invalid username or password."));
@@ -104,7 +105,7 @@ public sealed class LoginEndpointTests {
     public async Task PostWithAnInvalidNameShowsTheGenericMessageAsync() {
         DefaultHttpContext context = FormContext("   ", Password);
 
-        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("Invalid username or password."));
@@ -115,7 +116,7 @@ public sealed class LoginEndpointTests {
         _users.Users["owner"] = User("owner", Password);
         DefaultHttpContext context = FormContext("Owner", Password, returnUrl: "/edit/page", rememberMe: true);
 
-        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/page"));
@@ -131,7 +132,7 @@ public sealed class LoginEndpointTests {
         _users.Users["owner"] = User("owner", Password);
         DefaultHttpContext context = FormContext("owner", Password, rememberMe: false);
 
-        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(_authentication.SignedInProperties?.IsPersistent, Is.False);
     }
@@ -141,7 +142,7 @@ public sealed class LoginEndpointTests {
         _users.Users["owner"] = User("owner", Password);
         DefaultHttpContext context = FormContext("owner", Password, returnUrl: "https://evil");
 
-        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit"));
@@ -152,7 +153,7 @@ public sealed class LoginEndpointTests {
         _users.Users["owner"] = User("owner", Password);
         DefaultHttpContext context = FormContext("owner", Password, returnUrl: "/edit/page?tab=source");
 
-        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/page?tab=source"));
@@ -164,7 +165,7 @@ public sealed class LoginEndpointTests {
         _passwords.Result = Microsoft.AspNetCore.Identity.PasswordVerificationResult.SuccessRehashNeeded;
         DefaultHttpContext context = FormContext("owner", Password);
 
-        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(_users.HashUpdates, Is.EqualTo(1));
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
@@ -174,7 +175,7 @@ public sealed class LoginEndpointTests {
     public async Task LogoutSignsOutTheCookieAsync() {
         DefaultHttpContext context = TestHttp.CreateContext(null, "POST", "/logout");
 
-        await LoginEndpoint.LogoutAsync(context, _authentication, NullLoggerFactory.Instance);
+        await LoginEndpoint.LogoutAsync(context, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/"));

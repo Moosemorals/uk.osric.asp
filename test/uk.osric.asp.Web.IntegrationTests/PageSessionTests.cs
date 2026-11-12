@@ -3,10 +3,13 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Text.RegularExpressions;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Storage;
 
 /// <summary>The per-visitor session through the real host and its real cookie.</summary>
 [TestFixture]
@@ -96,6 +99,64 @@ public sealed partial class PageSessionTests : IntegrationTest {
     }
 
     [Test]
+    public async Task SigningOutLeavesNoSessionBehindAsync() {
+        await SavePageAsync("/session-counter", Counter);
+        using HttpClient client = await CreateSignedInClientAsync();
+        _ = await client.GetStringAsync("/session-counter");
+        int before = await CountSessionsAsync();
+        Assert.That(before, Is.GreaterThan(0), "a write minted a session row");
+
+        string token = await GetAntiforgeryTokenAsync(client, "/logout");
+        HttpResponseMessage signedOut = await client.PostAsync("/logout", Form(("__RequestVerificationToken", token)));
+
+        Assert.That(signedOut.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(await CountSessionsAsync(), Is.EqualTo(before - 1), "the visitor's row is gone");
+        Assert.That(SetCookieOrNull(signedOut), Does.Contain("expires"), "the browser is told to forget the cookie");
+    }
+
+    [Test]
+    public async Task SigningInRotatesTheKeySoTheOldOneNoLongerResolvesAsync() {
+        await SavePageAsync("/session-counter", Counter);
+        using HttpClient client = CreateClient();
+        HttpResponseMessage written = await client.GetAsync("/session-counter");
+        string? anonymousKey = CookieFrom(written);
+        Assert.That(anonymousKey, Is.Not.Null, "the first write minted the cookie");
+        int before = await CountSessionsAsync();
+
+        await SignInAsync(client);
+
+        Assert.That(await CountSessionsAsync(), Is.EqualTo(before), "the anonymous row went and an owner's row replaced it");
+        Assert.That(await client.GetStringAsync("/session-counter"), Does.Contain("Visited 1 times."),
+            "the signed-in visitor starts from nothing");
+
+        using HttpClient stale = CreateClient(handleCookies: false);
+        stale.DefaultRequestHeaders.Add("Cookie", $"{CookieName}={anonymousKey}");
+
+        Assert.That(await stale.GetStringAsync("/session-counter"), Does.Contain("Visited 1 times."),
+            "the old key names no session any more");
+    }
+
+    [Test]
+    public async Task ASessionOfAnAccountIsNotInheritedByAnAnonymousVisitorAsync() {
+        await SavePageAsync("/session-counter", Counter);
+        using HttpClient owner = CreateClient();
+        string token = await GetAntiforgeryTokenAsync(owner, "/login");
+        HttpResponseMessage signIn = await owner.PostAsync("/login", Form(
+            ("username", UserName),
+            ("password", Password),
+            ("rememberMe", "on"),
+            ("__RequestVerificationToken", token)));
+        string? ownerKey = CookieFrom(signIn);
+        Assert.That(ownerKey, Is.Not.Null, "signing in mints a session for the account");
+
+        using HttpClient anonymous = CreateClient(handleCookies: false);
+        anonymous.DefaultRequestHeaders.Add("Cookie", $"{CookieName}={ownerKey}");
+
+        Assert.That(await anonymous.GetStringAsync("/session-counter"), Does.Contain("Visited 1 times."),
+            "a stale owner key cannot hand its session to a stranger");
+    }
+
+    [Test]
     public async Task AnAnonymousPostShowsItsMessageOnceTooAsync() {
         await SavePageAsync("/session-flash-anonymous", Flash);
         using HttpClient client = CreateClient();
@@ -121,6 +182,16 @@ public sealed partial class PageSessionTests : IntegrationTest {
 
         Assert.That(await client.GetStringAsync("/session-flash"), Does.Contain("Your note was saved."));
         Assert.That(await client.GetStringAsync("/session-flash"), Does.Not.Contain("Your note was saved."));
+    }
+
+    private async Task<int> CountSessionsAsync() => await WithServicesAsync(services =>
+        services.GetRequiredService<StorageDbContext>().Set<PageSessionEntry>().CountAsync());
+
+    // The value a response set a session cookie to, or null when it wrote none.
+    private static string? CookieFrom(HttpResponseMessage response) {
+        Match match = SessionCookie().Match(SetCookieOrNull(response));
+
+        return match.Success ? match.Groups[1].Value : null;
     }
 
     private static string SetCookie(HttpResponseMessage response) {

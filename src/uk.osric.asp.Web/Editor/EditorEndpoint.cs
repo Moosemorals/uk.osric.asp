@@ -8,12 +8,14 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using System.Globalization;
 using System.Net;
+using System.Security.Claims;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
@@ -27,13 +29,24 @@ internal sealed class EditorEndpoint {
 
     internal const string MessageKey = "editor.message";
 
+    // The flash is a session key like any other, so it is written under the path of the endpoint
+    // that will read it: the listing at /edit, the editor view at /edit/{path}. Both are reserved,
+    // so no page can occupy either.
+    private const string ListingPath = "/edit";
+
     public static async Task HandleAsync(
         HttpContext context,
         PageEditor pages,
         DiffRenderer diff,
         ReservedPaths reserved,
-        IAntiforgery antiforgery) {
+        IAntiforgery antiforgery,
+        IPageSessionStore sessions,
+        PageSessionOptions sessionOptions,
+        PageSessionCookieOptions sessionCookie) {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(sessions);
+        ArgumentNullException.ThrowIfNull(sessionOptions);
+        ArgumentNullException.ThrowIfNull(sessionCookie);
 
         if (context.Request.Method is not ("GET" or "POST")) {
             await ErrorResponses.WriteAsync(context, StatusCodes.Status405MethodNotAllowed, new ErrorMessage(
@@ -53,6 +66,12 @@ internal sealed class EditorEndpoint {
             return;
         }
 
+        // The flash lives in the visitor's session, which is resolved once so the write and the
+        // render that follows it cannot name different sessions.
+        PageSessionRequest session = await PageSessionResolver.ResolveAsync(
+            context, sessions, sessionCookie, MapUser(context), context.RequestAborted);
+        Flash flash = new(session, sessions, sessionOptions, sessionCookie);
+
         (bool commandValid, string? command) = await ReadCommandAsync(context);
         if (!commandValid || !IsAllowedCommand(context.Request.Method, command)) {
             await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
@@ -65,7 +84,7 @@ internal sealed class EditorEndpoint {
 
         bool bareEditorPath = string.Equals(context.Request.Path.Value, "/edit", StringComparison.Ordinal);
         if (bareEditorPath && context.Request.Method == "GET" && command is null) {
-            await WriteListingAsync(context, pages, reserved, antiforgery);
+            await WriteListingAsync(context, pages, reserved, antiforgery, flash);
             return;
         }
 
@@ -100,7 +119,7 @@ internal sealed class EditorEndpoint {
         }
 
         if (context.Request.Method == "POST") {
-            await PostCommandAsync(context, pages, reserved, path, command);
+            await PostCommandAsync(context, pages, reserved, path, command, flash);
             return;
         }
 
@@ -149,7 +168,7 @@ internal sealed class EditorEndpoint {
                 return;
             case null:
                 bool assistantEnabled = context.RequestServices?.GetService<IOptions<AssistantOptions>>()?.Value.Enabled == true;
-                await WriteEditorAsync(context, pages, antiforgery, assistantEnabled, path);
+                await WriteEditorAsync(context, pages, antiforgery, assistantEnabled, path, flash);
                 return;
             default:
                 await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
@@ -161,7 +180,12 @@ internal sealed class EditorEndpoint {
         }
     }
 
-    private static async Task WriteListingAsync(HttpContext context, PageEditor pages, ReservedPaths reserved, IAntiforgery antiforgery) {
+    private static async Task WriteListingAsync(
+        HttpContext context,
+        PageEditor pages,
+        ReservedPaths reserved,
+        IAntiforgery antiforgery,
+        Flash flash) {
         IReadOnlyList<PageListing> listings = await pages.ListAsync(context.RequestAborted);
         PageListing[] live = [.. listings.Where(row => !row.IsDeleted).OrderBy(row => row.Path.Key, StringComparer.Ordinal)];
         PageListing[] deleted = [.. listings.Where(row => row.IsDeleted).OrderBy(row => row.Path.Key, StringComparer.Ordinal)];
@@ -173,7 +197,7 @@ internal sealed class EditorEndpoint {
         await ShellDocument.BeginAsync(context, "Pages",
             SiteNavigation.For(context));
         await context.Response.WriteAsync("<h1>Pages</h1>");
-        await WriteMessageAsync(context);
+        await flash.ShowAsync(context, ListingPath, context.RequestAborted);
         await context.Response.WriteAsync(AdminNavigation.Nav("edit"));
         await context.Response.WriteAsync($"""
             <form method="post" action="/edit?cmd=new" class="form">
@@ -320,7 +344,8 @@ internal sealed class EditorEndpoint {
         PageEditor pages,
         IAntiforgery antiforgery,
         bool assistantEnabled,
-        PagePath path) {
+        PagePath path,
+        Flash flash) {
         // The editor loads a module, so it is one of the responses that widens the policy; the assistant,
         // the admin views and a page that calls ctx.AllowScripts() do the same.
         SecurityHeaders.AllowScripts(context);
@@ -334,7 +359,7 @@ internal sealed class EditorEndpoint {
         await ShellDocument.BeginAsync(context, "Editor",
             SiteNavigation.For(context), stylesheets: ["/editor.css"], bodyClass: "editor-page");
         await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path.Key)}</h1>");
-        await WriteMessageAsync(context);
+        await flash.ShowAsync(context, SessionPathFor(path), context.RequestAborted);
         if (wasDeleted) {
             await context.Response.WriteAsync("<p>This page was deleted. Its history is retained; saving here continues that history.</p>");
         }
@@ -445,21 +470,19 @@ internal sealed class EditorEndpoint {
         PageEditor pages,
         ReservedPaths reserved,
         PagePath path,
-        string? command) {
+        string? command,
+        Flash flash) {
         if (command is null or "save") {
             SaveOutcome saved = await SaveAsync(context, pages, reserved, path);
-            context.Session.SetString(MessageKey, saved.Message);
+            await flash.WriteAsync(context, SessionPathFor(path), saved.Message, context.RequestAborted);
             Redirect.SeeOther(context, PageUrls.Editor(path));
             return;
         }
 
         if (command == "save-and-view") {
             SaveOutcome saved = await SaveAsync(context, pages, reserved, path);
-            // A page that did not compile cannot be shown; sending the author to a 500 would waste
-            // their time when the diagnostics they need are on the editor they just left.
-            context.Session.SetString(MessageKey, saved.Viewable
-                ? saved.Message
-                : saved.Message + " The page cannot be shown until the errors are fixed.");
+            // The message used to be left for the next editor render, which is a place the author
+            // was not always sent; save-and-view shows its diagnostics on the page it lands on.
             Redirect.SeeOther(context, saved.Viewable ? PageUrls.Page(path) : PageUrls.Editor(path));
             return;
         }
@@ -477,18 +500,22 @@ internal sealed class EditorEndpoint {
             } else {
                 logger?.LogDebug("Delete of {Path} was a no-op: it was already missing", path.Key);
             }
-            context.Session.SetString(MessageKey, deleted ? $"Deleted {path.Key}; revision history is retained." : "Page was already missing.");
+            await flash.WriteAsync(
+                context,
+                ListingPath,
+                deleted ? $"Deleted {path.Key}; revision history is retained." : "Page was already missing.",
+                context.RequestAborted);
             Redirect.SeeOther(context, "/edit");
             return;
         }
 
         if (command == "scrub") {
-            await ScrubAsync(context, pages, path);
+            await ScrubAsync(context, pages, path, flash);
             return;
         }
 
         if (command == "restore") {
-            await RestoreSeedAsync(context, pages, path);
+            await RestoreSeedAsync(context, pages, path, flash);
             return;
         }
 
@@ -499,7 +526,7 @@ internal sealed class EditorEndpoint {
             [new(PageUrls.Editor(path), "Back to editor")]));
     }
 
-    private static async Task RestoreSeedAsync(HttpContext context, PageEditor pages, PagePath path) {
+    private static async Task RestoreSeedAsync(HttpContext context, PageEditor pages, PagePath path, Flash flash) {
         SecurityHeaders.NoStore(context);
         string? seed = await PageAssetSeeder.ReadSeedTemplateAsync(path, context.RequestAborted);
         if (seed is null) {
@@ -508,18 +535,18 @@ internal sealed class EditorEndpoint {
         }
 
         if (await MatchesSeedAsync(pages, path, seed, context.RequestAborted)) {
-            context.Session.SetString(MessageKey, $"{path.Key} already matched its seed.");
+            await flash.WriteAsync(context, ListingPath, $"{path.Key} already matched its seed.", context.RequestAborted);
         } else {
             await pages.SaveAsync(path, seed, context.RequestAborted);
             context.RequestServices.GetService<ILogger<EditorEndpoint>>()
                 ?.LogInformation("Restored {Path} from its seed", path.Key);
-            context.Session.SetString(MessageKey, $"Restored {path.Key} from its seed.");
+            await flash.WriteAsync(context, ListingPath, $"Restored {path.Key} from its seed.", context.RequestAborted);
         }
 
         Redirect.SeeOther(context, "/edit");
     }
 
-    private static async Task ScrubAsync(HttpContext context, PageEditor pages, PagePath path) {
+    private static async Task ScrubAsync(HttpContext context, PageEditor pages, PagePath path, Flash flash) {
         if (!context.Request.HasFormContentType
             || !context.Request.Form.TryGetValue("confirmation", out StringValues confirmation)
             || confirmation.Count != 1
@@ -557,7 +584,7 @@ internal sealed class EditorEndpoint {
             context.RequestServices.GetService<ILogger<EditorEndpoint>>()
                 ?.LogInformation("Scrubbed {Path} and its retained history", path.Key);
 
-            context.Session.SetString(MessageKey, $"Scrubbed {path.Key} and its retained history.");
+            await flash.WriteAsync(context, ListingPath, $"Scrubbed {path.Key} and its retained history.", context.RequestAborted);
             Redirect.SeeOther(context, "/edit");
         } catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested) {
             throw;
@@ -565,7 +592,11 @@ internal sealed class EditorEndpoint {
             if (context.RequestServices is { } services) {
                 services.GetService<ILogger<EditorEndpoint>>()?.LogError(exception, "Page scrub cleanup did not complete.");
             }
-            context.Session.SetString(MessageKey, "Scrub cleanup did not complete. Check the deleted pages list; if the page remains there, scrub it again.");
+            await flash.WriteAsync(
+                context,
+                ListingPath,
+                "Scrub cleanup did not complete. Check the deleted pages list; if the page remains there, scrub it again.",
+                context.RequestAborted);
             await ShellDocument.BeginAsync(context, "Scrub incomplete",
             SiteNavigation.For(context), StatusCodes.Status503ServiceUnavailable);
             await context.Response.WriteAsync("<h1>Scrub cleanup did not complete</h1>");
@@ -575,15 +606,53 @@ internal sealed class EditorEndpoint {
         }
     }
 
-    private static async Task WriteMessageAsync(HttpContext context) {
-        string? message = context.Session.GetString(MessageKey);
-        if (message is null) {
-            return;
+    // The session key is the canonical page key, not the escaped URL: the endpoint reads and writes
+    // the same string, and it reads as the path it is.
+    private static string SessionPathFor(PagePath path) => ListingPath + path.Key;
+
+    // An authenticated identity without a name is anonymous as far as the session is concerned, so
+    // a half-built principal fails closed rather than owning a session.
+    private static PageUser? MapUser(HttpContext context) {
+        if (context.User.Identity?.IsAuthenticated != true) {
+            return null;
         }
 
-        context.Session.Remove(MessageKey);
-        if (!string.IsNullOrEmpty(message)) {
-            await context.Response.WriteAsync($"<p>{WebUtility.HtmlEncode(message)}</p>");
+        string? name = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        return string.IsNullOrEmpty(name) ? null : new PageUser(name);
+    }
+
+    /// <summary>The editor's one-shot message, written under the path of the view that reads it.</summary>
+    /// <remarks>
+    /// A session value is addressed by page and key, so a message belongs to a landing path. Reading
+    /// consumes it, which is what makes a confirmation show once rather than on every reload.
+    /// </remarks>
+    private sealed class Flash(
+        PageSessionRequest session,
+        IPageSessionStore store,
+        PageSessionOptions options,
+        PageSessionCookieOptions cookie) {
+
+        public async Task WriteAsync(HttpContext context, string pagePath, string message, CancellationToken cancellationToken) {
+            await session.SetTextAsync(store, options, pagePath, MessageKey, message, cancellationToken);
+
+            // The session was minted by this write, so the browser has to learn its id before it
+            // follows the redirect.
+            if (session.NeedsCookie) {
+                PageSessionCookie.Write(context, session.Id, cookie);
+            }
+        }
+
+        public async Task ShowAsync(HttpContext context, string pagePath, CancellationToken cancellationToken) {
+            string? message = await session.GetStringAsync(store, pagePath, MessageKey, cancellationToken);
+            if (message is null) {
+                return;
+            }
+
+            _ = await session.DeleteTextAsync(store, pagePath, MessageKey, cancellationToken);
+            if (!string.IsNullOrEmpty(message)) {
+                await context.Response.WriteAsync($"<p>{WebUtility.HtmlEncode(message)}</p>");
+            }
         }
     }
 

@@ -19,7 +19,7 @@ internal static class AuthenticationExtensions {
     // Routine use renews the ticket; a month without a visit means signing in again.
     private static readonly TimeSpan LongTermWindow = TimeSpan.FromDays(30);
 
-    /// <summary>Adds cookie authentication, authorisation, antiforgery, session and login throttling.</summary>
+    /// <summary>Adds cookie authentication, authorisation, antiforgery and login throttling.</summary>
     /// <param name="services">The service collection.</param>
     /// <param name="environment">The host environment, which decides the cookie secure policy.</param>
     public static IServiceCollection AddEditorAuthentication(this IServiceCollection services, IWebHostEnvironment environment) {
@@ -130,16 +130,6 @@ internal static class AuthenticationExtensions {
             // One header set owns this: SecurityHeaders sends DENY, which is stricter than the
             // SAMEORIGIN this would add when a token is generated.
             options.SuppressXFrameOptionsHeader = true;
-        });
-
-        services.AddDistributedMemoryCache();
-        services.AddSession(options => {
-            options.Cookie.Name = ".uk.osric.asp.session";
-            options.Cookie.HttpOnly = true;
-            options.Cookie.IsEssential = true;
-            options.Cookie.SameSite = SameSiteMode.Strict;
-            options.Cookie.SecurePolicy = SecurePolicy(environment);
-            options.IdleTimeout = TimeSpan.FromMinutes(20);
         });
 
         services.AddOptions<LoginRateLimitOptions>()

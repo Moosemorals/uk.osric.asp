@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 using System.Net;
@@ -13,6 +12,7 @@ using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
@@ -24,6 +24,7 @@ public sealed class EditorEndpointTests {
     private readonly RecordingCompiler _compiler = new(new PageCompiler());
     private readonly PageMetrics _metrics = new();
     private readonly TestAntiforgery _antiforgery = new();
+    private readonly FakePageSessionStore _sessions = new();
 
     [TearDown]
     public void StopMetrics() {
@@ -39,7 +40,7 @@ public sealed class EditorEndpointTests {
         FakePageStore storage = new();
         storage["/page.cs"] = new PageTemplate(PagePath.Normalize("/page.cs"), source);
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
@@ -56,7 +57,7 @@ public sealed class EditorEndpointTests {
         storage["/page.cs"] = new PageTemplate(PagePath.Normalize("/page.cs"), "uncompiled");
         int compiles = _compiler.CompileCount;
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(_compiler.CompileCount, Is.EqualTo(compiles));
     }
@@ -66,7 +67,7 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = CreateContext();
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("spellcheck=\"false\">\n</textarea>"));
@@ -79,7 +80,7 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = CreateContext(path: path);
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(storage.LastReadPath?.Key, Is.EqualTo("/"));
@@ -88,22 +89,23 @@ public sealed class EditorEndpointTests {
     [Test]
     public async Task GetEncodesPathAndConsumesTheSessionMessageAsync() {
         DefaultHttpContext context = CreateContext(path: "<page>&");
-        TestSession session = Session(context);
-        session.SetString(EditorEndpoint.MessageKey, "<script>saved</script>");
+        string sessionId = _sessions.Create();
+        _sessions.SeedText(sessionId, "/edit/<page>&", EditorEndpoint.MessageKey, "<script>saved</script>");
+        Present(context, sessionId);
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("Editing /&lt;page&gt;&amp;"));
         Assert.That(body, Does.Contain("<p>&lt;script&gt;saved&lt;/script&gt;</p>"));
-        Assert.That(session.TryGetValue(EditorEndpoint.MessageKey, out _), Is.False);
+        Assert.That(_sessions.Raw(sessionId, "/edit/<page>&", EditorEndpoint.MessageKey), Is.Null);
     }
 
     [Test]
     public async Task GetWithoutMessageSetsNoCookieAsync() {
         DefaultHttpContext context = CreateContext();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
     }
@@ -112,7 +114,7 @@ public sealed class EditorEndpointTests {
     public async Task GetRendersAnAntiforgeryTokenAsync() {
         DefaultHttpContext context = CreateContext();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("name=\"__RequestVerificationToken\""));
@@ -124,7 +126,7 @@ public sealed class EditorEndpointTests {
     public async Task GetDoesNotCacheTheSourceAsync() {
         DefaultHttpContext context = CreateContext();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         // The antiforgery system owns the cache headers on a view that carries its field.
         Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-cache, no-store"));
@@ -138,7 +140,7 @@ public sealed class EditorEndpointTests {
         context.Request.QueryString = new QueryString(query);
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(400));
         Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
@@ -151,7 +153,7 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext("Hello", "GET", "/edit/Hello");
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(308));
         Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
@@ -166,7 +168,7 @@ public sealed class EditorEndpointTests {
         storage["/gone"] = new PageTemplate(PagePath.Normalize("/gone"), "retained");
         await storage.DeletePageAsync(PagePath.Normalize("/gone"));
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
@@ -186,7 +188,7 @@ public sealed class EditorEndpointTests {
         storage["/page"] = new PageTemplate(PagePath.Normalize("/page"), "not loaded");
         storage["/editor.css"] = new PageTemplate(PagePath.Normalize("/editor.css"), "not loaded");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         int live = body.IndexOf("<h2>Live pages</h2>", StringComparison.Ordinal);
@@ -205,7 +207,7 @@ public sealed class EditorEndpointTests {
         FakePageStore storage = new();
         storage["/page"] = new PageTemplate(PagePath.Normalize("/page"), "not loaded");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<table class=\"pages\">"));
@@ -223,7 +225,7 @@ public sealed class EditorEndpointTests {
         };
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<td class=\"page-state state-compiled-with-warnings\">Compiled with warnings</td>"));
@@ -237,7 +239,7 @@ public sealed class EditorEndpointTests {
         };
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<td class=\"page-state state-compile-failed\">Compile failed</td>"));
@@ -252,7 +254,7 @@ public sealed class EditorEndpointTests {
         };
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<td class=\"page-state state-stale\">Stale</td>"));
@@ -268,7 +270,7 @@ public sealed class EditorEndpointTests {
         await storage.DeletePageAsync(path);
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         int deleted = body.IndexOf("<h2>Deleted pages</h2>", StringComparison.Ordinal);
@@ -289,7 +291,7 @@ public sealed class EditorEndpointTests {
         };
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<th scope=\"row\">/favicon.ico: unavailable</th>"));
@@ -300,7 +302,7 @@ public sealed class EditorEndpointTests {
     public async Task ListingSaysWhenNeitherLiveNorSeededPagesExistAsync() {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<h2>Live pages</h2><p>No live pages.</p>"));
@@ -318,7 +320,7 @@ public sealed class EditorEndpointTests {
         storage[plain.Key] = new PageTemplate(plain, "not a seed");
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<form method=\"post\" action=\"/edit/assistant.css?cmd=restore\">"));
@@ -335,7 +337,7 @@ public sealed class EditorEndpointTests {
         await storage.DeletePageAsync(path);
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/edit");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<form method=\"post\" action=\"/edit/assistant.css?cmd=restore\">"));
@@ -350,12 +352,12 @@ public sealed class EditorEndpointTests {
         storage[path.Key] = new PageTemplate(path, "/* edited */");
         DefaultHttpContext context = CreateRestoreContext("assistant.css");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit"));
         Assert.That(storage[path.Key]?.Template, Is.EqualTo(seed));
-        Assert.That(Session(context).GetString(EditorEndpoint.MessageKey), Is.EqualTo("Restored /assistant.css from its seed."));
+        Assert.That(_sessions.OnlyText("/edit", EditorEndpoint.MessageKey), Is.EqualTo("Restored /assistant.css from its seed."));
     }
 
     [Test]
@@ -367,10 +369,10 @@ public sealed class EditorEndpointTests {
         int writes = storage.WriteCount;
         DefaultHttpContext context = CreateRestoreContext("assistant.css");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(storage.WriteCount, Is.EqualTo(writes));
-        Assert.That(Session(context).GetString(EditorEndpoint.MessageKey), Is.EqualTo("/assistant.css already matched its seed."));
+        Assert.That(_sessions.OnlyText("/edit", EditorEndpoint.MessageKey), Is.EqualTo("/assistant.css already matched its seed."));
     }
 
     [Test]
@@ -379,7 +381,7 @@ public sealed class EditorEndpointTests {
         FakePageStore storage = new();
         storage["/plain"] = new PageTemplate(PagePath.Normalize("/plain"), "not a seed");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
         Assert.That(storage.WriteCount, Is.Zero);
@@ -392,7 +394,7 @@ public sealed class EditorEndpointTests {
         SetField(context, "path", new StringValues("Hello//World"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/hello/world"));
@@ -414,7 +416,7 @@ public sealed class EditorEndpointTests {
             + string.Concat(Enumerable.Range(1, lines).Select(number => $"<span id=\"L{number}\">{number}</span>"))
             + "</div>";
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain(expected));
     }
@@ -423,7 +425,7 @@ public sealed class EditorEndpointTests {
     public async Task GetRendersTheEditorShellAsync() {
         DefaultHttpContext context = CreateContext();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<body class=\"editor-page\">"));
@@ -438,7 +440,7 @@ public sealed class EditorEndpointTests {
         storage["/page.cs"] = new PageTemplate(PagePath.Normalize("/page.cs"), "line one");
         DefaultHttpContext context = CreateContext();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain(string.Concat(
@@ -458,7 +460,7 @@ public sealed class EditorEndpointTests {
         await storage.DeletePageAsync(PagePath.Normalize("/gone"));
         DefaultHttpContext context = CreateContext(path: "gone");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain(
@@ -477,7 +479,7 @@ public sealed class EditorEndpointTests {
             [new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(2, 5), "CS0103: missing")]));
         DefaultHttpContext context = CreateContext();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<a href=\"#L2\">line 2, column 5: error CS0103: missing</a>"));
@@ -493,7 +495,7 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext revision = CreateContext();
         revision.Request.QueryString = new QueryString($"?cmd=revision&hash={page.Hash}");
-        await EditorEndpoint.HandleAsync(revision, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(revision, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string revisionBody = await TestHttp.ReadBodyAsync(revision);
         Assert.That(revisionBody, Does.Contain("<body>"));
@@ -506,7 +508,7 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = CreateContext();
         context.Request.QueryString = new QueryString("?cmd=generated");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(400));
     }
@@ -522,7 +524,7 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext history = CreateContext();
         history.Request.QueryString = new QueryString("?cmd=history");
-        await EditorEndpoint.HandleAsync(history, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(history, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string historyBody = await TestHttp.ReadBodyAsync(history);
         Assert.That(history.Response.StatusCode, Is.EqualTo(200));
@@ -536,7 +538,7 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext revision = CreateContext();
         revision.Request.QueryString = new QueryString($"?cmd=revision&hash={first.Hash}");
         int compiles = _compiler.CompileCount;
-        await EditorEndpoint.HandleAsync(revision, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(revision, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string revisionBody = await TestHttp.ReadBodyAsync(revision);
         Assert.That(revision.Response.StatusCode, Is.EqualTo(200));
@@ -557,7 +559,7 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext history = CreateContext();
         history.Request.QueryString = new QueryString("?cmd=history");
-        await EditorEndpoint.HandleAsync(history, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(history, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(history);
         Assert.Multiple(() => {
@@ -578,7 +580,7 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext history = CreateContext();
         history.Request.QueryString = new QueryString("?cmd=history");
-        await EditorEndpoint.HandleAsync(history, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(history, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(history);
         Assert.Multiple(() => {
@@ -599,7 +601,7 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext context = CreateContext();
         context.Request.QueryString = new QueryString($"?cmd=diff&from={first.Hash}&to={second.Hash}");
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.Multiple(() => {
@@ -624,7 +626,7 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext context = CreateContext();
         context.Request.QueryString = new QueryString($"?cmd=diff&from={revision.Hash}&to={revision.Hash}");
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.Multiple(() => {
@@ -641,7 +643,7 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext context = CreateContext();
         context.Request.QueryString = new QueryString($"?cmd=diff&from=nope&to={revision.Hash}");
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.Multiple(() => {
@@ -661,7 +663,7 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext context = CreateContext();
         context.Request.QueryString = new QueryString($"?cmd=diff&from={mine.Hash}&to={other.Hash}");
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
     }
@@ -674,7 +676,7 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext context = TestHttp.CreateContext("page.cs", "POST", "/edit/page.cs");
         context.Request.QueryString = new QueryString($"?cmd=diff&from={revision.Hash}&to={revision.Hash}");
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(400));
     }
@@ -686,7 +688,7 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext delete = CreateContext();
         delete.Request.QueryString = new QueryString("?cmd=delete");
 
-        await EditorEndpoint.HandleAsync(delete, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(delete, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string deleteBody = await TestHttp.ReadBodyAsync(delete);
         Assert.That(deleteBody, Does.Contain("retains its template and revision history"));
@@ -696,7 +698,7 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext scrub = CreateContext();
         scrub.Request.QueryString = new QueryString("?cmd=scrub");
-        await EditorEndpoint.HandleAsync(scrub, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(scrub, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string scrubBody = await TestHttp.ReadBodyAsync(scrub);
         Assert.That(scrubBody, Does.Contain("cannot be undone"));
@@ -714,12 +716,12 @@ public sealed class EditorEndpointTests {
 
         DefaultHttpContext confirmation = CreateContext();
         confirmation.Request.QueryString = new QueryString("?cmd=scrub");
-        await EditorEndpoint.HandleAsync(confirmation, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(confirmation, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         DefaultHttpContext post = CreateContext("POST");
         post.Request.QueryString = new QueryString("?cmd=scrub");
         SetField(post, "confirmation", new StringValues("/page.cs"));
-        await EditorEndpoint.HandleAsync(post, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(post, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(confirmation.Response.StatusCode, Is.EqualTo(409));
         Assert.That(confirmation.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
@@ -740,7 +742,7 @@ public sealed class EditorEndpointTests {
         storage["/page.cs"] = new PageTemplate(PagePath.Normalize("/page.cs"), "sensitive-source");
         await storage.DeletePageAsync(PagePath.Normalize("/page.cs"));
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(400));
         Assert.That(await storage.GetHeadAsync(PagePath.Normalize("/page.cs")), Is.Not.Null);
@@ -750,7 +752,7 @@ public sealed class EditorEndpointTests {
         SetField(failed, "confirmation", new StringValues("/page.cs"));
         FakePageStore unavailable = new() { Failure = new InvalidOperationException("secret source leaked") };
 
-        await EditorEndpoint.HandleAsync(failed, CreatePages(unavailable), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(failed, CreatePages(unavailable), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string failureBody = await TestHttp.ReadBodyAsync(failed);
         Assert.That(failed.Response.StatusCode, Is.EqualTo(503));
@@ -765,7 +767,7 @@ public sealed class EditorEndpointTests {
         SetTemplate(context, new StringValues("hijack"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(400));
         Assert.That(storage.WriteCount, Is.Zero);
@@ -779,7 +781,7 @@ public sealed class EditorEndpointTests {
         SetTemplate(context, new StringValues(source));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(storage.WriteCount, Is.EqualTo(1));
         Assert.That(storage.LastWritePath?.Key, Is.EqualTo("/page.cs"));
@@ -791,16 +793,56 @@ public sealed class EditorEndpointTests {
     }
 
     [Test]
+    public async Task TheSaveMessageIsWrittenUnderTheEditorPathAndShownOnceAsync() {
+        DefaultHttpContext post = CreateContext("POST");
+        SetTemplate(post, new StringValues("Hello."));
+        FakePageStore storage = new();
+
+        await EditorEndpoint.HandleAsync(post, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        Assert.That(post.Response.Headers.SetCookie.ToString(), Does.Contain(PageSessionCookieOptions.DefaultName),
+            "the write minted the session, so the browser has to learn its id");
+
+        // The browser follows the 303 with the cookie the save just set.
+        DefaultHttpContext get = CreateContext();
+        Present(get, _sessions.Single());
+        await EditorEndpoint.HandleAsync(get, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(get);
+        Assert.That(body, Does.Contain("<p>Saved successfully.</p>"));
+        Assert.That(_sessions.ValueCount, Is.Zero, "reading the message consumes it");
+
+        DefaultHttpContext reload = CreateContext();
+        Present(reload, _sessions.Single());
+        await EditorEndpoint.HandleAsync(reload, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        Assert.That(await TestHttp.ReadBodyAsync(reload), Does.Not.Contain("Saved successfully."), "the message shows once");
+    }
+
+    [Test]
+    public async Task TheListingMessageIsWrittenUnderTheListingPathAsync() {
+        DefaultHttpContext post = CreateRestoreContext("assistant.css");
+        FakePageStore storage = new();
+        storage["/assistant.css"] = new PageTemplate(PagePath.Normalize("/assistant.css"), "/* edited */");
+
+        await EditorEndpoint.HandleAsync(post, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string sessionId = _sessions.Single();
+        Assert.That(_sessions.Text(sessionId, "/edit", EditorEndpoint.MessageKey),
+            Is.EqualTo("Restored /assistant.css from its seed."));
+    }
+
+    [Test]
     public async Task SaveAndViewRedirectsToTheSavedPageAsync() {
         DefaultHttpContext context = CreateContext("POST");
         SetFields(context, ("template", "Hello."), ("cmd", "save-and-view"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/page.cs"));
-        Assert.That(Session(context).GetString(EditorEndpoint.MessageKey), Is.EqualTo("Saved successfully."));
+        Assert.That(_sessions.ValueCount, Is.Zero, "nothing reads a message left on the page it lands on");
         Assert.That(storage["/page.cs"]?.Template, Is.EqualTo("Hello."));
     }
 
@@ -810,14 +852,12 @@ public sealed class EditorEndpointTests {
         SetFields(context, ("template", "<% int value = ; %>"), ("cmd", "save-and-view"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         // The page cannot be rendered, so sending the author there would hide the diagnostics
         // behind the error page they would find instead.
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/page.cs"));
-        Assert.That(Session(context).GetString(EditorEndpoint.MessageKey),
-            Is.EqualTo("Saved with errors. The page cannot be shown until the errors are fixed."));
         Assert.That(storage["/page.cs"]?.Template, Is.EqualTo("<% int value = ; %>"));
     }
 
@@ -828,7 +868,7 @@ public sealed class EditorEndpointTests {
         SetFields(context, ("template", "Hello."), ("cmd", "save-and-view"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(400));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
@@ -841,7 +881,7 @@ public sealed class EditorEndpointTests {
         SetFields(context, ("template", "Hello."), ("cmd", "publish"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(400));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
@@ -855,14 +895,14 @@ public sealed class EditorEndpointTests {
         SetTemplate(post, new StringValues("<% int value = ; %>"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(post, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(post, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(storage["/page.cs"]?.Template, Is.EqualTo("<% int value = ; %>"));
         Assert.That(storage["/page.cs"]?.Image?.Bytes, Is.Null);
         AssertRedirect(post, "Saved with errors.");
 
         DefaultHttpContext get = CreateContext();
-        await EditorEndpoint.HandleAsync(get, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(get, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(get);
         Assert.That(body, Does.Contain("class=\"diagnostics\""));
@@ -884,7 +924,7 @@ public sealed class EditorEndpointTests {
                 new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(1, 9), "CS1002: earlier line"),
             ]));
 
-        await EditorEndpoint.HandleAsync(get, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(get, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(get);
         Assert.That(body.IndexOf("CS1002", StringComparison.Ordinal), Is.LessThan(body.IndexOf("CS0103", StringComparison.Ordinal)));
@@ -896,13 +936,13 @@ public sealed class EditorEndpointTests {
         SetTemplate(post, new StringValues("<% int unused = 1; %>"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(post, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(post, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(storage["/page.cs"]?.Image?.Bytes, Is.Not.Null.And.Not.Empty);
         AssertRedirect(post, "Saved with warnings.");
 
         DefaultHttpContext get = CreateContext();
-        await EditorEndpoint.HandleAsync(get, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(get, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(get);
         Assert.That(body, Does.Contain("warning CS0219"));
@@ -919,7 +959,7 @@ public sealed class EditorEndpointTests {
         FakePageStore storage = new();
         storage["/"] = new PageTemplate(PagePath.Normalize("/"), "original");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(storage.LastWritePath?.Key, Is.EqualTo("/"));
         Assert.That(storage["/"]?.Template, Is.EqualTo("replacement"));
@@ -934,7 +974,7 @@ public sealed class EditorEndpointTests {
         context.Request.QueryString = new QueryString(query);
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(308));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(expectedLocation));
@@ -948,7 +988,7 @@ public sealed class EditorEndpointTests {
         SetTemplate(context, new StringValues("source"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
         Assert.That(context.Response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
@@ -963,7 +1003,7 @@ public sealed class EditorEndpointTests {
         SetTemplate(context, new StringValues("source"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(storage.LastWritePath?.Key, Is.EqualTo("/hello"));
         Assert.That(storage["/hello"]?.Template, Is.EqualTo("source"));
@@ -979,7 +1019,7 @@ public sealed class EditorEndpointTests {
         FakePageStore storage = new();
         storage["/page.cs"] = new PageTemplate(PagePath.Normalize("/page.cs"), "original");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(storage.WriteCount, Is.Zero);
         Assert.That(storage["/page.cs"]?.Template, Is.EqualTo("original"));
@@ -994,7 +1034,7 @@ public sealed class EditorEndpointTests {
         FakePageStore storage = new();
         storage["/page.cs"] = new PageTemplate(PagePath.Normalize("/page.cs"), "original");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(storage.WriteCount, Is.Zero);
         Assert.That(storage["/page.cs"]?.Template, Is.EqualTo("original"));
@@ -1010,11 +1050,11 @@ public sealed class EditorEndpointTests {
         FakePageStore storage = new() { Failure = failure };
 
         InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery));
+            EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie));
 
         Assert.That(thrown?.Message, Is.EqualTo(failure.Message));
 
-        Assert.That(Session(context).Keys, Is.Empty);
+        Assert.That(_sessions.ValueCount, Is.Zero);
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
         Assert.That(context.Response.Headers.Location, Is.Empty);
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
@@ -1031,10 +1071,10 @@ public sealed class EditorEndpointTests {
         FakePageStore storage = new();
 
         await Assert.CatchAsync<OperationCanceledException>(() =>
-            EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery));
+            EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie));
 
         Assert.That(storage.WriteCount, Is.Zero);
-        Assert.That(Session(context).Keys, Is.Empty);
+        Assert.That(_sessions.ValueCount, Is.Zero);
         Assert.That(context.Response.Headers.SetCookie, Is.Empty);
     }
 
@@ -1051,7 +1091,7 @@ public sealed class EditorEndpointTests {
         FakePageStore storage = new();
         storage["/page.cs"] = new PageTemplate(PagePath.Normalize("/page.cs"), "original");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(storage["/page.cs"]?.Template, Is.EqualTo(expectedTemplate));
         Assert.That(storage.WriteCount, Is.EqualTo(writes));
@@ -1064,7 +1104,7 @@ public sealed class EditorEndpointTests {
         SetTemplate(context, new StringValues("hijack"));
         FakePageStore storage = new();
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(storage.WriteCount, Is.Zero);
         Assert.That(storage["/favicon.ico"], Is.Null);
@@ -1079,7 +1119,7 @@ public sealed class EditorEndpointTests {
         FakePageStore storage = new();
         storage[key] = new PageTemplate(PagePath.Normalize(key), "source");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain($"href=\"{url}\""));
@@ -1093,7 +1133,7 @@ public sealed class EditorEndpointTests {
         context.Request.QueryString = new QueryString("?cmd=new");
         SetField(context, "path", new StringValues(key));
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(url));
     }
@@ -1103,7 +1143,7 @@ public sealed class EditorEndpointTests {
     public async Task CanonicalDecodedRequestPathDoesNotRedirectAsync(string key) {
         DefaultHttpContext context = CreateContext(path: key);
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(200));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain($"href=\"{WebUtility.HtmlEncode("/" + Uri.EscapeDataString(key))}\""));
@@ -1114,7 +1154,7 @@ public sealed class EditorEndpointTests {
         DefaultHttpContext context = CreateContext();
         context.Request.QueryString = new QueryString("?cmd=scrub");
 
-        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery);
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
         Assert.That(await TestHttp.ReadBodyAsync(context), Does.Not.Contain("name=\"confirmation\""));
@@ -1164,13 +1204,16 @@ public sealed class EditorEndpointTests {
         context.Request.Form = new FormCollection(new Dictionary<string, StringValues> { [name] = value });
     }
 
-    private static TestSession Session(DefaultHttpContext context) {
-        return (TestSession)context.Features.Get<ISessionFeature>()!.Session;
+    // Carries a session id into a hand-built request as the browser would.
+    private static void Present(DefaultHttpContext context, string sessionId) {
+        context.Request.Headers.Cookie = $"{PageSessionCookieOptions.DefaultName}={sessionId}";
     }
 
-    private static void AssertRedirect(DefaultHttpContext context, string message) {
+    private void AssertRedirect(DefaultHttpContext context, string message) {
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(context.Request.Path.ToString()));
-        Assert.That(Session(context).GetString(EditorEndpoint.MessageKey), Is.EqualTo(message));
+        Assert.That(
+            _sessions.OnlyText(context.Response.Headers.Location.ToString(), EditorEndpoint.MessageKey),
+            Is.EqualTo(message));
     }
 }

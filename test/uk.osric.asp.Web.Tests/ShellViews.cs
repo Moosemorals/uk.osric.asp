@@ -182,6 +182,8 @@ internal static class ShellViews {
             new FakePasswordService(),
             new TestAntiforgery(),
             new RecordingAuthenticationService(),
+            new FakePageSessionStore(),
+            TestSessions.Cookie,
             new RecordingLoggerFactory());
 
         return await TestHttp.ReadBodyAsync(context);
@@ -469,7 +471,7 @@ internal static class ShellViews {
             context.Request.QueryString = new QueryString("?" + command);
         }
 
-        await EditorEndpoint.HandleAsync(context, pages.Editor, pages.Diff, Reserved, new TestAntiforgery());
+        await EditorEndpoint.HandleAsync(context, pages.Editor, pages.Diff, Reserved, new TestAntiforgery(), new FakePageSessionStore(), new PageSessionOptions(), TestSessions.Cookie);
 
         return await TestHttp.ReadBodyAsync(context);
     }

@@ -345,7 +345,6 @@ internal class Program {
             await ErrorResponses.WriteAsync(failed, failed.Response.StatusCode, message);
         });
 
-        app.UseSession();
         // Order matters: routing first, so the limiter and identity read endpoint metadata, then
         // authorization, then the antiforgery check that guards the unsafe ones.
         app.UseRouting();
