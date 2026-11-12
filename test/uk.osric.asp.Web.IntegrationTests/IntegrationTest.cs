@@ -51,12 +51,17 @@ public abstract partial class IntegrationTest {
 
     /// <summary>A client with its own cookie jar that does not follow redirects, so 302, 303, 308 and
     /// the auth, antiforgery and session cookies all stay visible to the test.</summary>
-    protected HttpClient CreateClient() {
+    protected HttpClient CreateClient() => CreateClient(handleCookies: true);
+
+    /// <summary>A client with no cookie jar, for a fixture that presents its cookies by hand.</summary>
+    /// <param name="handleCookies">Whether the client keeps cookies for the test.</param>
+    protected HttpClient CreateClient(bool handleCookies) {
         return _application.CreateClient(new WebApplicationFactoryClientOptions {
             // Production is HTTPS behind Caddy, and the cookies are Secure in production, so the
             // client has to speak HTTPS for them to come back.
             BaseAddress = new Uri("https://localhost/"),
             AllowAutoRedirect = false,
+            HandleCookies = handleCookies,
         });
     }
 

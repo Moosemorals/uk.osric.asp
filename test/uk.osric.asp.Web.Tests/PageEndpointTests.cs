@@ -49,7 +49,10 @@ public sealed class PageEndpointTests {
             _metrics,
             _antiforgery,
             new MarkdownRenderer(),
-            new DiffRenderer());
+            new DiffRenderer(),
+            new PageSessionOptions(),
+            new FakePageSessionStore(),
+            TestSessions.Cookie);
     }
 
     [TestCase(null, "/", "/")]

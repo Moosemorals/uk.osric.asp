@@ -160,7 +160,10 @@ internal static class ShellViews {
                 metrics,
                 new TestAntiforgery(),
                 new MarkdownRenderer(),
-                new DiffRenderer()));
+                new DiffRenderer(),
+                new PageSessionOptions(),
+                new FakePageSessionStore(),
+                TestSessions.Cookie));
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -288,7 +291,10 @@ internal static class ShellViews {
                 new PageMetrics(),
                 new TestAntiforgery(),
                 new MarkdownRenderer(),
-                new DiffRenderer()));
+                new DiffRenderer(),
+                new PageSessionOptions(),
+                new FakePageSessionStore(),
+                TestSessions.Cookie));
 
         return await TestHttp.ReadBodyAsync(context);
     }

@@ -53,6 +53,28 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             state.Property(row => row.Key).UseCollation("BINARY");
         });
 
+        modelBuilder.Entity<PageSessionEntry>(session => {
+            session.ToTable("PageSessions");
+            session.HasKey(row => row.SessionId);
+            session.Property(row => row.SessionId).UseCollation("BINARY");
+            session.Property(row => row.Account).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
+            // Expiry reads a range of UpdatedAt per kind of visitor; eviction orders the same way.
+            session.HasIndex(row => new { row.Account, row.UpdatedAt });
+            session.HasIndex(row => row.UpdatedAt);
+        });
+
+        modelBuilder.Entity<PageSessionValueEntry>(value => {
+            value.ToTable("PageSessionValues");
+            value.HasKey(row => new { row.SessionId, row.PagePath, row.Key });
+            value.Property(row => row.SessionId).UseCollation("BINARY");
+            value.Property(row => row.PagePath).UseCollation("BINARY");
+            value.Property(row => row.Key).UseCollation("BINARY");
+            value.HasOne<PageSessionEntry>()
+                .WithMany()
+                .HasForeignKey(row => row.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<LocalUser>().ToTable("Users");
         modelBuilder.Entity<LocalUser>().HasKey(user => user.UserName);
         modelBuilder.Entity<LocalUser>().Property(user => user.UserName).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");

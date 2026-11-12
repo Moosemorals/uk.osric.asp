@@ -96,9 +96,14 @@ internal sealed class PageEndpoint() {
             return;
         }
 
-        // A HEAD request runs the page to produce the representation and its validators, so its state
+        // A HEAD request runs the page to produce the representation and its validator, so its state
         // is readable but never written, and it cannot POST to a remote system.
         bool isHead = HttpMethods.IsHead(context.Request.Method);
+
+        // The visitor's session is resolved once, before any layer runs, so two layers of one chain
+        // cannot see different sessions. The row is only minted once something writes to it.
+        PageSessionRequest session = await PageSessionResolver.ResolveAsync(
+            context, environment.SessionStore, environment.SessionCookie, user, context.RequestAborted);
 
         // The antiforgery pair is minted once per request: a page and the layout around it must be
         // verifiable against the same token, and a second would leave the first unverifiable.
@@ -112,6 +117,7 @@ internal sealed class PageEndpoint() {
             loggerFactory,
             snapshot,
             user,
+            session,
             isHead,
             context.RequestAborted,
             new BodyBudget(environment.Render.MaxBodyChars),
@@ -126,8 +132,8 @@ internal sealed class PageEndpoint() {
 
         // One slot and one deadline for the whole chain, so a wrapped page costs one render rather
         // than two.
-        await using PageRenderer.RenderSession session = await pages.OpenSessionAsync(path, context.RequestAborted);
-        RenderResult result = await session.RenderAsync(path, page);
+        await using PageRenderer.RenderSession render = await pages.OpenSessionAsync(path, context.RequestAborted);
+        RenderResult result = await render.RenderAsync(path, page);
 
         switch (result.Status) {
             case RenderStatus.NotFound:
@@ -141,9 +147,9 @@ internal sealed class PageEndpoint() {
                 return;
         }
 
-        Task write = (await chain.WrapAsync(session, path, contentLayout, page.ToResponse(), page.GetBody())) switch {
+        Task write = (await chain.WrapAsync(render, path, contentLayout, page.ToResponse(), page.GetBody())) switch {
             PageChainResult.Failed failure => ErrorResponses.WriteAsync(context, failure.StatusCode, failure.Error),
-            PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, authenticated),
+            PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, authenticated, environment, session),
         };
 
         await write;
@@ -167,11 +173,14 @@ internal sealed class PageEndpoint() {
         HttpContext context,
         PageResponse response,
         string body,
-        bool authenticated) {
+        bool authenticated,
+        PageEnvironment environment,
+        PageSessionRequest session) {
         if (response.Location is not null) {
             // A redirect can carry the promise of a page the visitor is not yet allowed to see, so it
             // is never cached, whoever asked.
             SecurityHeaders.NoStore(context);
+            WriteSessionCookie(context, environment, session);
             Redirect.To(context, response.Status, response.Location);
             return;
         }
@@ -189,6 +198,8 @@ internal sealed class PageEndpoint() {
 
         byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
         EntityTagHeaderValue? entityTag = null;
+
+        WriteSessionCookie(context, environment, session);
 
         if (authenticated) {
             // Copies first, then overrides, so a page cannot weaken it with SetHeader. A response
@@ -221,6 +232,14 @@ internal sealed class PageEndpoint() {
 
         if (!HttpMethods.IsHead(context.Request.Method)) {
             await context.Response.Body.WriteAsync(bodyBytes.AsMemory(), context.RequestAborted);
+        }
+    }
+
+    // Minted lazily, so a page that only reads costs a visitor no cookie and the next write is the
+    // first thing that needs one.
+    private static void WriteSessionCookie(HttpContext context, PageEnvironment environment, PageSessionRequest session) {
+        if (session.NeedsCookie) {
+            PageSessionCookie.Write(context, session.Id, environment.SessionCookie);
         }
     }
 

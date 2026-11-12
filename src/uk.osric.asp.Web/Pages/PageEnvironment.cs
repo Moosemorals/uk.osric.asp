@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Pages;
 using Microsoft.AspNetCore.Antiforgery;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 
 /// <summary>What the page endpoint needs beyond the renderer, gathered in one place.</summary>
@@ -28,6 +29,9 @@ using uk.osric.asp.Web.Editor;
 /// <param name="Antiforgery">Validates a page's post and mints the field a form carries.</param>
 /// <param name="Markdown">The renderer every page layer offers as <c>IMarkdownRenderer</c>.</param>
 /// <param name="Diff">The renderer every page layer offers as <c>IDiffRenderer</c>.</param>
+/// <param name="Sessions">The bounds on one visitor's session.</param>
+/// <param name="SessionStore">Where a visitor's session is read and written.</param>
+/// <param name="SessionCookie">The cookie that names the visitor's session.</param>
 internal sealed record PageEnvironment(
     ReservedPaths Reserved,
     PageLayoutConfiguration Layout,
@@ -43,4 +47,7 @@ internal sealed record PageEnvironment(
     PageMetrics Metrics,
     IAntiforgery Antiforgery,
     MarkdownRenderer Markdown,
-    DiffRenderer Diff);
+    DiffRenderer Diff,
+    PageSessionOptions Sessions,
+    IPageSessionStore SessionStore,
+    PageSessionCookieOptions SessionCookie);

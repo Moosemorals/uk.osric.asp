@@ -134,6 +134,10 @@ internal class Program {
             builder.Configuration,
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Pages.ContentTypes")));
         builder.Services.AddSingleton(PageStorageOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(PageSessionOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(PageSessionCookieOptions.For(builder.Environment));
+        builder.Services.AddSingleton<IPageSessionStore, SqlitePageSessionStore>();
+        builder.Services.AddHostedService<PageSessionCleanupService>();
         builder.Services.AddSingleton(ArchiveOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton(PageReadOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
@@ -165,7 +169,10 @@ internal class Program {
             services.GetRequiredService<PageMetrics>(),
             services.GetRequiredService<IAntiforgery>(),
             services.GetRequiredService<MarkdownRenderer>(),
-            services.GetRequiredService<DiffRenderer>()));
+            services.GetRequiredService<DiffRenderer>(),
+            services.GetRequiredService<PageSessionOptions>(),
+            services.GetRequiredService<IPageSessionStore>(),
+            services.GetRequiredService<PageSessionCookieOptions>()));
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         // Registered whether or not the assistant is enabled: the tables are migrated either way, and
