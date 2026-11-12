@@ -16,6 +16,12 @@ Image=registry.osric.uk/uk.osric.asp:latest
 Network=uk.osric.asp.network
 NetworkAlias=app
 PublishPort=127.0.0.1:8080:8080
+# The host is named moosemorals.com, and podman otherwise writes that name into the container's
+# /etc/hosts as an alias for 127.0.1.1. A page (or the assistant) fetching the public origin would
+# then connect to the container's own loopback and be refused. Name the origin at the host gateway
+# instead, where Caddy listens for the name and has the certificate for it; a custom entry is
+# written before podman's own, so this one wins. See the outbound fetch notes in deploy/README.md.
+AddHost=moosemorals.com:host-gateway
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment="ConnectionStrings__Storage=Data Source=/data/storage.db"
 # The outbound page assistant's configuration, off until that file says otherwise; it holds

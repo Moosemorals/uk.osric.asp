@@ -145,6 +145,10 @@ and applies them.
   path, so a stored page or an approved tool call can reach anything the container can. That is the
   single-owner trust boundary, not a sandbox (SEC-03). Every request carries
   `moosemorals.com (page)` or `moosemorals.com (assistant)` as its `User-Agent`, set by the host.
+  The site's own origin is reachable too: the quadlet's `AddHost=moosemorals.com:host-gateway` stops
+  podman writing the host's hostname into `/etc/hosts` as `127.0.1.1`, which would otherwise point a
+  page's fetch at the container's own loopback and refuse it. The entry sends the name to Caddy over
+  its podman host-gateway address, so the certificate still matches the name.
   A page can name an operator-configured credential instead of carrying a token itself; put it in
   the same environment file and restart:
   `Pages__Fetch__Credentials__assistant__Host=api.deepseek.com`,
