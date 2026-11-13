@@ -38,7 +38,8 @@ still does because a page cannot (an archive, and a live run). IDEA-026 came out
 release that removes the deprecated `Features` alias once the page store has no page that needs it.
 ARCH-16 came out of the [tool-types work](../plans/archive/assistant-tool-types.md) of 2026-11-11
 (DEC-231): making a tool one type showed that the page tools and the shell answer the same questions
-about the page store through two implementations. IDEA-028 came out of the [page-editor
+about the page store through two implementations; the edit-safety work (DEC-269–DEC-273) widened the
+tools' read surface, so the job was reworked on 2026-11-13. IDEA-028 came out of the [page-editor
 planning](../plans/archive/page-editor.md) of 2026-11-13: the editor can become a page only if a
 broken editor has a way back, and one button that restores every seed is that way. IDEA-030 came out
 of that plan's fourth phase: retiring `/edit` and moving the editor's key into configuration showed
@@ -98,7 +99,7 @@ is `done` when its merge is in, and `in flight` while its branch is open.
 | 3 | [IDEA-028](#closed) — `/admin/restore`, over the seed read and the saver ARCH-07 left behind | M | — | merge, and a manual restore of a broken page | done |
 | 4 | [IDEA-019](#closed) — repeated request values, and `Encoding` and cryptography in the API policy; the cookie point is dropped because IDEA-014 gives a page per-visitor state | S | — | merge | done |
 | 5 | [Page editor](../plans/archive/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | done |
-| 6 | [ARCH-16](ARCH-16.md) — one read seam for the assistant's tools and its applets | M | 5, edit safety (rework) | merge | — |
+| 6 | [ARCH-16](ARCH-16.md) — one read seam for the assistant's tools and its applets | M | 5, edit safety | merge | — |
 | 7 | [ARCH-13](ARCH-13.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | — |
 | 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase | — |
 | 9 | [Page first](../plans/page-first.md) — re-scope against 5–8: DEC-210 and DEC-211 are recorded, but the audit and the memory page are not; build the page, or archive the plan behind IDEA-024 and IDEA-025 | L | 5–8 | the plan, then build-or-close | — |
@@ -116,8 +117,8 @@ Page first is less unstarted than its status row says: DEC-210 and DEC-211 are r
 rule is agreed, but [architecture](../architecture.md) has no audit table, `/memory` is still a shell
 route, and DEC-211 still names `ctx.Features` — the rename it has to follow is step 2's.
 
-Step 6 follows 5 rather than needing it: the editor's listing is going to carry the compile state,
-and that is the state the assistant's one seam should answer with too. Step 7 is also the home of
+Step 6 follows 5 rather than needing it: the editor's listing carries the compile state, and that is
+the state the assistant's one seam should answer with too. Step 7 is also the home of
 BUG-17's one loose end — the failed-request log line a mid-run reload leaves behind.
 
 **IDEA-026 had no data gate.** Its sketch made the query the gate, and the decision was to remove
