@@ -35,11 +35,11 @@ internal sealed class AssistantMetrics : IDisposable {
     /// A run cannot take more steps than <c>Assistant:MaxSteps</c>, and the top boundary is past it, so
     /// the run that exhausted its steps is drawn rather than counted under `+Inf` (DEC-214).
     /// </remarks>
-    public static readonly double[] StepBuckets = [1, 2, 3, 5, 8, 12, 16, 24, 32, 48];
+    public static readonly double[] StepBuckets = [1, 2, 3, 5, 8, 12, 16, 24, 32, 48, 64, 96, 128, 160, 192];
 
     /// <summary>Buckets for <c>assistant.run.tool_calls</c>, in calls.</summary>
     /// <remarks>The top boundary is past <c>Assistant:MaxToolCalls</c> for the same reason (DEC-214).</remarks>
-    public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32];
+    public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32, 64, 96, 128, 160, 192];
 
     /// <summary>Buckets for <c>assistant.run.duration</c>, in seconds.</summary>
     /// <remarks>

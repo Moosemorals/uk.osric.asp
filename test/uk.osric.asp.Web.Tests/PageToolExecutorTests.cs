@@ -42,6 +42,256 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
+    public async Task EditPageReturnsTheUnifiedDiffAndLineCountsAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "first\r\nsecond\r\nthird");
+        storage["/notes"] = original;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new {
+            path = "/notes",
+            startLine = 2,
+            endLine = 2,
+            expectedRevisionHash = original.Hash,
+            replacement = "changed",
+        });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
+
+        JsonElement data = Data(result);
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(data.GetProperty("addedLines").GetInt32(), Is.EqualTo(1));
+            Assert.That(data.GetProperty("removedLines").GetInt32(), Is.EqualTo(1));
+            Assert.That(data.GetProperty("diff").GetString(), Does.Contain("-second").And.Contain("+changed"));
+            Assert.That(data.GetProperty("changed").GetBoolean(), Is.True);
+            Assert.That(data.GetProperty("warnings").GetArrayLength(), Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task EditPageRefusesAnExpectedLineThatDoesNotMatchAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "first\nsecond\nthird");
+        storage["/notes"] = original;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new {
+            path = "/notes",
+            startLine = 2,
+            endLine = 2,
+            expectFirst = "not the second line",
+            expectedRevisionHash = original.Hash,
+            replacement = "changed",
+        });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("Line 2 is not the expected text"));
+            Assert.That(storage.WriteCount, Is.Zero);
+            Assert.That(storage["/notes"]?.Template, Is.EqualTo(original.Template));
+        });
+    }
+
+    [Test]
+    public async Task EditPageAppliesSeveralHunksInOneSaveAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo\nthree\nfour");
+        storage["/notes"] = original;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new {
+            path = "/notes",
+            expectedRevisionHash = original.Hash,
+            edits = new object[] {
+                new { startLine = 2, endLine = 2, replacement = "second\nextra" },
+                new { startLine = 4, endLine = 4, replacement = "fourth" },
+            },
+        });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(storage.WriteCount, Is.EqualTo(1), "one save for every hunk");
+            Assert.That(storage["/notes"]?.Template, Is.EqualTo("one\nsecond\nextra\nthree\nfourth"));
+            Assert.That(Data(result).GetProperty("diff").GetString(), Does.Contain("+extra"));
+        });
+    }
+
+    [Test]
+    public async Task EditPageRefusesOverlappingHunksWithoutWritingAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo\nthree");
+        storage["/notes"] = original;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new {
+            path = "/notes",
+            expectedRevisionHash = original.Hash,
+            edits = new object[] {
+                new { startLine = 1, endLine = 2, replacement = "first" },
+                new { startLine = 2, endLine = 3, replacement = "second" },
+            },
+        });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("overlap at line 2"));
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task EditPageWarnsWithoutSavingWhenTheResultIsByteIdenticalAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo");
+        storage["/notes"] = original;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new {
+            path = "/notes",
+            startLine = 2,
+            endLine = 2,
+            expectedRevisionHash = original.Hash,
+            replacement = "two",
+        });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
+
+        JsonElement data = Data(result);
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(data.GetProperty("changed").GetBoolean(), Is.False);
+            Assert.That(data.GetProperty("revisionHash").GetString(), Is.EqualTo(original.Hash));
+            Assert.That(data.GetProperty("warnings").EnumerateArray().Single().GetString(), Does.Contain("byte-identical"));
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task EditPageRefusesBothFormsAtOnceAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo");
+        storage["/notes"] = original;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new {
+            path = "/notes",
+            expectedRevisionHash = original.Hash,
+            startLine = 1,
+            endLine = 1,
+            replacement = "first",
+            edits = new object[] { new { startLine = 2, endLine = 2, replacement = "second" } },
+        });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("not both"));
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task EditPageDefaultsEndLineToStartLineAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo\nthree");
+        storage["/notes"] = original;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new {
+            path = "/notes",
+            startLine = 2,
+            expectFirst = "two",
+            expectedRevisionHash = original.Hash,
+            replacement = "changed",
+        });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(storage["/notes"]?.Template, Is.EqualTo("one\nchanged\nthree"));
+        });
+    }
+
+    [Test]
+    public async Task EditPageRefusesAnIncompleteSingleRangeAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo");
+        storage["/notes"] = original;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new {
+            path = "/notes",
+            expectedRevisionHash = original.Hash,
+            startLine = 1,
+        });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("startLine").And.Contain("edits"));
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task EditPageRefusesAnEmptyEditsArrayAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo");
+        storage["/notes"] = original;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new {
+            path = "/notes",
+            expectedRevisionHash = original.Hash,
+            edits = Array.Empty<object>(),
+        });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("edit_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("at least one edit"));
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void TheEditPageDefinitionCarriesTheNestedEditsSchema() {
+        ToolDefinition definition = PageToolExecutor.Definitions.Single(item => item.Name == "edit_page");
+        using JsonDocument parameters = JsonDocument.Parse(definition.ParametersJson);
+        JsonElement properties = parameters.RootElement.GetProperty("properties");
+        JsonElement edits = properties.GetProperty("edits");
+
+        Assert.Multiple(() => {
+            Assert.That(parameters.RootElement.GetProperty("required").EnumerateArray().Select(item => item.GetString()),
+                Is.EqualTo<string[]>(["path", "expectedRevisionHash"]));
+            Assert.That(edits.GetProperty("type").GetString(), Is.EqualTo("array"));
+            Assert.That(edits.GetProperty("items").GetProperty("properties").TryGetProperty("startLine", out _), Is.True);
+            Assert.That(edits.GetProperty("items").GetProperty("required").EnumerateArray().Select(item => item.GetString()),
+                Is.EqualTo<string[]>(["startLine", "replacement"]));
+        });
+    }
+
+    [Test]
     public async Task StaleEditReturnsConflictWithoutWritingAsync() {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "original");
@@ -74,7 +324,7 @@ public sealed class PageToolExecutorTests {
             Assert.That(result.IsSuccess, Is.True, result.Content);
             Assert.That(Data(result).GetProperty("kind").GetString(), Is.EqualTo("shell"));
             Assert.That(Data(result).GetProperty("mode").GetString(), Is.EqualTo("-r--r--r--"));
-            Assert.That(Data(result).GetProperty("source").GetString(), Does.StartWith("/login\n"));
+            Assert.That(Data(result).GetProperty("source").GetString(), Does.StartWith("1| /login\n"));
             Assert.That(Data(result).GetProperty("source").GetString(), Does.Contain("description:"));
             Assert.That(Data(result).GetProperty("totalLines").GetInt32(), Is.EqualTo(5));
             Assert.That(Data(result).GetProperty("revisionHash").ValueKind, Is.EqualTo(JsonValueKind.Null));
@@ -93,7 +343,7 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "read_page", "{\"path\":\"/login\",\"startLine\":3,\"endLine\":3}", Context, CancellationToken.None);
 
-        Assert.That(Data(result).GetProperty("source").GetString(), Does.StartWith("methods: "));
+        Assert.That(Data(result).GetProperty("source").GetString(), Does.StartWith("3| methods: "));
     }
 
     [Test]
@@ -162,7 +412,7 @@ public sealed class PageToolExecutorTests {
         using JsonDocument document = JsonDocument.Parse(result.Content);
         JsonElement data = document.RootElement.GetProperty("data");
         Assert.That(data.GetProperty("startLine").GetInt32(), Is.EqualTo(5));
-        Assert.That(data.GetProperty("source").GetString(), Is.EqualTo("<%= \"value\" %>"));
+        Assert.That(data.GetProperty("source").GetString(), Is.EqualTo("5| <%= \"value\" %>"));
     }
 
     [Test]

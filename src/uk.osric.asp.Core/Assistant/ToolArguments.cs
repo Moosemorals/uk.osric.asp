@@ -14,13 +14,21 @@ public enum ToolArgumentType {
     Integer,
     /// <summary>A JSON boolean.</summary>
     Boolean,
+    /// <summary>A JSON array of objects whose properties <see cref="ToolArgumentSchema.Items"/> describes.</summary>
+    Array,
 }
 
 /// <summary>One allowed argument in a tool schema.</summary>
 /// <param name="Name">The exact property name.</param>
 /// <param name="Type">The JSON value type.</param>
 /// <param name="Required">Whether the property must be present.</param>
-public sealed record ToolArgumentSchema(string Name, ToolArgumentType Type, bool Required);
+public sealed record ToolArgumentSchema(string Name, ToolArgumentType Type, bool Required) {
+    /// <summary>
+    /// The properties of each element when <see cref="Type"/> is <see cref="ToolArgumentType.Array"/>;
+    /// null for every other type.
+    /// </summary>
+    public IReadOnlyList<ToolArgumentSchema>? Items { get; init; }
+}
 
 /// <summary>A validated argument object or a safe validation error.</summary>
 /// <param name="Values">Cloned JSON values for the declared properties.</param>
@@ -61,24 +69,14 @@ public static class ToolArguments {
                 return Invalid("Tool arguments must be a JSON object.");
             }
 
-            Dictionary<string, ToolArgumentSchema> allowed = schema.ToDictionary(item => item.Name, StringComparer.Ordinal);
-            Dictionary<string, JsonElement> values = [];
-            foreach (JsonProperty property in document.RootElement.EnumerateObject()) {
-                if (!allowed.TryGetValue(property.Name, out ToolArgumentSchema? definition)) {
-                    return Invalid($"Unknown tool argument '{MessageText.Sanitize(property.Name)}'.");
-                }
-                if (!values.TryAdd(property.Name, property.Value.Clone())) {
-                    return Invalid($"Tool argument '{property.Name}' was repeated.");
-                }
-                if (!Matches(property.Value, definition.Type)) {
-                    return Invalid($"Tool argument '{property.Name}' must be a {TypeName(definition.Type)}.");
-                }
+            string? error = ValidateObject(document.RootElement, schema, parent: null);
+            if (error is not null) {
+                return Invalid(error);
             }
 
-            foreach (ToolArgumentSchema definition in schema) {
-                if (definition.Required && !values.ContainsKey(definition.Name)) {
-                    return Invalid($"Required tool argument '{definition.Name}' is missing.");
-                }
+            Dictionary<string, JsonElement> values = [];
+            foreach (JsonProperty property in document.RootElement.EnumerateObject()) {
+                values[property.Name] = property.Value.Clone();
             }
 
             return new ToolArgumentsResult(values, null);
@@ -88,17 +86,75 @@ public static class ToolArguments {
             new Dictionary<string, JsonElement>(StringComparer.Ordinal), error);
     }
 
-    private static bool Matches(JsonElement value, ToolArgumentType type) => type switch {
-        ToolArgumentType.String => value.ValueKind == JsonValueKind.String,
-        ToolArgumentType.Integer => value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out _),
-        ToolArgumentType.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
-        _ => false,
+    private static string? ValidateObject(
+        JsonElement element,
+        IReadOnlyList<ToolArgumentSchema> schema,
+        string? parent) {
+        if (element.ValueKind != JsonValueKind.Object) {
+            return $"Tool argument '{parent}' must be an object.";
+        }
+
+        Dictionary<string, ToolArgumentSchema> allowed = schema.ToDictionary(item => item.Name, StringComparer.Ordinal);
+        HashSet<string> present = [with(StringComparer.Ordinal)];
+        foreach (JsonProperty property in element.EnumerateObject()) {
+            if (!allowed.TryGetValue(property.Name, out ToolArgumentSchema? definition)) {
+                return $"Unknown tool argument '{MessageText.Sanitize(Qualify(parent, property.Name))}'.";
+            }
+            if (!present.Add(property.Name)) {
+                return $"Tool argument '{Qualify(parent, property.Name)}' was repeated.";
+            }
+
+            string? error = ValidateValue(property.Value, definition, Qualify(parent, property.Name));
+            if (error is not null) {
+                return error;
+            }
+        }
+
+        foreach (ToolArgumentSchema definition in schema) {
+            if (definition.Required && !present.Contains(definition.Name)) {
+                return $"Required tool argument '{Qualify(parent, definition.Name)}' is missing.";
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ValidateValue(JsonElement value, ToolArgumentSchema definition, string name) => definition.Type switch {
+        ToolArgumentType.String => value.ValueKind == JsonValueKind.String
+            ? null
+            : $"Tool argument '{name}' must be a string.",
+        ToolArgumentType.Integer => value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out _)
+            ? null
+            : $"Tool argument '{name}' must be an integer.",
+        ToolArgumentType.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? null
+            : $"Tool argument '{name}' must be a boolean.",
+        ToolArgumentType.Array => ValidateArray(value, definition.Items, name),
+        _ => null,
     };
 
-    private static string TypeName(ToolArgumentType type) => type switch {
-        ToolArgumentType.String => "string",
-        ToolArgumentType.Integer => "integer",
-        ToolArgumentType.Boolean => "boolean",
-        _ => "supported value",
-    };
+    private static string? ValidateArray(JsonElement value, IReadOnlyList<ToolArgumentSchema>? items, string name) {
+        if (value.ValueKind != JsonValueKind.Array) {
+            return $"Tool argument '{name}' must be an array.";
+        }
+
+        IReadOnlyList<ToolArgumentSchema> schema = items ?? [];
+        int index = 0;
+        foreach (JsonElement item in value.EnumerateArray()) {
+            string elementName = $"{name}[{index}]";
+            if (item.ValueKind != JsonValueKind.Object) {
+                return $"Tool argument '{elementName}' must be an object.";
+            }
+
+            string? error = ValidateObject(item, schema, elementName);
+            if (error is not null) {
+                return error;
+            }
+            index++;
+        }
+
+        return null;
+    }
+
+    private static string Qualify(string? parent, string name) => parent is null ? name : $"{parent}.{name}";
 }

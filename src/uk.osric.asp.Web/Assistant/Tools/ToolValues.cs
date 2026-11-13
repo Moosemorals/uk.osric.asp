@@ -30,6 +30,29 @@ internal sealed class ToolValues(IReadOnlyDictionary<string, JsonElement> values
     public bool Boolean(string name) =>
         values.TryGetValue(name, out JsonElement value) && value.GetBoolean();
 
+    /// <summary>Whether an argument was supplied at all, even when its value is an empty array.</summary>
+    /// <param name="name">The argument's name.</param>
+    public bool Has(string name) => values.ContainsKey(name);
+
+    /// <summary>The objects in an array argument, each as its own validated argument set.</summary>
+    /// <param name="name">The argument's name.</param>
+    public IReadOnlyList<ToolValues> Array(string name) {
+        if (!values.TryGetValue(name, out JsonElement value) || value.ValueKind != JsonValueKind.Array) {
+            return [];
+        }
+
+        List<ToolValues> items = [];
+        foreach (JsonElement item in value.EnumerateArray()) {
+            Dictionary<string, JsonElement> properties = [with(StringComparer.Ordinal)];
+            foreach (JsonProperty property in item.EnumerateObject()) {
+                properties[property.Name] = property.Value.Clone();
+            }
+            items.Add(new ToolValues(properties));
+        }
+
+        return items;
+    }
+
     /// <summary>A required string argument.</summary>
     /// <param name="name">The argument's name.</param>
     public string RequiredString(string name) => String(name) ?? throw Missing(name);

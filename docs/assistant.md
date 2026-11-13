@@ -49,7 +49,16 @@ source through the same 1-based physical lines, line ranges and result budget `r
 so the two cannot drift. Both are reads, change nothing and need no approval; both refuse a shell
 file, a missing page and a non-canonical hash, and `read_revision` refuses a hash from another
 path — the rules the editor's `cmd=revision` applies. Reading a revision sends its source to the
-provider exactly as `read_page` does.
+provider exactly as `read_page` does. Every source line the two tools answer with is prefixed by
+its 1-based number and `| `, because counting lines in escaped JSON is guesswork; the prefix is not
+part of the stored source.
+
+`edit_page` answers with what it changed: the added and removed line counts and the unified diff,
+so an edit that compiles but mangles a block is visible in the same turn. It takes either one line
+range — `endLine` defaults to `startLine` — or an `edits` array applied against the original line
+numbers in one conditional save, and optional `expectFirst`/`expectLast` exact-line assertions
+refuse a range whose boundary is not the text the model read. An edit that would leave the source
+byte-identical is not saved; it answers `changed: false` with a warning instead.
 
 `restore_revision` saves a revision's source as a new revision through the ordinary
 compile-and-save path: nothing is rewound, and a deleted page comes back with its history. It is the
@@ -150,7 +159,12 @@ A `diff_page` result carries `editorUrl`, which opens the same rendered diff the
 shows, so a model can link the owner to the line changes it read (DEC-219).
 
 The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
-results, context and event replay, and bounds each provider request by silence rather than by duration:
+results, context and event replay. The shipped caps are 160 steps and 128 tool calls per run, a
+500,000 estimated-token request budget with a 393,216-token output limit, and 131,072 characters
+for one tool result. `deepseek-flash` reports a 1,048,576-token context window and a 393,216-token
+output maximum; the request budget stays below the window so the output reserve fits. Each cap is
+configuration rather than a constant, and each provider request is bounded by silence rather than
+duration:
 the deadline is re-armed for every event the provider sends, so a model that reasons for minutes is not
 cut off, while a stalled stream ends the step with `provider_timeout`. The whole run uses the same
 two-minute silence rule, re-armed per streamed event; keep-alive comments are not events, and the
@@ -201,5 +215,6 @@ and `edit_page` calls reported saving, each linked to the page and to its editor
 stored tool results by `PageWrites`, told by the tool itself whether its call writes a page, rather
 than published live, because the page reloads on the run's
 terminal event and a result the run itself reported is what that reload would show. A refused write
-changed nothing, so it is absent; the run still going has no card, so a reader never sees a page
+changed nothing, so it is absent; a successful edit that changed nothing is absent for the same
+reason, because nothing was saved. The run still going has no card, so a reader never sees a page
 listed before the turn that changed it has ended.

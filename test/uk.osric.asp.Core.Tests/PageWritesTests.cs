@@ -33,6 +33,13 @@ public sealed class PageWritesTests {
         Assert.That(PageWrites.Written(changesPages: true, result)?.Key, Is.EqualTo("/blog/hello"));
     }
 
+    [Test]
+    public void ASuccessfulEditThatChangedNothingYieldsNothing() {
+        const string result = """{"ok":true,"data":{"path":"/blog/hello","revisionHash":"abc","changed":false},"error":null}""";
+
+        Assert.That(PageWrites.Written(changesPages: true, result), Is.Null);
+    }
+
     [TestCase(null)]
     [TestCase("")]
     [TestCase("{")]

@@ -64,26 +64,35 @@ internal sealed class ToolRegistry {
     /// <param name="name">The tool name.</param>
     public AssistantTool? Find(string name) => _byName.GetValueOrDefault(name);
 
-    private static string ParametersJson(IReadOnlyList<ToolArgumentSchema> arguments) {
+    private static string ParametersJson(IReadOnlyList<ToolArgumentSchema> arguments) =>
+        JsonSerializer.Serialize(ObjectSchema(arguments), s_jsonOptions);
+
+    private static object ObjectSchema(IReadOnlyList<ToolArgumentSchema> arguments) {
         Dictionary<string, object> properties = [];
         foreach (ToolArgumentSchema argument in arguments) {
-            properties[argument.Name] = new { type = JsonTypeOf(argument.Type) };
+            properties[argument.Name] = ValueSchema(argument);
         }
 
         string[] required = [.. arguments.Where(argument => argument.Required).Select(argument => argument.Name)];
 
-        return JsonSerializer.Serialize(new {
+        return new {
             type = "object",
             properties,
             required,
             additionalProperties = false,
-        }, s_jsonOptions);
+        };
     }
+
+    private static object ValueSchema(ToolArgumentSchema argument) => argument.Type switch {
+        ToolArgumentType.Array => new { type = "array", items = ObjectSchema(argument.Items ?? []) },
+        _ => new { type = JsonTypeOf(argument.Type) },
+    };
 
     private static string JsonTypeOf(ToolArgumentType type) => type switch {
         ToolArgumentType.String => "string",
         ToolArgumentType.Integer => "integer",
         ToolArgumentType.Boolean => "boolean",
+        ToolArgumentType.Array => "array",
         _ => "string",
     };
 }

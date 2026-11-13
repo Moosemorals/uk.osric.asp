@@ -42,6 +42,7 @@ internal sealed class PageImageBuilder(
         CancellationToken renderDeadline = default) {
         long start = Stopwatch.GetTimestamp();
         TemplateGenerationResult generated = TemplateSourceGenerator.Generate(template);
+        IReadOnlyList<PageDiagnostic> shape = TemplateShapeCheck.Check(template);
 
         // Nothing to compile, so no slot is waited for and Roslyn is never called. The revision keeps
         // the verdict beside its source, and every request writes the source out as it is.
@@ -53,7 +54,7 @@ internal sealed class PageImageBuilder(
                 compiler.RuntimeId,
                 Bytes: null,
                 Symbols: null,
-                Diagnostics: [],
+                Diagnostics: shape,
                 HasCode: false);
         }
 
@@ -134,7 +135,7 @@ internal sealed class PageImageBuilder(
             compiler.RuntimeId,
             result.Image,
             result.Symbols,
-            result.Diagnostics,
+            PageDiagnostic.SortedForDisplay([.. shape, .. result.Diagnostics]),
             generated.HasCode);
     }
 }

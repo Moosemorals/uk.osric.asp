@@ -604,3 +604,30 @@ uk.osric.asp.Core.Pages.PageContentTypes.ScriptsForPath(string? path) -> uk.osri
 static uk.osric.asp.Core.Pages.PageContentTypes.Create(uk.osric.asp.Core.Pages.PageContentTypeRule! fallback, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, uk.osric.asp.Core.Pages.PageContentTypeRule!>>! extensions) -> uk.osric.asp.Core.Pages.PageContentTypes!
 static uk.osric.asp.Core.Pages.PageSourceChange.IsNoOp(string? live, string! chosen) -> bool
 uk.osric.asp.Core.Pages.PageSourceChange
+override uk.osric.asp.Core.Assistant.PageLineEdit.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.PageLineEdit.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.PageLineEdit.ToString() -> string!
+static uk.osric.asp.Core.Assistant.PageLineEdit.operator !=(uk.osric.asp.Core.Assistant.PageLineEdit? left, uk.osric.asp.Core.Assistant.PageLineEdit? right) -> bool
+static uk.osric.asp.Core.Assistant.PageLineEdit.operator ==(uk.osric.asp.Core.Assistant.PageLineEdit? left, uk.osric.asp.Core.Assistant.PageLineEdit? right) -> bool
+static uk.osric.asp.Core.Assistant.PageRangeEditor.ReplaceAll(string! source, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.PageLineEdit!>! edits, int maximumChars) -> uk.osric.asp.Core.Assistant.PageRangeEditResult!
+static uk.osric.asp.Core.Assistant.PageRangeEditor.Replace(string! source, int startLine, int endLine, string! replacement, int maximumChars, string? expectFirst, string? expectLast) -> uk.osric.asp.Core.Assistant.PageRangeEditResult!
+static uk.osric.asp.Core.Compilation.TemplateShapeCheck.Check(string! template) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>!
+uk.osric.asp.Core.Assistant.PageLineEdit
+uk.osric.asp.Core.Assistant.PageLineEdit.<Clone>$() -> uk.osric.asp.Core.Assistant.PageLineEdit!
+uk.osric.asp.Core.Assistant.PageLineEdit.Deconstruct(out int StartLine, out int EndLine, out string! Replacement, out string? ExpectFirst, out string? ExpectLast) -> void
+uk.osric.asp.Core.Assistant.PageLineEdit.EndLine.get -> int
+uk.osric.asp.Core.Assistant.PageLineEdit.EndLine.init -> void
+uk.osric.asp.Core.Assistant.PageLineEdit.Equals(uk.osric.asp.Core.Assistant.PageLineEdit? other) -> bool
+uk.osric.asp.Core.Assistant.PageLineEdit.ExpectFirst.get -> string?
+uk.osric.asp.Core.Assistant.PageLineEdit.ExpectFirst.init -> void
+uk.osric.asp.Core.Assistant.PageLineEdit.ExpectLast.get -> string?
+uk.osric.asp.Core.Assistant.PageLineEdit.ExpectLast.init -> void
+uk.osric.asp.Core.Assistant.PageLineEdit.PageLineEdit(int StartLine, int EndLine, string! Replacement, string? ExpectFirst = null, string? ExpectLast = null) -> void
+uk.osric.asp.Core.Assistant.PageLineEdit.Replacement.get -> string!
+uk.osric.asp.Core.Assistant.PageLineEdit.Replacement.init -> void
+uk.osric.asp.Core.Assistant.PageLineEdit.StartLine.get -> int
+uk.osric.asp.Core.Assistant.PageLineEdit.StartLine.init -> void
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Items.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolArgumentSchema!>?
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Items.init -> void
+uk.osric.asp.Core.Assistant.ToolArgumentType.Array = 3 -> uk.osric.asp.Core.Assistant.ToolArgumentType
+uk.osric.asp.Core.Compilation.TemplateShapeCheck

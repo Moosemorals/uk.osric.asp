@@ -211,9 +211,10 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   (DEC-214) — the sample a panel is opened for. The page durations share one scale to 10 s, past the
   five-second compile deadline a save keeps too; a tool call has one to 20 s, past
   `Assistant:ToolTimeoutSeconds`; the two provider waits one to 240 s, past
-  `Assistant:RequestTimeoutSeconds`; and the run's step and tool-call counts one each to 48 and 32,
-  past `Assistant:MaxSteps` and `Assistant:MaxToolCalls`. A run's own length has no cap — its timeout
-  bounds silence, not duration (DEC-119) — so that scale is sized for the work, up to an hour.
+  `Assistant:RequestTimeoutSeconds`; and the run's step and tool-call counts one each to 192,
+  past `Assistant:MaxSteps` (160) and `Assistant:MaxToolCalls` (128). A run's own length has no
+  cap — its timeout bounds silence, not duration (DEC-119) — so that scale is sized for the work,
+  up to an hour.
   `page.image.size` has its own byte scale. The SDK's default starts at 0–5 s for a seconds
   instrument, which would make every render one column and every percentile meaningless.
 - **Two gates on `/metrics`.** The app publishes on the loopback only (DEC-61), and Caddy answers

@@ -513,6 +513,7 @@ public sealed class RunProcessorTests {
                 RunTimeoutSeconds = 5,
                 RequestTimeoutSeconds = 3,
                 ToolTimeoutSeconds = 2,
+                MaxOutputTokens = 32_768,
                 MaxContextTokens = (int)TokenEstimator.For(null).Estimate(MaskedBudget(seeds)),
             }));
 

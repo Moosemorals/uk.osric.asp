@@ -159,7 +159,7 @@ public sealed class PageToolExecutorHistoryTests {
         JsonElement data = Data(result);
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(data.GetProperty("source").GetString(), Is.EqualTo("second\nthird"));
+            Assert.That(data.GetProperty("source").GetString(), Is.EqualTo("2| second\n3| third"));
             Assert.That(data.GetProperty("startLine").GetInt32(), Is.EqualTo(2));
             Assert.That(data.GetProperty("endLine").GetInt32(), Is.EqualTo(3));
             Assert.That(data.GetProperty("totalLines").GetInt32(), Is.EqualTo(3));

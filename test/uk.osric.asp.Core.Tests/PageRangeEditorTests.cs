@@ -85,4 +85,114 @@ public sealed class PageRangeEditorTests {
 
         Assert.That(result.Content, Is.EqualTo("one\ntwo"));
     }
+
+    [Test]
+    public void AnExpectedFirstLineThatDoesNotMatchRefusesTheEdit() {
+        PageRangeEditResult result = PageRangeEditor.Replace(
+            "one\r\ntwo\r\nthree", 2, 2, "changed", 100, expectFirst: "not two", expectLast: null);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Is.Null);
+            Assert.That(result.Error, Does.Contain("Line 2 is not the expected text"));
+        });
+    }
+
+    [Test]
+    public void AExpectedLastLineThatDoesNotMatchRefusesTheEdit() {
+        PageRangeEditResult result = PageRangeEditor.Replace(
+            "one\r\ntwo\r\nthree", 2, 3, "changed", 100, expectFirst: null, expectLast: "not three");
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Error, Does.Contain("Line 3 is not the expected text"));
+        });
+    }
+
+    [Test]
+    public void MatchingExpectedLinesAllowTheEdit() {
+        PageRangeEditResult result = PageRangeEditor.Replace(
+            "one\r\ntwo\r\nthree", 2, 2, "changed", 100, expectFirst: "two", expectLast: "two");
+
+        Assert.That(result.Content, Is.EqualTo("one\r\nchanged\r\nthree"));
+    }
+
+    [Test]
+    public void SeveralEditsAreAppliedAgainstTheOriginalLineNumbers() {
+        PageRangeEditResult result = PageRangeEditor.ReplaceAll(
+            "one\ntwo\nthree\nfour",
+            [
+                new PageLineEdit(2, 2, "second\nextra"),
+                new PageLineEdit(4, 4, "fourth"),
+            ],
+            100);
+
+        Assert.That(result.Content, Is.EqualTo("one\nsecond\nextra\nthree\nfourth"));
+    }
+
+    [Test]
+    public void SeveralEditsRefuseOverlappingRanges() {
+        PageRangeEditResult result = PageRangeEditor.ReplaceAll(
+            "one\ntwo\nthree",
+            [
+                new PageLineEdit(1, 2, "first"),
+                new PageLineEdit(2, 3, "second"),
+            ],
+            100);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Error, Does.Contain("overlap at line 2"));
+        });
+    }
+
+    [Test]
+    public void SeveralEditsRefuseAnOutOfRangeEdit() {
+        PageRangeEditResult result = PageRangeEditor.ReplaceAll(
+            "one\ntwo",
+            [new PageLineEdit(2, 3, "past the end")],
+            100);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Error, Does.Contain("Edit at line 2 is outside the page"));
+        });
+    }
+
+    [Test]
+    public void SeveralEditsCheckTheirExpectationsAgainstTheOriginalSource() {
+        PageRangeEditResult result = PageRangeEditor.ReplaceAll(
+            "one\ntwo\nthree",
+            [
+                new PageLineEdit(3, 3, "third", "not three", null),
+                new PageLineEdit(1, 1, "first", "one", "one"),
+            ],
+            100);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Error, Does.Contain("Line 3 is not the expected text"));
+        });
+    }
+
+    [Test]
+    public void SeveralEditsRefuseAnEmptyList() {
+        PageRangeEditResult result = PageRangeEditor.ReplaceAll("one", [], 100);
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Error, Does.Contain("No edits"));
+    }
+
+    [Test]
+    public void SeveralEditsRefuseAResultLargerThanThePageLimit() {
+        PageRangeEditResult result = PageRangeEditor.ReplaceAll(
+            "one\ntwo",
+            [new PageLineEdit(1, 1, "first"), new PageLineEdit(2, 2, "second")],
+            5);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Error, Does.Contain("size limit"));
+        });
+    }
 }

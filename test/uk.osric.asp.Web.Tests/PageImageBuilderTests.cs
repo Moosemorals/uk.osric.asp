@@ -113,6 +113,36 @@ public sealed class PageImageBuilderTests {
         Assert.That(pages.Compiler.CompileCount, Is.Zero, "there was nothing to compile");
     }
 
+    [Test]
+    public void ATemplateShapeWarningIsStoredEvenWhenThePageCompiles() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageImage compilation = Build(pages, "/shape", "<% ctx.Write(\"one\"); %>\n100%> done");
+
+        Assert.Multiple(() => {
+            Assert.That(compilation.Bytes, Is.Not.Null.And.Not.Empty);
+            Assert.That(compilation.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(diagnostic =>
+                diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Warning
+                && diagnostic.Message.StartsWith("TEMPLATE003:", StringComparison.Ordinal)));
+        });
+    }
+
+    [Test]
+    public void ANoCodeTemplateCanStillCarryAShapeWarning() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageImage compilation = Build(pages, "/stray", "100%> done");
+
+        Assert.Multiple(() => {
+            Assert.That(compilation.HasCode, Is.False);
+            Assert.That(compilation.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(diagnostic =>
+                diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Warning
+                && diagnostic.Message.StartsWith("TEMPLATE003:", StringComparison.Ordinal)));
+        });
+    }
+
     private static PageImage Build(PageHarness pages, string path, string template) {
         PagePath key = PageHarness.Key(path);
 

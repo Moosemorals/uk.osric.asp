@@ -50,7 +50,8 @@ public static class PageWrites {
             || !result.TryGetProperty("data", out JsonElement data)
             || data.ValueKind != JsonValueKind.Object
             || !data.TryGetProperty("path", out JsonElement path)
-            || path.ValueKind != JsonValueKind.String) {
+            || path.ValueKind != JsonValueKind.String
+            || (data.TryGetProperty("changed", out JsonElement changed) && changed.ValueKind == JsonValueKind.False)) {
             return null;
         }
 

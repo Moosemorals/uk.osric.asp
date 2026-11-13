@@ -67,6 +67,13 @@ no mapped error explaining it, is a fault in generated code: `PageCompiler` thro
 returning a diagnostic, `PageEditor` preserves the source and rethrows, and the host answers `500`.
 Warnings are author-facing only when they are mapped; a warning never stops a page compiling.
 
+The compiler sees generated code, so it cannot see the template's own shape. `TemplateShapeCheck`
+runs beside the compiler on every save and reports a `%>` that has no opener and braces that do not
+balance across the template's code blocks, ignoring the contents of strings and comments. A missing
+brace can otherwise surface as an error on the line after the template rather than at the block that
+opened it, and a stray closer can turn the rest of a page into literal text; these are warnings, so
+a page that compiles is still served, and they are stored with the compiler's diagnostics.
+
 Author-facing codes are handed out once and never reused for a different meaning, because the editor
 and the logs quote them:
 
@@ -74,6 +81,9 @@ and the logs quote them:
 | --- | --- | --- |
 | `TEMPLATE001` | `TemplateTokenizer` | a statement, escaped-write, raw-write or declaration opener has no `%>` |
 | `TEMPLATE002` | `TemplateSourceGenerator` | a `<%=` or `<%==` expression is empty |
+| `TEMPLATE003` | `TemplateShapeCheck` | literal text holds a `%>` with no matching `<%` |
+| `TEMPLATE004` | `TemplateShapeCheck` | a `{` in page code is never closed |
+| `TEMPLATE005` | `TemplateShapeCheck` | a `}` in page code has no matching `{` |
 | `PAGE001` | `PageApiPolicy` | the page used an API it may not use |
 | `PAGE002` | `PageApiChecker` | page code escaped its method, or a declaration block declared something other than a type |
 | `PAGE003` | `PageImageBuilder` | the page waited too long for a compile slot |

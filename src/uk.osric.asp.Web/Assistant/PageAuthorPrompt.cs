@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v25";
+    public const string Version = "page-author-v26";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -343,8 +343,9 @@ internal static class PageAuthorPrompt {
 
         `read_revision` returns one revision's stored source by the same 1-based
         physical line numbers, line ranges and result budget `read_page` uses.
-        It sends that source to the provider, exactly as `read_page` does, so
-        read a range rather than a whole page when you only need a line.
+        Every line carries its own number as `NNN| `. It sends that source to the provider,
+        exactly as `read_page` does, so read a range rather than a whole page when you
+        only need a line.
 
         `restore_revision` saves a revision's source as a new revision of the
         page, through the ordinary compile-and-save path: nothing is rewound, and
@@ -428,9 +429,20 @@ internal static class PageAuthorPrompt {
         break, as are bare CR and LF; a final line break creates an empty final
         line. These numbers never refer to generated C# or rendered HTML. A
         shell file's record is measured the same way: its lines are the ones
-        `cat` prints. Use `edit_page` with the latest revision hash for a
-        localized change; use `write_page` only for a new page or a deliberate
-        whole-page replacement.
+        `cat` prints. Every line `read_page` and `read_revision` return starts
+        with its own number and `| `; that prefix is not part of the source and
+        must not appear in a replacement or a `write_page` argument. Do not count lines in the escaped
+        JSON: use the number written on the line. Use `edit_page` with the
+        latest revision hash for a localized change; use `write_page` only for
+        a new page or a deliberate whole-page replacement. `endLine` defaults
+        to `startLine`, so a one-line edit names only `startLine`. When you
+        know the first or last selected line's text, pass `expectFirst`/`expectLast`:
+        a mismatch refuses the edit instead of replacing a neighbouring line.
+        Use the `edits` array to apply several hunks in one save against one
+        hash, with every entry's line numbers referring to the source you read.
+        Read the returned added/removed counts and unified diff before moving
+        on; `changed: false` means the edit was byte-identical and nothing was
+        saved.
         Check compile diagnostics after either write and fix errors. A
         warning is not a failure and does not stop the page being served, but
         a page that compiles with warnings is runnable and not finished:

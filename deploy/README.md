@@ -120,9 +120,10 @@ and applies them.
   completions with tool calls. Local HTTP is allowed only for a loopback provider or when explicitly
   enabled.
   **Upgrading the context budget:** `Assistant__MaxContextChars` and `Assistant__MaxRequestBytes` are
-  both now `Assistant__MaxContextTokens`, and the old keys are not aliased. The shipped 90,000 tokens
-  plus the 32,768 output reserve fits the default `Assistant__ModelContextTokens` of 131,072; set both
-  numbers if the provider's window differs.
+  both now `Assistant__MaxContextTokens`, and the old keys are not aliased. The shipped 500,000 tokens
+  plus the 393,216 output limit fits the default `Assistant__ModelContextTokens` of 1,048,576, which is
+  what DeepSeek-V4.1-Flash reports for `deepseek-flash`; set both numbers if the provider's window
+  differs.
   The host sends the system prompt, conversation transcript, and any page source read by the assistant to
   that provider. Do not store content there that the provider must not receive. Prompts, page source,
   reasoning, credentials, and provider error bodies are not logged. The default provider is DeepSeek;

@@ -187,7 +187,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v25"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v26"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -322,7 +322,20 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v25"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v26"));
+        });
+    }
+
+    [Test]
+    public void ThePromptTeachesNumberedLinesAndAnchoredEdits() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("Every line `read_page` and `read_revision` return starts"));
+            Assert.That(prompt, Does.Contain("expectFirst"));
+            Assert.That(prompt, Does.Contain("`edits` array"));
+            Assert.That(prompt, Does.Contain("changed: false"));
+            Assert.That(prompt, Does.Contain("unified diff"));
         });
     }
 

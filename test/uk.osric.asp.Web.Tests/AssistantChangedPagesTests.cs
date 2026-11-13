@@ -88,6 +88,19 @@ public sealed class AssistantChangedPagesTests {
     }
 
     [Test]
+    public async Task AnEditThatChangedNothingIsNotListedAsync() {
+        string html = await RenderAsync([
+            User("run-1"),
+            AssistantCall("run-1", "call-1", "edit_page"),
+            ToolResult("run-1", "call-1", "edit_page",
+                """{"ok":true,"data":{"path":"/blog","revisionHash":"abc","changed":false},"error":null}"""),
+            AssistantContent("run-1", "Nothing changed."),
+        ]);
+
+        Assert.That(html, Does.Not.Contain("assistant-changed-pages"));
+    }
+
+    [Test]
     public async Task ATurnThatOnlyReadsAPageHasNoCardAsync() {
         string html = await RenderAsync([
             User("run-1"),
@@ -158,6 +171,7 @@ public sealed class AssistantChangedPagesTests {
             new TestAntiforgery(),
             new RunRegistry(new AssistantOptions(), TimeProvider.System),
             new AssistantOptions(),
+            new StubAccountBalanceClient(),
             new MarkdownRenderer());
 
         return await TestHttp.ReadBodyAsync(context);

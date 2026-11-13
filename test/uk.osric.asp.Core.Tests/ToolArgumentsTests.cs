@@ -79,4 +79,77 @@ public sealed class ToolArgumentsTests {
             Throws.ArgumentNullException.With.Property("ParamName").EqualTo("schema"));
         Assert.That(() => ToolArguments.Parse("{}", Schema, 0), Throws.TypeOf<ArgumentOutOfRangeException>());
     }
+
+    [Test]
+    public void AnArrayOfObjectsIsValidatedAndKeptAsJson() {
+        ToolArgumentsResult result = ToolArguments.Parse(
+            """{"path":"/notes","edits":[{"startLine":1,"endLine":2,"replacement":"one"},{"startLine":4,"endLine":4,"replacement":"four","expectFirst":"four"}]}""",
+            ArraySchema,
+            500);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Error);
+            Assert.That(result.Values["edits"].GetArrayLength(), Is.EqualTo(2));
+            Assert.That(result.Values["edits"].EnumerateArray().ElementAt(1).GetProperty("expectFirst").GetString(),
+                Is.EqualTo("four"));
+        });
+    }
+
+    [Test]
+    public void AnArrayElementMustBeAnObject() {
+        ToolArgumentsResult result = ToolArguments.Parse(
+            """{"path":"/notes","edits":[1]}""", ArraySchema, 200);
+
+        Assert.That(result.Error, Does.Contain("edits[0]").And.Contain("object"));
+    }
+
+    [Test]
+    public void ANestedRequiredPropertyIsNamedInTheRefusal() {
+        ToolArgumentsResult result = ToolArguments.Parse(
+            """{"path":"/notes","edits":[{"startLine":1,"replacement":"one"}]}""", ArraySchema, 200);
+
+        Assert.That(result.Error, Does.Contain("edits[0].endLine").And.Contain("missing"));
+    }
+
+    [Test]
+    public void ANestedUnknownPropertyIsRefused() {
+        ToolArgumentsResult result = ToolArguments.Parse(
+            """{"path":"/notes","edits":[{"startLine":1,"endLine":1,"replacement":"one","extra":true}]}""",
+            ArraySchema,
+            200);
+
+        Assert.That(result.Error, Does.Contain("edits[0].extra"));
+    }
+
+    [Test]
+    public void ANestedWrongTypeIsRefused() {
+        ToolArgumentsResult result = ToolArguments.Parse(
+            """{"path":"/notes","edits":[{"startLine":"one","endLine":1,"replacement":"one"}]}""",
+            ArraySchema,
+            200);
+
+        Assert.That(result.Error, Does.Contain("edits[0].startLine").And.Contain("integer"));
+    }
+
+    [Test]
+    public void ARepeatedNestedPropertyIsRefused() {
+        ToolArgumentsResult result = ToolArguments.Parse(
+            """{"path":"/notes","edits":[{"startLine":1,"startLine":2,"endLine":1,"replacement":"one"}]}""",
+            ArraySchema,
+            200);
+
+        Assert.That(result.Error, Does.Contain("edits[0].startLine").And.Contain("repeated"));
+    }
+
+    private static readonly ToolArgumentSchema[] ArraySchema = [
+        new("path", ToolArgumentType.String, true),
+        new("edits", ToolArgumentType.Array, false) {
+            Items = [
+                new("startLine", ToolArgumentType.Integer, true),
+                new("endLine", ToolArgumentType.Integer, true),
+                new("replacement", ToolArgumentType.String, true),
+                new("expectFirst", ToolArgumentType.String, false),
+            ],
+        },
+    ];
 }

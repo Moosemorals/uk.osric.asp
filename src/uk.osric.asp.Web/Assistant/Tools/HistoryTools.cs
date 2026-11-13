@@ -100,7 +100,8 @@ internal sealed class ReadRevisionTool : AssistantTool {
     public override ToolSpec Spec { get; } = new(
         "read_revision",
         "Read one retained revision's stored template source, by optional 1-based line range. Get a hash from "
-        + "list_revisions first. This returns the source as it was saved, not what it rendered: it compiles nothing "
+        + "list_revisions first. Each line in `source` is prefixed with its line number and `| `, which is not part "
+        + "of the source. This returns the source as it was saved, not what it rendered: it compiles nothing "
         + "and runs nothing. Reading a revision sends its source to the provider, exactly as read_page does. "
         + "Read-only: it changes nothing and needs no approval.",
         false,

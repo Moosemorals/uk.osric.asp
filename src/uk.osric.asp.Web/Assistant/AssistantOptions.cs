@@ -16,10 +16,11 @@ internal sealed class AssistantOptions {
     public bool RequireApiKey { get; init; } = true;
     public bool AllowInsecureHttp { get; init; }
     public double Temperature { get; init; } = 0.2;
-    public int MaxOutputTokens { get; init; } = 32_768;
+    /// <summary>The provider completion limit; DeepSeek-V4.1-Flash reports a maximum of 393,216.</summary>
+    public int MaxOutputTokens { get; init; } = 393_216;
     public bool IncludeUsage { get; init; } = true;
-    public int MaxSteps { get; init; } = 40;
-    public int MaxToolCalls { get; init; } = 16;
+    public int MaxSteps { get; init; } = 160;
+    public int MaxToolCalls { get; init; } = 128;
     public int MaxToolCallsPerStep { get; init; } = 8;
     public int MaxActiveRuns { get; init; } = 2;
     public int MaxQueuedRuns { get; init; } = 8;
@@ -30,7 +31,7 @@ internal sealed class AssistantOptions {
     public int MaxMessageChars { get; init; } = 16_384;
     public int MaxPageChars { get; init; } = 262_144;
     public int MaxToolArgumentChars { get; init; } = 131_072;
-    public int MaxToolResultChars { get; init; } = 32_768;
+    public int MaxToolResultChars { get; init; } = 131_072;
 
     /// <summary>
     /// How much text one tool may answer with before it is cut: half of <see cref="MaxToolResultChars"/>,
@@ -38,9 +39,9 @@ internal sealed class AssistantOptions {
     /// </summary>
     public int ToolResultBudget => MaxToolResultChars / 2;
     /// <summary>The estimated prompt tokens one request may spend.</summary>
-    public int MaxContextTokens { get; init; } = 90_000;
-    /// <summary>The model's whole context window, used to check the prompt and output budgets fit.</summary>
-    public int ModelContextTokens { get; init; } = 131_072;
+    public int MaxContextTokens { get; init; } = 500_000;
+    /// <summary>The model's whole context window; DeepSeek-V4.1-Flash reports 1,048,576.</summary>
+    public int ModelContextTokens { get; init; } = 1_048_576;
     /// <summary>The most memories one owner may hold; past this <c>remember</c> refuses.</summary>
     public int MaxMemoriesPerOwner { get; init; } = 200;
     /// <summary>The longest memory, in characters. One longer is refused, never truncated.</summary>
