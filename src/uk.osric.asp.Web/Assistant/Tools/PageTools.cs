@@ -207,7 +207,7 @@ internal sealed class WritePageTool : AssistantTool {
 
     public override ToolSpec Spec { get; } = new(
         "write_page",
-        "Create or deliberately replace a complete page through the normal compile-and-save path. A shell file is refused, and a page locked by Assistant:ProtectedPaths is refused: the owner changes those in the editor.",
+        "Create or deliberately replace a complete page through the normal compile-and-save path. A shell file is refused: only the owner changes the shell, in code.",
         true,
         [
             new("path", ToolArgumentType.String, true),

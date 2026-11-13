@@ -80,9 +80,8 @@ before the shell view can go.
 - **A catch-all that hands a subtree to one page.** `/pages?edit=` keeps one page equals one key
   (DEC-18). A routing change that lets one page answer `/about` and `/about/anything` is a change to
   what a page key means for every page, and it is not needed for this view.
-- **A writable prefix or `Assistant:ProtectedPaths` for the owner.** Those are assistant rules. The
-  owner edits what the editor offers; a protected path is exactly what the owner opens the editor
-  to change.
+- **A writable prefix for the owner.** That is an assistant rule. The owner edits what the editor
+  offers.
 - **A second `IPageWriter`.** Widening the self-save to a named key would make every page a handle on
   every other page. The named-key authority is its own capability, offered only where the host
   chooses.
@@ -253,8 +252,8 @@ host's `400`, exactly as on any other page; there is no redirect shim and no `30
 form body.
 
 `/edit` is then an ordinary page key. If somebody stores a page at `/edit`, it serves like any other
-page, with the guard that page writes for itself. The assistant may write it too, unless the owner
-adds it to `Assistant:ProtectedPaths`; that is the same trade every other stored page already has.
+page, with the guard that page writes for itself. The assistant may write it too; that is the same
+trade every other stored page already has (ARCH-15).
 
 The destructive scrub action is not left to a missing key: it moves to `/admin/scrub/{path}` before
 the editor maps are removed, and the deleted-page row on `/pages` links it.
@@ -642,7 +641,7 @@ proved by behaviour, not by a browser test that restates the markup.
 | The editor page deletes itself and the owner is locked out | The capability refuses a delete of `/pages`; the row has no Delete; recovery is still available |
 | A stale tab overwrites a newer save | Conditional save with the rendered hash; `409` with the submitted text and the current source |
 | `/edit` disappears from a bookmark and an open tab | Accepted: there is no redirect, and the URL is a `404` until a page is stored there. The editor is `/pages`, and `/admin/restore` covers a broken editor |
-| `/edit` becomes a free page key and the assistant can write it | Intentional; it is an ordinary stored page. An owner who wants it closed adds it to `Assistant:ProtectedPaths` or writes a guarded page |
+| `/edit` becomes a free page key and the assistant can write it | Intentional; it is an ordinary stored page the assistant may write, like every other (ARCH-15). A guarded page is the only way to close it |
 | The page editor loses the compile-state column | `PageEntry.State` and `.StateClass` are part of the read contract; the listing test proves the same words |
 | Scrub is lost with the shell editor | It moves unchanged to `/admin/scrub/{path}` and is linked from tombstones |
 | Two save paths drift | The conditional algorithm moves to `PageSaver`, `PageEditor` delegates to it, and the seed helper shares the comparison and save rule with the emergency page |

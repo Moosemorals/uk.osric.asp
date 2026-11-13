@@ -14,7 +14,7 @@ internal static class ShellKernelHarness {
 
     public static readonly PagePathPolicy Policy = new(
         new ReservedPaths(ReservedPaths.Default),
-        new AssistantOptions { ProtectedPaths = ["/editor.js"] });
+        new AssistantOptions());
 
     /// <summary>Runs a line through the kernel, or fails the test when the command is not an applet.</summary>
     public static async Task<ShellOutcome> RunAsync(PageEditor pages, string line, int maxChars = 4096) =>

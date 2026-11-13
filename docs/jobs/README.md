@@ -46,7 +46,6 @@ editor has a way back, and one button that restores every seed is that way.
 | --- | --- | --- | --- |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
-| [ARCH-15](ARCH-15.md) | Low | S | An assistant-only list is a second, invisible kind of read-only page |
 | [ARCH-16](ARCH-16.md) | Low | M | The assistant asks the page store the same questions twice |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
@@ -85,20 +84,21 @@ The order is rough on purpose — the first few are the point, and the rest move
 but each step is one unit of work, on one branch in one worktree
 ([how](../../CONTRIBUTING.md#working-on-it)). Each step stops at a gate: it says what changed, what
 proved it and what it is unsure of, and nothing merges until the answer is yes. Small and
-self-contained comes first, because these are the ones that never get scheduled otherwise.
+self-contained comes first, because these are the ones that never get scheduled otherwise. A step
+is `done` when its merge is in, and `in flight` while its branch is open.
 
-| # | Step | Size | Needs | Gate |
-| --- | --- | --- | --- | --- |
-| 0 | **Workflow** — the branch and worktree policy, its `make` targets and this programme | S | — | merge |
-| 1 | [ARCH-15](ARCH-15.md) — delete `Assistant:ProtectedPaths`; the assistant may write every page the shell does not route | S | — | merge |
-| 2 | [IDEA-026](IDEA-026.md) — remove the `Features` alias; the data gate is waived, deliberately (below) | S | — | merge |
-| 3 | [IDEA-028](IDEA-028.md) — `/admin/restore`, over the seed read and the saver ARCH-07 left behind | M | — | merge, and a manual restore of a broken page |
-| 4 | [IDEA-019](IDEA-019.md) — repeated request values, and `Encoding` and cryptography in the API policy; the cookie point is dropped because IDEA-014 gives a page per-visitor state | S | — | merge |
-| 5 | [Page editor](../plans/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase |
-| 6 | [ARCH-16](ARCH-16.md) — one read seam for the assistant's tools and its applets | M | 5 (rework) | merge |
-| 7 | [ARCH-13](ARCH-13.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge |
-| 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase |
-| 9 | [Page first](../plans/page-first.md) — re-scope against 5–8: DEC-210 and DEC-211 are recorded, but the audit and the memory page are not; build the page, or archive the plan behind IDEA-024 and IDEA-025 | L | 5–8 | the plan, then build-or-close |
+| # | Step | Size | Needs | Gate | Status |
+| --- | --- | --- | --- | --- | --- |
+| 0 | **Workflow** — the branch and worktree policy, its `make` targets and this programme | S | — | merge | done |
+| 1 | [ARCH-15](#closed) — delete `Assistant:ProtectedPaths`; the assistant may write every page the shell does not route | S | — | merge | done |
+| 2 | [IDEA-026](IDEA-026.md) — remove the `Features` alias; the data gate is waived, deliberately (below) | S | — | merge | in flight |
+| 3 | [IDEA-028](IDEA-028.md) — `/admin/restore`, over the seed read and the saver ARCH-07 left behind | M | — | merge, and a manual restore of a broken page | — |
+| 4 | [IDEA-019](IDEA-019.md) — repeated request values, and `Encoding` and cryptography in the API policy; the cookie point is dropped because IDEA-014 gives a page per-visitor state | S | — | merge | — |
+| 5 | [Page editor](../plans/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | — |
+| 6 | [ARCH-16](ARCH-16.md) — one read seam for the assistant's tools and its applets | M | 5 (rework) | merge | — |
+| 7 | [ARCH-13](ARCH-13.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | — |
+| 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase | — |
+| 9 | [Page first](../plans/page-first.md) — re-scope against 5–8: DEC-210 and DEC-211 are recorded, but the audit and the memory page are not; build the page, or archive the plan behind IDEA-024 and IDEA-025 | L | 5–8 | the plan, then build-or-close | — |
 
 Steps 1 and 2 are independent and may run together, as may 6 and 7. Everything else touches the same
 files — the editor, `/pages`, `SimpleContext`, the assistant prompt — and is sequential. A long plan
@@ -131,6 +131,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [ARCH-15](../decisions.md) | The assistant's only read-only keys are the shell's own routes: `Assistant:ProtectedPaths`, its `IsProtected` branch, the empty configuration row and the prompt's sentence are gone, so every page the shell does not route is the assistant's to write. DEC-253 |
 | [ARCH-07](../plans/archive/revision-restore.md) | A page's history restores: the editor confirms a revision or a seed install with a diff and saves the chosen source as a new revision, refusing the one that would change nothing; the assistant gains `list_revisions`, `read_revision` and an approval-gated `restore_revision`, and both listings page with `limit` and a cursor. See [the plan](../plans/archive/revision-restore.md) |
 | [ARCH-02](../pages.md#page-contract) | Pages are a restricted runtime: a plain `PageRequest` snapshot, buffered output applied after the handler, allow-listed headers, `GET`/`POST`/`HEAD` only, and a 1 MiB form cap |
 | ARCH-03 | Renders and compiles each have a slot and a deadline, an abandoned render is logged and counted, and `/heath` reports it. See [the plan](../plans/archive/page-execution-budget.md). SEC-03 is deliberately still open |

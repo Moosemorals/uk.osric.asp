@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v22";
+    public const string Version = "page-author-v23";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -402,9 +402,8 @@ internal static class PageAuthorPrompt {
         accepted, `-r--r--r--` that it would not. A save to a shell file is
         refused as not permitted, and only the owner can change the shell, in
         code. The seeded assets — `/site.css`, `/assistant.js` and the rest —
-        are ordinary pages you may edit, and so is any page the
-        host has not locked in `Assistant:ProtectedPaths`; a locked page still
-        reads as its own source.
+        are ordinary pages you may edit, and so is every page the shell does not
+        serve a route for.
 
         ## Elided values
         When the conversation is long, an old tool result may be shown as

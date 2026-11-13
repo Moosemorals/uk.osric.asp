@@ -262,8 +262,8 @@ Two page-authoring details the shell page had for free and the template must do 
   the assistant may read *and edit*, like `/help`, and `PageAuthorPrompt` says so.
 - **The assistant's prompt** names `/memory` instead of `/assistant/memory`, and `Version` becomes
   `page-author-v15`.
-- **`Assistant:ProtectedPaths` is not used here.** The page is the owner's, like `/help`: the
-  assistant may edit it, and an operator who does not want that locks it the ordinary way.
+- **There is no way to lock the page against the assistant.** `Assistant:ProtectedPaths` is gone
+  (ARCH-15): the page is the owner's, like `/help`, and the assistant may edit it.
 
 ### D6 — Failure behaviour
 
@@ -439,7 +439,7 @@ owner's write is reached from a page; [testing](../testing.md) names the suites;
 | Risk | Mitigation |
 | --- | --- |
 | **The guard is now the page's own code.** A future edit drops `ctx.User` and the page lists memory to an anonymous visitor. | It cannot: the capability refuses an anonymous render before it reads anything, and `MemoryCatalogScopeTests` proves it by name. The guard is the nicer redirect, not the authority (DEC-190, DEC-211). |
-| **A page can now write memory, and pages are editable by the assistant.** The assistant could rewrite the page to change what the owner sees or keep. | The page can only touch the signed-in owner's memory, the same person the assistant is talking to; every write is still keyed by the owner and versioned. An operator who wants the page frozen locks it in `Assistant:ProtectedPaths` (DEC-198), as with `/help`. |
+| **A page can now write memory, and pages are editable by the assistant.** The assistant could rewrite the page to change what the owner sees or keep. | The page can only touch the signed-in owner's memory, the same person the assistant is talking to; every write is still keyed by the owner and versioned. If the assistant rewrites the page, the owner restores it from its seed like any other seed. |
 | **The memory page can be broken like any page.** A compile error leaves the owner unable to edit memory until `/edit` fixes it. | That is what `/edit` is for, and why it stays shell (DEC-210). The page is deliberately small. |
 | **Two implementations of one view drift.** The shell page's tests and the page's tests both describe the same list. | There is only one, after phase 3 deletes the shell endpoint; nothing is left to drift. |
 | **`Sdk` grows and every page recompiles.** A new capability moves the Sdk module version and the runtime id. | One deliberate capability with two interfaces, values in `Sdk`, mapping in `Web`; every stored image recompiles on its next request, which is DEC-26's normal cost. |

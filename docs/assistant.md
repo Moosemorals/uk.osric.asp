@@ -90,8 +90,7 @@ carrying its usage, its syntax and its behaviour, help is rendered from them, an
 parsing and pattern expansion happen once. `find` is POSIX's, with `-name`, `-path` and `-type`
 (DEC-227), and operators are refused as not there yet rather than as forbidden. A save to a
 shell file answers "Not permitted": only the owner changes the shell, in code. The seeded assets
-are ordinary pages the assistant may edit; `Assistant:ProtectedPaths` (empty unless an operator
-fills it) is a separate, extra lock over a single page, which still reads as its own source.
+are ordinary pages the assistant may edit, like every page the shell does not answer.
 `RequireApproval` asks the path policy before it asks the owner, so a save it has already
 refused never becomes an approval nobody can grant. `check_script` stays a page-source check, so
 a shell file is refused there.

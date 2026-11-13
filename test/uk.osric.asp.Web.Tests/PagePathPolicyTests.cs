@@ -20,27 +20,9 @@ public sealed class PagePathPolicyTests {
             Assert.That(paths.Validate("/BLOG/../login", write: true).Error,
                 Does.Contain("Not permitted").And.Contain("shell file"), "normalised before the check");
             Assert.That(paths.IsReserved(login), Is.True);
-            Assert.That(paths.IsProtected(login), Is.False, "a route is not a locked page");
-            Assert.That(paths.IsReadOnly(login), Is.True);
             Assert.That(paths.CanWrite(login), Is.False);
             Assert.That(paths.Validate("/edit/anything", write: true).Error, Does.Contain("/edit"),
                 "a key beneath a route names the route that owns it");
-        });
-    }
-
-    [Test]
-    public void ProtectedPagesAreReadableAndNeverWritable() {
-        PagePathPolicy paths = CreatePaths();
-        PagePath locked = PagePath.Normalize("/editor.js");
-
-        Assert.Multiple(() => {
-            Assert.That(paths.Validate("/editor.js", write: false).IsSuccess, Is.True);
-            Assert.That(paths.Validate("/editor.js", write: true).Error,
-                Does.Contain("Not permitted").And.Contain("Assistant:ProtectedPaths"));
-            Assert.That(paths.IsReserved(locked), Is.False, "a locked page is a stored page");
-            Assert.That(paths.IsProtected(locked), Is.True);
-            Assert.That(paths.IsReadOnly(locked), Is.True);
-            Assert.That(paths.CanWrite(locked), Is.False);
         });
     }
 
@@ -67,5 +49,5 @@ public sealed class PagePathPolicyTests {
 
     private static PagePathPolicy CreatePaths(string writablePrefix = "") => new(
         new ReservedPaths(ReservedPaths.Default),
-        new AssistantOptions { ProtectedPaths = ["/editor.js"], WritablePathPrefix = writablePrefix });
+        new AssistantOptions { WritablePathPrefix = writablePrefix });
 }
