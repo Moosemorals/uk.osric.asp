@@ -341,8 +341,8 @@ internal class Program {
             bool isAuthenticated = failed.User.Identity?.IsAuthenticated == true;
             ErrorMessage message = failed.Response.StatusCode == StatusCodes.Status400BadRequest
                 && HttpMethods.IsPost(failed.Request.Method)
-                    ? ErrorMessage.FormExpired(isAuthenticated)
-                    : ErrorMessage.ForStatus(failed.Response.StatusCode, isAuthenticated);
+                    ? ErrorMessage.FormExpired(isAuthenticated, EditorPaths.Of(failed.RequestServices))
+                    : ErrorMessage.ForStatus(failed.Response.StatusCode, isAuthenticated, EditorPaths.Of(failed.RequestServices));
 
             await ErrorResponses.WriteAsync(failed, failed.Response.StatusCode, message);
         });
@@ -363,9 +363,9 @@ internal class Program {
         app.MapGet("/status/chart", ChartEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
 
-        app.MapGet("/edit/{**path}", EditorEndpoint.HandleAsync)
+        app.MapGet("/admin/scrub/{**path}", ScrubEndpoint.ConfirmAsync)
             .RequireAuthorization(EditorPolicy.Name);
-        app.MapPost("/edit/{**path}", EditorEndpoint.HandleAsync)
+        app.MapPost("/admin/scrub/{**path}", ScrubEndpoint.ScrubAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
@@ -481,7 +481,7 @@ internal class Program {
             isAuthenticated
                 ? "The assistant is turned off on this site. Turn it on with Assistant:Enabled in configuration, then restart."
                 : "The assistant is turned off on this site.",
-            ErrorMessage.DefaultRemedies(isAuthenticated));
+            ErrorMessage.DefaultRemedies(isAuthenticated, EditorPaths.Of(context.RequestServices)));
 
         return ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, message);
     }

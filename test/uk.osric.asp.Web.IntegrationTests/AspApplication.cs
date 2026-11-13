@@ -19,7 +19,11 @@ using uk.osric.asp.Web.Users;
 
 /// <summary>Runs the real web host against a throwaway SQLite database.</summary>
 /// <param name="loginPermitLimit">Sign-in attempts allowed per window.</param>
-/// <param name="renderTimeoutSeconds">The budget for one render.</param>
+/// <param name="renderTimeoutSeconds">
+/// The budget for one render. Generous, because a fixture's first page render compiles it under a
+/// debugger-hosted compiler while the other fixtures compile theirs; the suites that prove the
+/// budget pass their own value.
+/// </param>
 /// <param name="realPasswordHasher">
 /// Keeps the production password hasher instead of <see cref="FastPasswordService"/>. A fixture that
 /// is about signing in sets this; the rest sign in only to reach the page they prove.
@@ -37,7 +41,7 @@ using uk.osric.asp.Web.Users;
 /// <param name="changelist">The file <c>/admin/changes</c> serves, for a fixture that proves the page.</param>
 internal sealed class AspApplication(
     int loginPermitLimit = 100,
-    int renderTimeoutSeconds = 5,
+    int renderTimeoutSeconds = 15,
     bool realPasswordHasher = false,
     IMetricsSource? metricsSource = null,
     bool assistantEnabled = false,

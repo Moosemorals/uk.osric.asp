@@ -65,7 +65,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         using HttpClient client = await CreateSignedInClientAsync();
 
         IReadOnlyList<string> page = await MenuAsync(client, "/menu-compare");
-        IReadOnlyList<string> shell = await MenuAsync(client, "/edit");
+        IReadOnlyList<string> shell = await MenuAsync(client, "/pages");
 
         Assert.That(page, Is.EqualTo(shell), "the seeded layout and the shell must not drift");
     }
@@ -97,7 +97,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         Assert.That(body, Does.Contain("<title>Help</title>"));
         Assert.That(body, Does.Contain("<h1>Help</h1>"));
         Assert.That(body, Does.Contain("id=\"layout\"").And.Contain("id=\"keeping-current\""));
-        Assert.That(body, Does.Contain("href=\"/pages?edit=/help\""));
+        Assert.That(body, Does.Contain("href=\"/pages?edit=%2Fhelp\""), "the manual links to its own editor, key escaped");
     }
 
     [Test]
@@ -128,7 +128,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     public async Task TheEditorLinksToTheHelpPage() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/edit/help");
+        HttpResponseMessage response = await client.GetAsync("/pages?edit=/help");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -191,7 +191,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
         Assert.That(body, Does.Contain("<h1>The page set no title</h1>"));
-        Assert.That(body, Does.Contain("href=\"/edit/untitled\">Edit this page"));
+        Assert.That(body, Does.Contain("href=\"/pages?edit=/untitled\">Edit this page"));
     }
 
     [Test]

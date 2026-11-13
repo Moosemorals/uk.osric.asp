@@ -71,12 +71,12 @@ public sealed class PageCatalogScopeTests {
     [Test]
     public async Task AReservedKeyIsMarkedReservedAsync() {
         FakePageReadStore store = new();
-        store.Save("/edit/blog", "reserved");
+        store.Save("/admin/scrub/blog", "reserved");
         store.Save("/blog", "public");
 
         IReadOnlyList<PageEntry> entries = await Scope(store).ListAsync("");
 
-        Assert.That(entries.Single(entry => entry.Key == "/edit/blog").IsReserved, Is.True);
+        Assert.That(entries.Single(entry => entry.Key == "/admin/scrub/blog").IsReserved, Is.True);
         Assert.That(entries.Single(entry => entry.Key == "/blog").IsReserved, Is.False);
     }
 

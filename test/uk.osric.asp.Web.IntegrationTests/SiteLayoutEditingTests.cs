@@ -27,7 +27,7 @@ public sealed class SiteLayoutEditingTests : IntegrationTest {
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><%== PageDocument.Head(layout.Title) %>
             <p>Chrome from the editor</p><%== PageDocument.OpenMain() %><%== layout.Body %><%== PageDocument.CloseMain() %><%== PageDocument.End() %>
             """);
-        Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         string body = await (await client.GetAsync("/will-change")).Content.ReadAsStringAsync();
         Assert.That(body, Does.Contain("Chrome from the editor"));

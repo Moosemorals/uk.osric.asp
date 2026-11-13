@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Assistant.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Editor;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>What one tool call may use: who asked, the policy, the options, and the services it reaches.</summary>
 /// <remarks>
@@ -49,6 +50,9 @@ internal sealed class ToolServices(
 
     /// <summary>The page editor, resolved from the call's scope.</summary>
     public PageEditor Pages => scope.GetRequiredService<PageEditor>();
+
+    /// <summary>The editor's own key, so a tool's link lands on the page the owner moved it to.</summary>
+    public string EditorPath => EditorPaths.Of(scope);
 
     /// <summary>The owner's memories, resolved from the call's scope.</summary>
     public IMemoryStore Memories => scope.GetRequiredService<IMemoryStore>();

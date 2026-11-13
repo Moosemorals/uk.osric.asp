@@ -30,6 +30,16 @@ public interface IContext {
     /// <summary>The canonical key of the page being rendered.</summary>
     public string Path { get; }
 
+    /// <summary>The canonical key of the site's editor page, so a page can link to it.</summary>
+    /// <remarks>
+    /// The editor's key is the host's policy — <c>Pages:Editor:Key</c> — so a page that hard-codes it
+    /// breaks when the owner moves the editor. The editor's own page is served at this key and takes
+    /// the page to edit as <c>?edit=</c>, which makes
+    /// <c>ctx.EditorPath + "?edit=" + System.Uri.EscapeDataString(ctx.Path)</c> the way to offer
+    /// "edit this page".
+    /// </remarks>
+    public string EditorPath { get; }
+
     /// <summary>The signed-in local account, or <see langword="null"/> for an anonymous visitor.</summary>
     /// <remarks>
     /// The identity is supplied and validated by the shell; a page cannot forge it with a header,

@@ -50,7 +50,7 @@ public sealed class LoginEndpointTests {
         await LoginEndpoint.GetAsync(context, _antiforgery);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
-        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit"));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/"));
     }
 
     [Test]
@@ -114,12 +114,12 @@ public sealed class LoginEndpointTests {
     [Test]
     public async Task PostWithValidCredentialsSignsInAsync() {
         _users.Users["owner"] = User("owner", Password);
-        DefaultHttpContext context = FormContext("Owner", Password, returnUrl: "/edit/page", rememberMe: true);
+        DefaultHttpContext context = FormContext("Owner", Password, returnUrl: "/pages?edit=/page", rememberMe: true);
 
         await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
-        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/page"));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/pages?edit=/page"));
         Assert.That(_authentication.SignedInScheme, Is.EqualTo(CookieAuthenticationDefaults.AuthenticationScheme));
         Assert.That(_authentication.SignedInPrincipal?.FindFirstValue(ClaimTypes.NameIdentifier), Is.EqualTo("owner"));
         Assert.That(_authentication.SignedInPrincipal?.FindFirstValue(ClaimTypes.Name), Is.Null, "the username is carried once");
@@ -138,25 +138,25 @@ public sealed class LoginEndpointTests {
     }
 
     [Test]
-    public async Task PostWithAnUnsafeReturnUrlFallsBackToTheEditorAsync() {
+    public async Task PostWithAnUnsafeReturnUrlFallsBackToTheEditorPageAsync() {
         _users.Users["owner"] = User("owner", Password);
         DefaultHttpContext context = FormContext("owner", Password, returnUrl: "https://evil");
 
         await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
-        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit"));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/"));
     }
 
     [Test]
     public async Task PostWithAReturnUrlQueryKeepsTheQueryAsync() {
         _users.Users["owner"] = User("owner", Password);
-        DefaultHttpContext context = FormContext("owner", Password, returnUrl: "/edit/page?tab=source");
+        DefaultHttpContext context = FormContext("owner", Password, returnUrl: "/pages?edit=/page&tab=source");
 
         await LoginEndpoint.PostAsync(context, _users, _passwords, _antiforgery, _authentication, _sessions, TestSessions.Cookie, NullLoggerFactory.Instance);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(303));
-        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/page?tab=source"));
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/pages?edit=/page&tab=source"));
     }
 
     [Test]

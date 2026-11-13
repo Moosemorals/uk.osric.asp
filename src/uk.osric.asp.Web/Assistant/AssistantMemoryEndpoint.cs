@@ -12,6 +12,7 @@ using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>The owner's page for the assistant's memory: list, edit, pin and forget.</summary>
 /// <remarks>
@@ -210,7 +211,7 @@ internal static class AssistantMemoryEndpoint {
         await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations"),
             new(Path, "Memory", true),
-            new("/edit", "Page list"),
+            new(EditorPaths.Of(context.RequestServices), "Page list"),
         ]));
         await context.Response.WriteAsync(Count(held.Count, options.MaxMemoriesPerOwner));
 

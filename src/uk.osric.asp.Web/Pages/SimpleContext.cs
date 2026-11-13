@@ -41,6 +41,7 @@ internal sealed class SimpleContext : IContext {
     private readonly Lock _body = new();
     private readonly PageCapabilities _capabilities;
     private readonly Dictionary<string, string> _headers = [with(StringComparer.OrdinalIgnoreCase)];
+    private readonly string _editorPath;
     private readonly string _loginRedirect;
     private readonly BodyBudget _bodyBudget;
     private readonly bool _isLayout;
@@ -102,13 +103,15 @@ internal sealed class SimpleContext : IContext {
         PagePath? path = null,
         bool isLayout = false,
         BodyBudget? bodyBudget = null,
-        Func<string, string>? assetUrl = null) {
+        Func<string, string>? assetUrl = null,
+        string editorPath = PageEditorOptions.DefaultKey) {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(capabilities);
         ArgumentNullException.ThrowIfNull(contentTypes);
         ArgumentException.ThrowIfNullOrWhiteSpace(loginRedirect);
+        ArgumentException.ThrowIfNullOrWhiteSpace(editorPath);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxBodyChars, 1);
 
         // The path is canonical here: PageEndpoint redirects anything else before building a context.
@@ -118,6 +121,7 @@ internal sealed class SimpleContext : IContext {
         _path = path ?? PagePath.Normalize(request.Path);
         _request = request;
         _loginRedirect = loginRedirect;
+        _editorPath = editorPath;
         _antiforgeryFactory = antiforgeryField;
         _assetUrl = assetUrl;
         Aborted = aborted;
@@ -134,6 +138,9 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public string Path => _path.Key;
+
+    /// <inheritdoc/>
+    public string EditorPath => _editorPath;
 
     /// <inheritdoc/>
     public PageUser? User { get; }

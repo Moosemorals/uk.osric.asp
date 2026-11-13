@@ -11,6 +11,7 @@ using System.Security.Claims;
 using System.Threading.RateLimiting;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Http;
+using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Users;
 
 /// <summary>Registers the editor's local-account authentication and its protections.</summary>
@@ -54,7 +55,7 @@ internal static class AuthenticationExtensions {
                         await ErrorResponses.WriteJsonAsync(
                             context.HttpContext,
                             StatusCodes.Status401Unauthorized,
-                            ErrorMessage.ForStatus(StatusCodes.Status401Unauthorized, isAuthenticated: false));
+                            ErrorMessage.ForStatus(StatusCodes.Status401Unauthorized, isAuthenticated: false, EditorPaths.Of(context.HttpContext.RequestServices)));
                         return;
                     }
                     context.Response.Redirect(context.RedirectUri);
@@ -66,7 +67,7 @@ internal static class AuthenticationExtensions {
                     await ErrorResponses.WriteAsync(
                         context.HttpContext,
                         StatusCodes.Status403Forbidden,
-                        ErrorMessage.ForStatus(StatusCodes.Status403Forbidden, isAuthenticated: true));
+                        ErrorMessage.ForStatus(StatusCodes.Status403Forbidden, isAuthenticated: true, EditorPaths.Of(context.HttpContext.RequestServices)));
                 };
 
                 // Long-lived cookies need revocation: a password change or a removed account rotates
@@ -143,7 +144,7 @@ internal static class AuthenticationExtensions {
                 return new ValueTask(ErrorResponses.WriteAsync(
                     context.HttpContext,
                     StatusCodes.Status429TooManyRequests,
-                    ErrorMessage.ForStatus(429, context.HttpContext.User.Identity?.IsAuthenticated == true),
+                    ErrorMessage.ForStatus(429, context.HttpContext.User.Identity?.IsAuthenticated == true, EditorPaths.Of(context.HttpContext.RequestServices)),
                     cancellationToken));
             };
 

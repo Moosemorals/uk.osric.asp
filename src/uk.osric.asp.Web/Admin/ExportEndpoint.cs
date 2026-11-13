@@ -43,7 +43,7 @@ internal sealed class ExportEndpoint {
         await ShellDocument.BeginAsync(context, "Export pages",
             SiteNavigation.For(context), stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync("<h1>Export pages</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("export"));
+        await context.Response.WriteAsync(AdminNavigation.Nav("export", EditorPaths.Of(context.RequestServices)));
         await context.Response.WriteAsync("""
             <p>Choose the pages to put in the archive. Each one carries its source and the state it has stored.</p>
             """);
@@ -218,6 +218,6 @@ internal sealed class ExportEndpoint {
         !head.IsDeleted && head.Path.IsAddressable && !reserved.IsReserved(head.Path);
 
     private static IReadOnlyList<NavLink> AdminRemedies(HttpContext context) => context.User.Identity?.IsAuthenticated == true
-        ? [new("/admin/export", "Export pages"), new("/edit", "Page list")]
-        : ErrorMessage.DefaultRemedies(isAuthenticated: false);
+        ? [new("/admin/export", "Export pages"), new(EditorPaths.Of(context.RequestServices), "Page list")]
+        : ErrorMessage.DefaultRemedies(isAuthenticated: false, EditorPaths.Of(context.RequestServices));
 }

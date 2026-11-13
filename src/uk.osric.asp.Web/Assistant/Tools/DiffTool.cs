@@ -90,7 +90,7 @@ internal sealed class DiffPageTool : AssistantTool {
             coarse = comparison.IsCoarse,
             truncated,
             diff = text,
-            editorUrl = PageUrls.EditorDiff(path, before.Hash, after.Hash),
+            editorUrl = PageUrls.EditorDiff(path, before.Hash, after.Hash, services.EditorPath),
         };
         return services.Results.Success(data, $"Compared 2 revisions of {ToolPaths.Describe(path)}");
     }

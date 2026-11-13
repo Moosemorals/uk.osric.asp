@@ -67,7 +67,7 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
         Assert.Multiple(() => {
             Assert.That(finishedBody, Does.Contain("assistant-changed-pages"), "the changed-pages card");
             Assert.That(finishedBody, Does.Contain("href=\"/gated-page\""), "the live page");
-            Assert.That(finishedBody, Does.Contain("href=\"/edit/gated-page\""), "the editor");
+            Assert.That(finishedBody, Does.Contain("href=\"/pages?edit=/gated-page\""), "the editor");
         });
 
         string automaticConversation = await CreateConversationAsync(client);

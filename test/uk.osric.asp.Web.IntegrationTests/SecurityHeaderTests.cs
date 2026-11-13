@@ -24,7 +24,7 @@ public sealed class SecurityHeaderTests : IntegrationTest {
     public async Task TheEditorViewAllowsItsOwnModule() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/edit/");
+        HttpResponseMessage response = await client.GetAsync("/pages?edit=/");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         AssertEveryHeader(response);

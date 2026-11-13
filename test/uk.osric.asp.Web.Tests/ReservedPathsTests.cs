@@ -11,9 +11,9 @@ public sealed class ReservedPathsTests {
 
     private static readonly ReservedPaths Defaults = new(ReservedPaths.Default);
 
-    [TestCase("/edit")]
-    [TestCase("/edit/page")]
-    [TestCase("/edit/a/b")]
+    [TestCase("/admin/scrub")]
+    [TestCase("/admin/scrub/page")]
+    [TestCase("/admin/scrub/a/b")]
     [TestCase("/favicon.ico")]
     [TestCase("/heath")]
     [TestCase("/login")]
@@ -42,23 +42,31 @@ public sealed class ReservedPathsTests {
         Assert.That(Defaults.IsReserved(PagePath.Normalize(path)), Is.False);
     }
 
+    [TestCase("/edit")]
+    [TestCase("/edit/page")]
+    [TestCase("/pages")]
+    public void TheRetiredEditorKeyIsAnOrdinaryPageKey(string path) {
+        Assert.That(Defaults.IsReserved(PagePath.Normalize(path)), Is.False);
+    }
+
     [Test]
     public void TheAdminIndexIsNotReservedButItsToolsAre() {
         Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin")), Is.False);
         Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/import")), Is.True);
         Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/export")), Is.True);
+        Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/scrub")), Is.True);
     }
 
     [Test]
     public void KeysAreComparedCaseInsensitively() {
-        Assert.That(Defaults.IsReserved(PagePath.Normalize("/EDIT")), Is.True);
+        Assert.That(Defaults.IsReserved(PagePath.Normalize("/ADMIN/SCRUB")), Is.True);
     }
 
     [Test]
     public void EmptyConfigurationFallsBackToTheDefaults() {
         ReservedPaths reserved = new([]);
 
-        Assert.That(reserved.IsReserved(PagePath.Normalize("/edit")), Is.True);
+        Assert.That(reserved.IsReserved(PagePath.Normalize("/admin/scrub")), Is.True);
     }
 
     [Test]
@@ -73,7 +81,7 @@ public sealed class ReservedPathsTests {
         ReservedPaths reserved = new(["/admin"]);
 
         Assert.That(reserved.IsReserved(PagePath.Normalize("/admin/page")), Is.True);
-        Assert.That(reserved.IsReserved(PagePath.Normalize("/edit")), Is.False);
+        Assert.That(reserved.IsReserved(PagePath.Normalize("/login")), Is.False);
     }
 
     [TestCase("/Admin/")]

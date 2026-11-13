@@ -97,7 +97,8 @@ public sealed class LsAppletTests {
 
         Assert.Multiple(() => {
             Assert.That(output.Split('\n'), Does.Contain("/login"));
-            Assert.That(output.Split('\n'), Does.Contain("/edit"));
+            Assert.That(output.Split('\n'), Does.Contain("/admin"));
+            Assert.That(output.Split('\n'), Does.Not.Contain("/edit"));
             Assert.That(output.Split('\n'), Does.Not.Contain("/"), "a folder lists what is in it, not itself");
         });
     }

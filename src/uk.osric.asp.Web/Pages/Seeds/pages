@@ -19,8 +19,9 @@ using System.Threading.Tasks;
     string DeleteUrl(string name) => EditUrl(name) + "&cmd=delete";
     string InstallUrl(string name) => EditUrl(name) + "&cmd=install";
     string RestoreUrl(string name, string hash) => RevisionUrl(name, hash) + "&cmd=restore";
-    // Scrub is the shell's until it moves to /admin/scrub: the page has no capability for it.
-    string ScrubUrl(string name) => "/edit" + name + "?cmd=scrub";
+    // Scrub is the shell's route: the page has no capability for it, and it is destructive enough
+    // that the typed confirmation stays in a view the page store cannot shadow.
+    string ScrubUrl(string name) => "/admin/scrub" + name;
 
     string? One(IReadOnlyDictionary<string, string> values, string name) =>
         values.TryGetValue(name, out string? value) && !string.IsNullOrWhiteSpace(value) ? value : null;
@@ -33,6 +34,9 @@ using System.Threading.Tasks;
 
     static string Iso(System.DateTimeOffset when) =>
         when.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+
+    // The state word is the host's; this is only how the row marks it, so the sheet can colour it.
+    static string StateClass(string state) => "state-" + state.ToLowerInvariant().Replace(' ', '-');
 
     static string Stamped(System.DateTimeOffset when) =>
         when.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
@@ -442,25 +446,25 @@ run.</p>
                     if (groupDeleted) {
                         %><th scope="row"><%= entry.Key %></th><%
                     } else {
-                        %><th scope="row"><a href="<%= entry.Key %>"><%= entry.Key %></a></th><%
+                        %><th scope="row"><a href="<%= entry.Key %>" aria-label="View <%= entry.Key %>"><%= entry.Key %></a></th><%
                     }
-                    %><td class="page-state"><%= entry.State %></td>
+                    %><td class="page-state <%= StateClass(entry.State) %>"><%= entry.State %></td>
 <td class="page-actions"><%
                     if (entry.IsReserved) {
                         %><span>unavailable</span><%
                     } else if (groupDeleted) {
-                        %><a href="<%= ReadUrl(entry.Key) %>">History</a>
-<a href="<%= ScrubUrl(entry.Key) %>">Scrub history</a><%
+                        %><a href="<%= ReadUrl(entry.Key) %>" aria-label="History of <%= entry.Key %>">History</a>
+<a href="<%= ScrubUrl(entry.Key) %>" aria-label="Scrub history of <%= entry.Key %>">Scrub history</a><%
                     } else {
                         string? seed = seeds.Contains(entry.Key) ? await editor.SeedSourceAsync(entry.Key) : null;
                         PageSource? source = seed is null ? null : await catalog.ReadAsync(entry.Key);
-                        %><a href="<%= EditUrl(entry.Key) %>">Edit</a>
-<a href="<%= ReadUrl(entry.Key) %>">History</a><%
+                        %><a href="<%= EditUrl(entry.Key) %>" aria-label="Edit <%= entry.Key %>">Edit</a>
+<a href="<%= ReadUrl(entry.Key) %>" aria-label="History of <%= entry.Key %>">History</a><%
                         if (!string.Equals(entry.Key, ctx.Path, System.StringComparison.Ordinal)) {
-                            %><a href="<%= DeleteUrl(entry.Key) %>">Delete</a><%
+                            %><a href="<%= DeleteUrl(entry.Key) %>" aria-label="Delete <%= entry.Key %>">Delete</a><%
                         }
                         if (seed is not null && !string.Equals(source?.Source, seed, System.StringComparison.Ordinal)) {
-                            %><a href="<%= InstallUrl(entry.Key) %>">Install from seed</a><%
+                            %><a href="<%= InstallUrl(entry.Key) %>" aria-label="Install <%= entry.Key %> from its seed">Install from seed</a><%
                         }
                     }
                     %></td>

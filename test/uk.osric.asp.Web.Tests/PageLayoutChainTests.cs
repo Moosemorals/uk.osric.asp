@@ -163,7 +163,7 @@ public sealed class PageLayoutChainTests {
         Rendered rendered = await RenderAsync("/untitled", signedIn: true);
 
         Assert.That(rendered.Context.Response.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
-        Assert.That(rendered.Body, Does.Contain("href=\"/edit/untitled\">Edit this page"));
+        Assert.That(rendered.Body, Does.Contain("href=\"/pages?edit=/untitled\">Edit this page"));
     }
 
     [Test]
@@ -173,7 +173,7 @@ public sealed class PageLayoutChainTests {
 
         Rendered rendered = await RenderAsync("/untitled");
 
-        Assert.That(rendered.Body, Does.Not.Contain("href=\"/edit/untitled\""));
+        Assert.That(rendered.Body, Does.Not.Contain("href=\"/pages?edit=/untitled\""));
     }
 
     [Test]

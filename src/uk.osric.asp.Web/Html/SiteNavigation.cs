@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Assistant;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>The site menu the shell's own views carry.</summary>
 /// <remarks>
@@ -45,7 +46,8 @@ internal static class SiteNavigation {
             authenticated,
             assistantEnabled,
             context.Request.Path.Value ?? "/",
-            context.Request.QueryString.Value ?? string.Empty);
+            context.Request.QueryString.Value ?? string.Empty,
+            EditorPaths.Of(context.RequestServices));
     }
 
     /// <summary>The rendered menu, from the facts <see cref="For"/> would have read.</summary>
@@ -53,17 +55,20 @@ internal static class SiteNavigation {
     /// <param name="assistantEnabled">Whether this installation answers <c>/assistant</c>.</param>
     /// <param name="path">The canonical request path.</param>
     /// <param name="query">The raw query, carried into the sign-in link.</param>
-    public static string Nav(bool authenticated, bool assistantEnabled, string path, string query) =>
-        PageDocument.Nav(Label, Links(authenticated, assistantEnabled, path, query), Class);
+    /// <param name="editorPath">The editor's own key, which is configuration.</param>
+    public static string Nav(bool authenticated, bool assistantEnabled, string path, string query, string editorPath) =>
+        PageDocument.Nav(Label, Links(authenticated, assistantEnabled, path, query, editorPath), Class);
 
     /// <summary>The items, in reading order, with the one being shown marked as text.</summary>
     /// <param name="authenticated">Whether the visitor has signed in.</param>
     /// <param name="assistantEnabled">Whether this installation answers <c>/assistant</c>.</param>
     /// <param name="path">The canonical request path.</param>
     /// <param name="query">The raw query, carried into the sign-in link.</param>
-    public static IReadOnlyList<NavLink> Links(bool authenticated, bool assistantEnabled, string path, string query) {
+    /// <param name="editorPath">The editor's own key, which is configuration.</param>
+    public static IReadOnlyList<NavLink> Links(bool authenticated, bool assistantEnabled, string path, string query, string editorPath) {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(query);
+        ArgumentException.ThrowIfNullOrWhiteSpace(editorPath);
 
         List<NavLink> links = [
             new("/", "Home", At(path, "/")),
@@ -80,7 +85,7 @@ internal static class SiteNavigation {
             links.Add(new("/assistant", "Assistant", Under(path, "/assistant")));
         }
 
-        links.Add(new("/edit", "Pages", Under(path, "/edit")));
+        links.Add(new(editorPath, "Pages", Under(path, editorPath)));
         links.Add(new("/admin", "Admin", Under(path, "/admin")));
         links.Add(new("/logout", "Sign out", At(path, "/logout")));
 

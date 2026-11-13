@@ -6,11 +6,11 @@ namespace uk.osric.asp.Web.Authentication;
 /// <summary>Keeps a login redirect on this site.</summary>
 internal static class LocalRedirect {
 
-    /// <summary>Returns the requested local path, or the editor when it is not safe.</summary>
+    /// <summary>Returns the requested local path, or the site root when it is not safe.</summary>
     /// <param name="returnUrl">The value the browser supplied.</param>
     public static string Safe(string? returnUrl) {
         if (returnUrl is null || !IsSafe(returnUrl)) {
-            return "/edit";
+            return "/";
         }
 
         return returnUrl;

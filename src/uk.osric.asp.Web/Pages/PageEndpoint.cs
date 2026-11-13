@@ -399,14 +399,14 @@ internal sealed class PageEndpoint() {
             "page.timeout",
             "The page took too long",
             $"{path} is taking too long.",
-            ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true)));
+            ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true, EditorPaths.Of(context.RequestServices))));
 
     private static Task WriteBadRequestAsync(HttpContext context, PagePath path) =>
         ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
             "page.form_unreadable",
             "The form could not be read",
             $"{path} rejected: the form could not be read.",
-            ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true)));
+            ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true, EditorPaths.Of(context.RequestServices))));
 
     private static Task WriteForgedRequestAsync(HttpContext context, PagePath path) {
         // The check happens before the page runs, so nothing the page might have written or stored
@@ -416,8 +416,8 @@ internal sealed class PageEndpoint() {
         return ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
             "page.form_unverified",
             "The form could not be verified",
-            $"{path} rejected: the form could not be verified. Go back, reload the page and try again.",
-            ErrorMessage.DefaultRemedies(isAuthenticated: true)));
+            $"{path} rejected: the form could not be verified, so nothing was saved. Go back, reload the page and try again.",
+            ErrorMessage.DefaultRemedies(isAuthenticated: true, EditorPaths.Of(context.RequestServices))));
     }
 
     private static Task WriteTooLargeAsync(HttpContext context, PagePath path) =>
@@ -425,7 +425,7 @@ internal sealed class PageEndpoint() {
             "page.body_too_large",
             "The request body is too large",
             $"{path} rejected: the request body is larger than this site accepts.",
-            ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true)));
+            ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true, EditorPaths.Of(context.RequestServices))));
 
     // The header check above cannot see a chunked body, so read it here instead: bounded, then
     // handed back as a seekable stream for the form to parse. The snapshot buffers the body anyway;

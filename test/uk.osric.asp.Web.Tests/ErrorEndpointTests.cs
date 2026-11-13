@@ -79,7 +79,7 @@ public sealed class ErrorEndpointTests {
 
         await ErrorEndpoint.HandleAsync(context);
 
-        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("href=\"/edit/boom\">Edit this page"));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("href=\"/pages?edit=/boom\">Edit this page"));
     }
 
     [Test]
@@ -89,7 +89,7 @@ public sealed class ErrorEndpointTests {
         await ErrorEndpoint.HandleAsync(context);
 
         string body = await TestHttp.ReadBodyAsync(context);
-        Assert.That(body, Does.Not.Contain("href=\"/edit/metrics\""));
+        Assert.That(body, Does.Not.Contain("href=\"/pages?edit=/metrics\""));
         Assert.That(body, Does.Contain("Return to the home page"));
     }
 
@@ -99,7 +99,7 @@ public sealed class ErrorEndpointTests {
 
         await ErrorEndpoint.HandleAsync(context);
 
-        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Not.Contain("href=\"/edit/boom\""));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Not.Contain("href=\"/pages?edit=/boom\""));
     }
 
     private static DefaultHttpContext CreateContext(Exception? error, bool authenticated = false, string path = "/boom") {

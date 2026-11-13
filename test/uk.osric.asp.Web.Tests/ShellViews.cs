@@ -34,20 +34,14 @@ internal static class ShellViews {
 
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
 
-    /// <summary>The views, in the order a reader meets them: sign in, the editor, then the rest.</summary>
+    /// <summary>The views, in the order a reader meets them: sign in, then the rest.</summary>
     public static IReadOnlyList<string> Names { get; } = [
         "login",
         "login-failed",
         "logout",
-        "listing",
-        "editor",
-        "editor-with-diagnostics",
-        "history",
-        "revision",
-        "diff",
-        "restore-confirmation",
-        "install-confirmation",
-        "delete-confirmation",
+        "pages-listing",
+        "pages-editor",
+        "scrub-confirmation",
         "status",
         "error",
         "error-details",
@@ -77,15 +71,9 @@ internal static class ShellViews {
         "login" => RenderAsync(name, LoginAsync),
         "login-failed" => RenderAsync(name, FailedLoginAsync),
         "logout" => RenderAsync(name, LogoutAsync),
-        "listing" => RenderAsync(name, ListingAsync),
-        "editor" => RenderAsync(name, () => EditorAsync(NewStore(), path: "/page")),
-        "editor-with-diagnostics" => RenderAsync(name, EditorWithDiagnosticsAsync),
-        "history" => RenderAsync(name, () => EditorAsync(NewStore(), "/page", "cmd=history")),
-        "revision" => RenderAsync(name, RevisionAsync),
-        "diff" => RenderAsync(name, DiffAsync),
-        "restore-confirmation" => RenderAsync(name, RestoreConfirmationAsync),
-        "install-confirmation" => RenderAsync(name, InstallConfirmationAsync),
-        "delete-confirmation" => RenderAsync(name, () => EditorAsync(NewStore(), "/page", "cmd=delete")),
+        "pages-listing" => RenderAsync(name, () => PagesAsync(editor: false)),
+        "pages-editor" => RenderAsync(name, () => PagesAsync(editor: true)),
+        "scrub-confirmation" => RenderAsync(name, ScrubConfirmationAsync),
         "status" => RenderAsync(name, StatusAsync),
         "error" => RenderAsync(name, () => ErrorAsync(withDetails: false)),
         "error-details" => RenderAsync(name, () => ErrorAsync(withDetails: true)),
@@ -131,14 +119,53 @@ internal static class ShellViews {
         return await TestHttp.ReadBodyAsync(context);
     }
 
+    // A tombstone, because the confirmation refuses to scrub a live page.
+    private static async Task<string> ScrubConfirmationAsync() {
+        FakePageStore storage = new() {
+            ["/gone"] = new PageTemplate(PageHarness.Key("/gone"), Source),
+        };
+        await storage.DeletePageAsync(PageHarness.Key("/gone"));
+
+        using PageHarness pages = new(storage);
+        DefaultHttpContext context = TestHttp.CreateContext("gone", "GET", "/admin/scrub/gone");
+
+        await ScrubEndpoint.ConfirmAsync(context, pages.Editor, new TestAntiforgery());
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
     // The administration index and the help page are stored pages, so they are rendered the way the
     // host renders one: the seeded fragment wrapped in the seeded layout.
     private static Task<string> AdminAsync() => StoredPageAsync("/admin");
 
     private static Task<string> HelpAsync() => StoredPageAsync("/help");
 
-    private static async Task<string> StoredPageAsync(string path) {
-        FakePageStore pages = new();
+    // The editor page is a stored page too, so the listing and the editor are rendered through the
+    // page pipeline. It needs pages to list and a page to edit, in both stores: the page reads the
+    // catalog, and the editor's hash comes from the same read.
+    private static Task<string> PagesAsync(bool editor) {
+        (FakePageStore store, FakePageReadStore read) = PagesForEditor();
+        return StoredPageAsync("/pages", editor ? "?edit=%2Fabout" : string.Empty, store, read);
+    }
+
+    private static (FakePageStore Store, FakePageReadStore Read) PagesForEditor() {
+        FakePageStore store = new();
+        FakePageReadStore read = new();
+        foreach (string key in new[] { "/about", "/blog" }) {
+            string template = "<p>" + key + "</p>";
+            store[key] = new PageTemplate(PageHarness.Key(key), template);
+            read.Save(key, template, hash: store[key]!.Hash);
+        }
+
+        return (store, read);
+    }
+
+    private static async Task<string> StoredPageAsync(
+        string path,
+        string query = "",
+        FakePageStore? stored = null,
+        FakePageReadStore? readStore = null) {
+        FakePageStore pages = stored ?? new();
         foreach (string seed in new[] { "/_layout", path }) {
             pages[seed] = new PageTemplate(
                 PageHarness.Key(seed),
@@ -146,6 +173,10 @@ internal static class ShellViews {
         }
 
         DefaultHttpContext context = TestHttp.CreateContext(path.TrimStart('/'), "GET", path);
+        if (query.Length > 0) {
+            context.Request.QueryString = new QueryString(query);
+        }
+
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
 
@@ -166,7 +197,7 @@ internal static class ShellViews {
                 new PageFetchOptions(),
                 new PageReadOptions(),
                 new FakePageStateStore(),
-                new FakePageReadStore(),
+                readStore ?? new FakePageReadStore(),
                 harness.Saver,
                 new FakePageFetcher(),
                 metrics,
@@ -175,7 +206,8 @@ internal static class ShellViews {
                 new DiffRenderer(),
                 new PageSessionOptions(),
                 new FakePageSessionStore(),
-                TestSessions.Cookie));
+                TestSessions.Cookie),
+            harness.Editor);
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -200,49 +232,6 @@ internal static class ShellViews {
 
         return await TestHttp.ReadBodyAsync(context);
     }
-
-    // A live page with an action of each kind, a page that compiled with warnings, and a tombstone,
-    // so the listing shows every state the table can say as well as both action sets.
-    private static async Task<string> ListingAsync() {
-        FakePageStore storage = NewStore();
-        storage["/blog"] = new PageTemplate(PageHarness.Key("/blog"), Source, new PageImage(
-            TemplateFingerprint.Of(Source),
-            "1:3:elsewhere",
-            [1],
-            [2],
-            [new PageDiagnostic(PageDiagnosticSeverity.Warning, new TemplatePosition(1, 4), "CS0219: unused variable")]));
-        await storage.DeletePageAsync(PageHarness.Key("/notes"));
-
-        return await EditorAsync(storage, path: null);
-    }
-
-    private static Task<string> RevisionAsync() {
-        FakePageStore storage = NewStore();
-        string hash = PageHarness.Stored(storage, "/page").Hash;
-
-        return EditorAsync(storage, "/page", $"cmd=revision&hash={Uri.EscapeDataString(hash)}");
-    }
-
-    private static async Task<string> DiffAsync() {
-        FakePageStore storage = NewStore();
-        PageTemplate before = PageHarness.Stored(storage, "/page");
-        PageTemplate after = PageTemplate.NewRevision(PageHarness.Key("/page"), "<p>after</p>", null, "1:3:test");
-        await storage.SavePageAsync(after);
-
-        return await EditorAsync(storage, "/page",
-            $"cmd=diff&from={Uri.EscapeDataString(before.Hash)}&to={Uri.EscapeDataString(after.Hash)}");
-    }
-
-    private static async Task<string> RestoreConfirmationAsync() {
-        FakePageStore storage = NewStore();
-        PageTemplate earlier = PageHarness.Stored(storage, "/page");
-        await storage.SavePageAsync(PageTemplate.NewRevision(PageHarness.Key("/page"), "<p>later</p>", null, "1:3:test"));
-
-        return await EditorAsync(storage, "/page", $"cmd=restore&hash={Uri.EscapeDataString(earlier.Hash)}");
-    }
-
-    private static async Task<string> InstallConfirmationAsync() =>
-        await EditorAsync(NewStore(), "/assistant.css", "cmd=install");
 
     private static async Task<string> StatusAsync() {
         MetricsOptions options = new() {
@@ -514,51 +503,6 @@ internal static class ShellViews {
         context.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
         return context;
     }
-
-    private static async Task<string> EditorAsync(FakePageStore storage, string? path, string command = "") {
-        using PageHarness pages = new(storage);
-
-        return await HandleEditorAsync(pages, path, command);
-    }
-
-    // A stored compilation carrying a warning, so the editor's diagnostics block is rendered.
-    private static async Task<string> EditorWithDiagnosticsAsync() {
-        FakePageStore storage = new();
-        using PageHarness pages = new(storage);
-        storage["/page"] = new PageTemplate(PageHarness.Key("/page"), Source, new PageImage(
-            TemplateFingerprint.Of(Source),
-            pages.Compiler.RuntimeId,
-            null,
-            null,
-            [new PageDiagnostic(PageDiagnosticSeverity.Warning, new TemplatePosition(1, 4), "CS0219: unused variable")]));
-
-        return await HandleEditorAsync(pages, "/page", string.Empty);
-    }
-
-    private static async Task<string> HandleEditorAsync(PageHarness pages, string? path, string command) {
-        string requestPath = path is null ? "/edit" : "/edit" + PageHarness.Key(path).Key;
-        DefaultHttpContext context = TestHttp.CreateContext(path, "GET", requestPath);
-
-        if (command.Length > 0) {
-            context.Request.QueryString = new QueryString("?" + command);
-        }
-
-        await EditorEndpoint.HandleAsync(context, pages.Editor, pages.Diff, Reserved, new TestAntiforgery(), new FakePageSessionStore(), new PageSessionOptions(), TestSessions.Cookie);
-
-        return await TestHttp.ReadBodyAsync(context);
-    }
-
-    // Two seeded rows, so the listing's restore forms are in the accessibility sweep: one edited seed
-    // and one that already matches, which renders its button disabled.
-    private static FakePageStore NewStore() => new() {
-        ["/page"] = new PageTemplate(PageHarness.Key("/page"), Source),
-        ["/notes"] = new PageTemplate(PageHarness.Key("/notes"), Source),
-        ["/assistant.css"] = new PageTemplate(PageHarness.Key("/assistant.css"), "/* edited */"),
-        ["/editor.css"] = new PageTemplate(PageHarness.Key("/editor.css"), Seed("editor.css")),
-    };
-
-    private static string Seed(string name) =>
-        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds", name));
 
     private const string BrokenSource = "<% int value = ; %>";
 

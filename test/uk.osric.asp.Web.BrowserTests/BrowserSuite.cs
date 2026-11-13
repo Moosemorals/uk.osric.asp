@@ -46,7 +46,7 @@ internal sealed class BrowserSuite {
         await page.FillAsync("#username", BrowserHost.UserName);
         await page.FillAsync("#password", BrowserHost.Password);
         await page.ClickAsync("button[type=submit]");
-        await page.WaitForURLAsync("**/edit");
+        await page.WaitForURLAsync("**/");
 
         string state = Path.Combine(Path.GetTempPath(), $"uk.osric.asp.signed-in.{Guid.NewGuid():N}.json");
         await context.StorageStateAsync(new BrowserContextStorageStateOptions { Path = state });

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Net;
 using uk.osric.asp.Web.Html;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>The changelist: every commit in the deployed build, newest first.</summary>
 /// <remarks>
@@ -34,7 +35,7 @@ internal static class ChangesEndpoint {
 
         await ShellDocument.BeginAsync(context, "Changelist", SiteNavigation.For(context), stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync("<h1>Changelist</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("changes"));
+        await context.Response.WriteAsync(AdminNavigation.Nav("changes", EditorPaths.Of(context.RequestServices)));
 
         if (text is null) {
             await context.Response.WriteAsync("""

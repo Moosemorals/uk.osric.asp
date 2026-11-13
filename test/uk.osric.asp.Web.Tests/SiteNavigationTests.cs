@@ -15,6 +15,10 @@ using uk.osric.asp.Web.Html;
 [TestFixture]
 public sealed class SiteNavigationTests {
 
+    // A key that is not the shipped default, so every assertion here proves the menu follows the
+    // configured editor rather than a constant.
+    private const string EditorPath = "/desk/edit";
+
     [Test]
     public void AnAnonymousVisitorIsOfferedHomeAboutPrivacyAndSignIn() {
         Assert.That(Texts(anonymous: true), Is.EqualTo((string[])["Home", "About", "Privacy", "Sign in"]));
@@ -36,7 +40,7 @@ public sealed class SiteNavigationTests {
 
     [Test]
     public void TheSignInLinkCarriesTheCanonicalPathAndRawQuery() {
-        NavLink signIn = SiteNavigation.Links(authenticated: false, assistantEnabled: false, "/blog", "?page=2")
+        NavLink signIn = SiteNavigation.Links(authenticated: false, assistantEnabled: false, "/blog", "?page=2", EditorPath)
             .Single(link => link.Text == "Sign in");
 
         string returnUrl = QueryHelpers.ParseQuery(new Uri("https://site.example" + signIn.Href).Query)["returnUrl"].ToString();
@@ -49,7 +53,7 @@ public sealed class SiteNavigationTests {
     public void TheHomeItemIsCurrentOnlyAtTheRoot() {
         Assert.That(Current("/", "Home"), Is.True);
         Assert.That(Current("/blog", "Home"), Is.False);
-        Assert.That(Current("/edit", "Home"), Is.False);
+        Assert.That(Current("/pages", "Home"), Is.False);
     }
 
     [Test]
@@ -66,11 +70,9 @@ public sealed class SiteNavigationTests {
         Assert.That(Current("/", "About"), Is.False);
     }
 
-    [TestCase("/edit")]
-    [TestCase("/edit/")]
-    [TestCase("/edit/about")]
-    [TestCase("/edit/a/b")]
-    public void EveryEditRouteMarksThePageListCurrent(string path) {
+    [TestCase(EditorPath)]
+    [TestCase(EditorPath + "/")]
+    public void TheEditorPageMarksThePageListCurrent(string path) {
         Assert.That(Current(path, "Pages"), Is.True, path);
     }
 
@@ -90,7 +92,7 @@ public sealed class SiteNavigationTests {
 
     [Test]
     public void TheMenuNamesItsLandmark() {
-        string nav = SiteNavigation.Nav(authenticated: true, assistantEnabled: true, "/", string.Empty);
+        string nav = SiteNavigation.Nav(authenticated: true, assistantEnabled: true, "/", string.Empty, EditorPath);
 
         MarkupReader document = MarkupReader.Parse(nav);
 
@@ -98,10 +100,10 @@ public sealed class SiteNavigationTests {
     }
 
     private static string[] Texts(bool anonymous, bool assistant = false) =>
-        [.. SiteNavigation.Links(!anonymous, assistant, "/", string.Empty).Select(link => link.Text)];
+        [.. SiteNavigation.Links(!anonymous, assistant, "/", string.Empty, EditorPath).Select(link => link.Text)];
 
     private static bool Current(string path, string text) =>
-        SiteNavigation.Links(authenticated: true, assistantEnabled: true, path, string.Empty)
+        SiteNavigation.Links(authenticated: true, assistantEnabled: true, path, string.Empty, EditorPath)
             .Single(link => link.Text == text)
             .IsCurrent;
 }

@@ -132,7 +132,7 @@ public sealed partial class PageSelfSaveTests : IntegrationTest {
         // Somebody saves the page — even the same text — while the form is open: the head moves to a
         // new revision, so the form's hash is stale.
         using HttpResponseMessage newer = await PostEditorAsync(client, "scratch", seed);
-        Assert.That(newer.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(newer.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the editor page answers the save in place");
 
         using HttpResponseMessage refused = await client.PostAsync("/scratch", Form(
             ("__RequestVerificationToken", token),

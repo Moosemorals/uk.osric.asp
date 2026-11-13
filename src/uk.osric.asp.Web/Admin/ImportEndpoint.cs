@@ -47,7 +47,7 @@ internal sealed class ImportEndpoint {
         await ShellDocument.BeginAsync(context, "Import pages",
             SiteNavigation.For(context), stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync("<h1>Import pages</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("import"));
+        await context.Response.WriteAsync(AdminNavigation.Nav("import", EditorPaths.Of(context.RequestServices)));
         await context.Response.WriteAsync($"""
             <fieldset>
                 <legend>Page archive</legend>
@@ -93,7 +93,7 @@ internal sealed class ImportEndpoint {
                 "import.form_expired",
                 "The upload form expired",
                 "The form could not be verified, so nothing was staged. Reload the import page and choose the file again.",
-                ImportRemedies()));
+                ImportRemedies(context)));
             return;
         }
 
@@ -117,7 +117,7 @@ internal sealed class ImportEndpoint {
                 "import.bad_form",
                 "That upload could not be read",
                 "The form was malformed or larger than this site accepts, so nothing was staged. Choose a file and try again.",
-                ImportRemedies()));
+                ImportRemedies(context)));
             return;
         }
 
@@ -127,7 +127,7 @@ internal sealed class ImportEndpoint {
                 "import.no_file",
                 "That upload needs exactly one archive",
                 "The upload carried no archive file, or more than one, so nothing was staged. Choose a single .sqlite file and try again.",
-                ImportRemedies()));
+                ImportRemedies(context)));
             return;
         }
 
@@ -172,7 +172,7 @@ internal sealed class ImportEndpoint {
         await ShellDocument.BeginAsync(context, "Review import",
             SiteNavigation.For(context), stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync($"<h1>Import {DescribeCount(stage.Pages.Count, "page")}</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("import"));
+        await context.Response.WriteAsync(AdminNavigation.Nav("import", EditorPaths.Of(context.RequestServices)));
         await context.Response.WriteAsync("""
             <p>The selected pages are applied in one step. If that step fails, none of them change.</p>
             """);
@@ -320,14 +320,14 @@ internal sealed class ImportEndpoint {
             stylesheets: ["/admin.css"],
             head: running ? """<meta http-equiv="refresh" content="2">""" : null);
         await context.Response.WriteAsync("<h1>Import progress</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("import"));
+        await context.Response.WriteAsync(AdminNavigation.Nav("import", EditorPaths.Of(context.RequestServices)));
         await context.Response.WriteAsync($"<p id=\"import-status\">{WebUtility.HtmlEncode(Summary(snapshot))}</p>");
 
         if (snapshot.Results.Count > 0) {
             await context.Response.WriteAsync("<ul class=\"admin-pages\" role=\"list\">");
             foreach (ImportPageResult result in snapshot.Results) {
                 string key = WebUtility.HtmlEncode(result.Path.Key);
-                string editor = WebUtility.HtmlEncode(PageUrls.Editor(result.Path));
+                string editor = WebUtility.HtmlEncode(PageUrls.Editor(result.Path, EditorPaths.Of(context.RequestServices)));
                 await context.Response.WriteAsync($"""
                     <li><a href="{editor}">{key}</a> <span class="tag">{WebUtility.HtmlEncode(Describe(result.Status))}</span></li>
                     """);
@@ -352,7 +352,7 @@ internal sealed class ImportEndpoint {
         } else {
             await context.Response.WriteAsync($"""
                 <p>
-                    <a href="/edit">Page list</a>
+                    <a href="{WebUtility.HtmlEncode(EditorPaths.Of(context.RequestServices))}">Page list</a>
                     <a href="{WebUtility.HtmlEncode(ReviewUrl(stage.Id))}">Back to the review</a>
                     <a href="/admin/export">Export pages</a>
                     <a href="/admin/import">Import another archive</a>
@@ -427,18 +427,18 @@ internal sealed class ImportEndpoint {
 
     private static string ProgressUrl(string id) => ReviewUrl(id) + "/progress";
 
-    private static IReadOnlyList<NavLink> ImportRemedies() =>
-        [new("/admin/import", "Import pages"), new("/admin/export", "Export pages"), new("/edit", "Page list")];
+    private static IReadOnlyList<NavLink> ImportRemedies(HttpContext context) =>
+        [new("/admin/import", "Import pages"), new("/admin/export", "Export pages"), new(EditorPaths.Of(context.RequestServices), "Page list")];
 
-    private static IReadOnlyList<NavLink> ReviewRemedies(string id) =>
-        [new(ReviewUrl(id), "Back to the review"), new("/admin/import", "Import pages"), new("/edit", "Page list")];
+    private static IReadOnlyList<NavLink> ReviewRemedies(string id, HttpContext context) =>
+        [new(ReviewUrl(id), "Back to the review"), new("/admin/import", "Import pages"), new(EditorPaths.Of(context.RequestServices), "Page list")];
 
     private static Task WriteExpiredAsync(HttpContext context) =>
         ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, new ErrorMessage(
             "import.expired",
             "That import is no longer available",
             "A staged archive is kept in memory only and expires, so this one is gone. Upload the archive again to review it.",
-            [new("/admin/import", "Upload the archive again"), new("/edit", "Page list")]),
+            [new("/admin/import", "Upload the archive again"), new(EditorPaths.Of(context.RequestServices), "Page list")]),
             context.RequestAborted);
 
     private static Task WriteTooLargeAsync(HttpContext context, ArchiveOptions options) =>
@@ -446,7 +446,7 @@ internal sealed class ImportEndpoint {
             "import.too_large",
             "That archive is too large",
             $"An archive may be at most {DescribeSize(options.MaxUploadBytes)}. Nothing was staged.",
-            ImportRemedies()),
+            ImportRemedies(context)),
             context.RequestAborted);
 
     private static Task WriteBadSelectionAsync(HttpContext context, string id, string summary) =>
@@ -454,7 +454,7 @@ internal sealed class ImportEndpoint {
             "import.bad_selection",
             "That approval could not be used",
             summary + " Nothing was imported.",
-            ReviewRemedies(id)),
+            ReviewRemedies(id, context)),
             context.RequestAborted);
 
     private static Task WriteAlreadyRunningAsync(HttpContext context, string id) =>
@@ -462,7 +462,7 @@ internal sealed class ImportEndpoint {
             "import.running",
             "That import is already running",
             "This archive has already been approved and is being imported. Its progress page shows how it is getting on.",
-            [new(ProgressUrl(id), "Import progress"), new("/edit", "Page list")]),
+            [new(ProgressUrl(id), "Import progress"), new(EditorPaths.Of(context.RequestServices), "Page list")]),
             context.RequestAborted);
 
     private static Task WriteQueueFullAsync(HttpContext context, string id) =>
@@ -470,20 +470,20 @@ internal sealed class ImportEndpoint {
             "import.queue_full",
             "Too many imports are waiting",
             "This site runs one import at a time and the queue is full. Wait for the running import to finish, then try again.",
-            [new(ReviewUrl(id), "Back to the review"), new("/edit", "Page list")]),
+            [new(ReviewUrl(id), "Back to the review"), new(EditorPaths.Of(context.RequestServices), "Page list")]),
             context.RequestAborted);
 
     private static async Task WriteRejectedAsync(HttpContext context, IReadOnlyList<string> problems) {
         await ShellDocument.BeginAsync(context, "Import failed",
             SiteNavigation.For(context), StatusCodes.Status400BadRequest, stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync("<h1>That archive could not be imported</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("import"));
+        await context.Response.WriteAsync(AdminNavigation.Nav("import", EditorPaths.Of(context.RequestServices)));
         await context.Response.WriteAsync(PageLayout.Diagnostics(
             [.. problems.Select(problem => new DiagnosticLine(problem, PageDiagnosticSeverity.Error, null))]));
         await context.Response.WriteAsync("<p>Nothing was staged or saved.</p>");
         await context.Response.WriteAsync(PageDocument.Nav("Recovery navigation", [
             new("/admin/import", "Choose another file"),
-            new("/edit", "Page list"),
+            new(EditorPaths.Of(context.RequestServices), "Page list"),
         ], "editor-menu"));
         await ShellDocument.EndAsync(context);
     }

@@ -35,12 +35,12 @@ public sealed class ToolPathsTests {
     [Test]
     public void AReadBeneathAReservedRouteIsRefusedByTheShadowCheck() {
         (PagePath? path, ToolExecutionResult? refusal) = ToolPaths.ResolveRead(
-            Spec("read_page", "Read"), Values("/edit/child"), "path", Services());
+            Spec("read_page", "Read"), Values("/admin/scrub/child"), "path", Services());
 
         Assert.Multiple(() => {
             Assert.That(path, Is.Null);
             Assert.That(refusal?.Content, Does.Contain("beneath the shell file"));
-            Assert.That(refusal?.Summary, Is.EqualTo("Read /edit/child: beneath /edit"));
+            Assert.That(refusal?.Summary, Is.EqualTo("Read /admin/scrub/child: beneath /admin/scrub"));
         });
     }
 
@@ -58,7 +58,7 @@ public sealed class ToolPathsTests {
     [Test]
     public void AWriteRefusalUsesTheToolsOwnVerb() {
         (PagePath? path, ToolExecutionResult? refusal) = ToolPaths.ResolveWrite(
-            Spec("edit_page", "Edit"), Values("/edit"), "path", Services());
+            Spec("edit_page", "Edit"), Values("/admin/scrub"), "path", Services());
 
         Assert.Multiple(() => {
             Assert.That(path, Is.Null);
@@ -69,7 +69,7 @@ public sealed class ToolPathsTests {
     [Test]
     public void AShellFileHasNoPageSourceAndTheRefusalSaysWhatTheToolReads() {
         ToolExecutionResult? refusal = ToolPaths.RequirePageSource(
-            Spec("check_script", "Check"), PagePath.Normalize("/edit"), "reads page source", Services());
+            Spec("check_script", "Check"), PagePath.Normalize("/admin/scrub"), "reads page source", Services());
 
         Assert.Multiple(() => {
             Assert.That(refusal?.IsSuccess, Is.False);

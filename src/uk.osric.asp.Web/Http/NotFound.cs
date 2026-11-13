@@ -7,6 +7,7 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>Answers a URL that names no page with a 404 the caller can act on.</summary>
 internal static class NotFound {
@@ -22,10 +23,10 @@ internal static class NotFound {
         if (isAuthenticated && path.IsAddressable) {
             // The edit form creates the page on its first save, so the most useful next step for an
             // owner who followed a stale link is the editor, already pointed at the key that missed.
-            remedies.Add(new(PageUrls.Editor(path), "Create this page"));
+            remedies.Add(new(PageUrls.Editor(path, EditorPaths.Of(context.RequestServices)), "Create this page"));
         }
 
-        remedies.AddRange(ErrorMessage.DefaultRemedies(isAuthenticated));
+        remedies.AddRange(ErrorMessage.DefaultRemedies(isAuthenticated, EditorPaths.Of(context.RequestServices)));
 
         ErrorMessage message = new(
             "page.not_found",

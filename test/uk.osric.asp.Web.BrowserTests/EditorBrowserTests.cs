@@ -14,7 +14,7 @@ internal sealed class EditorBrowserTests : BrowserTest {
 
     [Test]
     public async Task ATypedLineAddsItsNumberAndADeletedOneTakesItAwayAsync() {
-        await Page.GotoAsync($"edit{UniquePath("gutter")}");
+        await Page.GotoAsync($"pages?edit={Uri.EscapeDataString(UniquePath("gutter"))}");
         await Assertions.Expect(Page.Locator("#gutter > span")).ToHaveCountAsync(1);
 
         await Page.Locator("#template").FillAsync("one\ntwo\nthree");
@@ -26,7 +26,7 @@ internal sealed class EditorBrowserTests : BrowserTest {
 
     [Test]
     public async Task TheNumbersStayRightAlignedWhenTheColumnWidensAsync() {
-        await Page.GotoAsync($"edit{UniquePath("aligned-numbers")}");
+        await Page.GotoAsync($"pages?edit={Uri.EscapeDataString(UniquePath("aligned-numbers"))}");
         await Page.Locator("#template").FillAsync(string.Join('\n', Enumerable.Range(1, 10).Select(line => $"line {line}")));
 
         // A range around the text, not the span's box: every span is as wide as the column, so only
@@ -52,7 +52,7 @@ internal sealed class EditorBrowserTests : BrowserTest {
 
     [Test]
     public async Task EveryNumberSitsOnTheRowItCountsAsync() {
-        await Page.GotoAsync($"edit{UniquePath("aligned-rows")}");
+        await Page.GotoAsync($"pages?edit={Uri.EscapeDataString(UniquePath("aligned-rows"))}");
         await Page.Locator("#template").FillAsync(
             string.Join('\n', Enumerable.Range(1, 50).Select(line => $"line {line}")));
         // A row well down the page, so the numbers have to follow the text rather than sit still.
@@ -94,7 +94,7 @@ internal sealed class EditorBrowserTests : BrowserTest {
         string[] lines = [.. Enumerable.Range(1, 50).Select(line => $"<p>line {line}</p>")];
         lines[39] = "<p><%= this is not C# %></p>";
 
-        await Page.GotoAsync($"edit{path}");
+        await Page.GotoAsync($"pages?edit={Uri.EscapeDataString(path)}");
         await Page.Locator("#template").FillAsync(string.Join('\n', lines));
         await Page.ClickAsync("button[name=cmd][value=save]");
         // The one broken line can raise more than one diagnostic, so the first link to it is enough.
@@ -127,7 +127,7 @@ internal sealed class EditorBrowserTests : BrowserTest {
     [Test]
     public async Task ASavePutsTheCaretBackWhereItWasAsync() {
         string path = UniquePath("caret");
-        await Page.GotoAsync($"edit{path}");
+        await Page.GotoAsync($"pages?edit={Uri.EscapeDataString(path)}");
         await Page.Locator("#template").FillAsync("alpha\nbravo\ncharlie");
         await Page.EvaluateAsync("""
             () => {
@@ -138,7 +138,7 @@ internal sealed class EditorBrowserTests : BrowserTest {
             """);
 
         await Page.ClickAsync("button[name=cmd][value=save]");
-        await ExpectMessageAsync("Saved successfully.");
+        await ExpectMessageAsync("Saved as revision");
         await Page.WaitForFunctionAsync("() => document.activeElement?.id === 'template'");
 
         double[] selection = await Page.EvaluateAsync<double[]>("""
@@ -156,7 +156,7 @@ internal sealed class EditorBrowserTests : BrowserTest {
 
     [Test]
     public async Task TheGutterIsClippedToTheRowsTheTextareaShowsAsync() {
-        await Page.GotoAsync($"edit{UniquePath("shortened")}");
+        await Page.GotoAsync($"pages?edit={Uri.EscapeDataString(UniquePath("shortened"))}");
         await Page.Locator("#template").FillAsync(
             string.Join(' ', Enumerable.Repeat("a long line that will not wrap", 20)) + "\n"
             + string.Join('\n', Enumerable.Range(2, 60).Select(line => $"line {line}")));
@@ -202,13 +202,13 @@ internal sealed class EditorBrowserTests : BrowserTest {
         });
         IPage page = await withoutScripts.NewPageAsync();
 
-        await page.GotoAsync($"edit{path}");
+        await page.GotoAsync($"pages?edit={Uri.EscapeDataString(path)}");
         // No module runs, so the gutter is the one the server rendered for the empty template.
         await Assertions.Expect(page.Locator("#gutter > span")).ToHaveCountAsync(1);
         await page.FillAsync("#template", "first\nsecond\nthird");
         await page.ClickAsync("button[name=cmd][value=save]");
 
-        await Assertions.Expect(page.Locator("main")).ToContainTextAsync("Saved successfully.");
+        await Assertions.Expect(page.Locator("main")).ToContainTextAsync("Saved as revision");
         await Assertions.Expect(page.Locator("#gutter > span")).ToHaveCountAsync(3);
     }
 }

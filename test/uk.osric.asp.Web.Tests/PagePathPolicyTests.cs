@@ -21,7 +21,7 @@ public sealed class PagePathPolicyTests {
                 Does.Contain("Not permitted").And.Contain("shell file"), "normalised before the check");
             Assert.That(paths.IsReserved(login), Is.True);
             Assert.That(paths.CanWrite(login), Is.False);
-            Assert.That(paths.Validate("/edit/anything", write: true).Error, Does.Contain("/edit"),
+            Assert.That(paths.Validate("/admin/scrub/anything", write: true).Error, Does.Contain("/admin/scrub"),
                 "a key beneath a route names the route that owns it");
         });
     }

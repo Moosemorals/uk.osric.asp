@@ -66,7 +66,7 @@ public sealed class ExportEndpointTests {
     [Test]
     public async Task TheListSkipsDeletedReservedAndUnaddressablePagesAsync() {
         FakePageStore store = NewStore();
-        store["/edit/hidden"] = new PageTemplate(Key("/edit/hidden"), "Reserved");
+        store["/admin/scrub/hidden"] = new PageTemplate(Key("/admin/scrub/hidden"), "Reserved");
         store["/odd?key"] = new PageTemplate(Key("/odd?key"), "Unaddressable");
         await store.DeletePageAsync(Key("/gone"));
 

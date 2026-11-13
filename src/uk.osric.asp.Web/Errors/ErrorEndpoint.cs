@@ -9,6 +9,7 @@ using System.Net;
 using System.Reflection;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>Writes the error page from inside the exception handler.</summary>
 internal static class ErrorEndpoint {
@@ -29,7 +30,7 @@ internal static class ErrorEndpoint {
             && userFacingException is null
             && isAuthenticated;
 
-        ErrorMessage unexpected = ErrorMessage.ForStatus(StatusCodes.Status500InternalServerError, isAuthenticated);
+        ErrorMessage unexpected = ErrorMessage.ForStatus(StatusCodes.Status500InternalServerError, isAuthenticated, EditorPaths.Of(context.RequestServices));
 
         // An unhandled exception on a JSON endpoint is still something a program asked for, so it
         // gets a problem document rather than a document full of stack frames it cannot parse.

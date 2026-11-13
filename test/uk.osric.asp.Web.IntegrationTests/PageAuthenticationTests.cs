@@ -134,13 +134,13 @@ public sealed class PageAuthenticationTests : IntegrationTest {
     }
 
     [Test]
-    public async Task AnExternalReturnUrlStillFallsBackToTheEditor() {
+    public async Task AnExternalReturnUrlStillFallsBackToTheSiteRoot() {
         using HttpClient client = await CreateSignedInClientAsync();
 
         HttpResponseMessage response = await client.GetAsync("/login?returnUrl=//evil.example");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
-        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/edit"));
+        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/"), "an off-site return goes home, not to the editor");
     }
 
     [Test]

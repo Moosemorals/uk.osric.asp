@@ -93,7 +93,7 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("IPageLayout").And.Contain("Title = \"Help\""));
         Assert.That(template, Does.Contain("<h1>Help</h1>"));
         Assert.That(template, Does.Contain("id=\"layout\"").And.Contain("id=\"syntax\"").And.Contain("id=\"context\""));
-        Assert.That(template, Does.Contain("href=\"/pages?edit=/help\""));
+        Assert.That(template, Does.Contain("href=\"<%= ctx.EditorPath %>?edit="), "the editor link follows the configured key");
     }
 
     [Test]
@@ -132,7 +132,7 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
         Assert.That(template, Does.Contain("<h1>Recent changes</h1>"));
         Assert.That(template, Does.Contain("IPageCatalog"));
-        Assert.That(template, Does.Contain("href=\"/pages"));
+        Assert.That(template, Does.Contain("href=\"<%= ctx.EditorPath %>"), "the editor link follows the configured key");
         Assert.That(template, Does.Not.Contain("RedirectToLogin"), "a public listing must not guard itself");
     }
 

@@ -97,16 +97,42 @@ public abstract partial class IntegrationTest {
         return WebUtility.HtmlDecode(match.Groups[1].Value);
     }
 
-    /// <summary>Saves a page through the editor, with a fresh token.</summary>
+    /// <summary>Saves a page the way the editor's own form does: from the revision it rendered.</summary>
+    /// <remarks>
+    /// The form carries the head it was built from, so a save is conditional. Reading that value back
+    /// is what makes this a faithful save rather than an unconditional one: an empty value means
+    /// "create", and posting it over an existing page is refused as stale.
+    /// </remarks>
     protected static async Task<HttpResponseMessage> PostEditorAsync(HttpClient client, string path, string? template) {
-        string token = await GetAntiforgeryTokenAsync(client, "/edit/" + path);
-        Dictionary<string, string> fields = new() { ["__RequestVerificationToken"] = token };
+        string key = PagePath.Normalize("/" + path).Key;
+        string url = "/pages?edit=" + Uri.EscapeDataString(key);
+        (string token, string revision) = await GetEditorFormAsync(client, url);
+
+        Dictionary<string, string> fields = new() {
+            ["__RequestVerificationToken"] = token,
+            ["expected"] = revision,
+        };
 
         if (template is not null) {
             fields["template"] = template;
         }
 
-        return await client.PostAsync("/edit/" + path, new FormUrlEncodedContent(fields));
+        return await client.PostAsync(url, new FormUrlEncodedContent(fields));
+    }
+
+    /// <summary>Reads the token and the revision the editor's form was rendered from.</summary>
+    protected static async Task<(string Token, string Revision)> GetEditorFormAsync(HttpClient client, string url) {
+        HttpResponseMessage rendered = await client.GetAsync(url);
+        Assert.That(rendered.IsSuccessStatusCode, Is.True,
+            $"{url} answered {(int)rendered.StatusCode}: {await rendered.Content.ReadAsStringAsync()}");
+        string form = await rendered.Content.ReadAsStringAsync();
+
+        Match token = AntiforgeryToken().Match(form);
+        Assert.That(token.Success, Is.True, $"{url} did not render an antiforgery token");
+        Match revision = RenderedRevision().Match(form);
+        Assert.That(revision.Success, Is.True, $"{url} did not render the revision it was built from");
+
+        return (WebUtility.HtmlDecode(token.Groups[1].Value), WebUtility.HtmlDecode(revision.Groups[1].Value));
     }
 
     /// <summary>Stores a page without a compile result, as a direct write to the database would.</summary>
@@ -227,4 +253,7 @@ public abstract partial class IntegrationTest {
 
     [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
     private static partial Regex AntiforgeryToken();
+
+    [GeneratedRegex("name=\"expected\" value=\"([^\"]*)\"")]
+    private static partial Regex RenderedRevision();
 }

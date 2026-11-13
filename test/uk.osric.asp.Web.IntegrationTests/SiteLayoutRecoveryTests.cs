@@ -15,12 +15,12 @@ public sealed class SiteLayoutRecoveryTests : IntegrationTest {
     public async Task DeletingTheLayoutLeavesEveryShellViewAnswering() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        string token = await GetAntiforgeryTokenAsync(client, "/edit/_layout?cmd=delete");
-        HttpResponseMessage deleted = await client.PostAsync("/edit/_layout?cmd=delete",
+        string token = await GetAntiforgeryTokenAsync(client, "/pages?edit=/_layout&cmd=delete");
+        HttpResponseMessage deleted = await client.PostAsync("/pages?edit=/_layout&cmd=delete",
             Form(("__RequestVerificationToken", token)));
-        Assert.That(deleted.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(deleted.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        Assert.That((await client.GetAsync("/edit")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await client.GetAsync("/pages")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await client.GetAsync("/status")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await client.GetAsync("/logout")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }

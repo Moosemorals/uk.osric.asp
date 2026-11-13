@@ -150,7 +150,7 @@ internal static class ErrorResponses {
             return remedies;
         }
 
-        string editor = PageUrls.Editor(path);
+        string editor = PageUrls.Editor(path, EditorPaths.Of(context.RequestServices));
         foreach (NavLink remedy in remedies) {
             if (string.Equals(remedy.Href, editor, StringComparison.Ordinal)) {
                 return remedies;

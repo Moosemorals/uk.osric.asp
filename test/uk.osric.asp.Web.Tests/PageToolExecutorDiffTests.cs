@@ -114,7 +114,7 @@ public sealed class PageToolExecutorDiffTests {
 
     [Test]
     public async Task DiffPageRefusesAShellFileAsync() {
-        ToolExecutionResult result = await RunAsync(new FakePageStore(), """{"path":"/edit"}""");
+        ToolExecutionResult result = await RunAsync(new FakePageStore(), """{"path":"/admin/scrub"}""");
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.False);

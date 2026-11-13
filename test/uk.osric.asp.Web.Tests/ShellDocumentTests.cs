@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Html;
 public sealed class ShellDocumentTests {
 
     private static readonly string Navigation = SiteNavigation.Nav(
-        authenticated: true, assistantEnabled: false, path: "/edit", query: string.Empty);
+        authenticated: true, assistantEnabled: false, path: "/edit", query: string.Empty, editorPath: "/pages");
 
     [Test]
     public async Task HeadStatesTheLanguageAndTheTitleAsync() {

@@ -83,16 +83,16 @@ internal abstract partial class BrowserTest {
         await Page.FillAsync("#username", BrowserHost.UserName);
         await Page.FillAsync("#password", BrowserHost.Password);
         await Page.ClickAsync("button[type=submit]");
-        await Page.WaitForURLAsync("**/edit");
+        // Signing in lands on the site root; the editor is a page, so a test asks for it by name.
+        await Page.WaitForURLAsync("**/");
     }
 
     /// <summary>Saves <paramref name="template"/> as the page at <paramref name="path"/>, creating it if needed.</summary>
     protected async Task SavePageAsync(string path, string template) {
-        await Page.GotoAsync($"edit/{path.TrimStart('/')}");
+        await Page.GotoAsync($"pages?edit={Uri.EscapeDataString(path)}");
         await Page.FillAsync("#template", template);
         await Page.ClickAsync("button[name=cmd][value=save]");
-        await Page.WaitForURLAsync($"**/edit/{path.TrimStart('/')}");
-        await ExpectMessageAsync("Saved successfully.");
+        await ExpectMessageAsync("Saved as revision");
     }
 
     /// <summary>Asserts the editor's session message, which is where a save reports its result.</summary>

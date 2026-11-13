@@ -483,6 +483,8 @@ public sealed class PageCompilerTests {
 
         public string Path => "test";
 
+        public string EditorPath => "/pages";
+
         public PageUser? User => null;
 
         public CancellationToken Aborted => CancellationToken.None;

@@ -8,8 +8,9 @@ using uk.osric.asp.Core.Pages;
 /// <summary>The page keys the site's own routes already own.</summary>
 /// <remarks>
 /// <para>
-/// Entries are matched as prefixes, not exactly: <c>/edit/{**path}</c> shadows everything beneath it,
-/// so a page called <c>/edit/anything</c> is as unreachable as one called <c>/edit</c>.
+/// Entries are matched as prefixes, not exactly: <c>/admin/scrub/{**path}</c> shadows everything
+/// beneath it, so a page called <c>/admin/scrub/anything</c> is as unreachable as one called
+/// <c>/admin/scrub</c>.
 /// </para>
 /// <para>
 /// The list lives in configuration (<c>Pages:ReservedPaths</c>) because the routes belong to the
@@ -21,7 +22,7 @@ internal sealed class ReservedPaths {
 
     /// <summary>The keys reserved when none are configured.</summary>
     public static IReadOnlyList<string> Default { get; } =
-        ["/admin/changes", "/admin/export", "/admin/import", "/admin/restore", "/assistant", "/edit", "/favicon.ico", "/heath", "/login", "/logout", "/metrics", "/status"];
+        ["/admin/changes", "/admin/export", "/admin/import", "/admin/restore", "/admin/scrub", "/assistant", "/favicon.ico", "/heath", "/login", "/logout", "/metrics", "/status"];
 
     private readonly IReadOnlyList<PagePath> _keys;
 

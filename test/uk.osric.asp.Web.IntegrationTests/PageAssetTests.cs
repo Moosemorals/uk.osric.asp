@@ -75,7 +75,7 @@ public sealed class PageAssetTests : IntegrationTest {
         const string updatedBody = "body { color: red; }\n";
         string updatedTemplate = updatedBody + "<% ctx.SetContentType(\"text/css; charset=utf-8\"); %>";
         using HttpResponseMessage save = await PostEditorAsync(editor, "site.css", updatedTemplate);
-        Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
+        Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         using HttpResponseMessage changed = await client.GetAsync("/site.css");
         Assert.That(changed.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -85,50 +85,41 @@ public sealed class PageAssetTests : IntegrationTest {
     }
 
     [Test]
-    public async Task ThePageListRestoresADeletedSeedAndKeepsItsHistory() {
+    public async Task ThePageListInstallsASeedOverAnEditedPageAndKeepsItsHistory() {
         using HttpClient client = await CreateSignedInClientAsync();
         await SavePageAsync("/editor.css", "/* local edit */");
         PageTemplate edited = (await ReadPageAsync("/editor.css"))!;
 
-        string deleteToken = await GetAntiforgeryTokenAsync(client, "/edit/editor.css?cmd=delete");
-        using HttpResponseMessage deleted = await client.PostAsync("/edit/editor.css?cmd=delete", Form(
-            ("__RequestVerificationToken", deleteToken)));
-        Assert.That(deleted.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
-        Assert.That(await ReadPageAsync("/editor.css"), Is.Null);
-
-        using HttpResponseMessage listing = await client.GetAsync("/edit");
+        using HttpResponseMessage listing = await client.GetAsync("/pages");
         string listingBody = await listing.Content.ReadAsStringAsync();
-        Assert.That(listingBody, Does.Contain("<a href=\"/edit/editor.css?cmd=install\" aria-label=\"Install /editor.css from its seed\">Install from seed</a>"));
+        Assert.That(listingBody, Does.Contain("<a href=\"/pages?edit=%2Feditor.css&amp;cmd=install\" aria-label=\"Install /editor.css from its seed\">Install from seed</a>"));
 
-        using HttpResponseMessage editor = await client.GetAsync("/edit/editor.css");
-        Assert.That(await editor.Content.ReadAsStringAsync(), Does.Not.Contain("Restore bundled version"));
-
-        string restoreToken = await GetAntiforgeryTokenAsync(client, "/edit/editor.css?cmd=install");
-        using HttpResponseMessage restore = await client.PostAsync("/edit/editor.css?cmd=install", Form(
-            ("__RequestVerificationToken", restoreToken)));
+        (string token, string revision) = await GetEditorFormAsync(client, "/pages?edit=/editor.css&cmd=install");
+        using HttpResponseMessage restore = await client.PostAsync("/pages?edit=/editor.css&cmd=install", Form(
+            ("__RequestVerificationToken", token),
+            ("expected", revision)));
         PageTemplate restored = (await ReadPageAsync("/editor.css"))!;
-        Assert.That(restore.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
-        Assert.That(restore.Headers.Location?.ToString(), Is.EqualTo("/edit"));
-        Assert.That(restore.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That(restored.Template, Is.EqualTo(ReadSeed("editor.css")));
-        Assert.That(restored.Hash, Is.Not.EqualTo(edited.Hash));
 
-        using HttpResponseMessage history = await client.GetAsync("/edit/editor.css?cmd=history");
+        Assert.Multiple(() => {
+            Assert.That(restore.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the editor page answers the install in place");
+            Assert.That(restore.Headers.CacheControl?.NoStore, Is.True);
+            Assert.That(restored.Template, Is.EqualTo(ReadSeed("editor.css")));
+            Assert.That(restored.Hash, Is.Not.EqualTo(edited.Hash));
+        });
+
+        using HttpResponseMessage history = await client.GetAsync("/pages?page=/editor.css");
         Assert.That(await history.Content.ReadAsStringAsync(), Does.Contain(edited.Hash));
-
-        using HttpResponseMessage after = await client.GetAsync("/edit");
-        Assert.That(await after.Content.ReadAsStringAsync(), Does.Contain("/editor.css was installed from its seed as revision "));
     }
 
     [Test]
     public async Task PageListRestoreIsAuthenticatedAndRequiresAntiforgery() {
         using HttpClient anonymous = CreateClient();
-        using HttpResponseMessage loginRedirect = await anonymous.GetAsync("/edit");
+        using HttpResponseMessage loginRedirect = await anonymous.GetAsync("/pages");
         Assert.That(loginRedirect.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
-        Assert.That(loginRedirect.Headers.Location?.AbsolutePath, Is.EqualTo("/login"));
+        Assert.That(loginRedirect.Headers.Location?.ToString(), Does.StartWith("/login"));
 
         using HttpClient client = await CreateSignedInClientAsync();
-        using HttpResponseMessage missingToken = await client.PostAsync("/edit/editor.css?cmd=install", Form());
+        using HttpResponseMessage missingToken = await client.PostAsync("/pages?edit=/editor.css&cmd=install", Form());
 
         Assert.That(missingToken.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(missingToken.Headers.CacheControl?.NoStore, Is.True);
@@ -138,9 +129,9 @@ public sealed class PageAssetTests : IntegrationTest {
     [Test]
     public async Task RestoreRejectsPagesWithoutABundledVersion() {
         using HttpClient client = await CreateSignedInClientAsync();
-        string token = await GetAntiforgeryTokenAsync(client, "/edit");
+        string token = await GetAntiforgeryTokenAsync(client, "/pages");
 
-        using HttpResponseMessage response = await client.PostAsync("/edit/not-a-seed?cmd=install", Form(
+        using HttpResponseMessage response = await client.PostAsync("/pages?edit=/not-a-seed&cmd=install", Form(
             ("__RequestVerificationToken", token)));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));

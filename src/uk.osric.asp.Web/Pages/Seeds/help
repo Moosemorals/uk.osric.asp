@@ -1,7 +1,7 @@
 <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Help"; %>
 <h1>Help</h1>
 <p>This is the author manual. It is itself a stored page, so logged in users
-can improve it at <a href="/pages?edit=/help">/pages?edit=/help</a>.</p>
+can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataString(ctx.Path) %>"><%= ctx.EditorPath %>?edit=<%= ctx.Path %></a>.</p>
 
 <nav aria-label="Help contents">
     <h2>Contents</h2>
@@ -24,9 +24,9 @@ can improve it at <a href="/pages?edit=/help">/pages?edit=/help</a>.</p>
 </nav>
 
 <h2 id="editor">The editor</h2>
-<p>The editor is <a href="/pages">/pages</a>. The page list has a form to create or open a page by
+<p>The editor is <a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a>. The page list has a form to create or open a page by
 its path, and every live and deleted page has its own editor at
-<code>/pages?edit=&lt;path&gt;</code>. History, the diff and the three confirmations are the same
+<code><%= ctx.EditorPath %>?edit=&lt;path&gt;</code>. History, the diff and the three confirmations are the same
 page, so a bookmark is a query value rather than a route:
 <code>?page=&lt;path&gt;</code> shows the source and history, <code>?edit=&lt;path&gt;&amp;cmd=delete</code>
 confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a seed install, and
@@ -213,6 +213,10 @@ response, and nothing else:</p>
     <li><code>ctx.Path</code> is the page's canonical key; <code>ctx.User</code> is the signed-in
     <code>PageUser</code> or <code>null</code>; <code>ctx.Aborted</code> is cancelled when the
     visitor abandons the request.</li>
+    <li><code>ctx.EditorPath</code> is the editor page's key, which the owner can move
+    (<code>Pages:Editor:Key</code>). Link to the editor with <code>ctx.EditorPath</code> rather than
+    naming it, and <code>ctx.EditorPath + "?edit=" + System.Uri.EscapeDataString(ctx.Path)</code> is
+    the URL that opens <em>this</em> page in it.</li>
     <li><code>ctx.Log</code>, <code>ctx.LogWarning</code> and <code>ctx.LogError</code> write to the
     page log, tagged with this page's key.</li>
     <li><code>ctx.SetStatus</code>, <code>ctx.SetContentType</code>, <code>ctx.SetHeader</code>,
@@ -293,7 +297,7 @@ does:</p>
 <code>ReadRevisionAsync</code> publishes the source it reads to whoever can reach that page, including
 a template whose own guard hides its output, and including the history of a deleted page until it is
 scrubbed. The seeded <a href="/recent">/recent</a> is a public listing and the seeded
-<a href="/pages">/pages</a> is a guarded source and history view: the same capability, with and
+<a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is a guarded source and history view: the same capability, with and
 without that one line. Both are demonstrations of this capability and of the editor's cheap half
 (IDEA-017), not the editor itself.</p>
 <p>The read is bounded. One listing returns at most 500 rows and refuses rather than truncating, and
@@ -468,7 +472,7 @@ asset held a secret, rotate the secret and clean the external copies separately.
 
 <h2 id="keeping-current">Keeping this page current</h2>
 <p>This page is the seeded page <code>/help</code>. Its source is
-<code>src/uk.osric.asp.Web/Pages/Seeds/help</code>; use <a href="/pages?edit=/help">/pages?edit=/help</a> to change
+<code>src/uk.osric.asp.Web/Pages/Seeds/help</code>; use <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataString(ctx.Path) %>"><%= ctx.EditorPath %>?edit=<%= ctx.Path %></a> to change
 it.</p>
 <p>A change that adds or alters what a page author can do should update this page in the same change:
 a new <code>IContext</code> member, capability, layout slot, editor action, content type or response

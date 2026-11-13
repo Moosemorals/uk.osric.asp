@@ -26,7 +26,7 @@ public sealed class RestoreEndpointTests : IntegrationTest {
     [Test]
     public async Task APostWithoutAntiforgeryWritesNothingAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
-        await PostEditorAsync(client, "pages", Broken);
+        await SavePageAsync("/pages", Broken);
 
         HttpResponseMessage response = await client.PostAsync("/admin/restore", new FormUrlEncodedContent([]));
         PageTemplate stored = (await ReadPageAsync("/pages"))!;
@@ -43,8 +43,8 @@ public sealed class RestoreEndpointTests : IntegrationTest {
 
         await PostEditorAsync(client, "site.css", "* { display: none; }");
         await PostEditorAsync(client, "admin.css", "* { display: none; }");
-        await PostEditorAsync(client, "pages", Broken);
-        await PostEditorAsync(client, "_layout", Broken);
+        await SavePageAsync("/pages", Broken);
+        await SavePageAsync("/_layout", Broken);
 
         HttpResponseMessage preview = await client.GetAsync("/admin/restore");
         string previewBody = await preview.Content.ReadAsStringAsync();
@@ -67,7 +67,7 @@ public sealed class RestoreEndpointTests : IntegrationTest {
     [Test]
     public async Task OnePostBringsBackThePageTheEditorNeedsAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
-        await PostEditorAsync(client, "pages", Broken);
+        await SavePageAsync("/pages", Broken);
 
         string token = await GetAntiforgeryTokenAsync(client, "/admin/restore");
         HttpResponseMessage restored = await client.PostAsync(

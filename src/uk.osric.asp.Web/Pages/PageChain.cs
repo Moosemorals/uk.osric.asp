@@ -171,7 +171,8 @@ internal sealed class PageChain {
             key,
             isLayout,
             _bodyBudget,
-            href => PageAssetMap.Resolve(_assets, href));
+            href => PageAssetMap.Resolve(_assets, href),
+            _environment.Editor.Key);
     }
 
     /// <summary>Wraps the content in the layouts it names, outermost last.</summary>
@@ -207,7 +208,7 @@ internal sealed class PageChain {
                 "page.layout_title_missing",
                 "The page set no title",
                 $"{path} is wrapped by a layout but set no title. Set one with ctx.Capabilities.GetRequired<IPageLayout>().Title, or clear Layout to write the page's own document.",
-                ErrorMessage.DefaultRemedies(_user is not null)));
+                ErrorMessage.DefaultRemedies(_user is not null, _environment.Editor.Key)));
         }
 
         bool allowsScripts = response.AllowsScripts;
@@ -242,7 +243,7 @@ internal sealed class PageChain {
                     "page.layout_unavailable",
                     "The layout is not a page",
                     $"{path} is wrapped in {key}, which is not a page this site can serve.",
-                    ErrorMessage.DefaultRemedies(_user is not null)));
+                    ErrorMessage.DefaultRemedies(_user is not null, _environment.Editor.Key)));
             }
 
             StringWriter layoutOutput = new();
@@ -266,7 +267,7 @@ internal sealed class PageChain {
                     "page.layout_unavailable",
                     "The layout could not be served",
                     $"{path} is wrapped in {key.Key}, which could not be served ({rendered.Status}).",
-                    ErrorMessage.DefaultRemedies(_user is not null)));
+                    ErrorMessage.DefaultRemedies(_user is not null, _environment.Editor.Key)));
             }
 
             allowsScripts |= context.ToResponse().AllowsScripts;

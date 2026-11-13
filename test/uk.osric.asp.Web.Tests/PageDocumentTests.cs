@@ -145,7 +145,7 @@ public sealed class PageDocumentTests {
     public void NavRendersLinksAndMarksTheCurrentItemAsText() {
         MarkupReader document = MarkupReader.Parse(PageDocument.Nav("Site", [
             new("/", "Home"),
-            new("/edit", "Pages", IsCurrent: true),
+            new("/pages", "Pages", IsCurrent: true),
         ]));
 
         MarkupElement nav = document.Elements("nav").Single();

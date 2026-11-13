@@ -91,7 +91,7 @@ public sealed class PageToolExecutorHistoryTests {
     [Test]
     public async Task ListRevisionsRefusesAMissingPageAndAShellFileAsync() {
         ToolExecutionResult missing = await RunAsync(new FakePageStore(), "list_revisions", """{"path":"/notes"}""");
-        ToolExecutionResult shell = await RunAsync(new FakePageStore(), "list_revisions", """{"path":"/edit"}""");
+        ToolExecutionResult shell = await RunAsync(new FakePageStore(), "list_revisions", """{"path":"/admin/scrub"}""");
 
         Assert.Multiple(() => {
             Assert.That(missing.IsSuccess, Is.False);
@@ -260,7 +260,7 @@ public sealed class PageToolExecutorHistoryTests {
         ToolExecutionResult foreign = await RunAsync(
             storage, "restore_revision", $$"""{"path":"/notes","hash":"{{other.Hash}}"}""");
         ToolExecutionResult shell = await RunAsync(
-            storage, "restore_revision", $$"""{"path":"/edit","hash":"{{mine.Hash}}"}""");
+            storage, "restore_revision", $$"""{"path":"/admin/scrub","hash":"{{mine.Hash}}"}""");
 
         Assert.Multiple(() => {
             Assert.That(foreign.IsSuccess, Is.False);

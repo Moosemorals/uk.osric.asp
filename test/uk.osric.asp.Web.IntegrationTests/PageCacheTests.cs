@@ -38,18 +38,19 @@ public sealed class PageCacheTests : IntegrationTest {
     [Test]
     public async Task ABrokenSaveShowsDiagnosticsWithoutCompilingAgain() {
         using HttpClient client = await CreateSignedInClientAsync();
+        HttpResponseMessage saved = await PostEditorAsync(client, "broken", "<% int value = ; %>");
         int compiles = CompileCount;
 
-        await PostEditorAsync(client, "broken", "<% int value = ; %>");
-
-        string editor = await (await client.GetAsync("/edit/broken")).Content.ReadAsStringAsync();
-        Assert.That(editor, Does.Contain("Saved with errors."));
-        Assert.That(editor, Does.Contain("error CS"));
+        // The save's own answer carries the diagnostics; a later render of the editor shows the
+        // source it stored, not the notice that save produced.
+        string editor = await saved.Content.ReadAsStringAsync();
+        Assert.That(editor, Does.Contain("does not compile"));
+        Assert.That(editor, Does.Contain("CS1525"), "the compiler code is on the diagnostic the page links");
 
         HttpResponseMessage page = await client.GetAsync("/broken");
         Assert.That(page.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
         Assert.That(await page.Content.ReadAsStringAsync(), Does.Contain("error CS"));
-        Assert.That(CompileCount - compiles, Is.EqualTo(1), "the stored diagnostics must be served, not recompiled");
+        Assert.That(CompileCount, Is.EqualTo(compiles), "the stored diagnostics must be served, not recompiled");
     }
 
     [Test]

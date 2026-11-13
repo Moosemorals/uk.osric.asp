@@ -24,7 +24,7 @@ internal static class LoginEndpoint {
     // category for the whole of sign-in is what the journal wants anyway: who got in, and who tried.
     private const string Category = "uk.osric.asp.Authentication";
 
-    /// <summary>Renders the sign-in form, or sends an authenticated visitor back to the editor.</summary>
+    /// <summary>Renders the sign-in form, or sends an authenticated visitor back to where they asked to go.</summary>
     public static async Task GetAsync(HttpContext context, IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -135,7 +135,7 @@ internal static class LoginEndpoint {
                 {AntiforgeryField.Hidden(tokens)}
                 <div class="form-actions">
                     <button type="submit">Sign out</button>
-                    <a href="/edit">Cancel</a>
+                    <a href="/">Cancel</a>
                 </div>
             </form>
             """);
@@ -157,7 +157,7 @@ internal static class LoginEndpoint {
                 "auth.logout_expired",
                 "Sign-out did not complete",
                 "The sign-out form could not be verified, so you are still signed in. Go back to the page you came from and sign out again.",
-                ErrorMessage.DefaultRemedies(isAuthenticated: true)));
+                ErrorMessage.DefaultRemedies(isAuthenticated: true, EditorPaths.Of(context.RequestServices))));
             return;
         }
 

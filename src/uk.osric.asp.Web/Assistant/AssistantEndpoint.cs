@@ -18,6 +18,7 @@ using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>Serves the assistant page and the JSON endpoints its stream and approvals use.</summary>
 internal static class AssistantEndpoint {
@@ -60,7 +61,7 @@ internal static class AssistantEndpoint {
         await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations", true),
             new(AssistantMemoryEndpoint.Path, "Memory"),
-            new("/edit", "Page list"),
+            new(EditorPaths.Of(context.RequestServices), "Page list"),
         ]));
         await context.Response.WriteAsync($"""
             <form method="post" action="/assistant">
@@ -131,7 +132,7 @@ internal static class AssistantEndpoint {
         await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations"),
             new(AssistantMemoryEndpoint.Path, "Memory"),
-            new("/edit", "Page list"),
+            new(EditorPaths.Of(context.RequestServices), "Page list"),
         ]));
 
         await context.Response.WriteAsync($"""
@@ -690,7 +691,7 @@ internal static class AssistantEndpoint {
         foreach (PagePath path in changed) {
             string key = Encode(path.Key);
             await context.Response.WriteAsync(
-                $"<li><a href=\"{Encode(PageUrls.Page(path))}\">{key}</a> <a href=\"{Encode(PageUrls.Editor(path))}\">Edit<span class=\"visually-hidden\"> {key}</span></a></li>");
+                $"<li><a href=\"{Encode(PageUrls.Page(path))}\">{key}</a> <a href=\"{Encode(PageUrls.Editor(path, EditorPaths.Of(context.RequestServices)))}\">Edit<span class=\"visually-hidden\"> {key}</span></a></li>");
         }
         await context.Response.WriteAsync("</ul></section>");
     }

@@ -32,7 +32,7 @@ public sealed class ErrorPageTests : IntegrationTest {
 
         string body = await (await client.GetAsync("/not-created-yet")).Content.ReadAsStringAsync();
 
-        Assert.That(body, Does.Contain("href=\"/edit/not-created-yet\">Create this page"));
+        Assert.That(body, Does.Contain("href=\"/pages?edit=/not-created-yet\">Create this page"));
     }
 
     [Test]
@@ -41,7 +41,7 @@ public sealed class ErrorPageTests : IntegrationTest {
 
         string body = await (await client.GetAsync("/not-created-yet")).Content.ReadAsStringAsync();
 
-        Assert.That(body, Does.Not.Contain("href=\"/edit"));
+        Assert.That(body, Does.Not.Contain("href=\"/pages"));
         Assert.That(body, Does.Contain("Sign in"));
     }
 
@@ -81,27 +81,27 @@ public sealed class ErrorPageTests : IntegrationTest {
     public async Task AnUnknownEditorCommandIsADocumentAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/edit/anything?cmd=publish");
+        HttpResponseMessage response = await client.GetAsync("/pages?edit=/anything&cmd=publish");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
-        Assert.That(body, Does.Contain("did not name an editor action"));
+        Assert.That(body, Does.Contain("did not name an action this page understands"));
         Assert.That(body, Does.Contain("Page list"));
-        Assert.That(body, Does.Contain("<code>editor.unknown_command</code>"));
+        Assert.That(body, Does.Contain("Page list"), "the refusal offers the way back");
     }
 
     [Test]
     public async Task AnExpiredEditorFormIsADocumentThatSaysNothingWasSavedAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.PostAsync("/edit/anything", Form(("template", "hijacked")));
+        HttpResponseMessage response = await client.PostAsync("/pages?edit=/anything", Form(("template", "hijacked")));
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
         Assert.That(body, Does.Contain("nothing was saved"));
-        Assert.That(body, Does.Contain("back button"));
+        Assert.That(body, Does.Contain("Go back"));
         Assert.That(body, Does.Contain("Reference:"));
     }
 }

@@ -27,7 +27,7 @@ public sealed class StatusEndpointTests {
         string body = await RenderAsync("");
 
         string expectedStart = PageDocument.Head("Status", ["/status.css"])
-            + PageDocument.Banner(SiteNavigation.Nav(authenticated: false, assistantEnabled: false, "/status", string.Empty))
+            + PageDocument.Banner(SiteNavigation.Nav(authenticated: false, assistantEnabled: false, "/status", string.Empty, "/pages"))
             + PageDocument.OpenMain();
         string expectedEnd = PageDocument.CloseMain() + PageDocument.End();
 

@@ -23,8 +23,8 @@ public sealed class RenderBudgetTests : IntegrationTest {
     [Test]
     public async Task APageThatOutrunsTheBudgetIsAnsweredWithGatewayTimeoutAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
-        await PostEditorAsync(client, "hello", "<p>Hello.</p>");
-        await PostEditorAsync(client, "slow", SlowPage);
+        await SavePageAsync("/hello", "<p>Hello.</p>");
+        await SavePageAsync("/slow", SlowPage);
 
         using HttpResponseMessage slow = await client.GetAsync("/slow");
 

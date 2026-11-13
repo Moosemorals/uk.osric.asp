@@ -41,7 +41,7 @@ public sealed partial class ArchiveEndpointTests : IntegrationTest {
     public async Task ExportThenImportRoundTripsThroughTheRealHost() {
         using HttpClient client = await CreateSignedInClientAsync();
         HttpResponseMessage saved = await PostEditorAsync(client, "round-trip", Source);
-        Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther), "the page under test must save");
+        Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the page under test must save");
         await SetStateAsync("/round-trip", "visits", "7");
 
         byte[] archive = await ExportAsync(client, "/round-trip");
@@ -87,8 +87,8 @@ public sealed partial class ArchiveEndpointTests : IntegrationTest {
 
         Assert.That((await client.GetAsync("/admin/import/impersonation")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
 
-        string token = await GetAntiforgeryTokenAsync(client, "/edit");
-        HttpResponseMessage created = await client.PostAsync("/edit?cmd=new", Form(
+        string token = await GetAntiforgeryTokenAsync(client, "/pages");
+        HttpResponseMessage created = await client.PostAsync("/pages?cmd=new", Form(
             ("path", "/admin/export/elsewhere"),
             ("__RequestVerificationToken", token)));
 

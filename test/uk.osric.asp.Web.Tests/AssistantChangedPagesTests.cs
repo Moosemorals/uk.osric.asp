@@ -26,7 +26,7 @@ public sealed class AssistantChangedPagesTests {
             Assert.That(html, Does.Contain("class=\"assistant-changed-pages\""));
             Assert.That(html, Does.Contain("Changed pages"));
             Assert.That(html, Does.Contain("href=\"/blog\""), "the live page");
-            Assert.That(html, Does.Contain("href=\"/edit/blog\""), "the editor");
+            Assert.That(html, Does.Contain("href=\"/pages?edit=/blog\""), "the editor");
         });
     }
 

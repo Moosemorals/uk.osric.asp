@@ -14,14 +14,15 @@ internal static class AdminNavigation {
 
     /// <summary>Renders the links to both views and back to the page list.</summary>
     /// <param name="current">The view being shown, so its own link is marked rather than repeated.</param>
-    public static string Nav(string current) {
+    /// <param name="editorPath">The editor's own key, which is configuration.</param>
+    public static string Nav(string current, string editorPath) {
         List<NavLink> links = [
             new("/admin", "Administration", string.Equals(current, "index", StringComparison.Ordinal)),
             new("/admin/import", "Import pages", string.Equals(current, "import", StringComparison.Ordinal)),
             new("/admin/export", "Export pages", string.Equals(current, "export", StringComparison.Ordinal)),
             new("/admin/changes", "Changelist", string.Equals(current, "changes", StringComparison.Ordinal)),
             new("/admin/restore", "Restore seeds", string.Equals(current, "restore", StringComparison.Ordinal)),
-            new("/edit", "Page list"),
+            new(editorPath, "Page list"),
             new("/help", "Help"),
         ];
 

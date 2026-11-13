@@ -13,7 +13,7 @@
        links.Add(new("/login", "Sign in", At("/login")));
    } else {
        links.Add(new("/assistant", "Assistant", Under("/assistant")));
-       links.Add(new("/edit", "Pages", Under("/edit")));
+       links.Add(new(ctx.EditorPath, "Pages", Under(ctx.EditorPath)));
        links.Add(new("/admin", "Admin", Under("/admin")));
        links.Add(new("/logout", "Sign out", At("/logout")));
    } %><%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head, resolveHref: ctx.AssetUrl) %>

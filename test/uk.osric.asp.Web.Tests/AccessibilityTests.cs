@@ -228,7 +228,7 @@ public sealed class AccessibilityTests {
 
     [Test]
     public async Task TheEditorsFieldIsLabelledAsync() {
-        MarkupReader editor = MarkupReader.Parse((await ViewAsync("editor")).Html);
+        MarkupReader editor = MarkupReader.Parse((await ViewAsync("pages-editor")).Html);
 
         Assert.That(editor.Elements("label").Any(label =>
             label.Attribute("for") == "template" && !string.IsNullOrWhiteSpace(label.Text)), Is.True);
@@ -236,7 +236,7 @@ public sealed class AccessibilityTests {
 
     [Test]
     public async Task EveryListingActionNamesItsPageAsync() {
-        MarkupReader listing = MarkupReader.Parse((await ViewAsync("listing")).Html);
+        MarkupReader listing = MarkupReader.Parse((await ViewAsync("pages-listing")).Html);
         MarkupElement[] tables = [.. listing.Root.Descendants().Where(element => element.HasClass("pages"))];
 
         Assert.That(tables, Is.Not.Empty);
@@ -248,7 +248,7 @@ public sealed class AccessibilityTests {
 
     [Test]
     public async Task EveryListingStateCellSaysWhichStateItIsAsync() {
-        MarkupReader listing = MarkupReader.Parse((await ViewAsync("listing")).Html);
+        MarkupReader listing = MarkupReader.Parse((await ViewAsync("pages-listing")).Html);
         MarkupElement[] cells = [.. listing.Root.Descendants().Where(element => element.HasClass("page-state"))];
 
         Assert.That(cells, Is.Not.Empty);
@@ -276,7 +276,7 @@ public sealed class AccessibilityTests {
 
     [Test]
     public async Task ASourceBlocksCanTakeFocusAsync() {
-        string[] names = ["revision"];
+        string[] names = ["pages-editor"];
         foreach (string name in names) {
             MarkupReader document = MarkupReader.Parse((await ViewAsync(name)).Html);
 

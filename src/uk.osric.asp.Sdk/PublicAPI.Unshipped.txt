@@ -216,3 +216,4 @@ uk.osric.asp.Sdk.PageKeyResolution.IsSuccess.get -> bool
 uk.osric.asp.Sdk.PageKeyResolution.Key.get -> string?
 uk.osric.asp.Sdk.PageKeyResolution.Key.init -> void
 uk.osric.asp.Sdk.PageKeyResolution.PageKeyResolution(string? Key, bool IsReserved, string? Error) -> void
+uk.osric.asp.Sdk.IContext.EditorPath.get -> string!

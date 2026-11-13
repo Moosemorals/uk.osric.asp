@@ -31,7 +31,7 @@ public sealed class AssistantDisabledTests : IntegrationTest {
     public async Task EditorDoesNotLinkToDisabledAssistantAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        using HttpResponseMessage response = await client.GetAsync("/edit/example");
+        using HttpResponseMessage response = await client.GetAsync("/pages?edit=/example");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));

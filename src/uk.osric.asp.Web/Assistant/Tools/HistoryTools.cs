@@ -76,7 +76,7 @@ internal sealed class ListRevisionsTool : AssistantTool {
                 creationRuntimeId = revision.CreationRuntimeId,
                 imageState = revision.ImageState.Describe(),
                 isCurrent = revision.IsCurrent,
-                editorUrl = PageUrls.EditorRevision(path, revision.Hash),
+                editorUrl = PageUrls.EditorRevision(path, revision.Hash, services.EditorPath),
             }),
             truncated,
         };
@@ -158,7 +158,7 @@ internal sealed class ReadRevisionTool : AssistantTool {
             totalLines = projected.TotalLines,
             truncated = projected.Truncated,
             source = projected.Text,
-            editorUrl = PageUrls.EditorRevision(path, revision.Hash),
+            editorUrl = PageUrls.EditorRevision(path, revision.Hash, services.EditorPath),
         };
         return services.Results.Success(data, $"{Spec.Verb} revision {ShortHash(revision.Hash)} of {ToolPaths.Describe(path)}");
     }

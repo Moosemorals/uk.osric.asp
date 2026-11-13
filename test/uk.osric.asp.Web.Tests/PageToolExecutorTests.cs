@@ -104,11 +104,11 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/edit/anything\"}", Context, CancellationToken.None);
+            "read_page", "{\"path\":\"/admin/scrub/anything\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.False);
-            Assert.That(result.Content, Does.Contain("beneath the shell file").And.Contain("/edit"));
+            Assert.That(result.Content, Does.Contain("beneath the shell file").And.Contain("/admin/scrub"));
             Assert.That(storage.ReadCount, Is.Zero);
         });
     }
@@ -210,7 +210,7 @@ public sealed class PageToolExecutorTests {
             Assert.That(rows["/blog"], Is.EqualTo(("page", "-rw-r--r--", false, "Not compiled")));
             Assert.That(rows["/logout"], Is.EqualTo(("shell", "-r--r--r--", false, (string?)null)),
                 "the shell file is the entry, whatever the store holds at its key");
-            Assert.That(rows.ContainsKey("/edit/anything"), Is.False);
+            Assert.That(rows.ContainsKey("/admin/scrub/anything"), Is.False);
         });
     }
 
@@ -512,13 +512,13 @@ public sealed class PageToolExecutorTests {
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult root = await tools.ExecuteAsync("shell", "{\"command\":\"ls -l /\"}", Context, CancellationToken.None);
-        ToolExecutionResult route = await tools.ExecuteAsync("shell", "{\"command\":\"ls -l /edit\"}", Context, CancellationToken.None);
+        ToolExecutionResult route = await tools.ExecuteAsync("shell", "{\"command\":\"ls -l /admin/scrub\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(Output(root).Split('\n'), Does.Contain("-r--r--r-- /edit"));
+            Assert.That(Output(root).Split('\n'), Does.Contain("drwxr-xr-x /admin"));
             Assert.That(Output(root).Split('\n'), Does.Contain("-r--r--r-- /login"));
             Assert.That(Output(root).Split('\n'), Does.Contain("-rw-r--r-- /blog"));
-            Assert.That(Output(route), Is.EqualTo("-r--r--r-- /edit"), "a route owns the subtree, not a page");
+            Assert.That(Output(route), Is.EqualTo("-r--r--r-- /admin/scrub"), "a route owns the subtree, not a page");
         });
     }
 
@@ -1196,7 +1196,7 @@ public sealed class PageToolExecutorTests {
 
         string[] matches = Matches(result);
         Assert.Multiple(() => {
-            Assert.That(matches, Has.Some.StartsWith("/edit:4:access: the owner"),
+            Assert.That(matches, Has.Some.StartsWith("/admin/scrub:4:access: the owner"),
                 "a shell file's record is searchable, and its line numbers are the record's");
             Assert.That(matches, Has.None.StartsWith("/gone:"));
         });

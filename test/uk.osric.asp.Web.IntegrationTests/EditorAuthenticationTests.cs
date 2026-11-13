@@ -18,10 +18,10 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
     public async Task AnonymousGetEditorRedirectsToLogin() {
         using HttpClient client = CreateClient();
 
-        HttpResponseMessage response = await client.GetAsync("/edit/hello");
+        HttpResponseMessage response = await client.GetAsync("/pages?edit=/hello");
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
-        Assert.That(response.Headers.Location?.PathAndQuery, Does.StartWith("/login?returnUrl="));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), "the page's own guard sends them to sign in");
+        Assert.That(response.Headers.Location?.ToString(), Does.StartWith("/login?returnUrl="));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
         Assert.That(await response.Content.ReadAsStringAsync(), Is.Empty);
     }
@@ -30,9 +30,9 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
     public async Task AnonymousPostEditorWritesNothing() {
         using HttpClient client = CreateClient();
 
-        HttpResponseMessage response = await client.PostAsync("/edit/anonymous", Form(("template", "hijacked")));
+        HttpResponseMessage response = await client.PostAsync("/pages?edit=/anonymous", Form(("template", "hijacked")));
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
         Assert.That(await ReadPageAsync("/anonymous"), Is.Null);
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }
@@ -56,7 +56,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
     }
 
     [Test]
-    public async Task ValidCredentialsSignInAndRedirectToTheEditor() {
+    public async Task ValidCredentialsSignInAndRedirectToWhereTheyWereGoing() {
         using HttpClient client = CreateClient();
         string token = await GetAntiforgeryTokenAsync(client, "/login");
 
@@ -66,10 +66,10 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
             ("rememberMe", "on"),
             ("__RequestVerificationToken", token)));
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
-        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/edit"));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther), "signing in lands on the site root when nothing was asked for");
+        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/"));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That((await client.GetAsync("/edit/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await client.GetAsync("/pages?edit=/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
     [Test]
@@ -84,7 +84,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("Invalid username or password."));
-        Assert.That((await client.GetAsync("/edit/hello")).StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        Assert.That((await client.GetAsync("/pages?edit=/hello")).StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
     }
 
     [Test]
@@ -137,13 +137,13 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
         const string newPassword = "mutable password two";
         await SeedAdditionalUserAsync(name, oldPassword);
         using HttpClient client = await CreateSignedInClientAsync(name, oldPassword);
-        Assert.That((await client.GetAsync("/edit/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await client.GetAsync("/pages?edit=/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         await ChangePasswordAsync(name, newPassword);
 
-        HttpResponseMessage after = await client.GetAsync("/edit/hello");
+        HttpResponseMessage after = await client.GetAsync("/pages?edit=/hello");
         Assert.That(after.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
-        Assert.That(after.Headers.Location?.PathAndQuery, Does.StartWith("/login"));
+        Assert.That(after.Headers.Location?.ToString(), Does.StartWith("/login"));
     }
 
     [Test]
@@ -152,11 +152,11 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
         const string password = "removable password";
         await SeedAdditionalUserAsync(name, password);
         using HttpClient client = await CreateSignedInClientAsync(name, password);
-        Assert.That((await client.GetAsync("/edit/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await client.GetAsync("/pages?edit=/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         await RemoveUserAsync(name);
 
-        HttpResponseMessage after = await client.GetAsync("/edit/hello");
+        HttpResponseMessage after = await client.GetAsync("/pages?edit=/hello");
         Assert.That(after.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
     }
 
@@ -165,8 +165,8 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
         using HttpClient first = await CreateSignedInClientAsync();
         using HttpClient second = await CreateSignedInClientAsync();
 
-        Assert.That((await first.GetAsync("/edit/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That((await second.GetAsync("/edit/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await first.GetAsync("/pages?edit=/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await second.GetAsync("/pages?edit=/hello")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
     [Test]
@@ -174,24 +174,24 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
         using HttpClient client = await CreateSignedInClientAsync();
 
         HttpResponseMessage response = await client.GetAsync(
-            "/login?returnUrl=" + Uri.EscapeDataString("/edit/hello?tab=source"));
+            "/login?returnUrl=" + Uri.EscapeDataString("/pages?edit=/hello?tab=source"));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
-        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/edit/hello?tab=source"));
+        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/pages?edit=/hello?tab=source"));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
     }
 
     [Test]
     public async Task LogoutClearsTheCookie() {
         using HttpClient client = await CreateSignedInClientAsync();
-        string token = await GetAntiforgeryTokenAsync(client, "/edit/hello");
+        string token = await GetAntiforgeryTokenAsync(client, "/pages?edit=/hello");
 
         HttpResponseMessage logout = await client.PostAsync("/logout", Form(("__RequestVerificationToken", token)));
 
         Assert.That(logout.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
         Assert.That(logout.Headers.Location?.ToString(), Is.EqualTo("/"));
         Assert.That(logout.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That((await client.GetAsync("/edit/hello")).StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        Assert.That((await client.GetAsync("/pages?edit=/hello")).StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
     }
 
     [Test]
@@ -223,7 +223,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
             ("rememberMe", "on"),
             ("__RequestVerificationToken", firstToken)));
 
-        string secondToken = await GetAntiforgeryTokenAsync(client, "/edit/hello");
+        string secondToken = await GetAntiforgeryTokenAsync(client, "/pages?edit=/hello");
         HttpResponseMessage second = await client.PostAsync("/login", Form(
             ("username", UserName),
             ("password", Password),
@@ -239,7 +239,7 @@ public sealed class EditorAuthenticationTests : IntegrationTest {
     public async Task SigningOutDeletesTheStoredTicket() {
         using HttpClient client = await CreateSignedInClientAsync();
         int stored = await CountStoredTicketsAsync();
-        string token = await GetAntiforgeryTokenAsync(client, "/edit/hello");
+        string token = await GetAntiforgeryTokenAsync(client, "/pages?edit=/hello");
 
         HttpResponseMessage logout = await client.PostAsync("/logout", Form(("__RequestVerificationToken", token)));
 

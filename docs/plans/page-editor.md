@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Phases 0–1 landed 2026-11-13; phases 2–5 planned, not started |
+| Status | Phases 0–4 landed 2026-11-13; phase 5 (documents and the manual) planned |
 | Size | Large — a new Sdk capability and its values, a read-contract extension, a scoped authority, the seeded `/pages` editor and its module, retiring `/edit`, a shell scrub route, and the tests and documents for each |
 | Area | Sdk, Web (pages, editor, admin, routing, navigation), seeds, docs |
 | Backlog | [IDEA-017](../jobs/IDEA-017.md) — this closes it. [IDEA-028](../jobs/README.md#closed) — the prerequisite recovery path, landed |
@@ -596,11 +596,17 @@ history, compares two revisions, deletes and recreates, restores a revision and 
 `/pages`; an anonymous visitor is sent to sign in; a stale save is `409` with the submitted text; the
 gutter and caret still work; the seeded page compiles and its tests pass.
 
-### Phase 4 — the shell stops being the editor
+### Phase 4 — the shell stops being the editor (landed 2026-11-13)
 
-Move scrub to `/admin/scrub/{**path}`, point the navigation and every link at `/pages`, remove the
-`/edit` maps, and remove `/edit` from `ReservedPaths.Default` and `ShellRoutes.All`. Delete
-`EditorEndpoint` and the old editor views. This phase starts only after Phase 0 has shipped.
+Landed: scrub at `/admin/scrub/{**path}` with its own `ScrubEndpoint`; `/edit` gone from routing, the
+reserved list and `ShellRoutes`, and from `appsettings.json`'s copy of the list; `EditorEndpoint`
+deleted with `EditorEndpointTests` and the browser `EditorFlowTests`, whose flows the page suite
+covers; every shell link, error remedy, assistant tool and seed pointed at the editor. The editor's
+key left the literals behind too: `IContext.EditorPath`, `PageUrls`' methods take the key, and
+`EditorPaths.Of(services)` is how a shell view reads it. `LocalRedirect` falls back to `/` rather
+than the editor, which is the owner's call.
+
+This phase started only after Phase 0 shipped. `EditorEndpoint` and its views are gone.
 
 **Done when** `GET` and `HEAD /edit` answer `404` through the page catch-all, and `/edit/anything`
 does too; an anonymous `POST` reaches the same `404`, while an authenticated post without antiforgery

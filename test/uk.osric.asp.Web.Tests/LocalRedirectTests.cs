@@ -29,9 +29,9 @@ public sealed class LocalRedirectTests {
     }
 
     [Test]
-    public void TheEditorIsTheFallback() {
-        Assert.That(LocalRedirect.Safe("https://evil"), Is.EqualTo("/edit"));
-        Assert.That(LocalRedirect.Safe(null), Is.EqualTo("/edit"));
+    public void TheSiteRootIsTheFallback() {
+        Assert.That(LocalRedirect.Safe("https://evil"), Is.EqualTo("/"));
+        Assert.That(LocalRedirect.Safe(null), Is.EqualTo("/"));
     }
 
     [Test]

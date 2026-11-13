@@ -16,9 +16,11 @@ A page is a runtime, not a renderer: it reads the request and shapes the respons
 touches is a plain record in `Sdk`. `Request` carries the method, path, query, form, headers and the
 visitor's own cookies; the shell's three cookies (`a`, `f`, `s`) are filtered out, because they are
 the shell's identity and one visitor's state rather than anything a page owns. `IContext` is the
-surface every page has — `Request`, `Path`, `User`, `Aborted`, `Log`/`LogWarning`/`LogError`,
-`Write`/`WriteRaw`, `SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `AssetUrl`,
-`Redirect`, `RedirectToLogin`, `AntiforgeryField` and `Capabilities`.
+surface every page has — `Request`, `Path`, `EditorPath`, `User`, `Aborted`,
+`Log`/`LogWarning`/`LogError`, `Write`/`WriteRaw`, `SetStatus`, `SetContentType`, `SetHeader`,
+`AllowScripts`, `AssetUrl`, `Redirect`, `RedirectToLogin`, `AntiforgeryField` and `Capabilities`.
+`EditorPath` is the editor page's key, which `Pages:Editor:Key` decides, so a page that links to the
+editor uses it rather than naming the key.
 
 The request is a value rather than a live ASP.NET object. `Query`, `Form` and `Headers` hold one
 value per name — a repeated name keeps its first value — and `QueryValues` and `FormValues` hold
