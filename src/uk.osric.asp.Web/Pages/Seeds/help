@@ -48,6 +48,9 @@ its path, and every live and deleted page has its own editor at <code>/edit/&lt;
     <code>/_layout</code>, <code>/help</code> and the stylesheets, and only while the page differs
     from its seed. It opens the same kind of confirmation as a restore and saves the bundled source
     as a new revision. A seed is installed; a saved revision is restored.</li>
+    <li><strong>Restore every seed</strong> on <a href="/admin/restore">/admin/restore</a> is the
+    emergency way back when the editor itself will not load: it saves the bundled source of every
+    page the site ships with, never touches a page you made, and skips a seed that already matches.</li>
     <li>The assistant is available from the editor only when the host enables it.</li>
 </ul>
 <p>Paths are canonical: <code>/About</code>, <code>/about/</code> and <code>/about</code> are the

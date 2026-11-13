@@ -31,6 +31,8 @@ internal static class ShellRoutes {
             "Lists the page store's contents and downloads it as a SQLite archive."),
         new("/admin/import", "GET, POST", "the owner",
             "Uploads a page archive, shows what it would change and applies it all or nothing."),
+        new("/admin/restore", "GET, POST", "the owner",
+            "Restores every page the release ships with from its bundled source, showing what would change and then what it changed."),
         new("/assistant", "GET, POST, HEAD", "the owner; only while Assistant:Enabled is true",
             "The page assistant: conversations, transcript, run stream, tool approvals, the owner's memory list and the pause a run takes when it runs out of budget."),
         new("/edit", "GET, POST", "the owner",

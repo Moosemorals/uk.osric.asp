@@ -10,8 +10,9 @@ SPDX-License-Identifier: MIT
 | Status | Planned, not started |
 | Size | Large — a new Sdk capability and its values, a read-contract extension, a scoped authority, the seeded `/pages` editor and its module, retiring `/edit`, a shell scrub route, IDEA-028 as a prerequisite, and the tests and documents for each |
 | Area | Sdk, Web (pages, editor, admin, routing, navigation), seeds, docs |
-| Backlog | [IDEA-017](../jobs/IDEA-017.md) — this closes it. [IDEA-028](../jobs/IDEA-028.md) is the prerequisite recovery path |
+| Backlog | [IDEA-017](../jobs/IDEA-017.md) — this closes it. [IDEA-028](../jobs/README.md#closed) is the prerequisite recovery path |
 | Decisions | Referred to in prose here and numbered when the work merges (DEC-09) |
+| Prerequisite | [IDEA-028](../jobs/README.md#closed) landed 2026-11-13: `/admin/restore` is the way back from a broken editor (DEC-256) |
 
 ## The short version
 
@@ -438,7 +439,7 @@ unreserved, because it is a stored page.
 
 ## The emergency restore, as this plan's prerequisite
 
-[IDEA-028](../jobs/IDEA-028.md) is its own job with its own tests. This plan depends on its
+[IDEA-028](../jobs/README.md#closed) is its own job with its own tests. This plan depends on its
 behaviour, not its code shape:
 
 - `GET /admin/restore` lists every seed with current/changed/missing/deleted and one POST button.
@@ -471,7 +472,7 @@ emergency page is live. There is no redirect fallback to write first.
 | `src/uk.osric.asp.Web/Pages/IPageRevisionStore.cs`, `SqlitePageRevisionStore.cs` | A conditional save on its own context, sharing the head check with `SqlitePageStore.TrySavePageAsync` |
 | `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` | Deleted; its scrub code moves to `Admin/ScrubEndpoint`, and its views, flash and save go |
 | `src/uk.osric.asp.Web/Admin/ScrubEndpoint.cs` | New: the moved GET confirmation and POST, `/admin/scrub/{**path}` |
-| `src/uk.osric.asp.Web/Admin/SeedRestoreEndpoint.cs` | IDEA-028: the preview and the one-button restore |
+| `src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs` | IDEA-028: the preview and the one-button restore (landed) |
 | `src/uk.osric.asp.Web/Program.cs` | Remove the `/edit` maps; add scrub and emergency restore |
 | `src/uk.osric.asp.Web/Pages/ReservedPaths.cs`, `Assistant/ShellRoutes.cs` | `/admin/restore` and `/admin/scrub` are added; `/edit` leaves both lists |
 | `src/uk.osric.asp.Web/Http/PageUrls.cs` | `/pages?edit=`, `?page=`, `?rev=`, `?from=&to=`, the confirmations, `/admin/scrub` and `/admin/restore`; the editor URL helpers go |
@@ -488,7 +489,7 @@ emergency page is live. There is no redirect fallback to write first.
 | `test/uk.osric.asp.Web.Tests/PageCatalogScopeTests.cs`, `SqlitePageReadStoreTests.cs` | State and class from the image columns; no extra read |
 | `test/uk.osric.asp.Web.Tests/EditorEndpointTests.cs` | Deleted; the view, save, history and diff tests move to the page suite |
 | `test/uk.osric.asp.Web.Tests/ScrubEndpointTests.cs` | New: the moved confirmation, typed key and refusals |
-| `test/uk.osric.asp.Web.Tests/SeedRestoreEndpointTests.cs` | IDEA-028: preview, one-button restore, no-op, non-seed, failure |
+| `test/uk.osric.asp.Web.Tests/RestoreEndpointTests.cs` | IDEA-028: preview, one-button restore, no-op, non-seed, failure (landed) |
 | `test/uk.osric.asp.Web.Tests/ShellRoutesTests.cs`, `ReservedPathsTests.cs`, `SiteNavigationTests.cs` | The new routes, `/edit` and `/pages` both unreserved, and the owner links |
 | `test/uk.osric.asp.Web.Tests/PageAssetSeederTests.cs` | The closed seed list still matches; `/pages` names `IPageEditor` and `/help` names `/pages` |
 | `test/uk.osric.asp.Web.IntegrationTests/PageEditorTests.cs` | New: the full `/pages` round trip and the stale `409` |
