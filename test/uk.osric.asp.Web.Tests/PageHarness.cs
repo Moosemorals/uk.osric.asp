@@ -63,7 +63,7 @@ internal sealed class PageHarness : IDisposable {
             Budget,
             Health,
             rendererLogger ?? NullLogger<PageRenderer>.Instance);
-        Editor = new PageEditor(storage, Images, Saver);
+        Editor = new PageEditor(storage, Saver);
     }
 
     public RenderOptions Options { get; }

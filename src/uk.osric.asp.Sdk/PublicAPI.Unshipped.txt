@@ -155,3 +155,63 @@ uk.osric.asp.Sdk.PageRequest.FormValues.get -> System.Collections.Generic.IReadO
 uk.osric.asp.Sdk.PageRequest.FormValues.init -> void
 uk.osric.asp.Sdk.PageEntry.State.get -> string!
 uk.osric.asp.Sdk.PageEntry.State.init -> void
+override uk.osric.asp.Sdk.PageDeleteResult.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageDeleteResult.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageDeleteResult.ToString() -> string!
+override uk.osric.asp.Sdk.PageEditResult.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageEditResult.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageEditResult.ToString() -> string!
+override uk.osric.asp.Sdk.PageKeyResolution.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageKeyResolution.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageKeyResolution.ToString() -> string!
+static uk.osric.asp.Sdk.PageDeleteResult.operator !=(uk.osric.asp.Sdk.PageDeleteResult? left, uk.osric.asp.Sdk.PageDeleteResult? right) -> bool
+static uk.osric.asp.Sdk.PageDeleteResult.operator ==(uk.osric.asp.Sdk.PageDeleteResult? left, uk.osric.asp.Sdk.PageDeleteResult? right) -> bool
+static uk.osric.asp.Sdk.PageEditResult.operator !=(uk.osric.asp.Sdk.PageEditResult? left, uk.osric.asp.Sdk.PageEditResult? right) -> bool
+static uk.osric.asp.Sdk.PageEditResult.operator ==(uk.osric.asp.Sdk.PageEditResult? left, uk.osric.asp.Sdk.PageEditResult? right) -> bool
+static uk.osric.asp.Sdk.PageKeyResolution.operator !=(uk.osric.asp.Sdk.PageKeyResolution? left, uk.osric.asp.Sdk.PageKeyResolution? right) -> bool
+static uk.osric.asp.Sdk.PageKeyResolution.operator ==(uk.osric.asp.Sdk.PageKeyResolution? left, uk.osric.asp.Sdk.PageKeyResolution? right) -> bool
+uk.osric.asp.Sdk.IPageEditor
+uk.osric.asp.Sdk.IPageEditor.DeleteAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageDeleteResult!>!
+uk.osric.asp.Sdk.IPageEditor.InstallSeedAsync(string! key, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
+uk.osric.asp.Sdk.IPageEditor.Resolve(string! key) -> uk.osric.asp.Sdk.PageKeyResolution!
+uk.osric.asp.Sdk.IPageEditor.RestoreRevisionAsync(string! key, string! hash, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
+uk.osric.asp.Sdk.IPageEditor.SaveAsync(string! key, string! template, string! expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult!>!
+uk.osric.asp.Sdk.IPageEditor.SeedPaths() -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Sdk.PageDeleteResult
+uk.osric.asp.Sdk.PageDeleteResult.<Clone>$() -> uk.osric.asp.Sdk.PageDeleteResult!
+uk.osric.asp.Sdk.PageDeleteResult.Deconstruct(out bool Deleted, out bool WasLive) -> void
+uk.osric.asp.Sdk.PageDeleteResult.Deleted.get -> bool
+uk.osric.asp.Sdk.PageDeleteResult.Deleted.init -> void
+uk.osric.asp.Sdk.PageDeleteResult.Equals(uk.osric.asp.Sdk.PageDeleteResult? other) -> bool
+uk.osric.asp.Sdk.PageDeleteResult.PageDeleteResult(bool Deleted, bool WasLive) -> void
+uk.osric.asp.Sdk.PageDeleteResult.WasLive.get -> bool
+uk.osric.asp.Sdk.PageDeleteResult.WasLive.init -> void
+uk.osric.asp.Sdk.PageEditOutcome
+uk.osric.asp.Sdk.PageEditOutcome.Saved = 0 -> uk.osric.asp.Sdk.PageEditOutcome
+uk.osric.asp.Sdk.PageEditOutcome.Stale = 1 -> uk.osric.asp.Sdk.PageEditOutcome
+uk.osric.asp.Sdk.PageEditOutcome.Unchanged = 2 -> uk.osric.asp.Sdk.PageEditOutcome
+uk.osric.asp.Sdk.PageEditResult
+uk.osric.asp.Sdk.PageEditResult.<Clone>$() -> uk.osric.asp.Sdk.PageEditResult!
+uk.osric.asp.Sdk.PageEditResult.Deconstruct(out uk.osric.asp.Sdk.PageEditOutcome Outcome, out string? Hash, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
+uk.osric.asp.Sdk.PageEditResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>!
+uk.osric.asp.Sdk.PageEditResult.Diagnostics.init -> void
+uk.osric.asp.Sdk.PageEditResult.Equals(uk.osric.asp.Sdk.PageEditResult? other) -> bool
+uk.osric.asp.Sdk.PageEditResult.HasErrors.get -> bool
+uk.osric.asp.Sdk.PageEditResult.Hash.get -> string?
+uk.osric.asp.Sdk.PageEditResult.Hash.init -> void
+uk.osric.asp.Sdk.PageEditResult.HasWarnings.get -> bool
+uk.osric.asp.Sdk.PageEditResult.Outcome.get -> uk.osric.asp.Sdk.PageEditOutcome
+uk.osric.asp.Sdk.PageEditResult.Outcome.init -> void
+uk.osric.asp.Sdk.PageEditResult.PageEditResult(uk.osric.asp.Sdk.PageEditOutcome Outcome, string? Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
+uk.osric.asp.Sdk.PageKeyResolution
+uk.osric.asp.Sdk.PageKeyResolution.<Clone>$() -> uk.osric.asp.Sdk.PageKeyResolution!
+uk.osric.asp.Sdk.PageKeyResolution.Deconstruct(out string? Key, out bool IsReserved, out string? Error) -> void
+uk.osric.asp.Sdk.PageKeyResolution.Equals(uk.osric.asp.Sdk.PageKeyResolution? other) -> bool
+uk.osric.asp.Sdk.PageKeyResolution.Error.get -> string?
+uk.osric.asp.Sdk.PageKeyResolution.Error.init -> void
+uk.osric.asp.Sdk.PageKeyResolution.IsReserved.get -> bool
+uk.osric.asp.Sdk.PageKeyResolution.IsReserved.init -> void
+uk.osric.asp.Sdk.PageKeyResolution.IsSuccess.get -> bool
+uk.osric.asp.Sdk.PageKeyResolution.Key.get -> string?
+uk.osric.asp.Sdk.PageKeyResolution.Key.init -> void
+uk.osric.asp.Sdk.PageKeyResolution.PageKeyResolution(string? Key, bool IsReserved, string? Error) -> void

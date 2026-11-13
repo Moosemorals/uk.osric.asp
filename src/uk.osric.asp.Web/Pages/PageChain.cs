@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 
 /// <summary>One request's page and the layouts it is wrapped in.</summary>
@@ -26,6 +27,7 @@ internal sealed class PageChain {
     private readonly Func<string> _antiforgeryField;
     private readonly BodyBudget _bodyBudget;
     private readonly PageEnvironment _environment;
+    private readonly PageEditor? _editor;
     private readonly RenderFetchBudget _fetchBudget;
     private readonly bool _isHead;
     private readonly IReadOnlyDictionary<string, string> _assets;
@@ -56,6 +58,7 @@ internal sealed class PageChain {
     /// <param name="aborted">The request's cancellation token, shared by every layer.</param>
     public PageChain(
         PageEnvironment environment,
+        PageEditor? editor,
         ILoggerFactory loggerFactory,
         PageRequest request,
         PageUser? user,
@@ -79,6 +82,7 @@ internal sealed class PageChain {
         ArgumentNullException.ThrowIfNull(antiforgeryField);
 
         _environment = environment;
+        _editor = editor;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(SimpleContext.PageCategory);
         _request = request;
@@ -144,6 +148,12 @@ internal sealed class PageChain {
         // would append a revision on every render it wraps (DEC-194).
         if (!isLayout) {
             capabilities.Add<IPageWriter>(new PageWriterScope(key, _environment.Saver, _user, writable: !_isHead));
+
+            // The editor's authority is the registration, not the handle: no other key is offered it,
+            // and a layout never is.
+            if (_editor is { } editor && string.Equals(key.Key, PageEditorScope.EditorKey, StringComparison.Ordinal)) {
+                capabilities.Add<IPageEditor>(new PageEditorScope(key, editor, _user, writable: !_isHead, _environment.Reserved));
+            }
         }
 
         return new SimpleContext(

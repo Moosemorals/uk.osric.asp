@@ -13,6 +13,12 @@ using uk.osric.asp.Web.Pages;
 /// <param name="Diagnostics">The compiler's author-facing answer; empty when the page compiled cleanly.</param>
 internal sealed record SavedRevision(PageTemplate Revision, IReadOnlyList<PageDiagnostic> Diagnostics);
 
+/// <summary>The outcome of a save that applies only while the head still has the expected revision.</summary>
+internal sealed record ConditionalPageSaveResult(
+    bool Saved,
+    string? RevisionHash,
+    IReadOnlyList<PageDiagnostic> Diagnostics);
+
 /// <summary>Compiles a template and stores it as a revision.</summary>
 /// <remarks>
 /// <para>
@@ -76,6 +82,44 @@ internal sealed class PageSaver(
         RecordSaved(path, image, start);
 
         return new SavedRevision(stored, image.Diagnostics);
+    }
+
+    /// <summary>Compiles and stores a page only while its current revision hash still matches.</summary>
+    /// <param name="path">The canonical key to save.</param>
+    /// <param name="template">The template text.</param>
+    /// <param name="expectedRevisionHash">The hash the caller saw as the head.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <param name="renderDeadline">The render's deadline, when the save was made from inside a render.</param>
+    /// <returns>The stored revision and diagnostics, or <see cref="ConditionalPageSaveResult.Saved"/> false when the head moved.</returns>
+    public async Task<ConditionalPageSaveResult> SaveIfRevisionAsync(
+        PagePath path,
+        string template,
+        string expectedRevisionHash,
+        CancellationToken cancellationToken,
+        CancellationToken renderDeadline = default) {
+        long start = Stopwatch.GetTimestamp();
+
+        PageImage image;
+        try {
+            image = images.Build(path, template, PageMetrics.ReasonSave, cancellationToken, renderDeadline);
+        } catch (InvalidOperationException) {
+            // A compiler fault still stores the source: losing the author's edit to report our bug
+            // is the worse failure (DEC-20, DEC-23, DEC-178).
+            _ = await store.TrySaveAsync(
+                PageTemplate.NewRevision(path, template, null, images.RuntimeId), expectedRevisionHash, cancellationToken);
+            RecordSaveFailed(path, start);
+            throw;
+        }
+
+        PageTemplate revision = PageTemplate.NewRevision(path, template, image, images.RuntimeId);
+        bool saved = await store.TrySaveAsync(revision, expectedRevisionHash, cancellationToken);
+        if (!saved) {
+            return new ConditionalPageSaveResult(false, null, []);
+        }
+
+        RecordSaved(path, image, start);
+
+        return new ConditionalPageSaveResult(true, revision.Hash, image.Diagnostics);
     }
 
     /// <summary>Records a save that kept its source but produced no image.</summary>

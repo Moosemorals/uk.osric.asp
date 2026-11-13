@@ -25,4 +25,14 @@ internal sealed class SqlitePageRevisionStore(
 
         return await SqlitePageStore.StoreRevisionAsync(database, revision, logger, cancellationToken);
     }
+
+    /// <inheritdoc/>
+    public async Task<bool> TrySaveAsync(PageTemplate revision, string expectedHash, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(revision);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+
+        await using StorageDbContext database = factory.CreateDbContext();
+
+        return await SqlitePageStore.TryStoreRevisionAsync(database, revision, expectedHash, logger, cancellationToken);
+    }
 }

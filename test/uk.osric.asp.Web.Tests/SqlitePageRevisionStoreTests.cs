@@ -54,6 +54,20 @@ public sealed class SqlitePageRevisionStoreTests {
     }
 
     [Test]
+    public async Task AConditionalSaveWritesOnlyWhileTheHeadMatchesAsync() {
+        PageTemplate first = await Store().SaveAsync(new PageTemplate(Key("/blog"), "first"));
+
+        Assert.That(await Store().TrySaveAsync(new PageTemplate(Key("/blog"), "stale"), "not-the-head"), Is.False);
+        Assert.That(await HeadRevisionAsync("/blog"), Is.EqualTo(first.RevisionId));
+        Assert.That(await RevisionCountAsync("/blog"), Is.EqualTo(1), "a stale save writes nothing");
+
+        PageTemplate second = new(Key("/blog"), "second");
+        Assert.That(await Store().TrySaveAsync(second, first.Hash), Is.True);
+        Assert.That(await HeadRevisionAsync("/blog"), Is.EqualTo(second.RevisionId));
+        Assert.That(await RevisionCountAsync("/blog"), Is.EqualTo(2));
+    }
+
+    [Test]
     public async Task TheResultIsTheRevisionTheStoreKeptAsync() {
         PageTemplate template = new(Key("/blog"), "Hello.");
 

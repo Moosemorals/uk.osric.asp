@@ -13,6 +13,7 @@ using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
+using static uk.osric.asp.Web.Pages.PageSeedInstaller;
 
 /// <summary>The emergency restore: every seed back to its bundled source in one POST.</summary>
 /// <remarks>
@@ -31,28 +32,6 @@ using uk.osric.asp.Web.Pages;
 /// </para>
 /// </remarks>
 internal static class RestoreEndpoint {
-
-    /// <summary>What the live head holds relative to the bundled source.</summary>
-    internal enum SeedState {
-        Current,
-        Changed,
-        Missing,
-        Deleted,
-    }
-
-    /// <summary>What one seed's restore did.</summary>
-    internal enum SeedOutcome {
-        Unchanged,
-        Restored,
-        SavedWithErrors,
-        Failed,
-    }
-
-    /// <summary>One seed, its bundled source and what the store holds now.</summary>
-    internal sealed record SeedPlan(PagePath Path, string Source, SeedState State);
-
-    /// <summary>One seed and the outcome of trying to restore it.</summary>
-    internal sealed record SeedResult(PagePath Path, SeedState Was, SeedOutcome Outcome);
 
     /// <summary>Shows every seed and what restoring it would change.</summary>
     /// <param name="context">The request being answered.</param>
@@ -123,14 +102,13 @@ internal static class RestoreEndpoint {
             }
 
             try {
-                SavedRevision saved = await pages.SaveAsync(seed.Path, seed.Source, context.RequestAborted);
-                SeedOutcome outcome = HasErrors(saved.Diagnostics) ? SeedOutcome.SavedWithErrors : SeedOutcome.Restored;
-                results.Add(new SeedResult(seed.Path, seed.State, outcome));
+                SeedResult result = await InstallAsync(pages, seed, context.RequestAborted);
+                results.Add(result);
 
-                if (outcome == SeedOutcome.SavedWithErrors) {
-                    logger.LogWarning("Restored the seed of {Path} as revision {Hash} with compiler errors", seed.Path.Key, saved.Revision.Hash);
+                if (result.Outcome == SeedOutcome.SavedWithErrors) {
+                    logger.LogWarning("Restored the seed of {Path} as revision {Hash} with compiler errors", seed.Path.Key, result.Hash);
                 } else {
-                    logger.LogInformation("Restored the seed of {Path} as revision {Hash}", seed.Path.Key, saved.Revision.Hash);
+                    logger.LogInformation("Restored the seed of {Path} as revision {Hash}", seed.Path.Key, result.Hash);
                 }
             } catch (Exception exception) when (exception is not OperationCanceledException) {
                 logger.LogError(exception, "Restoring the seed of {Path} failed", seed.Path.Key);
@@ -139,39 +117,6 @@ internal static class RestoreEndpoint {
         }
 
         await WriteResultAsync(context, results);
-    }
-
-    /// <summary>Reads every seed and compares it with the live head.</summary>
-    internal static async Task<IReadOnlyList<SeedPlan>> PlanAsync(PageEditor pages, CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(pages);
-
-        List<SeedPlan> plan = [];
-
-        foreach (PagePath path in PageAssetSeeder.SeedPaths()) {
-            string? source = await PageAssetSeeder.ReadSeedTemplateAsync(path, cancellationToken);
-            if (source is null) {
-                continue;
-            }
-
-            PageHeadSummary? head = await pages.GetHeadAsync(path, cancellationToken);
-            if (head is null) {
-                plan.Add(new SeedPlan(path, source, SeedState.Missing));
-                continue;
-            }
-
-            if (head.IsDeleted) {
-                plan.Add(new SeedPlan(path, source, SeedState.Deleted));
-                continue;
-            }
-
-            PageTemplate? live = await pages.GetAsync(path, cancellationToken);
-            SeedState state = live is not null && string.Equals(live.Template, source, StringComparison.Ordinal)
-                ? SeedState.Current
-                : SeedState.Changed;
-            plan.Add(new SeedPlan(path, source, state));
-        }
-
-        return plan;
     }
 
     private static async Task WriteStateTableAsync(HttpContext context, IReadOnlyList<SeedPlan> plan) {

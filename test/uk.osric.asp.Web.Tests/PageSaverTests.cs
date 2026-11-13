@@ -34,6 +34,32 @@ public sealed class PageSaverTests {
     }
 
     [Test]
+    public async Task AConditionalSaveStoresOnlyWhileTheHeadMatchesAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Saver.SaveAsync(PageHarness.Key("/blog"), "first", CancellationToken.None);
+
+        ConditionalPageSaveResult stale = await pages.Saver.SaveIfRevisionAsync(
+            PageHarness.Key("/blog"), "second", "not-the-head", CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(stale.Saved, Is.False);
+            Assert.That(pages.Revisions.SaveCount, Is.EqualTo(1), "a stale save writes nothing");
+            Assert.That(PageHarness.Stored(storage, "/blog").Template, Is.EqualTo("first"));
+        });
+
+        ConditionalPageSaveResult saved = await pages.Saver.SaveIfRevisionAsync(
+            PageHarness.Key("/blog"), "second", first.Revision.Hash, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(saved.Saved, Is.True);
+            Assert.That(saved.RevisionHash, Is.Not.Null.And.Not.Empty);
+            Assert.That(PageHarness.Stored(storage, "/blog").Template, Is.EqualTo("second"));
+            Assert.That(pages.Revisions.SaveCount, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
     public async Task AWarningIsStoredWithItsImageAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);

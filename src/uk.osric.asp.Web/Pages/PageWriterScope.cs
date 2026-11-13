@@ -6,8 +6,6 @@ namespace uk.osric.asp.Web.Pages;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Editor;
-using CoreDiagnostic = uk.osric.asp.Core.Compilation.PageDiagnostic;
-using CoreSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSeverity;
 
 /// <summary>One content layer's <see cref="IPageWriter"/>, bound to that layer's key.</summary>
 /// <remarks>
@@ -53,9 +51,7 @@ internal sealed class PageWriterScope(
 
         Volatile.Write(ref _saved, 1);
 
-        return new PageSaveResult(
-            saved.Revision.Hash,
-            [.. CoreDiagnostic.SortedForDisplay(saved.Diagnostics).Select(Diagnostic)]);
+        return new PageSaveResult(saved.Revision.Hash, PageDiagnostics.ToSdk(saved.Diagnostics));
     }
 
     // The visitor's state, not a page bug: a session that expired between the form and the post is
@@ -91,25 +87,5 @@ internal sealed class PageWriterScope(
         if (Volatile.Read(ref _saved) != 0) {
             throw new InvalidOperationException($"{path.Key} has already saved itself in this render.");
         }
-    }
-
-    // Every author-facing message is "{code}: {text}" in the one form every producer writes — Roslyn's
-    // "CS1002: ; expected" and the host's own "PAGE001: ..." alike — so the code is the prefix of the
-    // message rather than a field of its own (DEC-193).
-    private static PageDiagnostic Diagnostic(CoreDiagnostic diagnostic) {
-        string code = string.Empty;
-        string message = diagnostic.Message;
-        int separator = message.IndexOf(": ", StringComparison.Ordinal);
-        if (separator > 0) {
-            code = message[..separator];
-            message = message[(separator + 2)..];
-        }
-
-        return new PageDiagnostic(
-            diagnostic.Severity == CoreSeverity.Error ? PageDiagnosticSeverity.Error : PageDiagnosticSeverity.Warning,
-            diagnostic.Position?.Line,
-            diagnostic.Position?.Column,
-            code,
-            message);
     }
 }

@@ -10,6 +10,7 @@ using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Authentication;
+using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
@@ -29,7 +30,8 @@ internal sealed class PageEndpoint() {
         HttpContext context,
         PageRenderer pages,
         ILoggerFactory loggerFactory,
-        PageEnvironment environment) {
+        PageEnvironment environment,
+        PageEditor? editor = null) {
         ArgumentNullException.ThrowIfNull(context);
 
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
@@ -179,6 +181,7 @@ internal sealed class PageEndpoint() {
         // page's own budgets.
         PageChain chain = new(
             environment,
+            editor,
             loggerFactory,
             snapshot,
             user,

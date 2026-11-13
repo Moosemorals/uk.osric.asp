@@ -605,6 +605,38 @@ public sealed class PageLayoutChainTests {
         Assert.That(refused?.Message, Does.Contain("MaxSourceCharsPerRender"));
     }
 
+    [Test]
+    public async Task TheEditorCapabilityIsOfferedOnlyToTheEditorPageAsync() {
+        const string Probe = """<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Probe"; %><% ctx.Write(ctx.Capabilities.Get<IPageEditor>() is null ? "absent" : "present"); %>""";
+        Store("/pages", Probe);
+        Store("/other", Probe);
+
+        Rendered editor = await RenderAsync("/pages", withEditor: true);
+        Rendered other = await RenderAsync("/other", withEditor: true);
+        Rendered without = await RenderAsync("/pages");
+
+        Assert.Multiple(() => {
+            Assert.That(editor.Body, Does.Contain("present"));
+            Assert.That(other.Body, Does.Contain("absent"), "another stored page is never offered it");
+            Assert.That(without.Body, Does.Contain("absent"), "a host with no editor supplies none");
+        });
+    }
+
+    [Test]
+    public async Task ALayoutIsNeverOfferedTheEditorCapabilityAsync() {
+        Store("/pages", """<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Editor"; %>page""");
+        Store(DefaultLayout, """
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               ctx.Write(ctx.Capabilities.Get<IPageEditor>() is null ? "absent" : "present"); %>
+            <%== PageDocument.Head(layout.Title, layout.Stylesheets) %>
+            <%== PageDocument.OpenMain() %><%== layout.Body %><%== PageDocument.CloseMain() %><%== PageDocument.End() %>
+            """);
+
+        Rendered rendered = await RenderAsync("/pages", withEditor: true);
+
+        Assert.That(rendered.Body, Does.Contain("absent"));
+    }
+
     private void Store(string path, string template) {
         _storage[path] = new PageTemplate(PagePath.Normalize(path), template);
         _state.LivePages.Add(PagePath.Normalize(path).Key);
@@ -625,9 +657,11 @@ public sealed class PageLayoutChainTests {
         RenderOptions? render = null,
         bool signedIn = false,
         string query = "",
-        PageReadOptions? read = null) {
+        PageReadOptions? read = null,
+        bool withEditor = false) {
 
         RenderOptions options = render ?? new RenderOptions();
+        PageSaver saver = CreateSaver(options);
         DefaultHttpContext context = TestHttp.CreateContext(path.TrimStart('/'), "GET", path);
         context.Request.QueryString = new QueryString(query);
         if (signedIn) {
@@ -645,7 +679,7 @@ public sealed class PageLayoutChainTests {
             read ?? new PageReadOptions(),
             _state,
             _readStore,
-            CreateSaver(options),
+            saver,
             _fetcher,
             _metrics,
             _antiforgery,
@@ -655,7 +689,8 @@ public sealed class PageLayoutChainTests {
             new FakePageSessionStore(),
             TestSessions.Cookie);
 
-        await PageEndpoint.HandleAsync(context, CreateRenderer(options), NullLoggerFactory.Instance, environment);
+        PageEditor? editor = withEditor ? new PageEditor(_storage, saver) : null;
+        await PageEndpoint.HandleAsync(context, CreateRenderer(options), NullLoggerFactory.Instance, environment, editor);
 
         return new Rendered(context, await TestHttp.ReadBodyAsync(context));
     }

@@ -22,4 +22,11 @@ internal interface IPageRevisionStore {
     /// in which case it is the retry — so a caller that reports a hash reports the stored one.
     /// </returns>
     Task<PageTemplate> SaveAsync(PageTemplate revision, CancellationToken cancellationToken = default);
+
+    /// <summary>Inserts the revision and moves the head to it, only while the head still matches.</summary>
+    /// <param name="revision">The revision, already built with its id, hash and image.</param>
+    /// <param name="expectedHash">The hash the caller saw as the head.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <returns><see langword="false"/> when the head is missing, tombstoned or another hash, so nothing was written.</returns>
+    Task<bool> TrySaveAsync(PageTemplate revision, string expectedHash, CancellationToken cancellationToken = default);
 }

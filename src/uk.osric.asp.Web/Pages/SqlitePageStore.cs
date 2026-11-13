@@ -234,10 +234,29 @@ internal sealed class SqlitePageStore(
         };
     }
 
-    public async Task<bool> TrySavePageAsync(PageTemplate template, string expectedHash, CancellationToken cancellationToken = default) {
+    public Task<bool> TrySavePageAsync(PageTemplate template, string expectedHash, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
 
+        return TryStoreRevisionAsync(database, template, expectedHash, logger, cancellationToken);
+    }
+
+    /// <summary>Stores a revision only while the page's head still has the hash the caller saw.</summary>
+    /// <param name="database">The context to write through.</param>
+    /// <param name="template">The revision to store.</param>
+    /// <param name="expectedHash">The hash the caller saw as the head.</param>
+    /// <param name="logger">Notes a retried revision id.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <remarks>
+    /// The editor's conditional save, a page's own conditional save and the assistant all come
+    /// through here, whether the context belongs to a request or to a singleton's save.
+    /// </remarks>
+    internal static async Task<bool> TryStoreRevisionAsync(
+        StorageDbContext database,
+        PageTemplate template,
+        string expectedHash,
+        ILogger logger,
+        CancellationToken cancellationToken) {
         PageTemplate revision = template;
         for (int attempt = 0; ; attempt++) {
             PageRevision row = ToRevision(revision);

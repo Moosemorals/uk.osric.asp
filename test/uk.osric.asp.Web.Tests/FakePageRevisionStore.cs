@@ -50,4 +50,28 @@ internal sealed class FakePageRevisionStore(FakePageStore pages) : IPageRevision
 
         return revision;
     }
+
+    /// <inheritdoc/>
+    public async Task<bool> TrySaveAsync(PageTemplate revision, string expectedHash, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(revision);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+
+        if (Failure is { } failure) {
+            throw failure;
+        }
+
+        if (OnSave is { } onSave) {
+            OnSave = null;
+            onSave(revision);
+        }
+
+        bool saved = await pages.TrySavePageAsync(revision, expectedHash, cancellationToken);
+        if (saved) {
+            SaveCount++;
+            LastCancellationToken = cancellationToken;
+            Saved.Add(revision);
+        }
+
+        return saved;
+    }
 }

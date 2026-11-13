@@ -1563,7 +1563,7 @@ public sealed class EditorEndpointTests {
         PageSaver saver = new(
             new FakePageRevisionStore(storage), compilations, _metrics, NullLogger<PageSaver>.Instance);
 
-        return new PageEditor(storage, compilations, saver);
+        return new PageEditor(storage, saver);
     }
 
     private static DefaultHttpContext CreateContext(string method = "GET", string? path = "page.cs") {

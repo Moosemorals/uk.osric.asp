@@ -463,8 +463,8 @@ behaviour, and on one piece of its code:
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Sdk/IPageEditor.cs` | New: the named-key capability, its `Resolve`, `SeedPathsAsync`, `SaveAsync`, `DeleteAsync`, `RestoreRevisionAsync` and `InstallSeedAsync` |
-| `src/uk.osric.asp.Sdk/PageEditResult.cs` | New: `Saved`, `Stale`, `Hash`, `Diagnostics`; `PageKeyResolution` and `PageDeleteResult` beside it if they do not earn their own files |
+| `src/uk.osric.asp.Sdk/IPageEditor.cs` | New: the named-key capability, its `Resolve`, `SeedPaths`, `SaveAsync`, `DeleteAsync`, `RestoreRevisionAsync` and `InstallSeedAsync` |
+| `src/uk.osric.asp.Sdk/PageEditResult.cs` | New: `PageEditOutcome` (`Saved`, `Stale`, `Unchanged`) and `PageEditResult` (`Outcome`, `Hash`, `Diagnostics`); `PageKeyResolution` and `PageDeleteResult` in their own files |
 | `src/uk.osric.asp.Sdk/PageEntry.cs` | `State`, set by the host; the positional constructor stays |
 | `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | The new types and members |
 | `src/uk.osric.asp.Web/Pages/PageEditorScope.cs` | New: the authority, path rules, one action per render and `RenderBoundCapability` plumbing |
@@ -473,6 +473,7 @@ behaviour, and on one piece of its code:
 | `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs` | Maps the read head's image columns to `PageEntry.State`; takes the runtime id |
 | `src/uk.osric.asp.Web/Pages/IPageReadStore.cs`, `SqlitePageReadStore.cs` | `PageReadHead` carries `RuntimeId`, `HasImage`, `HasDiagnostics`; the listing query selects them |
 | `src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs` | New: the comparison and outcome rule extracted from `RestoreEndpoint.PlanAsync`, shared by the capability and the restore |
+| `src/uk.osric.asp.Web/Pages/PageDiagnostics.cs` | New: the core-to-Sdk diagnostic mapper, shared by `PageWriterScope` and the editor scope |
 | `src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs` | Remains the file reader; the helper owns comparison and outcome, not the seeder |
 | `src/uk.osric.asp.Web/Editor/PageEditor.cs` | Its conditional save delegates to the singleton `PageSaver`; the capability no longer needs a scoped store for a save |
 | `src/uk.osric.asp.Web/Editor/PageSaver.cs` | New `SaveIfRevisionAsync`: compile, conditional store, diagnostics and metrics, with the render's deadline bounding only the compile-slot wait |
@@ -527,10 +528,19 @@ carries the compile state and class the shell listing shows. Keep the read publi
 source map to the same words the shell `PageEditor.ListAsync` would produce; the listing makes no
 source read; no new store query is added.
 
-### Phase 2 — the capability
+### Phase 2 — the capability (landed 2026-11-13)
 
 Add `IPageEditor` and its values to the Sdk, `PageEditorScope` to Web, the `PageSaver` conditional
 save, the seed helper plumbing, and the `/pages`-only registration. Keep `IPageWriter` untouched.
+
+Landed: `IPageEditor`, `PageKeyResolution`, `PageEditResult`/`PageEditOutcome` and
+`PageDeleteResult` in the Sdk with their `PublicAPI.Unshipped.txt` lines; `IPageRevisionStore.TrySaveAsync`
+over one `SqlitePageStore.TryStoreRevisionAsync`; `PageSaver.SaveIfRevisionAsync` owning the
+conditional algorithm, with `PageEditor` and `PageWriterScope` delegating to it and `PageEditor` no
+longer taking the image builder; `PageSeedInstaller` owning the comparison and outcome rule for both
+`/admin/restore` and the capability; `PageDiagnostics` as the one core-to-Sdk mapper; `PageChain`
+registering the scope for `/pages` only. `PageWriterScopeTests`, `PageSaverTests` and
+`SqlitePageRevisionStoreTests` keep the single-algorithm proof.
 
 **Done when** `PageEditorScopeTests` covers the refusal table, a conditional save that stores and one
 that returns `Stale` without storing, a tombstone delete, a revision restore, a seed install and a
