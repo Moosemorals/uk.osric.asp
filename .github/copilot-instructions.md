@@ -38,6 +38,11 @@ work merges, not when it is planned: refer to it in prose until then, take the n
 from `docs/decisions.md` on trunk when the work lands, and update every citation in the branch in
 that merge. See [decisions](../docs/decisions.md).
 
+Every step of the programme is proposed and waits for the owner: the plan, before anything is built,
+and the merge, for every step, once its gate is run (DEC-281). Working on a branch in its own
+worktree, a green `make check`, a finished plan and an obvious next step are not permission to
+merge, to push, or to start the next step — ask, and stop.
+
 ## Core and shell
 
 See `docs/architecture.md`. Rules, calculations, parsing and formatting are short, reusable **pure**

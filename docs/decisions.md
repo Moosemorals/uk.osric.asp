@@ -38,6 +38,7 @@ an entry stops being true, move it to [Superseded](#superseded) with the date an
 | DEC-08 | Speculative product work — AI authoring, page-declared types, `IContext` fetch and state, a richer editor — is backlog (IDEA-001 … IDEA-008), not a licence to expand the current task. | [jobs](jobs/README.md) |
 | DEC-09 | A plan is written before a large change and kept as the record of the reasoning, including the options that were rejected. Plans are not rewritten into marketing copy afterwards. | [plans](plans/) |
 | DEC-173 | The author manual is the seeded page `/help`, linked from the editor and the page list. It is a page, not a shell view, so the owner can edit and restore it like any other; a change to what a page author can do updates it in the same change, and the plan says so. | [help seed](../src/uk.osric.asp.Web/Pages/Seeds/help), [jobs](jobs/README.md#help-for-authors) |
+| DEC-281 | A step of the programme is proposed twice, and the owner answers both: the plan, for a step that wants one, before anything is built, and the merge, for every step, once its gate is run. The branch waits on the answer. A green gate, a finished plan, the next step being ready and silence are evidence or expectation, never permission: an agent does not merge its own work and does not start the step after it. | [the programme](jobs/README.md#a-step-stops-and-the-owner-answers), [how to work](../CONTRIBUTING.md#working-on-it) |
 
 ## Architecture and code placement
 

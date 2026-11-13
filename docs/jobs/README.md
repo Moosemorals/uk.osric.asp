@@ -86,10 +86,25 @@ follow-up.
 
 The order is rough on purpose — the first few are the point, and the rest move as they are worked —
 but each step is one unit of work, on one branch in one worktree
-([how](../../CONTRIBUTING.md#working-on-it)). Each step stops at a gate: it says what changed, what
-proved it and what it is unsure of, and nothing merges until the answer is yes. Small and
-self-contained comes first, because these are the ones that never get scheduled otherwise. A step
-is `done` when its merge is in, and `in flight` while its branch is open.
+([how](../../CONTRIBUTING.md#working-on-it)). Small and self-contained comes first, because these are
+the ones that never get scheduled otherwise. A step is `in flight` while its branch is open and `done`
+when its merge is in.
+
+### A step stops, and the owner answers
+
+Every step is proposed to the owner and waits. Nothing merges on its own evidence. There are two
+stops, and a step makes the first only when it wants a plan:
+
+1. **The plan.** A step that is large enough to want a plan writes it on the branch, commits it and
+   stops. The answer is yes, or what to change; nothing is built until it is yes.
+2. **The merge.** Every step stops here, with or without a plan. The branch is finished, its gate is
+   run, and the step says what changed, what proved it and what it is unsure of. It stays on its
+   branch until the owner says yes.
+
+The `Gate` column names what the step has to prove, not who merges: **`merge` is the owner's yes.** A
+green `make check` is the step's evidence and never its permission. Finishing a step is not a reason
+to start the next one, merge the branch, or read silence, a promise or an unanswered question as
+approval.
 
 | # | Step | Size | Needs | Gate | Status |
 | --- | --- | --- | --- | --- | --- |
