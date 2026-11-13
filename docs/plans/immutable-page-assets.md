@@ -57,6 +57,21 @@ mean exactly what they meant before.
 - `PageEndpoint` already redirects a non-canonical case with the query string carried across, and
   reserved paths never reach the page route.
 
+## Not in this plan: the assistant's view of history
+
+The assistant can write and tombstone pages and its `diff_page` reads two retained revisions, but it
+cannot list a page's revisions or read one, so a model that overwrote or deleted the wrong page
+cannot say what was there. Closing that is [ARCH-07](../jobs/ARCH-07.md)'s, with the rest of the
+retained history reads, and is deliberately not part of this change: two store reads behind the
+owner's sign-in share nothing with a public URL, a cache header or the verdict.
+
+The two must not be implemented through each other, in either direction. A revision the assistant
+reads may have code, may be wrapped, and may belong to a tombstoned path, so `read_revision` uses the
+hash lookup `diff_page` already uses and never fetches a `?v=` URL, which exists only for a live,
+flagged, unwrapped asset. In return, the retained-revision read this plan adds in Step 4 carries the
+verdict for the endpoint's response and is not shaped around a tool: a tool that wants the history
+has to keep working when the verdict is `NULL`, is `false`, or names a revision that is not an asset.
+
 ## Decisions
 
 ### 1. `v` addresses a retained revision, and never falls back
