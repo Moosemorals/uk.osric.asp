@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Implemented in this branch; the decisions are numbered when it lands |
+| Status | Landed; the decisions are numbered as DEC-269–DEC-273 |
 | Size | Medium — four assistant tools, one Core range editor, one template check, the array argument schema, and the tests and documents for each |
 | Area | Core (Assistant, Compilation), Web (Assistant tools, page compilation), docs |
 | Backlog | None. The page editor landed first (DEC-259–DEC-268); this is the assistant's half of the same work |
-| Decisions | D1–D5 below, referred to in prose until the merge takes `DEC-` numbers |
+| Decisions | D1–D5 below, recorded as DEC-269–DEC-273 |
 
 ## The short version
 
@@ -127,10 +127,10 @@ warnings, so the page is still served.
 
 ## Documents
 
-- [assistant](../assistant.md): the edit answer, the two forms, assertions and
+- [assistant](../../assistant.md): the edit answer, the two forms, assertions and
   numbered reads.
-- [architecture](../architecture.md): `TEMPLATE003`–`TEMPLATE005` and why the
+- [architecture](../../architecture.md): `TEMPLATE003`–`TEMPLATE005` and why the
   check sits beside the compiler.
-- [pages](../pages.md): a no-code page can now carry a shape warning.
+- [pages](../../pages.md): a no-code page can now carry a shape warning.
 - The author manual `/help` is unchanged: none of this is a page-authoring
   capability.

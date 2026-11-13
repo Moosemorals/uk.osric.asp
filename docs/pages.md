@@ -153,8 +153,8 @@ carry one, and `HEAD` retains the representation length.
 A page with no code is never compiled. Generation reads the tokens it already produced, and a
 template made only of text has nothing to compile: the revision is stored with no image, its
 verdict is `TemplateHasCode = false`, and every request writes the stored source out byte for byte.
-Such a page has only the template-shape warnings `TemplateShapeCheck` can find without compiling;
-a clean text page has none.
+Such a page has only the template-shape warnings `TemplateShapeCheck` can find without compiling
+(DEC-273); a clean text page has none.
 
 A no-code page is a complete representation: it is never wrapped, so its stored source is the
 response even for an HTML key. It gets no banner, no skip link, no base sheet and no title

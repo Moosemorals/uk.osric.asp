@@ -98,10 +98,15 @@ is `done` when its merge is in, and `in flight` while its branch is open.
 | 3 | [IDEA-028](#closed) — `/admin/restore`, over the seed read and the saver ARCH-07 left behind | M | — | merge, and a manual restore of a broken page | done |
 | 4 | [IDEA-019](#closed) — repeated request values, and `Encoding` and cryptography in the API policy; the cookie point is dropped because IDEA-014 gives a page per-visitor state | S | — | merge | done |
 | 5 | [Page editor](../plans/archive/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | done |
-| 6 | [ARCH-16](ARCH-16.md) — one read seam for the assistant's tools and its applets | M | 5 (rework) | merge | — |
+| 6 | [ARCH-16](ARCH-16.md) — one read seam for the assistant's tools and its applets | M | 5, edit safety (rework) | merge | — |
 | 7 | [ARCH-13](ARCH-13.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | — |
 | 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase | — |
 | 9 | [Page first](../plans/page-first.md) — re-scope against 5–8: DEC-210 and DEC-211 are recorded, but the audit and the memory page are not; build the page, or archive the plan behind IDEA-024 and IDEA-025 | L | 5–8 | the plan, then build-or-close | — |
+
+The [assistant edit-safety plan](../plans/archive/assistant-edit-safety.md) landed between steps 5 and
+6 and is not a numbered job: it gives the edit tool its diff and line assertions, numbers the reads,
+saves several hunks as one revision and adds the template-shape warnings. Its decisions are
+DEC-269–DEC-273.
 
 Steps 1 and 2 are independent and may run together, as may 6 and 7. Everything else touches the same
 files — the editor, `/pages`, `SimpleContext`, the assistant prompt — and is sequential. A long plan

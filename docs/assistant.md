@@ -51,14 +51,15 @@ file, a missing page and a non-canonical hash, and `read_revision` refuses a has
 path — the rules the editor's `cmd=revision` applies. Reading a revision sends its source to the
 provider exactly as `read_page` does. Every source line the two tools answer with is prefixed by
 its 1-based number and `| `, because counting lines in escaped JSON is guesswork; the prefix is not
-part of the stored source.
+part of the stored source (DEC-271).
 
 `edit_page` answers with what it changed: the added and removed line counts and the unified diff,
 so an edit that compiles but mangles a block is visible in the same turn. It takes either one line
 range — `endLine` defaults to `startLine` — or an `edits` array applied against the original line
 numbers in one conditional save, and optional `expectFirst`/`expectLast` exact-line assertions
 refuse a range whose boundary is not the text the model read. An edit that would leave the source
-byte-identical is not saved; it answers `changed: false` with a warning instead.
+byte-identical is not saved; it answers `changed: false` with a warning instead (DEC-269, DEC-270,
+DEC-272).
 
 `restore_revision` saves a revision's source as a new revision through the ordinary
 compile-and-save path: nothing is rewound, and a deleted page comes back with its history. It is the

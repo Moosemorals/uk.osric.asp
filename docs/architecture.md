@@ -92,6 +92,8 @@ and the logs quote them:
 | `SCRIPT002` | `JavaScriptValidator` | the assistant's script check found an opener the failed parse never closed |
 
 `PAGE005` is retired with the alias it named and is never reused for a different meaning (DEC-254).
+`TEMPLATE003`–`TEMPLATE005` are warnings: they are stored beside the compiler's diagnostics, so a
+clean compile does not hide them, and they never stop a page being served (DEC-273).
 
 ## Where does code go?
 
