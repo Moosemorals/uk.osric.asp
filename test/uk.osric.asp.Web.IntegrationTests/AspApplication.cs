@@ -31,6 +31,7 @@ using uk.osric.asp.Web.Users;
 /// <param name="metricsSource">Stands in for Prometheus, which no fixture can reach.</param>
 /// <param name="assistantEnabled">Enables the assistant for the assistant integration fixtures.</param>
 /// <param name="chatCompletionClient">Stands in for the configured provider.</param>
+/// <param name="accountBalanceClient">Stands in for the provider's balance endpoint.</param>
 /// <param name="pageFetcher">Stands in for the page fetcher, so no fixture needs a socket.</param>
 /// <param name="archiveUploadBytes">Overrides the import upload cap, for the too-large fixture.</param>
 /// <param name="maxContextTokens">Overrides the assistant's estimated token budget, so a fixture can make a conversation too big to send.</param>
@@ -46,6 +47,7 @@ internal sealed class AspApplication(
     IMetricsSource? metricsSource = null,
     bool assistantEnabled = false,
     IChatCompletionClient? chatCompletionClient = null,
+    IAccountBalanceClient? accountBalanceClient = null,
     int? assistantMaxSteps = null,
     IPageFetcher? pageFetcher = null,
     int? archiveUploadBytes = null,
@@ -110,6 +112,12 @@ internal sealed class AspApplication(
 
             if (chatCompletionClient is not null) {
                 services.AddSingleton(chatCompletionClient);
+            }
+
+            if (assistantEnabled) {
+                // The page asks the provider for the account balance; no fixture may reach a socket
+                // for it, so the last registration wins over the typed HTTP client the host added.
+                services.AddSingleton<IAccountBalanceClient>(accountBalanceClient ?? new StubAccountBalanceClient());
             }
 
             if (pageFetcher is not null) {

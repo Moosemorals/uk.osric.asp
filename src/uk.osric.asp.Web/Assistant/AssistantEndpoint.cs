@@ -100,6 +100,7 @@ internal static class AssistantEndpoint {
         IAntiforgery antiforgery,
         RunRegistry registry,
         AssistantOptions options,
+        IAccountBalanceClient balanceClient,
         MarkdownRenderer markdown) {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -110,6 +111,10 @@ internal static class AssistantEndpoint {
             return;
         }
 
+        // The balance is the page's one outbound call, so it runs while the transcript is read and
+        // is awaited before the document starts: a slow provider costs the page its own deadline,
+        // and a failure is still a page rather than a half-written response.
+        Task<AccountBalance?> balanceTask = balanceClient.GetAsync(context.RequestAborted);
         IReadOnlyList<Message> messages = await conversations.GetMessagesAsync(id, owner!, context.RequestAborted);
         string alwaysApprove = nameof(ApprovalMode.AlwaysApprove);
         string requireApproval = nameof(ApprovalMode.RequireApproval);
@@ -125,6 +130,7 @@ internal static class AssistantEndpoint {
                 ? await conversations.GetPendingApprovalsAsync(id, owner!, context.RequestAborted)
                 : [];
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
+        AccountBalance? balance = await balanceTask;
         SecurityHeaders.AllowScripts(context);
         await ShellDocument.BeginAsync(context, conversation.Title,
             SiteNavigation.For(context), stylesheets: ["/assistant.css"], bodyClass: "assistant-page");
@@ -200,6 +206,7 @@ internal static class AssistantEndpoint {
             lastRun?.OutputTokens);
         await WriteBudgetsAsync(context, budgets, options, lastRun);
         await WriteUsageAsync(context, lastRun?.ToUsage() ?? RunUsage.Empty);
+        await WriteAccountBalanceAsync(context, balance);
         await context.Response.WriteAsync($"""
                 <fieldset>
                     <legend>Page options</legend>
@@ -806,6 +813,49 @@ internal static class AssistantEndpoint {
                 <p class="assistant-usage-note">Cached is part of prompt; reasoning is part of completion. Total is prompt + completion. The provider reports usage once per step.</p>
             </fieldset>
             """);
+    }
+
+    // The balance is the provider account's, not this site's, and it is read afresh on every page
+    // load because a run has just spent some of it. It is an aside: a provider that does not answer
+    // costs the panel its figure and nothing else.
+    private static async Task WriteAccountBalanceAsync(HttpContext context, AccountBalance? balance) {
+        await context.Response.WriteAsync("""
+            <fieldset class="assistant-balance">
+                <legend>Account balance</legend>
+            """);
+
+        if (balance is null || balance.Currencies.Count == 0) {
+            string reason = balance is null
+                ? "The provider did not report a balance."
+                : "The provider did not report a currency balance.";
+            await context.Response.WriteAsync($"<p class=\"assistant-balance-note\">{Encode(reason)}</p>");
+        } else {
+            await context.Response.WriteAsync("<dl class=\"assistant-balance-list\">");
+            foreach (CurrencyBalance currency in balance.Currencies) {
+                List<string> parts = [];
+                if (!string.IsNullOrEmpty(currency.Granted)) {
+                    parts.Add($"{currency.Granted} granted");
+                }
+                if (!string.IsNullOrEmpty(currency.ToppedUp)) {
+                    parts.Add($"{currency.ToppedUp} topped up");
+                }
+                string total = string.IsNullOrEmpty(currency.Total) ? "not reported" : currency.Total;
+                string detail = parts.Count == 0
+                    ? string.Empty
+                    : $" <span class=\"assistant-balance-detail\">{Encode(string.Join(", ", parts))}</span>";
+                await context.Response.WriteAsync($"""
+                    <div><dt>{Encode(currency.Currency)}</dt><dd><span class="assistant-balance-total">{Encode(total)}</span>{detail}</dd></div>
+                    """);
+            }
+            await context.Response.WriteAsync("</dl>");
+            string note = balance.IsAvailable
+                ? "The provider's total includes granted and topped-up credit, and is read when this page loads."
+                : "The provider says this balance is not enough for API calls.";
+            string css = balance.IsAvailable ? "assistant-balance-note" : "assistant-balance-warning";
+            await context.Response.WriteAsync($"<p class=\"{css}\">{Encode(note)}</p>");
+        }
+
+        await context.Response.WriteAsync("</fieldset>");
     }
 
     private static async Task WriteBudgetAsync(

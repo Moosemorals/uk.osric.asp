@@ -631,3 +631,37 @@ uk.osric.asp.Core.Assistant.ToolArgumentSchema.Items.get -> System.Collections.G
 uk.osric.asp.Core.Assistant.ToolArgumentSchema.Items.init -> void
 uk.osric.asp.Core.Assistant.ToolArgumentType.Array = 3 -> uk.osric.asp.Core.Assistant.ToolArgumentType
 uk.osric.asp.Core.Compilation.TemplateShapeCheck
+uk.osric.asp.Core.Assistant.AccountBalance
+uk.osric.asp.Core.Assistant.AccountBalance.AccountBalance(bool IsAvailable, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.CurrencyBalance!>! Currencies) -> void
+uk.osric.asp.Core.Assistant.AccountBalance.Currencies.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.CurrencyBalance!>!
+uk.osric.asp.Core.Assistant.AccountBalance.Currencies.init -> void
+uk.osric.asp.Core.Assistant.AccountBalance.Deconstruct(out bool IsAvailable, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.CurrencyBalance!>! Currencies) -> void
+uk.osric.asp.Core.Assistant.AccountBalance.IsAvailable.get -> bool
+uk.osric.asp.Core.Assistant.AccountBalance.IsAvailable.init -> void
+uk.osric.asp.Core.Assistant.AccountBalanceJson
+uk.osric.asp.Core.Assistant.CurrencyBalance
+uk.osric.asp.Core.Assistant.CurrencyBalance.Currency.get -> string!
+uk.osric.asp.Core.Assistant.CurrencyBalance.Currency.init -> void
+uk.osric.asp.Core.Assistant.CurrencyBalance.CurrencyBalance(string! Currency, string! Total, string! Granted, string! ToppedUp) -> void
+uk.osric.asp.Core.Assistant.CurrencyBalance.Deconstruct(out string! Currency, out string! Total, out string! Granted, out string! ToppedUp) -> void
+uk.osric.asp.Core.Assistant.CurrencyBalance.Granted.get -> string!
+uk.osric.asp.Core.Assistant.CurrencyBalance.Granted.init -> void
+uk.osric.asp.Core.Assistant.CurrencyBalance.ToppedUp.get -> string!
+uk.osric.asp.Core.Assistant.CurrencyBalance.ToppedUp.init -> void
+uk.osric.asp.Core.Assistant.CurrencyBalance.Total.get -> string!
+uk.osric.asp.Core.Assistant.CurrencyBalance.Total.init -> void
+override uk.osric.asp.Core.Assistant.AccountBalance.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.AccountBalance.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.AccountBalance.ToString() -> string!
+override uk.osric.asp.Core.Assistant.CurrencyBalance.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.CurrencyBalance.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.CurrencyBalance.ToString() -> string!
+static uk.osric.asp.Core.Assistant.AccountBalance.operator !=(uk.osric.asp.Core.Assistant.AccountBalance? left, uk.osric.asp.Core.Assistant.AccountBalance? right) -> bool
+static uk.osric.asp.Core.Assistant.AccountBalance.operator ==(uk.osric.asp.Core.Assistant.AccountBalance? left, uk.osric.asp.Core.Assistant.AccountBalance? right) -> bool
+static uk.osric.asp.Core.Assistant.AccountBalanceJson.Parse(string! json) -> uk.osric.asp.Core.Assistant.AccountBalance!
+static uk.osric.asp.Core.Assistant.CurrencyBalance.operator !=(uk.osric.asp.Core.Assistant.CurrencyBalance? left, uk.osric.asp.Core.Assistant.CurrencyBalance? right) -> bool
+static uk.osric.asp.Core.Assistant.CurrencyBalance.operator ==(uk.osric.asp.Core.Assistant.CurrencyBalance? left, uk.osric.asp.Core.Assistant.CurrencyBalance? right) -> bool
+uk.osric.asp.Core.Assistant.AccountBalance.<Clone>$() -> uk.osric.asp.Core.Assistant.AccountBalance!
+uk.osric.asp.Core.Assistant.AccountBalance.Equals(uk.osric.asp.Core.Assistant.AccountBalance? other) -> bool
+uk.osric.asp.Core.Assistant.CurrencyBalance.<Clone>$() -> uk.osric.asp.Core.Assistant.CurrencyBalance!
+uk.osric.asp.Core.Assistant.CurrencyBalance.Equals(uk.osric.asp.Core.Assistant.CurrencyBalance? other) -> bool

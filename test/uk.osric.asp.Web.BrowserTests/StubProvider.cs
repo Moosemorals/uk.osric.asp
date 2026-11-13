@@ -121,6 +121,25 @@ internal sealed class StubProvider : IAsyncDisposable {
 
     private async Task AnswerAsync(HttpListenerContext context, CancellationToken cancellationToken) {
         try {
+            // The conversation page asks for the account balance before a run starts. It is not a
+            // chat completion, so it must not take the next scripted response.
+            if (string.Equals(context.Request.HttpMethod, "GET", StringComparison.Ordinal)
+                && string.Equals(context.Request.Url?.AbsolutePath, "/user/balance", StringComparison.Ordinal)) {
+                byte[] balance = Encoding.UTF8.GetBytes("""
+                    {
+                        "is_available": true,
+                        "balance_infos": [
+                            { "currency": "USD", "total_balance": "42.00", "granted_balance": "2.00", "topped_up_balance": "40.00" }
+                        ]
+                    }
+                    """);
+                context.Response.StatusCode = 200;
+                context.Response.ContentType = "application/json";
+                await context.Response.OutputStream.WriteAsync(balance, cancellationToken);
+                context.Response.Close();
+                return;
+            }
+
             using StreamReader reader = new(context.Request.InputStream, Encoding.UTF8);
             string body = await reader.ReadToEndAsync(cancellationToken);
             StubResponse response;

@@ -104,6 +104,7 @@ public sealed class AssistantTranscriptTests {
             new TestAntiforgery(),
             new RunRegistry(new AssistantOptions(), TimeProvider.System),
             new AssistantOptions(),
+            new StubAccountBalanceClient(),
             new MarkdownRenderer());
 
         return await TestHttp.ReadBodyAsync(context);

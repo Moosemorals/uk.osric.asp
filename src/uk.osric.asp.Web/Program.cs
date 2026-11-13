@@ -221,6 +221,10 @@ internal class Program {
                 client.Timeout = Timeout.InfiniteTimeSpan;
             }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
+            builder.Services.AddHttpClient<IAccountBalanceClient, AccountBalanceClient>(client => {
+                client.Timeout = Timeout.InfiniteTimeSpan;
+            }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+
         }
 
         builder.Services.AddEditorAuthentication(builder.Environment);

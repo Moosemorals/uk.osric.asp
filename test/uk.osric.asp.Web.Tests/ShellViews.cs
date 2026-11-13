@@ -362,7 +362,7 @@ internal static class ShellViews {
             : []);
         await AssistantEndpoint.ConversationAsync(context, 1, conversations, new TestAntiforgery(),
             new RunRegistry(new AssistantOptions(), TimeProvider.System), new AssistantOptions(),
-            new MarkdownRenderer());
+            new StubAccountBalanceClient(), new MarkdownRenderer());
         return await TestHttp.ReadBodyAsync(context);
     }
 

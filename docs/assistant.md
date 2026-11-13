@@ -206,6 +206,16 @@ the list says so rather than summing them twice. The run accumulates the figures
 the page reads the stored totals after a reload, and `budget.updated` carries the same object while
 the run is live. The context row is the only estimate; the usage list is the provider's own count.
 
+The conversation page also shows the provider account's balance. `AccountBalanceClient` GETs the
+configured provider's `/user/balance` — DeepSeek's balance route — with the assistant's key and
+the same `User-Agent` every assistant request carries, bounded by `Assistant:BalanceTimeoutSeconds`
+and started while the transcript is read, so a slow provider costs the panel its figure rather than
+the page its answer. The panel lists each currency's total with the granted and topped-up parts, and
+says so when the provider reports the balance is not available for API calls. Every failure — an
+error status, a timeout, an unreachable host, or a body that is not the balance JSON — is "The
+provider did not report a balance.", and the provider's body is never logged. The page reloads when
+a run ends, so the figure a reader sees after a turn is the one that turn spent.
+
 The transcript reads newest first: the prompt fieldset sits above it, so the answer a reader is waiting
 for arrives directly under the box that asked for it, and the page's script inserts each new card at
 the top rather than scrolling a growing column.

@@ -227,6 +227,50 @@
     font-size: 0.75rem;
 }
 
+/* The balance is one figure per currency, in the same compact scale as the usage list. */
+.assistant-balance-list {
+    display: grid;
+    gap: 0.15rem;
+    margin: 0;
+    font-size: 0.8rem;
+}
+
+.assistant-balance-list > div {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+}
+
+.assistant-balance-list dt {
+    font-weight: 600;
+}
+
+.assistant-balance-list dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.assistant-balance-total {
+    font-weight: 600;
+}
+
+.assistant-balance-detail {
+    color: #414b48;
+}
+
+.assistant-balance-note {
+    margin: 0.35rem 0 0;
+    color: #414b48;
+    font-size: 0.75rem;
+}
+
+.assistant-balance-warning {
+    margin: 0.35rem 0 0;
+    color: #8a3b12;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
 #assistant-transcript {
     display: grid;
     gap: 0.35rem;

@@ -27,6 +27,8 @@ internal sealed class AssistantOptions {
     public double RequestTimeoutSeconds { get; init; } = 120;
     public double RunTimeoutSeconds { get; init; } = 120;
     public double ToolTimeoutSeconds { get; init; } = 10;
+    /// <summary>How long the account balance panel waits for the provider before it shows nothing.</summary>
+    public double BalanceTimeoutSeconds { get; init; } = 3;
     public int MaxProviderRetries { get; init; } = 1;
     public int MaxMessageChars { get; init; } = 16_384;
     public int MaxPageChars { get; init; } = 262_144;
@@ -96,8 +98,9 @@ internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOpti
         if (options.MaxOutputTokens <= 0 || options.MaxSteps <= 0 || options.MaxToolCalls <= 0
             || options.MaxToolCallsPerStep <= 0 || options.MaxActiveRuns <= 0 || options.MaxQueuedRuns <= 0
             || !double.IsFinite(options.RequestTimeoutSeconds) || !double.IsFinite(options.RunTimeoutSeconds)
-            || !double.IsFinite(options.ToolTimeoutSeconds)
+            || !double.IsFinite(options.ToolTimeoutSeconds) || !double.IsFinite(options.BalanceTimeoutSeconds)
             || options.RequestTimeoutSeconds <= 0 || options.RunTimeoutSeconds <= 0 || options.ToolTimeoutSeconds <= 0
+            || options.BalanceTimeoutSeconds <= 0
             || options.MaxProviderRetries < 0 || options.MaxMessageChars <= 0 || options.MaxPageChars <= 0
             || options.MaxToolArgumentChars <= 0 || options.MaxToolResultChars <= 0
             || options.MaxContextTokens <= 0 || options.ModelContextTokens <= 0
