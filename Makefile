@@ -23,6 +23,10 @@ ASPNETCORE_ENVIRONMENT ?= Development
 SOLUTION := uk.osric.asp.slnx
 ARTIFACTS := artifacts
 
+# The deployed commit's history, newest first: the file `/admin/changes` serves. The running image has
+# no .git, so `make changelist` writes it and the build packs it.
+CHANGELIST := $(ARTIFACTS)/changes.txt
+
 WEB_PROJECT := src/uk.osric.asp.Web/uk.osric.asp.Web.csproj
 CORE_TESTS := test/uk.osric.asp.Core.Tests/uk.osric.asp.Core.Tests.csproj
 RUNTIME_TESTS := test/uk.osric.asp.Runtime.Tests/uk.osric.asp.Runtime.Tests.csproj
@@ -119,7 +123,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration test-browser test-browser-live browsers migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove clean
+.PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration test-browser test-browser-live browsers migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -167,6 +171,7 @@ help:
 		'worktree           Create the branch and worktree for BRANCH=... (BASE=trunk).' \
 		'worktrees          List the worktrees.' \
 		'worktree-remove    Remove the worktree for BRANCH=... once its work has merged.' \
+		'changelist         Write the deployed commit's history to artifacts/changes.txt.' \
 		'clean              Delete the artifacts folder.' \
 		'help               Show this list.'
 
@@ -338,8 +343,8 @@ remote-user-remove: | $(SSH_CONTROL_DIR)
 run:
 	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) $(DOTNET) run --project $(WEB_PROJECT)
 
-publish:
-	$(DOTNET) publish $(WEB_PROJECT) -c Release
+publish: changelist
+	$(DOTNET) publish $(WEB_PROJECT) -c Release -p:ChangelistFile=$(abspath $(CHANGELIST))
 
 # The publish output the image packs: UseArtifactsOutput puts a RID-specific publish beside the
 # plain one, so `make publish` and the image do not overwrite each other.
@@ -352,11 +357,11 @@ IMAGE_PUBLISH_DIR := $(ARTIFACTS)/publish/uk.osric.asp.Web/release_$(CONTAINER_R
 # the history entries and the layer mtimes, so two builds of one commit are one image. The value is
 # the commit's own timestamp, so the image says when its source was written, and says it the same way
 # every time. $(1) is the tag; $(2) carries extra flags.
-image_command = SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) $(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) -t:PublishContainer -p:ContainerBaseImage=$(CONTAINER_BASE_IMAGE) -p:ContainerImageTags=$(1) -p:GIT_COMMIT=$(GIT_COMMIT) $(2)
+image_command = SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) $(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) -t:PublishContainer -p:ContainerBaseImage=$(CONTAINER_BASE_IMAGE) -p:ContainerImageTags=$(1) -p:GIT_COMMIT=$(GIT_COMMIT) -p:ChangelistFile=$(abspath $(CHANGELIST)) $(2)
 
 # The SDK builds the OCI image and hands it to podman; there is no Containerfile, and the SDK is not
 # in the image.
-image:
+image: changelist
 	@rm -rf $(IMAGE_PUBLISH_DIR)
 	$(call image_command,$(IMAGE_TAG))
 
@@ -364,7 +369,7 @@ image:
 # two uncached packs of one commit have to produce one image id. The publish directory is deleted
 # between the builds, because an incremental publish leaves the files it already has and their
 # mtimes alone — and the layer cache is emptied so the second pack is not the first one's work.
-image-check:
+image-check: changelist
 	@rm -rf $(IMAGE_PUBLISH_DIR) $(CONTAINER_CACHE)
 	@$(call image_command,reproducible-1)
 	@rm -rf $(IMAGE_PUBLISH_DIR) $(CONTAINER_CACHE)
@@ -559,6 +564,13 @@ worktree-remove:
 		"usage: make worktree-remove BRANCH=<branch>" >&2; exit 2; }
 	git worktree remove "$(WORKTREES)/$(BRANCH)"
 	@printf 'Removed %s; the branch stays until it is merged and deleted.\n' "$(WORKTREES)/$(BRANCH)"
+
+# Full hashes, because /admin/changes links each commit to its page on GitHub and an abbreviation is
+# only unique within one repository. --no-decorate keeps a local branch name out of the file, so the
+# same commit writes the same file wherever it is built.
+changelist:
+	@install -d $(ARTIFACTS)
+	git --no-pager log --no-decorate --format='%H %s' > $(CHANGELIST)
 
 clean:
 	rm -rf $(ARTIFACTS)

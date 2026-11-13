@@ -170,9 +170,9 @@ and applies them.
   session is a visitor's scratch space rather than content: an export archive never carries one.
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
-  covers `/admin/export`, `/admin/import`, `/assistant`, `/edit`, `/favicon.ico`, `/heath`, `/login`,
-  `/logout`, `/metrics` and `/status`. `/admin` itself is a seeded page, so only the tools beneath it
-  are reserved. Change the list only when the route table changes.
+  covers `/admin/changes`, `/admin/export`, `/admin/import`, `/assistant`, `/edit`, `/favicon.ico`,
+  `/heath`, `/login`, `/logout`, `/metrics` and `/status`. `/admin` itself is a seeded page, so only
+  the tools beneath it are reserved. Change the list only when the route table changes.
 - **Layout:** `Pages:Layout` (environment form `Pages__Layout`) names the page every HTML page is
   wrapped in; it is seeded as `/_layout` and is edited and restored from the page list like any other
   page. An empty value turns wrapping off. `Pages__Render__MaxLayoutDepth` bounds how deep a chain of

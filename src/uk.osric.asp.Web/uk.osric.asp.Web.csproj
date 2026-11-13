@@ -44,6 +44,9 @@ SPDX-License-Identifier: MIT
     <Content Include="Pages/Seeds/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <!-- The image carries the notice for the parser it ships, not just the repository. -->
     <None Include="../../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- `make changelist` writes the deployed commit's history; /admin/changes serves it, and the
+         image has no .git to read it from, so it is packed beside the assembly. -->
+    <None Include="$(ChangelistFile)" Condition="'$(ChangelistFile)' != ''" Link="changes.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
