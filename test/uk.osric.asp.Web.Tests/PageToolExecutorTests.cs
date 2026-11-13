@@ -61,26 +61,6 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task ALockedPageIsReadableAndSaysSoAsync() {
-        FakePageStore storage = new();
-        storage["/editor.js"] = new PageTemplate(PageHarness.Key("/editor.js"), "export {};");
-        using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services);
-
-        ToolExecutionResult result = await tools.ExecuteAsync(
-            "read_page", "{\"path\":\"/editor.js\"}", Context, CancellationToken.None);
-
-        Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Data(result).GetProperty("source").GetString(), Is.EqualTo("export {};"));
-            Assert.That(Data(result).GetProperty("kind").GetString(), Is.EqualTo("page"));
-            Assert.That(Data(result).GetProperty("mode").GetString(), Is.EqualTo("-r--r--r--"));
-            Assert.That(Data(result).GetProperty("revisionHash").GetString(), Is.Not.Null);
-        });
-    }
-
-    [Test]
     public async Task ReadPageReturnsTheShellRecordInsteadOfSourceAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
@@ -255,8 +235,8 @@ public sealed class PageToolExecutorTests {
                 "an allowed save is the owner's to approve");
             Assert.That(tools.RefuseBeforeApproval("write_page", "not json"), Is.Null,
                 "bad arguments are the tool's own refusal");
-            Assert.That(tools.RefuseBeforeApproval("write_page", "{\"path\":\"/editor.js\",\"content\":\"x\"}"), Is.Not.Null,
-                "a locked page is refused before the prompt too");
+            Assert.That(tools.RefuseBeforeApproval("write_page", "{\"path\":\"/editor.js\",\"content\":\"x\"}"), Is.Null,
+                "a seeded asset is an ordinary page: only a shell file is refused before the prompt");
             Assert.That(storage.WriteCount, Is.Zero);
         });
     }
@@ -363,7 +343,7 @@ public sealed class PageToolExecutorTests {
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
             Assert.That(storage["/site.css"]?.Template, Is.EqualTo("body { color: red; }"),
-                "the shipped ProtectedPaths list is empty, so the seeded styling is the assistant's to edit");
+                "a seeded asset is an ordinary page, so the styling is the assistant's to edit");
             Assert.That(Data(result).GetProperty("diagnostics").GetArrayLength(), Is.Zero);
         });
     }
@@ -1168,25 +1148,6 @@ public sealed class PageToolExecutorTests {
         Assert.That(storage.ReadCount, Is.Zero);
     }
 
-    [TestCase("edit_page", "{\"path\":\"/editor.js\",\"startLine\":1,\"endLine\":1,\"expectedRevisionHash\":\"x\",\"replacement\":\"y\"}", "Edit refused")]
-    [TestCase("write_page", "{\"path\":\"/editor.js\",\"content\":\"x\"}", "Write refused")]
-    [TestCase("delete_page", "{\"path\":\"/editor.js\"}", "Delete refused")]
-    public async Task WritingToolRefusesALockedPageAsync(string tool, string arguments, string summary) {
-        FakePageStore storage = new();
-        using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services);
-
-        ToolExecutionResult result = await tools.ExecuteAsync(tool, arguments, Context, CancellationToken.None);
-
-        Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.False);
-            Assert.That(result.Summary, Is.EqualTo(summary));
-            Assert.That(result.Content, Does.Contain("Not permitted").And.Contain("Assistant:ProtectedPaths"));
-            Assert.That(storage.WriteCount, Is.Zero);
-        });
-    }
-
     [TestCase("edit_page", "{\"path\":\"/login\",\"startLine\":1,\"endLine\":1,\"expectedRevisionHash\":\"x\",\"replacement\":\"y\"}", "Edit refused")]
     [TestCase("write_page", "{\"path\":\"/login\",\"content\":\"x\"}", "Write refused")]
     [TestCase("delete_page", "{\"path\":\"/login\"}", "Delete refused")]
@@ -1557,23 +1518,6 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task CheckScriptStillChecksALockedPageAsync() {
-        FakePageStore storage = new();
-        storage["/editor.js"] = new PageTemplate(PageHarness.Key("/editor.js"), "export const answer = 42;\n");
-        using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services);
-
-        ToolExecutionResult result = await tools.ExecuteAsync(
-            "check_script", "{\"path\":\"/editor.js\"}", Context, CancellationToken.None);
-
-        Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.True);
-        });
-    }
-
-    [Test]
     public async Task CheckScriptReportsAMissingPageAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
@@ -1703,7 +1647,7 @@ public sealed class PageToolExecutorTests {
 
     private static PageToolExecutor CreateTools(ServiceProvider services, AssistantOptions? options = null) => new(
         services.GetRequiredService<IServiceScopeFactory>(),
-        new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions { ProtectedPaths = ["/editor.js"] }),
+        new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions()),
         options ?? new AssistantOptions { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
         new AssistantMetrics(),
         new FakeAssistantFetcher(),

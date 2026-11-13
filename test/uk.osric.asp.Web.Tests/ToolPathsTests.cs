@@ -98,7 +98,7 @@ public sealed class ToolPathsTests {
     private static ToolServices Services() => new(
         new ServiceCollection().BuildServiceProvider(),
         new ToolContext("owner", ConversationId: 1, RunId: "run-1"),
-        new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions { ProtectedPaths = ["/editor.js"] }),
+        new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions()),
         new AssistantOptions(),
         new AssistantMetrics(),
         new FakeAssistantFetcher(),

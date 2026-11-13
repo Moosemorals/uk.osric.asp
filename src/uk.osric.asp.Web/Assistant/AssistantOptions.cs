@@ -57,10 +57,6 @@ internal sealed class AssistantOptions {
     public int JournalMaxEvents { get; init; } = 20_000;
     public int JournalMaxBytes { get; init; } = 4_194_304;
     public int JournalTtlMinutes { get; init; } = 10;
-    /// <summary>The site's routes are already read-only to the assistant, so this list is the
-    /// operator's extra lock over a page it may not touch. Empty by default: the owner can still edit
-    /// and restore a locked page in the editor.</summary>
-    public string[] ProtectedPaths { get; init; } = [];
     public string WritablePathPrefix { get; init; } = "";
 }
 
