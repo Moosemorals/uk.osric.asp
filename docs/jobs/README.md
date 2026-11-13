@@ -38,7 +38,9 @@ still does because a page cannot (an archive, and a live run). IDEA-026 came out
 release that removes the deprecated `Features` alias once the page store has no page that needs it.
 ARCH-16 came out of the [tool-types work](../plans/archive/assistant-tool-types.md) of 2026-11-11
 (DEC-231): making a tool one type showed that the page tools and the shell answer the same questions
-about the page store through two implementations.
+about the page store through two implementations. IDEA-028 came out of the [page-editor
+planning](../plans/page-editor.md) of 2026-11-13: the editor can become a page only if a broken
+editor has a way back, and one button that restores every seed is that way.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -59,6 +61,7 @@ about the page store through two implementations.
 | [IDEA-025](IDEA-025.md) | — | L | The assistant's conversation is a stream and a set of host actions, not a page |
 | [IDEA-026](IDEA-026.md) | — | S | The deprecated `Features` alias is removed when the page store no longer needs it |
 | [IDEA-027](IDEA-027.md) | — | S | A page cannot leave a message for a page it sends a visitor to |
+| [IDEA-028](IDEA-028.md) | — | M | A broken editor needs one shell page that restores every seeded page |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
