@@ -250,7 +250,7 @@ That is a plan-sized job, not a sitting, and it is independent of the two cheap 
 
 1. [`tools/vscode-asp`](../../tools/vscode-asp) — the manifest, the two grammars and the language
    configuration, with the association in [`.vscode/settings.json`](../../.vscode/settings.json).
-   No JavaScript. Install with `code --install-extension tools/vscode-asp`.
+   No JavaScript. `make vscode-extension` links it into VS Code; reload the window after.
 2. [`tools/check-pages`](../../tools/check-pages) — the compiler over the seeds, and the `check pages`
    task in [`.vscode/tasks.json`](../../.vscode/tasks.json) with the problem matcher. It is also in
    `make check`, so a broken seed fails the gate rather than the first visitor.

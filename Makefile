@@ -123,7 +123,7 @@ BUILD_INPUTS := $(shell find src test tools -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit check-pages test test-core test-runtime test-web test-integration test-browser test-browser-live browsers migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
+.PHONY: help build restore check ci drift-check audit check-pages test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -169,6 +169,7 @@ help:
 		'mutation-sdk       Mutation-test the page contract, which the Web suite drives.' \
 		'mutation-web       Mutation-test the shell: the long one, hours rather than minutes.' \
 		'browsers           Install the Firefox build the browser suite drives.' \
+		'vscode-extension   Link tools/vscode-asp into VS Code, then reload the window.' \
 		'worktree           Create the branch and worktree for BRANCH=... (BASE=trunk).' \
 		'worktrees          List the worktrees.' \
 		'worktree-remove    Remove the worktree for BRANCH=... once its work has merged.' \
@@ -281,6 +282,21 @@ BROWSER_TESTS_BIN := $(ARTIFACTS)/bin/uk.osric.asp.Web.BrowserTests/$(shell echo
 
 browsers: build
 	pwsh -NoProfile -File $(BROWSER_TESTS_BIN)/playwright.ps1 install firefox
+
+# ---- Editor support -------------------------------------------------------------------------------
+
+# `code --install-extension` takes an extension id or a .vsix, not a folder, and this extension has no
+# build step to make a .vsix from. A symlink in the user extensions folder is what
+# `--extensionDevelopmentPath` would load, without opening a second window, and it keeps the grammar
+# in the repository the one copy: an edit and a reload is the whole update loop.
+VSCODE_EXTENSIONS := $(HOME)/.vscode/extensions
+VSCODE_EXTENSION := $(VSCODE_EXTENSIONS)/uk-osric-asp.asp-template-language-0.1.0
+
+vscode-extension:
+	@mkdir -p $(VSCODE_EXTENSIONS)
+	@rm -f $(VSCODE_EXTENSIONS)/uk-osric-asp.asp-template-language-*
+	@ln -sfn $(abspath tools/vscode-asp) $(VSCODE_EXTENSION)
+	@echo "Linked $(VSCODE_EXTENSION); run 'Developer: Reload Window'."
 
 migration:
 	@test -n "$(strip $(NAME))" || { echo "usage: make migration NAME=MigrationName"; exit 1; }

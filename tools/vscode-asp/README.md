@@ -9,8 +9,11 @@ A declarative extension: a language, two grammars and a language configuration. 
 no JavaScript and nothing to install from npm — the built-in `html` extension has the same shape.
 
 ```bash
-code --install-extension tools/vscode-asp
+make vscode-extension   # link this folder into ~/.vscode/extensions, then reload the window
 ```
+
+`code --install-extension` takes an extension id or a `.vsix`, not a folder, and there is no build
+step here to make one.
 
 The seeded pages have no extension, because a seed is served under its file name. The workspace
 associates them by path in `.vscode/settings.json`; the four asset extensions are listed there too,

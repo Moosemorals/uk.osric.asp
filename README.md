@@ -109,6 +109,7 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | `make test-integration` | The composed pipeline against a throwaway database |
 | `make test-browser` | The real host in Firefox, with a scripted provider (`make browsers` installs Firefox once) |
 | `make check-pages` | Compile the seeded pages and print the compiler's diagnostics |
+| `make vscode-extension` | Link the template grammar into VS Code, then reload the window |
 | `make user-add ACCOUNT=...` | Create a local editor account |
 | `make user-passwd ACCOUNT=...` | Change a password and sign out every existing session |
 | `make user-list` | List local accounts |
