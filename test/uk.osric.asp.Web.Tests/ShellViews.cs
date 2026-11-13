@@ -158,6 +158,7 @@ internal static class ShellViews {
             NullLoggerFactory.Instance,
             new PageEnvironment(
                 Reserved,
+                new PageEditorOptions(),
                 new PageLayoutConfiguration { Default = "/_layout" },
                 new RenderOptions(),
                 TestContentTypes.Shipped,
@@ -302,6 +303,7 @@ internal static class ShellViews {
             NullLoggerFactory.Instance,
             new PageEnvironment(
                 Reserved,
+                new PageEditorOptions(),
                 new PageLayoutConfiguration(),
                 new RenderOptions(),
                 TestContentTypes.Shipped,

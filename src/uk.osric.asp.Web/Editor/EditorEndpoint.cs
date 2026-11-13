@@ -313,7 +313,7 @@ internal sealed class EditorEndpoint {
 
     private static async Task<bool> MatchesSeedAsync(PageEditor pages, PagePath path, string seed, CancellationToken cancellationToken) {
         PageTemplate? live = await pages.GetAsync(path, cancellationToken);
-        return live is not null && string.Equals(live.Template, seed, StringComparison.Ordinal);
+        return PageSourceChange.IsNoOp(live?.Template, seed);
     }
 
     private static async Task NewPageAsync(HttpContext context, ReservedPaths reserved) {
@@ -679,14 +679,14 @@ internal sealed class EditorEndpoint {
             return;
         }
 
-        PageRevisionTemplate? revision = await pages.GetRevisionTemplateByHashAsync(hash, context.RequestAborted);
-        if (revision is null || revision.Path != path) {
+        PageRevisionTemplate? revision = await pages.GetRevisionAsync(path, hash, context.RequestAborted);
+        if (revision is null) {
             await NotFound.WriteAsync(context, path);
             return;
         }
 
         PageTemplate? live = await pages.GetAsync(path, context.RequestAborted);
-        if (live is not null && string.Equals(live.Template, revision.Template, StringComparison.Ordinal)) {
+        if (PageSourceChange.IsNoOp(live?.Template, revision.Template)) {
             await WriteNothingToDoAsync(
                 context,
                 "editor.restore_nothing_to_do",

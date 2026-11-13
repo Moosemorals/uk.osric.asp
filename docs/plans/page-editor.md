@@ -162,9 +162,10 @@ that is not a seed returns `null`, because that is an answer the page shows rath
 
 ### D3 — Authority is structural, then checked
 
-`IPageEditor` is registered only for the content layer whose key is `/pages`. A layout never sees it,
-another stored page never gets it even if its code asks, and a `HEAD` gets the read members
-(`Resolve`, `SeedPathsAsync`) with every write refused, so the form still renders for a validator.
+`IPageEditor` is registered only for the content layer whose key is the configured editor key. A
+layout never sees it, another stored page never gets it even if its code asks, and a `HEAD` gets the
+read members (`Resolve`, `SeedPaths`) with every write refused, so the form still renders for a
+validator.
 The scope then checks what the handle cannot:
 
 - an anonymous render is a `UserFacingException` before anything is compiled or stored (DEC-190);
@@ -172,8 +173,14 @@ The scope then checks what the handle cannot:
   `InvalidOperationException`s, because they are page bugs;
 - a key that cannot name a page is an `ArgumentException`; a reserved key is refused before any read
   or write;
-- a delete of `/pages` itself is refused, so the ordinary editor cannot tombstone the editor by
-  accident. A broken `/pages` is recovered by `/admin/restore`, not by the page's own delete button.
+- a delete of the editor itself is refused, so the ordinary editor cannot tombstone the editor by
+  accident. A broken editor is recovered by `/admin/restore`, not by the page's own delete button.
+
+The key is policy, so it comes from `Pages:Editor:Key` (`/pages` as shipped) rather than a constant in
+the code: a capability that reaches the whole store belongs with the other values an operator sets.
+The value is normalised, and one that names no addressable page falls back to the default, so a typo
+cannot leave a release with no editor. `PageChain` compares against it and copies it into the scope,
+which is why the self-delete guard protects whatever key is configured rather than a hard-coded one.
 
 The assistant's `PagePathPolicy` is not reused for the owner: its writable prefix and its shell-file
 rule exist to stop the assistant, and the owner edits exactly those pages.
@@ -185,6 +192,12 @@ The editor form carries the hash it was rendered from. `SaveAsync` calls a new
 A mismatch returns `Stale` without a write; the page answers `409` and renders the submitted text in
 the textarea beside a read-only copy of the current source and its hash, so the author reconciles by
 pasting rather than losing the draft. The next form carries the current hash.
+
+The comparison every write ends in — would this leave the source exactly as it is? — is
+`Core.Pages.PageSourceChange.IsNoOp`, because ARCH-07 already gave restore and install one rule and the
+shell editor, the assistant's `restore_revision` and the capability each wrote it out again. The
+"revision with this hash is not a revision of this page" check is `PageEditor.GetRevisionAsync`, for
+the same reason: three callers, one rule, and each keeps its own words for the refusal.
 
 The conditional save moves from the request-scoped `PageEditor`/`IPageStore` to `PageSaver` and
 `IPageRevisionStore`, which own a context per write. That matters because a page's save can outlive
@@ -468,6 +481,8 @@ behaviour, and on one piece of its code:
 | `src/uk.osric.asp.Sdk/PageEntry.cs` | `State`, set by the host; the positional constructor stays |
 | `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | The new types and members |
 | `src/uk.osric.asp.Web/Pages/PageEditorScope.cs` | New: the authority, path rules, one action per render and `RenderBoundCapability` plumbing |
+| `src/uk.osric.asp.Web/Pages/PageEditorOptions.cs` | New: `Pages:Editor:Key`, normalised with the default for a value that names no page |
+| `src/uk.osric.asp.Core/Pages/PageSourceChange.cs` | New: the one "would this change anything?" comparison, used by the shell editor, the assistant and the capability |
 | `src/uk.osric.asp.Web/Pages/PageChain.cs` | Builds the editor scope for `/pages` only; passes the running runtime id to the catalog |
 | `src/uk.osric.asp.Web/Pages/PageEndpoint.cs` | Takes the scoped `PageEditor` and passes it to the chain |
 | `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs` | Maps the read head's image columns to `PageEntry.State`; takes the runtime id |
@@ -475,7 +490,7 @@ behaviour, and on one piece of its code:
 | `src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs` | New: the comparison and outcome rule extracted from `RestoreEndpoint.PlanAsync`, shared by the capability and the restore |
 | `src/uk.osric.asp.Web/Pages/PageDiagnostics.cs` | New: the core-to-Sdk diagnostic mapper, shared by `PageWriterScope` and the editor scope |
 | `src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs` | Remains the file reader; the helper owns comparison and outcome, not the seeder |
-| `src/uk.osric.asp.Web/Editor/PageEditor.cs` | Its conditional save delegates to the singleton `PageSaver`; the capability no longer needs a scoped store for a save |
+| `src/uk.osric.asp.Web/Editor/PageEditor.cs` | Its conditional save delegates to the singleton `PageSaver`, and `GetRevisionAsync` is the one page-scoped revision read; the capability no longer needs a scoped store for a save |
 | `src/uk.osric.asp.Web/Editor/PageSaver.cs` | New `SaveIfRevisionAsync`: compile, conditional store, diagnostics and metrics, with the render's deadline bounding only the compile-slot wait |
 | `src/uk.osric.asp.Web/Pages/IPageRevisionStore.cs`, `SqlitePageRevisionStore.cs` | A conditional save on its own context, sharing the head check with `SqlitePageStore.TrySavePageAsync` |
 | `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` | Deleted; its scrub code moves to `Admin/ScrubEndpoint`, and its views, flash and save go |

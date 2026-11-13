@@ -11,6 +11,8 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageEditorScopeTests {
 
+    private const string EditorPath = "/pages";
+
     private static readonly PageUser Owner = new("owner");
 
     [Test]
@@ -143,7 +145,20 @@ public sealed class PageEditorScopeTests {
         using PageHarness pages = new(new FakePageStore());
         PageEditorScope scope = Scope(pages);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await scope.DeleteAsync(PageEditorScope.EditorKey));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await scope.DeleteAsync(EditorPath));
+    }
+
+    [Test]
+    public async Task TheConfiguredKeyIsTheOneTheEditorCannotDeleteAsync() {
+        using PageHarness pages = new(new FakePageStore());
+        _ = await pages.Editor.SaveAsync(PageHarness.Key("/desk"), "text");
+        _ = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "text");
+        PageEditorScope scope = Scope(pages, editorPath: "/desk");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await scope.DeleteAsync("/desk"));
+        PageDeleteResult deleted = await scope.DeleteAsync("/page");
+
+        Assert.That(deleted, Is.EqualTo(new PageDeleteResult(true, true)));
     }
 
     [Test]
@@ -258,9 +273,11 @@ public sealed class PageEditorScopeTests {
         PageHarness pages,
         bool writable = true,
         PageUser? user = null,
-        bool signedIn = true) => new(
-        PageHarness.Key(PageEditorScope.EditorKey),
+        bool signedIn = true,
+        string editorPath = EditorPath) => new(
+        PageHarness.Key(editorPath),
         pages.Editor,
+        editorPath,
         signedIn ? user ?? Owner : null,
         writable,
         new ReservedPaths(ReservedPaths.Default));

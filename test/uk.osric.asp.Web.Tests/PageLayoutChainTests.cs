@@ -671,6 +671,7 @@ public sealed class PageLayoutChainTests {
 
         PageEnvironment environment = new(
             new ReservedPaths(ReservedPaths.Default),
+            new PageEditorOptions(),
             new PageLayoutConfiguration { Default = DefaultLayout },
             options,
             TestContentTypes.Shipped,

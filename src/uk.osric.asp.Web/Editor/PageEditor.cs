@@ -49,6 +49,27 @@ internal sealed class PageEditor(
         return storage.GetRevisionTemplateByHashAsync(hash, cancellationToken);
     }
 
+    /// <summary>The revision with that hash, only when it is a revision of this page.</summary>
+    /// <param name="path">The page the revision must belong to.</param>
+    /// <param name="hash">The canonical hash a listing or a form carried.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The revision, or null when no revision of this page has that hash.</returns>
+    /// <remarks>
+    /// A hash is an address for one save, not for one page, so a link that carries another page's
+    /// hash must read as no revision at all rather than as that page's source.
+    /// </remarks>
+    public async Task<PageRevisionTemplate?> GetRevisionAsync(
+        PagePath path,
+        string hash,
+        CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(hash);
+
+        PageRevisionTemplate? revision = await storage.GetRevisionTemplateByHashAsync(hash, cancellationToken);
+
+        return revision is not null && revision.Path == path ? revision : null;
+    }
+
     public Task<bool> DeleteAsync(PagePath path, CancellationToken cancellationToken = default) {
         return storage.DeletePageAsync(path, cancellationToken);
     }

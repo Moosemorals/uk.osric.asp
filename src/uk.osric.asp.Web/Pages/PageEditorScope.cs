@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Editor;
 /// <summary>The editor page's <see cref="IPageEditor"/>, bound to one render.</summary>
 /// <remarks>
 /// <para>
-/// The host offers this to the content layer whose key is <see cref="EditorKey"/> and to nothing
+/// The host offers this to the content layer whose key is the configured editor key and to nothing
 /// else: not to a layout, not to another page, and not while the editor is served at any other key.
 /// The handle names a key on every call because it must — an editor edits whatever the owner opens —
 /// so the isolation is the registration, not the handle.
@@ -31,12 +31,10 @@ using uk.osric.asp.Web.Editor;
 internal sealed class PageEditorScope(
     PagePath path,
     PageEditor pages,
+    string editorKey,
     PageUser? user,
     bool writable,
     ReservedPaths reserved) : RenderBoundCapability, IPageEditor {
-
-    /// <summary>The one content key that is offered this capability.</summary>
-    public const string EditorKey = "/pages";
 
     private int _acted;
 
@@ -70,8 +68,8 @@ internal sealed class PageEditorScope(
     /// <inheritdoc/>
     public async Task<PageDeleteResult> DeleteAsync(string key) {
         PagePath target = ResolveForWrite(key);
-        if (string.Equals(target.Key, EditorKey, StringComparison.Ordinal)) {
-            throw new InvalidOperationException("The editor page cannot delete itself; /admin/restore puts it back if it breaks.");
+        if (string.Equals(target.Key, editorKey, StringComparison.Ordinal)) {
+            throw new InvalidOperationException("The editor page cannot delete itself.");
         }
 
         PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
@@ -87,15 +85,15 @@ internal sealed class PageEditorScope(
         ArgumentException.ThrowIfNullOrWhiteSpace(hash);
 
         PagePath target = ResolveForWrite(key);
-        PageRevisionTemplate? revision = await pages.GetRevisionTemplateByHashAsync(hash, Deadline);
-        if (revision is null || !string.Equals(revision.Path.Key, target.Key, StringComparison.Ordinal)) {
+        PageRevisionTemplate? revision = await pages.GetRevisionAsync(target, hash, Deadline);
+        if (revision is null) {
             return null;
         }
 
         PageTemplate? live = await pages.GetAsync(target, Deadline);
-        if (live is not null && string.Equals(live.Template, revision.Template, StringComparison.Ordinal)) {
+        if (PageSourceChange.IsNoOp(live?.Template, revision.Template)) {
             Acted();
-            return Unchanged(live.Hash);
+            return Unchanged(live?.Hash);
         }
 
         PageEditResult result = live is not null
@@ -122,9 +120,9 @@ internal sealed class PageEditorScope(
         }
 
         PageTemplate? live = await pages.GetAsync(target, Deadline);
-        if (live is not null && string.Equals(live.Template, source, StringComparison.Ordinal)) {
+        if (PageSourceChange.IsNoOp(live?.Template, source)) {
             Acted();
-            return Unchanged(live.Hash);
+            return Unchanged(live?.Hash);
         }
 
         PageEditResult result = await SaveConditionalAsync(target, source, expectedHash);

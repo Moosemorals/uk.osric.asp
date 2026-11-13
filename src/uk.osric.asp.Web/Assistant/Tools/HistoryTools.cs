@@ -134,8 +134,8 @@ internal sealed class ReadRevisionTool : AssistantTool {
             return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
         }
 
-        PageRevisionTemplate? revision = await services.Pages.GetRevisionTemplateByHashAsync(hash, cancellationToken);
-        if (revision is null || revision.Path != path) {
+        PageRevisionTemplate? revision = await services.Pages.GetRevisionAsync(path, hash, cancellationToken);
+        if (revision is null) {
             return services.Results.Failure(
                 $"That hash is not a revision of {ToolPaths.Describe(path)}. Use a hash list_revisions returned.",
                 "Revision not found");
@@ -204,15 +204,15 @@ internal sealed class RestoreRevisionTool : AssistantTool {
                 $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
         }
 
-        PageRevisionTemplate? revision = await services.Pages.GetRevisionTemplateByHashAsync(hash, cancellationToken);
-        if (revision is null || revision.Path != path) {
+        PageRevisionTemplate? revision = await services.Pages.GetRevisionAsync(path, hash, cancellationToken);
+        if (revision is null) {
             return services.Results.Failure(
                 $"That hash is not a revision of {ToolPaths.Describe(path)}. Use a hash list_revisions returned.",
                 "Revision not found");
         }
 
         PageTemplate? live = await services.Pages.GetAsync(path, cancellationToken);
-        if (live is not null && string.Equals(live.Template, revision.Template, StringComparison.Ordinal)) {
+        if (PageSourceChange.IsNoOp(live?.Template, revision.Template)) {
             return services.Results.Failure(
                 $"{ReadRevisionTool.ShortHash(revision.Hash)} has the source {ToolPaths.Describe(path)} already holds, so restoring it would change nothing. Choose a different revision, or edit the page.",
                 $"{Spec.Verb} {ToolPaths.Describe(path)}: nothing to restore");

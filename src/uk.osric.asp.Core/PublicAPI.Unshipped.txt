@@ -602,3 +602,5 @@ uk.osric.asp.Core.Pages.PageContentTypes.FallbackRule.get -> uk.osric.asp.Core.P
 uk.osric.asp.Core.Pages.PageContentTypes.RuleFor(string? path) -> uk.osric.asp.Core.Pages.PageContentTypeRule!
 uk.osric.asp.Core.Pages.PageContentTypes.ScriptsForPath(string? path) -> uk.osric.asp.Core.Pages.PageScriptPolicy
 static uk.osric.asp.Core.Pages.PageContentTypes.Create(uk.osric.asp.Core.Pages.PageContentTypeRule! fallback, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, uk.osric.asp.Core.Pages.PageContentTypeRule!>>! extensions) -> uk.osric.asp.Core.Pages.PageContentTypes!
+static uk.osric.asp.Core.Pages.PageSourceChange.IsNoOp(string? live, string! chosen) -> bool
+uk.osric.asp.Core.Pages.PageSourceChange

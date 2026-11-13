@@ -70,7 +70,7 @@ internal static class PageSeedInstaller {
             }
 
             PageTemplate? live = await pages.GetAsync(path, cancellationToken);
-            SeedState state = live is not null && string.Equals(live.Template, source, StringComparison.Ordinal)
+            SeedState state = PageSourceChange.IsNoOp(live?.Template, source)
                 ? SeedState.Current
                 : SeedState.Changed;
             plan.Add(new SeedPlan(path, source, state));

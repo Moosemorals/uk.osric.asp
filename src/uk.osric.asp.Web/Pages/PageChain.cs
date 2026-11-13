@@ -151,8 +151,9 @@ internal sealed class PageChain {
 
             // The editor's authority is the registration, not the handle: no other key is offered it,
             // and a layout never is.
-            if (_editor is { } editor && string.Equals(key.Key, PageEditorScope.EditorKey, StringComparison.Ordinal)) {
-                capabilities.Add<IPageEditor>(new PageEditorScope(key, editor, _user, writable: !_isHead, _environment.Reserved));
+            if (_editor is { } editor && string.Equals(key.Key, _environment.Editor.Key, StringComparison.Ordinal)) {
+                capabilities.Add<IPageEditor>(new PageEditorScope(
+                    key, editor, _environment.Editor.Key, _user, writable: !_isHead, _environment.Reserved));
             }
         }
 

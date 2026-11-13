@@ -119,6 +119,7 @@ internal class Program {
         builder.Services.AddSingleton(PageLayoutConfiguration.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton(new ReservedPaths(
             builder.Configuration.GetSection("Pages:ReservedPaths").Get<string[]>()));
+        builder.Services.AddSingleton(PageEditorOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton(TimeProvider.System);
 
         builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
@@ -156,6 +157,7 @@ internal class Program {
         builder.Services.AddSingleton<IPageFetcher, PageFetcher>();
         builder.Services.AddSingleton(services => new PageEnvironment(
             services.GetRequiredService<ReservedPaths>(),
+            services.GetRequiredService<PageEditorOptions>(),
             services.GetRequiredService<PageLayoutConfiguration>(),
             services.GetRequiredService<RenderOptions>(),
             services.GetRequiredService<PageContentTypes>(),

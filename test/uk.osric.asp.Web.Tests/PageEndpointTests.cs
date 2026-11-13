@@ -39,6 +39,7 @@ public sealed class PageEndpointTests {
         PageLayoutConfiguration? layout = null) {
         return new PageEnvironment(
             Reserved,
+            new PageEditorOptions(),
             layout ?? new PageLayoutConfiguration(),
             render ?? Options,
             contentTypes ?? TestContentTypes.Shipped,

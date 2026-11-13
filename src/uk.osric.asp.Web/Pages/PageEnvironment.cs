@@ -15,6 +15,7 @@ using uk.osric.asp.Web.Editor;
 /// readable as the page contract grows a capability.
 /// </remarks>
 /// <param name="Reserved">The keys the site's own routes answer for.</param>
+/// <param name="Editor">The one key offered the editor capability.</param>
 /// <param name="Layout">The page every HTML page with code is wrapped in unless it says otherwise.</param>
 /// <param name="Render">The render budget and body cap.</param>
 /// <param name="ContentTypes">The media type and script policy each page key's extension names.</param>
@@ -34,6 +35,7 @@ using uk.osric.asp.Web.Editor;
 /// <param name="SessionCookie">The cookie that names the visitor's session.</param>
 internal sealed record PageEnvironment(
     ReservedPaths Reserved,
+    PageEditorOptions Editor,
     PageLayoutConfiguration Layout,
     RenderOptions Render,
     PageContentTypes ContentTypes,
