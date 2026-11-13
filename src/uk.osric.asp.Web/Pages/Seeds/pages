@@ -409,8 +409,7 @@ using System.Threading.Tasks;
             [.. entries.Where(entry => !entry.IsDeleted && seeds.Contains(entry.Key))],
             [.. entries.Where(entry => entry.IsDeleted)],
         ];
-        %><h1>Pages</h1>
-<%
+        %><h1>Pages</h1><%
         if (notice is not null) {
             %><p><%= notice %></p><%
         }
@@ -424,13 +423,11 @@ run.</p>
         <dd><input id="new-page-path" name="path" required></dd>
     </dl>
     <button type="submit">Create or open</button>
-</form>
-<%
+</form><%
         for (int index = 0; index < groups.Length; index++) {
             PageEntry[] rows = groups[index];
             bool groupDeleted = index == 2;
-            %><h2><%= headings[index] %></h2>
-<%
+            %><h2><%= headings[index] %></h2><%
             if (rows.Length == 0) {
                 %><p><%= empties[index] %></p><%
             } else {
@@ -439,11 +436,9 @@ run.</p>
     <thead>
         <tr><th scope="col">Page</th><th scope="col">State</th><th scope="col">Actions</th></tr>
     </thead>
-    <tbody>
-<%
+    <tbody><%
                 foreach (PageEntry entry in rows) {
-                    %><tr>
-<%
+                    %><tr><%
                     if (groupDeleted) {
                         %><th scope="row"><%= entry.Key %></th><%
                     } else {
@@ -488,8 +483,7 @@ run.</p>
         menu.Add(new("/help", "Help"));
 
         int lines = text.Split('\n').Length;
-        %><h1>Editing <%= key %></h1>
-<%
+        %><h1>Editing <%= key %></h1<%
         if (notice is not null) {
             %><p class="notice"><%= notice %></p><%
         }
@@ -503,8 +497,7 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
 <pre class="source" tabindex="0" aria-label="Current source of <%= key %>"><code><%= live.Source %></code></pre><%
         }
         if (diagnostics.Count > 0) {
-            %><ul class="diagnostics" role="list">
-<%
+            %><ul class="diagnostics" role="list"><%
             foreach (PageDiagnostic diagnostic in diagnostics) {
                 string severity = diagnostic.Severity == PageDiagnosticSeverity.Error ? "error" : "warning";
                 %><li class="diagnostic-<%= severity %>"><%
@@ -515,8 +508,7 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
                 }
                 %></li><%
             }
-            %></ul>
-<%
+            %></ul><%
         }
         Menu("Editor navigation", menu);
         %><form method="post" action="<%= EditUrl(key) %>" class="editor-form">
@@ -538,13 +530,11 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
 <script type="module" src="<%= ctx.AssetUrl("/editor.js") %>"></script><%
     } else if (stage == "read") {
         layout.Title = "History for " + key;
-        %><h1><%= key %></h1>
-<%
+        %><h1><%= key %></h1><%
         if (notice is not null) {
             %><p><%= notice %></p><%
         }
-        %><p><a href="<%= EditUrl(key) %>">Edit this page</a> · <a href="<%= self %>">All pages</a></p>
-<%
+        %><p><a href="<%= EditUrl(key) %>">Edit this page</a> · <a href="<%= self %>">All pages</a></p><%
         if (deleted) {
             %><p>This page is deleted. Its revisions remain available here, and saving in the editor brings it back.</p><%
         }
@@ -555,8 +545,7 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
         } else if (!deleted) {
             %><p>There is no source to show: this page has never been saved.</p><%
         }
-        %><h2>History</h2>
-<%
+        %><h2>History</h2><%
         if (revisions.Count == 0) {
             %><p>This page has no history. It may never have been saved, or it may have been scrubbed.</p><%
         } else {
@@ -565,8 +554,7 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
     <thead>
         <tr><th scope="col">Revision</th><th scope="col">Saved</th><th scope="col">Current</th><th scope="col">Action</th></tr>
     </thead>
-    <tbody>
-<%
+    <tbody><%
             foreach (PageRevisionInfo info in revisions) {
                 %><tr>
     <th scope="row"><a href="<%= RevisionUrl(key, info.Hash) %>"><code><%= info.Hash %></code></a></th>
@@ -576,27 +564,22 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
 </tr><%
             }
             %></tbody>
-</table>
-<%
+</table><%
             if (revisions.Count >= 2) {
                 string older = revisions[1].Hash;
                 string newest = revisions[0].Hash;
                 %><form method="get" action="<%= self %>" class="revision-compare">
     <input type="hidden" name="page" value="<%= key %>">
     <label for="diff-from">Compare</label>
-    <select id="diff-from" name="from">
-<%
+    <select id="diff-from" name="from"><%
                 foreach (PageRevisionInfo info in revisions) {
-                    %><option value="<%= info.Hash %>"<%= info.Hash == older ? " selected" : "" %>><%= Stamped(info.SavedAt) %> · <%= info.Hash %> <%= info.IsCurrent ? "· Current" : "" %></option>
-<%
+                    %><option value="<%= info.Hash %>"<%= info.Hash == older ? " selected" : "" %>><%= Stamped(info.SavedAt) %> · <%= info.Hash %> <%= info.IsCurrent ? "· Current" : "" %></option><%
                 }
                 %></select>
     <label for="diff-to">with</label>
-    <select id="diff-to" name="to">
-<%
+    <select id="diff-to" name="to"><%
                 foreach (PageRevisionInfo info in revisions) {
-                    %><option value="<%= info.Hash %>"<%= info.Hash == newest ? " selected" : "" %>><%= Stamped(info.SavedAt) %> · <%= info.Hash %> <%= info.IsCurrent ? "· Current" : "" %></option>
-<%
+                    %><option value="<%= info.Hash %>"<%= info.Hash == newest ? " selected" : "" %>><%= Stamped(info.SavedAt) %> · <%= info.Hash %> <%= info.IsCurrent ? "· Current" : "" %></option><%
                 }
                 %></select>
     <button type="submit">Compare revisions</button>
@@ -609,8 +592,7 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
         layout.Title = "Saved revision of " + key;
         Menu("Revision navigation", [new(ReadUrl(key), "Back to history"), new(EditUrl(key), "Back to editor")]);
         %><h1>Saved revision for <%= key %></h1>
-<p>Revision <%= revision!.Hash %>, saved <time datetime="<%= Iso(revision.SavedAt) %>"><%= Stamped(revision.SavedAt) %></time>.</p>
-<%
+<p>Revision <%= revision!.Hash %>, saved <time datetime="<%= Iso(revision.SavedAt) %>"><%= Stamped(revision.SavedAt) %></time>.</p><%
         if (live is null) {
             %><p>This page is deleted. Restoring this revision brings it back.</p><%
         }
@@ -628,8 +610,7 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
         ctx.WriteRaw(renderedDiff!);
     } else if (stage == "delete") {
         layout.Title = "Delete " + key;
-        %><h1>Delete <%= key %>?</h1>
-<%
+        %><h1>Delete <%= key %>?</h1><%
         if (notice is not null) {
             %><p><%= notice %></p><%
         }
@@ -641,13 +622,11 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
         Menu("Confirmation navigation", [new(EditUrl(key), "Cancel")]);
     } else if (stage == "install") {
         layout.Title = "Install the seed";
-        %><h1>Install the seed over <%= key %>?</h1>
-<%
+        %><h1>Install the seed over <%= key %>?</h1><%
         if (notice is not null) {
             %><p class="notice"><%= notice %></p><%
         }
-        %><p>The bundled seed will be saved as a new revision and compiled by this build.</p>
-<%
+        %><p>The bundled seed will be saved as a new revision and compiled by this build.</p><%
         if (live is null) {
             %><p>This page is deleted. Installing brings it back and clears the tombstone.</p><%
         }
@@ -666,8 +645,7 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
         Menu("Confirmation navigation", [new(EditUrl(key), "Cancel"), new(ReadUrl(key), "History")]);
     } else if (stage == "restore") {
         layout.Title = "Restore a revision";
-        %><h1>Restore revision <%= revision!.Hash %> of <%= key %>?</h1>
-<%
+        %><h1>Restore revision <%= revision!.Hash %> of <%= key %>?</h1><%
         if (notice is not null) {
             %><p class="notice"><%= notice %></p><%
         }
