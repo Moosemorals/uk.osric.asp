@@ -94,12 +94,16 @@ internal sealed class PageSaver(
     /// </remarks>
     internal void RecordSaved(PagePath path, PageImage image, long start) {
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
-        metrics.RecordSave(path, image.Bytes is not null, duration);
+        metrics.RecordSave(path, image.Bytes is not null || image.HasCode is false, duration);
         logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
             Outcome(image));
     }
 
     private static string Outcome(PageImage image) {
+        if (image.HasCode is false) {
+            return "stored as source";
+        }
+
         if (image.Bytes is null) {
             return "with errors";
         }

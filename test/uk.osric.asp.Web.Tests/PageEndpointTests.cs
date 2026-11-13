@@ -33,10 +33,13 @@ public sealed class PageEndpointTests {
         _metrics.Dispose();
     }
 
-    private PageEnvironment EndpointEnvironment(RenderOptions? render = null, PageContentTypes? contentTypes = null) {
+    private PageEnvironment EndpointEnvironment(
+        RenderOptions? render = null,
+        PageContentTypes? contentTypes = null,
+        PageLayoutConfiguration? layout = null) {
         return new PageEnvironment(
             Reserved,
-            new PageLayoutConfiguration(),
+            layout ?? new PageLayoutConfiguration(),
             render ?? Options,
             contentTypes ?? TestContentTypes.Shipped,
             StorageOptions,
@@ -711,6 +714,291 @@ public sealed class PageEndpointTests {
 
     // A save is never made through this fixture's environment; the saver exists because a render is
     // offered the capability the same way every other one is.
+    [Test]
+    public async Task AVersionedAssetIsServedFromSourceWithAnImmutableCacheAsync() {
+        const string Source = "body { color: red; }";
+        DefaultHttpContext context = TestHttp.CreateContext("site.css", "GET", "/site.css");
+        FakePageStore storage = StoreAsset("/site.css", Source);
+        string hash = PageHarness.Stored(storage, "/site.css").Hash;
+        context.Request.QueryString = new QueryString($"?v={hash}");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(context.Response.ContentType, Is.EqualTo("text/css; charset=utf-8"));
+        Assert.That(context.Response.Headers.CacheControl.ToString(),
+            Is.EqualTo("public, max-age=31536000, immutable"));
+        Assert.That(context.Response.Headers.ETag.ToString(), Is.EqualTo($"\"{hash}\""));
+        Assert.That(context.Response.ContentLength, Is.EqualTo(Encoding.UTF8.GetByteCount(Source)));
+        Assert.That(context.Response.Headers.SetCookie, Is.Empty);
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo(Source));
+        Assert.That(_compiler.CompileCount, Is.Zero);
+    }
+
+    [Test]
+    public async Task AMatchingValidatorAnswersNotModifiedAsync() {
+        const string Source = "body { color: red; }";
+        DefaultHttpContext context = TestHttp.CreateContext("site.css", "GET", "/site.css");
+        FakePageStore storage = StoreAsset("/site.css", Source);
+        string hash = PageHarness.Stored(storage, "/site.css").Hash;
+        context.Request.QueryString = new QueryString($"?v={hash}");
+        context.Request.Headers.IfNoneMatch = $"\"{hash}\"";
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified));
+        Assert.That(context.Response.Headers.CacheControl.ToString(),
+            Is.EqualTo("public, max-age=31536000, immutable"));
+        Assert.That(context.Response.Headers.ETag.ToString(), Is.EqualTo($"\"{hash}\""));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
+    }
+
+    [Test]
+    public async Task AnUnversionedAssetIsStillNoStoreWithoutAValidatorAsync() {
+        const string Source = "body { color: red; }";
+        DefaultHttpContext context = TestHttp.CreateContext("site.css", "GET", "/site.css");
+        FakePageStore storage = StoreAsset("/site.css", Source);
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        Assert.That(context.Response.Headers.ETag, Is.Empty);
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo(Source));
+        Assert.That(_compiler.CompileCount, Is.Zero, "a no-code asset is never compiled");
+    }
+
+    [Test]
+    public async Task AVersionedAssetAnswersHeadWithItsLengthAndNoBodyAsync() {
+        const string Source = "body { color: red; }";
+        DefaultHttpContext context = TestHttp.CreateContext("site.css", "HEAD", "/site.css");
+        FakePageStore storage = StoreAsset("/site.css", Source);
+        string hash = PageHarness.Stored(storage, "/site.css").Hash;
+        context.Request.QueryString = new QueryString($"?v={hash}");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(context.Response.ContentLength, Is.EqualTo(Encoding.UTF8.GetByteCount(Source)));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.Empty);
+    }
+
+    [TestCase("POST")]
+    [TestCase("PUT")]
+    public async Task AVersionedAssetRefusesAMethodThatCouldWriteAsync(string method) {
+        DefaultHttpContext context = TestHttp.CreateContext("site.css", method, "/site.css");
+        FakePageStore storage = StoreAsset("/site.css", "body { }");
+        string hash = PageHarness.Stored(storage, "/site.css").Hash;
+        context.Request.QueryString = new QueryString($"?v={hash}");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status405MethodNotAllowed));
+        Assert.That(context.Response.Headers.Allow.ToString(), Is.EqualTo("GET, HEAD"));
+    }
+
+    [TestCase("?v=not-a-token")]
+    [TestCase("?v=")]
+    [TestCase("?v=a&v=b")]
+    public async Task AMalformedOrRepeatedTokenIsNotFoundAsync(string query) {
+        DefaultHttpContext context = TestHttp.CreateContext("site.css", "GET", "/site.css");
+        FakePageStore storage = StoreAsset("/site.css", "body { }");
+        context.Request.QueryString = new QueryString(query);
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
+    }
+
+    [Test]
+    public async Task ATokenStoredUnderAnotherPathIsNotFoundAsync() {
+        FakePageStore storage = StoreAsset("/site.css", "body { }");
+        StoreAsset(storage, "/other.css", "p { }");
+        string hash = PageHarness.Stored(storage, "/other.css").Hash;
+        DefaultHttpContext context = TestHttp.CreateContext("site.css", "GET", "/site.css");
+        context.Request.QueryString = new QueryString($"?v={hash}");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
+    }
+
+    [Test]
+    public async Task AnOldRevisionStillServesItsBytesAfterANewerSaveAsync() {
+        FakePageStore storage = StoreAsset("/site.css", "body { color: red; }");
+        string oldHash = PageHarness.Stored(storage, "/site.css").Hash;
+        storage["/site.css"] = PageTemplate.NewRevision(
+            PageHarness.Key("/site.css"),
+            "body { color: blue; }",
+            new PageImage(TemplateFingerprint.Of("body { color: blue; }"), _compiler.RuntimeId, null, null, [], HasCode: false),
+            _compiler.RuntimeId);
+        string newHash = PageHarness.Stored(storage, "/site.css").Hash;
+
+        DefaultHttpContext context = TestHttp.CreateContext("site.css", "GET", "/site.css");
+        context.Request.QueryString = new QueryString($"?v={oldHash}");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("body { color: red; }"));
+        Assert.That(newHash, Is.Not.EqualTo(oldHash),
+            "an edit moves the hash a fresh link would carry");
+    }
+
+    [Test]
+    public async Task AVersionedRevisionWithCodeRendersButIsNeverCachedAsync() {
+        FakePageStore storage = new();
+        PageTemplate old = PageTemplate.NewRevision(
+            PageHarness.Key("/page"),
+            "<% ctx.Write(\"old\"); %>",
+            null,
+            _compiler.RuntimeId);
+        storage["/page"] = old;
+        storage["/page"] = PageTemplate.NewRevision(
+            PageHarness.Key("/page"),
+            "<% ctx.Write(\"new\"); %>",
+            null,
+            _compiler.RuntimeId);
+        DefaultHttpContext context = TestHttp.CreateContext("page", "GET", "/page");
+        context.Request.QueryString = new QueryString($"?v={old.Hash}");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("old"));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        Assert.That(context.Response.Headers.ETag, Is.Empty);
+    }
+
+    [Test]
+    public async Task ATombstonedAssetAnswersAtItsVersionedUrlButNotItsOwnAsync() {
+        FakePageStore storage = StoreAsset("/site.css", "body { }");
+        string hash = PageHarness.Stored(storage, "/site.css").Hash;
+        await storage.DeletePageAsync(PageHarness.Key("/site.css"));
+
+        DefaultHttpContext versioned = TestHttp.CreateContext("site.css", "GET", "/site.css");
+        versioned.Request.QueryString = new QueryString($"?v={hash}");
+        await PageEndpoint.HandleAsync(versioned, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        DefaultHttpContext bare = TestHttp.CreateContext("site.css", "GET", "/site.css");
+        await PageEndpoint.HandleAsync(bare, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(versioned.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(bare.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
+    }
+
+    [Test]
+    public async Task AScrubbedAssetNoLongerAnswersAtItsVersionedUrlAsync() {
+        FakePageStore storage = StoreAsset("/site.css", "body { }");
+        string hash = PageHarness.Stored(storage, "/site.css").Hash;
+        await storage.DeletePageAsync(PageHarness.Key("/site.css"));
+        await storage.ScrubPageAsync(PageHarness.Key("/site.css"));
+
+        DefaultHttpContext context = TestHttp.CreateContext("site.css", "GET", "/site.css");
+        context.Request.QueryString = new QueryString($"?v={hash}");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
+    }
+
+    [Test]
+    public async Task ANoCodePageIsServedRawWhateverTheLayoutPolicyIsAsync() {
+        const string Source = "<!DOCTYPE html><html><head><title>Mine</title></head><body><p>Own document</p></body></html>";
+        DefaultHttpContext context = TestHttp.CreateContext("mine.html", "GET", "/mine.html");
+        FakePageStore storage = StoreAsset("/mine.html", Source);
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance,
+            EndpointEnvironment(layout: new PageLayoutConfiguration { Default = "/_layout" }));
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(body, Is.EqualTo(Source));
+        Assert.That(body, Does.Not.Contain("site-header"));
+        Assert.That(body, Does.Not.Contain("/site.css"));
+    }
+
+    [Test]
+    public async Task TheScriptPolicyFollowsTheExtensionAsync() {
+        const string Source = "<p>Own body</p>";
+        PageContentTypes withSelf = PageContentTypes.Create(
+            new PageContentTypeRule("text/html; charset=utf-8"),
+            [new KeyValuePair<string, PageContentTypeRule>(
+                ".htmlx", new PageContentTypeRule("text/html; charset=utf-8", PageScriptPolicy.Self))]);
+        DefaultHttpContext context = TestHttp.CreateContext("mine.htmlx", "GET", "/mine.htmlx");
+        FakePageStore storage = StoreAsset("/mine.htmlx", Source);
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance,
+            EndpointEnvironment(contentTypes: withSelf, layout: new PageLayoutConfiguration { Default = "/_layout" }));
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(context.Response.Headers["Content-Security-Policy"].ToString(), Does.Contain("script-src 'self'"));
+    }
+
+    [Test]
+    public async Task ADocumentWithCodeCanStillChooseTheLayoutAsync() {
+        FakePageStore storage = new();
+        storage["/_layout"] = new PageTemplate(PageHarness.Key("/_layout"), """
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><html><head><title><%= layout.Title %></title></head><body><%== layout.Body %></body></html>
+            """);
+        storage["/mine.html"] = new PageTemplate(PageHarness.Key("/mine.html"), """
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); layout.Layout = "/_layout"; layout.Title = "Mine"; %><p>Own body</p>
+            """);
+        DefaultHttpContext context = TestHttp.CreateContext("mine.html", "GET", "/mine.html");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance,
+            EndpointEnvironment(layout: new PageLayoutConfiguration { Default = "/_layout" }));
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<title>Mine</title>"));
+        Assert.That(body, Does.Contain("<p>Own body</p>"));
+    }
+
+    [Test]
+    public async Task ANoCodeHtmlFragmentIsItsOwnRepresentationAsync() {
+        FakePageStore storage = StoreAsset("/fragment.html", "<p>Fragment</p>");
+
+        DefaultHttpContext context = TestHttp.CreateContext("fragment.html", "GET", "/fragment.html");
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance,
+            EndpointEnvironment(layout: new PageLayoutConfiguration { Default = "/_layout" }));
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("<p>Fragment</p>"));
+    }
+
+    [Test]
+    public async Task AnHtmKeyIsStillAFragmentAndIsWrappedAsync() {
+        FakePageStore storage = new();
+        storage["/_layout"] = new PageTemplate(PageHarness.Key("/_layout"), """
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><html><head><title><%= layout.Title %></title></head><body><%== layout.Body %></body></html>
+            """);
+        storage["/doc.htm"] = new PageTemplate(PageHarness.Key("/doc.htm"), """
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Doc"; %><p>Fragment</p>
+            """);
+        DefaultHttpContext context = TestHttp.CreateContext("doc.htm", "GET", "/doc.htm");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance,
+            EndpointEnvironment(layout: new PageLayoutConfiguration { Default = "/_layout" }));
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<title>Doc</title>"));
+        Assert.That(body, Does.Contain("<p>Fragment</p>"));
+    }
+
+    private static FakePageStore StoreAsset(string path, string source) {
+        FakePageStore storage = new();
+        StoreAsset(storage, path, source);
+
+        return storage;
+    }
+
+    private static void StoreAsset(FakePageStore storage, string path, string source) {
+        PagePath key = PageHarness.Key(path);
+        storage[path] = PageTemplate.NewRevision(
+            key,
+            source,
+            new PageImage(TemplateFingerprint.Of(source), "test:runtime", null, null, [], HasCode: false),
+            "test:runtime");
+    }
+
     private PageSaver Saver(RenderOptions render) {
         PageBudget budget = new(render, new CompileOptions());
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);

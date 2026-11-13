@@ -28,6 +28,7 @@ internal sealed class PageChain {
     private readonly PageEnvironment _environment;
     private readonly RenderFetchBudget _fetchBudget;
     private readonly bool _isHead;
+    private readonly IReadOnlyDictionary<string, string> _assets;
     private readonly ILogger _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly string _loginRedirect;
@@ -46,6 +47,7 @@ internal sealed class PageChain {
     /// <param name="bodyBudget">The allowance the whole chain shares.</param>
     /// <param name="fetchBudget">The fetch allowance the whole chain shares.</param>
     /// <param name="readBudget">The template allowance the whole chain shares.</param>
+    /// <param name="assets">The live assets every layer's links may be versioned against.</param>
     /// <param name="loginRedirect">Where a guard sends an anonymous visitor.</param>
     /// <param name="antiforgeryField">
     /// Mints the antiforgery pair once per request, so every layer's form is verifiable against the
@@ -63,6 +65,7 @@ internal sealed class PageChain {
         BodyBudget bodyBudget,
         RenderFetchBudget fetchBudget,
         ReadBudget readBudget,
+        IReadOnlyDictionary<string, string> assets,
         string loginRedirect,
         Func<string> antiforgeryField) {
         ArgumentNullException.ThrowIfNull(environment);
@@ -72,6 +75,7 @@ internal sealed class PageChain {
         ArgumentNullException.ThrowIfNull(bodyBudget);
         ArgumentNullException.ThrowIfNull(fetchBudget);
         ArgumentNullException.ThrowIfNull(readBudget);
+        ArgumentNullException.ThrowIfNull(assets);
         ArgumentNullException.ThrowIfNull(antiforgeryField);
 
         _environment = environment;
@@ -85,6 +89,7 @@ internal sealed class PageChain {
         _bodyBudget = bodyBudget;
         _fetchBudget = fetchBudget;
         _readBudget = readBudget;
+        _assets = assets;
         _loginRedirect = loginRedirect;
         _antiforgeryField = antiforgeryField;
     }
@@ -153,7 +158,8 @@ internal sealed class PageChain {
             _antiforgeryField,
             key,
             isLayout,
-            _bodyBudget);
+            _bodyBudget,
+            href => PageAssetMap.Resolve(_assets, href));
     }
 
     /// <summary>Wraps the content in the layouts it names, outermost last.</summary>

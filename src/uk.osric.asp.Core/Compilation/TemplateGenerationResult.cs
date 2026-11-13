@@ -9,4 +9,13 @@ namespace uk.osric.asp.Core.Compilation;
 /// The problems that stopped generation, already positioned in template space; empty when
 /// <paramref name="Source"/> was generated.
 /// </param>
-public sealed record TemplateGenerationResult(GeneratedSource? Source, IReadOnlyList<PageDiagnostic> Errors);
+public sealed record TemplateGenerationResult(GeneratedSource? Source, IReadOnlyList<PageDiagnostic> Errors) {
+
+    /// <summary>Whether the template contains anything the tokenizer reads as code.</summary>
+    /// <remarks>
+    /// True when any token other than a text token appears, and true for a template that could not
+    /// be tokenized at all: a template the tokenizer refuses must never be mistaken for one that has
+    /// nothing to compile.
+    /// </remarks>
+    public bool HasCode { get; init; }
+}

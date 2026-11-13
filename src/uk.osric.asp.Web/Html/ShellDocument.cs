@@ -3,8 +3,10 @@
 
 namespace uk.osric.asp.Web.Html;
 
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Http;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>Writes the document every non-page view shares, through the markup the Sdk owns.</summary>
 internal static class ShellDocument {
@@ -32,7 +34,7 @@ internal static class ShellDocument {
     /// forget the banner, the skip link or the landmark, and the shell cannot drift from a seeded
     /// layout.
     /// </remarks>
-    public static Task BeginAsync(
+    public static async Task BeginAsync(
         HttpContext context,
         string title,
         string navigation,
@@ -51,11 +53,45 @@ internal static class ShellDocument {
         // this weaker value would replace it, and setting one first makes the framework log a warning.
         SecurityHeaders.NoStoreIfAbsent(context);
 
-        string markup = PageDocument.Head(title, stylesheets, head, bodyClass)
+        IReadOnlyDictionary<string, string> assets = await AssetMapAsync(context, cancellationToken);
+        string markup = PageDocument.Head(
+                title,
+                stylesheets,
+                head,
+                bodyClass,
+                href => PageAssetMap.Resolve(assets, href))
             + PageDocument.Banner(navigation)
             + PageDocument.OpenMain();
 
-        return context.Response.WriteAsync(markup, cancellationToken);
+        await context.Response.WriteAsync(markup, cancellationToken);
+    }
+
+    /// <summary>Versions a link one of the shell's own views writes in its head markup.</summary>
+    /// <param name="context">The request whose asset map the link resolves against.</param>
+    /// <param name="href">The site-relative link, such as a script's path.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The versioned URL, or the link unchanged when it is not a live asset.</returns>
+    public static async Task<string> AssetUrlAsync(
+        HttpContext context,
+        string href,
+        CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(href);
+
+        IReadOnlyDictionary<string, string> assets = await AssetMapAsync(context, cancellationToken);
+
+        return PageAssetMap.Resolve(assets, href);
+    }
+
+    private static Task<IReadOnlyDictionary<string, string>> AssetMapAsync(
+        HttpContext context,
+        CancellationToken cancellationToken) {
+        IPageReadStore? store = context.RequestServices?.GetService<IPageReadStore>();
+        PageReadOptions? options = context.RequestServices?.GetService<PageReadOptions>();
+
+        return store is null || options is null
+            ? Task.FromResult(PageAssetMap.Empty)
+            : PageAssetMap.ForRequestAsync(context, store, options.MaxRowsPerList, cancellationToken);
     }
 
     /// <summary>Closes the landmark and the document.</summary>

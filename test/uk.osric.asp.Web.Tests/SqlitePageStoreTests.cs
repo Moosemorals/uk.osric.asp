@@ -552,4 +552,73 @@ public sealed class SqlitePageStoreTests {
     }
 
     private static PagePath Key(string path) => PagePath.Normalize(path);
+
+    [Test]
+    public async Task ANoCodeSaveStoresItsVerdictAndNoImageAsync() {
+        const string Source = "body { color: red; }";
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath path = Key("/site.css");
+        PageImage image = new(TemplateFingerprint.Of(Source), "1:build", null, null, [], HasCode: false);
+
+        await storage.SavePageAsync(PageTemplate.NewRevision(path, Source, image, "1:build"));
+
+        PageRevision row = await database.Set<PageRevision>().SingleAsync(revision => revision.Path == path.Key);
+        Assert.That(row.TemplateHasCode, Is.False);
+        Assert.That(row.Image, Is.Null);
+        Assert.That(row.Symbols, Is.Null);
+        Assert.That(row.Diagnostics, Is.EqualTo("[]"));
+    }
+
+    [Test]
+    public async Task ACodeSaveStoresItsVerdictAndItsImageAsync() {
+        const string Source = "<% ctx.Write(\"hi\"); %>";
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath path = Key("/hello");
+        PageImage image = new(TemplateFingerprint.Of(Source), "1:build", [1, 2, 3], [4, 5, 6], []);
+
+        await storage.SavePageAsync(PageTemplate.NewRevision(path, Source, image, "1:build"));
+
+        PageRevision row = await database.Set<PageRevision>().SingleAsync(revision => revision.Path == path.Key);
+        Assert.That(row.TemplateHasCode, Is.True);
+        Assert.That(row.Image, Is.EqualTo(new byte[] { 1, 2, 3 }));
+    }
+
+    [Test]
+    public async Task ALazyCompileFillsANullVerdictAsync() {
+        const string Source = "<% ctx.Write(\"hi\"); %>";
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath path = Key("/cold");
+        await storage.SavePageAsync(new PageTemplate(path, Source));
+        PageTemplate stored = (await storage.GetPageAsync(path))!;
+        Assert.That(stored.TemplateHasCode, Is.Null);
+
+        PageImage image = new(TemplateFingerprint.Of(Source), "1:build", [1], [2], []);
+        Assert.That(await storage.TrySetImageAsync(stored.RevisionId, Source, image), Is.True);
+
+        PageTemplate reloaded = (await storage.GetPageAsync(path))!;
+        Assert.That(reloaded.TemplateHasCode, Is.True);
+        Assert.That(reloaded.Image?.Bytes, Is.EqualTo(new byte[] { 1 }));
+    }
+
+    [Test]
+    public async Task ALazyCompileThatFindsNoCodeStoresNoImageAsync() {
+        const string Source = "body { }";
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath path = Key("/seeded.css");
+        await storage.SavePageAsync(new PageTemplate(path, Source));
+        PageTemplate stored = (await storage.GetPageAsync(path))!;
+
+        PageImage image = new(TemplateFingerprint.Of(Source), "1:build", null, null, [], HasCode: false);
+        Assert.That(await storage.TrySetImageAsync(stored.RevisionId, Source, image), Is.True);
+
+        PageTemplate reloaded = (await storage.GetPageAsync(path))!;
+        Assert.That(reloaded.TemplateHasCode, Is.False);
+        Assert.That(reloaded.Image, Is.Not.Null);
+        Assert.That(reloaded.Image?.Bytes, Is.Null);
+        Assert.That(reloaded.Image?.HasCode, Is.False);
+    }
 }

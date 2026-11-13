@@ -28,7 +28,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
     /// <param name="template">The template text.</param>
     /// <param name="savedAt">The revision's time; the store's own clock is used when omitted.</param>
     /// <returns>The revision's hash.</returns>
-    public string Save(string key, string template, DateTimeOffset? savedAt = null) {
+    public string Save(string key, string template, DateTimeOffset? savedAt = null, bool? templateHasCode = null) {
         DateTimeOffset when = savedAt ?? _clock.AddMinutes(1);
         _clock = when > _clock ? when : _clock;
 
@@ -37,7 +37,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
         }
 
         string hash = "hash-" + revisions.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-" + key;
-        revisions.Add(new FakeRevision(hash, when, template));
+        revisions.Add(new FakeRevision(hash, when, template, templateHasCode));
 
         return hash;
     }
@@ -57,7 +57,8 @@ internal sealed class FakePageReadStore : IPageReadStore {
             .Take(limit)
             .Select(item => {
                 FakeRevision latest = item.Value[^1];
-                return new PageReadHead(item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key));
+                return new PageReadHead(
+                    item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key), latest.TemplateHasCode);
             })];
     }
 
@@ -112,5 +113,5 @@ internal sealed class FakePageReadStore : IPageReadStore {
             || string.Equals(key, prefix, StringComparison.Ordinal)
             || key.StartsWith(prefix + "/", StringComparison.Ordinal);
 
-    private sealed record FakeRevision(string Hash, DateTimeOffset SavedAt, string Template);
+    private sealed record FakeRevision(string Hash, DateTimeOffset SavedAt, string Template, bool? TemplateHasCode);
 }

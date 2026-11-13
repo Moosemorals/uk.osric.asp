@@ -193,7 +193,7 @@ internal sealed class FakePageStore : IPageStore {
             return Task.FromResult(false);
         }
 
-        PageTemplate compiled = target with { Image = image };
+        PageTemplate compiled = target with { Image = image, TemplateHasCode = image.HasCode };
         _revisions[compiled.Hash] = compiled;
         if (_pages.GetValueOrDefault(path.Key)?.RevisionId == revisionId) {
             _pages[path.Key] = compiled;

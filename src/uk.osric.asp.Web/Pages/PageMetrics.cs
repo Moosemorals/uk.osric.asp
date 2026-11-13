@@ -37,6 +37,7 @@ internal sealed class PageMetrics : IDisposable {
         new("page.render.abandoned", InstrumentKind.Counter, "1"),
         new("page.cache.lookups", InstrumentKind.Counter, "1"),
         new("page.cache.staleness", InstrumentKind.Counter, "1"),
+        new("page.asset.requests", InstrumentKind.Counter, "1"),
         new("page.layout.fallback", InstrumentKind.Counter, "1"),
         new("page.storage.payload.size", InstrumentKind.Gauge, "By"),
         new("page.storage.database.size", InstrumentKind.Gauge, "By"),
@@ -79,6 +80,18 @@ internal sealed class PageMetrics : IDisposable {
 
     /// <summary>The page outran its execution budget and was abandoned.</summary>
     public const string RenderTimeout = "timeout";
+
+    /// <summary>An asset was served from source.</summary>
+    public const string AssetServed = "served";
+
+    /// <summary>A versioned asset answered <c>304 Not Modified</c>.</summary>
+    public const string AssetNotModified = "not-modified";
+
+    /// <summary>A versioned URL named no retained revision, or one stored under another path.</summary>
+    public const string AssetUnknown = "unknown";
+
+    /// <summary>A versioned URL named a revision that is not a page nothing wraps.</summary>
+    public const string AssetNonAsset = "non-asset";
 
     /// <summary>The stored image was used.</summary>
     public const string CacheHit = "hit";
@@ -146,6 +159,7 @@ internal sealed class PageMetrics : IDisposable {
     private readonly Counter<long> _renderAbandoned;
     private readonly Counter<long> _cacheLookups;
     private readonly Counter<long> _staleness;
+    private readonly Counter<long> _assetRequests;
     private readonly Counter<long> _layoutFallbacks;
     private readonly Histogram<long> _imageSize;
     private readonly Histogram<double> _fetchDuration;
@@ -173,6 +187,8 @@ internal sealed class PageMetrics : IDisposable {
             "page.cache.lookups", null, "Compiled images the render path could use, could not use, or did not find.");
         _staleness = _meter.CreateCounter<long>(
             "page.cache.staleness", null, "Why a stored compiled image was not reused.");
+        _assetRequests = _meter.CreateCounter<long>(
+            "page.asset.requests", null, "Requests for an asset, by whether they were served, unchanged or refused.");
         _layoutFallbacks = _meter.CreateCounter<long>(
             "page.layout.fallback", null, "Pages served without the default layout because it could not be served.");
         _imageSize = _meter.CreateHistogram<long>(
@@ -291,6 +307,19 @@ internal sealed class PageMetrics : IDisposable {
         };
 
         _staleness.Add(1, tags);
+    }
+
+    /// <summary>Records one request for an asset.</summary>
+    /// <param name="outcome">One of <see cref="AssetServed"/>, <see cref="AssetNotModified"/>,
+    /// <see cref="AssetUnknown"/> or <see cref="AssetNonAsset"/>.</param>
+    /// <remarks>
+    /// No path label: the URL is public, so tagging it would let a scan mint a series per address.
+    /// The access log names the path.
+    /// </remarks>
+    public void RecordAsset(string outcome) {
+        TagList tags = new() { { "outcome", outcome } };
+
+        _assetRequests.Add(1, tags);
     }
 
     /// <summary>Records one outbound fetch.</summary>

@@ -28,6 +28,8 @@ uk.osric.asp.Sdk.PageEntry.Hash.init -> void
 uk.osric.asp.Sdk.PageEntry.IsDeleted.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsDeleted.init -> void
 uk.osric.asp.Sdk.PageEntry.IsHtml.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsAsset.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsAsset.init -> void
 uk.osric.asp.Sdk.PageEntry.IsHtml.init -> void
 uk.osric.asp.Sdk.PageEntry.IsReserved.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsReserved.init -> void
@@ -138,3 +140,6 @@ override uk.osric.asp.Sdk.PageSessionKey.GetHashCode() -> int
 static uk.osric.asp.Sdk.PageSessionKey.operator !=(uk.osric.asp.Sdk.PageSessionKey left, uk.osric.asp.Sdk.PageSessionKey right) -> bool
 static uk.osric.asp.Sdk.PageSessionKey.operator ==(uk.osric.asp.Sdk.PageSessionKey left, uk.osric.asp.Sdk.PageSessionKey right) -> bool
 ~override uk.osric.asp.Sdk.PageSessionKey.Equals(object obj) -> bool
+uk.osric.asp.Sdk.IContext.AssetUrl(string! href) -> string!
+static uk.osric.asp.Sdk.PageDocument.Head(string! title, System.Collections.Generic.IReadOnlyList<string!>? stylesheets = null, string? head = null, string? bodyClass = null, System.Func<string!, string!>? resolveHref = null) -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.Head(string! title, System.Collections.Generic.IReadOnlyList<string!>? stylesheets = null, string? head = null, string? bodyClass = null) -> string!

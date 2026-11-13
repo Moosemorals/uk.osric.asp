@@ -73,6 +73,21 @@ public interface IContext {
     /// <param name="contentType">The media type to send.</param>
     public void SetContentType(string contentType);
 
+    /// <summary>Versions a same-origin link when the page it names is a live asset.</summary>
+    /// <param name="href">The link as the page would write it.</param>
+    /// <returns>
+    /// The link with a <c>?v=</c> hash, or the link unchanged when it is not a bare site-relative
+    /// path or does not name a live asset. A query or fragment, an absolute or protocol-relative URL
+    /// and a missing, deleted or compiled page all keep the link as written, so an unversioned
+    /// fallback still works.
+    /// </returns>
+    /// <remarks>
+    /// An asset is a page with no code: a complete representation whose source is the response. The
+    /// hash pins the retained revision, so editing the asset does not change a URL that already
+    /// points at it.
+    /// </remarks>
+    public string AssetUrl(string href);
+
     /// <summary>Sets a response header the page is allowed to control.</summary>
     /// <param name="name">The header name.</param>
     /// <param name="value">The header value; it may not contain a line break.</param>

@@ -11,7 +11,7 @@ public sealed class PageCacheTests : IntegrationTest {
 
     [Test]
     public async Task AStoredPageIsCompiledOnceAndThenServedFromItsImage() {
-        await SavePageAsync("/cached", "Hello.");
+        await SavePageAsync("/cached", "<% ctx.Write(\"Hello.\"); %>");
         using HttpClient client = CreateClient();
         int compiles = CompileCount;
 
@@ -28,7 +28,7 @@ public sealed class PageCacheTests : IntegrationTest {
         using HttpClient client = await CreateSignedInClientAsync();
         int compiles = CompileCount;
 
-        await PostEditorAsync(client, "saved", "Saved.");
+        await PostEditorAsync(client, "saved", "<% ctx.Write(\"Saved.\"); %>");
         string body = await (await client.GetAsync("/saved")).Content.ReadAsStringAsync();
 
         Assert.That(body, Is.EqualTo("Saved."));

@@ -11,6 +11,9 @@ internal enum ImportPageStatus {
     /// <summary>Not compiled yet, or not reached after the batch failed.</summary>
     Waiting,
 
+    /// <summary>Has no code, so it is stored and served as source.</summary>
+    StoredAsSource,
+
     /// <summary>Compiled cleanly.</summary>
     Compiled,
 

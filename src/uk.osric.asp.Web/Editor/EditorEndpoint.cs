@@ -386,6 +386,7 @@ internal sealed class EditorEndpoint {
 
         await context.Response.WriteAsync(PageDocument.Nav("Editor navigation", menu, "editor-menu"));
 
+        string script = await ShellDocument.AssetUrlAsync(context, "/editor.js", context.RequestAborted);
         await context.Response.WriteAsync($"""
             <form method="post" action="?" class="editor-form">
                 {AntiforgeryField.Hidden(tokens)}
@@ -398,7 +399,7 @@ internal sealed class EditorEndpoint {
                 <button type="submit" name="cmd" value="save">Save</button>
                 <button type="submit" name="cmd" value="save-and-view">Save and view</button>
             </form>
-            <script type="module" src="/editor.js"></script>
+            <script type="module" src="{WebUtility.HtmlEncode(script)}"></script>
             """);
         await ShellDocument.EndAsync(context);
     }

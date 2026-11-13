@@ -77,19 +77,28 @@ public sealed class PageCatalogScopeTests {
     }
 
     [Test]
-    public async Task AnAssetIsMarkedAsNotHtmlAsync() {
+    public async Task ANoCodePageIsMarkedAsAnAssetAsync() {
         FakePageReadStore store = new();
-        store.Save("/site.css", "body { color: red; }");
+        store.Save("/site.css", "body { color: red; }", templateHasCode: false);
+        store.Save("/index.html", "<!DOCTYPE html><html></html>", templateHasCode: false);
 
-        Assert.That((await Scope(store).ListAsync("")).Single().IsHtml, Is.False);
+        PageEntry[] entries = [.. await Scope(store).ListAsync("")];
+
+        Assert.That(entries.Single(entry => entry.Key == "/site.css").IsAsset, Is.True);
+        Assert.That(entries.Single(entry => entry.Key == "/index.html").IsAsset, Is.True);
+        Assert.That(entries.Single(entry => entry.Key == "/site.css").IsHtml, Is.False);
+        Assert.That(entries.Single(entry => entry.Key == "/index.html").IsHtml, Is.True);
     }
 
     [Test]
-    public async Task ADocumentIsMarkedAsHtmlAsync() {
+    public async Task ACodePageIsNotAnAssetAsync() {
         FakePageReadStore store = new();
-        store.Save("/blog", "<h1>Blog</h1>");
+        store.Save("/blog", "<h1>Blog</h1>", templateHasCode: true);
 
-        Assert.That((await Scope(store).ListAsync("")).Single().IsHtml, Is.True);
+        PageEntry entry = (await Scope(store).ListAsync("")).Single();
+
+        Assert.That(entry.IsHtml, Is.True);
+        Assert.That(entry.IsAsset, Is.False);
     }
 
     [Test]

@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v20";
+    public const string Version = "page-author-v21";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -122,8 +122,12 @@ internal static class PageAuthorPrompt {
         ## Layout
         A page is a fragment, not a document. Do not write `<!DOCTYPE html>`,
         `<html>`, `<head>`, `<body>`, a title element or the site menu: the
-        host wraps every HTML page in the stored layout page, which writes all
-        of that. Start at the page's first heading, and write one `<h1>`.
+        host wraps every HTML page **with code** in the stored layout page,
+        which writes all of that. Start at the page's first heading, and write
+        one `<h1>`. A page with no C# at all is an asset instead: it is never
+        wrapped, so a pure-text page must write its own complete document. If
+        you want the site chrome, include a code block and set
+        `layout.Title`.
         The layout's slots are on `IPageLayout`, reached through the page's
         capabilities:
 
@@ -144,14 +148,18 @@ internal static class PageAuthorPrompt {
         belongs to the host: this site currently maps `.js` and `.mjs` to
         `text/javascript; charset=utf-8`, but do not assume a fixed list.
         Call `ctx.SetContentType` only to override that default, for example a
-        `.js` page that sends HTML. Write the script as a native ES module: use
-        `import`/`export` rather than globals, and end a side-effect-only script
-        with `export {};`. Every stored page is sent `Cache-Control: no-store`
-        with no `ETag`, and a page cannot set either. The page that loads
-        it calls `ctx.AllowScripts()` and writes
-        `<script type="module" src="/…"></script>`; modules are deferred, so
-        the script's position in the document does not matter. Inline
-        scripts and event-handler attributes stay blocked.
+        `.js` page that sends HTML. The extension row also chooses the script
+        policy: `none` sends `script-src 'none'` and `self` allows same-origin
+        modules. A page that needs scripts calls `ctx.AllowScripts()`, which
+        widens `none` to `self` and never narrows a `self` row. Write the script
+        as a native ES module: use `import`/`export` rather than globals, and
+        end a side-effect-only script with `export {};`. Every page with code is
+        sent `Cache-Control: no-store` with no `ETag`, and a page cannot set
+        either. A no-code asset is served from its source, and
+        `ctx.AssetUrl("/app.js")` versions a link to one. The page that loads a
+        script writes `<script type="module" src="/…"></script>`; modules are
+        deferred, so the script's position in the document does not matter.
+        Inline scripts and event-handler attributes stay blocked.
         Before `write_page`, call `check_script_text` with the complete
         content. After `edit_page`, call `check_script` with the page's path.
         Never check a replacement fragment on its own: a fragment can be
@@ -179,7 +187,8 @@ internal static class PageAuthorPrompt {
         Pages run for GET, POST, and HEAD. The header allow-list is
         Content-Language and X-*; pages cannot set cookies, Location, content
         type through a header, framing headers, or caching headers, because
-        every stored page is `no-store` without a validator.
+        every page with code is `no-store` without a validator. A no-code asset
+        is served from source and may be cached under its versioned URL.
         `ctx.AllowScripts()` widens this response to
         `script-src 'self'` for same-origin external scripts; inline scripts
         and event-handler attributes stay blocked, so the script must be
@@ -239,8 +248,8 @@ internal static class PageAuthorPrompt {
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
         and never writes. `ListAsync(prefix)` lists the heads under a subtree
-        and returns `PageEntry` rows with `Key`, `SavedAt`, `Hash` and three
-        marks: `IsDeleted`, `IsReserved` and `IsHtml`. A prefix is a subtree,
+        and returns `PageEntry` rows with `Key`, `SavedAt`, `Hash` and four
+        marks: `IsDeleted`, `IsReserved`, `IsHtml` and `IsAsset`. A prefix is a subtree,
         not a string prefix: `/blog` lists `/blog` and `/blog/post`, never
         `/blogroll`; `""` and `/` are the whole store. `ReadAsync(key)` reads a
         live page's template as a `PageSource`, or null when there is none;

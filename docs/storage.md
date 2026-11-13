@@ -54,19 +54,27 @@ reaches a signed-in session when no anonymous one is left. That order is what ke
 anonymous visitors from pushing the owner's own session out.
 
 `PageRevisions` holds every save as a separate row, including its source, revision hash, creation
-runtime id and optional compilation result. A save inserts the revision and advances its
-`PageHeads` row in one transaction. The head is the authoritative current-page pointer; reads do not
-guess the current row from timestamps. The source identity and hash stay fixed while conditional
+runtime id, optional compilation result and a nullable `TemplateHasCode` verdict. The verdict is
+written by the generation that judged the source: `0` means the template has no code, so there is no
+image and every request serves the stored source; `1` means it has code, and the image fields are
+whatever the compile reached; `NULL` means the revision has never been judged. A lazy compile fills a
+`NULL` verdict on the revision it compiled. Nothing backfills a row that already exists — including
+the seeded assets — so a revision keeps `NULL` until it is next saved, restored or first generated.
+
+A save inserts the revision and advances its `PageHeads` row in one transaction. The head is the
+authoritative current-page pointer; reads do not guess the current row from timestamps. The source
+identity and hash stay fixed while conditional
 compilation updates may fill or refresh only the compilation fields of that revision. A diff is not
 a stored value: it is computed from two retained templates when it is asked for, and the only copy
 in the database is the assistant's ordinary tool result in the transcript. Reusing an image
 requires both a matching source fingerprint and the current runtime id, so matching images are
 reused and stale ones are recompiled lazily.
 
-Revision hashes address retained code but are not authorization tokens or rendered-body ETags. An
-indexed hash lookup exists for future immutable asset serving; it is an internal storage operation,
-not a public endpoint, and the asset endpoint is not implemented. Ordinary page reads follow the
-head and ignore deleted pages.
+Revision hashes address retained revisions, including historical ones and those of a tombstone. The
+same 64-character lowercase hexadecimal value is the public `?v=` value: `RevisionHash.IsCanonical`
+accepts exactly that spelling, and the hash lookup never substitutes the head. The hash is not an
+authorization token; a versioned URL is public. Ordinary page reads follow the head and ignore
+deleted pages; a versioned read deliberately does not.
 
 Deletion marks a head as a tombstone without removing its revision pointer or history. Saving again
 at the same path appends a revision and clears the tombstone. Startup seeding checks whether a head
@@ -172,8 +180,8 @@ or does not, and the way back is another import.
 Built-in page templates live in `src/uk.osric.asp.Web/Pages/Seeds`, included as content in build and
 publish output. Each file is a complete page template and its filename becomes the page path. The
 response type follows that name's extension through `Pages:ContentTypes`, so the scripts,
-stylesheets and SVG are pure source with no directive of their own; the seeded `/rocket.svg` sets
-`image/svg+xml` explicitly as well, which is the same answer the map gives. `/site.css` holds the
+stylesheets and SVG are pure source with no directive of their own. The seeded `/rocket.svg` and
+`/site.css` have no code, so they are stored as source and never compiled. `/site.css` holds the
 site's look and the rules the document shell's markup needs (see [the document
 shell](shell.md#the-document-shell)), while `/status.css` holds dashboard styles and is linked only
 by `/status`. Editing a seed file changes the initial content for

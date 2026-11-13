@@ -12,6 +12,9 @@ namespace uk.osric.asp.Web.Pages;
 /// </remarks>
 internal enum PageImageState {
 
+    /// <summary>The template has no code, so it is stored and served as source.</summary>
+    StoredAsSource,
+
     /// <summary>No image has been built for the template yet.</summary>
     NotCompiled,
 
@@ -43,12 +46,20 @@ internal static class PageImageStatus {
     /// The build that is running now, or null to leave staleness unjudged: a retained revision from an
     /// earlier build is history rather than stale, and only the listing and the assistant ask.
     /// </param>
+    /// <param name="templateHasCode">
+    /// Whether the template had anything to compile, or null when it has never been judged.
+    /// </param>
     /// <returns>The state the words are chosen from.</returns>
     public static PageImageState Describe(
         string? runtimeId,
         bool hasImage,
         bool hasDiagnostics,
-        string? currentRuntimeId = null) {
+        string? currentRuntimeId = null,
+        bool? templateHasCode = null) {
+        if (templateHasCode is false) {
+            return PageImageState.StoredAsSource;
+        }
+
         if (runtimeId is null) {
             return PageImageState.NotCompiled;
         }
@@ -70,6 +81,7 @@ internal static class PageImageStatus {
     /// <param name="state">The state to describe.</param>
     /// <returns>The words, which read correctly with no stylesheet at all.</returns>
     public static string Describe(this PageImageState state) => state switch {
+        PageImageState.StoredAsSource => "Stored as source",
         PageImageState.NotCompiled => "Not compiled",
         PageImageState.Stale => "Stale",
         PageImageState.CompileFailed => "Compile failed",
@@ -81,6 +93,7 @@ internal static class PageImageStatus {
     /// <param name="state">The state to name.</param>
     /// <returns>One class per state, so a stylesheet can mark the ones that want attention.</returns>
     public static string Class(this PageImageState state) => state switch {
+        PageImageState.StoredAsSource => "state-source",
         PageImageState.NotCompiled => "state-not-compiled",
         PageImageState.Stale => "state-stale",
         PageImageState.CompileFailed => "state-compile-failed",

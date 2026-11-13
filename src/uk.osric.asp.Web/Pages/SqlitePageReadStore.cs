@@ -43,12 +43,14 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                     head.IsDeleted,
                     revision.SavedAt,
                     revision.Hash,
+                    revision.TemplateHasCode,
                 })
             .OrderBy(row => row.Path)
             .Take(limit)
             .ToArrayAsync(cancellationToken);
 
-        return [.. rows.Select(row => new PageReadHead(row.Path, row.SavedAt, row.Hash, row.IsDeleted))];
+        return [.. rows.Select(row => new PageReadHead(
+            row.Path, row.SavedAt, row.Hash, row.IsDeleted, row.TemplateHasCode))];
     }
 
     /// <inheritdoc/>

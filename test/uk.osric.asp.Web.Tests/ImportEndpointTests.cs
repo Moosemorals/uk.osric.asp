@@ -172,13 +172,13 @@ public sealed partial class ImportEndpointTests {
     [Test]
     public async Task ACompilerFaultCommitsTheSourceWithoutAnImage() {
         using ImportHarness harness = new(compiler: new ThrowingCompiler());
-        ImportStage stage = harness.Stage(("/about", "About", []));
+        ImportStage stage = harness.Stage(("/about", "<% ctx.Write(\"About\"); %>", []));
 
         await ApproveAsync(harness, stage.Id, ["/about"]);
         await harness.Processor.ProcessAsync(stage, CancellationToken.None);
 
         PageTemplate saved = harness.Batches.Saved.Single().Template;
-        Assert.That(saved.Template, Is.EqualTo("About"));
+        Assert.That(saved.Template, Is.EqualTo("<% ctx.Write(\"About\"); %>"));
         Assert.That(saved.Image, Is.Null);
         Assert.That(stage.Snapshot().Results.Single().Status, Is.EqualTo(ImportPageStatus.CompilerFault));
     }
@@ -260,7 +260,7 @@ public sealed partial class ImportEndpointTests {
 
         Assert.That(body, Does.Contain("saved"));
         Assert.That(body, Does.Contain("compiled with errors"));
-        Assert.That(body, Does.Contain(">compiled<"));
+        Assert.That(body, Does.Contain(">stored as source<"));
         Assert.That(body, Does.Not.Contain("http-equiv=\"refresh\""));
     }
 

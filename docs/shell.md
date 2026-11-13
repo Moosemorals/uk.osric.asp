@@ -17,7 +17,10 @@ the confirmations — is one document shape, written by `Html/ShellDocument.cs`.
 content type, the status and `Cache-Control: no-store` (unless the response already carries a header,
 which is how a view that mints an antiforgery token keeps the framework's `no-cache, no-store`),
 writes the head (the title, `/site.css`, the view's own sheet where it has one, then the icon) and
-opens `<main id="main">`; `EndAsync` closes the landmark and the document. A view writes its own body
+opens `<main id="main">`; `EndAsync` closes the landmark and the document. The sheets and the icon
+are resolved through `PageAssetMap`, one read per request cached on the request, so a live asset is
+linked with its `?v=` hash; a view's own `<script>` path is resolved the same way through
+`ShellDocument.AssetUrlAsync`. A view writes its own body
 content and nothing else, so the title, the landmark and the sheet order cannot drift apart from one
 view to the next.
 
@@ -36,8 +39,9 @@ view to the next.
   the skip link, `Nav`, `OpenMain`/`CloseMain` and the close — is `Sdk/PageDocument.cs`, so the
   shell, a seeded layout and a page all write one document shape (DEC-156). `Html/` keeps
   `DiagnosticLine`, `AntiforgeryField`, `SiteNavigation` and `PageUrls` beside it.
-- A stored page is wrapped in a layout by default, so it writes a fragment rather than a document;
-  the layout writes the head, the banner and the landmark through the same builder. See "Layouts".
+- A stored page with code is wrapped in a layout by default, so it writes a fragment rather than a
+  document; the layout writes the head, the banner and the landmark through the same builder. See
+  "Layouts".
 
 Every one of these views is rendered once by `ShellViews` and checked against the shared accessibility
 rules — see [testing](testing.md#the-five-suites) — with what a string cannot
@@ -45,9 +49,27 @@ prove left to a recorded hand pass (DEC-110).
 
 ## Layouts
 
-A page is a fragment. The host wraps every `text/html` page in the layout named by `Pages:Layout`
-(`/_layout` as seeded), unless the page clears `IPageLayout.Layout`. A redirect, a `HEAD`'s empty
-body, a non-HTML content type and the layout itself are never wrapped (DEC-149).
+A page with code is a fragment. The host wraps every `text/html` page with code in the layout named
+by `Pages:Layout` (`/_layout` as seeded), unless the page clears `IPageLayout.Layout`. A page with no
+code is a complete representation and is never wrapped: its stored source is the response, whether
+the key is HTML or not. A redirect, a `HEAD`'s empty body, a non-HTML content type, a no-code page
+and the layout itself are never wrapped (DEC-149). A code page that wants its own document clears
+`IPageLayout.Layout` itself.
+
+## The asset response
+
+There are two response shapes. The ordinary one is buffered, wrapped where the rules say, and
+written by `WritePageAsync` with `Cache-Control: no-store` and no validator. The second exists only
+for an asset: a revision with `TemplateHasCode = false`. It is never rendered, loaded or compiled;
+the stored source is the response, and `PageEndpoint.WriteSourceAsync` writes it on its own path with
+the extension's content type, `Content-Length`, the shell's security headers and no session cookie.
+
+An unversioned asset is still `no-store`. A versioned asset — `?v=` naming a retained revision — is
+the one response that may promise `Cache-Control: public, max-age=31536000, immutable` and a strong
+`ETag`; `If-None-Match` answers `304` with the same cache headers. Only `GET` and `HEAD` are answered
+on a versioned URL. The versioned response is separate from `WritePageAsync` so that function's
+unconditional `no-store` and `ETag` removal cannot reach it. [Pages](pages.md#assets-and-versioned-urls)
+has the selection rules and `docs/metrics.md` the `page.asset.requests` outcome counter.
 
 The chain renders inside out, content first, because only then does the host know what the content
 produced:
@@ -219,8 +241,10 @@ The shell's own session keys are ordinary page-session keys with reserved paths:
 no page can occupy those namespaces, and a page can read them but not write or delete them.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
   starts (DEC-93). The editor, assistant and admin views widen the policy to `script-src 'self'` for
-  their own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` (DEC-138);
-  every other response forbids scripts outright. The header stays shell-owned, so a page cannot set
+  their own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` (DEC-138).
+  A stored page's starting policy comes from its extension row's `ScriptPolicy`, before the page
+  runs; a page with code may widen `none` with `AllowScripts`, while a no-code page has no code to
+  do so and depends on the configured row. The header stays shell-owned, so a page cannot set
   `Content-Security-Policy` with `SetHeader`, and inline scripts stay blocked on every path.
   `/admin.js`, `/editor.js` and `/assistant.js` are seeded pages like `/site.css`, so they stay
   editable; each is a native ES module loaded with `<script type="module">`.

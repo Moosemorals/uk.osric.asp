@@ -148,6 +148,8 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("`.js` and `.mjs`"));
             Assert.That(prompt, Does.Contain("only to override that default"));
             Assert.That(prompt, Does.Contain("Cache-Control: no-store"));
+            Assert.That(prompt, Does.Contain("extension row also chooses the script"));
+            Assert.That(prompt, Does.Contain("ctx.AssetUrl"));
             Assert.That(prompt, Does.Contain("do not assume a fixed list"), "the map belongs to the host");
         });
     }
@@ -172,6 +174,8 @@ public sealed class PageAuthorPromptTests {
 
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("A page is a fragment, not a document"));
+            Assert.That(prompt, Does.Contain("A page with no C# at all is an asset"));
+            Assert.That(prompt, Does.Contain("pure-text page must write its own complete document"));
             Assert.That(prompt, Does.Contain("IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>()"));
             Assert.That(prompt, Does.Contain("must set `layout.Title`"));
             Assert.That(prompt, Does.Contain("layout.AddStylesheet"));
@@ -183,7 +187,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v20"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v21"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -249,6 +253,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("## Page store read"));
             Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IPageCatalog>()"));
             Assert.That(prompt, Does.Contain("ListAsync"));
+            Assert.That(prompt, Does.Contain("IsAsset"));
             Assert.That(prompt, Does.Contain("ReadRevisionAsync"));
             Assert.That(prompt, Does.Contain("as public as the page that calls it"));
             Assert.That(prompt, Does.Contain("publishes the source it reads"));
@@ -316,7 +321,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v20"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v21"));
         });
     }
 

@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Pages/PageRenderer.cs`, `src/uk.osric.asp.Web/Html/ShellDocument.cs` |
 
 > **The layout half is done.** Phase 2 landed as [site navigation](../plans/archive/site-navigation.md):
-> every HTML page is wrapped in the stored `/_layout` by default, the slots are on
+> every HTML page with code is wrapped in the stored `/_layout` by default, the slots are on
 > `IPageLayout` reached through `ctx.Capabilities`, the chain renders under one slot and deadline, and
 > the shell keeps its own document (DEC-148–DEC-158). What is left of this item is shared **code**:
 > a named declaration a second page can compile against.
@@ -104,7 +104,7 @@ serves like any other page. No storage, schema or `RuntimeId` decision moved —
 in `Core`, whose module version id was already in the id — and the API policy applies to a declared
 type exactly as it does to a code block, so writing a class is not a way to reach `System.IO`.
 
-Phase 2 is done, by [site navigation](../plans/archive/site-navigation.md): every HTML page is wrapped
+Phase 2 is done, by [site navigation](../plans/archive/site-navigation.md): every HTML page with code is wrapped
 in the stored `/_layout` by default, the slots are on `IPageLayout` through `ctx.Capabilities`, one
 request renders the whole chain under one slot and one deadline, and IDEA-018 moved the document
 builder into `Sdk` so the shell and the layout write one document (DEC-148–DEC-158).

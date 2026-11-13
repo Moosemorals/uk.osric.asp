@@ -23,7 +23,8 @@ public sealed class PageSaverTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
-        SavedRevision saved = await pages.Saver.SaveAsync(PageHarness.Key("/hello"), "Hello.", CancellationToken.None);
+        SavedRevision saved = await pages.Saver.SaveAsync(
+            PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None);
 
         Assert.That(saved.Diagnostics, Is.Empty);
         Assert.That(saved.Revision.Hash, Is.EqualTo(PageHarness.Stored(storage, "/hello").Hash));
@@ -62,16 +63,37 @@ public sealed class PageSaverTests {
     }
 
     [Test]
+    public async Task ASourceOnlySaveTakesNoCompileSlotAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        await pages.Budget.CompileSlots.WaitAsync();
+        try {
+            SavedRevision saved = await pages.Saver.SaveAsync(
+                PageHarness.Key("/site.css"), "body { color: red; }", CancellationToken.None);
+
+            Assert.That(saved.Revision.TemplateHasCode, Is.False);
+            Assert.That(saved.Revision.Image, Is.Not.Null);
+            Assert.That(saved.Revision.Image?.Bytes, Is.Null);
+            Assert.That(PageHarness.Stored(storage, "/site.css").Template, Is.EqualTo("body { color: red; }"));
+            Assert.That(pages.Compiler.CompileCount, Is.Zero);
+        } finally {
+            _ = pages.Budget.CompileSlots.Release();
+        }
+    }
+
+    [Test]
     public async Task ACompilerFaultStoresTheSourceAndRethrowsAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage, new FaultingCompiler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => pages.Saver.SaveAsync(PageHarness.Key("/fault"), "Hello.", CancellationToken.None));
+            () => pages.Saver.SaveAsync(
+                PageHarness.Key("/fault"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None));
 
         PageTemplate stored = PageHarness.Stored(storage, "/fault");
-        Assert.That(stored.Template, Is.EqualTo("Hello."));
+        Assert.That(stored.Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
         Assert.That(stored.Image, Is.Null);
+        Assert.That(stored.TemplateHasCode, Is.Null, "a compiler fault never judged the source");
         Assert.That(stored.CreationRuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
     }
 
@@ -80,7 +102,8 @@ public sealed class PageSaverTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
-        SavedRevision saved = await pages.Saver.SaveAsync(PageHarness.Key("/hello"), "Hello.", CancellationToken.None);
+        SavedRevision saved = await pages.Saver.SaveAsync(
+            PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None);
 
         Assert.That(pages.Revisions.Last?.Hash, Is.EqualTo(saved.Revision.Hash));
         Assert.That(storage.LastWritePath, Is.EqualTo(PageHarness.Key("/hello")));
@@ -108,7 +131,8 @@ public sealed class PageSaverTests {
         await expired.CancelAsync();
 
         await Assert.ThrowsAsync<OperationCanceledException>(
-            () => pages.Saver.SaveAsync(PageHarness.Key("/hello"), "Hello.", CancellationToken.None, expired.Token));
+            () => pages.Saver.SaveAsync(
+                PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None, expired.Token));
 
         Assert.That(storage.WriteCount, Is.Zero, "nothing is compiled, so nothing is stored");
     }
@@ -122,11 +146,11 @@ public sealed class PageSaverTests {
         // The render gives up while the page is compiling. The compile keeps its own bound and the
         // revision is stored, because losing the author's edit is the worse failure (DEC-191).
         SavedRevision saved = await pages.Saver.SaveAsync(
-            PageHarness.Key("/hello"), "Hello.", CancellationToken.None, deadline.Token);
+            PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None, deadline.Token);
 
         Assert.That(deadline.IsCancellationRequested, Is.True);
         Assert.That(saved.Diagnostics, Is.Empty);
-        Assert.That(PageHarness.Stored(storage, "/hello").Template, Is.EqualTo("Hello."));
+        Assert.That(PageHarness.Stored(storage, "/hello").Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
         Assert.That(storage.WriteCount, Is.EqualTo(1));
     }
 

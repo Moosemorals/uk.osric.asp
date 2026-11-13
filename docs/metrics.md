@@ -25,6 +25,7 @@ the other half of the same question and live in [logging](logging.md).
 | `page.image.size` | histogram | By | `page.path` |
 | `page.import.duration` | histogram | s | `outcome` — one imported archive, compiled and committed |
 | `page.layout.fallback` | counter | — | `page.path` — pages served without the default layout because it could not be served |
+| `page.asset.requests` | counter | — | `outcome` (`served`, `not-modified`, `unknown`, `non-asset`) — no path label; the access log names the URL |
 | `page.storage.payload.size` | observable gauge | By | — logical UTF-8 bytes for every revision text column plus image/symbol blobs, and the `PageState` key and value bytes; excludes indexes and SQLite overhead |
 | `page.storage.database.size` | observable gauge | By | — whole database `page_count * page_size`, including indexes and freelist pages; excludes the separate WAL |
 | `page.storage.volume.capacity` | observable gauge | By | — total capacity of the filesystem volume containing the database |

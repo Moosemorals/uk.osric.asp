@@ -8,6 +8,14 @@ using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 
+/// <summary>A revision the caller has already read, and why it was read.</summary>
+/// <param name="Page">The revision to run.</param>
+/// <param name="IsHistorical">
+/// Whether the revision came from a <c>?v=</c> hash rather than the live head. A historical row is
+/// fixed, so a compile is stored against it and the head is never read again.
+/// </param>
+internal sealed record PageSelection(PageTemplate Page, bool IsHistorical);
+
 /// <summary>Runs a stored page, compiling and storing it first when its image cannot be used.</summary>
 /// <remarks>
 /// <para>
@@ -25,6 +33,11 @@ using uk.osric.asp.Runtime;
 /// The handler is asynchronous, so a page that is waiting returns its thread to the pool and unwinds
 /// at its next <c>await</c> when the deadline fires. A page that blocks synchronously is unchanged:
 /// only abandonment and the container's restart escape it.
+/// </para>
+/// <para>
+/// A revision the caller has already read can be run without reading the head again, which is how a
+/// versioned URL selects one retained revision. A revision with no code is written from its stored
+/// source and never compiled, loaded or invoked.
 /// </para>
 /// <para>
 /// Records <c>page.render.*</c>, <c>page.load.*</c>, <c>page.invoke.*</c> and <c>page.cache.*</c>.
@@ -50,6 +63,41 @@ internal sealed class PageRenderer(
         await using RenderSession session = await OpenSessionAsync(path, cancellationToken);
 
         return await session.RenderAsync(path, context);
+    }
+
+    /// <summary>Reads a page's live head, for an endpoint that must judge it before opening a render.</summary>
+    /// <param name="path">The canonical key to read.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    internal Task<PageTemplate?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(path);
+
+        return storage.GetPageAsync(path, cancellationToken);
+    }
+
+    /// <summary>Reads a revision by its hash, for a versioned URL.</summary>
+    /// <param name="hash">The revision's stored hash.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    internal Task<PageTemplate?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(hash);
+
+        return storage.GetRevisionByHashAsync(hash, cancellationToken);
+    }
+
+    /// <summary>Runs a page the caller has already read, rather than reading its head again.</summary>
+    /// <param name="path">The canonical key the request named.</param>
+    /// <param name="context">The context the page writes to.</param>
+    /// <param name="selection">The revision to run, and whether it came from a versioned URL.</param>
+    /// <param name="cancellationToken">Cancels the render.</param>
+    internal async Task<RenderResult> RenderAsync(
+        PagePath path,
+        SimpleContext context,
+        PageSelection selection,
+        CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(selection);
+
+        await using RenderSession session = await OpenSessionAsync(path, cancellationToken);
+
+        return await session.RenderAsync(path, context, selection);
     }
 
     /// <summary>Takes one render slot and one deadline for every layer of a page and its layouts.</summary>
@@ -105,6 +153,7 @@ internal sealed class PageRenderer(
     private async Task<RenderResult> RenderLayerAsync(
         PagePath path,
         SimpleContext context,
+        PageSelection? selection,
         CancellationTokenSource deadline,
         CancellationToken cancellationToken,
         Action abandoned) {
@@ -116,7 +165,7 @@ internal sealed class PageRenderer(
         try {
             CachedPage? loaded;
             try {
-                loaded = await LoadAsync(path, deadline.Token, cancellationToken);
+                loaded = await LoadAsync(path, selection, deadline.Token, cancellationToken);
             } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                 // The read outlived the budget, so the page never ran and there is no thread to
                 // give up on: the answer is the same 504 all the same.
@@ -134,9 +183,18 @@ internal sealed class PageRenderer(
 
             cache = loaded.Cache;
 
-            if (loaded.Image.Bytes is null) {
+            if (loaded.Source is { } source) {
+                // The page has no code, so there is nothing to load or invoke: the stored source is
+                // the body, byte for byte, and the render's body budget still applies.
+                context.WriteRaw(source);
+                outcome = PageMetrics.RenderOk;
+
+                return RenderResult.FromSource;
+            }
+
+            if (loaded.Image?.Bytes is null) {
                 outcome = PageMetrics.RenderCompileError;
-                return RenderResult.CompileFailed(loaded.Image.Diagnostics);
+                return RenderResult.CompileFailed(loaded.Image?.Diagnostics ?? []);
             }
 
             RenderResult rendered = await RunAsync(
@@ -156,22 +214,38 @@ internal sealed class PageRenderer(
     // unservable, so they are bounded by Pages:Compile:TimeoutSeconds and get to finish and be stored
     // even when the answer has already been given up on. A page whose image arrives that late is not
     // started at all - see RunAsync - so the next request is served from the store.
-    private async Task<CachedPage?> LoadAsync(PagePath path, CancellationToken deadline, CancellationToken cancellationToken) {
+    private Task<CachedPage?> LoadAsync(
+        PagePath path,
+        PageSelection? selection,
+        CancellationToken deadline,
+        CancellationToken cancellationToken) {
+        if (selection is { IsHistorical: true } historical) {
+            return LoadRevisionAsync(path, historical.Page, deadline, cancellationToken);
+        }
+
+        return LoadHeadAsync(path, selection?.Page, deadline, cancellationToken);
+    }
+
+    private async Task<CachedPage?> LoadHeadAsync(
+        PagePath path,
+        PageTemplate? first,
+        CancellationToken deadline,
+        CancellationToken cancellationToken) {
+        PageTemplate? page = first;
+
         for (int attempt = 1; attempt <= MaxCompileAttempts; attempt++) {
-            PageTemplate? page = await storage.GetPageAsync(path, deadline);
+            if (page is null) {
+                page = await storage.GetPageAsync(path, deadline);
+            }
+
             if (page is null) {
                 metrics.RecordCacheLookup(PageMetrics.LookupAbsent);
                 return null;
             }
 
-            string templateHash = TemplateFingerprint.Of(page.Template);
-            if (page.Image is { } stored && stored.IsCurrent(templateHash, compiler.RuntimeId)) {
-                metrics.RecordCacheLookup(PageMetrics.LookupHit);
-                return new CachedPage(stored, PageMetrics.CacheHit);
+            if (FromStored(path, page) is { } stored) {
+                return stored;
             }
-
-            metrics.RecordStaleness(path, StalenessReason(page.Image));
-            metrics.RecordCacheLookup(PageMetrics.LookupStale);
 
             PageImage image = images.Build(path, page.Template, PageMetrics.ReasonLazy, cancellationToken, deadline);
 
@@ -182,15 +256,65 @@ internal sealed class PageRenderer(
                 }
 
                 if (current.RevisionId == page.RevisionId) {
-                    return new CachedPage(image, PageMetrics.CacheMiss);
+                    return FromBuilt(page, image);
                 }
             }
 
             logger.LogDebug("Discarded a compile of {Path} because its live revision changed while it compiled", path.Key);
+            page = null;
         }
 
         return null;
     }
+
+    // A retained revision cannot change under this read: the row and its source are fixed, and only
+    // its image is filled in when it is first compiled.
+    private async Task<CachedPage?> LoadRevisionAsync(
+        PagePath path,
+        PageTemplate page,
+        CancellationToken deadline,
+        CancellationToken cancellationToken) {
+        if (FromStored(path, page) is { } stored) {
+            return stored;
+        }
+
+        PageImage image = images.Build(path, page.Template, PageMetrics.ReasonLazy, cancellationToken, deadline);
+
+        // The row is fixed, so a failed write means it disappeared while it compiled: a scrub is the
+        // one thing that removes it, and a scrubbed revision must not be served.
+        return await storage.TrySetImageAsync(page.RevisionId, page.Template, image, cancellationToken)
+            ? FromBuilt(page, image)
+            : null;
+    }
+
+    // A verdict of false is served from source on every request and is never generated or compiled
+    // again; a NULL verdict is generated once by LoadHeadAsync, because it has never been judged.
+    private CachedPage? FromStored(PagePath path, PageTemplate page) {
+        if (page.TemplateHasCode is false) {
+            metrics.RecordCacheLookup(PageMetrics.LookupHit);
+
+            return new CachedPage(null, page.Template, PageMetrics.CacheHit);
+        }
+
+        string templateHash = TemplateFingerprint.Of(page.Template);
+        if (page.Image is { } stored && stored.IsCurrent(templateHash, compiler.RuntimeId)) {
+            metrics.RecordCacheLookup(PageMetrics.LookupHit);
+
+            return stored.HasCode is not false || stored.Bytes is not null
+                ? new CachedPage(stored, null, PageMetrics.CacheHit)
+                : new CachedPage(null, page.Template, PageMetrics.CacheHit);
+        }
+
+        metrics.RecordStaleness(path, StalenessReason(page.Image));
+        metrics.RecordCacheLookup(PageMetrics.LookupStale);
+
+        return null;
+    }
+
+    private static CachedPage FromBuilt(PageTemplate page, PageImage image) =>
+        image.HasCode is not false
+            ? new CachedPage(image, null, PageMetrics.CacheMiss)
+            : new CachedPage(null, page.Template, PageMetrics.CacheMiss);
 
     private string StalenessReason(PageImage? image) {
         if (image is null) {
@@ -305,7 +429,7 @@ internal sealed class PageRenderer(
         }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
 
-    private sealed record CachedPage(PageImage Image, string Cache);
+    private sealed record CachedPage(PageImage? Image, string? Source, string Cache);
 
     /// <summary>One request's render slot and deadline, shared by every layer of its chain.</summary>
     internal sealed class RenderSession : IAsyncDisposable {
@@ -330,7 +454,7 @@ internal sealed class PageRenderer(
         /// <summary>Renders one layer of the chain under this session's slot and deadline.</summary>
         /// <param name="path">The layer's canonical key.</param>
         /// <param name="context">The context the layer writes to.</param>
-        internal async Task<RenderResult> RenderAsync(PagePath path, SimpleContext context) {
+        internal async Task<RenderResult> RenderAsync(PagePath path, SimpleContext context, PageSelection? selection = null) {
             ArgumentNullException.ThrowIfNull(context);
 
             if (_deadline is not { } deadline) {
@@ -342,7 +466,7 @@ internal sealed class PageRenderer(
             // calls are cancelled with the render and not only with the request.
             context.AttachDeadline(deadline.Token);
 
-            return await _renderer.RenderLayerAsync(path, context, deadline, _cancellationToken, () => _abandoned = true);
+            return await _renderer.RenderLayerAsync(path, context, selection, deadline, _cancellationToken, () => _abandoned = true);
         }
 
         /// <inheritdoc/>

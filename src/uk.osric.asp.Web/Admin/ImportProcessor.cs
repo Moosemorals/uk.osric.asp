@@ -97,6 +97,10 @@ internal sealed class ImportProcessor(
         CancellationToken cancellationToken) {
         try {
             PageImage image = images.Build(path, source, PageMetrics.ReasonImport, cancellationToken);
+            if (image.HasCode is false) {
+                return (image, ImportPageStatus.StoredAsSource);
+            }
+
             if (image.Bytes is null) {
                 return (image, ImportPageStatus.CompiledWithErrors);
             }

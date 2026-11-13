@@ -225,7 +225,7 @@ internal static class AssistantEndpoint {
                 <p><a href="/assistant/{id}/delete">Delete conversation</a></p>
                 <noscript><p>JavaScript is disabled. Your prompt will still start a run; refresh this page to see the response.</p></noscript>
             </div>
-            <script type="module" src="/assistant.js"></script>
+            <script type="module" src="{WebUtility.HtmlEncode(await ShellDocument.AssetUrlAsync(context, "/assistant.js", context.RequestAborted))}"></script>
             """);
         await ShellDocument.EndAsync(context);
     }

@@ -146,7 +146,7 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task AWrappedPageThatSetsNoTitleIsAnErrorNamingThePage() {
         StoreLayout();
-        Store("/untitled", "<h1>Forgot</h1>");
+        Store("/untitled", "<% // deliberately no title %>\n<h1>Forgot</h1>");
 
         Rendered rendered = await RenderAsync("/untitled");
 
@@ -158,7 +158,7 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task AnUntitledPageOffersItsEditorToTheSignedInOwner() {
         StoreLayout();
-        Store("/untitled", "<h1>Forgot</h1>");
+        Store("/untitled", "<% // deliberately no title %>\n<h1>Forgot</h1>");
 
         Rendered rendered = await RenderAsync("/untitled", signedIn: true);
 
@@ -169,7 +169,7 @@ public sealed class PageLayoutChainTests {
     [Test]
     public async Task AnUntitledPageOffersNoEditorToAnAnonymousVisitor() {
         StoreLayout();
-        Store("/untitled", "<h1>Forgot</h1>");
+        Store("/untitled", "<% // deliberately no title %>\n<h1>Forgot</h1>");
 
         Rendered rendered = await RenderAsync("/untitled");
 

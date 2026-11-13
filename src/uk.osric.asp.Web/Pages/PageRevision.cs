@@ -17,6 +17,8 @@ internal sealed class PageRevision {
 
     public required string CreationRuntimeId { get; init; }
 
+    public bool? TemplateHasCode { get; set; }
+
     public string? TemplateHash { get; set; }
 
     public string? RuntimeId { get; set; }

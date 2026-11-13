@@ -64,10 +64,10 @@ internal sealed class ExportEndpoint {
             int index = await WriteGroupAsync(context, ownPages, "Live pages", firstIndex: 0);
             index = await WriteGroupAsync(context, seededPages, "Seeded pages", index);
 
-            await context.Response.WriteAsync("""
+            await context.Response.WriteAsync($"""
                     <button type="submit">Export selected pages</button>
                 </form>
-                <script type="module" src="/admin.js"></script>
+                <script type="module" src="{WebUtility.HtmlEncode(await ShellDocument.AssetUrlAsync(context, "/admin.js", context.RequestAborted))}"></script>
                 """);
         }
 

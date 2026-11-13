@@ -52,7 +52,9 @@ internal sealed class PageCatalogScope(
                 row.Hash,
                 row.IsDeleted,
                 reserved.IsReserved(PagePath.Normalize(row.Key)),
-                IsHtml(row.Key)));
+                IsHtml(row.Key)) {
+                IsAsset = PageAssetPolicy.IsAsset(row.TemplateHasCode),
+            });
         }
 
         return entries;

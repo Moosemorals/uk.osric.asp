@@ -24,13 +24,13 @@ public sealed class PageWriterScopeTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
-        PageSaveResult result = await Scope(pages, SignedIn()).SaveAsync("Hello.");
+        PageSaveResult result = await Scope(pages, SignedIn()).SaveAsync("<% ctx.Write(\"Hello.\"); %>");
 
         Assert.That(result.Diagnostics, Is.Empty);
         Assert.That(result.HasErrors, Is.False);
         Assert.That(result.HasWarnings, Is.False);
         Assert.That(result.Hash, Is.EqualTo(PageHarness.Stored(storage, "/self").Hash));
-        Assert.That(PageHarness.Stored(storage, "/self").Template, Is.EqualTo("Hello."));
+        Assert.That(PageHarness.Stored(storage, "/self").Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
         Assert.That(PageHarness.Stored(storage, "/self").Image?.Bytes, Is.Not.Null.And.Not.Empty);
     }
 
@@ -162,7 +162,7 @@ public sealed class PageWriterScopeTests {
     public async Task ADiagnosticWithNoPositionHasNoLineOrColumnAsync() {
         using PageHarness pages = new(new FakePageStore(), new PositionlessCompiler());
 
-        PageSaveResult result = await Scope(pages, SignedIn()).SaveAsync("Hello.");
+        PageSaveResult result = await Scope(pages, SignedIn()).SaveAsync("<% ctx.Write(\"Hello.\"); %>");
 
         PageDiagnostic error = result.Diagnostics.Single();
         Assert.That(error.Line, Is.Null);
@@ -185,9 +185,9 @@ public sealed class PageWriterScopeTests {
         using PageHarness pages = new(storage, new FaultingCompiler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => Scope(pages, SignedIn()).SaveAsync("Hello."));
+            () => Scope(pages, SignedIn()).SaveAsync("<% ctx.Write(\"Hello.\"); %>"));
 
-        Assert.That(PageHarness.Stored(storage, "/self").Template, Is.EqualTo("Hello."));
+        Assert.That(PageHarness.Stored(storage, "/self").Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
         Assert.That(PageHarness.Stored(storage, "/self").Image, Is.Null);
     }
 
@@ -221,7 +221,7 @@ public sealed class PageWriterScopeTests {
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.That(output, Does.Contain("<h1>Saved</h1>"));
         Assert.That(PageHarness.Stored(storage, "/saving").Template, Is.EqualTo("<h1>Saved</h1>"));
-        Assert.That(pages.Compiler.CompileCount, Is.EqualTo(2), "the save compiled the template it stored");
+        Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1), "the saved template has no code, so it is stored without compiling");
     }
 
     private static PageUser SignedIn() => new("owner");

@@ -22,7 +22,7 @@ public sealed class PageMetricsTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
-        await pages.Editor.SaveAsync(Key("/hit"), "Hello.");
+        await pages.Editor.SaveAsync(Key("/hit"), "<% ctx.Write(\"Hello.\"); %>");
         await pages.RenderAsync("/hit");
         await pages.RenderAsync("/hit");
 
@@ -41,7 +41,7 @@ public sealed class PageMetricsTests {
     public async Task AColdPageIsMeasuredAsANeverCompiledMissAsync() {
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
-        storage["/cold"] = new PageTemplate(Key("/cold"), "Hello.");
+        storage["/cold"] = new PageTemplate(Key("/cold"), "<% ctx.Write(\"Hello.\"); %>");
         using PageHarness pages = new(storage);
 
         await pages.RenderAsync("/cold");
@@ -59,8 +59,8 @@ public sealed class PageMetricsTests {
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        PageImage stale = new(TemplateFingerprint.Of("Old."), pages.Compiler.RuntimeId, [1, 2, 3], null, []);
-        storage["/edited"] = new PageTemplate(Key("/edited"), "New.", stale);
+        PageImage stale = new(TemplateFingerprint.Of("<% ctx.Write(\"Old.\"); %>"), pages.Compiler.RuntimeId, [1, 2, 3], null, []);
+        storage["/edited"] = new PageTemplate(Key("/edited"), "<% ctx.Write(\"New.\"); %>", stale);
 
         await pages.RenderAsync("/edited");
 
@@ -71,8 +71,8 @@ public sealed class PageMetricsTests {
     public async Task AChangedBuildIsAttributedToTheRuntimeAsync() {
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
-        PageImage previousBuild = new(TemplateFingerprint.Of("Hello."), "0:an-old-build", [1, 2, 3], null, []);
-        storage["/hello"] = new PageTemplate(Key("/hello"), "Hello.", previousBuild);
+        PageImage previousBuild = new(TemplateFingerprint.Of("<% ctx.Write(\"Hello.\"); %>"), "0:an-old-build", [1, 2, 3], null, []);
+        storage["/hello"] = new PageTemplate(Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", previousBuild);
         using PageHarness pages = new(storage);
 
         await pages.RenderAsync("/hello");
@@ -115,7 +115,7 @@ public sealed class PageMetricsTests {
         using MetricCapture capture = MetricCapture.Start();
         using PageHarness pages = new(new FakePageStore());
 
-        await pages.Editor.SaveAsync(Key("/hello"), "Hello.");
+        await pages.Editor.SaveAsync(Key("/hello"), "<% ctx.Write(\"Hello.\"); %>");
 
         IReadOnlyList<MetricCapture.Measurement> sizes = capture.For("page.image.size", "/hello");
         Assert.That(sizes, Has.Count.EqualTo(1));

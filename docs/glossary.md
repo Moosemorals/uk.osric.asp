@@ -15,6 +15,14 @@ The entries are alphabetical across all three vocabularies. A term is defined on
 [architecture](architecture.md) explains how the words fit together. **Turn** is not one of them: it
 was used for two different units, so **exchange** and **step** replace it.
 
+## Asset
+A revision with no code: it is a complete representation, the shell writes no chrome around it, and
+a URL naming one revision may promise never to change.
+
+**Not** every stored page with a file extension. A page with code is never an asset, even if it is a
+stylesheet or writes its own whole document. **Owner:** pages — `PageAssetPolicy`,
+`PageRevisions.TemplateHasCode` and `PageAssetMap`.
+
 ## Budget
 The process-wide limit on how long a render or compile may take and how many may run at once,
 shared by every request.
@@ -64,6 +72,14 @@ the source: a diff is computed from two retained templates when it is asked for.
 
 **Owner:** pages and assistant — `IDiffRenderer`, `DiffRenderer` and `LineDiff`; the editor's
 `cmd=diff` view and the assistant's `diff_page` tool.
+
+## Document
+The whole representation a page with no code serves: the stored source is the response, and the
+author writes `<html>`, `<head>` and `<body>` because the shell injects nothing.
+
+**Not** a separate kind declared by an extension list. A page with code may write a whole document
+by clearing `IPageLayout.Layout`, but it is still a fragment the shell could have wrapped, so it is
+not an asset. **Owner:** pages — `PageAssetPolicy`, `PageScriptPolicy` and `SecurityHeaders`.
 
 ## Exchange
 One user message plus everything it sets off: the run it starts and the messages that run produces.
@@ -437,3 +453,13 @@ shown separately. Cached is part of prompt and reasoning part of completion, so 
 
 **Owner:** assistant — `TokenUsage`, `RunUsage`, the `AssistantRuns` totals and
 `AssistantMetrics.RecordUsage` (DEC-203).
+
+## Versioned URL
+A page URL with `?v=<hash>`, where the value is one retained revision's 64-character lowercase
+hexadecimal hash. It selects that exact revision — never the head — and an unknown, repeated,
+wrong-case, malformed or other-path hash is a `404`. The revision's verdict decides whether the
+answer may be cached: only an asset gets `immutable`.
+
+**Not** a permanent link to the page. A new save keeps the old bytes under the old hash and moves the
+head; the URL is immutable, not current. **Owner:** pages — `RevisionHash.IsCanonical`, the `v`
+query in `PageEndpoint`, and `PageMetrics.Asset*`.

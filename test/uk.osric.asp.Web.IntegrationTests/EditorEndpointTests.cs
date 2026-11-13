@@ -107,9 +107,9 @@ public sealed class EditorEndpointTests : IntegrationTest {
     [Test]
     public async Task HistoryListsAndShowsAnOlderRevisionWithoutCompilingItAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
-        await PostEditorAsync(client, "history-page", "first <version>");
+        await PostEditorAsync(client, "history-page", "<% ctx.Write(\"first <version>\"); %>");
         PageTemplate first = (await ReadPageAsync("/history-page"))!;
-        await PostEditorAsync(client, "history-page", "second version");
+        await PostEditorAsync(client, "history-page", "<% ctx.Write(\"second version\"); %>");
         int compiles = CompileCount;
 
         HttpResponseMessage history = await client.GetAsync("/edit/history-page?cmd=history");

@@ -52,6 +52,27 @@ public sealed class PageDocumentTests {
     }
 
     [Test]
+    public void AResolverVersionsTheBaseSheetsAndTheIcon() {
+        string head = PageDocument.Head(
+            "Title",
+            ["/editor.css"],
+            resolveHref: href => href + "?v=token");
+
+        Assert.That(Sheets(head), Is.EqualTo((string[])["/site.css?v=token", "/editor.css?v=token"]));
+        string? icon = MarkupReader.Parse(head).Elements("link")
+            .Single(link => link.Attribute("rel") == "icon").Attribute("href");
+        Assert.That(icon, Is.EqualTo("/rocket.svg?v=token"));
+    }
+
+    [Test]
+    public void NoResolverWritesTheHeadExactlyAsBefore() {
+        string withNull = PageDocument.Head("Title", ["/editor.css"]);
+        string withResolver = PageDocument.Head("Title", ["/editor.css"], resolveHref: href => href);
+
+        Assert.That(withResolver, Is.EqualTo(withNull));
+    }
+
+    [Test]
     public void TheSameSheetIsLinkedOnlyOnce() {
         Assert.That(Sheets(PageDocument.Head("Title", ["/site.css", "/page.css", "/page.css"])),
             Is.EqualTo((string[])["/site.css", "/page.css"]));

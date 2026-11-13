@@ -13,11 +13,17 @@ using uk.osric.asp.Core.Compilation;
 /// </param>
 internal sealed record RenderResult(RenderStatus Status, IReadOnlyList<PageDiagnostic> Diagnostics) {
 
+    /// <summary>Whether the body is the stored source, served without compiling or executing it.</summary>
+    public bool IsSource { get; init; }
+
     /// <summary>No page is stored under the requested key.</summary>
     public static RenderResult NotFound { get; } = new(RenderStatus.NotFound, []);
 
     /// <summary>The page's handler ran.</summary>
     public static RenderResult Rendered { get; } = new(RenderStatus.Rendered, []);
+
+    /// <summary>The revision has no code, so its stored source is the body.</summary>
+    public static RenderResult FromSource { get; } = new(RenderStatus.Rendered, []) { IsSource = true };
 
     /// <summary>The page outran its budget; its output was discarded.</summary>
     public static RenderResult TimedOut { get; } = new(RenderStatus.Timeout, []);

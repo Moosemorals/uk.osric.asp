@@ -7,7 +7,7 @@ can improve it at <a href="/edit/help">/edit/help</a>.</p>
     <h2>Contents</h2>
     <ul>
         <li><a href="#editor">The editor</a></li>
-        <li><a href="#fragment">A page is a fragment</a></li>
+        <li><a href="#fragment">A page with code is a fragment</a></li>
         <li><a href="#layout">Layout and title</a></li>
         <li><a href="#head-and-scripts">Stylesheets, head and scripts</a></li>
         <li><a href="#syntax">Template syntax</a></li>
@@ -18,7 +18,7 @@ can improve it at <a href="/edit/help">/edit/help</a>.</p>
         <li><a href="#diff">Diff</a></li>
         <li><a href="#private">Private pages and forms</a></li>
         <li><a href="#session">Per-visitor state</a></li>
-        <li><a href="#assets">Assets, seeds and recovery</a></li>
+        <li><a href="#assets">Assets and recovery</a></li>
         <li><a href="#keeping-current">Keeping this page current</a></li>
     </ul>
 </nav>
@@ -50,17 +50,22 @@ its path, and every live and deleted page has its own editor at <code>/edit/&lt;
 same page. A path the site's own routes already answer for, such as <code>/edit</code> or
 <code>/login</code>, cannot be created as a page.</p>
 
-<h2 id="fragment">A page is a fragment</h2>
-<p>Every HTML page is wrapped in the site's default layout, <code>/_layout</code>. The layout writes
+<h2 id="fragment">A page with code is a fragment</h2>
+<p>A page with C# is wrapped in the site's default layout, <code>/_layout</code>. The layout writes
 the document: the doctype, <code>html</code>, <code>head</code>, title, stylesheets, the site menu,
 the banner, the <code>main</code> landmark and the close. Your page writes only what belongs inside
 <code>main</code>.</p>
+<p>A page with <strong>no C#</strong> is a complete representation: it is never wrapped, its stored
+source is the response, and it must write its own whole document. Add a code block &mdash; even one
+that only sets a title &mdash; if you want the site chrome. There is no hidden layout for a static
+page.</p>
 <p>Do not write a doctype, <code>html</code>, <code>head</code>, <code>body</code>, a
-<code>title</code> element or the site menu. Start at the page's first heading and write one
-<code>h1</code>.</p>
-<p>A response that is not HTML, a redirect and the empty body of a <code>HEAD</code> response are not
-wrapped. A page whose key has a content type of its own, such as <code>/site.css</code> or
-<code>/editor.js</code>, is served as that content type and is never wrapped.</p>
+<code>title</code> element or the site menu in a page with code. Start at the page's first heading and
+write one <code>h1</code>.</p>
+<p>A response that is not HTML, a redirect, the empty body of a <code>HEAD</code> response and a page
+with no code are not wrapped. A page whose key has a content type of its own, such as
+<code>/site.css</code> or <code>/editor.js</code>, is served as that content type and is never
+wrapped.</p>
 
 <h2 id="layout">Layout and title</h2>
 <p>The layout slots are reached through the page's capabilities, so a page that never wants a layout
@@ -100,28 +105,42 @@ can hide chrome but cannot prevent a side effect.</p>
    if (ctx.Path == ctx.Request.Path) { layout.Title = "Site"; }
    bool At(string href) =&gt; ctx.Request.Path == href;
    var links = new System.Collections.Generic.List&lt;NavLink&gt; { new("/", "Home", At("/")) }; %&gt;
-&lt;%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head) %&gt;
+&lt;%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head,
+                        resolveHref: ctx.AssetUrl) %&gt;
 &lt;%== PageDocument.Banner(PageDocument.Nav("Site", links, "site-nav")) %&gt;
 &lt;%== PageDocument.OpenMain() %&gt;
 &lt;%== layout.Body %&gt;
 &lt;%== PageDocument.CloseMain() %&gt;
 &lt;%== PageDocument.End() %&gt;</code></pre>
+<p><code>resolveHref</code> is the head's link resolver. Passing <code>ctx.AssetUrl</code> is what
+lets the base sheet and the icon carry a revision hash; a layout that passes none writes exactly
+the URLs it wrote before.</p>
 <p>The seeded <code>/_layout</code> is the full version of that page, and you can edit or restore it
 from the page list.</p>
 
 <h2 id="head-and-scripts">Stylesheets, head and scripts</h2>
 <p>The page's key chooses its initial content type from the host's extension map; an unmapped key is
 HTML. <code>ctx.SetContentType("text/css; charset=utf-8")</code> overrides it when a page needs to
-send something else.</p>
-<p>A page that loads a script calls <code>ctx.AllowScripts()</code>. That widens the response from
-<code>script-src 'none'</code> to <code>script-src 'self'</code>; it does not allow inline scripts or
-event-handler attributes:</p>
+send something else. The extension also chooses the response's script policy, and that policy follows
+the extension even if the page changes its content type.</p>
+<p>A page with code that loads a script calls <code>ctx.AllowScripts()</code>. That widens the
+response from <code>script-src 'none'</code> to <code>script-src 'self'</code>; it does not allow
+inline scripts or event-handler attributes:</p>
 <pre class="source" tabindex="0"><code>&lt;% ctx.AllowScripts(); %&gt;
 &lt;script type="module" src="/my-script.js"&gt;&lt;/script&gt;</code></pre>
+<p>A page with no code cannot call <code>AllowScripts</code>, so the extension policy is the only way
+to let a static document load a module. The shipped <code>.html</code> row is
+<code>"ScriptPolicy": "none"</code>; set it to <code>"self"</code> in
+<code>Pages:ContentTypes:Extensions</code> if your static documents need same-origin scripts. Inline
+script and event-handler attributes stay blocked either way.</p>
 <p>The script itself is another stored page, or a seeded asset, served with a JavaScript content
 type. Write it as a native ES module: use <code>import</code>/<code>export</code> rather than globals,
 and end a side-effect-only script with <code>export {};</code>. Modules are already deferred, so the
 script's position in the document does not matter.</p>
+<p><code>ctx.AssetUrl("/my-script.js")</code> returns the versioned URL when that page is a live
+asset, and the href unchanged otherwise, so write
+<code>&lt;script type="module" src="&lt;%= ctx.AssetUrl("/my-script.js") %&gt;"&gt;&lt;/script&gt;</code>
+in a page's own markup. Rewriting rendered HTML is not something the host does.</p>
 
 <h2 id="syntax">Template syntax</h2>
 <p>Literal template text is HTML. A code block is C#, and the handler is asynchronous, so
@@ -185,6 +204,8 @@ response, and nothing else:</p>
     <code>ctx.Redirect</code> and <code>ctx.RedirectToLogin</code> shape the response.</li>
     <li><code>ctx.AllowScripts</code> permits same-origin external scripts;
     <code>ctx.AntiforgeryField</code> carries the hidden input a form must include.</li>
+    <li><code>ctx.AssetUrl(href)</code> versions a bare site-relative link when its target is a live
+    asset, and returns the href unchanged otherwise.</li>
 </ul>
 <p><code>ctx.Capabilities</code> is how a page asks for an optional capability.
 <code>TryGet&lt;T&gt;(out T?)</code> reports whether it is there, <code>Get&lt;T&gt;()</code> returns
@@ -243,8 +264,8 @@ key and hash. It never meets an image, a symbol or a write; saving is
 <p>A prefix is a subtree, not a string prefix: <code>"/blog"</code> lists <code>/blog</code> and
 <code>/blog/post</code>, never <code>/blogroll</code>. The listing returns every head the store
 holds — live pages, tombstones, seeded assets and reserved keys — each marked with
-<code>IsDeleted</code>, <code>IsReserved</code> and <code>IsHtml</code>, so a view filters rather than
-re-deriving the host's rules. A tombstone has no source: it is listed as deleted and reads as absent,
+<code>IsDeleted</code>, <code>IsReserved</code>, <code>IsHtml</code> and <code>IsAsset</code>, so a
+view filters rather than re-deriving the host's rules. A tombstone has no source: it is listed as deleted and reads as absent,
 while its history stays readable.</p>
 <p><strong>The read is as public as the page that calls it.</strong> There is no gate in the host: an
 anonymous visitor gets the same answers a signed-in one does. A page that wants its listing or its
@@ -366,22 +387,57 @@ because the host refuses an authenticated <code>POST</code> without that pair:</
     &lt;button type="submit"&gt;Save&lt;/button&gt;
 &lt;/form&gt;</code></pre>
 <p>Do not write a sign-in form, handle a password or read the authentication cookie:
-<code>/login</code> and <code>/logout</code> already exist and are reserved. Every stored page is
-sent <code>no-store</code> without an <code>ETag</code>, whoever asked, because a page can keep
-per-visitor state.</p>
+<code>/login</code> and <code>/logout</code> already exist and are reserved. An unversioned page URL
+is sent <code>no-store</code> without an <code>ETag</code>, whoever asked, because a page with code
+can keep per-visitor state. The versioned URL of an asset is the one exception, below.</p>
 
-<h2 id="assets">Assets, seeds and recovery</h2>
+<h2 id="assets">Assets and recovery</h2>
 <p>A page whose key has a known extension is served with that content type, so stylesheets, scripts
-and other assets are pages like any other. The host maps <code>.js</code>, <code>.mjs</code>,
-<code>.css</code>, <code>.json</code> and <code>.txt</code> by default; an unmapped extension, such
-as <code>.svg</code>, needs <code>ctx.SetContentType</code> on the page that serves it.</p>
+and other assets are pages like any other. The host maps <code>.html</code>, <code>.js</code>,
+<code>.mjs</code>, <code>.css</code>, <code>.json</code>, <code>.svg</code> and <code>.txt</code> by
+default; an unmapped key uses the fallback row, which is HTML by default.</p>
+<p><strong>A page with no C# is never compiled.</strong> Its stored source is the response, byte for
+byte, on every request, and it is a complete representation: no banner, no skip link, no
+<code>/site.css</code>, no title requirement and no layout. There is nothing to report in the editor,
+because there is nothing to compile; adding the first code block is what starts a page compiling
+again.</p>
+<p>An <strong>asset</strong> is exactly a page with no code. There is no document extension list: the
+source is the document. A static page that wants the site chrome adds a code block, which makes it a
+fragment and lets it set a title.</p>
+<p>Each extension row can also choose the response's script policy:</p>
+<pre class="source" tabindex="0"><code>"Extensions": {
+    ".html":  { "ContentType": "text/html; charset=utf-8", "ScriptPolicy": "none" },
+    ".htmlx": { "ContentType": "text/html; charset=utf-8", "ScriptPolicy": "self" }
+}</code></pre>
+<p>The policy follows the extension and is applied before the page runs, so a page that calls
+<code>SetContentType</code> keeps the extension's policy. <code>none</code> sends
+<code>script-src 'none'</code>; <code>self</code> allows a same-origin external script and still
+refuses inline script and event-handler attributes. The shipped <code>.html</code> row is
+<code>none</code>; set it to <code>self</code> if your static documents need modules.</p>
+<p>A <strong>versioned URL</strong> adds <code>?v=</code> and the revision's hash:
+<code>/site.css?v=0123…</code>. The value is the same 64-character lowercase hexadecimal hash the
+editor's history shows. It names that exact revision and never falls back: an unknown, empty,
+repeated, wrong-case or malformed hash is a <code>404</code>, and so is a hash for a revision stored
+under another path. Only <code>GET</code> and <code>HEAD</code> are answered. A versioned asset is
+sent <code>Cache-Control: public, max-age=31536000, immutable</code> and a strong <code>ETag</code>,
+so the browser need never revalidate; if it does, the answer is a cheap <code>304</code>.</p>
+<p>A URL without <code>v</code> still works. It is not cacheable, because a bare URL names whatever
+the head is now. Editing an asset saves a new revision, so an old hash keeps serving the old bytes
+and moving a link forward is your decision, never the host's. <code>ctx.AssetUrl("/my.js")</code>
+does it for a link your own markup writes; the shell does it for the document head, its own views
+and the seeded layout. A static page's own <code>src</code> cannot be versioned on its behalf: link
+an unversioned asset, or write the hash by hand once.</p>
 <p>The pages the site ships with are called seeds. They live under <code>Pages/Seeds</code> and are
 created only when the page does not already exist, so editing a seed changes the site without being
 overwritten on the next start. The page list offers <strong>Restore from seed</strong> on a seeded
 row, which saves the bundled source as a new revision; that is how you recover
-<code>/_layout</code>, <code>/site.css</code> or this page after a bad edit.</p>
+<code>/_layout</code>, <code>/site.css</code> or this page after a bad edit. A revision saved before
+this feature has no verdict yet, so it stays unversioned until it is next saved, restored or first
+generated; there is no backfill.</p>
 <p>Deleting a page leaves a tombstone and its history. Saving the path again continues that history.
-Scrubbing removes the retained history, and it cannot undo copies that already left the database.</p>
+A tombstone keeps its revisions, so its versioned URLs still answer; scrubbing removes them, so those
+URLs become <code>404</code>. Neither can recall a copy a browser or a proxy already holds. If an
+asset held a secret, rotate the secret and clean the external copies separately.</p>
 
 <h2 id="keeping-current">Keeping this page current</h2>
 <p>This page is the seeded page <code>/help</code>. Its source is

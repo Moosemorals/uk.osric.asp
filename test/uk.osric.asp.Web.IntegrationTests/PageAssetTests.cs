@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.IntegrationTests;
 
 using System.Net;
 using System.Text;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
@@ -25,7 +26,7 @@ public sealed class PageAssetTests : IntegrationTest {
 
         using HttpResponseMessage icon = await client.GetAsync("/rocket.svg");
         Assert.That(icon.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(icon.Content.Headers.ContentType?.ToString(), Is.EqualTo("image/svg+xml"));
+        Assert.That(icon.Content.Headers.ContentType?.ToString(), Is.EqualTo("image/svg+xml; charset=utf-8"));
         Assert.That(icon.Headers.CacheControl?.NoStore, Is.True);
         Assert.That(await icon.Content.ReadAsStringAsync(), Is.EqualTo(RenderedSeed("rocket.svg")));
 
@@ -64,8 +65,8 @@ public sealed class PageAssetTests : IntegrationTest {
 
         using HttpResponseMessage login = await client.GetAsync("/login");
         string loginBody = await login.Content.ReadAsStringAsync();
-        Assert.That(loginBody, Does.Contain("<link rel=\"stylesheet\" href=\"/site.css\">"));
-        Assert.That(loginBody, Does.Contain("<link rel=\"icon\" href=\"/rocket.svg\" type=\"image/svg+xml\">"));
+        Assert.That(loginBody, Does.Contain("<link rel=\"stylesheet\" href=\"/site.css?v="));
+        Assert.That(loginBody, Does.Contain("<link rel=\"icon\" href=\"/rocket.svg?v="));
 
         using HttpResponseMessage legacyIcon = await client.GetAsync("/favicon.ico");
         Assert.That(legacyIcon.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
@@ -144,6 +145,92 @@ public sealed class PageAssetTests : IntegrationTest {
             ("__RequestVerificationToken", token)));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task AnOrdinaryPageStillForbidsScriptsAsync() {
+        using HttpClient client = CreateClient();
+
+        using HttpResponseMessage response = await client.GetAsync("/about");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Headers.GetValues("Content-Security-Policy").Single(), Does.Contain("script-src 'none'"));
+    }
+
+    [Test]
+    public async Task AVersionedAssetPromisesImmutableAndAnswersAValidatorAsync() {
+        const string Source = "body { color: rebeccapurple; }";
+        using HttpClient editor = await CreateSignedInClientAsync();
+        await PostEditorAsync(editor, "asset.css", Source);
+        PageTemplate revision = (await ReadPageAsync("/asset.css"))!;
+        string hash = revision.Hash;
+        int compiles = CompileCount;
+
+        using HttpResponseMessage versioned = await editor.GetAsync($"/asset.css?v={hash}");
+        string body = await versioned.Content.ReadAsStringAsync();
+
+        Assert.That(versioned.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(versioned.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
+        Assert.That(versioned.Headers.CacheControl?.ToString(),
+            Is.EqualTo("public, max-age=31536000, immutable"));
+        Assert.That(versioned.Headers.ETag?.ToString(), Is.EqualTo($"\"{hash}\""));
+        Assert.That(body, Is.EqualTo(Source));
+
+        using HttpRequestMessage conditional = new(HttpMethod.Get, $"/asset.css?v={hash}");
+        conditional.Headers.TryAddWithoutValidation("If-None-Match", $"\"{hash}\"");
+        using HttpResponseMessage notModified = await editor.SendAsync(conditional);
+        Assert.That(notModified.StatusCode, Is.EqualTo(HttpStatusCode.NotModified));
+        Assert.That(notModified.Headers.CacheControl?.ToString(),
+            Is.EqualTo("public, max-age=31536000, immutable"));
+
+        using HttpResponseMessage refused = await editor.PostAsync($"/asset.css?v={hash}", new StringContent(""));
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.MethodNotAllowed));
+        Assert.That(refused.Content.Headers.Allow, Is.EquivalentTo(["GET", "HEAD"]));
+
+        using HttpResponseMessage bare = await editor.GetAsync("/asset.css");
+        Assert.That(bare.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(bare.Headers.ETag, Is.Null);
+        Assert.That(CompileCount, Is.EqualTo(compiles), "serving a source asset compiles nothing");
+    }
+
+    [Test]
+    public async Task APagesOwnMarkupCanVersionALiveAssetAsync() {
+        using HttpClient editor = await CreateSignedInClientAsync();
+        _ = await editor.GetStringAsync("/site.css");
+        await PostEditorAsync(editor, "linker", "<% ctx.Write(ctx.AssetUrl(\"/site.css\")); %>|<% ctx.Write(ctx.AssetUrl(\"/about\")); %>");
+
+        string body = await editor.GetStringAsync("/linker");
+
+        Assert.That(body, Does.Match(@"^/site\.css\?v=[0-9a-f]{64}\|/about$"));
+    }
+
+    [Test]
+    public async Task ANoCodeHtmlDocumentIsItsOwnDocumentAsync() {
+        const string Source = "<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><title>Mine</title></head><body><p>Own document</p><script type=\"module\" src=\"/mine.js\"></script></body></html>";
+        using HttpClient editor = await CreateSignedInClientAsync();
+        await PostEditorAsync(editor, "mine.html", Source);
+
+        using HttpResponseMessage response = await editor.GetAsync("/mine.html");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/html; charset=utf-8"));
+        Assert.That(body, Is.EqualTo(Source));
+        Assert.That(body, Does.Not.Contain("site-header"));
+        Assert.That(body, Does.Not.Contain("/site.css"));
+        Assert.That(response.Headers.GetValues("Content-Security-Policy").Single(), Does.Contain("script-src 'none'"));
+    }
+
+    [Test]
+    public async Task AnUnversionedAssetIsStillUncacheableAfterASaveAsync() {
+        using HttpClient editor = await CreateSignedInClientAsync();
+        await PostEditorAsync(editor, "plain.css", "body { }");
+
+        using HttpResponseMessage response = await editor.GetAsync("/plain.css");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
+        Assert.That(response.Headers.ETag, Is.Null);
     }
 
     private static string ReadSeed(string name) =>

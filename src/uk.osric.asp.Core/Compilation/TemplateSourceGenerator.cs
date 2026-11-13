@@ -39,8 +39,12 @@ public static class TemplateSourceGenerator {
 
         TokenizeResult tokenized = TemplateTokenizer.Tokenize(template);
         if (!tokenized.IsSuccess) {
-            return new TemplateGenerationResult(null, tokenized.Errors);
+            // The tokenizer saw a '<%', so there is code here whatever it made of the rest. A parse
+            // failure must not read as a template with nothing to compile.
+            return new TemplateGenerationResult(null, tokenized.Errors) { HasCode = true };
         }
+
+        bool hasCode = tokenized.Tokens.Any(token => token.Type != TokenType.Text);
 
         foreach (Token token in tokenized.Tokens) {
             if (token.Type is TokenType.Write or TokenType.WriteRaw
@@ -52,7 +56,7 @@ public static class TemplateSourceGenerator {
                         PageDiagnosticSeverity.Error,
                         opener,
                         "TEMPLATE002: write expression is empty."),
-                ]);
+                ]) { HasCode = true };
             }
         }
 
@@ -115,7 +119,7 @@ public static class TemplateSourceGenerator {
         result.Append(Environment.NewLine);
         result.Append("#pragma warning restore CS1998");
 
-        return new TemplateGenerationResult(new GeneratedSource(result.ToString()), []);
+        return new TemplateGenerationResult(new GeneratedSource(result.ToString()), []) { HasCode = hasCode };
     }
 
     private static void AppendText(StringBuilder result, Token token) {

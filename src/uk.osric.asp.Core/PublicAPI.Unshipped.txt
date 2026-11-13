@@ -577,3 +577,28 @@ uk.osric.asp.Core.Charting.ChartAxis.Divisor.init -> void
 *REMOVED*uk.osric.asp.Core.Charting.ValueUnit
 *REMOVED*~override uk.osric.asp.Core.Charting.ChartScale.Equals(object obj) -> bool
 *REMOVED*~override uk.osric.asp.Core.Charting.ChartScale.ToString() -> string
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.HasCode.get -> bool
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.HasCode.init -> void
+const uk.osric.asp.Core.Pages.RevisionHash.Length = 64 -> int
+static uk.osric.asp.Core.Pages.RevisionHash.IsCanonical(string? hash) -> bool
+uk.osric.asp.Core.Pages.PageScriptPolicy
+uk.osric.asp.Core.Pages.PageScriptPolicy.None = 0 -> uk.osric.asp.Core.Pages.PageScriptPolicy
+uk.osric.asp.Core.Pages.PageScriptPolicy.Self = 1 -> uk.osric.asp.Core.Pages.PageScriptPolicy
+uk.osric.asp.Core.Pages.PageContentTypeRule
+uk.osric.asp.Core.Pages.PageContentTypeRule.<Clone>$() -> uk.osric.asp.Core.Pages.PageContentTypeRule!
+uk.osric.asp.Core.Pages.PageContentTypeRule.Deconstruct(out string! MediaType, out uk.osric.asp.Core.Pages.PageScriptPolicy ScriptPolicy) -> void
+uk.osric.asp.Core.Pages.PageContentTypeRule.Equals(uk.osric.asp.Core.Pages.PageContentTypeRule? other) -> bool
+uk.osric.asp.Core.Pages.PageContentTypeRule.MediaType.get -> string!
+uk.osric.asp.Core.Pages.PageContentTypeRule.MediaType.init -> void
+uk.osric.asp.Core.Pages.PageContentTypeRule.PageContentTypeRule(string! MediaType, uk.osric.asp.Core.Pages.PageScriptPolicy ScriptPolicy = uk.osric.asp.Core.Pages.PageScriptPolicy.None) -> void
+uk.osric.asp.Core.Pages.PageContentTypeRule.ScriptPolicy.get -> uk.osric.asp.Core.Pages.PageScriptPolicy
+uk.osric.asp.Core.Pages.PageContentTypeRule.ScriptPolicy.init -> void
+override uk.osric.asp.Core.Pages.PageContentTypeRule.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Pages.PageContentTypeRule.GetHashCode() -> int
+override uk.osric.asp.Core.Pages.PageContentTypeRule.ToString() -> string!
+static uk.osric.asp.Core.Pages.PageContentTypeRule.operator !=(uk.osric.asp.Core.Pages.PageContentTypeRule? left, uk.osric.asp.Core.Pages.PageContentTypeRule? right) -> bool
+static uk.osric.asp.Core.Pages.PageContentTypeRule.operator ==(uk.osric.asp.Core.Pages.PageContentTypeRule? left, uk.osric.asp.Core.Pages.PageContentTypeRule? right) -> bool
+uk.osric.asp.Core.Pages.PageContentTypes.FallbackRule.get -> uk.osric.asp.Core.Pages.PageContentTypeRule!
+uk.osric.asp.Core.Pages.PageContentTypes.RuleFor(string? path) -> uk.osric.asp.Core.Pages.PageContentTypeRule!
+uk.osric.asp.Core.Pages.PageContentTypes.ScriptsForPath(string? path) -> uk.osric.asp.Core.Pages.PageScriptPolicy
+static uk.osric.asp.Core.Pages.PageContentTypes.Create(uk.osric.asp.Core.Pages.PageContentTypeRule! fallback, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, uk.osric.asp.Core.Pages.PageContentTypeRule!>>! extensions) -> uk.osric.asp.Core.Pages.PageContentTypes!

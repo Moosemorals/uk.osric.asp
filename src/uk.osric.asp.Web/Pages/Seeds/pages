@@ -33,7 +33,7 @@ this page shows source, and the one line of difference between them is
        var marks = new List<string>();
        if (entry.IsDeleted) { marks.Add("deleted"); }
        if (entry.IsReserved) { marks.Add("reserved"); }
-       if (!entry.IsHtml) { marks.Add("asset"); }
+       if (entry.IsAsset) { marks.Add("asset"); }
        string mark = marks.Count == 0 ? "live" : string.Join(", ", marks); %>
         <tr>
             <th scope="row"><a href="/pages?page=<%= System.Uri.EscapeDataString(entry.Key) %>"><%= entry.Key %></a></th>

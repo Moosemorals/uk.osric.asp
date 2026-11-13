@@ -66,4 +66,23 @@ public sealed class PageRevisionHashTests {
         Assert.That(RevisionHash.Of("source", "runtime", offset, "id"),
             Is.EqualTo(RevisionHash.Of("source", "runtime", utc, "id")));
     }
+
+    [Test]
+    public void AGeneratedHashIsCanonical() {
+        string hash = RevisionHash.Of("source", "runtime", DateTimeOffset.UnixEpoch, "id");
+
+        Assert.That(RevisionHash.Length, Is.EqualTo(64));
+        Assert.That(RevisionHash.IsCanonical(hash), Is.True);
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde")] // 63
+    [TestCase("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0")] // 65
+    [TestCase("0123456789ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef")]
+    [TestCase("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdeg")]
+    [TestCase(" 123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")]
+    public void AnythingButTheStoredSpellingIsNotCanonical(string? hash) {
+        Assert.That(RevisionHash.IsCanonical(hash), Is.False);
+    }
 }

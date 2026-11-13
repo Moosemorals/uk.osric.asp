@@ -51,7 +51,6 @@ about the page store through two implementations.
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
 | [IDEA-005](IDEA-005.md) | — | L | Pages cannot share code: the layout half landed, a named declaration a second page can use is still deferred |
-| [IDEA-010](IDEA-010.md) | — | L | Serve retained revisions as immutable assets and use them in PageLayout |
 | [IDEA-017](IDEA-017.md) | — | L | A page cannot edit another page, so the editor cannot become one |
 | [IDEA-019](IDEA-019.md) | — | S | Small gaps in the page request, response and API policy |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
@@ -85,8 +84,8 @@ self-contained comes first, because these are the ones that never get scheduled 
 
 1. **ARCH-07, revision restore.** History storage, page listing, history browsing, tombstone
    deletion, explicit scrub and restoring a bundled seed are implemented. What remains is restoring
-   a selected revision as a new save; asset serving and PageLayout adoption remain
-   [IDEA-010](IDEA-010.md).
+   a selected revision as a new save. Immutable assets and PageLayout adoption have since landed
+   ([IDEA-010](IDEA-010.md), closed); cleanup of binaries from an earlier runtime is still open.
 2. **OPS-03, CI automation** — `make check` and `make ci` already exist; what is missing is
    something that runs one of them without being asked.
 3. **IDEA-005, shared code between pages** — the layout half is done (see [site
@@ -170,4 +169,4 @@ Resolved jobs; the files were deleted and their history is in git.
 | STYLE-03 | `Token` and `TokenType` have their own files; `Token` is a `readonly record struct` carrying a `TemplatePosition` |
 | STYLE-04 | Exception tests assert with `await Assert.ThrowsAsync`/`Assert.CatchAsync`; the convention is in [testing](../testing.md) |
 | IDEA-014 | A page keeps per-visitor state through `ctx.Capabilities.GetRequired<IPageSession>()`: `TryGetValueAsync` on its own path and on another page's, `SetAsync`, `DeleteAsync`, `KeysAsync` and `AllKeysAsync`, with the write bound to the caller's path and the read open. The session is minted on the first write, travels in the shell's `s` cookie, is bounded per visitor (`Pages:Session`), slides, sweeps on a timer and clears on sign-out; pages are `no-store` because a body can be per-visitor, and `context.Session` is gone. See [the plan](../plans/page-session.md) and [storage](../storage.md#page-sessions) |
-| IDEA-015 | A page reads the page store through `ctx.Capabilities.GetRequired<IPageCatalog>()`: `ListAsync(prefix)`, `ReadAsync(key)`, `RevisionsAsync(key)` and `ReadRevisionAsync(key, hash)`, with `PageEntry`, `PageSource` and `PageRevisionInfo` as the values it may name. The listing returns every head marked deleted, reserved and HTML; a prefix is a subtree; `Pages:Read` bounds the rows and one render's source, and both refuse rather than truncate. The read is as public as the page that calls it — **point 3 of the job, which put the gate in the shell, was overruled** in favour of the ordinary `ctx.User` guard in the page's own source (DEC-169) — and the shell keeps every write (DEC-175). The seeded `/recent` is a public listing and `/pages` a guarded source view. See [the plan](../plans/archive/page-store-read.md) and DEC-168–DEC-172, DEC-175 |
+| IDEA-015 | A page reads the page store through `ctx.Capabilities.GetRequired<IPageCatalog>()`: `ListAsync(prefix)`, `ReadAsync(key)`, `RevisionsAsync(key)` and `ReadRevisionAsync(key, hash)`, with `PageEntry`, `PageSource` and `PageRevisionInfo` as the values it may name. The listing returns every head marked deleted, reserved, HTML and no-code asset; a prefix is a subtree; `Pages:Read` bounds the rows and one render's source, and both refuse rather than truncate. The read is as public as the page that calls it — **point 3 of the job, which put the gate in the shell, was overruled** in favour of the ordinary `ctx.User` guard in the page's own source (DEC-169) — and the shell keeps every write (DEC-175). The seeded `/recent` is a public listing and `/pages` a guarded source view. See [the plan](../plans/archive/page-store-read.md) and DEC-168–DEC-172, DEC-175 |

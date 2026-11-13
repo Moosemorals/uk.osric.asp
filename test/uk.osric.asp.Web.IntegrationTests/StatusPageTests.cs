@@ -17,16 +17,19 @@ public sealed class StatusPageTests : IntegrationTest {
     public async Task DashboardStylesAreServedSeparatelyFromSharedStyles() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        string status = await client.GetStringAsync("/status");
+        // Read the assets once so their verdict is stored; the next page render can then link the
+        // revision it was actually served, rather than a bare URL that has never been judged.
         using HttpResponseMessage stylesheet = await client.GetAsync("/status.css");
         string statusStyles = await stylesheet.Content.ReadAsStringAsync();
         string sharedStyles = await client.GetStringAsync("/site.css");
+
+        string status = await client.GetStringAsync("/status");
         using HttpClient anonymous = CreateClient();
         string login = await anonymous.GetStringAsync("/login");
-        // Every stored page is no-store, whoever asks, because a page can keep per-visitor state.
+        // An unversioned asset, like a page with code, is no-store whoever asks.
         using HttpResponseMessage anonymousStylesheet = await anonymous.GetAsync("/status.css");
 
-        Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/status.css\">"));
+        Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/status.css?v="));
         Assert.That(status.IndexOf("/site.css", StringComparison.Ordinal),
             Is.LessThan(status.IndexOf("/status.css", StringComparison.Ordinal)), "the view's sheet follows the shared one");
         Assert.That(stylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -38,7 +41,7 @@ public sealed class StatusPageTests : IntegrationTest {
         Assert.That(sharedStyles, Does.Contain("body {").And.Contain(".diagnostics"));
         Assert.That(sharedStyles, Does.Not.Contain(".status-nav").And.Not.Contain(".chart").And.Not.Contain(".heatmap"));
         Assert.That(login, Does.Not.Contain("/status.css"));
-        Assert.That(login, Does.Contain("<link rel=\"stylesheet\" href=\"/site.css\">"));
+        Assert.That(login, Does.Contain("<link rel=\"stylesheet\" href=\"/site.css?v="));
     }
 
     [Test]

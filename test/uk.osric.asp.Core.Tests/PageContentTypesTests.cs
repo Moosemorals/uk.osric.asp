@@ -47,7 +47,7 @@ public sealed class PageContentTypesTests {
         PageContentTypes map = Shipped();
 
         Assert.That(map.Fallback, Is.EqualTo(Html));
-        Assert.That(map.ExtensionCount, Is.EqualTo(5));
+        Assert.That(map.ExtensionCount, Is.EqualTo(6));
     }
 
     [Test]
@@ -129,7 +129,89 @@ public sealed class PageContentTypesTests {
         Assert.That(type, Is.Not.EqualTo("application/javascript"));
     }
 
+    [Test]
+    public void StringRowsTakeTheNoScriptPolicy() {
+        PageContentTypes map = PageContentTypes.Create(
+            Html,
+            [new KeyValuePair<string, string?>(".js", "text/javascript")]);
+
+        Assert.That(map.ScriptsForPath("/app.js"), Is.EqualTo(PageScriptPolicy.None));
+        Assert.That(map.ScriptsForPath("/notes"), Is.EqualTo(PageScriptPolicy.None));
+    }
+
+    [Test]
+    public void ARowCarriesItsScriptPolicy() {
+        PageContentTypes map = PageContentTypes.Create(
+            new PageContentTypeRule(Html),
+            [new KeyValuePair<string, PageContentTypeRule>(
+                ".htmlx", new PageContentTypeRule(Html, PageScriptPolicy.Self))]);
+
+        Assert.That(map.ScriptsForPath("/page.htmlx"), Is.EqualTo(PageScriptPolicy.Self));
+        Assert.That(map.ScriptsForPath("/page"), Is.EqualTo(PageScriptPolicy.None));
+        Assert.That(map.ScriptsForPath("/page.html"), Is.EqualTo(PageScriptPolicy.None));
+    }
+
+    [Test]
+    public void TheFallbackCarriesItsScriptPolicy() {
+        PageContentTypes map = PageContentTypes.Create(
+            new PageContentTypeRule("text/plain; charset=utf-8", PageScriptPolicy.Self),
+            []);
+
+        Assert.That(map.ScriptsForPath("/notes"), Is.EqualTo(PageScriptPolicy.Self));
+        Assert.That(map.FallbackRule.ScriptPolicy, Is.EqualTo(PageScriptPolicy.Self));
+    }
+
+    [Test]
+    public void RuleForReturnsTheWholeRow() {
+        PageContentTypeRule row = new("text/html; charset=utf-8", PageScriptPolicy.Self);
+        PageContentTypes map = PageContentTypes.Create(
+            new PageContentTypeRule(Html),
+            [new KeyValuePair<string, PageContentTypeRule>(".htmlx", row)]);
+
+        Assert.That(map.RuleFor("/page.htmlx"), Is.EqualTo(row));
+        Assert.That(map.RuleFor("/page"), Is.EqualTo(new PageContentTypeRule(Html)));
+    }
+
+    [Test]
+    public void AnUnknownScriptPolicyIsRejected() {
+        Assert.That(
+            () => PageContentTypes.Create(
+                new PageContentTypeRule(Html),
+                [new KeyValuePair<string, PageContentTypeRule>(
+                    ".htmlx", new PageContentTypeRule(Html, (PageScriptPolicy)42))]),
+            Throws.ArgumentException);
+    }
+
+    [Test]
+    public void AnUnknownFallbackScriptPolicyIsRejected() {
+        Assert.That(
+            () => PageContentTypes.Create(
+                new PageContentTypeRule(Html, (PageScriptPolicy)42),
+                []),
+            Throws.ArgumentException);
+    }
+
+    [TestCase("")]
+    [TestCase("   ")]
+    public void ABlankRuleMediaTypeIsRejected(string mediaType) {
+        Assert.That(
+            () => PageContentTypes.Create(
+                new PageContentTypeRule(Html),
+                [new KeyValuePair<string, PageContentTypeRule>(".js", new PageContentTypeRule(mediaType))]),
+            Throws.ArgumentException);
+    }
+
+    [Test]
+    public void ANullRuleIsRejected() {
+        Assert.That(
+            () => PageContentTypes.Create(
+                new PageContentTypeRule(Html),
+                [new KeyValuePair<string, PageContentTypeRule>(".js", null!)]),
+            Throws.ArgumentException);
+    }
+
     private static PageContentTypes Shipped() => PageContentTypes.Create(Html, new Dictionary<string, string?> {
+        [".html"] = Html,
         [".js"] = "text/javascript; charset=utf-8",
         [".mjs"] = "text/javascript; charset=utf-8",
         [".css"] = "text/css; charset=utf-8",

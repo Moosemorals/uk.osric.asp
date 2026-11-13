@@ -99,10 +99,9 @@ hash-shaped form of the same act keeps the lossy form and drops the faithful one
 and every write is still the owner's decision under `RequireApproval`.
 
 The answers come from the two reads and the one save `PageEditor` already exposes, so no query and no
-second shape of read is added (ARCH-16). Nothing here reaches for the `?v=` token: that is a public,
-cacheable URL for one live, code-free asset ([IDEA-010](IDEA-010.md)), and it cannot answer for a
-revision with code, for a tombstoned path or for a wrapped page. A tool that wants a revision reads
-the store.
+second shape of read is added (ARCH-16). Nothing here reaches for the `?v=` hash: that is a public URL
+whose job is selection and caching, and it answers for a live head or a tombstoned revision but says
+nothing about the verdict a tool needs. A tool that wants a revision reads the store.
 
 **Done when:** `Web.Tests` proves the editor refuses a restore that would change nothing and
 restores any other,
@@ -114,5 +113,5 @@ prefix, so `PageAuthorPrompt` gains the section and its version bumps; `PageAuth
 it; `docs/assistant.md` counts eighteen tools and names the two reads and the one restore; and
 `docs/testing.md` says what the tool tests prove.
 
-Historical asset execution and PageLayout links are [IDEA-010](IDEA-010.md), not part of this
-history UI. A revision address identifies saved code, not necessarily deterministic output.
+Historical asset execution and PageLayout links landed with [IDEA-010](IDEA-010.md) and are not part
+of this history UI. A revision address identifies saved code, not necessarily deterministic output.

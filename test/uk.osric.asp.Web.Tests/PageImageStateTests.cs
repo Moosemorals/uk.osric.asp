@@ -68,6 +68,18 @@ public sealed class PageImageStateTests {
         Assert.That(state, Is.EqualTo(PageImageState.Compiled), "a retained revision is history, not stale");
     }
 
+    [Test]
+    public void ARevisionWithNoCodeSaysStoredAsSource() {
+        PageImageState state = PageImageStatus.Describe(
+            runtimeId: null, hasImage: false, hasDiagnostics: false, templateHasCode: false);
+
+        Assert.Multiple(() => {
+            Assert.That(state, Is.EqualTo(PageImageState.StoredAsSource));
+            Assert.That(state.Describe(), Is.EqualTo("Stored as source"));
+        });
+    }
+
+    [TestCase("StoredAsSource", "state-source")]
     [TestCase("NotCompiled", "state-not-compiled")]
     [TestCase("Stale", "state-stale")]
     [TestCase("CompileFailed", "state-compile-failed")]

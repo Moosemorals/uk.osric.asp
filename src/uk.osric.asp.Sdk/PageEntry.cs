@@ -9,10 +9,10 @@ namespace uk.osric.asp.Sdk;
 /// <param name="Hash">The head's revision hash.</param>
 /// <param name="IsDeleted">Whether the page is a tombstone, which retains its history.</param>
 /// <param name="IsReserved">Whether the site's own routes already answer for the key.</param>
-/// <param name="IsHtml">Whether the key is served as HTML, and so wrapped in the layout.</param>
+/// <param name="IsHtml">Whether the key is served as HTML.</param>
 /// <remarks>
-/// The three marks are the host's own rules reported rather than derived: a view can filter a
-/// listing without owning the reserved-path list or the content-type table.
+/// The marks are the host's own rules reported rather than derived: a view can filter a listing
+/// without owning the reserved-path list, the content-type table or the revision verdict.
 /// </remarks>
 public readonly record struct PageEntry(
     string Key,
@@ -20,4 +20,8 @@ public readonly record struct PageEntry(
     string Hash,
     bool IsDeleted,
     bool IsReserved,
-    bool IsHtml);
+    bool IsHtml) {
+
+    /// <summary>Whether the head has no code, so its source is the response.</summary>
+    public bool IsAsset { get; init; }
+}

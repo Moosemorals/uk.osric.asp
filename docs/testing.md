@@ -35,7 +35,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   and their classes are pinned, so the editor, the history and the assistant cannot drift apart. Storage tests cover legacy migration, append-only revision
   identity, concurrent saves, tombstones, scrub and SQLite cleanup. `PageStorageMetricsTests` checks
   logical payload accounting, cached observable gauges, failed-sample retention and bounded sampling.
-  `PageCatalogScopeTests` pins the page-store read — its four reads, the three marks, subtree
+  `PageCatalogScopeTests` pins the page-store read — its four reads, the four marks, subtree
   prefixes, the row and source caps, abandonment and the deadline — and `SqlitePageReadStoreTests`
   proves the SQL behind it, including an escaped wildcard and that a read writes nothing.
   `PageWriterScopeTests` pins the page's own save — the signed-in visitor it requires, `HEAD`, an

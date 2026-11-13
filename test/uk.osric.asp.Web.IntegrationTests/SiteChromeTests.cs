@@ -183,7 +183,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
 
     [Test]
     public async Task ASignedInOwnerIsSentToTheEditorWhenThePageSetsNoTitle() {
-        await SavePageAsync("/untitled", "<h1>Forgot</h1>");
+        await SavePageAsync("/untitled", "<% // deliberately no title %>\n<h1>Forgot</h1>");
         using HttpClient client = await CreateSignedInClientAsync();
 
         HttpResponseMessage response = await client.GetAsync("/untitled");

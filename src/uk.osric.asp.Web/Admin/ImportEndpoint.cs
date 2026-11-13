@@ -67,7 +67,7 @@ internal sealed class ImportEndpoint {
                 </dl>
                 <button type="submit">Upload archive</button>
             </form>
-            <script type="module" src="/admin.js"></script>
+            <script type="module" src="{WebUtility.HtmlEncode(await ShellDocument.AssetUrlAsync(context, "/admin.js", context.RequestAborted))}"></script>
             """);
         await ShellDocument.EndAsync(context);
     }
@@ -204,7 +204,7 @@ internal sealed class ImportEndpoint {
                     <a href="/admin/import">Cancel</a>
                 </p>
             </form>
-            <script type="module" src="/admin.js"></script>
+            <script type="module" src="{WebUtility.HtmlEncode(await ShellDocument.AssetUrlAsync(context, "/admin.js", context.RequestAborted))}"></script>
             """);
         await ShellDocument.EndAsync(context);
     }
@@ -373,6 +373,7 @@ internal sealed class ImportEndpoint {
     };
 
     private static string Describe(ImportPageStatus status) => status switch {
+        ImportPageStatus.StoredAsSource => "stored as source",
         ImportPageStatus.Compiled => "compiled",
         ImportPageStatus.CompiledWithWarnings => "compiled with warnings",
         ImportPageStatus.CompiledWithErrors => "compiled with errors",

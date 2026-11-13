@@ -17,8 +17,8 @@ touches is a plain record in `Sdk`. `Request` carries the method, path, query, f
 visitor's own cookies; the shell's three cookies (`a`, `f`, `s`) are filtered out, because they are
 the shell's identity and one visitor's state rather than anything a page owns. `IContext` is the
 surface every page has — `Request`, `Path`, `User`, `Aborted`, `Log`/`LogWarning`/`LogError`,
-`Write`/`WriteRaw`, `SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect`,
-`RedirectToLogin`, `AntiforgeryField` and `Capabilities`.
+`Write`/`WriteRaw`, `SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `AssetUrl`,
+`Redirect`, `RedirectToLogin`, `AntiforgeryField` and `Capabilities`.
 
 The handler is asynchronous: `IHandler.HandleAsync` returns a `Task`, the generator always emits an
 `async` method, and `await` is therefore an ordinary expression in a code block and inside a write
@@ -70,7 +70,9 @@ the build:
   bound to, and the page never reads the value. An unknown name is an `InvalidRequest` (DEC-230).
 - `IPageCatalog` reads the page store: `ListAsync(prefix)` lists the heads under a subtree,
   `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a page's history and
-  `ReadRevisionAsync(key, hash)` reads one retained revision. It reads and never writes. The read is
+  `ReadRevisionAsync(key, hash)` reads one retained revision. Each `PageEntry` marks the head
+  `IsDeleted`, `IsReserved`, `IsHtml` and `IsAsset`, so a view filters rather than re-deriving the
+  host's rules. It reads and never writes. The read is
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets
   bound it (DEC-168–DEC-175). See [source storage](storage.md#source-storage).
@@ -115,16 +117,50 @@ Two rules keep the response safe:
   Redirects go through `Redirect`; content type through `SetContentType`, and the script permission
   through `AllowScripts` — the `Content-Security-Policy` header itself stays shell-owned. The
   extension is only a default: a key's last segment selects the initial content type through
-  `Pages:ContentTypes` (DEC-144), which ships `.js`, `.mjs`, `.css`, `.json`, `.svg` and `.txt`
-  (DEC-197), and `SetContentType` always wins.
+  `Pages:ContentTypes` (DEC-144), which ships `.html`, `.js`, `.mjs`, `.css`, `.json`, `.svg` and
+  `.txt` (DEC-197), and `SetContentType` always wins. Each row also carries a `ScriptPolicy`
+  (`none` or `self`); it follows the extension, not the changed response type, and the shell writes
+  it before the page runs. A page with code may widen `none` with `AllowScripts`, but never narrows
+  `self`. The shipped `.html` row is `none`.
 
-Every stored page is `Cache-Control: no-store` with no validator, whoever asked: a page can keep
-per-visitor state, so its body has no business in a shared cache and no business inviting a
-conditional request. `PageEndpoint` writes the header after the page's own and removes `ETag`, so a
-page cannot weaken it, and `If-None-Match` is ignored — there is no `304` path at all. A page
-redirect is `no-store` too. The host still sets `Content-Length` from the encoded body for a
-response that may carry one, and `HEAD` retains the representation length. Serving a stored asset
-with a validator comes back with [IDEA-010](jobs/IDEA-010.md).
+An unversioned page URL is `Cache-Control: no-store` with no validator, whoever asked: a page with
+code can keep per-visitor state, so its body has no business in a shared cache and no business
+inviting a conditional request. `PageEndpoint` writes the header after the page's own and removes `ETag`, so a
+page cannot weaken it, and `If-None-Match` is ignored for an unversioned request. A page redirect is
+`no-store` too. The host still sets `Content-Length` from the encoded body for a response that may
+carry one, and `HEAD` retains the representation length.
+
+## Assets and versioned URLs
+
+A page with no code is never compiled. Generation reads the tokens it already produced, and a
+template made only of text has nothing to compile: the revision is stored with no image, its
+verdict is `TemplateHasCode = false`, and every request writes the stored source out byte for byte.
+Such a page has no diagnostics to show in the editor, because nothing is compiled.
+
+A no-code page is a complete representation: it is never wrapped, so its stored source is the
+response even for an HTML key. It gets no banner, no skip link, no base sheet and no title
+requirement; if it wants chrome, it adds a code block and becomes a fragment.
+
+An **asset** is exactly a page with no code. `PageAssetPolicy.IsAsset` is the one answer the
+endpoint, `ctx.AssetUrl` and the head resolver use. There is no document extension list.
+
+`?v=<hash>` on a page's own URL selects one retained revision. The value is the stored 64-character
+lowercase hexadecimal revision hash itself (`RevisionHash`); the path is unchanged, so `ctx.Path`,
+relative URLs, cookies and headers all mean what they did before. An unknown, empty, repeated,
+wrong-case or malformed hash is a `404`, and so is a revision stored under another path: a versioned
+URL never falls back to the head. A method other than `GET` or `HEAD` is a `405` with
+`Allow: GET, HEAD`.
+
+A versioned asset is written with `Cache-Control: public, max-age=31536000, immutable`, a strong
+`ETag` (the hash) and `Content-Length`; `If-None-Match` answers `304` with the same cache headers and
+no body. The hash selects the revision; the verdict decides the promise. A versioned URL that names
+a revision with code is rendered normally with `no-store`.
+
+`ctx.AssetUrl(href)` versions a bare site-relative link when its target is a live, no-code asset and
+returns it unchanged otherwise; queries, fragments, absolute and protocol-relative URLs all keep
+their spelling, so an unversioned fallback still works. A page's own markup is never rewritten by
+the host. `PageDocument.Head` takes an optional resolver for its base sheets and icon, and the
+shell's own views resolve their sheets and scripts the same way.
 
 Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
 over 1 MiB is refused with 413 before it is read. A page that outruns its execution budget is answered

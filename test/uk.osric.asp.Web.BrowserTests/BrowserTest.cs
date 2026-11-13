@@ -119,9 +119,9 @@ internal abstract partial class BrowserTest {
     protected static string UniquePath(string stem) => $"/{stem}-{Guid.NewGuid():N}";
 
     /// <summary>
-    /// A template a stored page can be served from: the default layout wraps every HTML page and
-    /// refuses one that never sets a title, and the layout draws the chrome but not the heading, so
-    /// the page writes its own.
+    /// A template a stored page can be served from: the default layout wraps an HTML page with code
+    /// and refuses one that never sets a title, and the layout draws the chrome but not the heading,
+    /// so the page writes its own.
     /// </summary>
     /// <param name="title">The document title and the page's heading, as plain text.</param>
     /// <param name="body">Markup the test asserts on, appended after the heading.</param>

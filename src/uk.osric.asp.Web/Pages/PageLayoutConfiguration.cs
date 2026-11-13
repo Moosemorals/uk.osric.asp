@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Pages;
 
-/// <summary>The page every HTML page is wrapped in unless it says otherwise.</summary>
+/// <summary>The page every HTML page with code is wrapped in unless it says otherwise.</summary>
 /// <remarks>
 /// Read once at startup from <c>Pages:Layout</c>. A blank value switches wrapping off, so an
 /// installation that wants no wrapping at all has a configuration answer rather than a code

@@ -456,6 +456,15 @@ public sealed class PageCompilerTests {
             Does.Contain(typeof(PageDiagnostic).Assembly.ManifestModule.ModuleVersionId.ToString("N")));
     }
 
+    [Test]
+    public async Task ANoCodeTemplateCompilesToOutputEqualToItsSource() {
+        const string template = "line one\r\nline two \"quoted\" & <escaped>\nend";
+
+        TestContext context = await CompileAndRun(template);
+
+        Assert.That(context.Output, Is.EqualTo(template));
+    }
+
     private static CompileResult Compile(string template) {
         return Compiler.Compile(TestTemplates.Generate(template));
     }
@@ -507,6 +516,8 @@ public sealed class PageCompilerTests {
         public void SetStatus(int status) { }
 
         public void SetContentType(string contentType) { }
+
+        public string AssetUrl(string href) => href;
 
         public void SetHeader(string name, string value) { }
 

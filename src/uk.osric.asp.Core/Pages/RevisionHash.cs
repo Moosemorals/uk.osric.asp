@@ -10,8 +10,20 @@ using System.Text;
 /// <summary>Creates stable addresses for individual saved page revisions.</summary>
 public static class RevisionHash {
 
+    /// <summary>The length of every stored hash: 32 SHA-256 bytes in lowercase hexadecimal.</summary>
+    public const int Length = 64;
+
     /// <summary>The versioned framing prefix used by the revision identity format.</summary>
     internal const string FormatVersion = "page-revision-v1";
+
+    /// <summary>Whether a value is exactly the lowercase hexadecimal hash storage writes.</summary>
+    /// <param name="hash">The value to test.</param>
+    /// <returns>
+    /// True only for 64 lowercase hexadecimal characters. Case folding, truncation and padding are
+    /// all refused, so a URL that names a revision has one spelling and one ordinal comparison.
+    /// </returns>
+    public static bool IsCanonical(string? hash) =>
+        hash is { Length: Length } && hash.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
 
     /// <summary>Hashes the source and immutable identity fields for a saved revision.</summary>
     /// <param name="source">The exact UTF-8 source stored in the revision.</param>

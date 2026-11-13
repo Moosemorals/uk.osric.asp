@@ -43,6 +43,20 @@ internal sealed class PageImageBuilder(
         long start = Stopwatch.GetTimestamp();
         TemplateGenerationResult generated = TemplateSourceGenerator.Generate(template);
 
+        // Nothing to compile, so no slot is waited for and Roslyn is never called. The revision keeps
+        // the verdict beside its source, and every request writes the source out as it is.
+        if (!generated.HasCode && generated.Source is not null) {
+            logger.LogDebug("Stored {Path} without compiling: the template has no code", path.Key);
+
+            return new PageImage(
+                TemplateFingerprint.Of(template),
+                compiler.RuntimeId,
+                Bytes: null,
+                Symbols: null,
+                Diagnostics: [],
+                HasCode: false);
+        }
+
         // A template that does not parse never reaches the compiler, but it fails exactly like a
         // syntax error: stored with its diagnostics, so the editor shows the fix and the page is not
         // recompiled on every request.
@@ -115,6 +129,12 @@ internal sealed class PageImageBuilder(
         logger.LogDebug("Compiled {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
             result.IsSuccess ? "ok" : "error");
 
-        return new PageImage(TemplateFingerprint.Of(template), compiler.RuntimeId, result.Image, result.Symbols, result.Diagnostics);
+        return new PageImage(
+            TemplateFingerprint.Of(template),
+            compiler.RuntimeId,
+            result.Image,
+            result.Symbols,
+            result.Diagnostics,
+            generated.HasCode);
     }
 }

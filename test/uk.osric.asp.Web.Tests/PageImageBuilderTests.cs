@@ -19,11 +19,12 @@ public sealed class PageImageBuilderTests {
     public void BuildReturnsAnImageWithNoDiagnostics() {
         using PageHarness pages = new(new FakePageStore());
 
-        PageImage compilation = Build(pages, "/hello", "Hello.");
+        PageImage compilation = Build(pages, "/hello", "<% ctx.Write(\"Hello.\"); %>");
 
         Assert.That(compilation.Diagnostics, Is.Empty);
         Assert.That(compilation.Bytes, Is.Not.Null.And.Not.Empty);
-        Assert.That(compilation.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("Hello.")));
+        Assert.That(compilation.HasCode, Is.True);
+        Assert.That(compilation.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("<% ctx.Write(\"Hello.\"); %>")));
         Assert.That(compilation.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
     }
 
@@ -59,7 +60,7 @@ public sealed class PageImageBuilderTests {
         using PageHarness pages = new(new FakePageStore(), new FaultingCompiler());
 
         Assert.That(
-            () => Build(pages, "/fault", "Hello."),
+            () => Build(pages, "/fault", "<% ctx.Write(\"Hello.\"); %>"),
             Throws.InvalidOperationException);
     }
 
@@ -68,7 +69,7 @@ public sealed class PageImageBuilderTests {
         PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 0.25 });
         using PageHarness pages = new(new FakePageStore(), new StallingCompiler(), budget: budget);
 
-        PageImage compilation = Build(pages, "/stalled", "Hello.");
+        PageImage compilation = Build(pages, "/stalled", "<% ctx.Write(\"Hello.\"); %>");
 
         Assert.That(compilation.Diagnostics, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, null, "PAGE004: the page took longer than 0.25 s to compile."),
@@ -84,7 +85,7 @@ public sealed class PageImageBuilderTests {
         await budget.CompileSlots.WaitAsync();
         try {
             long start = Stopwatch.GetTimestamp();
-            PageImage compilation = Build(pages, "/queued", "Hello.");
+            PageImage compilation = Build(pages, "/queued", "<% ctx.Write(\"Hello.\"); %>");
 
             Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1)),
                 "the wait for a slot is bounded by the compile budget");
@@ -97,6 +98,19 @@ public sealed class PageImageBuilderTests {
         }
 
         Assert.That(pages.Compiler.CompileCount, Is.Zero);
+    }
+
+    [Test]
+    public void ATemplateWithNoCodeIsStoredWithoutCompiling() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageImage compilation = Build(pages, "/site.css", "body { color: red; }");
+
+        Assert.That(compilation.HasCode, Is.False);
+        Assert.That(compilation.Bytes, Is.Null);
+        Assert.That(compilation.Symbols, Is.Null);
+        Assert.That(compilation.Diagnostics, Is.Empty);
+        Assert.That(pages.Compiler.CompileCount, Is.Zero, "there was nothing to compile");
     }
 
     private static PageImage Build(PageHarness pages, string path, string template) {

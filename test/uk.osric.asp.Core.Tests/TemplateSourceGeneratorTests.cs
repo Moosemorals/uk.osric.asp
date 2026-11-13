@@ -337,3 +337,47 @@ public sealed class TemplateSourceGeneratorTests {
             + $"  {Environment.NewLine}#nullable disable{Environment.NewLine}ctx.Write(ctx.User.Name);"));
     }
 }
+
+[TestFixture]
+public sealed class TemplateSourceGeneratorHasCodeTests {
+
+    [TestCase("")]
+    [TestCase("Hello")]
+    [TestCase("<p>Just text.</p>")]
+    [TestCase("a <!-- comment --> b")]
+    [TestCase("\n\n\t ")]
+    public void ATextOnlyTemplateHasNoCode(string template) {
+        TemplateGenerationResult result = TemplateSourceGenerator.Generate(template);
+
+        Assert.That(result.HasCode, Is.False);
+        Assert.That(result.Source, Is.Not.Null);
+    }
+
+    [TestCase("<% int value = 1; %>", "code")]
+    [TestCase("<%! using System.Text; %>", "declaration")]
+    [TestCase("<%= ctx.Path %>", "write")]
+    [TestCase("<%== ctx.Path %>", "raw write")]
+    public void AnyNonTextTokenIsCode(string template, string kind) {
+        Assert.That(
+            TemplateSourceGenerator.Generate(template).HasCode,
+            Is.True,
+            $"{kind} is code");
+    }
+
+    [Test]
+    public void AParseFailureIsNeverReportedAsNoCode() {
+        TemplateGenerationResult result = TemplateSourceGenerator.Generate("before<% if (true) {");
+
+        Assert.That(result.Source, Is.Null);
+        Assert.That(result.Errors, Is.Not.Empty);
+        Assert.That(result.HasCode, Is.True, "a template the tokenizer refused must not be served as an asset");
+    }
+
+    [Test]
+    public void AnEmptyWriteIsNeverReportedAsNoCode() {
+        TemplateGenerationResult result = TemplateSourceGenerator.Generate("<%= %>");
+
+        Assert.That(result.Errors, Is.Not.Empty);
+        Assert.That(result.HasCode, Is.True);
+    }
+}

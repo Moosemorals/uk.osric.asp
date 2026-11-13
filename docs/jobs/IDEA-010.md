@@ -54,3 +54,16 @@ responses to be cached immutably; PageLayout can then link to those URLs.
 
 This is separate from ARCH-06, ARCH-10 and ARCH-11; finishing those jobs does not imply the layout
 has adopted immutable URLs.
+
+## Outcome
+
+Closed by the immutable page assets work. The `/asset/{hash}` route was replaced by `?v=<hash>` on
+the page's own URL, so `ctx.Path`, relative URLs, query, cookies and headers keep their meaning. A
+no-code revision is never compiled and is served from source; a versioned asset carries
+`Cache-Control: public, max-age=31536000, immutable` and a strong `ETag`; unversioned URLs stay
+`no-store`. A no-code page is a complete representation and is never wrapped; its script policy comes
+from its extension row's `ScriptPolicy`. Tombstones keep their versioned URLs, scrub removes them,
+and neither can recall a copy a browser or proxy already holds.
+
+Runtime-change cleanup of obsolete assemblies and symbols is still open: refreshing or clearing a
+compilation result preserves the source, the creation runtime id and the revision hash.

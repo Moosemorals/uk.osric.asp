@@ -8,7 +8,15 @@ namespace uk.osric.asp.Web.Pages;
 /// <param name="SavedAt">When the head's revision was saved.</param>
 /// <param name="Hash">The head's revision hash.</param>
 /// <param name="IsDeleted">Whether the page is a tombstone.</param>
-internal sealed record PageReadHead(string Key, DateTimeOffset SavedAt, string Hash, bool IsDeleted);
+/// <param name="TemplateHasCode">
+/// Whether the head's template has code, or <see langword="null"/> when it has never been judged.
+/// </param>
+internal sealed record PageReadHead(
+    string Key,
+    DateTimeOffset SavedAt,
+    string Hash,
+    bool IsDeleted,
+    bool? TemplateHasCode = null);
 
 /// <summary>One template the read store retrieved.</summary>
 /// <param name="Key">The page's canonical key.</param>

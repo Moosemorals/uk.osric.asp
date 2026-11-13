@@ -49,6 +49,7 @@ internal sealed class SqlitePageStore(
                     head.Path,
                     head.IsDeleted,
                     revision.RuntimeId,
+                    revision.TemplateHasCode,
                     HasImage = revision.Image != null,
                     HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
                 })
@@ -58,7 +59,7 @@ internal sealed class SqlitePageStore(
             .Select(row => new PageListing(
                 PagePath.Normalize(row.Path),
                 row.IsDeleted,
-                PageImageStatus.Describe(row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId)))];
+                PageImageStatus.Describe(row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateHasCode)))];
     }
 
     public async Task<string?> GetSourceAsync(PagePath path, CancellationToken cancellationToken = default) {
@@ -97,6 +98,7 @@ internal sealed class SqlitePageStore(
                 revision.SavedAt,
                 revision.CreationRuntimeId,
                 revision.RuntimeId,
+                revision.TemplateHasCode,
                 HasImage = revision.Image != null,
                 HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
                 IsCurrent = database.Set<PageHead>().Any(head =>
@@ -112,7 +114,7 @@ internal sealed class SqlitePageStore(
                 row.Hash,
                 row.SavedAt,
                 row.CreationRuntimeId,
-                PageImageStatus.Describe(row.RuntimeId, row.HasImage, row.HasDiagnostics),
+                PageImageStatus.Describe(row.RuntimeId, row.HasImage, row.HasDiagnostics, templateHasCode: row.TemplateHasCode),
                 row.IsCurrent))];
     }
 
@@ -127,6 +129,7 @@ internal sealed class SqlitePageStore(
                 row.SavedAt,
                 row.CreationRuntimeId,
                 row.RuntimeId,
+                row.TemplateHasCode,
                 HasImage = row.Image != null,
                 HasDiagnostics = row.Diagnostics != null && row.Diagnostics != "[]",
                 row.Template,
@@ -140,7 +143,8 @@ internal sealed class SqlitePageStore(
                 revision.Hash,
                 revision.SavedAt,
                 revision.CreationRuntimeId,
-                PageImageStatus.Describe(revision.RuntimeId, revision.HasImage, revision.HasDiagnostics),
+                PageImageStatus.Describe(revision.RuntimeId, revision.HasImage, revision.HasDiagnostics,
+                    templateHasCode: revision.TemplateHasCode),
                 revision.Template);
     }
 
@@ -281,6 +285,7 @@ internal sealed class SqlitePageStore(
         int updated = await database.Set<PageRevision>()
             .Where(row => row.RevisionId == revisionId && row.Template == expectedTemplate)
             .ExecuteUpdateAsync(setters => setters
+                .SetProperty(row => row.TemplateHasCode, image.HasCode)
                 .SetProperty(row => row.TemplateHash, image.TemplateHash)
                 .SetProperty(row => row.RuntimeId, image.RuntimeId)
                 .SetProperty(row => row.Image, image.Bytes)
@@ -395,6 +400,7 @@ internal sealed class SqlitePageStore(
             Hash = revision.Hash,
             CreationRuntimeId = revision.CreationRuntimeId,
             SavedAt = revision.SavedAt,
+            TemplateHasCode = revision.TemplateHasCode,
         };
     }
 
@@ -407,6 +413,7 @@ internal sealed class SqlitePageStore(
             SavedAt = template.SavedAt,
             Template = template.Template,
             CreationRuntimeId = template.CreationRuntimeId,
+            TemplateHasCode = template.TemplateHasCode ?? image?.HasCode,
             TemplateHash = image?.TemplateHash,
             RuntimeId = image?.RuntimeId,
             Image = image?.Bytes,
@@ -425,7 +432,8 @@ internal sealed class SqlitePageStore(
             revision.RuntimeId,
             revision.Image,
             revision.Symbols,
-            Deserialize(revision.Diagnostics, revision.Image is not null));
+            Deserialize(revision.Diagnostics, revision.Image is not null),
+            revision.TemplateHasCode);
     }
 
     private IReadOnlyList<PageDiagnostic> Deserialize(string? json, bool hasImage) {

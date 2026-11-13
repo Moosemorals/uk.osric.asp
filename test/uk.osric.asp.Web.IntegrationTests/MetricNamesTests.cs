@@ -67,6 +67,7 @@ public sealed class MetricNamesTests : IntegrationTest {
             pages.RecordAbandoned(path);
             pages.RecordCacheLookup(PageMetrics.LookupHit);
             pages.RecordStaleness(path, PageMetrics.StaleNeverCompiled);
+            pages.RecordAsset(PageMetrics.AssetServed);
             pages.RecordLayoutFallback(path);
             pages.RecordStorage(1, 2, 3);
         }

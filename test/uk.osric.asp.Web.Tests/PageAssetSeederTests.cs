@@ -62,7 +62,7 @@ public sealed class PageAssetSeederTests {
     // A shipped page that warns would greet a fresh installation with "Compiled with warnings", so
     // the seeds are held to the standard the prompt's examples are.
     [TestCaseSource(nameof(SeedPaths))]
-    public async Task EveryShippedSeedCompilesWithoutDiagnosticsAsync(string path) {
+    public async Task EveryShippedSeedIsStoredWithoutDiagnosticsAsync(string path) {
         using PageHarness pages = new(new FakePageStore());
         string template = (await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path)))!;
 
@@ -71,7 +71,7 @@ public sealed class PageAssetSeederTests {
 
         Assert.That(image.Diagnostics, Is.Empty,
             $"{path}: {string.Join("; ", image.Diagnostics.Select(diagnostic => diagnostic.Message))}");
-        Assert.That(image.Bytes, Is.Not.Null, path);
+        Assert.That(image.Bytes, image.HasCode is true ? Is.Not.Null : Is.Null, path);
     }
 
     [Test]
@@ -173,11 +173,12 @@ public sealed class PageAssetSeederTests {
     }
 
     [Test]
-    public async Task TheSvgSeedKeepsItsOwnContentTypeAsync() {
+    public async Task TheSvgSeedReliesOnItsExtensionForItsContentTypeAsync() {
         string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/rocket.svg"));
 
-        Assert.That(template, Does.Contain("ctx.SetContentType(\"image/svg+xml\")"));
-        Assert.That(template, Does.Not.Contain("Cache-Control"));
+        Assert.That(template, Does.Not.Contain("ctx.SetContentType"));
+        Assert.That(template, Does.Not.Contain("<%"), "the icon has no code, so it is an asset");
+        Assert.That(TestContentTypes.Shipped.ForPath("/rocket.svg"), Is.EqualTo("image/svg+xml; charset=utf-8"));
     }
 
     [TestCase("/not-a-seed")]

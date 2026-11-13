@@ -16,7 +16,7 @@
        links.Add(new("/edit", "Pages", Under("/edit")));
        links.Add(new("/admin", "Admin", Under("/admin")));
        links.Add(new("/logout", "Sign out", At("/logout")));
-   } %><%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head) %>
+   } %><%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head, resolveHref: ctx.AssetUrl) %>
 <%== PageDocument.Banner(PageDocument.Nav("Site", links, "site-nav")) %>
 <%== PageDocument.OpenMain() %>
 <%== layout.Body %>

@@ -66,12 +66,17 @@ public static class PageDocument {
     /// </param>
     /// <param name="head">Raw markup written into <c>head</c> last, for a document that describes itself.</param>
     /// <param name="bodyClass">A class for <c>body</c>, when the view styles the document box.</param>
+    /// <param name="resolveHref">
+    /// Resolves each sheet and the icon before it is written, or <see langword="null"/> to write the
+    /// values as given. The caller owns the resolver, so this stays a pure string builder.
+    /// </param>
     /// <exception cref="ArgumentException">The title is blank or a sheet is not site-relative.</exception>
     public static string Head(
         string title,
         IReadOnlyList<string>? stylesheets = null,
         string? head = null,
-        string? bodyClass = null) {
+        string? bodyClass = null,
+        Func<string, string>? resolveHref = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
 
         IReadOnlyList<string> requested = stylesheets ?? [];
@@ -84,8 +89,8 @@ public static class PageDocument {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>{WebUtility.HtmlEncode(title)}</title>
-            {string.Join('\n', sheets.Select(Sheet))}
-            <link rel="icon" href="/rocket.svg" type="image/svg+xml">
+            {string.Join('\n', sheets.Select(href => Sheet(Resolve(resolveHref, href))))}
+            <link rel="icon" href="{WebUtility.HtmlEncode(Resolve(resolveHref, "/rocket.svg"))}" type="image/svg+xml">
             {head}
             </head>
             <body{(bodyClass is null ? "" : $" class=\"{WebUtility.HtmlEncode(bodyClass)}\"")}>
@@ -154,6 +159,9 @@ public static class PageDocument {
             }
         }
     }
+
+    private static string Resolve(Func<string, string>? resolveHref, string href) =>
+        resolveHref is null ? href : resolveHref(href);
 
     private static string Sheet(string href) => $"<link rel=\"stylesheet\" href=\"{WebUtility.HtmlEncode(href)}\">";
 }

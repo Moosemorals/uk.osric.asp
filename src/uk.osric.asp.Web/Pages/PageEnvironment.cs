@@ -15,9 +15,9 @@ using uk.osric.asp.Web.Editor;
 /// readable as the page contract grows a capability.
 /// </remarks>
 /// <param name="Reserved">The keys the site's own routes answer for.</param>
-/// <param name="Layout">The page every HTML page is wrapped in unless it says otherwise.</param>
+/// <param name="Layout">The page every HTML page with code is wrapped in unless it says otherwise.</param>
 /// <param name="Render">The render budget and body cap.</param>
-/// <param name="ContentTypes">The media type each page key's extension names.</param>
+/// <param name="ContentTypes">The media type and script policy each page key's extension names.</param>
 /// <param name="Storage">The storage caps.</param>
 /// <param name="Fetch">The outbound fetch caps.</param>
 /// <param name="Read">The caps on a page's read of the page store.</param>

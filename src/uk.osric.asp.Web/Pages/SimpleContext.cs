@@ -24,7 +24,7 @@ internal sealed class SimpleContext : IContext {
 
     // A page must not be able to clobber the shell's own cookies or framing. Everything that changes
     // the meaning of the body is reachable through a dedicated member instead. Caching policy is not
-    // a page's to set: every stored page is per-visitor and the host sends no-store.
+    // a page's to set: a page with code is per-visitor and the host sends no-store.
     private static readonly HashSet<string> s_allowedHeaders = [with(StringComparer.OrdinalIgnoreCase),
         "Content-Language"];
 
@@ -37,6 +37,7 @@ internal sealed class SimpleContext : IContext {
     internal const string PageCategory = "uk.osric.asp.Pages";
 
     private readonly Func<string>? _antiforgeryFactory;
+    private readonly Func<string, string>? _assetUrl;
     private readonly Lock _body = new();
     private readonly PageCapabilities _capabilities;
     private readonly Dictionary<string, string> _headers = [with(StringComparer.OrdinalIgnoreCase)];
@@ -81,6 +82,10 @@ internal sealed class SimpleContext : IContext {
     /// <param name="bodyBudget">
     /// The allowance the whole chain shares; a layer on its own gets one of its own.
     /// </param>
+    /// <param name="assetUrl">
+    /// Resolves a link against the request's asset map, or <see langword="null"/> when the render has
+    /// no map and every link is left as written.
+    /// </param>
 #pragma warning disable CA1068 // CancellationToken parameters must come last
     public SimpleContext(
 #pragma warning restore CA1068 // CancellationToken parameters must come last
@@ -96,7 +101,8 @@ internal sealed class SimpleContext : IContext {
         Func<string>? antiforgeryField = null,
         PagePath? path = null,
         bool isLayout = false,
-        BodyBudget? bodyBudget = null) {
+        BodyBudget? bodyBudget = null,
+        Func<string, string>? assetUrl = null) {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
@@ -113,6 +119,7 @@ internal sealed class SimpleContext : IContext {
         _request = request;
         _loginRedirect = loginRedirect;
         _antiforgeryFactory = antiforgeryField;
+        _assetUrl = assetUrl;
         Aborted = aborted;
         _capabilities = capabilities;
         _writer = writer;
@@ -146,9 +153,9 @@ internal sealed class SimpleContext : IContext {
 
     /// <summary>What the page asked the response to be.</summary>
     /// <remarks>
-    /// Every stored page is <c>no-store</c>: a page can keep per-visitor state, so its body has no
-    /// business in a shared cache and no business inviting a conditional request. The host writes the
-    /// same header after the page's own, so this is the default rather than the last word.
+    /// Every page that runs code is <c>no-store</c>: it can keep per-visitor state, so its body has
+    /// no business in a shared cache and no business inviting a conditional request. The host writes
+    /// the same header after the page's own, so this is the default rather than the last word.
     /// </remarks>
     public PageResponse ToResponse() {
         _headers.TryAdd("Cache-Control", "no-store");
@@ -243,6 +250,13 @@ internal sealed class SimpleContext : IContext {
 
             _writer.Write(text);
         }
+    }
+
+    /// <inheritdoc/>
+    public string AssetUrl(string href) {
+        ArgumentNullException.ThrowIfNull(href);
+
+        return _assetUrl?.Invoke(href) ?? href;
     }
 
     /// <inheritdoc/>
