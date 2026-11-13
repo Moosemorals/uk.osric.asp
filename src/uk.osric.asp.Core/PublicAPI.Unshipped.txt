@@ -665,3 +665,25 @@ uk.osric.asp.Core.Assistant.AccountBalance.<Clone>$() -> uk.osric.asp.Core.Assis
 uk.osric.asp.Core.Assistant.AccountBalance.Equals(uk.osric.asp.Core.Assistant.AccountBalance? other) -> bool
 uk.osric.asp.Core.Assistant.CurrencyBalance.<Clone>$() -> uk.osric.asp.Core.Assistant.CurrencyBalance!
 uk.osric.asp.Core.Assistant.CurrencyBalance.Equals(uk.osric.asp.Core.Assistant.CurrencyBalance? other) -> bool
+uk.osric.asp.Core.Pages.PageScope
+uk.osric.asp.Core.Pages.PageScope.PageScope() -> void
+uk.osric.asp.Core.Pages.PageScope.PageScope(uk.osric.asp.Core.Pages.PagePath! Path, bool IncludeSelf, bool Recursive) -> void
+uk.osric.asp.Core.Pages.PageScope.Path.get -> uk.osric.asp.Core.Pages.PagePath!
+uk.osric.asp.Core.Pages.PageScope.Path.init -> void
+uk.osric.asp.Core.Pages.PageScope.IncludeSelf.get -> bool
+uk.osric.asp.Core.Pages.PageScope.IncludeSelf.init -> void
+uk.osric.asp.Core.Pages.PageScope.Recursive.get -> bool
+uk.osric.asp.Core.Pages.PageScope.Recursive.init -> void
+uk.osric.asp.Core.Pages.PageScope.Contains(uk.osric.asp.Core.Pages.PagePath! key) -> bool
+uk.osric.asp.Core.Pages.PageScope.Deconstruct(out uk.osric.asp.Core.Pages.PagePath! Path, out bool IncludeSelf, out bool Recursive) -> void
+uk.osric.asp.Core.Pages.PageScope.Equals(uk.osric.asp.Core.Pages.PageScope other) -> bool
+~override uk.osric.asp.Core.Pages.PageScope.Equals(object obj) -> bool
+override uk.osric.asp.Core.Pages.PageScope.GetHashCode() -> int
+~override uk.osric.asp.Core.Pages.PageScope.ToString() -> string
+static uk.osric.asp.Core.Pages.PageScope.operator !=(uk.osric.asp.Core.Pages.PageScope left, uk.osric.asp.Core.Pages.PageScope right) -> bool
+static uk.osric.asp.Core.Pages.PageScope.operator ==(uk.osric.asp.Core.Pages.PageScope left, uk.osric.asp.Core.Pages.PageScope right) -> bool
+uk.osric.asp.Core.Pages.PageTree
+static uk.osric.asp.Core.Pages.PageTree.IsBelow(uk.osric.asp.Core.Pages.PagePath! key, uk.osric.asp.Core.Pages.PagePath! folder) -> bool
+static uk.osric.asp.Core.Pages.PageTree.IsDirectlyBelow(uk.osric.asp.Core.Pages.PagePath! key, uk.osric.asp.Core.Pages.PagePath! folder) -> bool
+static uk.osric.asp.Core.Pages.PageTree.FolderOf(string! key) -> string?
+static uk.osric.asp.Core.Pages.PageTree.FoldersAbove(string! key) -> System.Collections.Generic.IReadOnlyList<string!>!

@@ -88,10 +88,8 @@ internal sealed class PagePathPolicy {
         return _reserved.MatchingPrefix(path);
     }
 
-    private static bool IsWithin(PagePath path, PagePath prefix) =>
-        string.Equals(path.Key, prefix.Key, StringComparison.Ordinal)
-        || prefix.Key == "/"
-        || path.Key.StartsWith(prefix.Key + "/", StringComparison.Ordinal);
+    private bool IsWithin(PagePath path, PagePath prefix) =>
+        new PageScope(prefix, IncludeSelf: true, Recursive: true).Contains(path);
 
     private static PathValidationResult Invalid(string error) => new(null, error);
 }
