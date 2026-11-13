@@ -30,6 +30,12 @@ WEB_TESTS := test/uk.osric.asp.Web.Tests/uk.osric.asp.Web.Tests.csproj
 INTEGRATION_TESTS := test/uk.osric.asp.Web.IntegrationTests/uk.osric.asp.Web.IntegrationTests.csproj
 BROWSER_TESTS := test/uk.osric.asp.Web.BrowserTests/uk.osric.asp.Web.BrowserTests.csproj
 
+# Work happens in a branch and a worktree beside the repository, so two agents never share a
+# checkout. The folder takes its name from the main worktree, so it is found from any of them.
+MAIN_WORKTREE := $(shell git worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')
+WORKTREES := $(MAIN_WORKTREE).worktrees
+BASE ?= trunk
+
 # ---- Container image and deployment --------------------------------------------------------------
 #
 # The image is framework-dependent on Alpine: the runtime lives in shared base layers, so a release
@@ -113,7 +119,7 @@ BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration test-browser test-browser-live browsers migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web clean
+.PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration test-browser test-browser-live browsers migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -158,6 +164,9 @@ help:
 		'mutation-sdk       Mutation-test the page contract, which the Web suite drives.' \
 		'mutation-web       Mutation-test the shell: the long one, hours rather than minutes.' \
 		'browsers           Install the Firefox build the browser suite drives.' \
+		'worktree           Create the branch and worktree for BRANCH=... (BASE=trunk).' \
+		'worktrees          List the worktrees.' \
+		'worktree-remove    Remove the worktree for BRANCH=... once its work has merged.' \
 		'clean              Delete the artifacts folder.' \
 		'help               Show this list.'
 
@@ -524,6 +533,32 @@ mutation-web: $(RESTORE_STAMP)
 	$(FORGET_BUILD)
 	$(DOTNET) tool restore
 	cd $(dir $(WEB_TESTS)) && $(DOTNET) tool run dotnet-stryker --output $(abspath $(MUTATION_DIR))/web
+
+# ---- Worktrees -----------------------------------------------------------------------------------
+#
+# Every job or plan gets a branch and a worktree of its own. The branch is what merges; the worktree
+# is what one agent at a time works in. The branch is left alone by `worktree-remove`, because `git
+# branch -d` refusing an unmerged branch is the check that the work got back.
+
+worktree:
+	@test -n "$(strip $(BRANCH))" || { printf '%s\n' \
+		"usage: make worktree BRANCH=<branch> [BASE=$(BASE)]" >&2; exit 2; }
+	@install -d "$(WORKTREES)"
+	@if git show-ref --verify --quiet "refs/heads/$(BRANCH)"; then \
+		git worktree add "$(WORKTREES)/$(BRANCH)" "$(BRANCH)"; \
+	else \
+		git worktree add -b "$(BRANCH)" "$(WORKTREES)/$(BRANCH)" "$(BASE)"; \
+	fi
+	@printf 'Worktree: %s\n' "$(WORKTREES)/$(BRANCH)"
+
+worktrees:
+	@git worktree list
+
+worktree-remove:
+	@test -n "$(strip $(BRANCH))" || { printf '%s\n' \
+		"usage: make worktree-remove BRANCH=<branch>" >&2; exit 2; }
+	git worktree remove "$(WORKTREES)/$(BRANCH)"
+	@printf 'Removed %s; the branch stays until it is merged and deleted.\n' "$(WORKTREES)/$(BRANCH)"
 
 clean:
 	rm -rf $(ARTIFACTS)
