@@ -104,6 +104,7 @@ clean compile does not hide them, and they never stop a page being served (DEC-2
 | A view a visitor reads, or a form they submit | A stored page, and `Pages/Seeds` when it ships with the site |
 | Emitting a page assembly, loading it and invoking the handler | `Runtime` |
 | Deciding when to compile, store and run a page | `Web`, in `PageImageBuilder`, `PageRenderer` and `PageEditor` |
+| Reading the page store for a tool or the virtual shell | `Web`, in `PageStoreReader`, over `PageEditor` and `PagePathPolicy`; the tree and the scope are `Core`'s `PageTree` and `PageScope` (DEC-274, DEC-277) |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
 | Source storage: the EF Core context and its migrations | `Web`, under `Storage` |

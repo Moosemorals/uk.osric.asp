@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned — implements [ARCH-16](../jobs/ARCH-16.md) |
+| Status | Landed — closes ARCH-16; the decisions are numbered as DEC-274–DEC-280 |
 | Size | Medium — one Core tree and scope value, one read seam in `Web`, the eight applets and four tool types rewired, and the tests and documents for each |
 | Area | Core (Pages), Web (assistant tools and virtual shell) |
 | Backlog | None. The edit-safety work has landed (DEC-269–DEC-273); this is the seam that work showed was missing |
-| Decisions | D1–D7 below, referred to in prose until the merge takes `DEC-` numbers |
+| Decisions | D1–D7 below, recorded as DEC-274–DEC-280 |
 
 ## The short version
 
@@ -143,10 +143,10 @@ once, so `diff_page` no longer re-checks the two hashes itself. The writes stay 
 store holds a page there; a tombstone is in the tree only when asked and is never a source; keys and
 folders are ordinal; a scope includes the path itself or not, and descends or not, as asked; a history
 is newest first; `RevisionAsync` answers null for another path's hash; a shell record is the read of a
-reserved key; a no-code page's state is Stored as source. `PageTreeTests` and `PageScopeTests` own the
+reserved key; a no-code page's state is Stored as source. `PageTreeTests` and `PageScopeRuleTests` own the
 tree rule in `Core`. The existing suites — `PageToolExecutorTests`, `PageToolExecutorHistoryTests`,
 `PageToolExecutorDiffTests`, `ShellPatternAndSearchTests`, `ShellRegistryTests`, `ShellRoutesTests` —
-pass with type renames and the one assertion D3 changes.
+pass with the type names changed and no assertion changed; D3's answer is proved in the seam's suite.
 
 ## Phases
 
@@ -156,7 +156,7 @@ suites that its phase touches — and its tests written first.
 ### Phase 0 — `Core` learns the tree (half a day)
 
 - `PageTree` and `PageScope` move into `Core/Pages`, with `PublicAPI.Unshipped.txt` entries.
-- `PageTreeTests`, `PageScopeTests`.
+- `PageTreeTests`, `PageScopeRuleTests`.
 - `PagePathPolicy.IsWithin` asks `PageScope`. The shell keeps its own `ShellTree` reference until
   phase 2, or switches in the same commit if that is smaller.
 
@@ -187,23 +187,25 @@ type renames only, and `ls -l`, `stat`, `cat -n` and `grep` print what they prin
 - `ToolServices.Store` replaces read access to `PageEditor`; `PageToolData.EntriesAsync`,
   `PageToolData.ImageStatus`, `SearchPagesTool.SourcesAsync` and the private scope copies go.
 - `HistoryTools` and `DiffTool` move to `HistoryAsync`/`RevisionAsync`.
-- The one assertion D3 changes is updated, with its reason in the test comment.
+- Nothing else: no assertion changed, because the suites never pinned the read of a no-code page.
+  `PageStoreReaderTests` proves the new answer instead.
 
 **Done when** the tool suites pass, `make check` is green and no tool reads `PageEditor` except to
 write.
 
 ### Phase 4 — documents (half a day)
 
-- [assistant](../assistant.md): the tools and the applets read through one seam, and what it answers.
-- [architecture](../architecture.md): the seam in `Web`, the tree and the scope in `Core`.
-- [ARCH-16](../jobs/ARCH-16.md) closes; the [programme](../jobs/README.md) records step 6 as done.
+- [assistant](../../assistant.md): the tools and the applets read through one seam, and what it answers.
+- [architecture](../../architecture.md): the seam in `Web`, the tree and the scope in `Core`.
+- [testing](../../testing.md): `PageStoreReaderTests` proves the seam's rules once.
+- ARCH-16 is in the [programme's closed table](../../jobs/README.md#closed) and step 6 reads done.
 - `/help` is unchanged: none of this is a page-authoring capability.
 
 ## Risks
 
 | Risk | Answer |
 | --- | --- |
-| A rule changes silently while three copies become one | The existing suites are the check: they must pass with type renames, and the one assertion that moves is D3's, recorded and tested. |
+| A rule changes silently while three copies become one | The existing suites are the check: they pass with the type names changed and no assertion changed, and the one answer that moved, D3's, is proved in the seam's own suite. |
 | A tombstone appears in `ls` or `find` | `TreeAsync` defaults to live keys; the only caller that asks for tombstones is `list_pages`. |
 | The shell grows a dependency on a tool-shaped type | The seam's types are named for the store, not for either front-end; `ShellContext` still hands an applet only nodes, reads and the registry. |
 | Reading a page per source is expensive | It is what both walks do today, and the store is small; a batch read is a separate idea. |

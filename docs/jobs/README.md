@@ -39,7 +39,8 @@ release that removes the deprecated `Features` alias once the page store has no 
 ARCH-16 came out of the [tool-types work](../plans/archive/assistant-tool-types.md) of 2026-11-11
 (DEC-231): making a tool one type showed that the page tools and the shell answer the same questions
 about the page store through two implementations; the edit-safety work (DEC-269–DEC-273) widened the
-tools' read surface, so the job was reworked on 2026-11-13. IDEA-028 came out of the [page-editor
+tools' read surface, so the job was reworked on 2026-11-13 and closed by
+[its plan](../plans/archive/page-store-reader.md) (DEC-274–DEC-280). IDEA-028 came out of the [page-editor
 planning](../plans/archive/page-editor.md) of 2026-11-13: the editor can become a page only if a
 broken editor has a way back, and one button that restores every seed is that way. IDEA-030 came out
 of that plan's fourth phase: retiring `/edit` and moving the editor's key into configuration showed
@@ -52,7 +53,6 @@ editor — is what is left.
 | --- | --- | --- | --- |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
-| [ARCH-16](ARCH-16.md) | Low | M | The assistant asks the page store the same questions twice |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
@@ -99,7 +99,7 @@ is `done` when its merge is in, and `in flight` while its branch is open.
 | 3 | [IDEA-028](#closed) — `/admin/restore`, over the seed read and the saver ARCH-07 left behind | M | — | merge, and a manual restore of a broken page | done |
 | 4 | [IDEA-019](#closed) — repeated request values, and `Encoding` and cryptography in the API policy; the cookie point is dropped because IDEA-014 gives a page per-visitor state | S | — | merge | done |
 | 5 | [Page editor](../plans/archive/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | done |
-| 6 | [ARCH-16](ARCH-16.md) — one read seam for the assistant's tools and its applets | M | 5, edit safety | merge | — |
+| 6 | [ARCH-16](#closed) — one read seam for the assistant's tools and its applets | M | 5, edit safety | merge | done |
 | 7 | [ARCH-13](ARCH-13.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | — |
 | 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase | — |
 | 9 | [Page first](../plans/page-first.md) — re-scope against 5–8: DEC-210 and DEC-211 are recorded, but the audit and the memory page are not; build the page, or archive the plan behind IDEA-024 and IDEA-025 | L | 5–8 | the plan, then build-or-close | — |
@@ -117,8 +117,8 @@ Page first is less unstarted than its status row says: DEC-210 and DEC-211 are r
 rule is agreed, but [architecture](../architecture.md) has no audit table, `/memory` is still a shell
 route, and DEC-211 still names `ctx.Features` — the rename it has to follow is step 2's.
 
-Step 6 follows 5 rather than needing it: the editor's listing carries the compile state, and that is
-the state the assistant's one seam should answer with too. Step 7 is also the home of
+Step 6 followed 5 rather than needing it: the editor's listing carries the compile state, and that is
+the state the assistant's one seam answers with too (DEC-276). Step 7 is also the home of
 BUG-17's one loose end — the failed-request log line a mid-run reload leaves behind.
 
 **IDEA-026 had no data gate.** Its sketch made the query the gate, and the decision was to remove
@@ -140,6 +140,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [ARCH-16](../plans/archive/page-store-reader.md) | The assistant's tools and its virtual shell read through one `PageStoreReader`: the tree with its facts, the sources in a scope, one key, a history and one revision. `PageTree` and `PageScope` moved to `Core`, and the loose lists, source walks and scope copies are gone. DEC-274–DEC-280 |
 | [IDEA-019](../decisions.md) | Every request value survives: `QueryValues` and `FormValues` keep each name's values in order, and the API policy admits encoding, SHA-2 hashing, HMAC signing, a random source and a constant-time compare. DEC-257 |
 | [IDEA-017](../plans/archive/page-editor.md) | The editor is a page: `IPageEditor`, the read state, the seeded `/pages` editor and its module, and `/edit` retired to an ordinary key with scrub moved to `/admin/scrub`. See [the plan](../plans/archive/page-editor.md) |
 | [IDEA-028](../decisions.md) | `/admin/restore` lists every seed's state, restores each changed, missing or tombstoned one in a single POST and reports every outcome; a matching seed and a page the owner made are untouched. DEC-256 |

@@ -25,11 +25,16 @@ by tools to that provider. No provider SDK is used. The tools are eighteen types
 the verb its refusals use, whether it changes a page and its own run, beside the code that runs it;
 `ToolRegistry` is the only list, so the model's definitions, the dispatcher and the approval gate
 cannot drift from each other (DEC-231). Assistant tools reach the page store
-through `PageEditor` — list/read/search, bounded template-source line edits with an atomic revision-hash
-check, whole-page writes, tombstone deletes, a read-only virtual shell, and two read-only script
-checks that parse a stored page or a supplied complete template as an ES module and change nothing —
-plus a record of the site's own routes, which they can read and never write, an outbound `fetch`
-tool, and `diff_page`. `fetch` GETs an absolute `http` or `https` URL through the same bounded
+through one read seam, `PageStoreReader` — list/read/search, bounded template-source line edits with an
+atomic revision-hash check, whole-page writes, tombstone deletes, a read-only virtual shell, and two
+read-only script checks that parse a stored page or a supplied complete template as an ES module and
+change nothing — while every write is still `PageEditor`'s. The seam also answers the applets, so the
+tree, the reserved keys, the tombstones, the key order and what a scope means are decided once
+(DEC-274–DEC-278). It carries facts rather than words: a node says whether a save would be accepted and
+what the page compiled to, and `PageMode` and `PageImageStatus` spell them, so `ls -l`, `stat`,
+`list_pages` and `read_page` agree (DEC-275, DEC-276). The tools also see a record of the site's own
+routes, which they can read and never write, and two tools outside the store: `fetch` and `diff_page`.
+`fetch` GETs an absolute `http` or `https` URL through the same bounded
 outbound HTTP a page uses and returns the status, content type and text body; every assistant
 request, the provider call included, carries `moosemorals.com (assistant)` as its `User-Agent`. It is approval-gated under
 `RequireApproval`, and like

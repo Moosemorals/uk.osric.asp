@@ -6,7 +6,7 @@ namespace uk.osric.asp.Core.Tests;
 using uk.osric.asp.Core.Pages;
 
 [TestFixture]
-public sealed class PageScopeTests {
+public sealed class PageScopeRuleTests {
 
     [TestCase("/a/b", "/a/b", true, "a scope that includes itself holds the path")]
     [TestCase("/a/c", "/a/b", false)]

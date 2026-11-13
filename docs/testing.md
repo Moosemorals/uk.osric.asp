@@ -76,11 +76,13 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
 - **The assistant** is covered at the same boundaries: `Core.Tests` checks request planning — observation
   masking, whole-turn trimming, token estimation and the byte measure the estimator calibrates —
   stream accumulation, usage accumulation, strict tool arguments, virtual-shell parsing, title
-  generation, authored template-source line edits and the `BudgetSnapshot` the page and the stream
-  both read.
-  `Web.Tests` uses migrated SQLite files for conversations, sequence
-  allocation, approvals and restart repair; fake HTTP handlers for provider SSE; and scripted model
-  streams for the run processor. `Web.IntegrationTests` runs the real authenticated host with a
+  generation, authored template-source line edits, the page store's tree and scope (`PageTreeTests`,
+  `PageScopeRuleTests`) and the `BudgetSnapshot` the page and the stream both read.
+  `Web.Tests` pins the one read seam the tools and the virtual shell share in `PageStoreReaderTests`
+  — reserved rows, tombstone visibility, key order, scope, history order and a revision's path — so
+  those rules are proved once rather than through a tool and an applet each. It also uses migrated
+  SQLite files for conversations, sequence allocation, approvals and restart repair; fake HTTP
+  handlers for provider SSE; and scripted model streams for the run processor. `Web.IntegrationTests` runs the real authenticated host with a
   scripted provider to verify disabled routing, conversation streaming, approval gating and writes,
   and compares the last `budget.updated` a run published — its budgets and its usage — with the page
   the reload renders. The browser suite watches a budget figure and the usage list move while the run
