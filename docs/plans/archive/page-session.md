@@ -9,9 +9,9 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Status | Implemented 2026-11-12 |
 | Size | Large — an SDK capability, two tables and a store, the shell's cookie and rotation, the loss of `context.Session`, a caching change with a known regression, a cookie rename, and a seeded page |
-| Job | IDEA-014 — a page cannot keep per-visitor state, so a form cannot redirect and say why; closed, see [jobs](../jobs/README.md#closed) |
+| Job | IDEA-014 — a page cannot keep per-visitor state, so a form cannot redirect and say why; closed, see [jobs](../../jobs/README.md#closed) |
 | Spike | None. The shape is settled; the uncertain part is cost, not behaviour |
-| Decisions | Referred to in prose here and numbered when the work merges: the identity, the caps, the ownership model, pages become uncacheable, and the cookie names |
+| Decisions | DEC-233–DEC-237, recorded with this plan: the identity, the ownership model, the caps, pages become uncacheable, and the cookie names |
 
 ## The short version
 
@@ -50,13 +50,13 @@ A page can keep per-visitor state, bounded and cleared on sign-out:
 ## Non-goals
 
 - **Page-to-page messaging as a feature.** Reading another page's key ships here; a *send* with a
-  redirect is [IDEA-027](../jobs/IDEA-027.md), and the editor becoming a page is
-  [IDEA-017](../jobs/IDEA-017.md).
+  redirect is [IDEA-027](../../jobs/IDEA-027.md), and the editor becoming a page is
+  [IDEA-017](../../jobs/IDEA-017.md).
 - **Merging with `IPageStorage`.** Page state is site content — exported, imported, scrubbed,
   measured — and session values are a visitor's scratch space; the reasoning is under *considered
   and rejected*.
 - **Caching for stored assets.** Losing the validator on `/site.css` and `/rocket.svg` is accepted
-  until [IDEA-010](../jobs/IDEA-010.md) lands.
+  until IDEA-010 landed ([immutable page assets](immutable-page-assets.md)).
 - **A general key/value framework.** Two capabilities that look alike and share nothing but a JSON
   options instance is the right amount of sharing.
 
@@ -364,9 +364,9 @@ IDEA-017 cross-reference.
 - `docs/pages.md`: the capability list, and the response rules without a validator.
 - `docs/shell.md`: the cookie, the rotation, the sign-out, the shell's own keys and their paths.
 - `docs/storage.md`: the two tables, their caps and the sweep.
-- Decisions to number at merge: the identity (a shell-minted cookie, lazy), the ownership model
-  (host-composed path, open reads, own-path writes), the caps and their configuration, pages are
-  uncacheable, and single-character cookie names.
+- Decisions recorded: the identity (DEC-233, a shell-minted cookie, lazy), the ownership model
+  (DEC-234, host-composed path, open reads, own-path writes), the caps and their configuration
+  (DEC-235), pages are uncacheable (DEC-236), and single-character cookie names (DEC-237).
 
 ## Risks
 

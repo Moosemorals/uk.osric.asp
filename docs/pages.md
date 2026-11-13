@@ -56,9 +56,8 @@ the build:
   page storage, keys follow the same rule, and the caps are per session (8 keys and 16 KiB
   anonymously, 32 keys and 64 KiB signed in). A session is minted on the first write, lives in an
   `HttpOnly` cookie the shell owns, slides for 30 minutes (8 hours signed in) and is cleared on
-  sign-out. A `HEAD` render and a layout may read and not write. The identity, ownership and caps
-  are the decisions the page-session plan records, numbered when it merges; see
-  [storage](storage.md#page-sessions).
+  sign-out. A `HEAD` render and a layout may read and not write. The identity, the ownership rule
+  and the caps are DEC-233–DEC-235; see [storage](storage.md#page-sessions).
 - `IHttpFetch` makes one outbound HTTP request from the host, not the browser, to any `http` or
   `https` host the URL names: there is no host allow-list (DEC-216). Every request carries
   `moosemorals.com (page)` as its `User-Agent`, set by the host after the page's own headers, so a

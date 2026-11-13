@@ -121,7 +121,7 @@ seeding will not restore a tombstoned `/site.css` or `/rocket.svg`, so saving at
 it in the same history. Runtime-change cleanup of obsolete images and symbols is deferred. The
 editor's history view shows a retained revision and restores it as a new save, after a confirmation
 that shows the change; a seeded row installs its bundled source the same way
-([the plan](../docs/plans/revision-restore.md)).
+([the plan](../docs/plans/archive/revision-restore.md)).
 
 Scrubbing is best effort, not forensic erasure: it does not reach running code, browser or CDN
 copies, archives, backups or filesystem snapshots. Keep backups outside the storage volume and treat

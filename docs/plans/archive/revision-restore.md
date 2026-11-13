@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Implemented on this branch; the decisions are numbered when it merges |
+| Status | Implemented 2026-11-13 |
 | Size | Large — two editor actions and their confirmation views, a command rename, three assistant tools, a paging pair on both listings, a prompt version, and the tests and documents for each |
 | Area | Web (editor, assistant), seeds |
 | Backlog | ARCH-07, closed by this plan |
-| Decisions | Referred to in prose here and numbered when the work merges (DEC-09) |
+| Decisions | DEC-249–DEC-252, recorded with this plan |
 
 ## The short version
 
@@ -71,7 +71,7 @@ contract the assistant already promises, and the vocabulary the author manual te
 - **Reading a revision through `?v=`.** Since the immutable-assets work that URL addresses any
   retained revision of a path — one with code, and a tombstoned one — but it answers with what the
   revision *renders*: it executes the code, wraps it, and sets the cache headers the revision's
-  verdict earns (DEC-233, DEC-238, DEC-242). A tool that wants stored source to quote, range and
+  verdict earns (DEC-238, DEC-243, DEC-247). A tool that wants stored source to quote, range and
   budget reads the store.
 - **A second store read.** All three tools use `PageEditor`'s existing `ListRevisionsAsync`,
   `GetRevisionTemplateByHashAsync` and `SaveAsync`; ARCH-16 is not reopened.
@@ -95,9 +95,9 @@ contract the assistant already promises, and the vocabulary the author manual te
 | `ToolRegistry`, `AssistantTool`, `ToolPaths`, `ToolResults` | One type per tool, one list, one gate, one bounded envelope (DEC-231) | Three new rows, two of them through the read gate and one through the write gate |
 | `PageEditor.ListRevisionsAsync` / `GetRevisionTemplateByHashAsync` | A page's history without source, each row carrying `IsCurrent`; one revision's source by hash | The two assistant reads, the confirmation, and the listing's cheap hint that the current row needs no link |
 | `PageEditor.SaveAsync` | The editor's own save, compile-then-store through the one saver | The restore's write, and the assistant's `restore_revision` |
-| `RevisionHash.IsCanonical` | The one spelling of a hash: exactly 64 lowercase hexadecimal characters, matched ordinal, which `?v=` already enforces (DEC-241) | The hash rule for the restore, both tools' arguments and the existing editor and `diff_page` checks |
-| `PageTemplate.TemplateHasCode`, `PageImageState.StoredAsSource` | A revision records whether it had code; one that did not is stored as source, never compiled, and its state reads *Stored as source* (DEC-235) | A restore stores that verdict with the new row, and the history and the tool answers name the state |
-| `?v=`, `PageAssetPolicy`, `PageAssetMap` | One retained revision of a path, rendered and cached immutably (DEC-233, DEC-236, DEC-242) | Deliberately unused: it renders a revision rather than reading its stored source |
+| `RevisionHash.IsCanonical` | The one spelling of a hash: exactly 64 lowercase hexadecimal characters, matched ordinal, which `?v=` already enforces (DEC-246) | The hash rule for the restore, both tools' arguments and the existing editor and `diff_page` checks |
+| `PageTemplate.TemplateHasCode`, `PageImageState.StoredAsSource` | A revision records whether it had code; one that did not is stored as source, never compiled, and its state reads *Stored as source* (DEC-240) | A restore stores that verdict with the new row, and the history and the tool answers name the state |
+| `?v=`, `PageAssetPolicy`, `PageAssetMap` | One retained revision of a path, rendered and cached immutably (DEC-238, DEC-241, DEC-245) | Deliberately unused: it renders a revision rather than reading its stored source |
 | `PageToolData.TemplateSourceLines` and `read_page`'s range rule | 1-based physical lines, a range check, a budget window that keeps the head and the tail (DEC-112) | The same rule for `read_revision`, from one function |
 | `PageToolExecutor.Definitions`, `ChangesPages` | Derived from `ToolRegistry` and `ToolSpec.Writes` | Nothing to change but the count |
 
@@ -185,7 +185,7 @@ everything the plan needs without a new store method: the source is compiled by 
 result is stored even when it does not compile, the diagnostics come back to the editor, the
 revision is a new row with a new hash, and a tombstone is cleared by the head upsert that already
 runs on every save. A revision with no code is not compiled at all: the save judges it and stores the
-source with `TemplateHasCode = false` (DEC-235), so a restored stylesheet or script is served from
+source with `TemplateHasCode = false` (DEC-240), so a restored stylesheet or script is served from
 source, costs no compile, and reads as *Stored as source* in the history.
 
 **A restore is refused when the chosen revision's source is what the live page already holds.** A
@@ -327,7 +327,7 @@ and would invite the wrong conclusion.
 A malformed hash, a hash belonging to another path, a missing page and a shell file are refusals
 whose words name the rule: "A revision hash is 64 lowercase hexadecimal characters; use the hash
 list_revisions returned." and "That hash is not a revision of {path}." The spelling is
-`RevisionHash.IsCanonical` (DEC-241) — the rule `?v=` already applies on the page endpoint — and the
+`RevisionHash.IsCanonical` (DEC-246) — the rule `?v=` already applies on the page endpoint — and the
 editor's revision, diff and restore links move to it in this change, so a malformed or wrongly-cased
 hash is a named `400` rather than the `404` an uppercase hash used to become. A hash that is
 canonical but belongs to another path is still a `404`.
@@ -431,7 +431,7 @@ section stops calling a seed restore a restore.
 | A `restore_revision` that takes the source as an argument | That is `write_page` with a hash-shaped name; the point of the tool is that the content cannot be invented (D10) |
 | No confirmation, a button on the history row | A save is not destructive but it is a compile and a new head; the editor already confirms delete and scrub, and the diff is what makes the rollback reviewable |
 | The confirmation showing the source instead of a diff | The revision view already shows the source; what a person needs before restoring is the change |
-| Reading a revision through `?v=` in a tool | It now addresses any retained revision, including one with code and a tombstoned one, but it answers by rendering — executing, wrapping and setting cache headers (DEC-233, DEC-238) — where a tool needs the stored source, and its cache promise is the opposite of what a read of source wants to assert |
+| Reading a revision through `?v=` in a tool | It now addresses any retained revision, including one with code and a tombstoned one, but it answers by rendering — executing, wrapping and setting cache headers (DEC-238, DEC-243) — where a tool needs the stored source, and its cache promise is the opposite of what a read of source wants to assert |
 | `isCurrent` on `read_revision` | False for every row of a tombstoned path; the listing answers the question properly |
 | A second query for the history tools | `PageEditor` already exposes both reads and the save; ARCH-16 stays closed |
 | No `limit`, just the envelope refusal | A caller cannot ask for a slice, so a long history is unreadable without a fresh tool call per row |
@@ -574,7 +574,7 @@ the job, and the two citations. Then `make format-check`.
 | `deploy/operations.md` | The history paragraph says a selected revision is restored as a new save |
 | `docs/plans/immutable-page-assets.md` | Implemented, so its "Not in this plan" section stops promising work: it points at this plan, and keeps the rule that a history read is a store read rather than a `?v=` fetch |
 
-Four decisions are recorded with this plan and numbered when it merges: `install` and `restore` are
+Four decisions are recorded with this plan as DEC-249–DEC-252: `install` and `restore` are
 different verbs (D1); the two actions share one confirmation-and-outcome shape, and each refuses the
 case that would add nothing (D2–D6); a restore appends anything that differs from the live source
 (D3); and the assistant's history is three page-scoped tools — two reads and one approval-gated
@@ -593,7 +593,7 @@ the merge records it as a decision change rather than a drift.
 | `list_pages` now answers 50 rows by default where it answered 500 | `truncated` and `after` make the rest one call away, and the prompt teaches the pair |
 | The confirmation renders page source into HTML for one visitor | Both views are `no-store`, owner-only, and bounded by the same page-size caps as the editor |
 | Two "put it back" actions confuse an author | Both carry a diff and refuse the no-op, and the words install and restore are used consistently in the URL, the action, the flash and the manual |
-| The canonical hash rule changes answers the editor already gave | An uppercase hash on `cmd=revision`, `cmd=diff` or `diff_page` becomes a named `400`/refusal instead of a `404`; `?v=` already refused it, so the editor and the tools were the outliers (DEC-241) |
+| The canonical hash rule changes answers the editor already gave | An uppercase hash on `cmd=revision`, `cmd=diff` or `diff_page` becomes a named `400`/refusal instead of a `404`; `?v=` already refused it, so the editor and the tools were the outliers (DEC-246) |
 | Dropping Recreate leaves no one-click way into a deleted key's editor | The create-or-open form is the ordinary way to name any key, and the editor says what saving will do; the history's Restore is the way back to the old source |
 | An assistant that may restore is a wider reach than the plan it reverses allowed | The tool can only append source the store already holds for that path, and it is approval-gated and path-policy-checked before the owner is asked; the alternative is `write_page`, which can append anything (D10) |
 

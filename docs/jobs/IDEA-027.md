@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 
 ## Idea
 
-[The page-session plan](../plans/page-session.md) gives a page a per-visitor store in which it can
+[The page-session plan](../plans/archive/page-session.md) gives a page a per-visitor store in which it can
 write, list and delete its own keys and read any other page's by path. That covers "this page saved
 your form" and "here is the message again after the redirect". It does not cover "that page saved
 your form, and this page is where you have landed": the receiving page can read the sender's key only

@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Implemented on the branch; decisions are numbered when the work merges (DEC-09) |
+| Status | Implemented 2026-11-13 |
 | Size | Large — a Core flag, a storage column, a second response shape on the page endpoint, a script-policy column for extensions, an Sdk seam, three tagging call sites and the tests for each |
 | Area | Core, Sdk, Web |
-| Backlog | [IDEA-010](../jobs/IDEA-010.md) |
-| Decisions | Referred to in prose here and numbered when the work merges (DEC-09) |
+| Backlog | IDEA-010, closed by this plan |
+| Decisions | DEC-238–DEC-248, recorded with this plan |
 
 ## The short version
 
@@ -398,15 +398,15 @@ that page is a no-code asset; and a layout that passes no resolver emits exactly
   a backfill.
 - [x] `docs/metrics.md`: the new asset outcome counter.
 - [x] `docs/glossary.md`: *asset*, *versioned URL*, *document*.
-- [x] Close [IDEA-010](../jobs/IDEA-010.md) and its row in the jobs README when the work merges,
+- [x] Close IDEA-010 and add its row to the jobs README when the work merges,
   noting that the `/asset/{hash}` route was replaced by a query parameter and that runtime-change
   binary cleanup is still open.
 
 ### Step 9 — The gate
 
 - [x] `make build`, `make test`, `make format`, `make license-check`.
-- [ ] Take the decisions above, give them the next `DEC-` numbers from `docs/decisions.md` on
-  trunk, and update every citation in the branch in the merge commit.
+- [x] Take the decisions above, give them the next `DEC-` numbers from `docs/decisions.md` on
+  trunk, and update every citation in the branch in the merge commit: DEC-238 to DEC-248.
 
 ## Considered and rejected
 

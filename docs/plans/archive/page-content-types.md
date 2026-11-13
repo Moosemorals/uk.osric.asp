@@ -270,7 +270,7 @@ applies `no-store` and removes the ETag after the page's headers, so opting in t
 make a signed-in render a shared cache's answer. A redirect is already `no-store` whoever asked.
 
 A page that opts out takes responsibility for the body being safe to share: it is the author's
-statement that this response is the same for every visitor. [IDEA-010](../../jobs/IDEA-010.md)
+statement that this response is the same for every visitor. IDEA-010
 immutable assets is where a long lifetime gets designed; this decision only makes room for it.
 
 The rule is applied where a stored page's response is assembled, so the shell's own documents —

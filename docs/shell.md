@@ -213,8 +213,8 @@ are `HttpOnly`, and `PageRequestSnapshot` leaves them out of the `Cookies` a pag
 live in one place, `ShellCookies`. `a` is `SameSite=Lax` so a link from elsewhere still arrives
 signed in; `f` and `s` are `Strict`. All three follow the same `SecurePolicy`, which is `Always` in
 production. The names are short rather than long on purpose — the session cookie's value changed
-meaning with the [page-session plan](../plans/page-session.md), and this was the cheapest moment to
-rename the other two.
+meaning with the [page session](plans/archive/page-session.md), and this was the cheapest moment
+to rename the other two (DEC-237).
 
 ### Page sessions
 
