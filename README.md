@@ -124,6 +124,9 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | `make migration NAME=...` | Add a storage migration |
 | `make image` | Build the OCI image into podman |
 | `make deploy HOST=deploy@server` | The gate plus the browser suite, build, push and restart on the server |
+| `make worktree BRANCH=...` | Create the branch and the worktree a job or plan is worked in |
+| `make worktrees` | List every worktree, the main one included |
+| `make worktree-remove BRANCH=...` | Remove a worktree once its work has merged |
 | `make clean` | Delete `artifacts/` |
 
 ## Dependencies
@@ -164,3 +167,4 @@ the C# extension, which has a launch configuration in `.vscode/launch.json`.
 - [Spikes](docs/spikes/README.md) — questions answered with measurements, and what they ruled out.
 - [Deployment](deploy/README.md) — quadlets, Caddy, the first release and rollback.
 - [Running it](deploy/operations.md) — limits, storage, backups, metrics and proxy trust.
+- [Working on it](CONTRIBUTING.md) — the branch and worktree policy, and how work merges.

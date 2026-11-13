@@ -79,31 +79,51 @@ layout slot, an editor action, a content type or a response rule — updates `/h
 change. The update belongs beside the tests and the architecture notes in the plan, not in a
 follow-up.
 
-## A rough order
+## The programme
 
-Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and
+The order is rough on purpose — the first few are the point, and the rest move as they are worked —
+but each step is one unit of work, on one branch in one worktree
+([how](../../CONTRIBUTING.md#working-on-it)). Each step stops at a gate: it says what changed, what
+proved it and what it is unsure of, and nothing merges until the answer is yes. Small and
 self-contained comes first, because these are the ones that never get scheduled otherwise.
 
-1. **OPS-03, CI automation** — `make check` and `make ci` already exist; what is missing is
-   something that runs one of them without being asked.
-2. **IDEA-005, shared code between pages** — the layout half is done (see [site
-   navigation](../plans/archive/site-navigation.md)) and IDEA-018 with it. What is left is shared *types*:
-   a named declaration a second page can use, which is a compile-time question rather than a
-   rendering one.
-3. **IDEA-001, a proper editor** — the line gutter, linked diagnostics and caret persistence are
-   done; syntax highlighting or adopting a third-party editor is what is left.
-4. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
-5. **OPS-05, alerting** — OPS-02's health endpoint and dashboard are done and that job is closed,
-   so what is left is a channel and a rule, once there is something worth being woken for.
-6. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
-7. **IDEA-017 and IDEA-019, page capabilities** — each lets a stored page do something only the
-   shell can do today. None is urgent while the shell works; they matter when a view is worth moving.
-   IDEA-014, IDEA-015 and IDEA-016 have landed, so a page keeps per-visitor state, reads the store
-   and saves itself; the listing and history views can become fragments the default layout wraps,
-   and IDEA-017's editor is the one this leaves last.
-8. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
-   the archive is not a backup; the job records what a destructive replace would have to answer
-   before it is worth building.
+| # | Step | Size | Needs | Gate |
+| --- | --- | --- | --- | --- |
+| 0 | **Workflow** — the branch and worktree policy, its `make` targets and this programme | S | — | merge |
+| 1 | [ARCH-15](ARCH-15.md) — delete `Assistant:ProtectedPaths`; the assistant may write every page the shell does not route | S | — | merge |
+| 2 | [IDEA-026](IDEA-026.md) — remove the `Features` alias; the data gate is waived, deliberately (below) | S | — | merge |
+| 3 | [IDEA-028](IDEA-028.md) — `/admin/restore`, over the seed read and the saver ARCH-07 left behind | M | — | merge, and a manual restore of a broken page |
+| 4 | [IDEA-019](IDEA-019.md) — repeated request values, and `Encoding` and cryptography in the API policy; the cookie point is dropped because IDEA-014 gives a page per-visitor state | S | — | merge |
+| 5 | [Page editor](../plans/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase |
+| 6 | [ARCH-16](ARCH-16.md) — one read seam for the assistant's tools and its applets | M | 5 (rework) | merge |
+| 7 | [ARCH-13](ARCH-13.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge |
+| 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase |
+| 9 | [Page first](../plans/page-first.md) — re-scope against 5–8: DEC-210 and DEC-211 are recorded, but the audit and the memory page are not; build the page, or archive the plan behind IDEA-024 and IDEA-025 | L | 5–8 | the plan, then build-or-close |
+
+Steps 1 and 2 are independent and may run together, as may 6 and 7. Everything else touches the same
+files — the editor, `/pages`, `SimpleContext`, the assistant prompt — and is sequential. A long plan
+merges phase by phase so a regression is bisectable, and its branch goes when its last phase is in.
+
+Page first is less unstarted than its status row says: DEC-210 and DEC-211 are recorded and the
+rule is agreed, but [architecture](../architecture.md) has no audit table, `/memory` is still a shell
+route, and DEC-211 still names `ctx.Features` — the rename it has to follow is step 2's.
+
+Step 6 follows 5 rather than needing it: the editor's listing is going to carry the compile state,
+and that is the state the assistant's one seam should answer with too. Step 7 is also the home of
+BUG-17's one loose end — the failed-request log line a mid-run reload leaves behind.
+
+**IDEA-026 has no data gate.** Its sketch makes the query the gate, and the decision here is to
+remove the alias without running it. The cost of being wrong is a stored page that no longer compiles:
+it answers "Handler failed to compile." with an ordinary compiler error until its source is edited or
+its seed restored. [IDEA-028](IDEA-028.md) (step 3) is the way back, and reverting the one merge is
+the other.
+
+Not in this programme: [OPS-03](OPS-03.md) is the obvious next candidate once the list above is
+empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
+[IDEA-001](IDEA-001.md) wants a third-party editor; [IDEA-005](IDEA-005.md) is a compile-time
+question of its own; [IDEA-020](IDEA-020.md) records why a destructive reset is not built;
+[IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7 touches; and
+[IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page.
 
 ## Closed
 
