@@ -76,14 +76,15 @@ tool's delete.
 | --- | --- | --- |
 | `/edit` and its commands (save, history, delete, scrub, restore a seed) | **Bootstrap.** It is the tool that repairs a page, so a broken site cannot be repaired from inside one | DEC-210 |
 | `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | DEC-210 |
-| `/status` | **Bootstrap.** Diagnosing why a page did not load — the counters, the storage and the build — starts here | DEC-210, and the operator's call |
+| `/status`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load — the counters, the storage, the build and the commits in it — starts here; the changelist is a file the image carries, which a page cannot read | DEC-210, DEC-255 |
 | `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | DEC-210 |
 | `/assistant`, `/assistant/{id}`, its events, approvals, options, stop and delete | **A page cannot, yet.** A live run needs a stream (ARCH-13) and the conversation's actions need a capability (IDEA-025) | [ARCH-13](../jobs/ARCH-13.md), [IDEA-025](../jobs/IDEA-025.md) |
 | `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](../jobs/IDEA-024.md) |
 | `/assistant/memory` | **It can.** This plan moves it | this plan |
 
-The table is the audit and it is expected to shrink: when IDEA-024 lands, `/admin/*` joins the page
-column, and the rule is what stays the same. A new route starts by asking which column it is in, and
+The table is the audit and it is expected to shrink: when IDEA-024 lands, import and export join the
+page column, and the rule is what stays the same. The changelist stays beside `/status`, because it
+reports a fact about the build rather than content the site holds. A new route starts by asking which column it is in, and
 "the page column" is the default answer.
 
 ## What exists today

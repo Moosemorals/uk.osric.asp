@@ -19,6 +19,7 @@ internal static class AdminNavigation {
             new("/admin", "Administration", string.Equals(current, "index", StringComparison.Ordinal)),
             new("/admin/import", "Import pages", string.Equals(current, "import", StringComparison.Ordinal)),
             new("/admin/export", "Export pages", string.Equals(current, "export", StringComparison.Ordinal)),
+            new("/admin/changes", "Changelist", string.Equals(current, "changes", StringComparison.Ordinal)),
             new("/edit", "Page list"),
             new("/help", "Help"),
         ];

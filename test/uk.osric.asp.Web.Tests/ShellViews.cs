@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 using System.Globalization;
@@ -58,6 +59,7 @@ internal static class ShellViews {
         "assistant-delete",
         "assistant-memory",
         "assistant-memory-forget",
+        "admin-changes",
         "admin-export",
         "admin-import",
         "admin-import-failed",
@@ -93,6 +95,7 @@ internal static class ShellViews {
         "assistant-delete" => RenderAsync(name, AssistantDeleteAsync),
         "assistant-memory" => RenderAsync(name, AssistantMemoryAsync),
         "assistant-memory-forget" => RenderAsync(name, AssistantMemoryForgetAsync),
+        "admin-changes" => RenderAsync(name, AdminChangesAsync),
         "admin-export" => RenderAsync(name, AdminExportAsync),
         "admin-import" => RenderAsync(name, AdminImportAsync),
         "admin-import-failed" => RenderAsync(name, AdminImportFailedAsync),
@@ -385,6 +388,24 @@ internal static class ShellViews {
         DefaultHttpContext context = AuthenticatedContext(AssistantMemoryEndpoint.Path + "/1/forget");
         await AssistantMemoryEndpoint.ForgetConfirmationAsync(context, 1, new ShellMemoryStore(), new TestAntiforgery());
         return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AdminChangesAsync() {
+        string file = Path.Combine(Path.GetTempPath(), $"uk.osric.asp.changes.{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(file, "0123456789abcdef0123456789abcdef01234567 A commit\n");
+
+        try {
+            DefaultHttpContext context = AuthenticatedContext("/admin/changes");
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["Admin:Changelist"] = file })
+                .Build();
+
+            await ChangesEndpoint.HandleAsync(context, configuration);
+
+            return await TestHttp.ReadBodyAsync(context);
+        } finally {
+            File.Delete(file);
+        }
     }
 
     private static async Task<string> AdminExportAsync() {

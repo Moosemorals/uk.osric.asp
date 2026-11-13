@@ -25,6 +25,8 @@ internal static class ShellRoutes {
 
     /// <summary>The shipped records, in <see cref="ReservedPaths.Default"/> order.</summary>
     public static IReadOnlyList<ShellRoute> All { get; } = [
+        new("/admin/changes", "GET", "the owner",
+            "The changelist: every commit in the deployed build, newest first, each linking to its page on GitHub."),
         new("/admin/export", "GET, POST", "the owner",
             "Lists the page store's contents and downloads it as a SQLite archive."),
         new("/admin/import", "GET, POST", "the owner",
