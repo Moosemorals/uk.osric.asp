@@ -60,6 +60,8 @@ internal static class ShellViews {
         "assistant-memory",
         "assistant-memory-forget",
         "admin-changes",
+        "admin-restore",
+        "admin-restore-result",
         "admin-export",
         "admin-import",
         "admin-import-failed",
@@ -96,6 +98,8 @@ internal static class ShellViews {
         "assistant-memory" => RenderAsync(name, AssistantMemoryAsync),
         "assistant-memory-forget" => RenderAsync(name, AssistantMemoryForgetAsync),
         "admin-changes" => RenderAsync(name, AdminChangesAsync),
+        "admin-restore" => RenderAsync(name, AdminRestoreAsync),
+        "admin-restore-result" => RenderAsync(name, AdminRestoreResultAsync),
         "admin-export" => RenderAsync(name, AdminExportAsync),
         "admin-import" => RenderAsync(name, AdminImportAsync),
         "admin-import-failed" => RenderAsync(name, AdminImportFailedAsync),
@@ -406,6 +410,36 @@ internal static class ShellViews {
         } finally {
             File.Delete(file);
         }
+    }
+
+    private static async Task<string> AdminRestoreAsync() {
+        using PageHarness pages = await RestoreHarnessAsync();
+        DefaultHttpContext context = AuthenticatedContext("/admin/restore");
+
+        await RestoreEndpoint.PreviewAsync(context, pages.Editor, new TestAntiforgery());
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AdminRestoreResultAsync() {
+        using PageHarness pages = await RestoreHarnessAsync();
+        DefaultHttpContext context = AuthenticatedContext("/admin/restore");
+
+        await RestoreEndpoint.RestoreAsync(context, pages.Editor, NullLoggerFactory.Instance);
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    // Every seed at its bundled source but one, so the preview has a change to show and the result
+    // has something it actually wrote.
+    private static async Task<PageHarness> RestoreHarnessAsync() {
+        FakePageStore store = new();
+        foreach (PagePath path in PageAssetSeeder.SeedPaths()) {
+            store[path.Key] = new PageTemplate(path, (await PageAssetSeeder.ReadSeedTemplateAsync(path))!);
+        }
+
+        store["/about"] = new PageTemplate(PageHarness.Key("/about"), "changed by the owner");
+        return new PageHarness(store);
     }
 
     private static async Task<string> AdminExportAsync() {

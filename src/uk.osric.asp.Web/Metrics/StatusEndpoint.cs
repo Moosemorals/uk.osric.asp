@@ -44,6 +44,9 @@ internal static class StatusEndpoint {
 
         await context.Response.WriteAsync("<h1>Status</h1>", cancellationToken);
         await WriteNavAsync(context, current, cancellationToken);
+        await context.Response.WriteAsync(
+            """<p>One of the site's own pages will not load? <a href="/admin/restore">Restore every seed</a> from its bundled source.</p>""",
+            cancellationToken);
 
         if (page.Banner is { } banner) {
             await context.Response.WriteAsync(

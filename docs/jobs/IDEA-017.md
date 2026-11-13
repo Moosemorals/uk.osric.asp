@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 > must not: the shell's own document is deliberately never the stored layout, so a broken layout
 > cannot lock the owner out.
 >
-> **The recovery path is now its own job.** [IDEA-028](IDEA-028.md) adds a shell page that restores
+> **The recovery path has landed.** [IDEA-028](README.md#closed) added a shell page that restores
 > every seed from the bundled source, so a broken page editor can be repaired without the editor
 > working. That is the answer to the bootstrap trap below, and it is why the plan can remove the
 > shell editor rather than keep a permanent fallback.
@@ -68,7 +68,7 @@ Two obstacles, and they are independent:
    are the ones a named-key seam inherits (DEC-189–DEC-196). The seam is a new capability offered
    only to the editor page, not a widened `IPageWriter`; the assistant's protected-path policy is
    for the assistant, not the owner.
-4. The bootstrap trap is answered by IDEA-028. The editor is how a page that does not compile gets
+4. The bootstrap trap is answered by `/admin/restore` (IDEA-028). The editor is how a page that does not compile gets
    fixed, so a broken editor page must not be the end of the story. A shell page that restores every
    seed from the bundled source is the way back; the shell editor can then go, rather than staying
    forever as a fallback.

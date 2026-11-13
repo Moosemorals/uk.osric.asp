@@ -369,6 +369,11 @@ internal class Program {
 
         app.MapGet("/admin/changes", ChangesEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
+        app.MapGet("/admin/restore", RestoreEndpoint.PreviewAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/admin/restore", RestoreEndpoint.RestoreAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         app.MapGet("/admin/export", ExportEndpoint.ListAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/admin/export", ExportEndpoint.DownloadAsync)
