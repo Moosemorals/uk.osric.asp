@@ -33,7 +33,7 @@ internal sealed class DiffApplet : ShellApplet {
         int contextLines = line.Number('U') ?? LineDiff.ContextLines;
         bool unified = line.Has('u') || line.Number('U') is not null;
 
-        (List<ShellFile> files, ShellResult? refusal) =
+        (List<PageRead> files, ShellResult? refusal) =
             await ShellReading.PagesAsync(context.Paths, context.Store, Name, cancellationToken);
         if (refusal is not null) {
             return refusal;
@@ -42,8 +42,8 @@ internal sealed class DiffApplet : ShellApplet {
         DiffDocument diff = LineDiff.Compare(files[0].Text, files[1].Text, contextLines, line.Has('b'));
         if (!diff.IsEmpty) {
             if (unified) {
-                context.Output.Line($"--- {files[0].Path.Key.Key}");
-                context.Output.Line($"+++ {files[1].Path.Key.Key}");
+                context.Output.Line($"--- {files[0].Path.Key}");
+                context.Output.Line($"+++ {files[1].Path.Key}");
                 context.Output.Raw(UnifiedDiff.Format(diff));
             } else {
                 context.Output.Raw(NormalDiff.Format(diff));
@@ -53,6 +53,6 @@ internal sealed class DiffApplet : ShellApplet {
             context.Output.Note("the pages differ too much to align line by line: this is one removed block and one added block");
         }
 
-        return ShellResult.Ok($"diff {files[0].Path.Key.Key} {files[1].Path.Key.Key}");
+        return ShellResult.Ok($"diff {files[0].Path.Key} {files[1].Path.Key}");
     }
 }

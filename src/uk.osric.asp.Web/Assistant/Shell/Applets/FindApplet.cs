@@ -37,25 +37,25 @@ internal sealed class FindApplet : ShellApplet {
             return ShellResult.Refused(error!, "find: refused");
         }
 
-        IReadOnlyList<ShellPath> nodes = await context.Store.NodesAsync(cancellationToken);
-        List<ShellPath> scopes = [.. context.Paths];
+        IReadOnlyList<PageNode> nodes = await context.Store.TreeAsync(includeDeleted: false, cancellationToken);
+        List<PageNode> scopes = [.. context.Paths];
         if (scopes.Count == 0) {
-            scopes.AddRange(nodes.Where(node => node.Key.Key == "/"));
+            scopes.AddRange(nodes.Where(node => node.Path.Key == "/"));
         }
 
-        List<ShellPath> found = [.. nodes.Where(node =>
-            scopes.Any(scope => string.Equals(node.Key.Key, scope.Key.Key, StringComparison.Ordinal)
-                || ShellTree.IsBelow(node.Key, scope.Key))
+        List<PageNode> found = [.. nodes.Where(node =>
+            scopes.Any(scope => string.Equals(node.Path.Key, scope.Path.Key, StringComparison.Ordinal)
+                || PageTree.IsBelow(node.Path, scope.Path))
             && expression.Matches(node))];
 
-        foreach (ShellPath node in found.Take(context.Output.ListingLimit)) {
-            context.Output.Line(node.Key.Key);
+        foreach (PageNode node in found.Take(context.Output.ListingLimit)) {
+            context.Output.Line(node.Path.Key);
         }
         if (found.Count > context.Output.ListingLimit) {
             context.Output.Stopped($"{context.Output.ListingLimit} keys shown, and there are more. Match more narrowly.");
         }
 
-        return ShellResult.Ok($"find {string.Join(' ', scopes.Select(scope => scope.Key.Key))}");
+        return ShellResult.Ok($"find {string.Join(' ', scopes.Select(scope => scope.Path.Key))}");
     }
 }
 
@@ -68,7 +68,7 @@ internal sealed class FindApplet : ShellApplet {
 /// </remarks>
 internal sealed class FindExpression {
 
-    private readonly List<Func<ShellPath, bool>> _tests = [];
+    private readonly List<Func<PageNode, bool>> _tests = [];
 
     private FindExpression() {
     }
@@ -89,8 +89,8 @@ internal sealed class FindExpression {
                 // expansion, and has nothing to do with what find's pattern means.
                 string pattern = words[index++].Text;
                 expression._tests.Add(primary == "-name"
-                    ? node => PageGlob.IsMatch(pattern, LastSegment(node.Key.Key))
-                    : node => PageGlob.IsMatch(pattern, node.Key.Key));
+                    ? node => PageGlob.IsMatch(pattern, LastSegment(node.Path.Key))
+                    : node => PageGlob.IsMatch(pattern, node.Path.Key));
                 continue;
             }
 
@@ -114,7 +114,7 @@ internal sealed class FindExpression {
         return (expression, null);
     }
 
-    public bool Matches(ShellPath node) {
+    public bool Matches(PageNode node) {
         ArgumentNullException.ThrowIfNull(node);
         return _tests.All(test => test(node));
     }

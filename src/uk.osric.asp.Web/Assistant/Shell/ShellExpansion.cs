@@ -21,14 +21,14 @@ internal sealed class ShellExpansion(PagePathPolicy paths) {
     /// <param name="arguments">The operands, with the kind the applet declared for each.</param>
     /// <param name="store">The store to resolve them against.</param>
     /// <param name="cancellationToken">The run's token.</param>
-    public async Task<(IReadOnlyList<ShellPath> Paths, ShellResult? Refusal)> ExpandAsync(
+    public async Task<(IReadOnlyList<PageNode> Paths, ShellResult? Refusal)> ExpandAsync(
         IReadOnlyList<ShellArgument> arguments,
-        IPageStoreView store,
+        IPageStoreReader store,
         CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(arguments);
         ArgumentNullException.ThrowIfNull(store);
 
-        List<ShellPath> named = [];
+        List<PageNode> named = [];
         foreach (ShellArgument argument in arguments) {
             if (argument.Kind == ShellOperandKind.Text) {
                 continue;
@@ -37,8 +37,8 @@ internal sealed class ShellExpansion(PagePathPolicy paths) {
             // A word with an unquoted wildcard names every node it fits, as a shell expands a pattern
             // before the command runs; a word without one names the key it spells.
             if (argument.Word.HasWildcard) {
-                List<ShellPath> matched = [.. (await store.NodesAsync(cancellationToken))
-                    .Where(node => PageGlob.IsMatch(argument.Word, node.Key.Key))];
+                List<PageNode> matched = [.. (await store.TreeAsync(includeDeleted: false, cancellationToken))
+                    .Where(node => PageGlob.IsMatch(argument.Word, node.Path.Key))];
                 if (matched.Count == 0) {
                     return ([], ShellResult.Refused(
                         $"No key matches {MessageText.Sanitize(argument.Word.Text)}. ls {Folder(PagePath.Normalize(argument.Word.Text))} lists what is there.",
@@ -65,8 +65,8 @@ internal sealed class ShellExpansion(PagePathPolicy paths) {
                     $"Shell path refused: {MessageText.Sanitize(key.Key)}"));
             }
 
-            IReadOnlyList<ShellPath> nodes = await store.NodesAsync(cancellationToken);
-            ShellPath? node = nodes.FirstOrDefault(item => string.Equals(item.Key.Key, key.Key, StringComparison.Ordinal));
+            IReadOnlyList<PageNode> nodes = await store.TreeAsync(includeDeleted: false, cancellationToken);
+            PageNode? node = nodes.FirstOrDefault(item => string.Equals(item.Path.Key, key.Key, StringComparison.Ordinal));
             if (node is null) {
                 return ([], ShellResult.Refused(
                     $"No key {MessageText.Sanitize(key.Key)} is stored. ls {Folder(key)} lists what is there.",
@@ -79,7 +79,7 @@ internal sealed class ShellExpansion(PagePathPolicy paths) {
     }
 
     private static string Folder(PagePath key) {
-        string? folder = ShellTree.FolderOf(key.Key);
+        string? folder = PageTree.FolderOf(key.Key);
         return MessageText.Sanitize(folder ?? "/");
     }
 }

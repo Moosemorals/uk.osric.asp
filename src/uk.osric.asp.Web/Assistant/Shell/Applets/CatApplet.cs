@@ -27,16 +27,16 @@ internal sealed class CatApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        (List<ShellFile> files, ShellResult? refusal) =
+        (List<PageRead> files, ShellResult? refusal) =
             await ShellReading.PagesAsync(context.Paths, context.Store, Name, cancellationToken);
         if (refusal is not null) {
             return refusal;
         }
 
-        foreach (ShellFile file in files) {
+        foreach (PageRead file in files) {
             context.Output.Raw(line.Has('n') ? ShellText.Number(file.Text) : file.Text);
         }
 
-        return ShellResult.Ok($"cat {string.Join(' ', context.Paths.Select(path => path.Key.Key))}");
+        return ShellResult.Ok($"cat {string.Join(' ', context.Paths.Select(path => path.Path.Key))}");
     }
 }

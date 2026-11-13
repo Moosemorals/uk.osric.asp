@@ -35,13 +35,13 @@ internal sealed class ShellRegistry {
 /// <summary>What an applet is given for one run.</summary>
 /// <param name="Line">The parsed command line.</param>
 /// <param name="Paths">The paths its operands named, expanded and validated.</param>
-/// <param name="Store">The page store as the shell sees it.</param>
+/// <param name="Store">The one read seam over the page store.</param>
 /// <param name="Output">Where the answer is written.</param>
 /// <param name="Registry">The applets, which <c>help</c> reads.</param>
 internal sealed class ShellContext(
     ShellCommandLine line,
-    IReadOnlyList<ShellPath> paths,
-    IPageStoreView store,
+    IReadOnlyList<PageNode> paths,
+    IPageStoreReader store,
     IShellOutput output,
     ShellRegistry registry) {
 
@@ -49,10 +49,10 @@ internal sealed class ShellContext(
     public ShellCommandLine Line { get; } = line;
 
     /// <summary>The paths the operands named, in the order they were written.</summary>
-    public IReadOnlyList<ShellPath> Paths { get; } = paths;
+    public IReadOnlyList<PageNode> Paths { get; } = paths;
 
-    /// <summary>The page store as the shell sees it.</summary>
-    public IPageStoreView Store { get; } = store;
+    /// <summary>The one read seam over the page store.</summary>
+    public IPageStoreReader Store { get; } = store;
 
     /// <summary>Where the answer is written.</summary>
     public IShellOutput Output { get; } = output;

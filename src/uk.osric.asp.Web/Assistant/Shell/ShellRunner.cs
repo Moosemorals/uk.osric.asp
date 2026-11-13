@@ -71,8 +71,8 @@ internal static class ShellRunner {
             return ShellOutcome.Refused(matched.Error!, $"{applet.Name}: refused");
         }
 
-        PageStoreView store = new(pages, paths);
-        (IReadOnlyList<ShellPath> expanded, ShellResult? refusal) =
+        PageStoreReader store = new(pages, paths);
+        (IReadOnlyList<PageNode> expanded, ShellResult? refusal) =
             await new ShellExpansion(paths).ExpandAsync(matched.Line.Arguments, store, cancellationToken);
         if (refusal is not null) {
             return ShellOutcome.Refused(refusal.Error!, refusal.Summary);

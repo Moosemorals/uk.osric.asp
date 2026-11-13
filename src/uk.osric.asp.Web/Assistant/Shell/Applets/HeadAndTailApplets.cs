@@ -29,7 +29,7 @@ internal abstract class HeadOrTailApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        (List<ShellFile> files, ShellResult? refusal) =
+        (List<PageRead> files, ShellResult? refusal) =
             await ShellReading.PagesAsync(context.Paths, context.Store, Name, cancellationToken);
         if (refusal is not null) {
             return refusal;
@@ -37,12 +37,12 @@ internal abstract class HeadOrTailApplet : ShellApplet {
 
         int count = line.Number('n') ?? DefaultLines;
         List<string> rows = [];
-        foreach (ShellFile file in files) {
+        foreach (PageRead file in files) {
             if (files.Count > 1) {
                 if (rows.Count > 0) {
                     rows.Add(string.Empty);
                 }
-                rows.Add($"==> {file.Path.Key.Key} <==");
+                rows.Add($"==> {file.Path.Key} <==");
             }
             rows.AddRange(Take(ShellText.Split(file.Text), count));
         }
@@ -51,7 +51,7 @@ internal abstract class HeadOrTailApplet : ShellApplet {
             context.Output.Line(row);
         }
 
-        return ShellResult.Ok($"{Name} {string.Join(' ', context.Paths.Select(path => path.Key.Key))}");
+        return ShellResult.Ok($"{Name} {string.Join(' ', context.Paths.Select(path => path.Path.Key))}");
     }
 
     /// <summary>The lines this command shows from a page's own lines.</summary>

@@ -28,7 +28,7 @@ internal sealed class WcApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
-        (List<ShellFile> files, ShellResult? refusal) =
+        (List<PageRead> files, ShellResult? refusal) =
             await ShellReading.PagesAsync(context.Paths, context.Store, Name, cancellationToken);
         if (refusal is not null) {
             return refusal;
@@ -36,10 +36,10 @@ internal sealed class WcApplet : ShellApplet {
 
         int total = 0;
         List<string> rows = [];
-        foreach (ShellFile file in files) {
+        foreach (PageRead file in files) {
             int lines = ShellText.Split(file.Text).Length;
             total += lines;
-            rows.Add(string.Create(CultureInfo.InvariantCulture, $"{lines} {file.Path.Key.Key}"));
+            rows.Add(string.Create(CultureInfo.InvariantCulture, $"{lines} {file.Path.Key}"));
         }
 
         if (files.Count > 1) {
@@ -50,6 +50,6 @@ internal sealed class WcApplet : ShellApplet {
             context.Output.Line(row);
         }
 
-        return ShellResult.Ok($"wc {string.Join(' ', context.Paths.Select(path => path.Key.Key))}");
+        return ShellResult.Ok($"wc {string.Join(' ', context.Paths.Select(path => path.Path.Key))}");
     }
 }

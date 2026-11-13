@@ -15,22 +15,22 @@ internal static class ShellReading {
     /// <param name="store">The store to read them from.</param>
     /// <param name="command">The command's word, for the refusal's summary.</param>
     /// <param name="cancellationToken">The run's token.</param>
-    public static async ValueTask<(List<ShellFile> Files, ShellResult? Refusal)> PagesAsync(
-        IReadOnlyList<ShellPath> paths,
-        IPageStoreView store,
+    public static async ValueTask<(List<PageRead> Files, ShellResult? Refusal)> PagesAsync(
+        IReadOnlyList<PageNode> paths,
+        IPageStoreReader store,
         string command,
         CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(command);
 
-        List<ShellFile> files = [];
-        foreach (ShellPath path in paths) {
-            ShellFile? file = await store.ReadAsync(path, cancellationToken);
+        List<PageRead> files = [];
+        foreach (PageNode path in paths) {
+            PageRead? file = await store.ReadAsync(path.Path, cancellationToken);
             if (file is null) {
                 return ([], ShellResult.Refused(
-                    $"{path.Key.Key} is a folder, not a page. ls {path.Key.Key} lists what is in it.",
-                    $"{command} {path.Key.Key}: a folder"));
+                    $"{path.Path.Key} is a folder, not a page. ls {path.Path.Key} lists what is in it.",
+                    $"{command} {path.Path.Key}: a folder"));
             }
 
             files.Add(file);
