@@ -1,0 +1,11 @@
+{
+  // The seeded pages are served under their file name, so they have no extension and need a path
+  // association. A glob beats an extension association and the longest glob wins, so the assets in
+  // the same folder are listed too; without them `site.css` would become a template.
+  "files.associations": {
+    "**/Pages/Seeds/*": "asp",
+    "**/Pages/Seeds/*.css": "css",
+    "**/Pages/Seeds/*.js": "javascript",
+    "**/Pages/Seeds/*.svg": "xml"
+  }
+}

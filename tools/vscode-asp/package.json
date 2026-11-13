@@ -1,0 +1,42 @@
+{
+  "name": "asp-template-language",
+  "displayName": "uk.osric.asp template",
+  "description": "HTML outside <% %> and C# inside it, for a uk.osric.asp page template.",
+  "version": "0.1.0",
+  "publisher": "uk-osric-asp",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "asp",
+        "aliases": [
+          "ASP template",
+          "asp"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "asp",
+        "scopeName": "text.html.asp",
+        "path": "./syntaxes/asp.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.asp": "csharp"
+        }
+      },
+      {
+        "scopeName": "asp.injection.html",
+        "path": "./syntaxes/asp-injection.tmLanguage.json",
+        "injectTo": [
+          "text.html.asp"
+        ]
+      }
+    ]
+  }
+}

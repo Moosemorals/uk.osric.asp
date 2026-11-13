@@ -18,6 +18,13 @@ core stays pure and the shell stays thin.
 | `test/uk.osric.asp.Web.IntegrationTests` | NUnit + `WebApplicationFactory` | The composed pipeline: routing, middleware, error handling, startup | Seconds |
 | `test/uk.osric.asp.Web.BrowserTests` | NUnit + Playwright | The real host driven in Firefox: the shell pages, the editor and the assistant | Seconds to a couple of minutes |
 
+`tools/check-pages` is outside the suites: it is the product's compiler run over the seeds, with no
+assertions, and `make check-pages` puts it in the gate. The VS Code extension in `tools/vscode-asp`
+is data rather than code, so no suite covers it: the tokenizer that proved its rules needs a TextMate
+engine and is not part of the repository. A change to the grammar is checked by opening a seed and
+reading **Developer: Inspect Editor Tokens and Scopes**, and by keeping every C# rule `match`-only so
+`%>` stays reachable.
+
 - **Core tests** cover one rule at a time and exercise `Core` directly. `Sdk` has no suite of its
 own: it is the page contract — interfaces and plain values with documentation and no host behaviour —
 and what depends on it is asserted by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScopeTests`,

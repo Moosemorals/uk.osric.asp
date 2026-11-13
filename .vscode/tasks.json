@@ -12,6 +12,34 @@
         "Debug"
       ],
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "check pages",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "tools/check-pages/check-pages.csproj",
+        "--",
+        "src/uk.osric.asp.Web/Pages/Seeds"
+      ],
+      "group": "test",
+      "problemMatcher": {
+        "owner": "asp",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": {
+          "regexp": "^(.+?):(\\d+):(\\d+): (error|warning) (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
     }
   ]
 }

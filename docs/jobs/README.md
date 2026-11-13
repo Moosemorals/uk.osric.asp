@@ -39,10 +39,13 @@ release that removes the deprecated `Features` alias once the page store has no 
 ARCH-16 came out of the [tool-types work](../plans/archive/assistant-tool-types.md) of 2026-11-11
 (DEC-231): making a tool one type showed that the page tools and the shell answer the same questions
 about the page store through two implementations. IDEA-028 came out of the [page-editor
-planning](../plans/archive/page-editor.md) of 2026-11-13: the editor can become a page only if a broken
-editor has a way back, and one button that restores every seed is that way. IDEA-030 came out of
-that plan's fourth phase: retiring `/edit` and moving the editor's key into configuration showed
-that a dozen views each assemble their own navigation.
+planning](../plans/archive/page-editor.md) of 2026-11-13: the editor can become a page only if a
+broken editor has a way back, and one button that restores every seed is that way. IDEA-030 came out
+of that plan's fourth phase: retiring `/edit` and moving the editor's key into configuration showed
+that a dozen views each assemble their own navigation. IDEA-029 came out of the [VS Code
+template-language spike](../spikes/vscode-template-language.md) of the same day: highlighting and
+`make check-pages` landed in `tools/`, and the live half — a language server for the repository's
+editor — is what is left.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -58,6 +61,7 @@ that a dozen views each assemble their own navigation.
 | [IDEA-024](IDEA-024.md) | — | L | `/admin/import` and `/admin/export` are shell code because an archive is not a form |
 | [IDEA-025](IDEA-025.md) | — | L | The assistant's conversation is a stream and a set of host actions, not a page |
 | [IDEA-027](IDEA-027.md) | — | S | A page cannot leave a message for a page it sends a visitor to |
+| [IDEA-029](IDEA-029.md) | — | L | VS Code cannot check a page as it is typed: highlighting and clickable diagnostics are static |
 | [IDEA-030](IDEA-030.md) | — | M | Every view writes its own navigation: the shell, the admin, the assistant and the seeds each assemble the same links |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and

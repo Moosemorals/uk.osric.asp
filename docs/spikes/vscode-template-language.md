@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Answered | 2026-11-13 |
 | Version measured | VS Code 1.146.0 with its built-in `html` and `csharp` grammars (extension version 10.0.0); `vscode-textmate` 9.3.2 and `vscode-oniguruma` 2.0.1 used only as a test harness |
 | Verdict | Highlighting is a small **declarative** extension — one manifest and three data files, no `main`, no JavaScript, no npm — but only if C# is embedded as a *flat fragment*; including `source.cs` wholesale breaks on the language's central idiom. Real error positions need no language server at all: the compiler already answers in template space, and a problem matcher makes that output clickable |
-| Recorded | Nothing decided. Taking it up needs an `IDEA-` job; a live language server is a separate, larger job with a plan of its own |
+| Recorded | The declarative half landed: `tools/vscode-asp` and `make check-pages`. The live half is [IDEA-029](../jobs/IDEA-029.md) |
 
 ## The answer
 
@@ -184,9 +184,10 @@ about-broken:8:51: error CS1061: 'IBuildInfo' does not contain a definition for 
 ```
 
 Template errors (`TEMPLATE001` unterminated block, `TEMPLATE002` empty write) and policy errors
-(`PAGE002`) are positioned too. The smallest consumer is about twenty lines — generate, compile,
-print `file:line:col: severity message` — and a task with a small `problemMatcher` turns that into
-Problems entries and red squiggles in the editor, with no language server and no JavaScript:
+(`PAGE002`) are positioned too. The smallest consumer — [`tools/check-pages`](../../tools/check-pages),
+about twenty lines — generates, compiles and prints `file:line:col: severity message`, and a task
+with a small `problemMatcher` turns that into Problems entries and red squiggles in the editor, with
+no language server and no JavaScript:
 
 ```json
 "problemMatcher": {
@@ -245,20 +246,20 @@ That is a plan-sized job, not a sitting, and it is independent of the two cheap 
 - **Not the site's own editor.** IDEA-001's editor and its Ace mode are separate; this is for
   reading seeds in VS Code.
 
-## Recommended shape
+## What landed
 
-1. A declarative extension under `tools/vscode-asp/` — manifest, the two grammars, language
-   configuration — with the workspace association and the `.gitignore`/`REUSE.toml` follow-ups. No
-   JavaScript.
-2. A `check-pages` task over `Pages/Seeds` with the problem matcher, so a broken seed is clickable.
-3. Only then, and only if completion is wanted, a language server: a plan, a `DEC-` for the
-   project and its Workspaces reference, and the plain-JS client.
-4. If any of it lands, `docs/testing.md` gains a line about how the grammar is checked (the
-   tokenize harness is test tooling, not a dependency) and `docs/` says where the extension lives.
+1. [`tools/vscode-asp`](../../tools/vscode-asp) — the manifest, the two grammars and the language
+   configuration, with the association in [`.vscode/settings.json`](../../.vscode/settings.json).
+   No JavaScript. Install with `code --install-extension tools/vscode-asp`.
+2. [`tools/check-pages`](../../tools/check-pages) — the compiler over the seeds, and the `check pages`
+   task in [`.vscode/tasks.json`](../../.vscode/tasks.json) with the problem matcher. It is also in
+   `make check`, so a broken seed fails the gate rather than the first visitor.
+3. The live half — diagnostics while typing, completion, hover — is [IDEA-029](../jobs/IDEA-029.md):
+   a C# server, a plain-JS client and, if completion is in scope, a reverse map in `Core`.
 
-The prototype that produced these numbers — grammar, injection, manifest, configuration,
-`settings.snippet.json`, `tasks.snippet.json` and the twenty-line `check-pages` — is in the session
-workspace under `files/vscode-asp/`.
+The tokenize harness that produced these numbers is test tooling, not a dependency: it is
+`vscode-textmate` and `vscode-oniguruma` run on VS Code's own Electron, and the grammar is data that
+needs no build.
 
 ## Sources
 

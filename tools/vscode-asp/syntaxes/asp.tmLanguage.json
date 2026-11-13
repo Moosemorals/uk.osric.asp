@@ -1,0 +1,346 @@
+{
+  "name": "ASP",
+  "scopeName": "text.html.asp",
+  "patterns": [
+    {
+      "include": "#asp-raw-write"
+    },
+    {
+      "include": "#asp-write"
+    },
+    {
+      "include": "#asp-declaration"
+    },
+    {
+      "include": "#asp-code"
+    },
+    {
+      "include": "text.html.basic"
+    }
+  ],
+  "repository": {
+    "asp-raw-write": {
+      "begin": "(<%)(==)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.begin.asp"
+        },
+        "2": {
+          "name": "punctuation.section.embedded.operator.asp"
+        }
+      },
+      "end": "(%>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.end.asp"
+        }
+      },
+      "contentName": "meta.embedded.block.asp",
+      "patterns": [
+        {
+          "include": "#csharp"
+        }
+      ]
+    },
+    "asp-write": {
+      "begin": "(<%)(=)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.begin.asp"
+        },
+        "2": {
+          "name": "punctuation.section.embedded.operator.asp"
+        }
+      },
+      "end": "(%>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.end.asp"
+        }
+      },
+      "contentName": "meta.embedded.block.asp",
+      "patterns": [
+        {
+          "include": "#csharp"
+        }
+      ]
+    },
+    "asp-declaration": {
+      "begin": "(<%)(!)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.begin.asp"
+        },
+        "2": {
+          "name": "punctuation.section.embedded.operator.asp"
+        }
+      },
+      "end": "(%>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.end.asp"
+        }
+      },
+      "contentName": "meta.embedded.block.asp",
+      "patterns": [
+        {
+          "include": "#csharp"
+        }
+      ]
+    },
+    "asp-code": {
+      "begin": "(<%)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.begin.asp"
+        },
+        "2": {
+          "name": "punctuation.section.embedded.operator.asp"
+        }
+      },
+      "end": "(%>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.end.asp"
+        }
+      },
+      "contentName": "meta.embedded.block.asp",
+      "patterns": [
+        {
+          "include": "#csharp"
+        }
+      ]
+    },
+    "csharp-comment": {
+      "patterns": [
+        {
+          "name": "comment.block.documentation.cs",
+          "match": "///.*?(?=%>|$)"
+        },
+        {
+          "name": "comment.line.double-slash.cs",
+          "match": "//.*?(?=%>|$)"
+        },
+        {
+          "name": "comment.block.cs",
+          "match": "/\\*(?:(?!%>).)*?\\*/"
+        }
+      ]
+    },
+    "csharp-string": {
+      "patterns": [
+        {
+          "include": "source.cs#raw-string-literal"
+        },
+        {
+          "include": "source.cs#verbatim-string-literal"
+        },
+        {
+          "include": "source.cs#string-literal"
+        },
+        {
+          "include": "source.cs#raw-interpolated-string"
+        },
+        {
+          "include": "source.cs#verbatim-interpolated-string"
+        },
+        {
+          "include": "source.cs#interpolated-string"
+        }
+      ]
+    },
+    "csharp-char": {
+      "patterns": [
+        {
+          "include": "source.cs#char-literal"
+        }
+      ]
+    },
+    "csharp-number": {
+      "patterns": [
+        {
+          "include": "source.cs#numeric-literal"
+        }
+      ]
+    },
+    "csharp-keyword": {
+      "patterns": [
+        {
+          "name": "keyword.control.conditional.if.cs",
+          "match": "\\bif\\b"
+        },
+        {
+          "name": "keyword.control.conditional.else.cs",
+          "match": "\\belse\\b"
+        },
+        {
+          "name": "keyword.control.switch.cs",
+          "match": "\\b(?:switch|case|default)\\b"
+        },
+        {
+          "name": "keyword.control.loop.for.cs",
+          "match": "\\bfor\\b"
+        },
+        {
+          "name": "keyword.control.loop.foreach.cs",
+          "match": "\\bforeach\\b"
+        },
+        {
+          "name": "keyword.control.loop.while.cs",
+          "match": "\\b(?:while|do)\\b"
+        },
+        {
+          "name": "keyword.control.flow.cs",
+          "match": "\\b(?:break|continue|return|goto|yield)\\b"
+        },
+        {
+          "name": "keyword.control.exception.cs",
+          "match": "\\b(?:throw|try|catch|finally|checked|unchecked)\\b"
+        },
+        {
+          "name": "keyword.other.cs",
+          "match": "\\b(?:using|namespace|lock|fixed|stackalloc|unsafe|when|operator|event)\\b"
+        },
+        {
+          "name": "keyword.operator.expression.cs",
+          "match": "\\b(?:is|as|in|out|ref|await|async|new|typeof|sizeof|nameof|with|params|this|base)\\b"
+        },
+        {
+          "name": "storage.type.cs",
+          "match": "\\b(?:class|struct|interface|enum|record|delegate)\\b"
+        },
+        {
+          "name": "storage.modifier.cs",
+          "match": "\\b(?:public|private|protected|internal|static|readonly|const|sealed|abstract|virtual|override|partial|extern|volatile|implicit|explicit)\\b"
+        },
+        {
+          "name": "storage.type.var.cs",
+          "match": "\\bvar\\b"
+        }
+      ]
+    },
+    "csharp-builtin-type": {
+      "patterns": [
+        {
+          "include": "source.cs#type-builtin"
+        }
+      ]
+    },
+    "csharp-literal": {
+      "patterns": [
+        {
+          "include": "source.cs#boolean-literal"
+        },
+        {
+          "include": "source.cs#null-literal"
+        }
+      ]
+    },
+    "csharp-identifier": {
+      "patterns": [
+        {
+          "name": "entity.name.function.cs",
+          "match": "@?[_[:alpha:]][_[:alnum:]]*(?=\\s*\\()"
+        },
+        {
+          "name": "variable.other.object.property.cs",
+          "match": "(?<=\\.)\\s*@?[_[:alpha:]][_[:alnum:]]*"
+        },
+        {
+          "name": "variable.other.readwrite.cs",
+          "match": "@?[_[:alpha:]][_[:alnum:]]*"
+        }
+      ]
+    },
+    "csharp-punctuation": {
+      "patterns": [
+        {
+          "include": "source.cs#punctuation-semicolon"
+        },
+        {
+          "include": "source.cs#punctuation-comma"
+        },
+        {
+          "include": "source.cs#punctuation-accessor"
+        },
+        {
+          "name": "punctuation.curlybrace.open.cs",
+          "match": "\\{"
+        },
+        {
+          "name": "punctuation.curlybrace.close.cs",
+          "match": "\\}"
+        },
+        {
+          "name": "punctuation.parenthesis.open.cs",
+          "match": "\\("
+        },
+        {
+          "name": "punctuation.parenthesis.close.cs",
+          "match": "\\)"
+        },
+        {
+          "name": "punctuation.bracket.square.open.cs",
+          "match": "\\["
+        },
+        {
+          "name": "punctuation.bracket.square.close.cs",
+          "match": "\\]"
+        },
+        {
+          "name": "punctuation.separator.colon.cs",
+          "match": ":"
+        }
+      ]
+    },
+    "csharp-operator": {
+      "patterns": [
+        {
+          "include": "source.cs#expression-operators"
+        },
+        {
+          "name": "keyword.operator.assignment.cs",
+          "match": "\\?\\?=|=>|=(?!=)|\\+=|-=|\\*=|/=|%=|&=|\\|=|\\^=|<<=|>>="
+        },
+        {
+          "name": "keyword.operator.conditional.cs",
+          "match": "\\?\\??(?![.?])"
+        }
+      ]
+    },
+    "csharp": {
+      "patterns": [
+        {
+          "include": "#csharp-comment"
+        },
+        {
+          "include": "#csharp-string"
+        },
+        {
+          "include": "#csharp-char"
+        },
+        {
+          "include": "#csharp-number"
+        },
+        {
+          "include": "#csharp-keyword"
+        },
+        {
+          "include": "#csharp-builtin-type"
+        },
+        {
+          "include": "#csharp-literal"
+        },
+        {
+          "include": "#csharp-identifier"
+        },
+        {
+          "include": "#csharp-punctuation"
+        },
+        {
+          "include": "#csharp-operator"
+        }
+      ]
+    }
+  }
+}

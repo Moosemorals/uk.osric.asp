@@ -17,4 +17,7 @@ SPDX-License-Identifier: MIT
     <Project Path="test/uk.osric.asp.Web.IntegrationTests/uk.osric.asp.Web.IntegrationTests.csproj" />
     <Project Path="test/uk.osric.asp.Web.Tests/uk.osric.asp.Web.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/check-pages/check-pages.csproj" />
+  </Folder>
 </Solution>

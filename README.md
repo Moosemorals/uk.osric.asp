@@ -101,13 +101,14 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | `make build` | Build the solution, but only when a source or project file changed (the default) |
 | `make restore` | Force a NuGet restore; `build` only restores when an input changed |
 | `make test` | All four suites: core, runtime, web, integration |
-| `make check` | The gate: formatting, licences, package audit, the four suites and a Release publish |
+| `make check` | The gate: formatting, licences, package audit, the seeded pages, the four suites and a Release publish |
 | `make ci` | `make check` from a clean tree, plus the reproducible-image check |
 | `make test-core` | Core tests only |
 | `make test-runtime` | Runtime tests only |
 | `make test-web` | Web shell and storage tests only |
 | `make test-integration` | The composed pipeline against a throwaway database |
 | `make test-browser` | The real host in Firefox, with a scripted provider (`make browsers` installs Firefox once) |
+| `make check-pages` | Compile the seeded pages and print the compiler's diagnostics |
 | `make user-add ACCOUNT=...` | Create a local editor account |
 | `make user-passwd ACCOUNT=...` | Change a password and sign out every existing session |
 | `make user-list` | List local accounts |

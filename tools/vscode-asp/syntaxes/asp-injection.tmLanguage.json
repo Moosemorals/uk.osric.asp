@@ -1,0 +1,19 @@
+{
+  "name": "ASP (inside HTML attribute strings)",
+  "scopeName": "asp.injection.html",
+  "injectionSelector": "L:string.quoted.double.html - meta.embedded.block.asp, L:string.quoted.single.html - meta.embedded.block.asp",
+  "patterns": [
+    {
+      "include": "text.html.asp#asp-raw-write"
+    },
+    {
+      "include": "text.html.asp#asp-write"
+    },
+    {
+      "include": "text.html.asp#asp-declaration"
+    },
+    {
+      "include": "text.html.asp#asp-code"
+    }
+  ]
+}

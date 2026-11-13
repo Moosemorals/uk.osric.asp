@@ -108,7 +108,7 @@ RESTORE_STAMP := $(ARTIFACTS)/restore.stamp
 BUILD_STAMP := $(ARTIFACTS)/build.$(CONFIGURATION).stamp
 
 # Projects are discovered rather than listed so a new one works at any depth.
-PROJECT_FILES := $(shell find src test -name '*.csproj' 2>/dev/null)
+PROJECT_FILES := $(shell find src test tools -name '*.csproj' 2>/dev/null)
 
 # Everything that can change what NuGet resolves.
 RESTORE_INPUTS := global.json $(SOLUTION) \
@@ -117,13 +117,13 @@ RESTORE_INPUTS := global.json $(SOLUTION) \
 
 # Everything that can change what the compiler produces. Directory mtimes catch added and deleted
 # files, and the output directories are listed so deleting part of artifacts/ forces a rebuild.
-BUILD_INPUTS := $(shell find src test -type f 2>/dev/null) \
-	$(shell find src test -mindepth 1 -type d 2>/dev/null) \
+BUILD_INPUTS := $(shell find src test tools -type f 2>/dev/null) \
+	$(shell find src test tools -mindepth 1 -type d 2>/dev/null) \
 	global.json .editorconfig \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit test test-core test-runtime test-web test-integration test-browser test-browser-live browsers migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
+.PHONY: help build restore check ci drift-check audit check-pages test test-core test-runtime test-web test-integration test-browser test-browser-live browsers migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -136,9 +136,10 @@ help:
 	@printf '%s\n' \
 		'build              Build the solution when anything changed (default target).' \
 		'restore            Force a NuGet restore (build restores only when inputs change).' \
-		'check              The gate: formatting, licences, package audit, every suite, Release publish.' \
+		'check              The gate: formatting, licences, package audit, the seeded pages, every suite, Release publish.' \
 		'ci                 Clean tree, the gate, and two image builds that must agree.' \
 		'audit              Fail if any NuGet package is vulnerable or deprecated.' \
+		'check-pages        Compile the seeded pages and print compiler diagnostics.' \
 		'test               Run every suite: core, runtime, web and integration (no browser required).' \
 		'test-core          Run the NUnit core tests only.' \
 		'test-runtime       Run the NUnit runtime tests only.' \
@@ -171,7 +172,7 @@ help:
 		'worktree           Create the branch and worktree for BRANCH=... (BASE=trunk).' \
 		'worktrees          List the worktrees.' \
 		'worktree-remove    Remove the worktree for BRANCH=... once its work has merged.' \
-		'changelist         Write the deployed commit's history to artifacts/changes.txt.' \
+		'changelist         Write the history of the deployed commit to artifacts/changes.txt.' \
 		'clean              Delete the artifacts folder.' \
 		'help               Show this list.'
 
@@ -229,7 +230,7 @@ TEST_BROWSER_ARGS := --results-directory $(TEST_RESULTS) -- RunConfiguration.Tes
 # Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no
 # second definition of "green" to drift from this one. `publish` is here because Release is what
 # actually ships — a Release-only break should not wait for a deploy to be discovered.
-check: format-check license-check audit test publish
+check: format-check license-check audit check-pages test publish
 
 # A clean tree in, a clean tree out. The stamps in artifacts/ make repeat runs cheap, which is also
 # how an input that was never committed can hide; this is the one target that starts from nothing.
@@ -345,6 +346,17 @@ run:
 
 publish: changelist
 	$(DOTNET) publish $(WEB_PROJECT) -c Release -p:ChangelistFile=$(abspath $(CHANGELIST))
+
+# ---- Page checks ----------------------------------------------------------------------------------
+
+# A seed is compiled when it is first requested, so a broken one ships silently and the first visitor
+# gets the error page. This runs the product's own compiler over them at build time and prints the
+# author-facing diagnostics in the file:line:column shape the editor's `check pages` task reads.
+CHECK_PAGES_PROJECT := tools/check-pages/check-pages.csproj
+SEED_DIRECTORY := src/uk.osric.asp.Web/Pages/Seeds
+
+check-pages: $(BUILD_STAMP)
+	$(DOTNET) run --project $(CHECK_PAGES_PROJECT) -c $(CONFIGURATION) --no-build -- $(SEED_DIRECTORY)
 
 # The publish output the image packs: UseArtifactsOutput puts a RID-specific publish beside the
 # plain one, so `make publish` and the image do not overwrite each other.
