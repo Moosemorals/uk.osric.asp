@@ -273,8 +273,12 @@ key and hash. It never meets an image, a symbol or a write; saving is
 <code>/blog/post</code>, never <code>/blogroll</code>. The listing returns every head the store
 holds — live pages, tombstones, seeded assets and reserved keys — each marked with
 <code>IsDeleted</code>, <code>IsReserved</code>, <code>IsHtml</code> and <code>IsAsset</code>, so a
-view filters rather than re-deriving the host's rules. A tombstone has no source: it is listed as deleted and reads as absent,
-while its history stays readable.</p>
+view filters rather than re-deriving the host's rules. Each row also says what the head compiled to
+in <code>State</code> — <em>Compiled</em>, <em>Compiled with warnings</em>, <em>Compile failed</em>,
+<em>Stale</em>, <em>Not compiled</em> or <em>Stored as source</em> — so a listing says exactly what
+the editor's list says. How you mark it is yours: the words make a fine
+<code>data-state</code> attribute. A tombstone has no source: it
+is listed as deleted and reads as absent, while its history stays readable.</p>
 <p><strong>The read is as public as the page that calls it.</strong> There is no gate in the host: an
 anonymous visitor gets the same answers a signed-in one does. A page that wants its listing or its
 source private writes the ordinary guard at the top of its own source, exactly as any private page

@@ -64,6 +64,26 @@ public sealed class SqlitePageReadStoreTests {
     }
 
     [Test]
+    public async Task TheListingCarriesTheHeadsImageColumnsAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/compiled", "Hello.");
+        await using (StorageDbContext database = new(_options)) {
+            PageRevision revision = await database.Set<PageRevision>().SingleAsync(row => row.Path == "/compiled");
+            revision.RuntimeId = "build-7";
+            revision.Image = [1, 2, 3];
+            revision.Diagnostics = "[]";
+            await database.SaveChangesAsync();
+        }
+
+        PageReadHead row = (await ReadStore().ListAsync("/", 10)).Single();
+
+        Assert.Multiple(() => {
+            Assert.That(row.RuntimeId, Is.EqualTo("build-7"));
+            Assert.That(row.HasImage, Is.True);
+            Assert.That(row.HasDiagnostics, Is.False, "an empty diagnostics array is not a warning");
+        });
+    }
+
+    [Test]
     public async Task TheLimitIsInTheStatementAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/one");
         await DatabaseTemplate.SavePageAsync(_options, "/two");

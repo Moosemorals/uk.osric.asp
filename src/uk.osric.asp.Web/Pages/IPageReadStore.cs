@@ -16,7 +16,10 @@ internal sealed record PageReadHead(
     DateTimeOffset SavedAt,
     string Hash,
     bool IsDeleted,
-    bool? TemplateHasCode = null);
+    bool? TemplateHasCode = null,
+    string? RuntimeId = null,
+    bool HasImage = false,
+    bool HasDiagnostics = false);
 
 /// <summary>One template the read store retrieved.</summary>
 /// <param name="Key">The page's canonical key.</param>

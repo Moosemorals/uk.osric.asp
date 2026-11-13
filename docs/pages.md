@@ -75,7 +75,10 @@ the build:
   `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a page's history and
   `ReadRevisionAsync(key, hash)` reads one retained revision. Each `PageEntry` marks the head
   `IsDeleted`, `IsReserved`, `IsHtml` and `IsAsset`, so a view filters rather than re-deriving the
-  host's rules. It reads and never writes. The read is
+  host's rules, and carries the head's image state in `State` — the host's own words, judged against
+  the running build — so a page's listing says what the editor's says without reading source
+  (DEC-258). The class the shell's own list marks it with stays in the shell: how a view presents a
+  state is the view's business. It reads and never writes. The read is
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets
   bound it (DEC-168–DEC-175). See [source storage](storage.md#source-storage).

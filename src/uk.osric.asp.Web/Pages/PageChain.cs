@@ -127,7 +127,8 @@ internal sealed class PageChain {
             _environment.Read,
             _readBudget,
             _environment.Reserved,
-            _environment.ContentTypes);
+            _environment.ContentTypes,
+            _environment.Saver.RuntimeId);
 
         PageCapabilities capabilities = new PageCapabilities()
             .Add<IBuildInfo>(BuildInfo.Current)

@@ -153,3 +153,5 @@ uk.osric.asp.Sdk.PageRequest.QueryValues.get -> System.Collections.Generic.IRead
 uk.osric.asp.Sdk.PageRequest.QueryValues.init -> void
 uk.osric.asp.Sdk.PageRequest.FormValues.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
 uk.osric.asp.Sdk.PageRequest.FormValues.init -> void
+uk.osric.asp.Sdk.PageEntry.State.get -> string!
+uk.osric.asp.Sdk.PageEntry.State.init -> void

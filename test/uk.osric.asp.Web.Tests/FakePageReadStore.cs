@@ -28,7 +28,14 @@ internal sealed class FakePageReadStore : IPageReadStore {
     /// <param name="template">The template text.</param>
     /// <param name="savedAt">The revision's time; the store's own clock is used when omitted.</param>
     /// <returns>The revision's hash.</returns>
-    public string Save(string key, string template, DateTimeOffset? savedAt = null, bool? templateHasCode = null) {
+    public string Save(
+        string key,
+        string template,
+        DateTimeOffset? savedAt = null,
+        bool? templateHasCode = null,
+        string? runtimeId = null,
+        bool hasImage = false,
+        bool hasDiagnostics = false) {
         DateTimeOffset when = savedAt ?? _clock.AddMinutes(1);
         _clock = when > _clock ? when : _clock;
 
@@ -37,7 +44,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
         }
 
         string hash = "hash-" + revisions.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-" + key;
-        revisions.Add(new FakeRevision(hash, when, template, templateHasCode));
+        revisions.Add(new FakeRevision(hash, when, template, templateHasCode, runtimeId, hasImage, hasDiagnostics));
 
         return hash;
     }
@@ -58,7 +65,8 @@ internal sealed class FakePageReadStore : IPageReadStore {
             .Select(item => {
                 FakeRevision latest = item.Value[^1];
                 return new PageReadHead(
-                    item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key), latest.TemplateHasCode);
+                    item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key), latest.TemplateHasCode,
+                    latest.RuntimeId, latest.HasImage, latest.HasDiagnostics);
             })];
     }
 
@@ -113,5 +121,12 @@ internal sealed class FakePageReadStore : IPageReadStore {
             || string.Equals(key, prefix, StringComparison.Ordinal)
             || key.StartsWith(prefix + "/", StringComparison.Ordinal);
 
-    private sealed record FakeRevision(string Hash, DateTimeOffset SavedAt, string Template, bool? TemplateHasCode);
+    private sealed record FakeRevision(
+        string Hash,
+        DateTimeOffset SavedAt,
+        string Template,
+        bool? TemplateHasCode,
+        string? RuntimeId,
+        bool HasImage,
+        bool HasDiagnostics);
 }

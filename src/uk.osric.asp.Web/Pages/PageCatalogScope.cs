@@ -26,7 +26,8 @@ internal sealed class PageCatalogScope(
     PageReadOptions options,
     ReadBudget budget,
     ReservedPaths reserved,
-    PageContentTypes contentTypes) : RenderBoundCapability, IPageCatalog {
+    PageContentTypes contentTypes,
+    string currentRuntimeId) : RenderBoundCapability, IPageCatalog {
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<PageEntry>> ListAsync(string prefix) {
@@ -46,6 +47,8 @@ internal sealed class PageCatalogScope(
         List<PageEntry> entries = [];
         entries.EnsureCapacity(rows.Count);
         foreach (PageReadHead row in rows) {
+            PageImageState state = PageImageStatus.Describe(
+                row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateHasCode);
             entries.Add(new PageEntry(
                 row.Key,
                 row.SavedAt,
@@ -54,6 +57,7 @@ internal sealed class PageCatalogScope(
                 reserved.IsReserved(PagePath.Normalize(row.Key)),
                 IsHtml(row.Key)) {
                 IsAsset = PageAssetPolicy.IsAsset(row.TemplateHasCode),
+                State = state.Describe(),
             });
         }
 

@@ -12,6 +12,10 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageCatalogScopeTests {
 
+    /// <summary>The build every listing in this fixture is judged against.</summary>
+    private const string CurrentRuntimeId = "build-1";
+
+
     [Test]
     public async Task AnAnonymousVisitorCanReadTheStoreAsync() {
         (RenderResult result, string output) = await RenderListingAsync(user: null);
@@ -284,6 +288,32 @@ public sealed class PageCatalogScopeTests {
         Assert.That(store.LastCancellationToken, Is.EqualTo(deadline.Token));
     }
 
+    [Test]
+    public async Task AListingReportsTheHostsImageStateAsync() {
+        FakePageReadStore store = new();
+        store.Save("/compiled", "source", runtimeId: CurrentRuntimeId, hasImage: true);
+        store.Save("/warned", "source", runtimeId: CurrentRuntimeId, hasImage: true, hasDiagnostics: true);
+        store.Save("/stale", "source", runtimeId: "build-0", hasImage: true);
+        store.Save("/failed", "source", runtimeId: CurrentRuntimeId);
+        store.Save("/never", "source");
+        store.Save("/sheet.css", "source", templateHasCode: false, runtimeId: CurrentRuntimeId, hasImage: true);
+
+        IReadOnlyList<PageEntry> entries = await Scope(store).ListAsync("/");
+
+        Assert.Multiple(() => {
+            Assert.That(StateOf(entries, "/compiled"), Is.EqualTo("Compiled"));
+            Assert.That(StateOf(entries, "/warned"), Is.EqualTo("Compiled with warnings"));
+            Assert.That(StateOf(entries, "/stale"), Is.EqualTo("Stale"));
+            Assert.That(StateOf(entries, "/failed"), Is.EqualTo("Compile failed"));
+            Assert.That(StateOf(entries, "/never"), Is.EqualTo("Not compiled"));
+            Assert.That(StateOf(entries, "/sheet.css"), Is.EqualTo("Stored as source"));
+            Assert.That(store.ReadCount, Is.EqualTo(1), "the state comes from the listing, not a second read");
+        });
+    }
+
+    private static string StateOf(IReadOnlyList<PageEntry> entries, string key) =>
+        entries.Single(entry => entry.Key == key).State;
+
     private static PageCatalogScope Scope(
         FakePageReadStore store,
         PageReadOptions? options = null,
@@ -296,7 +326,8 @@ public sealed class PageCatalogScopeTests {
             read,
             budget ?? new ReadBudget(read.MaxSourceCharsPerRender),
             new ReservedPaths(ReservedPaths.Default),
-            TestContentTypes.Shipped);
+            TestContentTypes.Shipped,
+            CurrentRuntimeId);
     }
 
     private static async Task<(RenderResult Result, string Output)> RenderListingAsync(PageUser? user) {

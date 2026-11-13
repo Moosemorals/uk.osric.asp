@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Phase 0 landed 2026-11-13; phases 1–5 planned, not started |
+| Status | Phases 0–1 landed 2026-11-13; phases 2–5 planned, not started |
 | Size | Large — a new Sdk capability and its values, a read-contract extension, a scoped authority, the seeded `/pages` editor and its module, retiring `/edit`, a shell scrub route, and the tests and documents for each |
 | Area | Sdk, Web (pages, editor, admin, routing, navigation), seeds, docs |
 | Backlog | [IDEA-017](../jobs/IDEA-017.md) — this closes it. [IDEA-028](../jobs/README.md#closed) — the prerequisite recovery path, landed |
@@ -221,9 +221,10 @@ save, exactly as the revision-restore work says.
 The shell listing shows compile state; `PageEntry` does not. Dropping the column would make the page
 editor a smaller view than the one it replaces. `PageReadHead` grows the image columns the store
 already has (`RuntimeId`, `HasImage`, `HasDiagnostics`), `SqlitePageReadStore.ListAsync` selects
-them, and `PageCatalogScope` maps them through `PageImageStatus.Describe` and `.Class()` into two
-string properties on `PageEntry`: `State` and `StateClass`. The page writes the host's words and
-class, so there is still one spelling of "Compiled with warnings".
+them, and `PageCatalogScope` maps them through `PageImageStatus.Describe` into one string property
+on `PageEntry`, `State`, so there is still one spelling of "Compiled with warnings". The `.Class()`
+half stays in `Web` for the shell's own list: the Sdk carries the fact, and a page marks it with
+whatever its own markup or stylesheet wants — a `data-state` attribute needs no mapping at all.
 
 `PageCatalogScope` needs the running runtime id for staleness; `PageEnvironment.Saver.RuntimeId` is
 passed to it, as the shell editor already has it. The listing charges no source budget, because it
@@ -464,12 +465,12 @@ behaviour, and on one piece of its code:
 | --- | --- |
 | `src/uk.osric.asp.Sdk/IPageEditor.cs` | New: the named-key capability, its `Resolve`, `SeedPathsAsync`, `SaveAsync`, `DeleteAsync`, `RestoreRevisionAsync` and `InstallSeedAsync` |
 | `src/uk.osric.asp.Sdk/PageEditResult.cs` | New: `Saved`, `Stale`, `Hash`, `Diagnostics`; `PageKeyResolution` and `PageDeleteResult` beside it if they do not earn their own files |
-| `src/uk.osric.asp.Sdk/PageEntry.cs` | `State` and `StateClass`, set by the host; the positional constructor stays |
+| `src/uk.osric.asp.Sdk/PageEntry.cs` | `State`, set by the host; the positional constructor stays |
 | `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | The new types and members |
 | `src/uk.osric.asp.Web/Pages/PageEditorScope.cs` | New: the authority, path rules, one action per render and `RenderBoundCapability` plumbing |
 | `src/uk.osric.asp.Web/Pages/PageChain.cs` | Builds the editor scope for `/pages` only; passes the running runtime id to the catalog |
 | `src/uk.osric.asp.Web/Pages/PageEndpoint.cs` | Takes the scoped `PageEditor` and passes it to the chain |
-| `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs` | Maps the read head's image columns to `PageEntry.State` and `.StateClass`; takes the runtime id |
+| `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs` | Maps the read head's image columns to `PageEntry.State`; takes the runtime id |
 | `src/uk.osric.asp.Web/Pages/IPageReadStore.cs`, `SqlitePageReadStore.cs` | `PageReadHead` carries `RuntimeId`, `HasImage`, `HasDiagnostics`; the listing query selects them |
 | `src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs` | New: the comparison and outcome rule extracted from `RestoreEndpoint.PlanAsync`, shared by the capability and the restore |
 | `src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs` | Remains the file reader; the helper owns comparison and outcome, not the seeder |
@@ -517,7 +518,7 @@ The emergency restore is live: `/admin/restore`, its reserved and shell-route re
 and `/admin` links, and its unit and integration tests. Its comparison and outcome records are the
 seed rule Phase 2 extracts (D11).
 
-### Phase 1 — the read state
+### Phase 1 — the read state (landed 2026-11-13)
 
 Extend `PageReadHead`, `SqlitePageReadStore.ListAsync` and `PageCatalogScope` so a listing row
 carries the compile state and class the shell listing shows. Keep the read public and bounded.
@@ -645,7 +646,7 @@ proved by behaviour, not by a browser test that restates the markup.
 | A stale tab overwrites a newer save | Conditional save with the rendered hash; `409` with the submitted text and the current source |
 | `/edit` disappears from a bookmark and an open tab | Accepted: there is no redirect, and the URL is a `404` until a page is stored there. The editor is `/pages`, and `/admin/restore` covers a broken editor |
 | `/edit` becomes a free page key and the assistant can write it | Intentional; it is an ordinary stored page the assistant may write, like every other (ARCH-15). A guarded page is the only way to close it |
-| The page editor loses the compile-state column | `PageEntry.State` and `.StateClass` are part of the read contract; the listing test proves the same words |
+| The page editor loses the compile-state column | `PageEntry.State` is part of the read contract; the listing test proves the same words |
 | Scrub is lost with the shell editor | It moves unchanged to `/admin/scrub/{**path}` and is linked from tombstones |
 | Two save paths drift | The conditional algorithm moves to `PageSaver`, `PageEditor` delegates to it, and the seed helper shares the comparison and save rule with the emergency page |
 | The Sdk change recompiles every stored image | That is the normal cost of an Sdk change (DEC-26); one deliberate release, with the new public API updated and the seed tests passing |

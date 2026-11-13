@@ -198,7 +198,8 @@ internal sealed class PageHarness : IDisposable {
                 ReadOptions,
                 readBudget ?? new ReadBudget(ReadOptions.MaxSourceCharsPerRender),
                 new ReservedPaths(ReservedPaths.Default),
-                ContentTypes);
+                ContentTypes,
+                Images.RuntimeId);
             capabilities.Add<IPageCatalog>(catalog);
         }
 

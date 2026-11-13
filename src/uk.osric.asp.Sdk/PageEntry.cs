@@ -11,8 +11,17 @@ namespace uk.osric.asp.Sdk;
 /// <param name="IsReserved">Whether the site's own routes already answer for the key.</param>
 /// <param name="IsHtml">Whether the key is served as HTML.</param>
 /// <remarks>
+/// <para>
 /// The marks are the host's own rules reported rather than derived: a view can filter a listing
 /// without owning the reserved-path list, the content-type table or the revision verdict.
+/// </para>
+/// <para>
+/// <see cref="State"/> is what the head's image compiled to, in the host's words — "Compiled",
+/// "Compiled with warnings", "Compile failed", "Stale", "Not compiled" or "Stored as source" — so a
+/// page's listing says exactly what the shell's own listing says, without reading source or
+/// inventing a second spelling. How a view marks it is the view's business: the shell's list has a
+/// class of its own, and a page may use the words as an attribute or map them to its own class.
+/// </para>
 /// </remarks>
 public readonly record struct PageEntry(
     string Key,
@@ -24,4 +33,7 @@ public readonly record struct PageEntry(
 
     /// <summary>Whether the head has no code, so its source is the response.</summary>
     public bool IsAsset { get; init; }
+
+    /// <summary>What the head's image compiled to, in the host's words.</summary>
+    public string State { get; init; } = string.Empty;
 }
