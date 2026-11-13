@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started |
-| Size | Large — a new Sdk capability and its values, a read-contract extension, a scoped authority, the seeded `/pages` editor and its module, retiring `/edit`, a shell scrub route, IDEA-028 as a prerequisite, and the tests and documents for each |
+| Status | Phase 0 landed 2026-11-13; phases 1–5 planned, not started |
+| Size | Large — a new Sdk capability and its values, a read-contract extension, a scoped authority, the seeded `/pages` editor and its module, retiring `/edit`, a shell scrub route, and the tests and documents for each |
 | Area | Sdk, Web (pages, editor, admin, routing, navigation), seeds, docs |
-| Backlog | [IDEA-017](../jobs/IDEA-017.md) — this closes it. [IDEA-028](../jobs/README.md#closed) is the prerequisite recovery path |
+| Backlog | [IDEA-017](../jobs/IDEA-017.md) — this closes it. [IDEA-028](../jobs/README.md#closed) — the prerequisite recovery path, landed |
 | Decisions | Referred to in prose here and numbered when the work merges (DEC-09) |
 | Prerequisite | [IDEA-028](../jobs/README.md#closed) landed 2026-11-13: `/admin/restore` is the way back from a broken editor (DEC-256) |
 
@@ -37,10 +37,11 @@ stored page, under a narrower seam than the assistant's, and lets the shell edit
 - **The shell keeps only the destructive route.** `/edit` stops being an editor and stops being a
   reserved key: the catch-all owns it, no page is stored there, and it answers `404` until somebody
   writes a new page at that key. Permanently removing history is still a destructive act with a
-  typed confirmation, so scrub moves to `/admin/scrub/{path}` until a decision says otherwise.
-- **IDEA-028 ships first.** `/admin/restore` is the brutal one-button restore of every seed to its
-  bundled source. It is what makes removing the shell editor safe, and it is the answer to a broken
-  `/pages`, `/_layout`, `/editor.css` or `/editor.js`.
+  typed confirmation, so scrub moves to `/admin/scrub/{**path}` until a decision says otherwise.
+- **IDEA-028 has landed.** `/admin/restore` is the brutal one-button restore of every seed to its
+  bundled source, and it draws a plain document with no stylesheet or script, so a broken
+  `/site.css` cannot hide it. It is what makes removing the shell editor safe, and it is the answer
+  to a broken `/pages`, `/_layout`, `/editor.css` or `/editor.js` (DEC-256).
 - **One writer remains.** `PageSaver` grows the conditional save on its own context, so a started
   edit is not lost when the render ends; the capability and the seed helper both use it. No second
   insert path, no second query language, no second saver.
@@ -66,10 +67,10 @@ before the shell view can go.
 6. The listing keeps the compile state the shell editor shows, because the read contract grows the
    image state the host already knows.
 7. Scrub remains a shell confirmation, linked from the page but never performed by it.
-8. IDEA-028 ships first, and one `POST` to `/admin/restore` brings `/pages` and every other seed
-   back from a broken state.
-9. The page editor uses the one saver and the one conditional save the assistant and the shell
-   already share; it adds no store insert and no new archive format.
+8. The recovery path is live: one `POST` to `/admin/restore` brings `/pages` and every other seed
+   back from a broken state, from a page that depends on none of them.
+9. The page editor uses the one saver the assistant and the shell already share, with the
+   conditional save moved onto it; it adds no store insert and no new archive format.
 10. The author manual, the assistant prompt and the architecture documents describe `/pages` and
     `/admin/restore`, not `/edit` as the editor.
 
@@ -88,7 +89,7 @@ before the shell view can go.
   chooses.
 - **A compatibility redirect for `/edit`.** The old editor URLs are retired, not mapped. A bookmark
   or an open tab answers `404`; `/edit` is free for a future page. The one exception is the
-  destructive scrub POST, which moves to `/admin/scrub/{path}` rather than disappearing.
+  destructive scrub POST, which moves to `/admin/scrub/{**path}` rather than disappearing.
 - **A page-session flash.** The editor answers the `POST` that acted, or redirects to a URL it can
   render from the store. It does not need a message that another page must read, so IDEA-027 stays
   out of this change.
@@ -110,15 +111,15 @@ before the shell view can go.
 | `IPageWriter` / `PageWriterScope` | A self-save bound to `ctx.Path`; signed-in, no `HEAD`, one save per render, a started save finishes (DEC-189–DEC-196) | The authority rules the named-key capability inherits, and the tests they already pin |
 | `PageEditor.SaveIfRevisionAsync` | Compile-then-store only while the head hash matches; the assistant's conditional save, on the request's scoped store | The stale-save rule, moved to the singleton save path so a started save survives the render |
 | `PageEditor.SaveAsync` / `PageSaver` | The one compile-then-store path; diagnostics are returned, a compiler fault still stores the source | Every write the new capability makes, including seed install |
-| `EditorEndpoint` | Listing, editor form, history, revision, diff, delete, scrub and seed restore; `/edit` is behind the `Editor` policy | The views, wording, confirmations and tests to port; its scrub code moves and the rest is deleted |
+| `EditorEndpoint` | Listing, editor form, history, revision, diff, delete, scrub, seed install and revision restore; `/edit` is behind the `Editor` policy | The views, wording, confirmations and tests to port; its scrub code moves and the rest is deleted |
 | `PageAssetSeeder` | `SeedPaths`, `ReadSeedTemplateAsync`, `SeedAsync`; seeds are flat files under `Pages/Seeds` | The seed list and the source the page installs and the emergency restore uses |
 | `/pages` seed | A guarded listing of `IPageCatalog`, a source/history view and a `?page=`/`?rev=` pair; links to `/edit` | The page editor grows from it; it is the one stored page with the new capability |
 | `/editor.js` and `/editor.css` | A native module for the line gutter, caret and diagnostic links; a sheet for the editor and page tables | Loaded by `/pages` with `ctx.AllowScripts()` and `IPageLayout.AddStylesheet` |
 | `PageEntry` / `IPageReadStore` | `PageEntry` marks deleted, reserved, HTML and asset; it has no compile state | The listing's `State` comes from the read store's image columns, without a second read |
-| `ReservedPaths` / `ShellRoutes` | `/edit` is reserved and described; the shell-route table is pinned to the reserved list both ways | `/edit` leaves both lists, so it is an ordinary missing page; `/admin/restore` and `/admin/scrub` are added in the same change |
-| `SiteNavigation` / `AdminNavigation` | Both point at `/edit`; `/status` carries the site menu | The owner's "Pages" link moves to `/pages`; `/admin` gains "Restore seeds"; `/status` links the emergency route |
+| `ReservedPaths` / `ShellRoutes` | `/edit` is reserved and described; `/admin/restore` and `/admin/changes` are reserved too; the shell-route table is pinned to the reserved list both ways | `/edit` leaves both lists, so it is an ordinary missing page; `/admin/scrub` joins them, and the routes already there stay |
+| `SiteNavigation` / `AdminNavigation` | The site menu points at `/edit`; `/admin` already carries "Restore seeds"; `/status` already links `/admin/restore` | The owner's "Pages" link moves to `/pages`; the recovery links stay as they are |
 | `PageEndpoint` / `PageChain` | Builds the capabilities for each layer; the content layer gets the writer, a layout does not | Adds the scoped editor and registers `IPageEditor` only for `/pages` |
-| `Revision restore` plan | Drafted; the editor's restore and seed-install actions are shell views with a diff and a confirmation | The page copies the same diff-and-confirm rule, or ports it when that work lands first |
+| Revision restore (ARCH-07, landed) | The shell editor confirms a revision or a seed install with a diff and saves the chosen source; the assistant has `list_revisions`, `read_revision` and `restore_revision` | The page ports the same diff-and-confirm rule and the same refusals |
 
 ## Decisions
 
@@ -174,8 +175,8 @@ The scope then checks what the handle cannot:
 - a delete of `/pages` itself is refused, so the ordinary editor cannot tombstone the editor by
   accident. A broken `/pages` is recovered by `/admin/restore`, not by the page's own delete button.
 
-The assistant's `PagePathPolicy` is not reused for the owner: its protected list exists to stop the
-assistant, and the owner edits exactly those pages.
+The assistant's `PagePathPolicy` is not reused for the owner: its writable prefix and its shell-file
+rule exist to stop the assistant, and the owner edits exactly those pages.
 
 ### D4 — A save is conditional, and stale text is preserved
 
@@ -234,8 +235,8 @@ for one property.
 
 ### D7 — Scrub stays a shell route
 
-Permanently removing history is not editing. `/edit/{path}?cmd=scrub` becomes
-`/admin/scrub/{path}`: the same GET confirmation, the same typed key, the same POST, behind the
+Permanently removing history is not editing. `/edit/{**path}?cmd=scrub` becomes
+`/admin/scrub/{**path}`: the same GET confirmation, the same typed key, the same POST, behind the
 `Editor` policy and antiforgery. It is reserved, described in `ShellRoutes`, and linked from a
 deleted row on `/pages` rather than offered as a page action. The code moves out of `EditorEndpoint`
 without changing what it does, except that its POST answers with its own result and a link to
@@ -256,7 +257,7 @@ form body.
 page, with the guard that page writes for itself. The assistant may write it too; that is the same
 trade every other stored page already has (ARCH-15).
 
-The destructive scrub action is not left to a missing key: it moves to `/admin/scrub/{path}` before
+The destructive scrub action is not left to a missing key: it moves to `/admin/scrub/{**path}` before
 the editor maps are removed, and the deleted-page row on `/pages` links it.
 
 ### D9 — The page answers in place
@@ -272,21 +273,26 @@ the editor maps are removed, and the deleted-page row on `/pages` links it.
 `PageEndpoint` already refuses an authenticated `POST` without a valid antiforgery pair before the
 page runs, so the page's forms carry `ctx.AntiforgeryField` and rely on the host check.
 
-### D10 — IDEA-028 is the recovery path and ships first
+### D10 — IDEA-028 is the recovery path, and it is live
 
-The new `/admin/restore` shell page installs every seed, including `/pages`, `/editor.js`,
-`/editor.css` and `/_layout`, from the bundled source. It is reserved, behind the `Editor` policy,
-and links from `/admin` and `/status`. It does not delete non-seed pages and does not scrub history.
-This plan must not remove `/edit` before IDEA-028 has landed; if the emergency page slips, Phase 4
-waits and the shell editor remains in place. There is no redirect fallback once it goes.
+`/admin/restore` installs every seed, including `/pages`, `/editor.js`, `/editor.css` and
+`/_layout`, from the bundled source. It is reserved, behind the `Editor` policy, and linked from
+`/admin` and `/status`. It does not delete non-seed pages and does not scrub history. The page draws
+its own document and loads no stylesheet or script, because the shell's document always links
+`/site.css` and one rule there would hide the page that can repair it (DEC-256).
+
+It landed on 2026-11-13, so Phase 4 no longer waits for it and there is no redirect fallback once
+`/edit` goes.
 
 ### D11 — One seed helper, one saver
 
-`PageAssetSeeder` already knows how to read a bundled seed. A small `PageSeedInstaller` in Web wraps
-`PageAssetSeeder` and `PageEditor` with the comparison and save rule, and both the page capability
-and `/admin/restore` use it. The page calls the capability; the shell endpoint calls the helper
-directly. The helper returns per-key outcomes so both views can say "current", "saved", "saved with
-errors" or "failed".
+`PageAssetSeeder` knows how to read a bundled seed, and `/admin/restore` already owns the rest of
+the rule: `RestoreEndpoint.PlanAsync` compares every seed with the live head, so the preview can say
+`current`, `changed`, `missing` or `deleted`, and its POST saves each one that differs and reports
+`restored`, `saved with errors`, `failed` or `unchanged`. That comparison and both vocabularies move
+into a small `PageSeedInstaller` in `Pages`; the page capability and `RestoreEndpoint` both call it,
+and the restore keeps its preview and summary. There is then one rule for "does this seed differ" and
+one for "what happened", not two.
 
 There is no batch store in the emergency path and no new insert path in the capability. Sequential
 saves through `PageSaver` are the correct scale for the seeds the site ships, and a partial result is
@@ -397,7 +403,7 @@ otherwise.
 - Every addressable live page: **Edit** (`?edit=`), **History** (`?page=`), **View** (the page URL).
 - A seeded page: **Install from seed** (`?edit=&cmd=install`), disabled when the live source already
   matches.
-- A tombstone: **Recreate** (`?edit=`), **History**, **Scrub history** (`/admin/scrub/{path}`).
+- A tombstone: **Recreate** (`?edit=`), **History**, **Scrub history** (`/admin/scrub/{**path}`).
 - The create/open form posts `cmd=new` to `/pages`; an unaddressable or reserved key is refused
   before any redirect.
 - The editor page's own row still offers Edit and History; it does not offer Delete.
@@ -408,29 +414,29 @@ otherwise.
 
 - `Program.cs` removes the `/edit` and `/edit/{**path}` maps. There is no replacement mapping: the
   page catch-all `{**path}` answers those URLs, and with no page stored at the key the ordinary
-  missing-page path gives `404`. It adds `GET`/`POST /admin/restore` and
-  `GET`/`POST /admin/scrub/{**path}` behind the `Editor` policy, with antiforgery metadata on the
-  POST routes.
+  missing-page path gives `404`. It adds `GET`/`POST /admin/scrub/{**path}` behind the `Editor`
+  policy, with antiforgery metadata on the POST route; `/admin/restore` is already mapped by
+  IDEA-028.
 - `EditorEndpoint` is deleted rather than reduced to redirects. Its scrub code moves to
   `ScrubEndpoint`; its views, flash, save, history, revision and diff code go.
-- `/admin/restore` is the IDEA-028 endpoint. It uses `ShellDocument`, `AdminNavigation`, the seed
-  helper and `PageEditor`, not the page pipeline.
+- `/admin/restore` is the IDEA-028 endpoint. It draws its own plain document, calls the seed helper
+  and `PageEditor`, and never touches the page pipeline.
 
 ### Reserved paths and shell records
 
-`ReservedPaths.Default` gains `/admin/restore` and `/admin/scrub` and loses `/edit`.
-`ShellRoutes.All` gains a record for each new route and loses the `/edit` record; `ShellRoutesTests`
-keeps the table and the reserved list equivalent in both directions. `ReservedPathsTests` grows the
-new prefixes, proves `/edit` and `/edit/anything` are no longer reserved, and keeps `/pages`
-unreserved, because it is a stored page.
+`ReservedPaths.Default` gains `/admin/scrub` and loses `/edit`; `/admin/restore` and `/admin/changes`
+are already there. `ShellRoutes.All` gains the scrub record and loses the `/edit` record;
+`ShellRoutesTests` keeps the table and the reserved list equivalent in both directions.
+`ReservedPathsTests` grows the new prefix, proves `/edit` and `/edit/anything` are no longer
+reserved, and keeps `/pages` unreserved, because it is a stored page.
 
 ### Navigation and links
 
 - `SiteNavigation.Links` points "Pages" at `/pages` and marks it active under `/pages`.
-- `AdminNavigation.Nav` points "Page list" at `/pages` and adds "Restore seeds" at
-  `/admin/restore`; its current-view token for the new page is `restore`.
-- `StatusEndpoint` adds a `Restore seeded pages` link beside the status heading, because `/status`
-  is the bootstrap view that answers when `/pages` does not.
+- `AdminNavigation.Nav` points "Page list" at `/pages`; "Restore seeds" and "Changelist" are already
+  there.
+- `StatusEndpoint` already links `/admin/restore`; the link stays, because `/status` is the bootstrap
+  view that answers when `/pages` does not.
 - `LocalRedirect.Safe` falls back to `/pages`; the login cancellation link, `ErrorMessage`'s
   remedies, the import and export views, the assistant views and the memory page point at `/pages`.
 - `_layout`, `/help`, `/scratch`, `/recent` and `/pages` itself replace every `/edit` link with the
@@ -439,18 +445,18 @@ unreserved, because it is a stored page.
 
 ## The emergency restore, as this plan's prerequisite
 
-[IDEA-028](../jobs/README.md#closed) is its own job with its own tests. This plan depends on its
-behaviour, not its code shape:
+[IDEA-028](../jobs/README.md#closed) landed on 2026-11-13 with its own tests. This plan depends on its
+behaviour, and on one piece of its code:
 
 - `GET /admin/restore` lists every seed with current/changed/missing/deleted and one POST button.
 - `POST /admin/restore` installs every changed, missing or tombstoned seed through the ordinary
   saver, skips matches, leaves non-seeds untouched and reports per-key outcomes.
-- It is reserved, behind `Editor`, antiforgery-checked and linked from `/admin` and `/status`.
+- It is reserved, behind `Editor`, antiforgery-checked, linked from `/admin` and `/status`, and
+  draws a plain document that loads no seeded asset.
 - It can repair a `/pages` that no longer compiles, a `/_layout` that was deleted, and a broken
   `/editor.js` or `/editor.css`.
-
-If IDEA-028 has not shipped, Phase 4 does not start: the shell editor stays in place until the
-emergency page is live. There is no redirect fallback to write first.
+- Its `PlanAsync` and its state/outcome records are the seed comparison this plan extracts into
+  `PageSeedInstaller` (D11). Phase 2 does that extraction; Phase 4 no longer waits for anything.
 
 ## What this touches
 
@@ -465,14 +471,14 @@ emergency page is live. There is no redirect fallback to write first.
 | `src/uk.osric.asp.Web/Pages/PageEndpoint.cs` | Takes the scoped `PageEditor` and passes it to the chain |
 | `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs` | Maps the read head's image columns to `PageEntry.State` and `.StateClass`; takes the runtime id |
 | `src/uk.osric.asp.Web/Pages/IPageReadStore.cs`, `SqlitePageReadStore.cs` | `PageReadHead` carries `RuntimeId`, `HasImage`, `HasDiagnostics`; the listing query selects them |
-| `src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs` | New: compare-and-save shared by the capability and `/admin/restore` |
+| `src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs` | New: the comparison and outcome rule extracted from `RestoreEndpoint.PlanAsync`, shared by the capability and the restore |
 | `src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs` | Remains the file reader; the helper owns comparison and outcome, not the seeder |
 | `src/uk.osric.asp.Web/Editor/PageEditor.cs` | Its conditional save delegates to the singleton `PageSaver`; the capability no longer needs a scoped store for a save |
 | `src/uk.osric.asp.Web/Editor/PageSaver.cs` | New `SaveIfRevisionAsync`: compile, conditional store, diagnostics and metrics, with the render's deadline bounding only the compile-slot wait |
 | `src/uk.osric.asp.Web/Pages/IPageRevisionStore.cs`, `SqlitePageRevisionStore.cs` | A conditional save on its own context, sharing the head check with `SqlitePageStore.TrySavePageAsync` |
 | `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` | Deleted; its scrub code moves to `Admin/ScrubEndpoint`, and its views, flash and save go |
 | `src/uk.osric.asp.Web/Admin/ScrubEndpoint.cs` | New: the moved GET confirmation and POST, `/admin/scrub/{**path}` |
-| `src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs` | IDEA-028: the preview and the one-button restore (landed) |
+| `src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs` | IDEA-028, landed: the preview and the one-button restore; this plan moves its comparison into the helper and leaves its views alone |
 | `src/uk.osric.asp.Web/Program.cs` | Remove the `/edit` maps; add scrub and emergency restore |
 | `src/uk.osric.asp.Web/Pages/ReservedPaths.cs`, `Assistant/ShellRoutes.cs` | `/admin/restore` and `/admin/scrub` are added; `/edit` leaves both lists |
 | `src/uk.osric.asp.Web/Http/PageUrls.cs` | `/pages?edit=`, `?page=`, `?rev=`, `?from=&to=`, the confirmations, `/admin/scrub` and `/admin/restore`; the editor URL helpers go |
@@ -483,17 +489,17 @@ emergency page is live. There is no redirect fallback to write first.
 | `src/uk.osric.asp.Web/Pages/Seeds/editor.js` | The caret key includes the edited path; no other behaviour change |
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | The editor section, the recovery section and every `/edit` link |
 | `src/uk.osric.asp.Web/Pages/Seeds/_layout`, `scratch`, `recent` | Every `/edit` link becomes the matching `/pages` URL |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The shell-file sentence, the editor vocabulary and a prompt-version bump (the revision-restore plan already claims `v22` if it lands first) |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The shell-file sentence and the editor vocabulary; `Version` moves from whatever trunk holds when this lands (`page-author-v24` today) |
 | `test/uk.osric.asp.Web.Tests/PageEditorScopeTests.cs` | New: the authority table, stale save, delete, restore, install and seed paths |
 | `test/uk.osric.asp.Web.Tests/PageLayoutChainTests.cs` | The capability is present on `/pages` and absent on a layout and another page |
 | `test/uk.osric.asp.Web.Tests/PageCatalogScopeTests.cs`, `SqlitePageReadStoreTests.cs` | State and class from the image columns; no extra read |
 | `test/uk.osric.asp.Web.Tests/EditorEndpointTests.cs` | Deleted; the view, save, history and diff tests move to the page suite |
 | `test/uk.osric.asp.Web.Tests/ScrubEndpointTests.cs` | New: the moved confirmation, typed key and refusals |
-| `test/uk.osric.asp.Web.Tests/RestoreEndpointTests.cs` | IDEA-028: preview, one-button restore, no-op, non-seed, failure (landed) |
+| `test/uk.osric.asp.Web.Tests/RestoreEndpointTests.cs` | IDEA-028, landed: preview, one-button restore, no-op, non-seed, failure; the extraction keeps them passing |
 | `test/uk.osric.asp.Web.Tests/ShellRoutesTests.cs`, `ReservedPathsTests.cs`, `SiteNavigationTests.cs` | The new routes, `/edit` and `/pages` both unreserved, and the owner links |
 | `test/uk.osric.asp.Web.Tests/PageAssetSeederTests.cs` | The closed seed list still matches; `/pages` names `IPageEditor` and `/help` names `/pages` |
 | `test/uk.osric.asp.Web.IntegrationTests/PageEditorTests.cs` | New: the full `/pages` round trip and the stale `409` |
-| `test/uk.osric.asp.Web.IntegrationTests/SeedRestoreTests.cs` | New: a broken `/pages` is recovered by one POST |
+| `test/uk.osric.asp.Web.IntegrationTests/RestoreEndpointTests.cs` | IDEA-028, landed: a broken `/pages`, sheet, module or layout comes back on one POST |
 | `test/uk.osric.asp.Web.IntegrationTests/EditorEndpointTests.cs`, `EditorAuthenticationTests.cs` | `/edit` is a `404` and becomes a page when one is stored; login and the `/pages` guard |
 | `test/uk.osric.asp.Web.BrowserTests/EditorFlowTests.cs`, `EditorBrowserTests.cs` | The same flows from `/pages?edit=`, including the gutter, caret and diagnostic link |
 | `docs/pages.md` | A tenth capability, the read state, the editor page and its URL |
@@ -505,15 +511,11 @@ emergency page is live. There is no redirect fallback to write first.
 
 ## Phases
 
-### Phase 0 — IDEA-028 ships first
+### Phase 0 — IDEA-028 (landed 2026-11-13)
 
-Implement the emergency restore as its own change: the route, the seed helper, the preview, the
-POST, the reserved and shell-route records, the `/status` and `/admin` links, and its tests.
-
-**Done when** a signed-in owner can open `/admin/restore`, see every seed's state, press one button,
-and get a summary that says what was written; a `/pages` saved into a compile error, a deleted
-`/_layout` and a broken `/editor.js` each come back on the next request; a non-seed page is
-unchanged; an anonymous GET and a POST without antiforgery write nothing.
+The emergency restore is live: `/admin/restore`, its reserved and shell-route record, the `/status`
+and `/admin` links, and its unit and integration tests. Its comparison and outcome records are the
+seed rule Phase 2 extracts (D11).
 
 ### Phase 1 — the read state
 
@@ -549,7 +551,7 @@ gutter and caret still work; the seeded page compiles and its tests pass.
 
 ### Phase 4 — the shell stops being the editor
 
-Move scrub to `/admin/scrub/{path}`, point the navigation and every link at `/pages`, remove the
+Move scrub to `/admin/scrub/{**path}`, point the navigation and every link at `/pages`, remove the
 `/edit` maps, and remove `/edit` from `ReservedPaths.Default` and `ShellRoutes.All`. Delete
 `EditorEndpoint` and the old editor views. This phase starts only after Phase 0 has shipped.
 
@@ -587,8 +589,8 @@ manual's editor section matches the page's actions and refusals.
 - `PageAssetSeederTests`: the seed list is unchanged; `/pages` names `IPageEditor` and
   `IPageCatalog`; `/help` names `/pages`, `/admin/restore` and `/admin/scrub`.
 - `ScrubEndpointTests`: the moved GET, typed confirmation, wrong key, live page and missing page.
-- `SeedRestoreEndpointTests`: preview states; restore changed, missing and tombstoned; skip matching
-  and non-seed; one failure does not stop; summary counts.
+- `RestoreEndpointTests` (landed): preview states; restore changed, missing and tombstoned; skip
+  matching and non-seed; one failure does not stop; summary counts.
 - `ShellRoutesTests` / `ReservedPathsTests` / `SiteNavigationTests`: new routes, `/edit` and `/pages`
   both unreserved, owner links.
 
@@ -597,7 +599,7 @@ manual's editor section matches the page's actions and refusals.
 - `PageEditorTests`: a signed-in owner lists, opens, saves, saves-and-views, sees a compile error,
   compares revisions, restores one, installs a seed, deletes and recreates; an anonymous visitor is
   redirected; a stale save is `409` and the submitted text is present.
-- `SeedRestoreTests`: `/pages` saved into a compile error is recovered by one POST to
+- `RestoreEndpointTests` (landed): `/pages` saved into a compile error is recovered by one POST to
   `/admin/restore`; a deleted `/_layout` and a broken `/editor.js` recover; a non-seed page stays.
 - `EditorAuthenticationTests`: `/pages?edit=` redirects an anonymous visitor to sign-in and writes
   nothing on an anonymous POST.
@@ -638,13 +640,13 @@ proved by behaviour, not by a browser test that restates the markup.
 | Risk | Mitigation |
 | --- | --- |
 | A stored page gains arbitrary write authority | `IPageEditor` is registered only for `/pages`; reserved keys refused; a layout never sees it; a `HEAD` and an anonymous render get no writable handle; one action per render |
-| The editor page saves itself into a compile error and the owner is locked out | `/admin/restore` ships first and restores `/pages`, `/editor.css`, `/editor.js` and `/_layout`; `/status` links it |
+| The editor page saves itself into a compile error and the owner is locked out | `/admin/restore` is live and restores `/pages`, `/editor.css`, `/editor.js` and `/_layout`; `/status` links it |
 | The editor page deletes itself and the owner is locked out | The capability refuses a delete of `/pages`; the row has no Delete; recovery is still available |
 | A stale tab overwrites a newer save | Conditional save with the rendered hash; `409` with the submitted text and the current source |
 | `/edit` disappears from a bookmark and an open tab | Accepted: there is no redirect, and the URL is a `404` until a page is stored there. The editor is `/pages`, and `/admin/restore` covers a broken editor |
 | `/edit` becomes a free page key and the assistant can write it | Intentional; it is an ordinary stored page the assistant may write, like every other (ARCH-15). A guarded page is the only way to close it |
 | The page editor loses the compile-state column | `PageEntry.State` and `.StateClass` are part of the read contract; the listing test proves the same words |
-| Scrub is lost with the shell editor | It moves unchanged to `/admin/scrub/{path}` and is linked from tombstones |
+| Scrub is lost with the shell editor | It moves unchanged to `/admin/scrub/{**path}` and is linked from tombstones |
 | Two save paths drift | The conditional algorithm moves to `PageSaver`, `PageEditor` delegates to it, and the seed helper shares the comparison and save rule with the emergency page |
 | The Sdk change recompiles every stored image | That is the normal cost of an Sdk change (DEC-26); one deliberate release, with the new public API updated and the seed tests passing |
 | A shell route and its reserved key drift | `ShellRoutesTests` pins both directions; `/admin/restore` and `/admin/scrub` land with their records |
@@ -652,12 +654,12 @@ proved by behaviour, not by a browser test that restates the markup.
 
 ## Open questions
 
-- **Scrub.** The plan keeps it shell at `/admin/scrub/{path}`. Whether the page should own the typed
+- **Scrub.** The plan keeps it shell at `/admin/scrub/{**path}`. Whether the page should own the typed
   confirmation, and whether it should be a fourth page action, is a decision for after the editor has
   run for a release.
 - **A future `/edit` page.** The key is free after this change, but what it should become — a
   redirect page, a landing page that points at `/pages`, or something else — is for whoever writes
   it. This plan deliberately leaves it empty and `404`.
 - **The seed count.** The emergency restore is sequential because the shipped seed list is small. If
-  it grows enough for a single POST to be slow, the batch store is the next place to look; it is not
-  part of this plan.
+  it grows enough for a single POST to be slow — it ships seventeen seeds today — the batch store is
+  the next place to look; it is not part of this plan.
