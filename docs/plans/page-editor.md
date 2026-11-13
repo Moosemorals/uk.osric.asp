@@ -476,7 +476,7 @@ behaviour, and on one piece of its code:
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Sdk/IPageEditor.cs` | New: the named-key capability, its `Resolve`, `SeedPaths`, `SaveAsync`, `DeleteAsync`, `RestoreRevisionAsync` and `InstallSeedAsync` |
+| `src/uk.osric.asp.Sdk/IPageEditor.cs` | New: the named-key capability, its `Resolve`, `SeedPaths`, `SeedSourceAsync`, `SaveAsync`, `DeleteAsync`, `RestoreRevisionAsync` and `InstallSeedAsync` |
 | `src/uk.osric.asp.Sdk/PageEditResult.cs` | New: `PageEditOutcome` (`Saved`, `Stale`, `Unchanged`) and `PageEditResult` (`Outcome`, `Hash`, `Diagnostics`); `PageKeyResolution` and `PageDeleteResult` in their own files |
 | `src/uk.osric.asp.Sdk/PageEntry.cs` | `State`, set by the host; the positional constructor stays |
 | `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | The new types and members |
@@ -564,11 +564,27 @@ layout and a non-editor page do not get the capability; an anonymous render comp
 nothing; `PageSaverTests`, `SqlitePageRevisionStoreTests` and `PageEditorTests` prove the conditional
 save still has one algorithm; the Sdk public API is updated and the tests still pass.
 
-### Phase 3 — the page
+### Phase 3 — the page (landed 2026-11-13)
 
 Rewrite `Pages/Seeds/pages` as the listing and editor, load `/editor.css` and `/editor.js`, opt into
 scripts, add the confirmations, diff and history, and update `editor.js`'s caret key. Move the view
 tests into the page suite and add the browser round trip.
+
+Landed: the page is the listing, the editor, the source-and-history view, the revision view, the diff
+and the three confirmations, one action per request. It names itself — every URL is built from
+`ctx.Path`, so `Pages:Editor:Key` can move the editor without editing the page — and it writes every
+value through `ctx.Write`, never a raw interpolation of stored source. `IPageEditor.SeedSourceAsync`
+joined the capability because the install confirmation needs the bundled source to diff against and a
+page has no other way to read it. The request is dispatched by one small function per action
+(`NewPageAsync`, `SavePageAsync`, `PostActionAsync`, `OpenEditorAsync`, `OpenReadAsync`) rather than a
+200-line chain; each sets `stage`, and the markup below switches on it. `editor.js` keys the caret on
+the `edit` query value, so two tabs on two pages keep two carets. `/help` teaches `?edit=`, the
+confirmations and `IPageEditor` in the same change.
+
+**Done when** `PageEditorPageTests` proves the listing's groups, the editor's source and head hash,
+a save, a `409` that keeps the text, a save with an error, save-and-view's redirect, delete, history
+and restore links, the diff, the install confirmation, the restore action, the shell-file refusal,
+the anonymous redirect, the create form and a page stored at a key other than `/pages`.
 
 **Done when** a signed-in owner creates, opens, edits, saves, saves-and-views, sees diagnostics and
 history, compares two revisions, deletes and recreates, restores a revision and installs a seed from

@@ -4,7 +4,10 @@
 const textarea = document.getElementById('template');
 const gutter = document.getElementById('gutter');
 const editor = document.querySelector('.editor');
-const storageKey = `editor:caret:${location.pathname}`;
+// One page holds every editor, so the caret is keyed on the page being edited rather than on the
+// URL the form happens to live at: two tabs on different pages keep two carets.
+const edited = new URLSearchParams(location.search).get('edit');
+const storageKey = `editor:caret:${edited ?? location.pathname}`;
 
 // The textarea value sanitiser has already replaced CR and CRLF with LF, so LF is the only break.
 const lines = () => textarea.value.split('\n').length;

@@ -93,7 +93,7 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("IPageLayout").And.Contain("Title = \"Help\""));
         Assert.That(template, Does.Contain("<h1>Help</h1>"));
         Assert.That(template, Does.Contain("id=\"layout\"").And.Contain("id=\"syntax\"").And.Contain("id=\"context\""));
-        Assert.That(template, Does.Contain("href=\"/edit/help\""));
+        Assert.That(template, Does.Contain("href=\"/pages?edit=/help\""));
     }
 
     [Test]
@@ -143,9 +143,10 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
         Assert.That(template, Does.Contain("<h1>Pages</h1>"));
-        Assert.That(template, Does.Contain("IPageCatalog"));
         Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }"));
-        Assert.That(template, Does.Contain("href=\"/recent\""));
+        Assert.That(template, Does.Contain("IPageEditor").And.Contain("IPageCatalog").And.Contain("IDiffRenderer"));
+        Assert.That(template, Does.Contain("ctx.AllowScripts()"));
+        Assert.That(template, Does.Contain("ctx.AntiforgeryField"), "every form is checked by the host");
     }
 
     [Test]

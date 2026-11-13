@@ -27,6 +27,10 @@ internal sealed class FakePageReadStore : IPageReadStore {
     /// <param name="key">The page's canonical key.</param>
     /// <param name="template">The template text.</param>
     /// <param name="savedAt">The revision's time; the store's own clock is used when omitted.</param>
+    /// <param name="hash">
+    /// The revision's hash, when a test needs the catalog to agree with another store about it; the
+    /// store invents one from the key and position otherwise.
+    /// </param>
     /// <returns>The revision's hash.</returns>
     public string Save(
         string key,
@@ -35,7 +39,8 @@ internal sealed class FakePageReadStore : IPageReadStore {
         bool? templateHasCode = null,
         string? runtimeId = null,
         bool hasImage = false,
-        bool hasDiagnostics = false) {
+        bool hasDiagnostics = false,
+        string? hash = null) {
         DateTimeOffset when = savedAt ?? _clock.AddMinutes(1);
         _clock = when > _clock ? when : _clock;
 
@@ -43,7 +48,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
             revisions = _pages[key] = [];
         }
 
-        string hash = "hash-" + revisions.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-" + key;
+        hash ??= "hash-" + revisions.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-" + key;
         revisions.Add(new FakeRevision(hash, when, template, templateHasCode, runtimeId, hasImage, hasDiagnostics));
 
         return hash;

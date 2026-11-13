@@ -37,6 +37,17 @@ public interface IPageEditor {
     /// <summary>The pages the release ships with, as keys.</summary>
     IReadOnlyList<string> SeedPaths();
 
+    /// <summary>Reads the source this release ships for a seed.</summary>
+    /// <param name="key">The page's key; normalised before it is read.</param>
+    /// <returns>The bundled source, or <see langword="null"/> when the release ships no seed for that key.</returns>
+    /// <remarks>
+    /// A read, so it needs no signed-in visitor and is not the render's one action: a confirmation
+    /// shows the diff between this and the live source, which is the one thing a page cannot read for
+    /// itself. Reading it never grants a write — <see cref="InstallSeedAsync"/> decides that.
+    /// </remarks>
+    /// <exception cref="ArgumentException">The key cannot name a page.</exception>
+    Task<string?> SeedSourceAsync(string key);
+
     /// <summary>Saves a page, only while its head still has the expected revision.</summary>
     /// <param name="key">The page's key; normalised and checked.</param>
     /// <param name="template">The template text.</param>

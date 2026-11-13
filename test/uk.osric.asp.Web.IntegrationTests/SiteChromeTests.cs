@@ -97,7 +97,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         Assert.That(body, Does.Contain("<title>Help</title>"));
         Assert.That(body, Does.Contain("<h1>Help</h1>"));
         Assert.That(body, Does.Contain("id=\"layout\"").And.Contain("id=\"keeping-current\""));
-        Assert.That(body, Does.Contain("href=\"/edit/help\""));
+        Assert.That(body, Does.Contain("href=\"/pages?edit=/help\""));
     }
 
     [Test]

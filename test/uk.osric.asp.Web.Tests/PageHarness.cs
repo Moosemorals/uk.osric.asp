@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using uk.osric.asp.Core.Pages;
@@ -52,6 +53,7 @@ internal sealed class PageHarness : IDisposable {
         Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
         Metrics = new PageMetrics();
 
+        Storage = storage;
         Images = new PageImageBuilder(Compiler, Budget, Metrics, NullLogger<PageImageBuilder>.Instance);
         Revisions = revisionStore ?? new FakePageRevisionStore(storage);
         Saver = new PageSaver(Revisions, Images, Metrics, NullLogger<PageSaver>.Instance);
@@ -67,6 +69,9 @@ internal sealed class PageHarness : IDisposable {
     }
 
     public RenderOptions Options { get; }
+
+    /// <summary>Where every save in this harness is written.</summary>
+    public FakePageStore Storage { get; }
 
     /// <summary>The page state every render in this harness shares.</summary>
     public FakePageStateStore State { get; }
@@ -217,6 +222,39 @@ internal sealed class PageHarness : IDisposable {
             ContentTypes,
             maxBodyChars,
             user);
+    }
+
+    /// <summary>Builds the environment the page endpoint renders against, as the host wires it.</summary>
+    /// <param name="antiforgery">The token source the render mints its form field from.</param>
+    /// <param name="editor">The key offered the editor capability; the default is `/pages`.</param>
+    /// <param name="layout">The layout every code page is wrapped in.</param>
+    /// <returns>The environment, sharing this harness's stores, budget and meters.</returns>
+    public PageEnvironment CreateEnvironment(
+        IAntiforgery antiforgery,
+        PageEditorOptions? editor = null,
+        string layout = "/_layout") {
+        ArgumentNullException.ThrowIfNull(antiforgery);
+
+        return new PageEnvironment(
+            new ReservedPaths(ReservedPaths.Default),
+            editor ?? new PageEditorOptions(),
+            new PageLayoutConfiguration { Default = layout },
+            Options,
+            ContentTypes,
+            StorageOptions,
+            FetchOptions,
+            ReadOptions,
+            State,
+            ReadStore,
+            Saver,
+            Fetch,
+            Metrics,
+            antiforgery,
+            Markdown,
+            Diff,
+            new PageSessionOptions(),
+            Sessions,
+            TestSessions.Cookie);
     }
 
     // The timeout tests measure the page, not the compiler: a page compiled on its first request

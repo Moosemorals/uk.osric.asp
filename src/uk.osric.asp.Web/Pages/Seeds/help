@@ -1,7 +1,7 @@
 <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Help"; %>
 <h1>Help</h1>
 <p>This is the author manual. It is itself a stored page, so logged in users
-can improve it at <a href="/edit/help">/edit/help</a>.</p>
+can improve it at <a href="/pages?edit=/help">/pages?edit=/help</a>.</p>
 
 <nav aria-label="Help contents">
     <h2>Contents</h2>
@@ -24,8 +24,13 @@ can improve it at <a href="/edit/help">/edit/help</a>.</p>
 </nav>
 
 <h2 id="editor">The editor</h2>
-<p>The editor is at <a href="/edit">/edit</a>. The page list has a form to create or open a page by
-its path, and every live and deleted page has its own editor at <code>/edit/&lt;path&gt;</code>.</p>
+<p>The editor is <a href="/pages">/pages</a>. The page list has a form to create or open a page by
+its path, and every live and deleted page has its own editor at
+<code>/pages?edit=&lt;path&gt;</code>. History, the diff and the three confirmations are the same
+page, so a bookmark is a query value rather than a route:
+<code>?page=&lt;path&gt;</code> shows the source and history, <code>?edit=&lt;path&gt;&amp;cmd=delete</code>
+confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a seed install, and
+<code>?page=&lt;path&gt;&amp;rev=&lt;hash&gt;&amp;cmd=restore</code> confirms a restore.</p>
 <ul>
     <li><strong>Save</strong> compiles the template and stores the source and the compiled image.
     A page that does not compile is still stored, so you do not lose your work.</li>
@@ -54,7 +59,7 @@ its path, and every live and deleted page has its own editor at <code>/edit/&lt;
     <li>The assistant is available from the editor only when the host enables it.</li>
 </ul>
 <p>Paths are canonical: <code>/About</code>, <code>/about/</code> and <code>/about</code> are the
-same page. A path the site's own routes already answer for, such as <code>/edit</code> or
+same page. A path the site's own routes already answer for, such as <code>/admin/import</code> or
 <code>/login</code>, cannot be created as a page.</p>
 
 <h2 id="fragment">A page with code is a fragment</h2>
@@ -324,6 +329,12 @@ the page runs out of time the revision is still stored, and the next request ser
 add a revision to every page it wraps. The seeded <a href="/scratch">/scratch</a> is the worked
 example — a page that shows its own source, saves it, reports the diagnostics and refuses a form whose
 revision hash has been overtaken.</p>
+<p>A page writes only itself. <code>IPageEditor</code> is the one capability that names another key:
+it resolves a key, saves conditionally, tombstones a page, restores a revision and installs a seed.
+The host offers it to a single page &mdash; the editor, at <code>/pages</code> &mdash; so
+<code>ctx.Capabilities.Get&lt;IPageEditor&gt;()</code> is <code>null</code> everywhere else and no
+stored page can make itself an editor. Treat it as the answer to "how is the editor written", not as
+something your own page may ask for.</p>
 
 <h2 id="markdown">Markdown</h2>
 <p><code>IMarkdownRenderer</code> renders Markdown to HTML. Write its result raw:</p>
@@ -457,7 +468,7 @@ asset held a secret, rotate the secret and clean the external copies separately.
 
 <h2 id="keeping-current">Keeping this page current</h2>
 <p>This page is the seeded page <code>/help</code>. Its source is
-<code>src/uk.osric.asp.Web/Pages/Seeds/help</code>; use <a href="/edit/help">/edit/help</a> to change
+<code>src/uk.osric.asp.Web/Pages/Seeds/help</code>; use <a href="/pages?edit=/help">/pages?edit=/help</a> to change
 it.</p>
 <p>A change that adds or alters what a page author can do should update this page in the same change:
 a new <code>IContext</code> member, capability, layout slot, editor action, content type or response

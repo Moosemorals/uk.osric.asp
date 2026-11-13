@@ -1,96 +1,645 @@
 <%! using System.Collections.Generic; %>
+<%! using System.Linq; %>
+<%! using System.Threading.Tasks; %>
 <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
-<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Pages"; %>
-<h1>Pages</h1>
-<p>Signed in as <%= user.Name %>. This is a demonstration page for the page-store read capability
-(<code>IPageCatalog</code>), and the worked example for the editor's history and revision views
-(<a href="/edit">IDEA-017</a>). Every value below is written with <code>ctx.Write</code>, because page
-source is exactly what a view like this must not run.</p>
-<p><a href="/scratch">Scratch</a> is this read with a write on top: a page that shows and saves its
-own source.</p>
-<p><a href="/recent">Recent changes</a> is the same read without the guard: it lists keys and times,
-this page shows source, and the one line of difference between them is
-<code>if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }</code>.</p>
 <%
+    IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>();
+    IPageEditor editor = ctx.Capabilities.GetRequired<IPageEditor>();
     IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
-    string? requested = ctx.Request.Query.TryGetValue("page", out string? given) ? given : null;
-    string? revisionHash = ctx.Request.Query.TryGetValue("rev", out string? rev) ? rev : null;
+    IDiffRenderer differ = ctx.Capabilities.GetRequired<IDiffRenderer>();
+
+    // Every URL this page links is built here, so a key is escaped in exactly one place. The page
+    // names itself rather than its shipped key: the host decides which key is the editor.
+    string self = ctx.Path;
+    string ReadUrl(string name) => self + "?page=" + System.Uri.EscapeDataString(name);
+    string EditUrl(string name) => self + "?edit=" + System.Uri.EscapeDataString(name);
+    string RevisionUrl(string name, string hash) => ReadUrl(name) + "&rev=" + System.Uri.EscapeDataString(hash);
+    string DeleteUrl(string name) => EditUrl(name) + "&cmd=delete";
+    string InstallUrl(string name) => EditUrl(name) + "&cmd=install";
+    string RestoreUrl(string name, string hash) => RevisionUrl(name, hash) + "&cmd=restore";
+    // Scrub is the shell's until it moves to /admin/scrub: the page has no capability for it.
+    string ScrubUrl(string name) => "/edit" + name + "?cmd=scrub";
+
+    string? One(IReadOnlyDictionary<string, string> values, string name) =>
+        values.TryGetValue(name, out string? value) && !string.IsNullOrWhiteSpace(value) ? value : null;
+
+    static bool IsHash(string? value) =>
+        value is { Length: 64 } && value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+    static string Stamped(System.DateTimeOffset when) =>
+        when.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
+
+    static string DiagnosticText(PageDiagnostic diagnostic) =>
+        (diagnostic.Code.Length > 0 ? diagnostic.Code + ": " : "") + diagnostic.Message;
+
+    bool deleted = false;
+    bool hasKey = false;
+    bool post = string.Equals(ctx.Request.Method, "POST", System.StringComparison.Ordinal);
+    bool viewAfterSave = false;
+
+    int status = 200;
+
+    string key = "";
+    string stage = "listing";
+    string text = "";
+
+    string? command = One(ctx.Request.Form, "cmd") ?? One(ctx.Request.Query, "cmd");
+    string? editText = One(ctx.Request.Query, "edit");
+    string? expected = null;
+    string? fromHash = null;
+    string? notice = null;
+    string? pageText = One(ctx.Request.Query, "page");
+    string? problemText = null;
+    string? problemTitle = null;
+    string? renderedDiff = null;
+    string? seedSource = null;
+    string? toHash = null;
+
+    IReadOnlyList<PageDiagnostic> diagnostics = [];
+    IReadOnlyList<PageEntry> entries = [];
+    IReadOnlyList<PageRevisionInfo> revisions = [];
+
+    PageSource? live = null;
+    PageSource? revision = null;
+
+    void Problem(int code, string title, string detail) {
+        stage = "problem";
+        status = code;
+        problemTitle = title;
+        problemText = detail;
+    }
+
+    void ResolveKey() {
+        if (editText is null && pageText is null) {
+            return;
+        }
+
+        PageKeyResolution resolved = editor.Resolve(editText ?? pageText!);
+        if (!resolved.IsSuccess) {
+            Problem(400, "That is not a page address", resolved.Error ?? "That is not a page address.");
+        } else if (resolved.IsReserved) {
+            Problem(400, "That is a shell file",
+                resolved.Key + " is answered by the site itself, so no page is stored there.");
+        } else {
+            key = resolved.Key!;
+            hasKey = true;
+        }
+    }
+
+    async Task NewPageAsync() {
+        PageKeyResolution created = editor.Resolve(One(ctx.Request.Form, "path") ?? "");
+        if (!created.IsSuccess || created.IsReserved) {
+            Problem(400, "That page name cannot be used",
+                created.Error ?? created.Key + " is answered by the site itself, so no page is stored there. Nothing was created.");
+        } else {
+            ctx.Redirect(EditUrl(created.Key!), 303);
+        }
+    }
+
+    async Task SavePageAsync(bool view) {
+        if (editText is null || !hasKey) {
+            Problem(400, "That save has no page", "Saving posts the editor form, which names the page it edits. Nothing was saved.");
+            return;
+        }
+
+        string? submitted = One(ctx.Request.Form, "template");
+        expected = One(ctx.Request.Form, "expected");
+        if (submitted is null) {
+            Problem(400, "A template is required", "The form carried no template, so nothing was saved.");
+            return;
+        }
+
+        if (expected is null) {
+            Problem(400, "The form was incomplete",
+                "The form did not say which revision it was rendered from, so nothing was saved. Reload the editor and try again.");
+            return;
+        }
+
+        text = submitted;
+        PageEditResult saved = await editor.SaveAsync(key, submitted, expected);
+        diagnostics = saved.Diagnostics;
+        stage = "editor";
+
+        if (saved.Outcome == PageEditOutcome.Stale) {
+            status = 409;
+            live = await catalog.ReadAsync(key);
+            expected = live?.Hash;
+            notice = "The page changed while this form was open, so nothing was saved. Your text is below; "
+                + "the source that was stored instead is beside it. Copy what you want and save again.";
+            return;
+        }
+
+        expected = saved.Hash;
+        notice = saved.HasErrors
+            ? "Saved as revision " + saved.Hash + ", which does not compile: the page will not render until the error is fixed."
+            : saved.HasWarnings
+                ? "Saved as revision " + saved.Hash + ", which compiled with warnings."
+                : "Saved as revision " + saved.Hash + ".";
+        viewAfterSave = view && !saved.HasErrors;
+    }
+
+    async Task PostActionAsync() {
+        if (!hasKey) {
+            Problem(400, "That action needs a page", "The request named no page to act on, so nothing was changed.");
+            return;
+        }
+
+        if (command == "delete") {
+            PageDeleteResult removed = await editor.DeleteAsync(key);
+            stage = "listing";
+            notice = removed.Deleted
+                ? "Deleted " + key + "; revision history is retained."
+                : "That page was already missing.";
+            return;
+        }
+
+        if (command == "install") {
+            expected = One(ctx.Request.Form, "expected");
+            PageEditResult? installed = expected is null ? null : await editor.InstallSeedAsync(key, expected);
+            if (installed is null) {
+                seedSource = await editor.SeedSourceAsync(key);
+                if (seedSource is null) {
+                    Problem(404, "That is not a seeded page", key + " is not one of the pages this release ships, so there is no seed to install.");
+                } else {
+                    Problem(400, "The form was incomplete", "The form did not say which revision it was rendered from, so nothing was installed.");
+                }
+                return;
+            }
+
+            stage = "install";
+            live = await catalog.ReadAsync(key);
+            seedSource = await editor.SeedSourceAsync(key);
+            notice = installed.Outcome switch {
+                PageEditOutcome.Stale => "The page changed while this confirmation was open, so nothing was installed. Compare again and retry.",
+                PageEditOutcome.Unchanged => "Nothing was installed: " + key + " already holds the seed's source.",
+                _ when installed.HasErrors => "Installed the seed as revision " + installed.Hash + ", which does not compile: the page will not render until the error is fixed.",
+                _ when installed.HasWarnings => "Installed the seed as revision " + installed.Hash + ", which compiled with warnings.",
+                _ => "Installed the seed as revision " + installed.Hash + ".",
+            };
+            if (installed.Outcome == PageEditOutcome.Stale) {
+                status = 409;
+            }
+            return;
+        }
+
+        if (command == "restore") {
+            string? hash = One(ctx.Request.Query, "rev");
+            expected = One(ctx.Request.Form, "expected");
+            if (!IsHash(hash)) {
+                Problem(400, "That restore link is not valid",
+                    "A restore link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.");
+                return;
+            }
+
+            if (expected is null) {
+                Problem(400, "The form was incomplete", "The form did not say which revision it was rendered from, so nothing was restored.");
+                return;
+            }
+
+            PageEditResult? restored = await editor.RestoreRevisionAsync(key, hash!, expected);
+            if (restored is null) {
+                Problem(404, "That revision is not on this page", "No revision of " + key + " has that hash, so nothing was restored.");
+                return;
+            }
+
+            stage = "restore";
+            revision = await catalog.ReadRevisionAsync(key, hash!);
+            live = await catalog.ReadAsync(key);
+            notice = restored.Outcome switch {
+                PageEditOutcome.Stale => "The page changed while this confirmation was open, so nothing was restored. Compare again and retry.",
+                PageEditOutcome.Unchanged => "Nothing was restored: the page already holds that revision's source.",
+                _ when restored.HasErrors => "Restored the revision as revision " + restored.Hash + ", which does not compile: the page will not render until the error is fixed.",
+                _ when restored.HasWarnings => "Restored the revision as revision " + restored.Hash + ", which compiled with warnings.",
+                _ => "Restored the revision as revision " + restored.Hash + ".",
+            };
+            if (restored.Outcome == PageEditOutcome.Stale) {
+                status = 409;
+            }
+            return;
+        }
+
+        Problem(400, "The editor could not tell what to do",
+            "That request did not name an action this page understands. Use one of the buttons on the page.");
+    }
+
+    // No command and no key: the page list. A command with no key is a link that lost its page.
+    void BarePath() {
+        if (command is null) {
+            stage = "listing";
+        } else {
+            Problem(400, "That action needs a page", "The page list has no page to act on. Choose a page, or create one with \"Create or open\".");
+        }
+    }
+
+    async Task OpenEditorAsync() {
+        if (command is null) {
+            stage = "editor";
+            revisions = await catalog.RevisionsAsync(key);
+            live = await catalog.ReadAsync(key);
+            deleted = live is null && revisions.Count > 0;
+            text = live?.Source ?? "";
+            expected = live?.Hash;
+            return;
+        }
+
+        if (command == "delete") {
+            stage = "delete";
+            return;
+        }
+
+        if (command == "install") {
+            seedSource = await editor.SeedSourceAsync(key);
+            if (seedSource is null) {
+                Problem(404, "That is not a seeded page",
+                    key + " is not one of the pages this release ships, so there is no seed to install.");
+                return;
+            }
+
+            stage = "install";
+            live = await catalog.ReadAsync(key);
+            expected = live?.Hash;
+            renderedDiff = differ.ToHtml(live?.Source ?? "", seedSource);
+            return;
+        }
+
+        Problem(400, "The editor could not tell what to do", "That request did not name an action this page understands.");
+    }
+
+    async Task OpenReadAsync() {
+        string? hashText = One(ctx.Request.Query, "rev");
+
+        if (command == "restore") {
+            if (!IsHash(hashText)) {
+                Problem(400, "That restore link is not valid",
+                    "A restore link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.");
+                return;
+            }
+
+            revision = await catalog.ReadRevisionAsync(key, hashText!);
+            if (revision is null) {
+                Problem(404, "That revision is not on this page", "No revision of " + key + " has that hash.");
+                return;
+            }
+
+            stage = "restore";
+            live = await catalog.ReadAsync(key);
+            expected = live?.Hash;
+            renderedDiff = differ.ToHtml(live?.Source ?? "", revision.Source);
+            return;
+        }
+
+        if (command is not null) {
+            Problem(400, "The editor could not tell what to do", "That request did not name an action this page understands.");
+            return;
+        }
+
+        if (One(ctx.Request.Query, "from") is not null || One(ctx.Request.Query, "to") is not null) {
+            fromHash = One(ctx.Request.Query, "from");
+            toHash = One(ctx.Request.Query, "to");
+            if (!IsHash(fromHash) || !IsHash(toHash)) {
+                Problem(400, "That comparison link is not valid",
+                    "A comparison link needs two 64-character lowercase hexadecimal hashes, one in from and one in to.");
+                return;
+            }
+
+            PageSource? before = await catalog.ReadRevisionAsync(key, fromHash!);
+            PageSource? after = await catalog.ReadRevisionAsync(key, toHash!);
+            if (before is null || after is null) {
+                Problem(404, "Those revisions are not on this page", "Both hashes must name revisions of " + key + ".");
+                return;
+            }
+
+            stage = "diff";
+            revision = after;
+            renderedDiff = differ.ToHtml(before.Source, after.Source);
+            live = await catalog.ReadAsync(key);
+            return;
+        }
+
+        if (hashText is not null) {
+            if (!IsHash(hashText)) {
+                Problem(400, "That revision link is not valid",
+                    "A revision link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.");
+                return;
+            }
+
+            revision = await catalog.ReadRevisionAsync(key, hashText!);
+            if (revision is null) {
+                Problem(404, "That revision is not on this page", "No revision of " + key + " has that hash.");
+                return;
+            }
+
+            stage = "revision";
+            live = await catalog.ReadAsync(key);
+            return;
+        }
+
+        stage = "read";
+        revisions = await catalog.RevisionsAsync(key);
+        live = await catalog.ReadAsync(key);
+        deleted = live is null && revisions.Count > 0;
+    }
+
+    // One action per request. Which one is a question of the method, the command and whether a key
+    // was named, in that order, and each answer is a function above.
+    if (command == "new") {
+        await NewPageAsync();
+    } else {
+        ResolveKey();
+
+        if (stage == "problem") {
+            // The key was refused: the problem view below says why, and nothing acts on it.
+        } else if (post && command is null or "save" or "save-and-view") {
+            await SavePageAsync(view: command == "save-and-view");
+        } else if (post) {
+            await PostActionAsync();
+        } else if (!hasKey) {
+            BarePath();
+        } else if (editText is not null) {
+            await OpenEditorAsync();
+        } else {
+            await OpenReadAsync();
+        }
+    }
+
+    if (stage == "listing") {
+        entries = await catalog.ListAsync("");
+    }
+
+    if (status != 200) {
+        ctx.SetStatus(status);
+    }
+
+    if (stage is "editor" or "read" or "revision" or "diff" or "install" or "restore") {
+        layout.AddStylesheet("/editor.css");
+    }
+
+    if (stage == "editor") {
+        ctx.AllowScripts();
+    }
+
+    if (viewAfterSave && status == 200) {
+        ctx.Redirect(key, 303);
+        return;
+    }
 %>
-<% if (requested is null) { %>
-<p>Choose a page to read its history and its current source.</p>
-<% IReadOnlyList<PageEntry> entries = await catalog.ListAsync(""); %>
-<table>
-    <caption>Every stored page</caption>
+<% if (stage == "problem") { %>
+<% layout.Title = problemTitle ?? "Pages"; %>
+<h1><%= problemTitle! %></h1>
+<p><%= problemText! %></p>
+<%== PageDocument.Nav("Editor navigation", [new NavLink(self, "Page list")], "editor-menu") %>
+<% } else if (stage == "listing") { %>
+<% layout.Title = "Pages";
+   HashSet<string> seeds = [.. editor.SeedPaths()];
+   string[] headings = ["Live pages", "Seeded pages", "Deleted pages"];
+   string[] empties = ["No live pages.", "No seeded pages.", "No deleted pages."];
+   PageEntry[][] groups = [
+       [.. entries.Where(entry => !entry.IsDeleted && !seeds.Contains(entry.Key))],
+       [.. entries.Where(entry => !entry.IsDeleted && seeds.Contains(entry.Key))],
+       [.. entries.Where(entry => entry.IsDeleted)],
+   ]; %>
+<h1>Pages</h1>
+<% if (notice is not null) { %>
+<p><%= notice %></p>
+<% } %>
+<p>Signed in as <%= user.Name %>. This page reads and writes the page store. Every value below is
+written with <code>ctx.Write</code>, because page source is exactly what a view like this must not
+run.</p>
+<form method="post" action="<%= self %>?cmd=new" class="form">
+    <%== ctx.AntiforgeryField %>
+    <dl>
+        <dt><label for="new-page-path">New page path</label></dt>
+        <dd><input id="new-page-path" name="path" required></dd>
+    </dl>
+    <button type="submit">Create or open</button>
+</form>
+<% for (int index = 0; index < groups.Length; index++) {
+       PageEntry[] rows = groups[index];
+       bool groupDeleted = index == 2; %>
+<h2><%= headings[index] %></h2>
+<% if (rows.Length == 0) { %>
+<p><%= empties[index] %></p>
+<% } else { %>
+<table class="pages">
+    <caption><%= headings[index] %></caption>
     <thead>
-        <tr>
-            <th scope="col">Page</th>
-            <th scope="col">Last saved</th>
-            <th scope="col">Kind</th>
-        </tr>
+        <tr><th scope="col">Page</th><th scope="col">State</th><th scope="col">Actions</th></tr>
     </thead>
     <tbody>
-<% foreach (PageEntry entry in entries) {
-       var marks = new List<string>();
-       if (entry.IsDeleted) { marks.Add("deleted"); }
-       if (entry.IsReserved) { marks.Add("reserved"); }
-       if (entry.IsAsset) { marks.Add("asset"); }
-       string mark = marks.Count == 0 ? "live" : string.Join(", ", marks); %>
+<% foreach (PageEntry entry in rows) { %>
         <tr>
-            <th scope="row"><a href="/pages?page=<%= System.Uri.EscapeDataString(entry.Key) %>"><%= entry.Key %></a></th>
-            <td><time datetime="<%= entry.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture) %>"><%= entry.SavedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) %></time></td>
-            <td><%= mark %></td>
-        </tr>
+<% if (groupDeleted) { %>
+            <th scope="row"><%= entry.Key %></th>
+<% } else { %>
+            <th scope="row"><a href="<%= entry.Key %>"><%= entry.Key %></a></th>
 <% } %>
-    </tbody>
-</table>
+            <td class="page-state"><%= entry.State %></td>
+            <td class="page-actions">
+<% if (entry.IsReserved) { %>
+                <span>unavailable</span>
+<% } else if (groupDeleted) { %>
+                <a href="<%= ReadUrl(entry.Key) %>">History</a>
+                <a href="<%= ScrubUrl(entry.Key) %>">Scrub history</a>
 <% } else {
-       IReadOnlyList<PageRevisionInfo> history = System.Array.Empty<PageRevisionInfo>();
-       PageSource? source = null;
-       string? problem = null;
-       try {
-           history = await catalog.RevisionsAsync(requested);
-           source = revisionHash is null
-               ? await catalog.ReadAsync(requested)
-               : await catalog.ReadRevisionAsync(requested, revisionHash);
-       } catch (System.ArgumentException exception) {
-           problem = exception.Message;
-       }
-%>
-<p><a href="/pages">All pages</a> · <a href="/recent">Recent changes</a></p>
-<% if (problem is not null) { %>
-<p class="error">That is not a page key: <%= problem %></p>
-<% } else { %>
-<h2><%= requested %></h2>
-<p><a href="/edit">Open the editor</a></p>
-<% if (history.Count > 0) { %>
-<h3>History</h3>
-<table>
-    <caption>Saved revisions of <%= requested %>, newest first</caption>
-    <thead>
-        <tr>
-            <th scope="col">Revision</th>
-            <th scope="col">Saved</th>
-            <th scope="col">Current</th>
-        </tr>
-    </thead>
-    <tbody>
-<% foreach (PageRevisionInfo revision in history) { %>
-        <tr>
-            <th scope="row"><a href="/pages?page=<%= System.Uri.EscapeDataString(requested) %>&amp;rev=<%= System.Uri.EscapeDataString(revision.Hash) %>"><code><%= revision.Hash %></code></a></th>
-            <td><time datetime="<%= revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture) %>"><%= revision.SavedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) %></time></td>
-            <td><%= revision.IsCurrent ? "current" : "" %></td>
+       string? seed = seeds.Contains(entry.Key) ? await editor.SeedSourceAsync(entry.Key) : null;
+       PageSource? source = seed is null ? null : await catalog.ReadAsync(entry.Key); %>
+                <a href="<%= EditUrl(entry.Key) %>">Edit</a>
+                <a href="<%= ReadUrl(entry.Key) %>">History</a>
+<% if (!string.Equals(entry.Key, ctx.Path, System.StringComparison.Ordinal)) { %>
+                <a href="<%= DeleteUrl(entry.Key) %>">Delete</a>
+<% } %>
+<% if (seed is not null && !string.Equals(source?.Source, seed, System.StringComparison.Ordinal)) { %>
+                <a href="<%= InstallUrl(entry.Key) %>">Install from seed</a>
+<% } %>
+<% } %>
+            </td>
         </tr>
 <% } %>
     </tbody>
 </table>
-<% } else { %>
+<% } %>
+<% } %>
+<% } else if (stage == "editor") { %>
+<% layout.Title = "Editing " + key;
+   bool isEditorItself = string.Equals(key, ctx.Path, System.StringComparison.Ordinal);
+   List<NavLink> menu = [new(self, "Page list"), new(ReadUrl(key), "History")];
+   if (!isEditorItself) {
+       menu.Add(new(DeleteUrl(key), "Delete"));
+   }
+   if ((await editor.SeedSourceAsync(key)) is not null) {
+       menu.Add(new(InstallUrl(key), "Install from seed"));
+   }
+   menu.Add(new("/help", "Help"));
+   int lines = text.Split('\n').Length; %>
+<h1>Editing <%= key %></h1>
+<% if (notice is not null) { %>
+<p class="notice"><%= notice %></p>
+<% } %>
+<% if (deleted) { %>
+<p><strong><%= key %> was deleted.</strong> Its history is retained, and saving here brings the page
+back and continues that history. Until you save, links to <%= key %> answer &quot;not found&quot;.</p>
+<% } %>
+<% if (live is not null && status == 409) { %>
+<h2>The source that was stored instead</h2>
+<p>Revision <%= live.Hash %>, saved <time datetime="<%= live.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture) %>"><%= Stamped(live.SavedAt) %></time>.</p>
+<pre class="source" tabindex="0" aria-label="Current source of <%= key %>"><code><%= live.Source %></code></pre>
+<% } %>
+<% if (diagnostics.Count > 0) { %>
+<ul class="diagnostics" role="list">
+<% foreach (PageDiagnostic diagnostic in diagnostics) { %>
+    <li class="diagnostic-<%= diagnostic.Severity == PageDiagnosticSeverity.Error ? "error" : "warning" %>"><% if (diagnostic.Line is int line) { %><a href="#L<%= line.ToString(System.Globalization.CultureInfo.InvariantCulture) %>"><%= DiagnosticText(diagnostic) %></a><% } else { %><%= DiagnosticText(diagnostic) %><% } %></li>
+<% } %>
+</ul>
+<% } %>
+<%== PageDocument.Nav("Editor navigation", menu, "editor-menu") %>
+<form method="post" action="<%= EditUrl(key) %>" class="editor-form">
+    <%== ctx.AntiforgeryField %>
+    <input type="hidden" name="expected" value="<%= expected ?? "" %>">
+    <label for="template">Template for <%= key %></label>
+    <div class="editor">
+        <div id="gutter" class="gutter" aria-hidden="true"><% for (int number = 1; number <= lines; number++) { %><span id="L<%= number.ToString(System.Globalization.CultureInfo.InvariantCulture) %>"><%= number.ToString(System.Globalization.CultureInfo.InvariantCulture) %></span><% } %></div>
+        <textarea name="template" id="template" rows="10" cols="50" wrap="off" spellcheck="false"><%= text %></textarea>
+    </div>
+    <button type="submit" name="cmd" value="save">Save</button>
+    <button type="submit" name="cmd" value="save-and-view">Save and view</button>
+</form>
+<script type="module" src="<%= ctx.AssetUrl("/editor.js") %>"></script>
+<% } else if (stage == "read") { %>
+<% layout.Title = "History for " + key; %>
+<h1><%= key %></h1>
+<% if (notice is not null) { %>
+<p><%= notice %></p>
+<% } %>
+<p><a href="<%= EditUrl(key) %>">Edit this page</a> · <a href="<%= self %>">All pages</a></p>
+<% if (deleted) { %>
+<p>This page is deleted. Its revisions remain available here, and saving in the editor brings it back.</p>
+<% } %>
+<% if (live is not null) { %>
+<h2>Current source</h2>
+<p>Revision <%= live.Hash %>, saved <time datetime="<%= live.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture) %>"><%= Stamped(live.SavedAt) %></time>.</p>
+<pre class="source" tabindex="0" aria-label="Current source of <%= key %>"><code><%= live.Source %></code></pre>
+<% } else if (!deleted) { %>
+<p>There is no source to show: this page has never been saved.</p>
+<% } %>
+<h2>History</h2>
+<% if (revisions.Count == 0) { %>
 <p>This page has no history. It may never have been saved, or it may have been scrubbed.</p>
-<% } %>
-<% if (source is not null) { %>
-<h3><%= revisionHash is null ? "Current source" : "Revision " + source.Hash %></h3>
-<pre class="source" tabindex="0" aria-label="<%= revisionHash is null ? "Current source of" : "Source of revision " + source.Hash + " of" %> <%= requested %>"><code><%= source.Source %></code></pre>
 <% } else { %>
-<p>There is no source to show<%= revisionHash is null ? ": the page is deleted or does not exist" : " for that revision" %>.</p>
+<table>
+    <caption>Saved revisions of <%= key %>, newest first</caption>
+    <thead>
+        <tr><th scope="col">Revision</th><th scope="col">Saved</th><th scope="col">Current</th><th scope="col">Action</th></tr>
+    </thead>
+    <tbody>
+<% foreach (PageRevisionInfo info in revisions) { %>
+        <tr>
+            <th scope="row"><a href="<%= RevisionUrl(key, info.Hash) %>"><code><%= info.Hash %></code></a></th>
+            <td><time datetime="<%= info.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture) %>"><%= Stamped(info.SavedAt) %></time></td>
+            <td><%= info.IsCurrent ? "current" : "" %></td>
+            <td><% if (!info.IsCurrent) { %><a href="<%= RestoreUrl(key, info.Hash) %>" aria-label="Restore revision <%= info.Hash %> of <%= key %>">Restore</a><% } %></td>
+        </tr>
+<% } %>
+    </tbody>
+</table>
+<% if (revisions.Count >= 2) { %>
+<form method="get" action="<%= self %>" class="revision-compare">
+    <input type="hidden" name="page" value="<%= key %>">
+    <label for="diff-from">Compare</label>
+    <select id="diff-from" name="from">
+<% foreach (PageRevisionInfo info in revisions) { %>
+        <option value="<%= info.Hash %>"<%= info.Hash == revisions[1].Hash ? " selected" : "" %>><%= Stamped(info.SavedAt) %> · <%= info.Hash %> <%= info.IsCurrent ? "· Current" : "" %></option>
+<% } %>
+    </select>
+    <label for="diff-to">with</label>
+    <select id="diff-to" name="to">
+<% foreach (PageRevisionInfo info in revisions) { %>
+        <option value="<%= info.Hash %>"<%= info.Hash == revisions[0].Hash ? " selected" : "" %>><%= Stamped(info.SavedAt) %> · <%= info.Hash %> <%= info.IsCurrent ? "· Current" : "" %></option>
+<% } %>
+    </select>
+    <button type="submit">Compare revisions</button>
+</form>
+<% } else { %>
+<p>Only one revision is saved; there is nothing to compare yet.</p>
 <% } %>
 <% } %>
+<% } else if (stage == "revision") { %>
+<% layout.Title = "Saved revision of " + key; %>
+<h1>Saved revision for <%= key %></h1>
+<p>Revision <%= revision!.Hash %>, saved <time datetime="<%= revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture) %>"><%= Stamped(revision.SavedAt) %></time>.</p>
+<%== PageDocument.Nav("Revision navigation", [new(ReadUrl(key), "Back to history"), new(EditUrl(key), "Back to editor")], "editor-menu") %>
+<% if (live is null) { %>
+<p>This page is deleted. Restoring this revision brings it back.</p>
+<% } %>
+<% if (live is null || !string.Equals(live.Source, revision.Source, System.StringComparison.Ordinal)) { %>
+<p><a href="<%= RestoreUrl(key, revision.Hash) %>">Restore this revision</a> by saving its source as a new revision.</p>
+<% } else { %>
+<p>This is the source the page already holds, so there is nothing to restore.</p>
+<% } %>
+<pre class="source" tabindex="0" aria-label="Source of revision <%= revision.Hash %> of <%= key %>"><code><%= revision.Source %></code></pre>
+<% } else if (stage == "diff") { %>
+<% layout.Title = "Changes to " + key; %>
+<h1>Changes to <%= key %></h1>
+<p>From revision <%= fromHash! %> to revision <%= toHash! %>.</p>
+<%== PageDocument.Nav("Editor navigation", [new(ReadUrl(key), "Back to history"), new(EditUrl(key), "Back to editor")], "editor-menu") %>
+<%== renderedDiff! %>
+<% } else if (stage == "delete") { %>
+<% layout.Title = "Delete " + key; %>
+<h1>Delete <%= key %>?</h1>
+<% if (notice is not null) { %>
+<p><%= notice %></p>
+<% } %>
+<p>This hides the page but retains its template and revision history.</p>
+<form method="post" action="<%= DeleteUrl(key) %>">
+    <%== ctx.AntiforgeryField %>
+    <button type="submit">Delete page</button>
+</form>
+<%== PageDocument.Nav("Confirmation navigation", [new(EditUrl(key), "Cancel")], "editor-menu") %>
+<% } else if (stage == "install") { %>
+<% layout.Title = "Install the seed"; %>
+<h1>Install the seed over <%= key %>?</h1>
+<% if (notice is not null) { %>
+<p class="notice"><%= notice %></p>
+<% } %>
+<p>The bundled seed will be saved as a new revision and compiled by this build.</p>
+<% if (live is null) { %>
+<p>This page is deleted. Installing brings it back and clears the tombstone.</p>
+<% } %>
+<% if (renderedDiff is not null) { %>
+<%== renderedDiff %>
+<% } %>
+<% if (seedSource is not null && live is not null && string.Equals(live.Source, seedSource, System.StringComparison.Ordinal)) { %>
+<p>This page already holds its seed, so there is nothing to install.</p>
+<% } else if (status == 200) { %>
+<form method="post" action="<%= InstallUrl(key) %>" class="form">
+    <%== ctx.AntiforgeryField %>
+    <input type="hidden" name="expected" value="<%= expected ?? "" %>">
+    <button type="submit">Install the seed</button>
+</form>
+<% } %>
+<%== PageDocument.Nav("Confirmation navigation", [new(EditUrl(key), "Cancel"), new(ReadUrl(key), "History")], "editor-menu") %>
+<% } else if (stage == "restore") { %>
+<% layout.Title = "Restore a revision"; %>
+<h1>Restore revision <%= revision!.Hash %> of <%= key %>?</h1>
+<% if (notice is not null) { %>
+<p class="notice"><%= notice %></p>
+<% } %>
+<% if (revision is not null) { %>
+<p>Revision <%= revision.Hash %> was saved <time datetime="<%= revision.SavedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture) %>"><%= Stamped(revision.SavedAt) %></time>. Its source will be saved as a new revision and compiled by this build.</p>
+<% } %>
+<% if (live is null) { %>
+<p>This page is deleted. Restoring brings it back and clears the tombstone.</p>
+<% } %>
+<% if (renderedDiff is not null) { %>
+<%== renderedDiff %>
+<% } %>
+<% if (revision is not null && live is not null && string.Equals(live.Source, revision.Source, System.StringComparison.Ordinal)) { %>
+<p>This revision has the source the page already holds, so there is nothing to restore.</p>
+<% } else if (status == 200 && revision is not null) { %>
+<form method="post" action="<%= RestoreUrl(key, revision.Hash) %>" class="form">
+    <%== ctx.AntiforgeryField %>
+    <input type="hidden" name="expected" value="<%= expected ?? "" %>">
+    <button type="submit">Restore this revision</button>
+</form>
+<% } %>
+<%== PageDocument.Nav("Confirmation navigation", [new(ReadUrl(key), "Back to history"), new(EditUrl(key), "Back to editor")], "editor-menu") %>
 <% } %>

@@ -54,6 +54,20 @@ internal sealed class PageEditorScope(
     public IReadOnlyList<string> SeedPaths() => [.. PageSeedInstaller.SeedPaths().Select(seed => seed.Key)];
 
     /// <inheritdoc/>
+    public Task<string?> SeedSourceAsync(string key) {
+        if (string.IsNullOrWhiteSpace(key)) {
+            throw new ArgumentException("A page key is required.", nameof(key));
+        }
+
+        PagePath target = PagePath.Normalize(key);
+        if (!target.IsAddressable) {
+            throw new ArgumentException("The page key is not addressable.", nameof(key));
+        }
+
+        return PageAssetSeeder.ReadSeedTemplateAsync(target, Deadline);
+    }
+
+    /// <inheritdoc/>
     public async Task<PageEditResult> SaveAsync(string key, string template, string expectedHash) {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
