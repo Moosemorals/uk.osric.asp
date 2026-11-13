@@ -68,9 +68,11 @@ contract the assistant already promises, and the vocabulary the author manual te
   Adding an annotation column would change the revision row for one view's benefit.
 - **A restore from the page list, or an undo button on the editor.** Both are plausible and neither
   is needed once history can restore: the history view is where a person already compares revisions.
-- **Reading a revision by `?v=` token.** That URL is a public, cacheable address for one live,
-  code-free asset ([IDEA-010](../jobs/IDEA-010.md)) and answers for no revision with code, no
-  tombstoned path and no wrapped page. A tool that wants a revision reads the store.
+- **Reading a revision through `?v=`.** Since the immutable-assets work that URL addresses any
+  retained revision of a path — one with code, and a tombstoned one — but it answers with what the
+  revision *renders*: it executes the code, wraps it, and sets the cache headers the revision's
+  verdict earns (DEC-233, DEC-238, DEC-242). A tool that wants stored source to quote, range and
+  budget reads the store.
 - **A second store read.** All three tools use `PageEditor`'s existing `ListRevisionsAsync`,
   `GetRevisionTemplateByHashAsync` and `SaveAsync`; ARCH-16 is not reopened.
 - **Editing history UI into a page.** `/edit` is bootstrap and cannot be a page (DEC-210). The
@@ -93,6 +95,9 @@ contract the assistant already promises, and the vocabulary the author manual te
 | `ToolRegistry`, `AssistantTool`, `ToolPaths`, `ToolResults` | One type per tool, one list, one gate, one bounded envelope (DEC-231) | Three new rows, two of them through the read gate and one through the write gate |
 | `PageEditor.ListRevisionsAsync` / `GetRevisionTemplateByHashAsync` | A page's history without source, each row carrying `IsCurrent`; one revision's source by hash | The two assistant reads, the confirmation, and the listing's cheap hint that the current row needs no link |
 | `PageEditor.SaveAsync` | The editor's own save, compile-then-store through the one saver | The restore's write, and the assistant's `restore_revision` |
+| `RevisionHash.IsCanonical` | The one spelling of a hash: exactly 64 lowercase hexadecimal characters, matched ordinal, which `?v=` already enforces (DEC-241) | The hash rule for the restore, both tools' arguments and the existing editor and `diff_page` checks |
+| `PageTemplate.TemplateHasCode`, `PageImageState.StoredAsSource` | A revision records whether it had code; one that did not is stored as source, never compiled, and its state reads *Stored as source* (DEC-235) | A restore stores that verdict with the new row, and the history and the tool answers name the state |
+| `?v=`, `PageAssetPolicy`, `PageAssetMap` | One retained revision of a path, rendered and cached immutably (DEC-233, DEC-236, DEC-242) | Deliberately unused: it renders a revision rather than reading its stored source |
 | `PageToolData.TemplateSourceLines` and `read_page`'s range rule | 1-based physical lines, a range check, a budget window that keeps the head and the tail (DEC-112) | The same rule for `read_revision`, from one function |
 | `PageToolExecutor.Definitions`, `ChangesPages` | Derived from `ToolRegistry` and `ToolSpec.Writes` | Nothing to change but the count |
 
@@ -100,19 +105,20 @@ contract the assistant already promises, and the vocabulary the author manual te
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` | `install` replaces the seed's `restore`; `restore&hash=` is the revision; two confirmation views; the restore POST; a restore column in the history table; the seed action becomes a link; the deleted row loses Recreate and the tombstone note is reworded |
+| `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` | `install` replaces the seed's `restore`; `restore&hash=` is the revision; two confirmation views; the restore POST; a restore column in the history table; the seed action becomes a link; the deleted row loses Recreate; the tombstone note is reworded; `hash`, `from` and `to` validate with `RevisionHash.IsCanonical` |
 | `src/uk.osric.asp.Web/Http/PageUrls.cs` | `EditorInstall(path)`, `EditorRestore(path, hash)` |
 | `src/uk.osric.asp.Web/Assistant/Tools/HistoryTools.cs` | New: `ListRevisionsTool`, `ReadRevisionTool`, `RestoreRevisionTool` |
 | `src/uk.osric.asp.Web/Assistant/Tools/PageTools.cs` | `list_pages` gains `limit` and `after`; `read_page` uses the extracted line projection |
+| `src/uk.osric.asp.Web/Assistant/Tools/DiffTool.cs` | Its hash check becomes `RevisionHash.IsCanonical`, so the tools and the editor refuse a wrongly-cased hash the same way |
 | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs` | Three rows, immediately after `diff_page` |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | `page-author-v21`, a `## History` section, one sentence on listing paging |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | `page-author-v22`, a `## History` section, one sentence on listing paging |
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | The editor's actions, and the recovery section under "Assets, seeds and recovery" |
 | `src/uk.osric.asp.Web/Pages/Seeds/editor.css` | The `.page-actions form` rule goes with the form it styled |
 | `test/uk.osric.asp.Web.Tests/EditorEndpointTests.cs` | The renamed command, both confirmations, the restore POST, and the history column |
 | `test/uk.osric.asp.Web.Tests/PageToolExecutorHistoryTests.cs` | New: all three tools and the paging pair, in the shape `PageToolExecutorDiffTests` set |
 | `test/uk.osric.asp.Web.Tests/PageToolExecutorTests.cs` | `list_pages` paging; `read_page` still truncates through the shared projection |
 | `test/uk.osric.asp.Web.Tests/ToolSpecsTests.cs` | Eighteen tools; the `ChangesPages` cases, with `restore_revision` among the writers |
-| `test/uk.osric.asp.Web.Tests/PageAuthorPromptTests.cs` | `v21` in both version pins, and the section |
+| `test/uk.osric.asp.Web.Tests/PageAuthorPromptTests.cs` | `v22` in both version pins, and the section |
 | `test/uk.osric.asp.Web.IntegrationTests/EditorEndpointTests.cs` | The restore round trip and the install confirmation against the real host |
 | `test/uk.osric.asp.Web.BrowserTests/EditorFlowTests.cs` | The seed test clicks through the confirmation; the deleted-key walk goes through the create-or-open form; a restore walk |
 | `docs/assistant.md`, `docs/testing.md`, `docs/shell.md`, `docs/storage.md`, `docs/glossary.md` | Eighteen tools; what the tests prove; install and restore in the editor's story; the vocabulary |
@@ -178,7 +184,9 @@ everything the plan needs without a new store method: the source is compiled by 
 `PageSaver.RuntimeId` (so a revision written by an earlier build is compiled by *this* one), the
 result is stored even when it does not compile, the diagnostics come back to the editor, the
 revision is a new row with a new hash, and a tombstone is cleared by the head upsert that already
-runs on every save.
+runs on every save. A revision with no code is not compiled at all: the save judges it and stores the
+source with `TemplateHasCode = false` (DEC-235), so a restored stylesheet or script is served from
+source, costs no compile, and reads as *Stored as source* in the history.
 
 **A restore is refused when the chosen revision's source is what the live page already holds.** A
 restore of the current revision, or of any older revision carrying the same text, would append a row
@@ -317,9 +325,12 @@ tombstoned path has no current revision — the same flag would be false for eve
 and would invite the wrong conclusion.
 
 A malformed hash, a hash belonging to another path, a missing page and a shell file are refusals
-whose words name the rule: "A revision hash is 64 hexadecimal characters; use the hash
-list_revisions returned." and "That hash is not a revision of {path}." The editor applies exactly
-those rules (`400` for a malformed hash, `404` for a foreign one) and this is the tool saying so.
+whose words name the rule: "A revision hash is 64 lowercase hexadecimal characters; use the hash
+list_revisions returned." and "That hash is not a revision of {path}." The spelling is
+`RevisionHash.IsCanonical` (DEC-241) — the rule `?v=` already applies on the page endpoint — and the
+editor's revision, diff and restore links move to it in this change, so a malformed or wrongly-cased
+hash is a named `400` rather than the `404` an uppercase hash used to become. A hash that is
+canonical but belongs to another path is still a `404`.
 
 The description says what the call costs: reading a revision sends its source to the provider,
 exactly as `read_page` does.
@@ -342,11 +353,11 @@ one. So the tool exists, and it is the most constrained write the assistant has:
 already be a revision of that path, so the model cannot invent content with it.
 
 It applies the editor's rule exactly (D3): a hash whose source the live page already holds is
-refused, as are a malformed hash, a hash from another path, a missing page and a shell file, and
-everything else appends. It takes no `expectedRevisionHash`, because a restore is deliberate — the
-same reason `write_page` takes none while `edit_page` does. It answers `{ path, restoredFrom, revisionHash, diagnostics }`, forms
-the diagnostics with the same shape the other writing tools use, and is approval-gated under
-`RequireApproval`.
+refused, as are a hash that is not canonical (`RevisionHash.IsCanonical`), a hash from another path,
+a missing page and a shell file, and everything else appends. It takes no `expectedRevisionHash`,
+because a restore is deliberate — the same reason `write_page` takes none while `edit_page` does. It
+answers `{ path, restoredFrom, revisionHash, diagnostics }`, forms the diagnostics with the same
+shape the other writing tools use, and is approval-gated under `RequireApproval`.
 
 This reverses the rule the assistant plan and ARCH-07 recorded — "the editor's restore stays the
 owner's" — and the plan says so rather than quietly widening the model's reach: the reason that rule
@@ -394,11 +405,12 @@ bump in D14 is what makes the change visible.
 
 ### D14 — The prompt and the manual learn the same words
 
-`PageAuthorPrompt` moves to `page-author-v21` and gains a `## History` section after `## Diff`: the
-three tools, what a hash is, that `list_revisions` is where a hash comes from, that `read_revision`
-sends the source to the provider, that `restore_revision` appends and is approval-gated, that the
-restore that would leave the source unchanged is refused, and that a revision the owner should choose is quoted by hash
-rather than described. One sentence covers `limit` with `before` and `after`.
+`PageAuthorPrompt` moves to `page-author-v22` — v21 is the immutable-assets prompt on trunk — and
+gains a `## History` section after `## Diff`: the three tools, what a hash is, that `list_revisions`
+is where a hash comes from, that `read_revision` sends the source to the provider, that
+`restore_revision` appends and is approval-gated, that a restore which would leave the source
+unchanged is refused, and that a revision the owner should choose is quoted by hash rather than
+described. One sentence covers `limit` with `before` and `after`.
 
 `/help` is the author's manual, so it changes in the same commit: the editor's list says
 **Install from seed** and gains **Restore** beside **History**, and the "Assets, seeds and recovery"
@@ -419,7 +431,7 @@ section stops calling a seed restore a restore.
 | A `restore_revision` that takes the source as an argument | That is `write_page` with a hash-shaped name; the point of the tool is that the content cannot be invented (D10) |
 | No confirmation, a button on the history row | A save is not destructive but it is a compile and a new head; the editor already confirms delete and scrub, and the diff is what makes the rollback reviewable |
 | The confirmation showing the source instead of a diff | The revision view already shows the source; what a person needs before restoring is the change |
-| A separate `/asset/{hash}` or `?v=` read for the tools | That address is a public cacheable asset for live, unwrapped, code-free pages and cannot answer for a revision with code or a tombstone ([IDEA-010](../jobs/IDEA-010.md)) |
+| Reading a revision through `?v=` in a tool | It now addresses any retained revision, including one with code and a tombstoned one, but it answers by rendering — executing, wrapping and setting cache headers (DEC-233, DEC-238) — where a tool needs the stored source, and its cache promise is the opposite of what a read of source wants to assert |
 | `isCurrent` on `read_revision` | False for every row of a tombstoned path; the listing answers the question properly |
 | A second query for the history tools | `PageEditor` already exposes both reads and the save; ARCH-16 stays closed |
 | No `limit`, just the envelope refusal | A caller cannot ask for a slice, so a long history is unreadable without a fresh tool call per row |
@@ -459,13 +471,16 @@ section stops calling a seed restore a restore.
   same text — renders "No changes" and no form, and its POST answers `409` and writes nothing;
 - an older revision carrying the same text as the page keeps its link and its confirmation says there
   is nothing to restore — the current row's omission is a hint, not the rule;
-- a malformed hash is `400` with the history as a remedy; a missing one is `400`; a hash from another
-  path is `404`; a shell file is `404`;
+- a malformed hash is `400` with the history as a remedy, and so is an uppercase one, which used to
+  be a `404` on `cmd=revision` and `cmd=diff`; a missing one is `400`; a hash from another path is
+  `404`; a shell file is `404`;
 - the restore POST appends that revision's source, answers `303` to the editor, and flashes the new
   hash;
 - restoring a revision that matches an **older** retained revision but not the live page appends, so
   the rule above is the live source and not "have I ever stored this text";
 - the appended revision was compiled by the running runtime, not the old one;
+- a restore of a no-code revision stores it as source with no image and the history says *Stored as
+  source*;
 - a restore of a deleted path clears the tombstone and the page renders again;
 - a restored source that does not compile is stored, and the message says so;
 - an invalid antiforgery token writes nothing (the fixture's existing POST rule, asserted for
@@ -494,15 +509,15 @@ section stops calling a seed restore a restore.
 - it refuses a foreign hash, a malformed hash, a shell file and a missing page;
 - `restore_revision` restores a hash's source as a new revision and answers the new hash and the
   diagnostics;
-- it refuses a hash whose source the page already holds, a foreign hash, a malformed hash, a shell
-  file and a missing page;
+- it refuses a hash whose source the page already holds, a foreign hash, a non-canonical hash
+  (uppercase included), a shell file and a missing page;
 - `list_pages` honours `limit` and `after`, and still merges shell files and pages into one ordinal
   listing.
 
 **The table, in `ToolSpecsTests`** — eighteen rows in the registry, and the `ChangesPages` cases say
 both reads change nothing and `restore_revision` does.
 
-**The prompt, in `PageAuthorPromptTests`** — `page-author-v21` in both version pins, and a section
+**The prompt, in `PageAuthorPromptTests`** — `page-author-v22` in both version pins, and a section
 test that the three history tools are named, that the reads are reads, that the source leaves for the
 provider, and that a restore which would change nothing is refused.
 
@@ -541,7 +556,7 @@ editor's rule, not a second copy of it.
 
 ### Phase 3 — the prompt and the record (half a day)
 
-`page-author-v21` and its section, `PageAuthorPromptTests`, `docs/assistant.md`, `docs/testing.md`,
+`page-author-v22` and its section, `PageAuthorPromptTests`, `docs/assistant.md`, `docs/testing.md`,
 `docs/shell.md`, `docs/storage.md`, `docs/glossary.md`, `/help`, the jobs README, the deletion of
 `docs/jobs/ARCH-07.md`, and the two live citations. Then `make format-check`.
 
@@ -551,13 +566,13 @@ editor's rule, not a second copy of it.
 | --- | --- |
 | `/help` (seeded) | **Install from seed** and **Restore** in the editor's list; the recovery section says which word means which, and that Create or open names a deleted key as readily as a new one |
 | `docs/shell.md` | The editor's story: a seed installs from its row through a confirmation, and history restores a revision as a new save |
-| `docs/storage.md` | The seed sentence names install; the history paragraph says a restore appends and clears a tombstone |
+| `docs/storage.md` | The seed sentence names install, the paragraph that describes a disabled restore button describes an install link offered only when the seed would change the page, and the history paragraph says a restore appends and clears a tombstone |
 | `docs/assistant.md` | Eighteen tools; the two reads and the one restore, the paging pair, and why none of them uses `?v=` |
 | `docs/testing.md` | What the editor, tool and integration tests prove |
 | `docs/glossary.md` | **Seed** says installing, and a **Restore** entry says what it is not — not a rewind, not a new revision's identity |
 | `docs/jobs/README.md` | ARCH-07 leaves the table and the rough order; a Closed row points at this plan |
 | `deploy/operations.md` | The history paragraph says a selected revision is restored as a new save |
-| `docs/plans/immutable-page-assets.md` | The "Not in this plan" section records that the history reads now exist, and keeps the rule that they do not go through `?v=` |
+| `docs/plans/immutable-page-assets.md` | Implemented, so its "Not in this plan" section stops promising work: it points at this plan, and keeps the rule that a history read is a store read rather than a `?v=` fetch |
 
 Four decisions are recorded with this plan and numbered when it merges: `install` and `restore` are
 different verbs (D1); the two actions share one confirmation-and-outcome shape, and each refuses the
@@ -578,6 +593,7 @@ the merge records it as a decision change rather than a drift.
 | `list_pages` now answers 50 rows by default where it answered 500 | `truncated` and `after` make the rest one call away, and the prompt teaches the pair |
 | The confirmation renders page source into HTML for one visitor | Both views are `no-store`, owner-only, and bounded by the same page-size caps as the editor |
 | Two "put it back" actions confuse an author | Both carry a diff and refuse the no-op, and the words install and restore are used consistently in the URL, the action, the flash and the manual |
+| The canonical hash rule changes answers the editor already gave | An uppercase hash on `cmd=revision`, `cmd=diff` or `diff_page` becomes a named `400`/refusal instead of a `404`; `?v=` already refused it, so the editor and the tools were the outliers (DEC-241) |
 | Dropping Recreate leaves no one-click way into a deleted key's editor | The create-or-open form is the ordinary way to name any key, and the editor says what saving will do; the history's Restore is the way back to the old source |
 | An assistant that may restore is a wider reach than the plan it reverses allowed | The tool can only append source the store already holds for that path, and it is approval-gated and path-policy-checked before the owner is asked; the alternative is `write_page`, which can append anything (D10) |
 
