@@ -199,9 +199,12 @@ sealed class Amount {
 response, and nothing else:</p>
 <ul>
     <li><code>ctx.Request</code> is a <code>PageRequest</code> with read-only <code>Query</code>,
-    <code>Form</code>, <code>Headers</code> and <code>Cookies</code> dictionaries. The shell's own
-    cookies &mdash; the sign-in ticket, the antiforgery pair and the page session id &mdash; are not in
-    <code>Cookies</code>, because they are the shell's identity rather than the page's.</li>
+    <code>Form</code>, <code>Headers</code> and <code>Cookies</code> dictionaries. <code>Query</code>
+    and <code>Form</code> keep one value per name; <code>QueryValues</code> and
+    <code>FormValues</code> keep every value in the order sent, so a multi-select or
+    <code>?tag=a&amp;tag=b</code> loses nothing. The shell's own cookies &mdash; the sign-in ticket,
+    the antiforgery pair and the page session id &mdash; are not in <code>Cookies</code>, because they
+    are the shell's identity rather than the page's.</li>
     <li><code>ctx.Path</code> is the page's canonical key; <code>ctx.User</code> is the signed-in
     <code>PageUser</code> or <code>null</code>; <code>ctx.Aborted</code> is cancelled when the
     visitor abandons the request.</li>

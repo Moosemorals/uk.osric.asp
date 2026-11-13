@@ -30,6 +30,13 @@ using System.Collections.Frozen;
 /// <c>s_deniedApis</c>, because each starts work the render deadline cannot stop or turns an
 /// <c>await</c> back into a blocked thread.
 /// </para>
+/// <para>
+/// Cryptography is admitted as named types, not as a namespace: <c>System.Text.Encoding</c> to turn
+/// text into bytes, the SHA-2 hashes and the matching HMACs to hash and sign, a random source for a
+/// nonce, and a constant-time comparison for a signature a page checks. Nothing that manages keys,
+/// reads a certificate or uses an asymmetric primitive is admitted: a private key has no business in
+/// a stored page, and a credential belongs in <c>Pages:Fetch:Credentials</c>.
+/// </para>
 /// </remarks>
 public static class PageApiPolicy {
 
@@ -61,10 +68,19 @@ public static class PageApiPolicy {
         "System.Nullable",
         "System.Predicate",
         "System.SByte",
+        "System.Security.Cryptography.CryptographicOperations",
+        "System.Security.Cryptography.HMACSHA256",
+        "System.Security.Cryptography.HMACSHA384",
+        "System.Security.Cryptography.HMACSHA512",
+        "System.Security.Cryptography.RandomNumberGenerator",
+        "System.Security.Cryptography.SHA256",
+        "System.Security.Cryptography.SHA384",
+        "System.Security.Cryptography.SHA512",
         "System.Single",
         "System.String",
         "System.StringComparison",
         "System.StringSplitOptions",
+        "System.Text.Encoding",
         "System.Text.Json.JsonDocument",
         "System.Text.Json.JsonElement",
         "System.Text.Json.JsonException",

@@ -10,6 +10,40 @@ using System.Text;
 public sealed class PageRequestBodyTests : IntegrationTest {
 
     [Test]
+    public async Task ARepeatedQueryValueReachesThePage() {
+        await SavePageAsync("/echo", """
+            <% foreach (string tag in ctx.Request.QueryValues["tag"]) { ctx.Write(tag + ";"); } %>
+            """);
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("https://localhost/echo?tag=a&tag=b");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(body, Does.Contain("a;b;"), "every value, in the order sent");
+        });
+    }
+
+    [Test]
+    public async Task ARepeatedFormValueReachesThePage() {
+        await SavePageAsync("/echo-form", """
+            <% foreach (string tag in ctx.Request.FormValues["tag"]) { ctx.Write(tag + ";"); } %>
+            """);
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.PostAsync(
+            "https://localhost/echo-form",
+            new StringContent("tag=a&tag=b", Encoding.UTF8, "application/x-www-form-urlencoded"));
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(body, Does.Contain("a;b;"), "every value, in the order sent");
+        });
+    }
+
+    [Test]
     public async Task AChunkedFormPastTheCapIsRejected() {
         await SavePageAsync("/big.cs", "<p>ok</p>");
         using HttpClient client = CreateClient();

@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v23";
+    public const string Version = "page-author-v24";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -173,7 +173,9 @@ internal static class PageAuthorPrompt {
 
         ## IContext contract
         {{ContractSection()}} `Request` is a `PageRequest`: its `Query`, `Form`,
-        `Headers`, and `Cookies` are read-only dictionaries of strings.
+        `Headers`, and `Cookies` are read-only dictionaries of strings, with
+        `QueryValues` and `FormValues` holding every value a name was sent with,
+        in order.
         `PageResponse` defaults to status 200, and a page's default content type
         follows its key's extension (HTML when the key is unmapped); status,
         content type, allowed headers, and redirect are applied after the
@@ -387,7 +389,10 @@ internal static class PageAuthorPrompt {
         `System.Text.RegularExpressions`, `System.Linq.Expressions`,
         `System.Runtime.InteropServices`, `System.Runtime.Loader`,
         `Microsoft.*`, and host namespaces are not available. Threading beyond
-        CancellationToken is not allowed.
+        CancellationToken is not allowed. `System.Text.Encoding`, the SHA-2
+        hashes, the matching HMACs, `RandomNumberGenerator` and
+        `CryptographicOperations.FixedTimeEquals` are allowed; nothing else in
+        `System.Security.Cryptography` is.
 
         ## Shell files
         The site's shell files are its own routes: `/edit`, `/login`,

@@ -119,6 +119,14 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
+    public void APageMayEncodeBytesAndHashThem() {
+        CompileResult result = Compile(
+            """<% byte[] bytes = System.Text.Encoding.UTF8.GetBytes("hello"); byte[] hash = System.Security.Cryptography.SHA256.HashData(bytes); ctx.Write(System.Convert.ToHexString(hash)); %>""");
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
     public void APageThatSaysCapabilitiesCompilesWithoutWarnings() {
         CompileResult result = Compile("<% ctx.Capabilities.Get<IPageStorage>(); %>");
 
@@ -423,7 +431,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void RuntimeIdStartsWithTheFormatAndPolicyVersions() {
-        Assert.That(PageCompiler.RuntimeId, Does.StartWith("6:3:"));
+        Assert.That(PageCompiler.RuntimeId, Does.StartWith("6:4:"));
     }
 
     [Test]
@@ -466,10 +474,12 @@ public sealed class PageCompilerTests {
 
     private sealed class TestContext : IContext {
         private static readonly IReadOnlyDictionary<string, string> s_empty = new Dictionary<string, string>();
+        private static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> s_noValues =
+            new Dictionary<string, IReadOnlyList<string>>();
 
         private readonly StringBuilder _output = new();
 
-        public PageRequest Request { get; } = new("GET", "test", s_empty, s_empty, s_empty, s_empty);
+        public PageRequest Request { get; } = new("GET", "test", s_empty, s_empty, s_empty, s_empty, s_noValues, s_noValues);
 
         public string Path => "test";
 

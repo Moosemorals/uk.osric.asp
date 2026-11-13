@@ -103,7 +103,7 @@ The pieces this plan builds on:
 | `PageHarness` | Renders a stored template with fakes for every capability | Gains a memory fake, so the page renders in a unit test |
 | `AccessibilityTests` | Twelve rules over every view in `ShellViews` | A page fixture, so the page is held to the same rules as a shell view |
 
-[IDEA-019](../jobs/IDEA-019.md) was "found together while asking what a shell view would need to
+[IDEA-019](../jobs/README.md#closed) was "found together while asking what a shell view would need to
 become a page"; this plan is the answer for one view, and it needs none of IDEA-019's three gaps:
 memory needs no repeated values, no cookie and no hashing.
 

@@ -20,6 +20,11 @@ surface every page has — `Request`, `Path`, `User`, `Aborted`, `Log`/`LogWarni
 `Write`/`WriteRaw`, `SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `AssetUrl`,
 `Redirect`, `RedirectToLogin`, `AntiforgeryField` and `Capabilities`.
 
+The request is a value rather than a live ASP.NET object. `Query`, `Form` and `Headers` hold one
+value per name — a repeated name keeps its first value — and `QueryValues` and `FormValues` hold
+every value in the order the request sent them, so a multi-select or `?tag=a&tag=b` loses nothing
+(DEC-257). `Path` is always the canonical key.
+
 The handler is asynchronous: `IHandler.HandleAsync` returns a `Task`, the generator always emits an
 `async` method, and `await` is therefore an ordinary expression in a code block and inside a write
 expression. Any member that does I/O — on `IContext` or on a capability — returns a `Task` and takes
@@ -243,6 +248,11 @@ Stored pages are C#, so the surface they may touch is constrained twice.
   `JsonSerializerDefaults`, `JsonValueKind` and `JsonException`. The
   `System.Text.Json.Serialization` attributes are not, and `System.Net` stays denied — `IHttpFetch`
   is the page's only egress (DEC-130).
+- Cryptography is admitted by type: `System.Text.Encoding` to turn text into bytes, `SHA256`,
+  `SHA384` and `SHA512` to hash, `HMACSHA256`, `HMACSHA384` and `HMACSHA512` to sign,
+  `RandomNumberGenerator` for a nonce and `CryptographicOperations.FixedTimeEquals` to compare a
+  signature. Nothing else in `System.Security.Cryptography` is, so a page cannot name `MD5`, an
+  asymmetric primitive or a certificate (DEC-257).
 - `PageApiChecker` in `Runtime` walks the generated syntax tree, projects Roslyn symbols onto
   `ApiReference` values, rejects `stackalloc`, `dynamic`, pointers, function pointers and `unsafe`,
   and enforces the shape rule: the generated `GeneratedPage`, last, plus the page's own type

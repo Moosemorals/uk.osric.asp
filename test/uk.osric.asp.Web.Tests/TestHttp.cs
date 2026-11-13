@@ -39,7 +39,8 @@ internal static class TestHttp {
     /// <param name="method">The HTTP method.</param>
     public static PageRequest Request(string path = "/", string method = "GET") {
         Dictionary<string, string> empty = [];
-        return new PageRequest(method, path, empty, empty, empty, empty);
+        Dictionary<string, IReadOnlyList<string>> noValues = [];
+        return new PageRequest(method, path, empty, empty, empty, empty, noValues, noValues);
     }
 
     /// <summary>Reads everything written to the response body.</summary>

@@ -10,21 +10,44 @@ using uk.osric.asp.Web.Http;
 /// <summary>Reads the live ASP.NET request once, into the plain values a page sees.</summary>
 internal static class PageRequestSnapshot {
 
-    private static readonly IReadOnlyDictionary<string, string> Empty = new Dictionary<string, string>();
-
     /// <summary>Takes the snapshot a page runs against.</summary>
     /// <param name="request">The request to read.</param>
     /// <returns>The request values; the form is empty when the request is not a form post.</returns>
     public static PageRequest Create(HttpRequest request) {
         ArgumentNullException.ThrowIfNull(request);
 
+        Dictionary<string, string> query = [with(StringComparer.OrdinalIgnoreCase)];
+        Dictionary<string, IReadOnlyList<string>> queryValues = [with(StringComparer.OrdinalIgnoreCase)];
+        Collect(request.Query, query, queryValues);
+
+        Dictionary<string, string> form = [with(StringComparer.OrdinalIgnoreCase)];
+        Dictionary<string, IReadOnlyList<string>> formValues = [with(StringComparer.OrdinalIgnoreCase)];
+        if (request.HasFormContentType) {
+            Collect(request.Form, form, formValues);
+        }
+
         return new PageRequest(
             request.Method,
             request.Path.Value ?? "/",
-            SingleValuePerName(request.Query),
-            request.HasFormContentType ? SingleValuePerName(request.Form) : Empty,
+            query,
+            form,
             SingleValuePerName(request.Headers),
-            Cookies(request.Cookies));
+            Cookies(request.Cookies),
+            queryValues,
+            formValues);
+    }
+
+    // One pass builds both shapes: the collapsed value is the first of the ones kept, so a page that
+    // only wants the common case and a page that wants a multi-select read the same snapshot.
+    private static void Collect(
+        IEnumerable<KeyValuePair<string, StringValues>> values,
+        Dictionary<string, string> collapsed,
+        Dictionary<string, IReadOnlyList<string>> every) {
+        foreach (KeyValuePair<string, StringValues> value in values) {
+            List<string> all = [.. value.Value.Where(item => item is not null).Select(item => item!)];
+            every[value.Key] = all;
+            collapsed[value.Key] = all.Count > 0 ? all[0] : string.Empty;
+        }
     }
 
     private static Dictionary<string, string> SingleValuePerName(IEnumerable<KeyValuePair<string, StringValues>> values) {
@@ -52,7 +75,6 @@ internal static class PageRequestSnapshot {
         return snapshot;
     }
 
-    // A repeated field keeps its first value: the contract is one value per name.
     private static string First(StringValues values) {
         foreach (string? value in values) {
             if (value is not null) {
