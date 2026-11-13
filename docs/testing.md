@@ -38,6 +38,12 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   `PageCatalogScopeTests` pins the page-store read — its four reads, the four marks, subtree
   prefixes, the row and source caps, abandonment and the deadline — and `SqlitePageReadStoreTests`
   proves the SQL behind it, including an escaped wildcard and that a read writes nothing.
+  `PageEditorScopeTests` pins the editor capability: every row of its refusal table, a save at
+  another key, the conditional save that stores and the one that answers `Stale` without storing, a
+  tombstone delete, a revision restore, a seed install and a matching seed that is not written.
+  `PageEditorPageTests` renders the seeded `/pages` as the host does and covers its listing's groups,
+  the source and head hash it shows, a save, a `409` that keeps the text, diagnostics, save-and-view,
+  delete, history, the diff, the install confirmation and the anonymous redirect.
   `PageWriterScopeTests` pins the page's own save — the signed-in visitor it requires, `HEAD`, an
   ended render, one save per render, the diagnostics it reports and the revision it answers with —
   `PageSaverTests` the saver the editor and a page share, and `SqlitePageRevisionStoreTests` the
@@ -98,20 +104,18 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   fallback past the work caps — and `UnifiedDiff`'s exact text. `Runtime.Tests` proves
   `DiffRenderer` escapes every source line, writes the scoped table and its markers, says when a
   pair is unchanged or coarse, writes no inline style, and offers the same comparison as unified
-  text. `Web.Tests` renders a real page through `IDiffRenderer`, drives the editor's history form
-  and `cmd=diff` view (including malformed, foreign and same-hash links, and that nothing compiles
-  or writes), and proves `diff_page`'s defaults, explicit hashes and refusals; `ShellViews` adds the
-  diff view to the accessibility sweep, and `PageAuthorPromptTests` pins the new section. The
-  browser suite saves two revisions and compares them in `EditorFlowTests`.
+  text. `Web.Tests` renders a real page through `IDiffRenderer`, drives the editor page's history
+  and diff views (including malformed, foreign and same-hash links, and that nothing compiles or
+  writes), and proves `diff_page`'s defaults, explicit hashes and refusals; `PageEditorPageTests`
+  covers the same views from the page itself, and `PageAuthorPromptTests` pins the prompt's section.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
-  `ShellViews` renders every shell view once each — the sign-in form and its failure, the
-  sign-out confirmation, the listing with an edited seed and a matching one so its install actions
-  are swept too, the editor clean and with diagnostics, history with its restore links, a saved
-  revision, the restore and install confirmations, the delete
-  confirmation, status, the error page, the error page with details, a not-found page, the compile
-  failure, the assistant list, chat, reasoning chat, delete confirmation, the memory page and its
-  forget confirmation, the export list, the upload form, a rejected archive, the import review, the
-  import progress, the stored administration index and the help page as the layout wraps them — and
+  `ShellViews` renders every shell view once each — the sign-in form and its failure, the sign-out
+  confirmation, the scrub confirmation, the editor page's listing and its editor as the page
+  pipeline serves them, status, the error page, the error page with details, a not-found page, the
+  compile failure, the assistant list, chat, reasoning chat, delete confirmation, the memory page
+  and its forget confirmation, the export list, the upload form, a rejected archive, the import
+  review, the import progress, the stored administration index and the help page as the layout wraps
+  them — and
   `AccessibilityTests` applies twelve shared rules to every document: one
   `main`, one `h1`, no skipped heading level, a distinct name on every `nav`, `scope` on every `th`, a
   label on every control, every `form.form` field in its `dd` with its label in a `dt` (or a
@@ -152,10 +156,10 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and
   content types set by middleware, startup-seeded page assets and their conditional responses,
   a stored page that widens its own policy with `ctx.AllowScripts()` while a page that redirects or
-  throws does not, migrations, DI wiring and the fact that a page is compiled once. Editor
-  integration coverage distinguishes `/edit` from the `/edit/` root editor, checks command
-  authorization and antiforgery, installs a seed into a deleted page through its confirmation, and confirms deleted
-  seeded assets remain tombstoned across restarts. `PageAuthenticationTests` runs the whole
+  throws does not, migrations, DI wiring and the fact that a page is compiled once. Editor integration coverage drives the page
+  from its own form — a save that carries the revision it rendered, a stale save that is a `409`, an
+  install through the confirmation, and a `/edit` that answers `404` until a page is stored there —
+  and confirms deleted seeded assets remain tombstoned across restarts. `PageAuthenticationTests` runs the whole
   private-page round trip: a guarded page saved through the editor, the redirect to `/login` with its
   query, signing in back to that page, its form with and without `ctx.AntiforgeryField`, sign-out and
   a password change making an existing cookie anonymous, and an external `returnUrl` still falling
@@ -244,8 +248,11 @@ serves with Playwright and Firefox — the browser the site is read in.
   deleted one takes it away, the numbers stay right-aligned and step with the text's own rows, a
   diagnostic's link scrolls its row to the top, a save puts the caret and selection back, the gutter is
   clipped to the rows the textarea shows, and the form still saves with scripts blocked.
-  `EditorFlowTests` covers the editor round trip, including the history table and the two-revision
-  diff the compare form opens.
+- `PageEditorBrowserTests` drives the seeded `/pages` from a real browser: create from the listing,
+  open, save, save-and-view, an error that keeps the template and points at the line it broke, a
+  stale form that keeps the draft, and the anonymous redirect. The flows that used to live in
+  `EditorFlowTests` are covered by the page suite and the integration fixtures, because the shell
+  no longer has an editor to drive.
 - Fixtures that need different assistant limits start their own `BrowserHost`; the shared one signs in
   once and every test starts from that browser state, so a suite run does not spend the sign-in
   throttle's allowance on itself.

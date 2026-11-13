@@ -28,7 +28,7 @@ The branch is named for the unit of work:
 
 - the job id in lower case, for planning work and for a job small enough to need no plan —
   `arch-15`, `idea-026`;
-- the plan's file name once a plan is being implemented — [page-editor](docs/plans/page-editor.md)
+- the plan's file name once a plan is being implemented — [page-first](docs/plans/page-first.md)
   is `page-editor`. A job whose plan has a different name has two branches: `arch-13` writes the
   plan, `page-streaming` implements it.
 

@@ -115,8 +115,9 @@ do not hand that rule `IPageStore`, a database context, a logger, or `HttpContex
 host, and `SimpleContext` is its only implementation.
 
 A new view starts as a page. It becomes an endpoint only when it needs something a page may not have
-— identity, cookies, the page store, framing headers, or work that outlives the request — and the
-jobs that would move more of the shell are `IDEA-017` and `IDEA-019` in [jobs](jobs/README.md).
+— identity, cookies, the page store, framing headers, or work that outlives the request. The editor
+is the worked example: it is the seeded `/pages`, which is offered `IPageEditor` by its key, and
+[IDEA-030](jobs/IDEA-030.md) is the remaining tidying. See [jobs](jobs/README.md).
 
 ## Visibility
 

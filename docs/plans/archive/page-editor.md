@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Phases 0–4 landed 2026-11-13; phase 5 (documents and the manual) planned |
+| Status | Landed 2026-11-13: phases 0–5 |
 | Size | Large — a new Sdk capability and its values, a read-contract extension, a scoped authority, the seeded `/pages` editor and its module, retiring `/edit`, a shell scrub route, and the tests and documents for each |
 | Area | Sdk, Web (pages, editor, admin, routing, navigation), seeds, docs |
-| Backlog | [IDEA-017](../jobs/IDEA-017.md) — this closes it. [IDEA-028](../jobs/README.md#closed) — the prerequisite recovery path, landed |
+| Backlog | IDEA-017 — closed by this plan. [IDEA-028](../../jobs/README.md#closed) — the prerequisite recovery path, landed |
 | Decisions | Referred to in prose here and numbered when the work merges (DEC-09) |
-| Prerequisite | [IDEA-028](../jobs/README.md#closed) landed 2026-11-13: `/admin/restore` is the way back from a broken editor (DEC-256) |
+| Prerequisite | [IDEA-028](../../jobs/README.md#closed) landed 2026-11-13: `/admin/restore` is the way back from a broken editor (DEC-256) |
 
 ## The short version
 
@@ -33,7 +33,7 @@ stored page, under a narrower seam than the assistant's, and lets the shell edit
   potential handle on the whole store.
 - **The editor answers in place.** A save renders its diagnostics, a stale save is a `409` carrying
   the submitted text beside the current source, and a delete, restore or install re-renders the page
-  or redirects to it. No flash, no second session key and no [IDEA-027](../jobs/IDEA-027.md).
+  or redirects to it. No flash, no second session key and no [IDEA-027](../../jobs/IDEA-027.md).
 - **The shell keeps only the destructive route.** `/edit` stops being an editor and stops being a
   reserved key: the catch-all owns it, no page is stored there, and it answers `404` until somebody
   writes a new page at that key. Permanently removing history is still a destructive act with a
@@ -94,7 +94,7 @@ before the shell view can go.
   render from the store. It does not need a message that another page must read, so IDEA-027 stays
   out of this change.
 - **A reset or a site archive.** Restoring seeds is not "put the site back to an archive"; that is
-  [IDEA-020](../jobs/IDEA-020.md), with its own scope, confirmation and pre-nuke export.
+  [IDEA-020](../../jobs/IDEA-020.md), with its own scope, confirmation and pre-nuke export.
 - **An assistant that edits through the page.** The assistant keeps `PageToolExecutor`,
   `PagePathPolicy` and `PageEditor`; this plan does not route it through the page capability.
 - **A new JavaScript toolchain.** `/editor.js` stays a native ES module, loaded with
@@ -462,7 +462,7 @@ reserved, and keeps `/pages` unreserved, because it is a stored page.
 
 ## The emergency restore, as this plan's prerequisite
 
-[IDEA-028](../jobs/README.md#closed) landed on 2026-11-13 with its own tests. This plan depends on its
+[IDEA-028](../../jobs/README.md#closed) landed on 2026-11-13 with its own tests. This plan depends on its
 behaviour, and on one piece of its code:
 
 - `GET /admin/restore` lists every seed with current/changed/missing/deleted and one POST button.
@@ -614,7 +614,14 @@ is the host's ordinary `400`; storing a page at `/edit` makes it serve; `/admin/
 typed confirmation; every shell and page link points at `/pages`; reserved paths and `ShellRoutes`
 are equivalent; the old editor view tests are either ported or deleted with their reason.
 
-### Phase 5 — documents and the manual
+### Phase 5 — documents and the manual (landed 2026-11-13)
+
+Landed: `PageAuthorPrompt` is `page-author-v25` and lists the current shell files, saying the editor
+is not one of them; `/help` has taught `IPageEditor`, `?edit=`, the confirmations, `/admin/scrub` and
+`/admin/restore` since phase 3; [pages](../pages.md) gains the tenth capability and `EditorPath`;
+[the shell](../shell.md) says there is no editor in the shell and what the capability replaces;
+[testing](../testing.md) names `PageEditorScopeTests`, `PageEditorPageTests` and the browser suite.
+IDEA-017 is closed. The decision numbers are taken when this merges (DEC-09), not here.
 
 Update `/help`, `PageAuthorPrompt` (including its version), `docs/pages.md`, `docs/shell.md`,
 `docs/testing.md` and the decision rows; close IDEA-017 and remove the retired key from the

@@ -187,8 +187,8 @@ shell](shell.md#the-document-shell)), while `/status.css` holds dashboard styles
 by `/status`. Editing a seed file changes the initial content for
 a never-created page, not an existing database page. The authenticated install action applies the
 bundled source to an existing or tombstoned page as a new revision, and its confirmation refuses the
-install when the live template already matches the seed. `/edit` lists every page, with the seeded
-ones under their own heading below the owner's; a seeded row carries an install link only while the
-live template differs from its seed, and a deleted seed keeps it. Restoring a retained revision is
+install when the live template already matches the seed. The editor page lists every page, with the
+seeded ones under their own heading below the owner's; a seeded row carries an install link only
+while the live template differs from its seed. Restoring a retained revision is
 the same write: it saves that revision's source as a new revision under the running runtime, clears
 a tombstone and refuses a revision whose source the live page already holds.

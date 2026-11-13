@@ -20,12 +20,14 @@ your form, and this page is where you have landed": the receiving page can read 
 if it already knows the sender's path, which is a convention the URL has to carry and the template has
 to remember.
 
-The editor is the case that produced the question. A save is posted at `/edit/{path}`, redirects
-somewhere else, and the confirmation belongs to the request that lands, not the one that submitted.
+The editor was the case that produced the question: a save was posted at `/edit/{path}`, redirected
+somewhere else, and the confirmation belonged to the request that landed, not the one that
+submitted. The editor is a page now and answers in place, so it no longer needs the move; a page
+telling *another* page something still would.
 Through a per-path rule that is expressible only because the shell chooses the landing path when it
 writes; two pages, which cannot choose each other, have no such move.
 
-It is a different problem from [IDEA-017](IDEA-017.md): that one is a page editing another page's
+It is a different problem from IDEA-017 (closed, now [the page-editor plan](../plans/archive/page-editor.md)): that one is a page editing another page's
 source, and this one is a page telling another page something. Solving either does not solve the
 other, but both grow from the same gap — a page is bound to its own path and the site no longer has a
 single place to put "something that happened".
@@ -50,5 +52,5 @@ single place to put "something that happened".
    into a path that does not exist; the message is consumed once; a page that ignores it loses it to
    the sweep rather than to the next visitor.
 
-If IDEA-017 lands first, the editor stops being a shell endpoint and the sending side becomes a page
+IDEA-017 has landed, so the editor is a page and the sending side is a page
 writing under its own path to a landing page it names, which may answer this without new capability.

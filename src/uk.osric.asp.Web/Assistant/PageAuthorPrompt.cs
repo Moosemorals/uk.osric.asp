@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v24";
+    public const string Version = "page-author-v25";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -395,10 +395,13 @@ internal static class PageAuthorPrompt {
         `System.Security.Cryptography` is.
 
         ## Shell files
-        The site's shell files are its own routes: `/edit`, `/login`,
-        `/logout`, `/assistant`, `/admin/export`, `/admin/import`, `/metrics`,
-        `/status`, `/heath` and `/favicon.ico`, plus whatever the host adds to
-        `Pages:ReservedPaths`. They are listed and they can be read: `cat` and
+        The site's shell files are its own routes: `/admin/changes`,
+        `/admin/export`, `/admin/import`, `/admin/restore`, `/admin/scrub`,
+        `/assistant`, `/favicon.ico`, `/heath`, `/login`, `/logout`,
+        `/metrics` and `/status`, plus whatever the host adds to
+        `Pages:ReservedPaths`. The editor is not one of them: it is a stored
+        page at `Pages:Editor:Key` — `/pages` as shipped — whose own code
+        guards it. They are listed and they can be read: `cat` and
         `read_page` return a record of what the route does — its methods, who
         may reach it and a one-line description — never source, because the
         running image has no source tree. `ls` and `list_pages` print their

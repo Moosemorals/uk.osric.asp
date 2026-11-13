@@ -41,9 +41,9 @@ registered or absent, never `null` (DEC-142). The type that declares them is `IP
 the old `Features` spelling was removed once its release was over, so a page that still says
 `ctx.Features` no longer compiles (DEC-228, DEC-254).
 
-Nine capabilities are registered today — five that do I/O and are bounded by the render, one that
-is the page's slots in its document, two that are pure renderers, and one that is a fact about
-the build:
+Ten capabilities are registered today — six that do I/O and are bounded by the render, one that is
+the page's slots in its document, two that are pure renderers, and one that is a fact about the
+build:
 
 - `IBuildInfo` says which build is answering: `Commit` is the full git commit hash, or `null` when
   the build did not come from a checkout. It is a capability because the page API denies both the
@@ -93,6 +93,16 @@ the build:
   save belongs to the next request, and a save that has started finishes even if the render times
   out. A layout is offered the read and not the write (DEC-189–DEC-196). See
   [source storage](storage.md#source-storage).
+- `IPageEditor` is the editor's authority, and it is offered to one render only: the page stored at
+  `Pages:Editor:Key` (`/pages` as shipped). No other key gets it and a layout never does, so the
+  registration is the authority rather than a check inside the handle (D2, D3). It answers with
+  values the compiler produced — `PageEditResult` carries the outcome, the new hash and
+  `PageDiagnostic`s — and it refuses an anonymous render, a `HEAD` write and a second action in one
+  render. `Resolve` says whether a key is usable, `SaveAsync(key, template, expectedHash)` is the
+  conditional save whose `null` expectation creates a page, `DeleteAsync` tombstones,
+  `RestoreRevisionAsync` and `InstallSeedAsync` answer with the revision they stored, and
+  `SeedSourceAsync` reads the bundled source so the install confirmation can show a diff. Like the
+  page's own write, a save belongs to the next request and a started save finishes (D4, D5, D11).
 - `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
   `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
@@ -221,7 +231,7 @@ the history and the assistant all say `Compiled with warnings`, and no path trea
 
 A page's state is one of five values, described in one place (`PageImageState` in `Web`): `Not
 compiled` (no image record), `Stale` (an image from another `RuntimeId`), `Compile failed` (a record
-with no assembly), `Compiled with warnings` and `Compiled`. The `/edit` listing shows it in a State
+with no assembly), `Compiled with warnings` and `Compiled`. The editor page lists it in a State
 column, and the assistant's `list_pages` carries the same word per page. Staleness is judged on
 `RuntimeId` alone — hashing every template to answer a listing is not worth it — and a retained
 revision is history rather than stale, so only the listing and the assistant pass the running build.

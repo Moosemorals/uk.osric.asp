@@ -12,8 +12,8 @@ pipeline works.
 
 ## The document shell
 
-Everything the site itself serves — the editor, the listing, sign-in, status, the error branches and
-the confirmations — is one document shape, written by `Html/ShellDocument.cs`. `BeginAsync` sets the
+Everything the site's own code serves — sign-in, status, the error branches, the recovery
+confirmations and the administration views — is one document shape, written by `Html/ShellDocument.cs`. `BeginAsync` sets the
 content type, the status and `Cache-Control: no-store` (unless the response already carries a header,
 which is how a view that mints an antiforgery token keeps the framework's `no-cache, no-store`),
 writes the head (the title, `/site.css`, the view's own sheet where it has one, then the icon) and
@@ -34,7 +34,7 @@ view to the next.
 - `/status` writes body content only — its heading, window nav, banner and figures — and its document
   is the builder's, like every other view's. A chart it draws can also be requested on its own at
   `/status/chart`, which is a drawing rather than a document and so does not go through this builder.
-- `PageLayout` keeps the editor's fragments: `Gutter` and `Diagnostics` (a `ul` with `role="list"`,
+- `PageLayout` keeps the fragments a shell view writes: `Gutter` and `Diagnostics` (a `ul` with `role="list"`,
   DEC-108). Everything a document shares — the head with its base sheets and icon, the banner with
   the skip link, `Nav`, `OpenMain`/`CloseMain` and the close — is `Sdk/PageDocument.cs`, so the
   shell, a seeded layout and a page all write one document shape (DEC-156). `Html/` keeps
@@ -102,15 +102,16 @@ write buffer 2
   cannot be served is an error naming the key.
 - **The menu is written twice, on purpose.** `SiteNavigation` composes it from the principal for the
   shell's own views; the seeded `/_layout` writes it from `ctx.User` for stored pages. The shell's
-  document must not depend on a stored page, because the error, health, sign-in and editor routes
-  have to answer when the page pipeline is broken (DEC-151). Both go through `PageDocument.Nav`.
+  document must not depend on a stored page, because the error, health and sign-in routes have to
+  answer when the page pipeline is broken (DEC-151). Both go through `PageDocument.Nav`. The
+  editor is a stored page, so its menu is written by the page rather than by `SiteNavigation`.
 
 The layout is not a guard: the content has already run. It is not a data boundary: it reads its own
 storage and nothing of the page's.
 
 The author-facing version of this section is the seeded `/help` page, which is itself a page the
-owner can edit and restore. It is linked from the editor and the page list; a change to what a page
-author can do updates it in the same change.
+owner can edit and restore. It is linked from the editor page; a change to what a page author can
+do updates it in the same change.
 
 ## Error responses
 
@@ -133,7 +134,7 @@ request by the writer rather than passed in by each call site, which is why the 
 Three layers keep the promise:
 
 - Call sites that know the problem say it. `NotFound` keeps `"{key} not found."` and adds a
-  "Create this page" link for a signed-in owner; the editor names an unknown action instead of
+  "Create this page" link for a signed-in owner; the editor page names an unknown action instead of
   stopping at a status.
 - `UseStatusCodePages` is the guarantee. An endpoint, the framework, a routing 404/405, a rejected
   antiforgery token or the rate limiter can all answer with a status and nothing else; the fallback
@@ -148,15 +149,23 @@ signed-in owner, and a problem document when the request wanted JSON.
 
 ## Authentication and the editor
 
-The editor is behind a sign-in; pages stay public unless the page's
-own code checks `ctx.User` (see "Page authentication" below). A seeded page is installed from its
-row on `/edit`: the action opens a confirmation that shows the diff against the seed, and its button
-saves the bundled source through the ordinary revision path, so a deleted seeded page comes back
-without discarding its earlier revisions. A seed is *installed* and a saved revision is *restored*:
-`cmd=install` on the seed, `cmd=restore&hash=` from the page's history, both confirmed the same way
+There is no editor in the shell. The editor is a seeded page at `Pages:Editor:Key` — `/pages` as
+shipped — so it is served by the page pipeline and guards itself with the ordinary `ctx.User` check.
+What keeps it trustworthy is not a route but the capability: `IPageEditor` is registered for that
+key alone, so a page stored anywhere else cannot read, write, delete or restore another page, and
+the shell still owns the things a page must not: routing, the session, the recovery routes and the
+typed confirmation a scrub needs. Pages stay public unless their own code checks `ctx.User` (see
+"Page authentication" below).
+
+A seeded page is installed from its row in the editor's listing: the action opens a confirmation
+that shows the diff against the seed, and its button saves the bundled source through the ordinary
+revision path, so a page comes back without discarding its earlier revisions. A seed is *installed* and a saved revision is *restored*:
+`?edit=<key>&cmd=install` on the seed, `?rev=<hash>&cmd=restore` from the page's history, both confirmed the same way
 and both refusing the change that would leave the live source as it is. The page's history offers a
 restore link on every revision except the current one; the editor says when a key was deleted and
-that saving brings it back.
+that saving brings it back. A deleted page's history is scrubbed from `/admin/scrub/<key>`, which is
+the shell's route because it is irreversible: the owner types the page's key to confirm, and a live
+page has to be deleted before it can be scrubbed.
 
 - Accounts live in the `Users` table in the same SQLite database. There is no registration endpoint
   and no account UI: the `users` command in the Web app creates, lists, resets and removes accounts
@@ -178,7 +187,7 @@ that saving brings it back.
   account has the same effect on the next request. Signing in again does **not** rotate the stamp,
   so several browsers or devices can hold a valid session at the same time; only a password change
   or account removal revokes them all.
-- `/edit/**` and `/status` require the `Editor` policy, which is just an authenticated account.
+- `/admin/**` and `/status` require the `Editor` policy, which is just an authenticated account.
   `/login`, `/logout`, `/heath` and `/metrics` are the other routes outside the page catch-all, and
   every one of them is a reserved page key. The reserved keys are also what the assistant calls the
   shell files: it lists and reads a record of each one and can never write one, and `ShellRoutes`
@@ -189,11 +198,10 @@ that saving brings it back.
   address, taken from the `X-Forwarded-For` Caddy writes, so one address spending its attempts
   cannot deny sign-in to anyone else. The address is folded into one of 1024 buckets, because the
   limiter never releases a partition and the address is otherwise unbounded (DEC-118).
-- Login, logout and editor POSTs validate an antiforgery token. A rejected request is answered
-  `400` before it reads the form or touches storage. Pages are not endpoints with metadata, so
-  `PageEndpoint` checks an authenticated page `POST` itself, before the page runs. The editor's save
-  message is a page-session key under the path of the view that reads it, not a cookie, and a
-  successful save answers `303` so the browser follows with a `GET`.
+- Login, logout and every administration POST validate an antiforgery token. A rejected request is
+  answered `400` before it reads the form or touches storage. Pages are not endpoints with metadata,
+  so `PageEndpoint` checks an authenticated page `POST` itself, before the page runs — which is what
+  covers the editor page's save, delete, install and restore.
 - The data-protection key ring is persisted on a volume. That is what lets the 30-day cookie and
   in-flight antiforgery tokens survive a redeploy.
 
@@ -241,12 +249,13 @@ A page keeps per-visitor state through `ctx.Capabilities.GetRequired<IPageSessio
   session cap evicts the most idle **anonymous** session first and only touches a signed-in one when
   no anonymous session is left, so a flood sheds strangers rather than the person using the site.
 
-The shell's own session keys are ordinary page-session keys with reserved paths:
-`/edit` carries the page list's flash message and `/edit/{path}` the editor's. Both are reserved, so
-no page can occupy those namespaces, and a page can read them but not write or delete them.
+The shell keeps no flash message of its own. The editor page's notices are written into the render
+that produced them: it answers a save in place, so a message that a redirect would have to carry is
+not needed. `/admin/restore` and `/admin/scrub` answer with their own documents for the same reason.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
-  starts (DEC-93). The editor, assistant and admin views widen the policy to `script-src 'self'` for
-  their own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` (DEC-138).
+  starts (DEC-93). The assistant and admin views widen the policy to `script-src 'self'` for their
+  own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` — which is how
+  the editor page loads `/editor.js` (DEC-138).
   A stored page's starting policy comes from its extension row's `ScriptPolicy`, before the page
   runs; a page with code may widen `none` with `AllowScripts`, while a no-code page has no code to
   do so and depends on the configured row. The header stays shell-owned, so a page cannot set
@@ -256,7 +265,7 @@ no page can occupy those namespaces, and a page can read them but not write or d
 
 ### Page authentication
 
-The sign-in the editor already has is available to a page, as ordinary page code rather than a
+The sign-in the editor page uses is available to any page, as ordinary page code rather than a
 directive, a metadata column or a route policy. A page is public unless it guards itself:
 
 ```html

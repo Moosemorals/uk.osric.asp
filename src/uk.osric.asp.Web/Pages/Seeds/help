@@ -48,7 +48,10 @@ confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a se
     change it will make, and restoring saves that source as a new revision, compiled by this build.
     Nothing is rewound, and a revision whose source the page already holds cannot be restored.</li>
     <li><strong>Delete</strong> hides a page but keeps its template and history. <strong>Scrub</strong>
-    permanently removes a deleted page and its retained history; use it only when you mean it.</li>
+    permanently removes a deleted page and its retained history; use it only when you mean it. It is
+    the site's own route rather than an action here, because it cannot be undone: the page's row
+    links to <code>/admin/scrub</code>, which asks you to type the page's key to confirm, and refuses
+    a page that has not been deleted first.</li>
     <li><strong>Install from seed</strong> is offered for the pages the site ships with, such as
     <code>/_layout</code>, <code>/help</code> and the stylesheets, and only while the page differs
     from its seed. It opens the same kind of confirmation as a restore and saves the bundled source

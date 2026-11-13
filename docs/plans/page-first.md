@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started |
+| Status | Planned, not started — and overtaken in part: the editor became a page on 2026-11-13 ([page editor](archive/page-editor.md)), so the audit's first row is already spent and the re-scope the programme asks for is smaller than this plan assumed |
 | Size | Large — a rule and its audit, two capabilities, a store registration change, a seeded page and its sheet, and the tests for each |
 | Spike | None. The page contract already carries everything a form needs, and `/scratch` is the worked example |
 | Decisions | DEC-210 (the rule) and DEC-211 (the capability), recorded with this plan; DEC-205 is superseded in phase 3 |
@@ -60,7 +60,9 @@ tool's delete.
   authority in configuration, which is where a page cannot see it (DEC-02, DEC-169).
 - **A second page for the forget confirmation.** A page is its own route: the confirmation is
   `/memory?forget={id}`, and the form posts back to the same key.
-- **A page-side editor.** `/edit` is the tool that repairs a broken page, so it can never be one.
+- **A page-side editor.** `/edit` was the tool that repairs a broken page, so it could not be one —
+  until [IDEA-028](../jobs/README.md#closed) gave that job to `/admin/restore`, which is what let the
+  editor become the seeded `/pages`.
 - **Streaming, uploads or script endpoints.** Those are what the *remaining* shell routes wait for,
   and they are backlog (ARCH-13, IDEA-024, IDEA-025).
 - **Moving `/status`.** It stays shell: diagnosing why a page did not load starts there, which makes
@@ -74,7 +76,7 @@ tool's delete.
 
 | Route | Why it is not a page | Where that is recorded |
 | --- | --- | --- |
-| `/edit` and its commands (save, history, delete, scrub, restore a seed) | **Bootstrap.** It is the tool that repairs a page, so a broken site cannot be repaired from inside one | DEC-210 |
+| ~~`/edit` and its commands~~ | **Landed as a page** with `/admin/restore` as the bootstrap. `scrub` stayed in the shell at `/admin/scrub` because it cannot be undone | DEC-210 superseded for this row by [page editor](archive/page-editor.md) |
 | `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | DEC-210 |
 | `/status`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load — the counters, the storage, the build and the commits in it — starts here; the changelist is a file the image carries, which a page cannot read | DEC-210, DEC-255 |
 | `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | DEC-210 |
@@ -412,10 +414,10 @@ and the page is reached from the assistant.
 ## Documentation and decisions
 
 - **DEC-210** — Anything a page can serve is a page. A route stays in the shell only because it
-  bootstraps a broken site (`/edit`, `/login`, `/logout`, `/status`), because it *is* the page runtime
-  (`{**path}`, `/favicon.ico`, `/heath`, `/metrics`), or because a page cannot do it yet — and each of
-  those has a job. `/status` counts as bootstrap because diagnosing why a page did not load starts
-  with it.
+  bootstraps a broken site (`/login`, `/logout`, `/status` and the recovery routes — `/edit` left this
+  list when the editor became a page), because it *is* the page runtime (`{**path}`, `/favicon.ico`,
+  `/heath`, `/metrics`), or because a page cannot do it yet — and each of those has a job. `/status`
+  counts as bootstrap because diagnosing why a page did not load starts with it.
 - **DEC-211** — Memory is a page capability, not a shell view: `IMemoryCatalog` and `IMemoryWriter`
   reach a page through `ctx.Capabilities`, the request's signed-in account is the only owner they can
   name, an anonymous render is refused by the capability itself, the writer is withheld from a layout
@@ -441,7 +443,7 @@ owner's write is reached from a page; [testing](../testing.md) names the suites;
 | --- | --- |
 | **The guard is now the page's own code.** A future edit drops `ctx.User` and the page lists memory to an anonymous visitor. | It cannot: the capability refuses an anonymous render before it reads anything, and `MemoryCatalogScopeTests` proves it by name. The guard is the nicer redirect, not the authority (DEC-190, DEC-211). |
 | **A page can now write memory, and pages are editable by the assistant.** The assistant could rewrite the page to change what the owner sees or keep. | The page can only touch the signed-in owner's memory, the same person the assistant is talking to; every write is still keyed by the owner and versioned. If the assistant rewrites the page, the owner restores it from its seed like any other seed. |
-| **The memory page can be broken like any page.** A compile error leaves the owner unable to edit memory until `/edit` fixes it. | That is what `/edit` is for, and why it stays shell (DEC-210). The page is deliberately small. |
+| **The memory page can be broken like any page.** A compile error leaves the owner unable to edit memory until the editor page is fixed. | `/admin/restore` is the way back — it restores the seeds from the bundled source through the same saver — and the page is deliberately small (DEC-256). |
 | **Two implementations of one view drift.** The shell page's tests and the page's tests both describe the same list. | There is only one, after phase 3 deletes the shell endpoint; nothing is left to drift. |
 | **`Sdk` grows and every page recompiles.** A new capability moves the Sdk module version and the runtime id. | One deliberate capability with two interfaces, values in `Sdk`, mapping in `Web`; every stored image recompiles on its next request, which is DEC-26's normal cost. |
 | **The store's registration change breaks the run path.** The assistant resolved it from a scope. | The interface does not change and the run processor resolves the same service; `RunProcessorTests` and the integration memory flow still pass in phase 1. |

@@ -20,7 +20,7 @@ remedies. Each one is a `NavLink` list assembled at the call site, so every new 
 is a sweep, and every sweep is a chance to miss one.
 
 That is how a retirement goes wrong. Removing `/edit` in phase 4 of [the page-editor
-plan](../plans/page-editor.md) touched `SiteNavigation`, `AdminNavigation`, six endpoints, both
+plan](../plans/archive/page-editor.md) touched `SiteNavigation`, `AdminNavigation`, six endpoints, both
 `PageUrls` users, four error-message factories and five seeds, and the `Pages:Editor:Key` plumbing
 that followed touched them all again to stop them naming `/pages` themselves.
 

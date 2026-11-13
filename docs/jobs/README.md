@@ -39,7 +39,7 @@ release that removes the deprecated `Features` alias once the page store has no 
 ARCH-16 came out of the [tool-types work](../plans/archive/assistant-tool-types.md) of 2026-11-11
 (DEC-231): making a tool one type showed that the page tools and the shell answer the same questions
 about the page store through two implementations. IDEA-028 came out of the [page-editor
-planning](../plans/page-editor.md) of 2026-11-13: the editor can become a page only if a broken
+planning](../plans/archive/page-editor.md) of 2026-11-13: the editor can become a page only if a broken
 editor has a way back, and one button that restores every seed is that way. IDEA-030 came out of
 that plan's fourth phase: retiring `/edit` and moving the editor's key into configuration showed
 that a dozen views each assemble their own navigation.
@@ -53,7 +53,6 @@ that a dozen views each assemble their own navigation.
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
 | [IDEA-005](IDEA-005.md) | — | L | Pages cannot share code: the layout half landed, a named declaration a second page can use is still deferred |
-| [IDEA-017](IDEA-017.md) | — | L | A page cannot edit another page, so the editor cannot become one |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
 | [IDEA-024](IDEA-024.md) | — | L | `/admin/import` and `/admin/export` are shell code because an archive is not a form |
@@ -94,7 +93,7 @@ is `done` when its merge is in, and `in flight` while its branch is open.
 | 2 | [IDEA-026](#closed) — remove the `Features` alias; the data gate was waived, deliberately (below) | S | — | merge | done |
 | 3 | [IDEA-028](#closed) — `/admin/restore`, over the seed read and the saver ARCH-07 left behind | M | — | merge, and a manual restore of a broken page | done |
 | 4 | [IDEA-019](#closed) — repeated request values, and `Encoding` and cryptography in the API policy; the cookie point is dropped because IDEA-014 gives a page per-visitor state | S | — | merge | done |
-| 5 | [Page editor](../plans/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | — |
+| 5 | [Page editor](../plans/archive/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | done |
 | 6 | [ARCH-16](ARCH-16.md) — one read seam for the assistant's tools and its applets | M | 5 (rework) | merge | — |
 | 7 | [ARCH-13](ARCH-13.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | — |
 | 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase | — |
@@ -132,6 +131,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | ID | Fix |
 | --- | --- |
 | [IDEA-019](../decisions.md) | Every request value survives: `QueryValues` and `FormValues` keep each name's values in order, and the API policy admits encoding, SHA-2 hashing, HMAC signing, a random source and a constant-time compare. DEC-257 |
+| [IDEA-017](../plans/archive/page-editor.md) | The editor is a page: `IPageEditor`, the read state, the seeded `/pages` editor and its module, and `/edit` retired to an ordinary key with scrub moved to `/admin/scrub`. See [the plan](../plans/archive/page-editor.md) |
 | [IDEA-028](../decisions.md) | `/admin/restore` lists every seed's state, restores each changed, missing or tombstoned one in a single POST and reports every outcome; a matching seed and a page the owner made are untouched. DEC-256 |
 | [IDEA-026](../decisions.md) | The `Features` alias is gone: `IPageFeatures`, `IContext.Features`, the `PAGE005` diagnostic and the `[Obsolete]` attributes are removed, and a page that still says `ctx.Features` no longer compiles. DEC-254 |
 | [ARCH-15](../decisions.md) | The assistant's only read-only keys are the shell's own routes: `Assistant:ProtectedPaths`, its `IsProtected` branch, the empty configuration row and the prompt's sentence are gone, so every page the shell does not route is the assistant's to write. DEC-253 |

@@ -350,7 +350,7 @@ it is not ASP.NET Core's session, has no in-process cache and survives a restart
 `Pages:Session` configuration and the `s` cookie.
 
 ## Shell file
-A key the site's own routes answer — `/edit`, `/login`, `/assistant`, `/metrics` and the rest of
+A key the site's own routes answer — `/login`, `/assistant`, `/admin/scrub`, `/metrics` and the rest of
 `Pages:ReservedPaths` — which the assistant may list and read but never save over.
 
 **Not** a page or a seed. A shell file has no stored source, revision or compile state: the assistant
