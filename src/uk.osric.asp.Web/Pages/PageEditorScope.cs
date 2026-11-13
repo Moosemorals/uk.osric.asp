@@ -68,12 +68,13 @@ internal sealed class PageEditorScope(
     }
 
     /// <inheritdoc/>
-    public async Task<PageEditResult> SaveAsync(string key, string template, string expectedHash) {
+    public async Task<PageEditResult> SaveAsync(string key, string template, string? expectedHash) {
         ArgumentNullException.ThrowIfNull(template);
-        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
 
         PagePath target = ResolveForWrite(key);
-        PageEditResult result = await SaveConditionalAsync(target, template, expectedHash);
+        PageEditResult result = expectedHash is null
+            ? await CreateAsync(target, template)
+            : await SaveConditionalAsync(target, template, expectedHash);
         Acted();
 
         return result;
@@ -143,6 +144,16 @@ internal sealed class PageEditorScope(
         Acted();
 
         return result;
+    }
+
+    // A form rendered from a page with no live source carries no expectation, so the save applies
+    // only while that is still true: a create never overwrites a page that appeared in the meantime.
+    private async Task<PageEditResult> CreateAsync(PagePath target, string template) {
+        PageTemplate? live = await pages.GetAsync(target, Deadline);
+
+        return live is not null
+            ? new PageEditResult(PageEditOutcome.Stale, null, [])
+            : await SaveUnconditionalAsync(target, template);
     }
 
     private async Task<PageEditResult> SaveConditionalAsync(PagePath target, string template, string? expectedHash) {

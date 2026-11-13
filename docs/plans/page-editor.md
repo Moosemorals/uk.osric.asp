@@ -189,6 +189,9 @@ rule exist to stop the assistant, and the owner edits exactly those pages.
 
 The editor form carries the hash it was rendered from. `SaveAsync` calls a new
 `PageSaver.SaveIfRevisionAsync`, which compiles before it stores only while the head still matches.
+A form rendered from a page with no live source carries no hash, and `SaveAsync` takes `null` for it:
+the save then applies only while the page is still missing, so the create path is conditional too and
+a page that appeared under the form is a `Stale` rather than a silent overwrite.
 A mismatch returns `Stale` without a write; the page answers `409` and renders the submitted text in
 the textarea beside a read-only copy of the current source and its hash, so the author reconciles by
 pasting rather than losing the draft. The next form carries the current hash.
@@ -571,7 +574,9 @@ scripts, add the confirmations, diff and history, and update `editor.js`'s caret
 tests into the page suite and add the browser round trip.
 
 Landed: the page is the listing, the editor, the source-and-history view, the revision view, the diff
-and the three confirmations, one action per request. It names itself — every URL is built from
+and the three confirmations, one action per request. The request is dispatched by one small function
+per action; `PageEditorScope.SaveAsync` gained the null expectation a new page's form carries, which
+the browser suite found the hard way — without it the page could not create anything. It names itself — every URL is built from
 `ctx.Path`, so `Pages:Editor:Key` can move the editor without editing the page — and it writes every
 value through `ctx.Write`, never a raw interpolation of stored source. `IPageEditor.SeedSourceAsync`
 joined the capability because the install confirmation needs the bundled source to diff against and a

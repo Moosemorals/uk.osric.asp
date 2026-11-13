@@ -175,7 +175,7 @@ uk.osric.asp.Sdk.IPageEditor.DeleteAsync(string! key) -> System.Threading.Tasks.
 uk.osric.asp.Sdk.IPageEditor.InstallSeedAsync(string! key, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
 uk.osric.asp.Sdk.IPageEditor.Resolve(string! key) -> uk.osric.asp.Sdk.PageKeyResolution!
 uk.osric.asp.Sdk.IPageEditor.RestoreRevisionAsync(string! key, string! hash, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
-uk.osric.asp.Sdk.IPageEditor.SaveAsync(string! key, string! template, string! expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult!>!
+uk.osric.asp.Sdk.IPageEditor.SaveAsync(string! key, string! template, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult!>!
 uk.osric.asp.Sdk.IPageEditor.SeedPaths() -> System.Collections.Generic.IReadOnlyList<string!>!
 uk.osric.asp.Sdk.IPageEditor.SeedSourceAsync(string! key) -> System.Threading.Tasks.Task<string?>!
 uk.osric.asp.Sdk.PageDeleteResult

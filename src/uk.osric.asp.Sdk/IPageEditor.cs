@@ -51,10 +51,15 @@ public interface IPageEditor {
     /// <summary>Saves a page, only while its head still has the expected revision.</summary>
     /// <param name="key">The page's key; normalised and checked.</param>
     /// <param name="template">The template text.</param>
-    /// <param name="expectedHash">The head hash the form was rendered from.</param>
+    /// <param name="expectedHash">
+    /// The head hash the form was rendered from, or <see langword="null"/> when the page had no live
+    /// source: a new page, or a tombstone. A null expectation is refused as
+    /// <see cref="PageEditOutcome.Stale"/> if the page exists by the time the save runs, so a create
+    /// cannot quietly overwrite one.
+    /// </param>
     /// <exception cref="UserFacingException">This render has no signed-in visitor, so nothing was saved.</exception>
     /// <exception cref="InvalidOperationException">A reserved key, a <c>HEAD</c>, an ended render or a second action.</exception>
-    Task<PageEditResult> SaveAsync(string key, string template, string expectedHash);
+    Task<PageEditResult> SaveAsync(string key, string template, string? expectedHash);
 
     /// <summary>Tombstones a page, keeping its history.</summary>
     /// <param name="key">The page's key; normalised and checked.</param>

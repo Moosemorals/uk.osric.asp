@@ -111,6 +111,35 @@ public sealed class PageEditorScopeTests {
     }
 
     [Test]
+    public async Task ANewPageIsSavedWithoutAnExpectationAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageEditorScope scope = Scope(pages);
+
+        PageEditResult result = await scope.SaveAsync("/new", "first", null);
+
+        Assert.Multiple(() => {
+            Assert.That(result.Outcome, Is.EqualTo(PageEditOutcome.Saved));
+            Assert.That(storage["/new"]?.Template, Is.EqualTo("first"));
+        });
+    }
+
+    [Test]
+    public async Task AnExpectationlessSaveCannotOverwriteAPageAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        _ = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        PageEditorScope scope = Scope(pages);
+
+        PageEditResult result = await scope.SaveAsync("/page", "second", null);
+
+        Assert.Multiple(() => {
+            Assert.That(result.Outcome, Is.EqualTo(PageEditOutcome.Stale), "the page exists now");
+            Assert.That(storage["/page"]?.Template, Is.EqualTo("first"));
+        });
+    }
+
+    [Test]
     public async Task OneRenderMakesOneActionAsync() {
         using PageHarness pages = new(new FakePageStore());
         SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");

@@ -1,6 +1,5 @@
 <%! using System.Collections.Generic; %>
 <%! using System.Linq; %>
-<%! using System.Threading.Tasks; %>
 <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
 <%
     IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>();
@@ -69,297 +68,220 @@
         problemText = detail;
     }
 
-    void ResolveKey() {
-        if (editText is null && pageText is null) {
-            return;
-        }
-
-        PageKeyResolution resolved = editor.Resolve(editText ?? pageText!);
-        if (!resolved.IsSuccess) {
-            Problem(400, "That is not a page address", resolved.Error ?? "That is not a page address.");
-        } else if (resolved.IsReserved) {
-            Problem(400, "That is a shell file",
-                resolved.Key + " is answered by the site itself, so no page is stored there.");
-        } else {
-            key = resolved.Key!;
-            hasKey = true;
-        }
-    }
-
-    async Task NewPageAsync() {
+    if (command == "new") {
         PageKeyResolution created = editor.Resolve(One(ctx.Request.Form, "path") ?? "");
         if (!created.IsSuccess || created.IsReserved) {
             Problem(400, "That page name cannot be used",
                 created.Error ?? created.Key + " is answered by the site itself, so no page is stored there. Nothing was created.");
         } else {
             ctx.Redirect(EditUrl(created.Key!), 303);
-        }
-    }
-
-    async Task SavePageAsync(bool view) {
-        if (editText is null || !hasKey) {
-            Problem(400, "That save has no page", "Saving posts the editor form, which names the page it edits. Nothing was saved.");
             return;
         }
-
-        string? submitted = One(ctx.Request.Form, "template");
-        expected = One(ctx.Request.Form, "expected");
-        if (submitted is null) {
-            Problem(400, "A template is required", "The form carried no template, so nothing was saved.");
-            return;
-        }
-
-        if (expected is null) {
-            Problem(400, "The form was incomplete",
-                "The form did not say which revision it was rendered from, so nothing was saved. Reload the editor and try again.");
-            return;
-        }
-
-        text = submitted;
-        PageEditResult saved = await editor.SaveAsync(key, submitted, expected);
-        diagnostics = saved.Diagnostics;
-        stage = "editor";
-
-        if (saved.Outcome == PageEditOutcome.Stale) {
-            status = 409;
-            live = await catalog.ReadAsync(key);
-            expected = live?.Hash;
-            notice = "The page changed while this form was open, so nothing was saved. Your text is below; "
-                + "the source that was stored instead is beside it. Copy what you want and save again.";
-            return;
-        }
-
-        expected = saved.Hash;
-        notice = saved.HasErrors
-            ? "Saved as revision " + saved.Hash + ", which does not compile: the page will not render until the error is fixed."
-            : saved.HasWarnings
-                ? "Saved as revision " + saved.Hash + ", which compiled with warnings."
-                : "Saved as revision " + saved.Hash + ".";
-        viewAfterSave = view && !saved.HasErrors;
-    }
-
-    async Task PostActionAsync() {
-        if (!hasKey) {
-            Problem(400, "That action needs a page", "The request named no page to act on, so nothing was changed.");
-            return;
-        }
-
-        if (command == "delete") {
-            PageDeleteResult removed = await editor.DeleteAsync(key);
-            stage = "listing";
-            notice = removed.Deleted
-                ? "Deleted " + key + "; revision history is retained."
-                : "That page was already missing.";
-            return;
-        }
-
-        if (command == "install") {
-            expected = One(ctx.Request.Form, "expected");
-            PageEditResult? installed = expected is null ? null : await editor.InstallSeedAsync(key, expected);
-            if (installed is null) {
-                seedSource = await editor.SeedSourceAsync(key);
-                if (seedSource is null) {
-                    Problem(404, "That is not a seeded page", key + " is not one of the pages this release ships, so there is no seed to install.");
-                } else {
-                    Problem(400, "The form was incomplete", "The form did not say which revision it was rendered from, so nothing was installed.");
-                }
-                return;
-            }
-
-            stage = "install";
-            live = await catalog.ReadAsync(key);
-            seedSource = await editor.SeedSourceAsync(key);
-            notice = installed.Outcome switch {
-                PageEditOutcome.Stale => "The page changed while this confirmation was open, so nothing was installed. Compare again and retry.",
-                PageEditOutcome.Unchanged => "Nothing was installed: " + key + " already holds the seed's source.",
-                _ when installed.HasErrors => "Installed the seed as revision " + installed.Hash + ", which does not compile: the page will not render until the error is fixed.",
-                _ when installed.HasWarnings => "Installed the seed as revision " + installed.Hash + ", which compiled with warnings.",
-                _ => "Installed the seed as revision " + installed.Hash + ".",
-            };
-            if (installed.Outcome == PageEditOutcome.Stale) {
-                status = 409;
-            }
-            return;
-        }
-
-        if (command == "restore") {
-            string? hash = One(ctx.Request.Query, "rev");
-            expected = One(ctx.Request.Form, "expected");
-            if (!IsHash(hash)) {
-                Problem(400, "That restore link is not valid",
-                    "A restore link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.");
-                return;
-            }
-
-            if (expected is null) {
-                Problem(400, "The form was incomplete", "The form did not say which revision it was rendered from, so nothing was restored.");
-                return;
-            }
-
-            PageEditResult? restored = await editor.RestoreRevisionAsync(key, hash!, expected);
-            if (restored is null) {
-                Problem(404, "That revision is not on this page", "No revision of " + key + " has that hash, so nothing was restored.");
-                return;
-            }
-
-            stage = "restore";
-            revision = await catalog.ReadRevisionAsync(key, hash!);
-            live = await catalog.ReadAsync(key);
-            notice = restored.Outcome switch {
-                PageEditOutcome.Stale => "The page changed while this confirmation was open, so nothing was restored. Compare again and retry.",
-                PageEditOutcome.Unchanged => "Nothing was restored: the page already holds that revision's source.",
-                _ when restored.HasErrors => "Restored the revision as revision " + restored.Hash + ", which does not compile: the page will not render until the error is fixed.",
-                _ when restored.HasWarnings => "Restored the revision as revision " + restored.Hash + ", which compiled with warnings.",
-                _ => "Restored the revision as revision " + restored.Hash + ".",
-            };
-            if (restored.Outcome == PageEditOutcome.Stale) {
-                status = 409;
-            }
-            return;
-        }
-
-        Problem(400, "The editor could not tell what to do",
-            "That request did not name an action this page understands. Use one of the buttons on the page.");
-    }
-
-    // No command and no key: the page list. A command with no key is a link that lost its page.
-    void BarePath() {
-        if (command is null) {
-            stage = "listing";
-        } else {
-            Problem(400, "That action needs a page", "The page list has no page to act on. Choose a page, or create one with \"Create or open\".");
-        }
-    }
-
-    async Task OpenEditorAsync() {
-        if (command is null) {
-            stage = "editor";
-            revisions = await catalog.RevisionsAsync(key);
-            live = await catalog.ReadAsync(key);
-            deleted = live is null && revisions.Count > 0;
-            text = live?.Source ?? "";
-            expected = live?.Hash;
-            return;
-        }
-
-        if (command == "delete") {
-            stage = "delete";
-            return;
-        }
-
-        if (command == "install") {
-            seedSource = await editor.SeedSourceAsync(key);
-            if (seedSource is null) {
-                Problem(404, "That is not a seeded page",
-                    key + " is not one of the pages this release ships, so there is no seed to install.");
-                return;
-            }
-
-            stage = "install";
-            live = await catalog.ReadAsync(key);
-            expected = live?.Hash;
-            renderedDiff = differ.ToHtml(live?.Source ?? "", seedSource);
-            return;
-        }
-
-        Problem(400, "The editor could not tell what to do", "That request did not name an action this page understands.");
-    }
-
-    async Task OpenReadAsync() {
-        string? hashText = One(ctx.Request.Query, "rev");
-
-        if (command == "restore") {
-            if (!IsHash(hashText)) {
-                Problem(400, "That restore link is not valid",
-                    "A restore link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.");
-                return;
-            }
-
-            revision = await catalog.ReadRevisionAsync(key, hashText!);
-            if (revision is null) {
-                Problem(404, "That revision is not on this page", "No revision of " + key + " has that hash.");
-                return;
-            }
-
-            stage = "restore";
-            live = await catalog.ReadAsync(key);
-            expected = live?.Hash;
-            renderedDiff = differ.ToHtml(live?.Source ?? "", revision.Source);
-            return;
-        }
-
-        if (command is not null) {
-            Problem(400, "The editor could not tell what to do", "That request did not name an action this page understands.");
-            return;
-        }
-
-        if (One(ctx.Request.Query, "from") is not null || One(ctx.Request.Query, "to") is not null) {
-            fromHash = One(ctx.Request.Query, "from");
-            toHash = One(ctx.Request.Query, "to");
-            if (!IsHash(fromHash) || !IsHash(toHash)) {
-                Problem(400, "That comparison link is not valid",
-                    "A comparison link needs two 64-character lowercase hexadecimal hashes, one in from and one in to.");
-                return;
-            }
-
-            PageSource? before = await catalog.ReadRevisionAsync(key, fromHash!);
-            PageSource? after = await catalog.ReadRevisionAsync(key, toHash!);
-            if (before is null || after is null) {
-                Problem(404, "Those revisions are not on this page", "Both hashes must name revisions of " + key + ".");
-                return;
-            }
-
-            stage = "diff";
-            revision = after;
-            renderedDiff = differ.ToHtml(before.Source, after.Source);
-            live = await catalog.ReadAsync(key);
-            return;
-        }
-
-        if (hashText is not null) {
-            if (!IsHash(hashText)) {
-                Problem(400, "That revision link is not valid",
-                    "A revision link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.");
-                return;
-            }
-
-            revision = await catalog.ReadRevisionAsync(key, hashText!);
-            if (revision is null) {
-                Problem(404, "That revision is not on this page", "No revision of " + key + " has that hash.");
-                return;
-            }
-
-            stage = "revision";
-            live = await catalog.ReadAsync(key);
-            return;
-        }
-
-        stage = "read";
-        revisions = await catalog.RevisionsAsync(key);
-        live = await catalog.ReadAsync(key);
-        deleted = live is null && revisions.Count > 0;
-    }
-
-    // One action per request. Which one is a question of the method, the command and whether a key
-    // was named, in that order, and each answer is a function above.
-    if (command == "new") {
-        await NewPageAsync();
     } else {
-        ResolveKey();
+        // Every other action names a page, so the key is resolved before anything acts on it.
+        if (editText is not null || pageText is not null) {
+            PageKeyResolution resolved = editor.Resolve(editText ?? pageText!);
+            if (!resolved.IsSuccess) {
+                Problem(400, "That is not a page address", resolved.Error ?? "That is not a page address.");
+            } else if (resolved.IsReserved) {
+                Problem(400, "That is a shell file",
+                    resolved.Key + " is answered by the site itself, so no page is stored there.");
+            } else {
+                key = resolved.Key!;
+                hasKey = true;
+            }
+        }
 
         if (stage == "problem") {
             // The key was refused: the problem view below says why, and nothing acts on it.
         } else if (post && command is null or "save" or "save-and-view") {
-            await SavePageAsync(view: command == "save-and-view");
+            if (editText is null || !hasKey) {
+                Problem(400, "That save has no page", "Saving posts the editor form, which names the page it edits. Nothing was saved.");
+            } else {
+                string? submitted = One(ctx.Request.Form, "template");
+                expected = One(ctx.Request.Form, "expected");
+                if (submitted is null) {
+                    Problem(400, "A template is required", "The form carried no template, so nothing was saved.");
+                } else if (expected is null) {
+                    Problem(400, "The form was incomplete",
+                        "The form did not say which revision it was rendered from, so nothing was saved. Reload the editor and try again.");
+                } else {
+                    text = submitted;
+                    PageEditResult saved = await editor.SaveAsync(key, submitted, expected);
+                    diagnostics = saved.Diagnostics;
+                    expected = saved.Outcome == PageEditOutcome.Stale ? null : saved.Hash;
+                    if (saved.Outcome == PageEditOutcome.Stale) {
+                        status = 409;
+                        live = await catalog.ReadAsync(key);
+                        expected = live?.Hash;
+                        notice = "The page changed while this form was open, so nothing was saved. Your text is below; "
+                            + "the source that was stored instead is beside it. Copy what you want and save again.";
+                    } else {
+                        notice = saved.HasErrors
+                            ? "Saved as revision " + saved.Hash + ", which does not compile: the page will not render until the error is fixed."
+                            : saved.HasWarnings
+                                ? "Saved as revision " + saved.Hash + ", which compiled with warnings."
+                                : "Saved as revision " + saved.Hash + ".";
+                        viewAfterSave = !saved.HasErrors && string.Equals(command, "save-and-view", System.StringComparison.Ordinal);
+                    }
+
+                    stage = "editor";
+                }
+            }
         } else if (post) {
-            await PostActionAsync();
+            if (!hasKey) {
+                Problem(400, "That action needs a page", "The request named no page to act on, so nothing was changed.");
+            } else if (command == "delete") {
+                PageDeleteResult removed = await editor.DeleteAsync(key);
+                stage = "listing";
+                notice = removed.Deleted
+                    ? "Deleted " + key + "; revision history is retained."
+                    : "That page was already missing.";
+            } else if (command == "install") {
+                expected = One(ctx.Request.Form, "expected");
+                PageEditResult? installed = expected is null ? null : await editor.InstallSeedAsync(key, expected);
+                if (installed is null) {
+                    seedSource = await editor.SeedSourceAsync(key);
+                    if (seedSource is null) {
+                        Problem(404, "That is not a seeded page", key + " is not one of the pages this release ships, so there is no seed to install.");
+                    } else {
+                        Problem(400, "The form was incomplete", "The form did not say which revision it was rendered from, so nothing was installed.");
+                    }
+                } else {
+                    stage = "install";
+                    live = await catalog.ReadAsync(key);
+                    seedSource = await editor.SeedSourceAsync(key);
+                    notice = installed.Outcome switch {
+                        PageEditOutcome.Stale => "The page changed while this confirmation was open, so nothing was installed. Compare again and retry.",
+                        PageEditOutcome.Unchanged => "Nothing was installed: " + key + " already holds the seed's source.",
+                        _ when installed.HasErrors => "Installed the seed as revision " + installed.Hash + ", which does not compile: the page will not render until the error is fixed.",
+                        _ when installed.HasWarnings => "Installed the seed as revision " + installed.Hash + ", which compiled with warnings.",
+                        _ => "Installed the seed as revision " + installed.Hash + ".",
+                    };
+                    if (installed.Outcome == PageEditOutcome.Stale) {
+                        status = 409;
+                    }
+                }
+            } else if (command == "restore") {
+                string? hash = One(ctx.Request.Query, "rev");
+                expected = One(ctx.Request.Form, "expected");
+                if (!IsHash(hash)) {
+                    Problem(400, "That restore link is not valid",
+                        "A restore link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.");
+                } else if (expected is null) {
+                    Problem(400, "The form was incomplete", "The form did not say which revision it was rendered from, so nothing was restored.");
+                } else {
+                    PageEditResult? restored = await editor.RestoreRevisionAsync(key, hash!, expected);
+                    if (restored is null) {
+                        Problem(404, "That revision is not on this page", "No revision of " + key + " has that hash, so nothing was restored.");
+                    } else {
+                        stage = "restore";
+                        revision = await catalog.ReadRevisionAsync(key, hash!);
+                        live = await catalog.ReadAsync(key);
+                        notice = restored.Outcome switch {
+                            PageEditOutcome.Stale => "The page changed while this confirmation was open, so nothing was restored. Compare again and retry.",
+                            PageEditOutcome.Unchanged => "Nothing was restored: the page already holds that revision's source.",
+                            _ when restored.HasErrors => "Restored the revision as revision " + restored.Hash + ", which does not compile: the page will not render until the error is fixed.",
+                            _ when restored.HasWarnings => "Restored the revision as revision " + restored.Hash + ", which compiled with warnings.",
+                            _ => "Restored the revision as revision " + restored.Hash + ".",
+                        };
+                        if (restored.Outcome == PageEditOutcome.Stale) {
+                            status = 409;
+                        }
+                    }
+                }
+            } else {
+                Problem(400, "The editor could not tell what to do",
+                    "That request did not name an action this page understands. Use one of the buttons on the page.");
+            }
         } else if (!hasKey) {
-            BarePath();
+            if (command is null) {
+                stage = "listing";
+            } else {
+                Problem(400, "That action needs a page", "The page list has no page to act on. Choose a page, or create one with \"Create or open\".");
+            }
         } else if (editText is not null) {
-            await OpenEditorAsync();
+            if (command is null) {
+                stage = "editor";
+                revisions = await catalog.RevisionsAsync(key);
+                live = await catalog.ReadAsync(key);
+                deleted = live is null && revisions.Count > 0;
+                text = live?.Source ?? "";
+                expected = live?.Hash;
+            } else if (command == "delete") {
+                stage = "delete";
+            } else if (command == "install") {
+                seedSource = await editor.SeedSourceAsync(key);
+                if (seedSource is null) {
+                    Problem(404, "That is not a seeded page",
+                        key + " is not one of the pages this release ships, so there is no seed to install.");
+                } else {
+                    stage = "install";
+                    live = await catalog.ReadAsync(key);
+                    expected = live?.Hash;
+                    renderedDiff = differ.ToHtml(live?.Source ?? "", seedSource);
+                }
+            } else {
+                Problem(400, "The editor could not tell what to do", "That request did not name an action this page understands.");
+            }
         } else {
-            await OpenReadAsync();
+            string? hashText = One(ctx.Request.Query, "rev");
+            if (command == "restore") {
+                if (!IsHash(hashText)) {
+                    Problem(400, "That restore link is not valid",
+                        "A restore link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.");
+                } else {
+                    revision = await catalog.ReadRevisionAsync(key, hashText!);
+                    if (revision is null) {
+                        Problem(404, "That revision is not on this page", "No revision of " + key + " has that hash.");
+                    } else {
+                        stage = "restore";
+                        live = await catalog.ReadAsync(key);
+                        expected = live?.Hash;
+                        renderedDiff = differ.ToHtml(live?.Source ?? "", revision.Source);
+                    }
+                }
+            } else if (command is not null) {
+                Problem(400, "The editor could not tell what to do", "That request did not name an action this page understands.");
+            } else if (One(ctx.Request.Query, "from") is not null || One(ctx.Request.Query, "to") is not null) {
+                fromHash = One(ctx.Request.Query, "from");
+                toHash = One(ctx.Request.Query, "to");
+                if (!IsHash(fromHash) || !IsHash(toHash)) {
+                    Problem(400, "That comparison link is not valid",
+                        "A comparison link needs two 64-character lowercase hexadecimal hashes, one in from and one in to.");
+                } else {
+                    PageSource? before = await catalog.ReadRevisionAsync(key, fromHash!);
+                    PageSource? after = await catalog.ReadRevisionAsync(key, toHash!);
+                    if (before is null || after is null) {
+                        Problem(404, "Those revisions are not on this page", "Both hashes must name revisions of " + key + ".");
+                    } else {
+                        stage = "diff";
+                        revision = after;
+                        renderedDiff = differ.ToHtml(before.Source, after.Source);
+                        live = await catalog.ReadAsync(key);
+                    }
+                }
+            } else if (hashText is not null) {
+                if (!IsHash(hashText)) {
+                    Problem(400, "That revision link is not valid",
+                        "A revision link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.");
+                } else {
+                    revision = await catalog.ReadRevisionAsync(key, hashText!);
+                    if (revision is null) {
+                        Problem(404, "That revision is not on this page", "No revision of " + key + " has that hash.");
+                    } else {
+                        stage = "revision";
+                        live = await catalog.ReadAsync(key);
+                    }
+                }
+            } else {
+                stage = "read";
+                revisions = await catalog.RevisionsAsync(key);
+                live = await catalog.ReadAsync(key);
+                deleted = live is null && revisions.Count > 0;
+            }
         }
+
     }
 
     if (stage == "listing") {
