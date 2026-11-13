@@ -95,14 +95,14 @@ build:
   [source storage](storage.md#source-storage).
 - `IPageEditor` is the editor's authority, and it is offered to one render only: the page stored at
   `Pages:Editor:Key` (`/pages` as shipped). No other key gets it and a layout never does, so the
-  registration is the authority rather than a check inside the handle (D2, D3). It answers with
+  registration is the authority rather than a check inside the handle (DEC-260, DEC-261). It answers with
   values the compiler produced — `PageEditResult` carries the outcome, the new hash and
   `PageDiagnostic`s — and it refuses an anonymous render, a `HEAD` write and a second action in one
   render. `Resolve` says whether a key is usable, `SaveAsync(key, template, expectedHash)` is the
   conditional save whose `null` expectation creates a page, `DeleteAsync` tombstones,
   `RestoreRevisionAsync` and `InstallSeedAsync` answer with the revision they stored, and
   `SeedSourceAsync` reads the bundled source so the install confirmation can show a diff. Like the
-  page's own write, a save belongs to the next request and a started save finishes (D4, D5, D11).
+  page's own write, a save belongs to the next request and a started save finishes (DEC-262, DEC-263, DEC-267).
 - `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
   `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
