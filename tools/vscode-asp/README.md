@@ -19,6 +19,14 @@ The seeded pages have no extension, because a seed is served under its file name
 associates them by path in `.vscode/settings.json`; the four asset extensions are listed there too,
 because a `files.associations` glob beats an extension association.
 
+## The icon
+
+`icon.png` is the site's `Pages/Seeds/rocket.svg` rendered at 128x128, because VS Code's manifest
+takes a PNG and every extension that ships one does: the built-in `html` and `csharp` extensions and
+every extension installed here use `.png`, and the manifest reference describes the field by pixel
+size only. `make vscode-extension` re-renders it from the seed with `rsvg-convert` when that is
+available, so the two cannot drift; the PNG is committed so a machine without it still gets an icon.
+
 ## Why the C# is a fragment
 
 `source.cs` cannot be included wholesale inside a block. Its `block` rule opens on `{` and closes on

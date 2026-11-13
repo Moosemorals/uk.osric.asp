@@ -289,10 +289,18 @@ browsers: build
 # build step to make a .vsix from. A symlink in the user extensions folder is what
 # `--extensionDevelopmentPath` would load, without opening a second window, and it keeps the grammar
 # in the repository the one copy: an edit and a reload is the whole update loop.
+#
+# The icon is the site's rocket rather than a second copy of it, so it is rendered from the seed when
+# the tool that draws it is here; a checkout without rsvg-convert keeps the committed PNG.
 VSCODE_EXTENSIONS := $(HOME)/.vscode/extensions
 VSCODE_EXTENSION := $(VSCODE_EXTENSIONS)/uk-osric-asp.asp-template-language-0.1.0
+ROCKET_SVG := src/uk.osric.asp.Web/Pages/Seeds/rocket.svg
+EXTENSION_ICON := tools/vscode-asp/icon.png
 
 vscode-extension:
+	@if command -v rsvg-convert >/dev/null; then \
+		rsvg-convert -w 128 -h 128 $(ROCKET_SVG) -o $(EXTENSION_ICON); \
+	fi
 	@mkdir -p $(VSCODE_EXTENSIONS)
 	@rm -f $(VSCODE_EXTENSIONS)/uk-osric-asp.asp-template-language-*
 	@ln -sfn $(abspath tools/vscode-asp) $(VSCODE_EXTENSION)

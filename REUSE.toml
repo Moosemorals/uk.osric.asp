@@ -27,6 +27,13 @@ path = [
 SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
 SPDX-License-Identifier = "MIT"
 
+# The extension icon is the site's own rocket, rendered from the seed that serves /rocket.svg. A PNG
+# cannot carry the tags and the artwork is under the icon's ISC licence, not the source's MIT.
+[[annotations]]
+path = ["tools/vscode-asp/icon.png"]
+SPDX-FileCopyrightText = "Copyright 2020 Osric Wilkinson <osric@fluffypeople.com>"
+SPDX-License-Identifier = "ISC"
+
 # The PublicAPI files are read by an analyzer that owns their format: a comment line is parsed as an
 # entry for a symbol called "# SPDX-License-Identifier", so the licence tags cannot live in them.
 [[annotations]]
