@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using System.Reflection;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 
@@ -73,28 +72,6 @@ public sealed class PageCapabilitiesTests {
             () => capabilities.GetRequired<IHttpFetch>());
 
         Assert.That(refused?.Message, Does.Contain(nameof(IHttpFetch)));
-    }
-
-    [Test]
-    public void TheOldNamesAreMarkedObsolete() {
-        ObsoleteAttribute? accessor = typeof(IContext)
-            .GetProperty("Features")
-            ?.GetCustomAttribute<ObsoleteAttribute>();
-        // The alias is the subject of the test, so naming it has to be allowed here.
-#pragma warning disable PAGE005
-        Type aliasType = typeof(IPageFeatures);
-#pragma warning restore PAGE005
-        ObsoleteAttribute? alias = aliasType.GetCustomAttribute<ObsoleteAttribute>();
-
-        Assert.Multiple(() => {
-            Assert.That(accessor, Is.Not.Null);
-            Assert.That(accessor?.DiagnosticId, Is.EqualTo("PAGE005"));
-            Assert.That(accessor?.Message, Does.Contain(nameof(IPageCapabilities)));
-            Assert.That(accessor?.Message, Does.Contain(nameof(IContext.Capabilities)));
-            Assert.That(alias, Is.Not.Null);
-            Assert.That(alias?.DiagnosticId, Is.EqualTo("PAGE005"));
-            Assert.That(typeof(IPageCapabilities).IsAssignableFrom(aliasType), Is.True);
-        });
     }
 
     [Test]

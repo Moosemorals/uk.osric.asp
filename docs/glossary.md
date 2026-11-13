@@ -44,7 +44,7 @@ the render offers, and a capability is registered or absent, never `null`.
 **Not** a feature or an extension. A feature is something the product has — the assistant is one, and
 ASP.NET Core's `HttpContext.Features` are another mechanism altogether — and an extension is
 something a third party adds; a capability is something one render offers a page, and it may be
-absent from the next. The accessor was called `ctx.Features` until DEC-228.
+absent from the next. The accessor was called `ctx.Features` until DEC-228, and the old name went with the alias in DEC-254.
 
 **Owner:** pages — `IPageCapabilities`, `IContext.Capabilities` and the nine `Sdk` interfaces a page
 may ask for; `PageCapabilities` is the shell's registry (DEC-142, DEC-228).

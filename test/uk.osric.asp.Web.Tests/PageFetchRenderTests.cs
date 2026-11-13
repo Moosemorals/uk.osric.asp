@@ -106,7 +106,7 @@ public sealed class PageFetchRenderTests {
         context.Abandon();
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => context.Features.GetRequired<IHttpFetch>().GetAsync("https://api.example.com/"));
+            () => context.Capabilities.GetRequired<IHttpFetch>().GetAsync("https://api.example.com/"));
     }
 
     [Test]
@@ -115,7 +115,7 @@ public sealed class PageFetchRenderTests {
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         SimpleContext context = pages.CreateContext(PageHarness.Key("/page"));
 
-        await context.Features.GetRequired<IHttpFetch>().GetAsync("https://api.example.com/state");
+        await context.Capabilities.GetRequired<IHttpFetch>().GetAsync("https://api.example.com/state");
 
         HttpFetchRequest request = fetcher.Requests.Single();
         Assert.That(request.Url, Is.EqualTo("https://api.example.com/state"));
@@ -130,7 +130,7 @@ public sealed class PageFetchRenderTests {
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         SimpleContext context = pages.CreateContext(PageHarness.Key("/page"));
 
-        await context.Features.GetRequired<IHttpFetch>().PostAsync("https://api.example.com/state", "hello");
+        await context.Capabilities.GetRequired<IHttpFetch>().PostAsync("https://api.example.com/state", "hello");
 
         HttpFetchRequest request = fetcher.Requests.Single();
         Assert.That(request.Url, Is.EqualTo("https://api.example.com/state"));
@@ -170,9 +170,9 @@ public sealed class PageFetchRenderTests {
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
         RenderFetchBudget budget = new(options.MaxRequestsPerRender);
         IHttpFetch outer = pages.CreateContext(PageHarness.Key("/page"), budget: budget)
-            .Features.GetRequired<IHttpFetch>();
+            .Capabilities.GetRequired<IHttpFetch>();
         IHttpFetch inner = pages.CreateContext(PageHarness.Key("/page"), budget: budget)
-            .Features.GetRequired<IHttpFetch>();
+            .Capabilities.GetRequired<IHttpFetch>();
 
         await outer.GetAsync("https://api.example.com/");
         HttpFetchResponse second = await inner.GetAsync("https://api.example.com/");

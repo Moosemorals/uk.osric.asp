@@ -152,8 +152,4 @@ public interface IContext {
     /// <see cref="IPageCapabilities.GetRequired{T}"/>.
     /// </remarks>
     public IPageCapabilities Capabilities { get; }
-
-    /// <summary>The capabilities this render offers. Deprecated: use <see cref="Capabilities"/>.</summary>
-    [Obsolete(PageCapabilityDeprecation.Message, DiagnosticId = "PAGE005")]
-    public IPageFeatures Features { get; }
 }

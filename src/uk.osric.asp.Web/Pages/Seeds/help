@@ -216,9 +216,7 @@ response, and nothing else:</p>
 <code>null</code> when it is not, and <code>GetRequired&lt;T&gt;()</code> throws naming the
 interface. The host decides what is offered.</p>
 <p>A capability is not a feature the product has, nor an extension someone else adds: it is what this
-one render offers this page, and the next render may offer something else. <code>ctx.Features</code>
-is the old name for the same thing and still works, with a compiler warning, so a page written
-before the rename keeps serving.</p>
+one render offers this page, and the next render may offer something else.</p>
 <p><code>IBuildInfo</code> says which build is answering. <code>Commit</code> is the full git commit
 hash, or <code>null</code> when the build did not come from a checkout:</p>
 <pre class="source" tabindex="0"><code>&lt;% if (ctx.Capabilities.GetRequired&lt;IBuildInfo&gt;().Commit is { } commit) { %&gt;

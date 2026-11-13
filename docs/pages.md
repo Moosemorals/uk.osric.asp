@@ -31,9 +31,8 @@ links them per call (DEC-123).
 returns it or throws naming the interface, so the page decides whether absence is fatal. The host
 decides what is registered — a page cannot add or replace a capability — and a capability is either
 registered or absent, never `null` (DEC-142). The type that declares them is `IPageCapabilities`;
-`IContext.Features` and `IPageFeatures` are the same surface under its old names, kept for one
-release so a stored page that says them still compiles, with a `PAGE005` warning that names the
-replacement (DEC-228).
+the old `Features` spelling was removed once its release was over, so a page that still says
+`ctx.Features` no longer compiles (DEC-228, DEC-254).
 
 Nine capabilities are registered today — five that do I/O and are bounded by the render, one that
 is the page's slots in its document, two that are pure renderers, and one that is a fact about

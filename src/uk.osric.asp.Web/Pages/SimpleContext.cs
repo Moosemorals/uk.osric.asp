@@ -144,13 +144,6 @@ internal sealed class SimpleContext : IContext {
     /// <inheritdoc/>
     public IPageCapabilities Capabilities => _capabilities;
 
-    // The stored pages that still say ctx.Features reach the same registry through this alias, which
-    // stays until IDEA-026 removes it (DEC-228).
-#pragma warning disable PAGE005
-    /// <inheritdoc/>
-    public IPageFeatures Features => _capabilities;
-#pragma warning restore PAGE005
-
     /// <summary>What the page asked the response to be.</summary>
     /// <remarks>
     /// Every page that runs code is <c>no-store</c>: it can keep per-visitor state, so its body has
