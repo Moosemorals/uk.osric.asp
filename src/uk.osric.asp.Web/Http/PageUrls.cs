@@ -23,6 +23,13 @@ internal static class PageUrls {
     public static string EditorCommand(PagePath path, string command) =>
         Editor(path) + "?cmd=" + Uri.EscapeDataString(command);
 
+    /// <summary>The editor URL that installs a bundled seed over the page at <paramref name="path"/>.</summary>
+    public static string EditorInstall(PagePath path) => EditorCommand(path, "install");
+
+    /// <summary>The editor URL that restores one saved revision of the page at <paramref name="path"/>.</summary>
+    public static string EditorRestore(PagePath path, string hash) =>
+        EditorCommand(path, "restore") + "&hash=" + Uri.EscapeDataString(hash);
+
     /// <summary>The editor URL for one saved revision of the page at <paramref name="path"/>.</summary>
     public static string EditorRevision(PagePath path, string hash) =>
         EditorCommand(path, "revision") + "&hash=" + Uri.EscapeDataString(hash);

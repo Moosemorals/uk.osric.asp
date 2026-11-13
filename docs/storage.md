@@ -106,7 +106,7 @@ The write is the shell's save reached from inside a render: `PageSaver` compiles
 request, and both call the same `StoreRevisionAsync` the editor and the import batch use, so there is
 still one writer. Unlike the read, the write requires a signed-in visitor and refuses an anonymous
 render before anything is compiled or stored; a save that has started finishes even if the render
-times out, because losing the author's edit is the worse failure. Delete, scrub, restore a seed,
+times out, because losing the author's edit is the worse failure. Delete, scrub, install a seed,
 import and export stay the shell's alone (DEC-175).
 
 ### Assistant memory
@@ -185,8 +185,10 @@ stylesheets and SVG are pure source with no directive of their own. The seeded `
 site's look and the rules the document shell's markup needs (see [the document
 shell](shell.md#the-document-shell)), while `/status.css` holds dashboard styles and is linked only
 by `/status`. Editing a seed file changes the initial content for
-a never-created page, not an existing database page. The authenticated restore action applies the
-bundled source to an existing or tombstoned page as a new revision. `/edit` lists every page, with the
-seeded ones under their own heading below the owner's; a seeded row carries a restore button that is
-disabled while the live template matches its seed and stays enabled for a deleted seed; a page that
-already matches its seed is left alone.
+a never-created page, not an existing database page. The authenticated install action applies the
+bundled source to an existing or tombstoned page as a new revision, and its confirmation refuses the
+install when the live template already matches the seed. `/edit` lists every page, with the seeded
+ones under their own heading below the owner's; a seeded row carries an install link only while the
+live template differs from its seed, and a deleted seed keeps it. Restoring a retained revision is
+the same write: it saves that revision's source as a new revision under the running runtime, clears
+a tombstone and refuses a revision whose source the live page already holds.

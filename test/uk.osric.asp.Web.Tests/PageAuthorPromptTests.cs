@@ -187,7 +187,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v21"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v22"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -321,7 +321,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v21"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v22"));
         });
     }
 
@@ -365,6 +365,25 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("unified diff"));
             Assert.That(prompt, Does.Contain("Every source line is escaped"));
             Assert.That(prompt, Does.Contain("needs no approval"));
+        });
+    }
+
+    [Test]
+    public void TheHistorySectionTeachesTheThreeToolsAndWhatReadingCosts() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## History"));
+            Assert.That(prompt, Does.Contain("list_revisions"));
+            Assert.That(prompt, Does.Contain("read_revision"));
+            Assert.That(prompt, Does.Contain("restore_revision"));
+            Assert.That(prompt, Does.Contain("64-character"));
+            Assert.That(prompt, Does.Contain("lowercase hexadecimal"));
+            Assert.That(prompt, Does.Contain("sends that source to the provider"));
+            Assert.That(prompt, Does.Contain("nothing is rewound"));
+            Assert.That(prompt, Does.Contain("source the page already holds"));
+            Assert.That(prompt, Does.Contain("`before`"));
+            Assert.That(prompt, Does.Contain("`after`"));
         });
     }
 }

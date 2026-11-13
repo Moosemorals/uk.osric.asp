@@ -70,15 +70,14 @@ internal sealed class PageEditor(
     /// <param name="path">The canonical key to save.</param>
     /// <param name="template">The template text.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
-    /// <returns>The compiler's author-facing diagnostics, errors and warnings; empty when the page compiled cleanly.</returns>
-    public async Task<IReadOnlyList<PageDiagnostic>> SaveAsync(
+    /// <returns>
+    /// The revision that became the page's head and the compiler's author-facing diagnostics, so a
+    /// caller that reports the save can name the revision without a second read.
+    /// </returns>
+    public Task<SavedRevision> SaveAsync(
         PagePath path,
         string template,
-        CancellationToken cancellationToken = default) {
-        SavedRevision saved = await saver.SaveAsync(path, template, cancellationToken);
-
-        return saved.Diagnostics;
-    }
+        CancellationToken cancellationToken = default) => saver.SaveAsync(path, template, cancellationToken);
 
     /// <summary>Compiles and saves a page only while its current revision hash still matches.</summary>
     public async Task<ConditionalPageSaveResult> SaveIfRevisionAsync(

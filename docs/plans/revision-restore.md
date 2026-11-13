@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started |
+| Status | Implemented on this branch; the decisions are numbered when it merges |
 | Size | Large — two editor actions and their confirmation views, a command rename, three assistant tools, a paging pair on both listings, a prompt version, and the tests and documents for each |
 | Area | Web (editor, assistant), seeds |
-| Backlog | [ARCH-07](../jobs/ARCH-07.md) — this closes it |
+| Backlog | ARCH-07, closed by this plan |
 | Decisions | Referred to in prose here and numbered when the work merges (DEC-09) |
 
 ## The short version
@@ -122,8 +122,8 @@ contract the assistant already promises, and the vocabulary the author manual te
 | `test/uk.osric.asp.Web.IntegrationTests/EditorEndpointTests.cs` | The restore round trip and the install confirmation against the real host |
 | `test/uk.osric.asp.Web.BrowserTests/EditorFlowTests.cs` | The seed test clicks through the confirmation; the deleted-key walk goes through the create-or-open form; a restore walk |
 | `docs/assistant.md`, `docs/testing.md`, `docs/shell.md`, `docs/storage.md`, `docs/glossary.md` | Eighteen tools; what the tests prove; install and restore in the editor's story; the vocabulary |
-| `docs/jobs/ARCH-07.md`, `docs/jobs/README.md` | Deleted; a Closed row, and the rough order renumbered |
-| `deploy/operations.md`, `docs/plans/immutable-page-assets.md` | The two live citations of ARCH-07 |
+| `docs/jobs/README.md` | The job leaves the table and the rough order; a Closed row points here |
+| `deploy/operations.md`, `docs/plans/immutable-page-assets.md` | The two citations of the job, now pointing at this plan |
 
 ## Design
 
@@ -359,7 +359,7 @@ because a restore is deliberate — the same reason `write_page` takes none whil
 answers `{ path, restoredFrom, revisionHash, diagnostics }`, forms the diagnostics with the same
 shape the other writing tools use, and is approval-gated under `RequireApproval`.
 
-This reverses the rule the assistant plan and ARCH-07 recorded — "the editor's restore stays the
+This reverses the rule the assistant plan and the job recorded — "the editor's restore stays the
 owner's" — and the plan says so rather than quietly widening the model's reach: the reason that rule
 gave was the model's inability to say what a page used to hold, and the two reads remove it. A scrub
 still has no tool and is still the owner's.
@@ -558,7 +558,7 @@ editor's rule, not a second copy of it.
 
 `page-author-v22` and its section, `PageAuthorPromptTests`, `docs/assistant.md`, `docs/testing.md`,
 `docs/shell.md`, `docs/storage.md`, `docs/glossary.md`, `/help`, the jobs README, the deletion of
-`docs/jobs/ARCH-07.md`, and the two live citations. Then `make format-check`.
+the job, and the two citations. Then `make format-check`.
 
 ## Documentation and decisions
 
@@ -570,7 +570,7 @@ editor's rule, not a second copy of it.
 | `docs/assistant.md` | Eighteen tools; the two reads and the one restore, the paging pair, and why none of them uses `?v=` |
 | `docs/testing.md` | What the editor, tool and integration tests prove |
 | `docs/glossary.md` | **Seed** says installing, and a **Restore** entry says what it is not — not a rewind, not a new revision's identity |
-| `docs/jobs/README.md` | ARCH-07 leaves the table and the rough order; a Closed row points at this plan |
+| `docs/jobs/README.md` | The job leaves the table and the rough order; a Closed row points at this plan |
 | `deploy/operations.md` | The history paragraph says a selected revision is restored as a new save |
 | `docs/plans/immutable-page-assets.md` | Implemented, so its "Not in this plan" section stops promising work: it points at this plan, and keeps the rule that a history read is a store read rather than a `?v=` fetch |
 
@@ -579,7 +579,7 @@ different verbs (D1); the two actions share one confirmation-and-outcome shape, 
 case that would add nothing (D2–D6); a restore appends anything that differs from the live source
 (D3); and the assistant's history is three page-scoped tools — two reads and one approval-gated
 restore — with direction-named cursors and the `read_page` line rule (D8–D13). The fourth supersedes
-the rule the archived assistant plan and ARCH-07 recorded, that restoring is the owner's alone, and
+the rule the archived assistant plan and the job recorded, that restoring is the owner's alone, and
 the merge records it as a decision change rather than a drift.
 
 ## Risks
@@ -610,3 +610,19 @@ the merge records it as a decision change rather than a drift.
 - `docs/jobs/ARCH-07.md` is gone, the jobs README records it closed, and `deploy/operations.md` and
   `docs/plans/immutable-page-assets.md` no longer promise work that exists.
 - `make build`, `make test` and `make format-check` pass.
+
+## Outcome
+
+Implemented as planned, with three things the work settled that the plan had left open:
+
+- An install and a restore refuse with one `409` shape, `WriteNothingToDoAsync`, so a stale form and a
+  source the page already holds are answered by the same document a person can act on.
+- `SavedRevision` is what `PageEditor.SaveAsync` returns, so the editor and `write_page` name the
+  revision they stored instead of reading it back; the compile outcome is one `CompileOutcome` and one
+  `OutcomeClause`, shared by save, install and restore.
+- `ToolSpec.Writes` and the `path` in the success envelope were already what the transcript's
+  changed-pages line reads, so `restore_revision` needed no new wiring there.
+
+The masking integration test's `Assistant:MaxContextTokens` fixture moved from 110,000 to 114,000: the
+system prompt grew by a section and three tool definitions, and the test's invariant is "eight
+`read_page` results fit and the ninth does not", not the number itself.

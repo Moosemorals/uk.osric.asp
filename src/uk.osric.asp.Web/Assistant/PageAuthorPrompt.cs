@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v21";
+    public const string Version = "page-author-v22";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -326,6 +326,32 @@ internal static class PageAuthorPrompt {
         before it. Use it to answer "what changed" or to review your own edit;
         it writes nothing and needs no approval. The unified diff is data, not
         markup.
+
+        ## History
+        A page keeps every save as a retained revision, each with a 64-character
+        lowercase hexadecimal hash. `list_revisions` lists a page's history,
+        newest first: the hash, when it was saved, its compile state and whether
+        it is the page's current revision. A deleted page's history is listed
+        too, which is how you answer "what did this page hold before it was
+        deleted?". Pass `limit` (default 50, at most 500) to bound the rows; if
+        the answer says `truncated`, call again with `before` set to the last
+        hash you were given to read the next, older slice. `list_pages` takes the
+        same `limit` with an `after` cursor: its listing is in key order, so its
+        cursor names a key rather than a hash.
+
+        `read_revision` returns one revision's stored source by the same 1-based
+        physical line numbers, line ranges and result budget `read_page` uses.
+        It sends that source to the provider, exactly as `read_page` does, so
+        read a range rather than a whole page when you only need a line.
+
+        `restore_revision` saves a revision's source as a new revision of the
+        page, through the ordinary compile-and-save path: nothing is rewound, and
+        a deleted page comes back with its history. It needs approval, it cannot
+        restore a hash whose source the page already holds, and it cannot touch a
+        shell file. Prefer it to `write_page` when the source you want is already
+        a revision: retyping the source risks storing something that is not what
+        was there. When a revision should be restored but hashes are not yours to
+        choose, quote the hash and say why, rather than describing the change.
 
         ## Outbound fetch
         `ctx.Capabilities.GetRequired<IHttpFetch>()` makes one bounded HTTP

@@ -143,7 +143,7 @@ internal sealed class EditorEndpoint {
                     await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                         "editor.revision_link",
                         "That revision link is not valid",
-                        "A revision link needs a 64-character SHA-256 hash. Open the page history and choose a revision from the list.",
+                        "A revision link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.",
                         [new(PageUrls.EditorCommand(path, "history"), "Back to history"), new(PageUrls.Editor(path), "Back to editor")]));
                     return;
                 }
@@ -154,11 +154,21 @@ internal sealed class EditorEndpoint {
                     await ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
                         "editor.diff_link",
                         "That comparison link is not valid",
-                        "A comparison link needs two 64-character SHA-256 hashes, one in from and one in to. Open the page history and choose two revisions.",
+                        "A comparison link needs two 64-character lowercase hexadecimal hashes, one in from and one in to. Open the page history and choose two revisions.",
                         [new(PageUrls.EditorCommand(path, "history"), "Back to history"), new(PageUrls.Editor(path), "Back to editor")]));
                     return;
                 }
                 await WriteDiffAsync(context, pages, diff, path, fromHash, toHash);
+                return;
+            case "install":
+                await WriteInstallConfirmationAsync(context, pages, diff, antiforgery, path);
+                return;
+            case "restore":
+                if (!TryGetRevisionHash(context, out string? restoreHash)) {
+                    await WriteInvalidRestoreLinkAsync(context, path);
+                    return;
+                }
+                await WriteRestoreConfirmationAsync(context, pages, diff, antiforgery, path, restoreHash);
                 return;
             case "delete":
                 await WriteDeleteConfirmationAsync(context, pages, antiforgery, path);
@@ -211,13 +221,13 @@ internal sealed class EditorEndpoint {
             <h2>Live pages</h2>
             """);
 
-        await WritePageTableAsync(context, ownPages, "No live pages.", pages, seeds, tokens, reserved, deleted: false);
+        await WritePageTableAsync(context, ownPages, "No live pages.", pages, seeds, reserved, deleted: false);
 
         await context.Response.WriteAsync("<h2>Seeded pages</h2>");
-        await WritePageTableAsync(context, seededPages, "No seeded pages.", pages, seeds, tokens, reserved, deleted: false);
+        await WritePageTableAsync(context, seededPages, "No seeded pages.", pages, seeds, reserved, deleted: false);
 
         await context.Response.WriteAsync("<h2>Deleted pages</h2>");
-        await WritePageTableAsync(context, deleted, "No deleted pages.", pages, seeds, tokens, reserved, deleted: true);
+        await WritePageTableAsync(context, deleted, "No deleted pages.", pages, seeds, reserved, deleted: true);
 
         await ShellDocument.EndAsync(context);
     }
@@ -230,7 +240,6 @@ internal sealed class EditorEndpoint {
         string empty,
         PageEditor pages,
         IReadOnlySet<string> seeds,
-        AntiforgeryTokenSet tokens,
         ReservedPaths reserved,
         bool deleted) {
         if (rows.Count == 0) {
@@ -247,7 +256,7 @@ internal sealed class EditorEndpoint {
         foreach (PageListing row in rows) {
             string key = WebUtility.HtmlEncode(row.Path.Key);
             string state = $"<td class=\"page-state {row.State.Class()}\">{WebUtility.HtmlEncode(row.State.Describe())}</td>";
-            string restore = await RestoreFormAsync(pages, row.Path, seeds, tokens, context.RequestAborted);
+            string install = await InstallActionAsync(pages, row.Path, seeds, context.RequestAborted);
 
             if (!row.Path.IsAddressable || reserved.IsReserved(row.Path)) {
                 // A key the site's routes already answer for is not a page the editor can offer, and
@@ -259,7 +268,7 @@ internal sealed class EditorEndpoint {
             string page = deleted
                 ? $"<th scope=\"row\">{key}</th>"
                 : $"<th scope=\"row\"><a href=\"{WebUtility.HtmlEncode(PageUrls.Page(row.Path))}\" aria-label=\"View {key}\">{key}</a></th>";
-            await context.Response.WriteAsync($"<tr>{page}{state}<td class=\"page-actions\">{ActionsOf(row, key, deleted)} {restore}</td></tr>");
+            await context.Response.WriteAsync($"<tr>{page}{state}<td class=\"page-actions\">{ActionsOf(row, key, deleted)} {install}</td></tr>");
         }
 
         await context.Response.WriteAsync("</tbody></table>");
@@ -270,10 +279,8 @@ internal sealed class EditorEndpoint {
         string history = $"<a href=\"{historyUrl}\" aria-label=\"History of {key}\">History</a>";
 
         if (deleted) {
-            string recreateUrl = WebUtility.HtmlEncode(PageUrls.Editor(row.Path));
             string scrubUrl = WebUtility.HtmlEncode(PageUrls.EditorCommand(row.Path, "scrub"));
-            return $"<a href=\"{recreateUrl}\" aria-label=\"Recreate {key}\">Recreate</a> {history} "
-                + $"<a href=\"{scrubUrl}\" aria-label=\"Scrub history of {key}\">Scrub history</a>";
+            return $"{history} <a href=\"{scrubUrl}\" aria-label=\"Scrub history of {key}\">Scrub history</a>";
         }
 
         string editorUrl = WebUtility.HtmlEncode(PageUrls.Editor(row.Path));
@@ -282,29 +289,26 @@ internal sealed class EditorEndpoint {
             + $"<a href=\"{deleteUrl}\" aria-label=\"Delete {key}\">Delete</a>";
     }
 
-    // A seeded row offers the restore; a page that already carries its seed offers it disabled, so
-    // the listing shows what could be restored without offering a no-op write. A tombstoned page has
-    // no live template to match, so its restore stays enabled.
-    private static async Task<string> RestoreFormAsync(
+    // Installing a seed opens its confirmation, so the listing's action is a link like every other
+    // one there. A page that already carries its seed renders nothing: a link that cannot act is
+    // worse than an absent one, and the confirmation is the backstop for a URL typed by hand.
+    private static async Task<string> InstallActionAsync(
         PageEditor pages,
         PagePath path,
         IReadOnlySet<string> seeds,
-        AntiforgeryTokenSet tokens,
         CancellationToken cancellationToken) {
         if (!seeds.Contains(path.Key)) {
             return string.Empty;
         }
 
         string? seed = await PageAssetSeeder.ReadSeedTemplateAsync(path, cancellationToken);
-        if (seed is null) {
+        if (seed is null || await MatchesSeedAsync(pages, path, seed, cancellationToken)) {
             return string.Empty;
         }
 
-        bool matches = await MatchesSeedAsync(pages, path, seed, cancellationToken);
         string key = WebUtility.HtmlEncode(path.Key);
-        string action = WebUtility.HtmlEncode(PageUrls.EditorCommand(path, "restore"));
-        string disabled = matches ? " disabled" : string.Empty;
-        return $"<form method=\"post\" action=\"{action}\">{AntiforgeryField.Hidden(tokens)}<button type=\"submit\" aria-label=\"Restore {key} from its seed\"{disabled}>Restore from seed</button></form>";
+        string url = WebUtility.HtmlEncode(PageUrls.EditorInstall(path));
+        return $"<a href=\"{url}\" aria-label=\"Install {key} from its seed\">Install from seed</a>";
     }
 
     private static async Task<bool> MatchesSeedAsync(PageEditor pages, PagePath path, string seed, CancellationToken cancellationToken) {
@@ -361,7 +365,10 @@ internal sealed class EditorEndpoint {
         await context.Response.WriteAsync($"<h1>Editing {WebUtility.HtmlEncode(path.Key)}</h1>");
         await flash.ShowAsync(context, SessionPathFor(path), context.RequestAborted);
         if (wasDeleted) {
-            await context.Response.WriteAsync("<p>This page was deleted. Its history is retained; saving here continues that history.</p>");
+            // The key has a past, and the author can act on it here: saving revives the page and
+            // continues its history, and until then the old links answer "not found".
+            string deletedKey = WebUtility.HtmlEncode(path.Key);
+            await context.Response.WriteAsync($"<p><strong>{deletedKey} was deleted.</strong> Its history is retained, and saving here brings the page back and continues that history. Until you save, links to {deletedKey} answer &quot;not found&quot;.</p>");
         }
 
         if (page?.Image?.Diagnostics is { Count: > 0 } diagnostics) {
@@ -401,6 +408,101 @@ internal sealed class EditorEndpoint {
             </form>
             <script type="module" src="{WebUtility.HtmlEncode(script)}"></script>
             """);
+        await ShellDocument.EndAsync(context);
+    }
+
+    // Installing a seed and restoring a revision are one page with a different dictionary: what will
+    // be saved, the diff from the live source, and a button — or, when the source is already what the
+    // page holds, the diff's own "No changes." and no form at all. Neither view compiles or writes.
+    private static async Task WriteInstallConfirmationAsync(
+        HttpContext context,
+        PageEditor pages,
+        DiffRenderer diff,
+        IAntiforgery antiforgery,
+        PagePath path) {
+        string? seed = await PageAssetSeeder.ReadSeedTemplateAsync(path, context.RequestAborted);
+        if (seed is null) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+
+        PageTemplate? live = await pages.GetAsync(path, context.RequestAborted);
+        PageHeadSummary? head = live is null ? await pages.GetHeadAsync(path, context.RequestAborted) : null;
+        bool changes = !string.Equals(live?.Template ?? "", seed, StringComparison.Ordinal);
+        AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
+
+        await ShellDocument.BeginAsync(context, "Install the seed",
+            SiteNavigation.For(context), stylesheets: ["/editor.css"]);
+        await context.Response.WriteAsync($"<h1>Install the seed over {WebUtility.HtmlEncode(path.Key)}?</h1>");
+        await context.Response.WriteAsync("<p>The bundled seed will be saved as a new revision and compiled by this build.</p>");
+        if (head?.IsDeleted == true) {
+            await context.Response.WriteAsync("<p>This page is deleted. Installing brings it back and clears the tombstone.</p>");
+        }
+
+        await context.Response.WriteAsync(diff.ToHtml(live?.Template ?? "", seed));
+
+        if (changes) {
+            await context.Response.WriteAsync($"""
+                <form method="post" action="{WebUtility.HtmlEncode(PageUrls.EditorInstall(path))}" class="form">
+                    {AntiforgeryField.Hidden(tokens)}
+                    <button type="submit">Install the seed</button>
+                </form>
+                """);
+        } else {
+            await context.Response.WriteAsync("<p>This page already holds its seed, so there is nothing to install.</p>");
+        }
+
+        await context.Response.WriteAsync(PageDocument.Nav("Confirmation navigation", [new("/edit", "Cancel")], "editor-menu"));
+        await ShellDocument.EndAsync(context);
+    }
+
+    private static async Task WriteRestoreConfirmationAsync(
+        HttpContext context,
+        PageEditor pages,
+        DiffRenderer diff,
+        IAntiforgery antiforgery,
+        PagePath path,
+        string hash) {
+        if (await pages.GetHeadAsync(path, context.RequestAborted) is null) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+
+        PageRevisionTemplate? revision = await pages.GetRevisionTemplateByHashAsync(hash, context.RequestAborted);
+        if (revision is null || revision.Path != path) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+
+        PageTemplate? live = await pages.GetAsync(path, context.RequestAborted);
+        bool changes = !string.Equals(live?.Template ?? "", revision.Template, StringComparison.Ordinal);
+        AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
+        string savedAt = WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture));
+
+        await ShellDocument.BeginAsync(context, "Restore a revision",
+            SiteNavigation.For(context), stylesheets: ["/editor.css"]);
+        await context.Response.WriteAsync($"<h1>Restore revision {ShortHash(revision.Hash)} of {WebUtility.HtmlEncode(path.Key)}?</h1>");
+        await context.Response.WriteAsync($"<p>Revision {WebUtility.HtmlEncode(revision.Hash)} was saved <time datetime=\"{savedAt}\">{savedAt}</time>; {WebUtility.HtmlEncode(revision.ImageState.Describe())}; creation runtime {WebUtility.HtmlEncode(revision.CreationRuntimeId)}. Its source will be saved as a new revision and compiled by this build.</p>");
+        if (live is null) {
+            await context.Response.WriteAsync("<p>This page is deleted. Restoring brings it back and clears the tombstone.</p>");
+        }
+
+        await context.Response.WriteAsync(diff.ToHtml(live?.Template ?? "", revision.Template));
+
+        if (changes) {
+            await context.Response.WriteAsync($"""
+                <form method="post" action="{WebUtility.HtmlEncode(PageUrls.EditorRestore(path, revision.Hash))}" class="form">
+                    {AntiforgeryField.Hidden(tokens)}
+                    <button type="submit">Restore this revision</button>
+                </form>
+                """);
+        } else {
+            await context.Response.WriteAsync("<p>This revision has the source the page already holds, so there is nothing to restore.</p>");
+        }
+
+        await context.Response.WriteAsync(PageDocument.Nav("Confirmation navigation", [
+            new(PageUrls.EditorCommand(path, "history"), "Cancel"),
+        ], "editor-menu"));
         await ShellDocument.EndAsync(context);
     }
 
@@ -515,8 +617,13 @@ internal sealed class EditorEndpoint {
             return;
         }
 
+        if (command == "install") {
+            await InstallSeedAsync(context, pages, path, flash);
+            return;
+        }
+
         if (command == "restore") {
-            await RestoreSeedAsync(context, pages, path, flash);
+            await RestoreRevisionAsync(context, pages, path, flash);
             return;
         }
 
@@ -527,7 +634,7 @@ internal sealed class EditorEndpoint {
             [new(PageUrls.Editor(path), "Back to editor")]));
     }
 
-    private static async Task RestoreSeedAsync(HttpContext context, PageEditor pages, PagePath path, Flash flash) {
+    private static async Task InstallSeedAsync(HttpContext context, PageEditor pages, PagePath path, Flash flash) {
         SecurityHeaders.NoStore(context);
         string? seed = await PageAssetSeeder.ReadSeedTemplateAsync(path, context.RequestAborted);
         if (seed is null) {
@@ -535,17 +642,116 @@ internal sealed class EditorEndpoint {
             return;
         }
 
-        if (await MatchesSeedAsync(pages, path, seed, context.RequestAborted)) {
-            await flash.WriteAsync(context, ListingPath, $"{path.Key} already matched its seed.", context.RequestAborted);
-        } else {
-            await pages.SaveAsync(path, seed, context.RequestAborted);
-            context.RequestServices.GetService<ILogger<EditorEndpoint>>()
-                ?.LogInformation("Restored {Path} from its seed", path.Key);
-            await flash.WriteAsync(context, ListingPath, $"Restored {path.Key} from its seed.", context.RequestAborted);
+        PageTemplate? live = await pages.GetAsync(path, context.RequestAborted);
+        if (live is not null && string.Equals(live.Template, seed, StringComparison.Ordinal)) {
+            await WriteNothingToDoAsync(
+                context,
+                "editor.install_nothing_to_do",
+                "That page already holds its seed",
+                $"Nothing was installed: {path.Key} already has the seed's source. Open the page to edit it, or its history to see how it got there.",
+                path,
+                PageUrls.EditorInstall(path));
+            return;
         }
 
+        SavedRevision saved = await pages.SaveAsync(path, seed, context.RequestAborted);
+        context.RequestServices.GetService<ILogger<EditorEndpoint>>()
+            ?.LogInformation("Installed the seed of {Path} as revision {Hash}", path.Key, saved.Revision.Hash);
+        await flash.WriteAsync(
+            context,
+            ListingPath,
+            InstallMessage(path, saved),
+            context.RequestAborted);
         Redirect.SeeOther(context, "/edit");
     }
+
+    // A restore is the author's deliberate act on the live page, so it appends whatever they chose.
+    // The one thing it refuses is the choice that would change nothing: source the page already holds.
+    private static async Task RestoreRevisionAsync(HttpContext context, PageEditor pages, PagePath path, Flash flash) {
+        SecurityHeaders.NoStore(context);
+        if (!TryGetRevisionHash(context, out string? hash)) {
+            await WriteInvalidRestoreLinkAsync(context, path);
+            return;
+        }
+
+        if (await pages.GetHeadAsync(path, context.RequestAborted) is null) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+
+        PageRevisionTemplate? revision = await pages.GetRevisionTemplateByHashAsync(hash, context.RequestAborted);
+        if (revision is null || revision.Path != path) {
+            await NotFound.WriteAsync(context, path);
+            return;
+        }
+
+        PageTemplate? live = await pages.GetAsync(path, context.RequestAborted);
+        if (live is not null && string.Equals(live.Template, revision.Template, StringComparison.Ordinal)) {
+            await WriteNothingToDoAsync(
+                context,
+                "editor.restore_nothing_to_do",
+                "There is nothing to restore",
+                $"{ShortHash(revision.Hash)} has the source {path.Key} already holds, so nothing was written. Restore a different revision, or edit the page.",
+                path,
+                PageUrls.EditorRestore(path, revision.Hash));
+            return;
+        }
+
+        SavedRevision saved = await pages.SaveAsync(path, revision.Template, context.RequestAborted);
+        context.RequestServices.GetService<ILogger<EditorEndpoint>>()
+            ?.LogInformation("Restored revision {Hash} of {Path} as revision {NewHash}", revision.Hash, path.Key, saved.Revision.Hash);
+        await flash.WriteAsync(
+            context,
+            SessionPathFor(path),
+            RestoreMessage(path, revision.Hash, saved),
+            context.RequestAborted);
+        Redirect.SeeOther(context, PageUrls.Editor(path));
+    }
+
+    // The refusal both actions share: the write would leave the live source exactly as it is, and a
+    // row that says so is noise in a history whose job is to record changes.
+    private static Task WriteNothingToDoAsync(
+        HttpContext context,
+        string code,
+        string title,
+        string detail,
+        PagePath path,
+        string confirmationUrl) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status409Conflict, new ErrorMessage(
+            code,
+            title,
+            detail,
+            [new(confirmationUrl, "Back to confirmation"), new(PageUrls.EditorCommand(path, "history"), "Back to history"), new(PageUrls.Editor(path), "Back to editor")]));
+
+    private static Task WriteInvalidRestoreLinkAsync(HttpContext context, PagePath path) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status400BadRequest, new ErrorMessage(
+            "editor.restore_link",
+            "That restore link is not valid",
+            "A restore link needs a 64-character lowercase hexadecimal hash. Open the page history and choose a revision from the list.",
+            [new(PageUrls.EditorCommand(path, "history"), "Back to history"), new(PageUrls.Editor(path), "Back to editor")]));
+
+    private static string ShortHash(string hash) => hash[..Math.Min(12, hash.Length)];
+
+    private static string InstallMessage(PagePath path, SavedRevision saved) =>
+        $"{path.Key} was installed from its seed as revision {ShortHash(saved.Revision.Hash)}{OutcomeClause(OutcomeOf(saved.Diagnostics))}";
+
+    private static string RestoreMessage(PagePath path, string restoredFrom, SavedRevision saved) =>
+        $"Restored revision {ShortHash(restoredFrom)} of {path.Key} as revision {ShortHash(saved.Revision.Hash)}{OutcomeClause(OutcomeOf(saved.Diagnostics))}";
+
+    // One classification of a compile's answer, so four verbs cannot describe it four ways.
+    private static CompileOutcome OutcomeOf(IReadOnlyList<PageDiagnostic> diagnostics) => diagnostics switch {
+        { Count: 0 } => CompileOutcome.Clean,
+        _ when diagnostics.Any(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error) => CompileOutcome.Errors,
+        _ => CompileOutcome.Warnings,
+    };
+
+    // The clause finishes a message that already names the revision, which is why the clean case is
+    // a full stop rather than nothing.
+    private static string OutcomeClause(CompileOutcome outcome) => outcome switch {
+        CompileOutcome.Errors => ", which does not compile, so the page will not render until you fix it.",
+        CompileOutcome.Warnings => ", which compiled with warnings.",
+        _ => ".",
+    };
 
     private static async Task ScrubAsync(HttpContext context, PageEditor pages, PagePath path, Flash flash) {
         if (!context.Request.HasFormContentType
@@ -706,8 +912,8 @@ internal sealed class EditorEndpoint {
     // A command missing from a POST is a save: that is what the editor's form means, and it is what
     // a browser sends for an implicit submission (the Enter key) that names no button.
     private static bool IsAllowedCommand(string method, string? command) => method switch {
-        "GET" => command is null or "history" or "revision" or "diff" or "delete" or "scrub",
-        "POST" => command is null or "save" or "save-and-view" or "new" or "delete" or "scrub" or "restore",
+        "GET" => command is null or "history" or "revision" or "diff" or "delete" or "scrub" or "install" or "restore",
+        "POST" => command is null or "save" or "save-and-view" or "new" or "delete" or "scrub" or "install" or "restore",
         _ => false,
     };
 
@@ -724,14 +930,18 @@ internal sealed class EditorEndpoint {
 
     private static bool TryGetHash(HttpContext context, string name, out string hash) {
         hash = string.Empty;
-        if (!context.Request.Query.TryGetValue(name, out StringValues values)
-            || values.Count != 1
-            || values[0] is not { Length: 64 } value
-            || !value.All(Uri.IsHexDigit)) {
+        if (!context.Request.Query.TryGetValue(name, out StringValues values) || values.Count != 1) {
             return false;
         }
 
-        hash = value;
+        // IsCanonical is the rule ?v= applies on the page endpoint, so a revision has one spelling
+        // everywhere it can be named.
+        string? candidate = values[0];
+        if (!RevisionHash.IsCanonical(candidate)) {
+            return false;
+        }
+
+        hash = candidate!;
         return true;
     }
 
@@ -749,15 +959,17 @@ internal sealed class EditorEndpoint {
             return new SaveOutcome("The template must have exactly one value.", Viewable: false);
         }
 
-        IReadOnlyList<PageDiagnostic> diagnostics = await pages.SaveAsync(path, template.ToString(), context.RequestAborted);
-        return diagnostics switch {
-            { Count: 0 } => new SaveOutcome("Saved successfully.", Viewable: true),
-            _ when diagnostics.Any(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error) => new SaveOutcome("Saved with errors.", Viewable: false),
+        SavedRevision saved = await pages.SaveAsync(path, template.ToString(), context.RequestAborted);
+        return OutcomeOf(saved.Diagnostics) switch {
+            CompileOutcome.Clean => new SaveOutcome("Saved successfully.", Viewable: true),
+            CompileOutcome.Errors => new SaveOutcome("Saved with errors.", Viewable: false),
             _ => new SaveOutcome("Saved with warnings.", Viewable: true),
         };
     }
 
     private readonly record struct SaveOutcome(string Message, bool Viewable);
+
+    private enum CompileOutcome { Clean, Warnings, Errors }
 
     private static async Task WriteHistoryAsync(HttpContext context, PageEditor pages, PagePath path) {
         PageHeadSummary? head = await pages.GetHeadAsync(path, context.RequestAborted);
@@ -780,12 +992,12 @@ internal sealed class EditorEndpoint {
         if (revisions.Count == 0) {
             await context.Response.WriteAsync("<p>No saved revisions.</p>");
         } else {
-            await context.Response.WriteAsync("<table><thead><tr><th scope=\"col\">Saved</th><th scope=\"col\">Revision</th><th scope=\"col\">State</th><th scope=\"col\">Compilation</th><th scope=\"col\">Creation runtime</th></tr></thead><tbody>");
+            await context.Response.WriteAsync("<table><thead><tr><th scope=\"col\">Saved</th><th scope=\"col\">Revision</th><th scope=\"col\">State</th><th scope=\"col\">Compilation</th><th scope=\"col\">Creation runtime</th><th scope=\"col\">Action</th></tr></thead><tbody>");
             foreach (PageRevisionSummary revision in revisions) {
                 string hash = WebUtility.HtmlEncode(revision.Hash);
                 string url = WebUtility.HtmlEncode(PageUrls.EditorRevision(path, revision.Hash));
                 string state = revision.IsCurrent ? "<strong>Current</strong>" : string.Empty;
-                await context.Response.WriteAsync($"<tr><td>{WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}</td><td><a href=\"{url}\">{hash}</a></td><td>{state}</td><td>{WebUtility.HtmlEncode(revision.ImageState.Describe())}</td><td>{WebUtility.HtmlEncode(revision.CreationRuntimeId)}</td></tr>");
+                await context.Response.WriteAsync($"<tr><td>{WebUtility.HtmlEncode(revision.SavedAt.ToString("O", CultureInfo.InvariantCulture))}</td><td><a href=\"{url}\">{hash}</a></td><td>{state}</td><td>{WebUtility.HtmlEncode(revision.ImageState.Describe())}</td><td>{WebUtility.HtmlEncode(revision.CreationRuntimeId)}</td><td>{RestoreLink(path, revision)}</td></tr>");
             }
             await context.Response.WriteAsync("</tbody></table>");
             if (revisions.Count >= 2) {
@@ -795,6 +1007,21 @@ internal sealed class EditorEndpoint {
             }
         }
         await ShellDocument.EndAsync(context);
+    }
+
+    // The current revision needs no link: restoring it would write the source the page already holds,
+    // which both the confirmation and the POST refuse. That is a hint the listing can afford, because
+    // it does not load revision source; an older row with the same text keeps its link and is refused
+    // on the confirmation instead.
+    private static string RestoreLink(PagePath path, PageRevisionSummary revision) {
+        if (revision.IsCurrent) {
+            return string.Empty;
+        }
+
+        string url = WebUtility.HtmlEncode(PageUrls.EditorRestore(path, revision.Hash));
+        string label = WebUtility.HtmlEncode($"Restore revision {ShortHash(revision.Hash)} of {path.Key}");
+
+        return $"<a href=\"{url}\" aria-label=\"{label}\">Restore</a>";
     }
 
     private static async Task WriteRevisionCompareFormAsync(

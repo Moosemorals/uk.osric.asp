@@ -14,9 +14,11 @@ using uk.osric.asp.Web.Assistant;
 public sealed class AssistantContextMaskingTests : IntegrationTest {
 
     // Ten read_page results of about 13 kB each: eight fit the request budget, the ninth does not, so
-    // the run has to elide its oldest observation to send the next step.
+    // the run has to elide its oldest observation to send the next step. The budget carries the
+    // system prompt and tool definitions, so it moves when the prompt gains a section: the invariant
+    // is "eight fit, nine do not", not the number itself.
     private const int ToolCalls = 10;
-    private const int Budget = 110_000;
+    private const int Budget = 114_000;
 
     private readonly ReadingClient _provider = new(ToolCalls);
 

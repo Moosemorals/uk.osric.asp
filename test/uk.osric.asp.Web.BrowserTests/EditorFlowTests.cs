@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.BrowserTests;
 
 using Microsoft.Playwright;
 
-/// <summary>The editor end to end: create, save, read history, delete, recreate and scrub.</summary>
+/// <summary>The editor end to end: create, save, read history, restore, delete and scrub.</summary>
 [TestFixture]
 internal sealed class EditorFlowTests : BrowserTest {
 
@@ -80,7 +80,8 @@ internal sealed class EditorFlowTests : BrowserTest {
         await SavePageAsync(path, "<p>first draft</p>");
         await SavePageAsync(path, "<p>second draft</p>");
         await Page.GotoAsync($"edit{path}?cmd=history");
-        await Page.Locator("table tbody tr").Last.Locator("a").ClickAsync();
+        // The older row links its hash to the revision view and then offers Restore.
+        await Page.Locator("table tbody tr").Last.Locator("a").First.ClickAsync();
 
         await Assertions.Expect(Page.Locator("pre.source")).ToContainTextAsync("first draft");
     }
@@ -103,13 +104,19 @@ internal sealed class EditorFlowTests : BrowserTest {
     }
 
     [Test]
-    public async Task RecreatingADeletedPageBringsItBackAsync() {
+    public async Task NamingADeletedKeyInTheCreateFormBringsThePageBackAsync() {
         string path = UniquePath("restored");
 
         await SavePageAsync(path, "<p>before the delete</p>");
         await Page.GotoAsync($"edit{path}?cmd=delete");
         await Page.ClickAsync("button[type=submit]");
         await Page.WaitForURLAsync("**/edit");
+
+        // The ordinary create-or-open form, which names a deleted key as readily as a new one.
+        await Page.FillAsync("#new-page-path", path);
+        await Page.ClickAsync("button[type=submit]");
+        await Page.WaitForURLAsync($"**/edit{path}");
+        await Assertions.Expect(Page.Locator("main")).ToContainTextAsync($"{path} was deleted.");
 
         await SavePageAsync(path, PageTemplate("Restored", "<p>after the delete</p>"));
         IResponse? live = await Page.GotoAsync(path.TrimStart('/'));
@@ -154,19 +161,43 @@ internal sealed class EditorFlowTests : BrowserTest {
     }
 
     [Test]
-    public async Task ARestoredSeedPageComesBackWithItsBundledSourceAsync() {
+    public async Task AnInstalledSeedPageComesBackWithItsBundledSourceAsync() {
         string path = "/rocket.svg";
 
         await Page.GotoAsync($"edit{path}?cmd=delete");
         await Page.ClickAsync("button[type=submit]");
         await Page.WaitForURLAsync("**/edit");
 
-        await Page.GetByRole(AriaRole.Button, new() { Name = $"Restore {path} from its seed", Exact = true }).ClickAsync();
-        await Assertions.Expect(Page.Locator("main")).ToContainTextAsync($"Restored {path} from its seed.");
+        await Page.GetByRole(AriaRole.Link, new() { Name = $"Install {path} from its seed", Exact = true }).ClickAsync();
+        await Assertions.Expect(Page.Locator("main")).ToContainTextAsync($"Install the seed over {path}?");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Install the seed", Exact = true }).ClickAsync();
+        await Assertions.Expect(Page.Locator("main")).ToContainTextAsync($"was installed from its seed as revision");
 
         IResponse? restored = await Page.GotoAsync(path.TrimStart('/'));
         Assert.That(restored?.Status, Is.EqualTo(200).Or.EqualTo(304));
         Assert.That(await Page.ContentAsync(), Does.Contain("<svg"));
+    }
+
+    [Test]
+    public async Task ARestoredRevisionComesBackAsANewSaveAsync() {
+        string path = UniquePath("restore-walk");
+
+        await SavePageAsync(path, "<p>first draft</p>");
+        await SavePageAsync(path, "<p>second draft</p>");
+        await Page.GotoAsync($"edit{path}?cmd=history");
+        await Page.GetByRole(AriaRole.Link, new() { Name = $"Restore revision", Exact = false }).ClickAsync();
+
+        await Assertions.Expect(Page.Locator("main")).ToContainTextAsync($"Restore revision");
+        await Assertions.Expect(Page.Locator("tr.diff-added")).ToContainTextAsync("first draft");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Restore this revision", Exact = true }).ClickAsync();
+
+        await Page.WaitForURLAsync($"**/edit{path}");
+        await Assertions.Expect(Page.Locator("main")).ToContainTextAsync("Restored revision");
+        Assert.That(await Page.InputValueAsync("#template"), Does.Contain("first draft"));
+
+        IResponse? live = await Page.GotoAsync(path.TrimStart('/'));
+        Assert.That(live?.Status, Is.EqualTo(200));
+        await Assertions.Expect(Page.Locator("p")).ToContainTextAsync("first draft");
     }
 
     [Test]

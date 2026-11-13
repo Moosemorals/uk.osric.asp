@@ -20,7 +20,7 @@ tool calls receive synthetic results rather than being replayed to the provider.
 
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
 endpoint. Enabling the feature sends the system prompt, conversation transcript, and page source read
-by tools to that provider. No provider SDK is used. The tools are fifteen types under
+by tools to that provider. No provider SDK is used. The tools are eighteen types under
 `Assistant/Tools`, each carrying its name, its description, its argument schema, its approval flag,
 the verb its refusals use, whether it changes a page and its own run, beside the code that runs it;
 `ToolRegistry` is the only list, so the model's definitions, the dispatcher and the approval gate
@@ -38,6 +38,27 @@ transcript and sent to the provider on the next step: treat it as untrusted data
 `diff_page` compares two retained revisions of a page, defaulting to the newest two, and returns a
 unified diff, the two hashes and the editor link; it is a read, changes nothing and needs no
 approval (DEC-219).
+
+The assistant also reads and restores history. `list_revisions` answers a page's retained revisions
+newest first — hash, save time, creation runtime, compile state, whether it is the head and its
+editor URL — including for a tombstoned path, and takes `limit` (default 50, at most 500) with a
+`before` cursor that names the last hash given, so a long history is read a slice at a time;
+`truncated` says there is more. `list_pages` takes the same `limit` with an `after` cursor, because
+its listing is in key order rather than in time. `read_revision` answers one revision's stored
+source through the same 1-based physical lines, line ranges and result budget `read_page` uses,
+so the two cannot drift. Both are reads, change nothing and need no approval; both refuse a shell
+file, a missing page and a non-canonical hash, and `read_revision` refuses a hash from another
+path — the rules the editor's `cmd=revision` applies. Reading a revision sends its source to the
+provider exactly as `read_page` does.
+
+`restore_revision` saves a revision's source as a new revision through the ordinary
+compile-and-save path: nothing is rewound, and a deleted page comes back with its history. It is the
+one write to history and the most constrained write the assistant has, because the source must
+already be a revision of that path — the model cannot invent content with it. It is approval-gated
+and path-policy-checked, it refuses a hash whose source the live page already holds, and it cannot
+scrub. That supersedes the rule the assistant plan recorded, that restoring is the owner's alone:
+`write_page` already restored, by retyping a source read through a bounded argument, so refusing the
+hash-shaped form kept the lossy version and dropped the faithful one.
 There is no process, filesystem, git, package, or other outbound-network tool. The per-conversation
 approval mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on
 each flagged call. Unresolved, stale, stopped, or restarted approvals never execute.

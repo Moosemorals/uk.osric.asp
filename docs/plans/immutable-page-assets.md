@@ -58,10 +58,10 @@ mean exactly what they meant before.
 ## Not in this plan: the assistant's view of history
 
 The assistant can write and tombstone pages and its `diff_page` reads two retained revisions, but it
-cannot list a page's revisions or read one, so a model that overwrote or deleted the wrong page
-cannot say what was there. Closing that is [ARCH-07](../jobs/ARCH-07.md)'s, with the rest of the
-retained history reads, and is deliberately not part of this change: two store reads behind the
-owner's sign-in share nothing with a public URL, a cache header or the verdict.
+could not list a page's revisions or read one, so a model that overwrote or deleted the wrong page
+could not say what was there. That was deliberately not part of this change: two store reads behind
+the owner's sign-in share nothing with a public URL, a cache header or the verdict. It is now
+delivered by [revision restore](revision-restore.md).
 
 The two must not be implemented through each other, in either direction. A revision the assistant
 reads may have code, may be wrapped, and may belong to a tombstoned path, so `read_revision` uses the

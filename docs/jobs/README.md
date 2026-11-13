@@ -45,7 +45,6 @@ editor has a way back, and one button that restores every seed is that way.
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
-| [ARCH-07](ARCH-07.md) | Medium | L | Retained page history has no restore action |
 | [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
 | [ARCH-15](ARCH-15.md) | Low | S | An assistant-only list is a second, invisible kind of read-only page |
 | [ARCH-16](ARCH-16.md) | Low | M | The assistant asks the page store the same questions twice |
@@ -85,28 +84,24 @@ follow-up.
 Rough on purpose: the point is the first few, and the rest will move as they are worked. Small and
 self-contained comes first, because these are the ones that never get scheduled otherwise.
 
-1. **ARCH-07, revision restore.** History storage, page listing, history browsing, tombstone
-   deletion, explicit scrub and restoring a bundled seed are implemented. What remains is restoring
-   a selected revision as a new save. Immutable assets and PageLayout adoption have since landed
-   ([IDEA-010](IDEA-010.md), closed); cleanup of binaries from an earlier runtime is still open.
-2. **OPS-03, CI automation** — `make check` and `make ci` already exist; what is missing is
+1. **OPS-03, CI automation** — `make check` and `make ci` already exist; what is missing is
    something that runs one of them without being asked.
-3. **IDEA-005, shared code between pages** — the layout half is done (see [site
+2. **IDEA-005, shared code between pages** — the layout half is done (see [site
    navigation](../plans/archive/site-navigation.md)) and IDEA-018 with it. What is left is shared *types*:
    a named declaration a second page can use, which is a compile-time question rather than a
    rendering one.
-4. **IDEA-001, a proper editor** — the line gutter, linked diagnostics and caret persistence are
+3. **IDEA-001, a proper editor** — the line gutter, linked diagnostics and caret persistence are
    done; syntax highlighting or adopting a third-party editor is what is left.
-5. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
-6. **OPS-05, alerting** — OPS-02's health endpoint and dashboard are done and that job is closed,
+4. **ARCH-13, streaming** — when a page actually needs to answer before it has finished.
+5. **OPS-05, alerting** — OPS-02's health endpoint and dashboard are done and that job is closed,
    so what is left is a channel and a rule, once there is something worth being woken for.
-7. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
-8. **IDEA-017 and IDEA-019, page capabilities** — each lets a stored page do something only the
+6. **SEC-03** — the process boundary, only if page authors ever stop being the owner.
+7. **IDEA-017 and IDEA-019, page capabilities** — each lets a stored page do something only the
    shell can do today. None is urgent while the shell works; they matter when a view is worth moving.
    IDEA-014, IDEA-015 and IDEA-016 have landed, so a page keeps per-visitor state, reads the store
    and saves itself; the listing and history views can become fragments the default layout wraps,
    and IDEA-017's editor is the one this leaves last.
-9. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
+8. **IDEA-020, reset-to-archive** — not scheduled. Selective import covers the small-copy case, and
    the archive is not a backup; the job records what a destructive replace would have to answer
    before it is worth building.
 
@@ -116,6 +111,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [ARCH-07](../plans/revision-restore.md) | A page's history restores: the editor confirms a revision or a seed install with a diff and saves the chosen source as a new revision, refusing the one that would change nothing; the assistant gains `list_revisions`, `read_revision` and an approval-gated `restore_revision`, and both listings page with `limit` and a cursor. See [the plan](../plans/revision-restore.md) |
 | [ARCH-02](../pages.md#page-contract) | Pages are a restricted runtime: a plain `PageRequest` snapshot, buffered output applied after the handler, allow-listed headers, `GET`/`POST`/`HEAD` only, and a 1 MiB form cap |
 | ARCH-03 | Renders and compiles each have a slot and a deadline, an abandoned render is logged and counted, and `/heath` reports it. See [the plan](../plans/archive/page-execution-budget.md). SEC-03 is deliberately still open |
 | ARCH-04 | `LoadedPage` unwraps the reflection wrapper with `ExceptionDispatchInfo`, so the shell sees the page's own exception |

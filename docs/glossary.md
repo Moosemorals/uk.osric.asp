@@ -256,6 +256,17 @@ from the memory page, changes it (DEC-206).
 **Owner:** assistant — `MemoryCandidate.Pinned`, the `AssistantMemories.Pinned` column,
 `IMemoryStore.PinnedAsync` and `MemoryRecall.Select`.
 
+## Restore
+Saving a retained revision's source as a new revision of the page, through the ordinary compile-and-save
+path.
+
+**Not** a rewind. No stored row changes, the page's head simply moves to the new revision, and a
+deleted page comes back with its history. Nor is it an install: a seed is *installed* and a saved
+revision is *restored*, and both refuse the change that would leave the live source as it is.
+
+**Owner:** pages — the editor's `?cmd=restore&hash=`, `PageEditor.SaveAsync` and
+`PageSaver.SaveAsync`; the assistant's `restore_revision` and `list_revisions` / `read_revision`.
+
 ## Revision
 An immutable saved row holding one template, the image built from it, its hash and the runtime id
 recorded when it was created.
@@ -306,11 +317,12 @@ running code, browser copies, archives or backups.
 `?cmd=scrub`.
 
 ## Seed
-A page template bundled with the release, used to create a page that has never existed and to restore
-a seeded one.
+A page template bundled with the release, used to create a page that has never existed and to install
+over a seeded one.
 
-**Not** a page or a revision. A seed is a file under `Pages/Seeds`; restoring it saves a new revision
-through the ordinary revision path.
+**Not** a page or a revision. A seed is a file under `Pages/Seeds`; installing it saves the bundled
+source as a new revision through the ordinary revision path, and is refused while the page already
+holds it.
 
 **Owner:** pages — `src/uk.osric.asp.Web/Pages/Seeds`, `PageAssetSeeder` and `PageAssetSeeder.SeedPaths`.
 

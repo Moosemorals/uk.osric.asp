@@ -104,9 +104,10 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   diff view to the accessibility sweep, and `PageAuthorPromptTests` pins the new section. The
   browser suite saves two revisions and compares them in `EditorFlowTests`.
 - **The document shell and accessibility** are asserted over rendered markup rather than in a browser.
-  `ShellViews` renders all twenty-eight shell views once each — the sign-in form and its failure, the
-  sign-out confirmation, the listing with an edited seed and a matching one so its restore buttons
-  are swept too, the editor clean and with diagnostics, history, a saved revision, the delete
+  `ShellViews` renders every shell view once each — the sign-in form and its failure, the
+  sign-out confirmation, the listing with an edited seed and a matching one so its install actions
+  are swept too, the editor clean and with diagnostics, history with its restore links, a saved
+  revision, the restore and install confirmations, the delete
   confirmation, status, the error page, the error page with details, a not-found page, the compile
   failure, the assistant list, chat, reasoning chat, delete confirmation, the memory page and its
   forget confirmation, the export list, the upload form, a rejected archive, the import review, the
@@ -153,7 +154,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   a stored page that widens its own policy with `ctx.AllowScripts()` while a page that redirects or
   throws does not, migrations, DI wiring and the fact that a page is compiled once. Editor
   integration coverage distinguishes `/edit` from the `/edit/` root editor, checks command
-  authorization and antiforgery, restores a deleted seed from the page list, and confirms deleted
+  authorization and antiforgery, installs a seed into a deleted page through its confirmation, and confirms deleted
   seeded assets remain tombstoned across restarts. `PageAuthenticationTests` runs the whole
   private-page round trip: a guarded page saved through the editor, the redirect to `/login` with its
   query, signing in back to that page, its form with and without `ctx.AntiforgeryField`, sign-out and

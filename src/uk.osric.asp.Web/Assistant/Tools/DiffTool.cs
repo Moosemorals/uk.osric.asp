@@ -42,9 +42,7 @@ internal sealed class DiffPageTool : AssistantTool {
         string? toHash = values.String("toHash");
         if ((fromHash is not null && !IsRevisionHash(fromHash))
             || (toHash is not null && !IsRevisionHash(toHash))) {
-            return services.Results.Failure(
-                "A revision hash is 64 hexadecimal characters; use the hash read_page returned.",
-                "Invalid revision hash");
+            return services.Results.Failure(PageToolData.HashRefusal, "Invalid revision hash");
         }
 
         IReadOnlyList<PageRevisionSummary> revisions = await services.Pages.ListRevisionsAsync(path, cancellationToken);
@@ -97,6 +95,5 @@ internal sealed class DiffPageTool : AssistantTool {
         return services.Results.Success(data, $"Compared 2 revisions of {ToolPaths.Describe(path)}");
     }
 
-    private static bool IsRevisionHash(string? hash) =>
-        hash is { Length: 64 } value && value.All(Uri.IsHexDigit);
+    private static bool IsRevisionHash(string? hash) => RevisionHash.IsCanonical(hash);
 }

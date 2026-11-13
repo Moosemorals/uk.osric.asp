@@ -38,12 +38,16 @@ its path, and every live and deleted page has its own editor at <code>/edit/&lt;
     when the image was built by an earlier deploy. A page compiled elsewhere says <em>Stale</em>
     until it is next requested, which recompiles it.</li>
     <li><strong>History</strong> lists the saved revisions of a page. Choosing one shows its stored
-    source without compiling it; choosing two compares them line by line.</li>
+    source without compiling it; choosing two compares them line by line. A row offers
+    <strong>Restore</strong> for every revision except the current one: the confirmation shows the
+    change it will make, and restoring saves that source as a new revision, compiled by this build.
+    Nothing is rewound, and a revision whose source the page already holds cannot be restored.</li>
     <li><strong>Delete</strong> hides a page but keeps its template and history. <strong>Scrub</strong>
     permanently removes a deleted page and its retained history; use it only when you mean it.</li>
-    <li><strong>Restore from seed</strong> is offered for the pages the site ships with, such as
-    <code>/_layout</code>, <code>/help</code> and the stylesheets. It saves the bundled source as a
-    new revision.</li>
+    <li><strong>Install from seed</strong> is offered for the pages the site ships with, such as
+    <code>/_layout</code>, <code>/help</code> and the stylesheets, and only while the page differs
+    from its seed. It opens the same kind of confirmation as a restore and saves the bundled source
+    as a new revision. A seed is installed; a saved revision is restored.</li>
     <li>The assistant is available from the editor only when the host enables it.</li>
 </ul>
 <p>Paths are canonical: <code>/About</code>, <code>/about/</code> and <code>/about</code> are the
@@ -429,12 +433,16 @@ and the seeded layout. A static page's own <code>src</code> cannot be versioned 
 an unversioned asset, or write the hash by hand once.</p>
 <p>The pages the site ships with are called seeds. They live under <code>Pages/Seeds</code> and are
 created only when the page does not already exist, so editing a seed changes the site without being
-overwritten on the next start. The page list offers <strong>Restore from seed</strong> on a seeded
+overwritten on the next start. The page list offers <strong>Install from seed</strong> on a seeded
 row, which saves the bundled source as a new revision; that is how you recover
-<code>/_layout</code>, <code>/site.css</code> or this page after a bad edit. A revision saved before
+<code>/_layout</code>, <code>/site.css</code> or this page after a bad edit. To go back to an earlier
+save of the page instead, restore it from the page's history. A revision saved before
 this feature has no verdict yet, so it stays unversioned until it is next saved, restored or first
 generated; there is no backfill.</p>
-<p>Deleting a page leaves a tombstone and its history. Saving the path again continues that history.
+<p>Deleting a page leaves a tombstone and its history. Saving the path again continues that history:
+name the key in <strong>Create or open</strong> on the page list, and the editor says the page was
+deleted and that saving brings it back. A deleted page has no current revision, so every row of its
+history can be restored, including the one it was deleted at.
 A tombstone keeps its revisions, so its versioned URLs still answer; scrubbing removes them, so those
 URLs become <code>404</code>. Neither can recall a copy a browser or a proxy already holds. If an
 asset held a secret, rotate the secret and clean the external copies separately.</p>

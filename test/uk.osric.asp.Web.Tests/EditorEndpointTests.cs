@@ -278,10 +278,10 @@ public sealed class EditorEndpointTests {
         Assert.That(body[deleted..], Does.Contain(
             "<th scope=\"row\">/gone</th>"
             + "<td class=\"page-state state-not-compiled\">Not compiled</td>"
-            + "<td class=\"page-actions\"><a href=\"/edit/gone\" aria-label=\"Recreate /gone\">Recreate</a> "
-            + "<a href=\"/edit/gone?cmd=history\" aria-label=\"History of /gone\">History</a> "
+            + "<td class=\"page-actions\"><a href=\"/edit/gone?cmd=history\" aria-label=\"History of /gone\">History</a> "
             + "<a href=\"/edit/gone?cmd=scrub\" aria-label=\"Scrub history of /gone\">Scrub history</a>"));
         Assert.That(body[deleted..], Does.Not.Contain("?cmd=delete"));
+        Assert.That(body[deleted..], Does.Not.Contain("Recreate"), "creating a page at a used key is the ordinary create-or-open act");
     }
 
     [Test]
@@ -310,7 +310,7 @@ public sealed class EditorEndpointTests {
     }
 
     [Test]
-    public async Task ListingOffersSeedRestoreDisabledOnlyWhereThePageMatchesAsync() {
+    public async Task ListingOffersInstallOnlyWhereTheSeedWouldChangeThePageAsync() {
         PagePath edited = PagePath.Normalize("/assistant.css");
         PagePath matching = PagePath.Normalize("/editor.css");
         PagePath plain = PagePath.Normalize("/plain");
@@ -323,14 +323,17 @@ public sealed class EditorEndpointTests {
         await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
         string body = await TestHttp.ReadBodyAsync(context);
-        Assert.That(body, Does.Contain("<form method=\"post\" action=\"/edit/assistant.css?cmd=restore\">"));
-        Assert.That(body, Does.Contain("<button type=\"submit\" aria-label=\"Restore /assistant.css from its seed\">Restore from seed</button>"));
-        Assert.That(body, Does.Contain("<button type=\"submit\" aria-label=\"Restore /editor.css from its seed\" disabled>Restore from seed</button>"));
-        Assert.That(body, Does.Not.Contain("aria-label=\"Restore /plain from its seed\""));
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("<a href=\"/edit/assistant.css?cmd=install\" aria-label=\"Install /assistant.css from its seed\">Install from seed</a>"));
+            // A link that cannot act is worse than an absent one, so a matching seed offers nothing.
+            Assert.That(body, Does.Not.Contain("aria-label=\"Install /editor.css from its seed\""));
+            Assert.That(body, Does.Not.Contain("aria-label=\"Install /plain from its seed\""));
+            Assert.That(body, Does.Not.Contain("Restore from seed"));
+        });
     }
 
     [Test]
-    public async Task ListingOffersRestoreForADeletedSeedAsync() {
+    public async Task ListingOffersInstallForADeletedSeedAsync() {
         PagePath path = PagePath.Normalize("/assistant.css");
         FakePageStore storage = new();
         storage[path.Key] = new PageTemplate(path, "/* edited */");
@@ -339,45 +342,119 @@ public sealed class EditorEndpointTests {
 
         await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
-        string body = await TestHttp.ReadBodyAsync(context);
-        Assert.That(body, Does.Contain("<form method=\"post\" action=\"/edit/assistant.css?cmd=restore\">"));
-        Assert.That(body, Does.Contain("<button type=\"submit\" aria-label=\"Restore /assistant.css from its seed\">Restore from seed</button>"));
+        Assert.That(await TestHttp.ReadBodyAsync(context),
+            Does.Contain("<a href=\"/edit/assistant.css?cmd=install\" aria-label=\"Install /assistant.css from its seed\">Install from seed</a>"));
     }
 
     [Test]
-    public async Task RestoreWritesTheSeedAndReturnsToTheListingAsync() {
+    public async Task InstallConfirmationShowsTheDiffAndDoesNotWriteAsync() {
+        PagePath path = PagePath.Normalize("/assistant.css");
+        string seed = (await PageAssetSeeder.ReadSeedTemplateAsync(path))!;
+        FakePageStore storage = new();
+        storage[path.Key] = new PageTemplate(path, "edited <source>");
+        int writes = storage.WriteCount;
+        int compiles = _compiler.CompileCount;
+        DefaultHttpContext context = CreateInstallContext("assistant.css", method: "GET");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+            Assert.That(body, Does.Contain("Install the seed over /assistant.css?"));
+            Assert.That(body, Does.Contain("<tr class=\"diff-removed\">"));
+            Assert.That(body, Does.Contain("<tr class=\"diff-added\">"));
+            Assert.That(body, Does.Contain("<form method=\"post\" action=\"/edit/assistant.css?cmd=install\""));
+            Assert.That(body, Does.Contain("Install the seed</button>"));
+            Assert.That(body, Does.Contain("edited &lt;source&gt;"));
+            Assert.That(storage.WriteCount, Is.EqualTo(writes));
+            Assert.That(_compiler.CompileCount, Is.EqualTo(compiles));
+            // Minting the antiforgery token gives the framework's stronger value; either way it is
+            // uncacheable, which is what showing page source to one owner has to be.
+            Assert.That(context.Response.Headers.CacheControl.ToString(), Does.Contain("no-store"));
+        });
+    }
+
+    [Test]
+    public async Task InstallConfirmationOfAMatchingSeedOffersNoFormAsync() {
+        PagePath path = PagePath.Normalize("/assistant.css");
+        string seed = (await PageAssetSeeder.ReadSeedTemplateAsync(path))!;
+        FakePageStore storage = new();
+        storage[path.Key] = new PageTemplate(path, seed);
+        DefaultHttpContext context = CreateInstallContext("assistant.css", method: "GET");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+            Assert.That(body, Does.Contain("No changes."));
+            Assert.That(body, Does.Contain("already holds its seed, so there is nothing to install"));
+            Assert.That(body, Does.Not.Contain("<form method=\"post\""));
+        });
+    }
+
+    [Test]
+    public async Task InstallConfirmationOfADeletedSeedSaysItBringsThePageBackAsync() {
+        PagePath path = PagePath.Normalize("/assistant.css");
+        FakePageStore storage = new();
+        storage[path.Key] = new PageTemplate(path, "/* edited */");
+        await storage.DeletePageAsync(path);
+        DefaultHttpContext context = CreateInstallContext("assistant.css", method: "GET");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("This page is deleted. Installing brings it back and clears the tombstone."));
+            // No live source, so the diff is the seed alone rather than a comparison.
+            Assert.That(body, Does.Not.Contain("<tr class=\"diff-removed\">"));
+            Assert.That(body, Does.Contain("<tr class=\"diff-added\">"));
+        });
+    }
+
+    [Test]
+    public async Task InstallWritesTheSeedAndReturnsToTheListingAsync() {
         PagePath path = PagePath.Normalize("/assistant.css");
         string seed = (await PageAssetSeeder.ReadSeedTemplateAsync(path))!;
         FakePageStore storage = new();
         storage[path.Key] = new PageTemplate(path, "/* edited */");
-        DefaultHttpContext context = CreateRestoreContext("assistant.css");
+        DefaultHttpContext context = CreateInstallContext("assistant.css");
 
         await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
-        Assert.That(context.Response.StatusCode, Is.EqualTo(303));
-        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit"));
-        Assert.That(storage[path.Key]?.Template, Is.EqualTo(seed));
-        Assert.That(_sessions.OnlyText("/edit", EditorEndpoint.MessageKey), Is.EqualTo("Restored /assistant.css from its seed."));
+        string? message = _sessions.OnlyText("/edit", EditorEndpoint.MessageKey);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+            Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit"));
+            Assert.That(storage[path.Key]?.Template, Is.EqualTo(seed));
+            Assert.That(message, Does.StartWith("/assistant.css was installed from its seed as revision "));
+            Assert.That(message, Does.EndWith("."));
+        });
     }
 
     [Test]
-    public async Task RestoreLeavesASeedThatAlreadyMatchesAloneAsync() {
+    public async Task InstallRefusesASeedThePageAlreadyHoldsAsync() {
         PagePath path = PagePath.Normalize("/assistant.css");
         string seed = (await PageAssetSeeder.ReadSeedTemplateAsync(path))!;
         FakePageStore storage = new();
         storage[path.Key] = new PageTemplate(path, seed);
         int writes = storage.WriteCount;
-        DefaultHttpContext context = CreateRestoreContext("assistant.css");
+        DefaultHttpContext context = CreateInstallContext("assistant.css");
 
         await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
 
-        Assert.That(storage.WriteCount, Is.EqualTo(writes));
-        Assert.That(_sessions.OnlyText("/edit", EditorEndpoint.MessageKey), Is.EqualTo("/assistant.css already matched its seed."));
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(409));
+            Assert.That(storage.WriteCount, Is.EqualTo(writes));
+            Assert.That(body, Does.Contain("already holds its seed"));
+        });
     }
 
     [Test]
-    public async Task RestoreRejectsAPageThatHasNoSeedAsync() {
-        DefaultHttpContext context = CreateRestoreContext("plain");
+    public async Task InstallRejectsAPageThatHasNoSeedAsync() {
+        DefaultHttpContext context = CreateInstallContext("plain");
         FakePageStore storage = new();
         storage["/plain"] = new PageTemplate(PagePath.Normalize("/plain"), "not a seed");
 
@@ -385,6 +462,25 @@ public sealed class EditorEndpointTests {
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(404));
         Assert.That(storage.WriteCount, Is.Zero);
+    }
+
+    [Test]
+    public async Task AStaleSeedRestoreLinkIsRefusedRatherThanInstallingAsync() {
+        PagePath path = PagePath.Normalize("/assistant.css");
+        string seed = (await PageAssetSeeder.ReadSeedTemplateAsync(path))!;
+        FakePageStore storage = new();
+        storage[path.Key] = new PageTemplate(path, "/* edited */");
+        DefaultHttpContext context = CreateInstallContext("assistant.css");
+        context.Request.QueryString = new QueryString("?cmd=restore");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+            Assert.That(storage[path.Key]?.Template, Is.Not.EqualTo(seed));
+            Assert.That(body, Does.Contain("restore link is not valid"));
+        });
     }
 
     [Test]
@@ -682,6 +778,305 @@ public sealed class EditorEndpointTests {
     }
 
     [Test]
+    public async Task AHistoryRowLinksEveryRevisionButTheCurrentOneAsync() {
+        PagePath path = PagePath.Normalize("/page.cs");
+        FakePageStore storage = new();
+        PageTemplate first = new(path, "first");
+        PageTemplate second = new(path, "second");
+        await storage.SavePageAsync(first);
+        await storage.SavePageAsync(second);
+
+        DefaultHttpContext context = CreateContext();
+        context.Request.QueryString = new QueryString("?cmd=history");
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("<th scope=\"col\">Action</th>"));
+            Assert.That(body, Does.Contain($"<a href=\"/edit/page.cs?cmd=restore&amp;hash={first.Hash}\""));
+            Assert.That(body, Does.Not.Contain($"cmd=restore&amp;hash={second.Hash}"), "the current revision has nothing to restore");
+        });
+    }
+
+    [Test]
+    public async Task ADeletedPagesHistoryLinksEveryRevisionAsync() {
+        PagePath path = PagePath.Normalize("/gone");
+        FakePageStore storage = new();
+        PageTemplate only = new(path, "retained");
+        await storage.SavePageAsync(only);
+        await storage.DeletePageAsync(path);
+
+        DefaultHttpContext context = CreateContext(path: "gone");
+        context.Request.QueryString = new QueryString("?cmd=history");
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("This page is deleted"));
+            Assert.That(body, Does.Contain($"<a href=\"/edit/gone?cmd=restore&amp;hash={only.Hash}\""));
+        });
+    }
+
+    [Test]
+    public async Task TheRestoreConfirmationShowsTheDiffAndDoesNotWriteAsync() {
+        PagePath path = PagePath.Normalize("/page.cs");
+        FakePageStore storage = new();
+        PageTemplate first = new(path, "first <source>");
+        PageTemplate second = new(path, "second source");
+        await storage.SavePageAsync(first);
+        await storage.SavePageAsync(second);
+        int writes = storage.WriteCount;
+        int compiles = _compiler.CompileCount;
+        DefaultHttpContext context = CreateRestoreRevisionContext("page.cs", first.Hash, method: "GET");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+            Assert.That(body, Does.Contain($"Restore revision {first.Hash[..12]} of /page.cs?"));
+            Assert.That(body, Does.Contain(first.Hash));
+            Assert.That(body, Does.Contain("<tr class=\"diff-removed\">"));
+            Assert.That(body, Does.Contain("<tr class=\"diff-added\">"));
+            Assert.That(body, Does.Contain("first &lt;source&gt;"));
+            Assert.That(body, Does.Contain("<form method=\"post\" action=\"/edit/page.cs?cmd=restore&amp;hash="));
+            Assert.That(body, Does.Contain("Restore this revision</button>"));
+            Assert.That(storage.WriteCount, Is.EqualTo(writes));
+            Assert.That(_compiler.CompileCount, Is.EqualTo(compiles));
+            Assert.That(context.Response.Headers.CacheControl.ToString(), Does.Contain("no-store"));
+        });
+    }
+
+    [Test]
+    public async Task TheRestoreConfirmationOfADeletedPageSaysItBringsItBackAsync() {
+        PagePath path = PagePath.Normalize("/gone");
+        FakePageStore storage = new();
+        PageTemplate only = new(path, "retained");
+        await storage.SavePageAsync(only);
+        await storage.DeletePageAsync(path);
+        DefaultHttpContext context = CreateRestoreRevisionContext("gone", only.Hash, method: "GET");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("This page is deleted. Restoring brings it back and clears the tombstone."));
+            Assert.That(body, Does.Not.Contain("<tr class=\"diff-removed\">"), "a tombstone has no live source to remove");
+            Assert.That(body, Does.Contain("<tr class=\"diff-added\">"));
+        });
+    }
+
+    [Test]
+    public async Task ARevisionWithTheLiveSourceIsShownWithNothingToRestoreAsync() {
+        PagePath path = PagePath.Normalize("/page.cs");
+        FakePageStore storage = new();
+        PageTemplate same = new(path, "unchanged");
+        await storage.SavePageAsync(same);
+        PageTemplate live = new(path, "unchanged");
+        await storage.SavePageAsync(live);
+        int writes = storage.WriteCount;
+        DefaultHttpContext context = CreateRestoreRevisionContext("page.cs", same.Hash, method: "GET");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+            Assert.That(body, Does.Contain("No changes."));
+            Assert.That(body, Does.Contain("nothing to restore"));
+            Assert.That(body, Does.Not.Contain("<form method=\"post\""));
+            Assert.That(storage.WriteCount, Is.EqualTo(writes));
+        });
+    }
+
+    [Test]
+    public async Task RestoringTheLiveSourceIsRefusedWithoutAWriteAsync() {
+        PagePath path = PagePath.Normalize("/page.cs");
+        FakePageStore storage = new();
+        PageTemplate same = new(path, "unchanged");
+        await storage.SavePageAsync(same);
+        await storage.SavePageAsync(new PageTemplate(path, "unchanged"));
+        int writes = storage.WriteCount;
+        DefaultHttpContext context = CreateRestoreRevisionContext("page.cs", same.Hash);
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(409));
+            Assert.That(body, Does.Contain("nothing to restore"));
+            Assert.That(body, Does.Contain("Back to history"));
+            Assert.That(storage.WriteCount, Is.EqualTo(writes));
+            Assert.That(_sessions.ValueCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task RestoreAppendsTheRevisionAndLandsOnTheEditorAsync() {
+        PagePath path = PagePath.Normalize("/page.cs");
+        FakePageStore storage = new();
+        PageTemplate first = new(path, "first <source>");
+        PageTemplate second = new(path, "second source");
+        await storage.SavePageAsync(first);
+        await storage.SavePageAsync(second);
+        PageEditor pages = CreatePages(storage);
+        DefaultHttpContext context = CreateRestoreRevisionContext("page.cs", first.Hash);
+
+        await EditorEndpoint.HandleAsync(context, pages, new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string? message = _sessions.OnlyText("/edit/page.cs", EditorEndpoint.MessageKey);
+        PageTemplate restored = storage[path.Key]!;
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+            Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/edit/page.cs"));
+            Assert.That(restored.Template, Is.EqualTo("first <source>"));
+            Assert.That(restored.Hash, Is.Not.EqualTo(first.Hash), "a restore is a new save");
+            Assert.That(restored.RevisionId, Is.Not.EqualTo(first.RevisionId));
+            Assert.That(restored.CreationRuntimeId, Is.EqualTo(pages.RuntimeId), "compiled by the running build");
+            Assert.That(message, Is.EqualTo($"Restored revision {first.Hash[..12]} of /page.cs as revision {restored.Hash[..12]}."));
+        });
+    }
+
+    [Test]
+    public async Task RestoreAppendsSourceAnOlderRevisionAlreadyHeldAsync() {
+        PagePath path = PagePath.Normalize("/page.cs");
+        FakePageStore storage = new();
+        PageTemplate first = new(path, "A");
+        PageTemplate second = new(path, "B");
+        PageTemplate third = new(path, "B again");
+        await storage.SavePageAsync(first);
+        await storage.SavePageAsync(second);
+        await storage.SavePageAsync(third);
+        DefaultHttpContext context = CreateRestoreRevisionContext("page.cs", second.Hash);
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+            Assert.That(storage[path.Key]?.Template, Is.EqualTo("B"));
+            Assert.That(storage[path.Key]?.Hash, Is.Not.EqualTo(second.Hash));
+        });
+    }
+
+    [Test]
+    public async Task RestoreOfADeletedPageClearsTheTombstoneAsync() {
+        PagePath path = PagePath.Normalize("/gone");
+        FakePageStore storage = new();
+        PageTemplate only = new(path, "<p>retained</p>");
+        await storage.SavePageAsync(only);
+        await storage.DeletePageAsync(path);
+        DefaultHttpContext context = CreateRestoreRevisionContext("gone", only.Hash);
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        PageHeadSummary? head = await storage.GetHeadAsync(path);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+            Assert.That(head?.IsDeleted, Is.False);
+            Assert.That(storage[path.Key]?.Template, Is.EqualTo("<p>retained</p>"));
+        });
+    }
+
+    [Test]
+    public async Task RestoreOfANoCodeRevisionStoresItAsSourceAsync() {
+        PagePath path = PagePath.Normalize("/page.css");
+        FakePageStore storage = new();
+        PageTemplate older = new(path, "body { color: red; }");
+        await storage.SavePageAsync(older);
+        await storage.SavePageAsync(new PageTemplate(path, "body { color: blue; }"));
+        DefaultHttpContext context = CreateRestoreRevisionContext("page.css", older.Hash);
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        PageTemplate restored = storage[path.Key]!;
+        IReadOnlyList<PageRevisionSummary> revised = await storage.ListRevisionsAsync(path);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+            Assert.That(restored.Template, Is.EqualTo("body { color: red; }"));
+            Assert.That(restored.Image?.HasCode, Is.False);
+            Assert.That(restored.Image?.Bytes, Is.Null, "a template with no code is never compiled");
+            Assert.That(revised[0].ImageState, Is.EqualTo(PageImageState.StoredAsSource));
+        });
+    }
+
+    [Test]
+    public async Task RestoreOfABrokenRevisionKeepsTheSourceAndSaysSoAsync() {
+        PagePath path = PagePath.Normalize("/page.cs");
+        FakePageStore storage = new();
+        PageTemplate broken = new(path, "<% int value = ; %>");
+        await storage.SavePageAsync(broken);
+        await storage.SavePageAsync(new PageTemplate(path, "<p>fine</p>"));
+        DefaultHttpContext context = CreateRestoreRevisionContext("page.cs", broken.Hash);
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        string? message = _sessions.OnlyText("/edit/page.cs", EditorEndpoint.MessageKey);
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(303));
+            Assert.That(storage[path.Key]?.Template, Is.EqualTo("<% int value = ; %>"));
+            Assert.That(message, Does.EndWith("does not compile, so the page will not render until you fix it."));
+        });
+    }
+
+    [TestCase("nope")]
+    [TestCase("")]
+    [TestCase("0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF")]
+    public async Task RestoreWithAMalformedHashIsBadRequestAsync(string hash) {
+        FakePageStore storage = new();
+        PageTemplate revision = new(PagePath.Normalize("/page.cs"), "same");
+        await storage.SavePageAsync(revision);
+        DefaultHttpContext context = CreateContext();
+        context.Request.QueryString = new QueryString($"?cmd=restore&hash={Uri.EscapeDataString(hash)}");
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Does.Contain("restore link is not valid"));
+    }
+
+    [Test]
+    public async Task RestoreWithAHashFromAnotherPageIsNotFoundAsync() {
+        FakePageStore storage = new();
+        PageTemplate mine = new(PagePath.Normalize("/page.cs"), "mine");
+        PageTemplate other = new(PagePath.Normalize("/other.cs"), "other");
+        await storage.SavePageAsync(mine);
+        await storage.SavePageAsync(other);
+        DefaultHttpContext context = CreateRestoreRevisionContext("page.cs", other.Hash);
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(404));
+        Assert.That(storage[PagePath.Normalize("/page.cs").Key]?.Template, Is.EqualTo("mine"));
+    }
+
+    [Test]
+    public async Task RestoreOfAShellFileIsNotFoundAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("edit", "GET", "/edit/edit");
+        context.Request.QueryString = new QueryString("?cmd=restore&hash=" + new string('a', 64));
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(new FakePageStore()), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(404));
+    }
+
+    [Test]
+    public async Task RestoreWithoutAValidAntiforgeryTokenWritesNothingAsync() {
+        PagePath path = PagePath.Normalize("/page.cs");
+        FakePageStore storage = new();
+        PageTemplate first = new(path, "first");
+        await storage.SavePageAsync(first);
+        await storage.SavePageAsync(new PageTemplate(path, "second"));
+        int writes = storage.WriteCount;
+        DefaultHttpContext context = CreateRestoreRevisionContext("page.cs", first.Hash);
+        context.Features.Set<IAntiforgeryValidationFeature>(new TestAntiforgeryValidationFeature(false));
+
+        await EditorEndpoint.HandleAsync(context, CreatePages(storage), new DiffRenderer(), Reserved, _antiforgery, _sessions, new PageSessionOptions(), TestSessions.Cookie);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(400));
+        Assert.That(storage.WriteCount, Is.EqualTo(writes));
+    }
+
+    [Test]
     public async Task DeleteAndScrubConfirmationsDoNotMutateOnGetAsync() {
         FakePageStore storage = new();
         storage["/page.cs"] = new PageTemplate(PagePath.Normalize("/page.cs"), "saved");
@@ -821,7 +1216,7 @@ public sealed class EditorEndpointTests {
 
     [Test]
     public async Task TheListingMessageIsWrittenUnderTheListingPathAsync() {
-        DefaultHttpContext post = CreateRestoreContext("assistant.css");
+        DefaultHttpContext post = CreateInstallContext("assistant.css");
         FakePageStore storage = new();
         storage["/assistant.css"] = new PageTemplate(PagePath.Normalize("/assistant.css"), "/* edited */");
 
@@ -829,7 +1224,7 @@ public sealed class EditorEndpointTests {
 
         string sessionId = _sessions.Single();
         Assert.That(_sessions.Text(sessionId, "/edit", EditorEndpoint.MessageKey),
-            Is.EqualTo("Restored /assistant.css from its seed."));
+            Does.StartWith("/assistant.css was installed from its seed as revision "));
     }
 
     [Test]
@@ -1175,10 +1570,21 @@ public sealed class EditorEndpointTests {
         return TestHttp.CreateContext(path, method, "/edit" + PagePath.Normalize(path).Key);
     }
 
-    private static DefaultHttpContext CreateRestoreContext(string path) {
-        DefaultHttpContext context = CreateContext(method: "POST", path);
-        context.Request.QueryString = new QueryString("?cmd=restore");
-        SetField(context, "__RequestVerificationToken", new StringValues("token"));
+    private static DefaultHttpContext CreateRestoreRevisionContext(string path, string hash, string method = "POST") {
+        DefaultHttpContext context = CreateContext(method, path);
+        context.Request.QueryString = new QueryString($"?cmd=restore&hash={hash}");
+        if (method == "POST") {
+            SetField(context, "__RequestVerificationToken", new StringValues("token"));
+        }
+        return context;
+    }
+
+    private static DefaultHttpContext CreateInstallContext(string path, string method = "POST") {
+        DefaultHttpContext context = CreateContext(method, path);
+        context.Request.QueryString = new QueryString("?cmd=install");
+        if (method == "POST") {
+            SetField(context, "__RequestVerificationToken", new StringValues("token"));
+        }
         return context;
     }
 

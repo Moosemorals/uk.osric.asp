@@ -17,8 +17,8 @@ public sealed class PageEditorTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
-        IReadOnlyList<PageDiagnostic> diagnostics = await pages.Editor.SaveAsync(
-            PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>");
+        IReadOnlyList<PageDiagnostic> diagnostics = (await pages.Editor.SaveAsync(
+            PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>")).Diagnostics;
 
         Assert.That(diagnostics, Is.Empty);
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1));
@@ -39,7 +39,8 @@ public sealed class PageEditorTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
-        IReadOnlyList<PageDiagnostic> diagnostics = await pages.Editor.SaveAsync(PageHarness.Key("/broken"), "<% int value = ; %>");
+        IReadOnlyList<PageDiagnostic> diagnostics =
+            (await pages.Editor.SaveAsync(PageHarness.Key("/broken"), "<% int value = ; %>")).Diagnostics;
 
         Assert.That(diagnostics, Is.Not.Empty);
         // NUnit types the Matches predicate's item as nullable, so check it before reading it.
@@ -59,7 +60,8 @@ public sealed class PageEditorTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
-        IReadOnlyList<PageDiagnostic> diagnostics = await pages.Editor.SaveAsync(PageHarness.Key("/unterminated"), "before<% if (true) {");
+        IReadOnlyList<PageDiagnostic> diagnostics =
+            (await pages.Editor.SaveAsync(PageHarness.Key("/unterminated"), "before<% if (true) {")).Diagnostics;
 
         Assert.That(diagnostics, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(1, 7),
@@ -78,7 +80,8 @@ public sealed class PageEditorTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
-        IReadOnlyList<PageDiagnostic> diagnostics = await pages.Editor.SaveAsync(PageHarness.Key("/warned"), "<% int unused = 1; %>");
+        IReadOnlyList<PageDiagnostic> diagnostics =
+            (await pages.Editor.SaveAsync(PageHarness.Key("/warned"), "<% int unused = 1; %>")).Diagnostics;
 
         Assert.That(diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null

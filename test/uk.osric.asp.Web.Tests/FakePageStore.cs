@@ -227,7 +227,7 @@ internal sealed class FakePageStore : IPageStore {
     }
 
     private PageImageState StateOf(PageImage? image) => PageImageStatus.Describe(
-        image?.RuntimeId, image?.Bytes is not null, image?.Diagnostics.Count > 0, CurrentRuntimeId);
+        image?.RuntimeId, image?.Bytes is not null, image?.Diagnostics.Count > 0, CurrentRuntimeId, image?.HasCode);
 
     private void Check(CancellationToken cancellationToken) {
         LastCancellationToken = cancellationToken;

@@ -44,6 +44,8 @@ internal static class ShellViews {
         "history",
         "revision",
         "diff",
+        "restore-confirmation",
+        "install-confirmation",
         "delete-confirmation",
         "status",
         "error",
@@ -77,6 +79,8 @@ internal static class ShellViews {
         "history" => RenderAsync(name, () => EditorAsync(NewStore(), "/page", "cmd=history")),
         "revision" => RenderAsync(name, RevisionAsync),
         "diff" => RenderAsync(name, DiffAsync),
+        "restore-confirmation" => RenderAsync(name, RestoreConfirmationAsync),
+        "install-confirmation" => RenderAsync(name, InstallConfirmationAsync),
         "delete-confirmation" => RenderAsync(name, () => EditorAsync(NewStore(), "/page", "cmd=delete")),
         "status" => RenderAsync(name, StatusAsync),
         "error" => RenderAsync(name, () => ErrorAsync(withDetails: false)),
@@ -220,6 +224,17 @@ internal static class ShellViews {
         return await EditorAsync(storage, "/page",
             $"cmd=diff&from={Uri.EscapeDataString(before.Hash)}&to={Uri.EscapeDataString(after.Hash)}");
     }
+
+    private static async Task<string> RestoreConfirmationAsync() {
+        FakePageStore storage = NewStore();
+        PageTemplate earlier = PageHarness.Stored(storage, "/page");
+        await storage.SavePageAsync(PageTemplate.NewRevision(PageHarness.Key("/page"), "<p>later</p>", null, "1:3:test"));
+
+        return await EditorAsync(storage, "/page", $"cmd=restore&hash={Uri.EscapeDataString(earlier.Hash)}");
+    }
+
+    private static async Task<string> InstallConfirmationAsync() =>
+        await EditorAsync(NewStore(), "/assistant.css", "cmd=install");
 
     private static async Task<string> StatusAsync() {
         MetricsOptions options = new() {

@@ -8,7 +8,7 @@ page that edits itself (<a href="/help#writing">IDEA-016</a>); <a href="/edit">t
 owner's version of the same save, and <a href="/pages">/pages</a> is the same read without a
 write.</p>
 <p>Every save is a revision, so a bad edit is recoverable: <a href="/edit/scratch">/edit/scratch</a>
-has this page's history and a <strong>Restore from seed</strong> button.</p>
+has this page's history and an <strong>Install from seed</strong> action.</p>
 <%
     IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
     PageSource? current = await catalog.ReadAsync(ctx.Path);

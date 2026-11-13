@@ -149,9 +149,14 @@ signed-in owner, and a problem document when the request wanted JSON.
 ## Authentication and the editor
 
 The editor is behind a sign-in; pages stay public unless the page's
-own code checks `ctx.User` (see "Page authentication" below). A seeded page restores from its row on `/edit`:
-the button saves the bundled source through the ordinary revision path, so a deleted seeded page
-comes back without discarding its earlier revisions.
+own code checks `ctx.User` (see "Page authentication" below). A seeded page is installed from its
+row on `/edit`: the action opens a confirmation that shows the diff against the seed, and its button
+saves the bundled source through the ordinary revision path, so a deleted seeded page comes back
+without discarding its earlier revisions. A seed is *installed* and a saved revision is *restored*:
+`cmd=install` on the seed, `cmd=restore&hash=` from the page's history, both confirmed the same way
+and both refusing the change that would leave the live source as it is. The page's history offers a
+restore link on every revision except the current one; the editor says when a key was deleted and
+that saving brings it back.
 
 - Accounts live in the `Users` table in the same SQLite database. There is no registration endpoint
   and no account UI: the `users` command in the Web app creates, lists, resets and removes accounts

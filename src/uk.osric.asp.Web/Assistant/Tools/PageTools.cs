@@ -13,15 +13,17 @@ using uk.osric.asp.Web.Pages;
 /// <summary>Lists the live pages and shell files under an optional prefix.</summary>
 internal sealed class ListPagesTool : AssistantTool {
 
-    private const int ListingLimit = 500;
-
     public override ToolSpec Spec { get; } = new(
         "list_pages",
-        "List live page keys under an optional prefix, each with its kind, its permission and its compile state. A shell file — a route the site answers itself — is listed as kind shell with mode -r--r--r--.",
+        "List live page keys under an optional prefix, each with its kind, its permission and its compile state. A shell file — a route the site answers itself — is listed as kind shell with mode -r--r--r--. "
+        + "The listing is in key order; `limit` (1-500, default 50) bounds the rows and `truncated` says there are more, "
+        + "so pass `after` with the last key you were given to read the rest.",
         false,
         [
             new("prefix", ToolArgumentType.String, false),
             new("includeDeleted", ToolArgumentType.Boolean, false),
+            new("limit", ToolArgumentType.Integer, false),
+            new("after", ToolArgumentType.String, false),
         ]) { Verb = "List" };
 
     public override async Task<ToolExecutionResult> RunAsync(
@@ -35,10 +37,27 @@ internal sealed class ListPagesTool : AssistantTool {
         }
 
         bool includeDeleted = values.Boolean("includeDeleted");
+        if (!PageToolData.TryReadLimit(values, out int limit)) {
+            return services.Results.Failure(PageToolData.LimitRefusal, $"{Spec.Verb} refused");
+        }
+
+        string? afterText = values.String("after");
+        PagePath? after = null;
+        if (afterText is not null) {
+            after = PagePath.Normalize(afterText);
+            if (!after.IsAddressable) {
+                return services.Results.Failure("The `after` cursor must be a page key this listing returned.", $"{Spec.Verb} refused");
+            }
+        }
+
         List<PageToolData.Entry> matching = await PageToolData.EntriesAsync(services, includeDeleted, prefix, cancellationToken);
-        bool truncated = matching.Count > ListingLimit;
+        if (after is not null) {
+            matching = [.. matching.Where(item => string.CompareOrdinal(item.Path.Key, after.Key) > 0)];
+        }
+
+        bool truncated = matching.Count > limit;
         object data = new {
-            pages = matching.Take(ListingLimit).Select(item => new {
+            pages = matching.Take(limit).Select(item => new {
                 path = item.Path.Key,
                 kind = item.IsShellFile ? "shell" : "page",
                 mode = PageMode.Describe(services.Paths.CanWrite(item.Path)),
@@ -47,7 +66,7 @@ internal sealed class ListPagesTool : AssistantTool {
             }),
             truncated,
         };
-        return services.Results.Success(data, $"Listed {Math.Min(matching.Count, ListingLimit)} pages");
+        return services.Results.Success(data, $"Listed {Math.Min(matching.Count, limit)} pages");
     }
 }
 
@@ -102,20 +121,9 @@ internal sealed class ReadPageTool : AssistantTool {
             diagnostics = PageToolData.Diagnostics(page);
         }
 
-        string[] lines = PageToolData.TemplateSourceLines(text);
-        int start = requestedStart ?? 1;
-        int end = requestedEnd ?? (requestedStart is null ? lines.Length : start);
-        if (start < 1 || end < start || end > lines.Length) {
+        PageToolData.ProjectedSource? projected = PageToolData.ProjectSource(text, requestedStart, requestedEnd, services.Options);
+        if (projected is null) {
             return services.Results.Failure("The requested line range is outside the page.", $"{Spec.Verb} {ToolPaths.Describe(path)}: invalid range");
-        }
-
-        string source = string.Join('\n', lines.Skip(start - 1).Take(end - start + 1));
-        bool truncated = source.Length > services.Options.ToolResultBudget;
-        if (truncated) {
-            int window = Math.Max(1, services.Options.MaxToolResultChars / 5);
-            source = source[..Math.Min(window, source.Length)]
-                + "\n\u2026[source omitted; request a line range]\u2026\n"
-                + source[^Math.Min(window, source.Length)..];
         }
 
         object data = new {
@@ -126,11 +134,11 @@ internal sealed class ReadPageTool : AssistantTool {
             savedAt,
             compileStatus,
             diagnostics,
-            startLine = start,
-            endLine = end,
-            totalLines = lines.Length,
-            truncated,
-            source,
+            startLine = projected.StartLine,
+            endLine = projected.EndLine,
+            totalLines = projected.TotalLines,
+            truncated = projected.Truncated,
+            source = projected.Text,
         };
         return services.Results.Success(data, $"{Spec.Verb} {ToolPaths.Describe(path)}");
     }
@@ -224,11 +232,9 @@ internal sealed class WritePageTool : AssistantTool {
             return services.Results.Failure("The page exceeds Assistant:MaxPageChars.", $"{Spec.Verb} {ToolPaths.Describe(path!)}: too large");
         }
 
-        IReadOnlyList<PageDiagnostic> diagnostics =
-            await services.Pages.SaveAsync(path!, content, cancellationToken);
-        PageTemplate saved = (await services.Pages.GetAsync(path!, cancellationToken))!;
-        return services.Results.Success(new { path = path!.Key, revisionHash = saved.Hash, diagnostics = PageToolData.DiagnosticData(diagnostics) },
-            $"Wrote {ToolPaths.Describe(path)} ({diagnostics.Count} diagnostics)");
+        SavedRevision saved = await services.Pages.SaveAsync(path!, content, cancellationToken);
+        return services.Results.Success(new { path = path!.Key, revisionHash = saved.Revision.Hash, diagnostics = PageToolData.DiagnosticData(saved.Diagnostics) },
+            $"Wrote {ToolPaths.Describe(path)} ({saved.Diagnostics.Count} diagnostics)");
     }
 }
 
@@ -390,6 +396,30 @@ internal sealed class SearchPagesTool : AssistantTool {
 /// <summary>What the page tools share: the line rule, the listing rows and the diagnostic shape.</summary>
 internal static class PageToolData {
 
+    /// <summary>The rows a listing answers with when the caller names no <c>limit</c>.</summary>
+    public const int DefaultListingLimit = 50;
+
+    /// <summary>The most rows a listing will answer with, so one call cannot exhaust the result budget.</summary>
+    public const int MaxListingLimit = 500;
+
+    /// <summary>The refusal a hash that is not 64 lowercase hexadecimal characters gets.</summary>
+    public const string HashRefusal =
+        "A revision hash is 64 lowercase hexadecimal characters; use the hash list_revisions returned.";
+
+    /// <summary>The refusal a <c>limit</c> outside 1..<see cref="MaxListingLimit"/> gets.</summary>
+    public static string LimitRefusal =>
+        $"`limit` must be between 1 and {MaxListingLimit}; omit it for {DefaultListingLimit} rows.";
+
+    /// <summary>Reads a caller's <c>limit</c>, or the default when it named none.</summary>
+    /// <param name="values">The validated arguments.</param>
+    /// <param name="limit">The number of rows to answer with.</param>
+    /// <returns>False when the argument was supplied and is outside the accepted range.</returns>
+    public static bool TryReadLimit(ToolValues values, out int limit) {
+        limit = values.Integer("limit") ?? DefaultListingLimit;
+
+        return limit is >= 1 and <= MaxListingLimit;
+    }
+
     // One row of a listing: a stored page or one of the shell's own files. A shell file has no head,
     // so it is never deleted and has no compile state.
     public sealed record Entry(PagePath Path, bool IsShellFile, bool IsDeleted, string? Status);
@@ -437,6 +467,44 @@ internal static class PageToolData {
             column = diagnostic.Position?.Column,
             message = diagnostic.Message,
         })];
+
+    /// <summary>One source read as a line range, windowed to fit the result budget.</summary>
+    /// <param name="Text">The lines the caller asked for, or a head-and-tail window when they were too long.</param>
+    /// <param name="StartLine">The first 1-based line in the answer.</param>
+    /// <param name="EndLine">The last 1-based line in the answer.</param>
+    /// <param name="TotalLines">How many lines the whole source has.</param>
+    /// <param name="Truncated">Whether the text was windowed because it exceeded the budget.</param>
+    public sealed record ProjectedSource(string Text, int StartLine, int EndLine, int TotalLines, bool Truncated);
+
+    /// <summary>Reads a source as a 1-based inclusive line range, windowed to the result budget.</summary>
+    /// <param name="content">The stored source.</param>
+    /// <param name="requestedStart">The first line wanted, or null for the first.</param>
+    /// <param name="requestedEnd">The last line wanted, or null for one line or the rest.</param>
+    /// <param name="options">The assistant's limits.</param>
+    /// <returns>The range, or null when it is outside the source.</returns>
+    /// <remarks>
+    /// `read_page` and `read_revision` read source through this one function, so a revision a tool
+    /// quotes is numbered and windowed exactly as the live page is (DEC-112).
+    /// </remarks>
+    public static ProjectedSource? ProjectSource(string content, int? requestedStart, int? requestedEnd, AssistantOptions options) {
+        string[] lines = TemplateSourceLines(content);
+        int start = requestedStart ?? 1;
+        int end = requestedEnd ?? (requestedStart is null ? lines.Length : start);
+        if (start < 1 || end < start || end > lines.Length) {
+            return null;
+        }
+
+        string source = string.Join('\n', lines.Skip(start - 1).Take(end - start + 1));
+        bool truncated = source.Length > options.ToolResultBudget;
+        if (truncated) {
+            int window = Math.Max(1, options.MaxToolResultChars / 5);
+            source = source[..Math.Min(window, source.Length)]
+                + "\n\u2026[source omitted; request a line range]\u2026\n"
+                + source[^Math.Min(window, source.Length)..];
+        }
+
+        return new ProjectedSource(source, start, end, lines.Length, truncated);
+    }
 
     // These are physical lines of the stored template as the editor shows them, so a trailing break
     // still ends a line. ShellText.Split answers the POSIX count instead and must not be unified.

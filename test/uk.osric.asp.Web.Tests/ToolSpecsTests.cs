@@ -67,7 +67,7 @@ public sealed class ToolSpecsTests {
 
     [Test]
     public void TheRegistryHoldsEveryTool() {
-        Assert.That(ToolRegistry.Default.All, Has.Count.EqualTo(15));
+        Assert.That(ToolRegistry.Default.All, Has.Count.EqualTo(18));
     }
 
     [Test]
@@ -94,6 +94,9 @@ public sealed class ToolSpecsTests {
 
     [TestCase("write_page", ExpectedResult = true)]
     [TestCase("edit_page", ExpectedResult = true)]
+    [TestCase("restore_revision", ExpectedResult = true)]
+    [TestCase("list_revisions", ExpectedResult = false)]
+    [TestCase("read_revision", ExpectedResult = false)]
     [TestCase("delete_page", ExpectedResult = false)]
     [TestCase("read_page", ExpectedResult = false)]
     public bool OnlyThePageWritingToolsChangeAPage(string toolName) =>

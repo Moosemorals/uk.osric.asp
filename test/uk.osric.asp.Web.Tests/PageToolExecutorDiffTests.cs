@@ -131,7 +131,7 @@ public sealed class PageToolExecutorDiffTests {
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.False);
-            Assert.That(result.Content, Does.Contain("64 hexadecimal"));
+            Assert.That(result.Content, Does.Contain("64 lowercase hexadecimal"));
         });
     }
 
