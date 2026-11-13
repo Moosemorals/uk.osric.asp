@@ -116,6 +116,18 @@ public sealed class PageEditorPageTests {
     }
 
     [Test]
+    public async Task ASaveCreatesAPageThatDidNotExistAsync() {
+        Rendered rendered = await RenderAsync("?edit=%2Fbrand-new", "POST",
+            Form(("template", "<h1>hello</h1>"), ("expected", ""), ("cmd", "save")));
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Status, Is.EqualTo(200));
+            Assert.That(rendered.Body, Does.Contain("Saved as revision"));
+            Assert.That(_storage["/brand-new"]?.Template, Is.EqualTo("<h1>hello</h1>"));
+        });
+    }
+
+    [Test]
     public async Task AStaleSaveIsAConflictThatKeepsTheTextAsync() {
         Store("/about", "old");
 
