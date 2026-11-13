@@ -48,15 +48,20 @@ The first history-browsing slice is implemented:
    source and metadata. It neither compiles nor executes the page; hashes from other paths are
    rejected. Both views send `Cache-Control: no-store`.
 
-The remaining work is restore:
+The remaining work is restore, planned in [revision restore](../plans/revision-restore.md):
 
 1. Add a confirmed, antiforgery-protected `cmd=restore` POST selecting a revision belonging to that
    path. Restore saves its source as a new revision under the current runtime, preserving history;
-   it does not rewind or mutate an old row. Restoring a deleted path clears its tombstone.
-2. Test that a revision from another path cannot be restored and restore appends a distinct
-   revision even when the restored source is identical.
+   it does not rewind or mutate an old row. Restoring a deleted path clears its tombstone. Because
+   the seed restore already owned `restore`, it moves to `cmd=install`, and both actions get the
+   same diff-and-confirm page.
+2. Test that a revision from another path cannot be restored, that a revision whose source the live
+   page already holds is refused without a write, and that restoring source the page does not hold
+   appends — even when an older revision holds the same text.
+3. Give the assistant's history tools a `limit` and a direction-named cursor, and add the same pair
+   to `list_pages`, so a long listing is read a slice at a time.
 
-## The assistant reads history and never writes it
+## The assistant reads history, and restores one revision with approval
 
 The assistant may create, edit, replace and tombstone a page, and its `diff_page` already reads two
 retained revisions to compare them, but nothing lets the model list a page's revisions or read one.
@@ -65,37 +70,49 @@ made the change cannot say what the page used to hold, and the owner has to open
 out. The page-facing capability has had both reads for a while (`IPageCatalog.RevisionsAsync` and
 `ReadRevisionAsync`); the tools have not.
 
-Two read-only tools close it:
+Three tools close it:
 
 1. `list_revisions` takes a `path` and answers the history `PageEditor.ListRevisionsAsync` already
    returns, newest first: each revision's hash, save time, creation runtime id, image state, whether
    it is the head, and the editor URL for that revision (`PageUrls.EditorRevision`). It lists a
    tombstoned path too, because that is the answer a caller most often needs, and it says when the
-   listing was capped rather than trimming it silently.
+   listing was capped rather than trimming it silently. `limit` and `before` walk a long history a
+   slice at a time, and `list_pages` gains the same `limit` with an `after` cursor.
 2. `read_revision` takes a `path` and a `hash` and returns that revision's stored source, with the
    1-based physical line numbering, line-range selection and result budget `read_page` uses
    (DEC-112), plus `editorUrl`. A hash that is not 64 hexadecimal characters, or that belongs to
    another path, is refused rather than served — the same rule the editor's `cmd=revision` applies.
+3. `restore_revision` takes a `path` and a `hash` and appends that source as a new revision through
+   the ordinary save. It is approval-gated and path-policy-checked, it cannot invent content, and it
+   refuses a restore whose source the live page already holds, exactly as the editor does — the one
+   rule, not a second copy.
 
-Both go through the gate `read_page` repeats (`ToolPaths.ResolveRead`, plus a refusal for a shell
-file, which has no revisions), declare `Writes = false`, and need no approval: they change nothing.
-Neither can restore, scrub or save — the editor's restore stays the owner's, as the assistant plan
-already decided — so what the model gains is the ability to quote a revision accurately and name the
-one the owner should restore. Reading a revision sends its source to the provider, exactly as
-`read_page` does, so the description says so rather than leaving it to be inferred.
+The two reads go through the gate `read_page` repeats (`ToolPaths.ResolveRead`, plus a refusal for a
+shell file, which has no revisions), declare `Writes = false`, and need no approval: they change
+nothing. The restore goes through the write gate, and reading a revision sends its source to the
+provider, exactly as `read_page` does, so the description says so rather than leaving it to be
+inferred.
 
-The answers come from the two reads `PageEditor` already exposes, so no query and no second shape of
-read is added (ARCH-16). Nothing here reaches for the `?v=` token: that is a public, cacheable URL
-for one live, code-free asset ([IDEA-010](IDEA-010.md)), and it cannot answer for a revision with
-code, for a tombstoned path or for a wrapped page. A tool that wants a revision reads the store.
+`restore_revision` supersedes the rule the assistant plan recorded, that restoring is the owner's
+alone: `write_page` already restores by retyping a source the model read, and refusing the
+hash-shaped form of the same act keeps the lossy form and drops the faithful one. Nothing can scrub,
+and every write is still the owner's decision under `RequireApproval`.
 
-**Done when:** `Web.Tests` proves the listing's order and head mark, that a tombstoned path both
-lists and reads, that a foreign hash and a malformed one are refused, that the line range and the
-budget behave like `read_page`'s, that a shell file is refused, and that no variant writes;
-`ToolRegistry` registers both where its declared order is the provider's cached prefix, so
-`PageAuthorPrompt` gains the section and its version bumps; `PageAuthorPromptTests` pins it;
-`docs/assistant.md` counts seventeen tools and names the two reads; and `docs/testing.md` says what
-the tool tests prove.
+The answers come from the two reads and the one save `PageEditor` already exposes, so no query and no
+second shape of read is added (ARCH-16). Nothing here reaches for the `?v=` token: that is a public,
+cacheable URL for one live, code-free asset ([IDEA-010](IDEA-010.md)), and it cannot answer for a
+revision with code, for a tombstoned path or for a wrapped page. A tool that wants a revision reads
+the store.
+
+**Done when:** `Web.Tests` proves the editor refuses a restore that would change nothing and
+restores any other,
+that the listing's order and head mark are right, that a tombstoned path both lists and reads, that a
+foreign hash and a malformed one are refused, that the line range and the budget behave like
+`read_page`'s, that a shell file is refused, that the two reads write nothing and the restore appends
+what it names; `ToolRegistry` registers all three where its declared order is the provider's cached
+prefix, so `PageAuthorPrompt` gains the section and its version bumps; `PageAuthorPromptTests` pins
+it; `docs/assistant.md` counts eighteen tools and names the two reads and the one restore; and
+`docs/testing.md` says what the tool tests prove.
 
 Historical asset execution and PageLayout links are [IDEA-010](IDEA-010.md), not part of this
 history UI. A revision address identifies saved code, not necessarily deterministic output.
