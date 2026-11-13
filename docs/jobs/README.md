@@ -57,7 +57,6 @@ editor has a way back, and one button that restores every seed is that way.
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
 | [IDEA-024](IDEA-024.md) | — | L | `/admin/import` and `/admin/export` are shell code because an archive is not a form |
 | [IDEA-025](IDEA-025.md) | — | L | The assistant's conversation is a stream and a set of host actions, not a page |
-| [IDEA-026](IDEA-026.md) | — | S | The deprecated `Features` alias is removed when the page store no longer needs it |
 | [IDEA-027](IDEA-027.md) | — | S | A page cannot leave a message for a page it sends a visitor to |
 | [IDEA-028](IDEA-028.md) | — | M | A broken editor needs one shell page that restores every seeded page |
 
@@ -91,7 +90,7 @@ is `done` when its merge is in, and `in flight` while its branch is open.
 | --- | --- | --- | --- | --- | --- |
 | 0 | **Workflow** — the branch and worktree policy, its `make` targets and this programme | S | — | merge | done |
 | 1 | [ARCH-15](#closed) — delete `Assistant:ProtectedPaths`; the assistant may write every page the shell does not route | S | — | merge | done |
-| 2 | [IDEA-026](IDEA-026.md) — remove the `Features` alias; the data gate is waived, deliberately (below) | S | — | merge | in flight |
+| 2 | [IDEA-026](#closed) — remove the `Features` alias; the data gate was waived, deliberately (below) | S | — | merge | done |
 | 3 | [IDEA-028](IDEA-028.md) — `/admin/restore`, over the seed read and the saver ARCH-07 left behind | M | — | merge, and a manual restore of a broken page | — |
 | 4 | [IDEA-019](IDEA-019.md) — repeated request values, and `Encoding` and cryptography in the API policy; the cookie point is dropped because IDEA-014 gives a page per-visitor state | S | — | merge | — |
 | 5 | [Page editor](../plans/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | — |
@@ -112,8 +111,8 @@ Step 6 follows 5 rather than needing it: the editor's listing is going to carry 
 and that is the state the assistant's one seam should answer with too. Step 7 is also the home of
 BUG-17's one loose end — the failed-request log line a mid-run reload leaves behind.
 
-**IDEA-026 has no data gate.** Its sketch makes the query the gate, and the decision here is to
-remove the alias without running it. The cost of being wrong is a stored page that no longer compiles:
+**IDEA-026 had no data gate.** Its sketch made the query the gate, and the decision was to remove
+the alias without running it. The cost of being wrong is a stored page that no longer compiles:
 it answers "Handler failed to compile." with an ordinary compiler error until its source is edited or
 its seed restored. [IDEA-028](IDEA-028.md) (step 3) is the way back, and reverting the one merge is
 the other.
@@ -131,6 +130,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [IDEA-026](../decisions.md) | The `Features` alias is gone: `IPageFeatures`, `IContext.Features`, the `PAGE005` diagnostic and the `[Obsolete]` attributes are removed, and a page that still says `ctx.Features` no longer compiles. DEC-254 |
 | [ARCH-15](../decisions.md) | The assistant's only read-only keys are the shell's own routes: `Assistant:ProtectedPaths`, its `IsProtected` branch, the empty configuration row and the prompt's sentence are gone, so every page the shell does not route is the assistant's to write. DEC-253 |
 | [ARCH-07](../plans/archive/revision-restore.md) | A page's history restores: the editor confirms a revision or a seed install with a diff and saves the chosen source as a new revision, refusing the one that would change nothing; the assistant gains `list_revisions`, `read_revision` and an approval-gated `restore_revision`, and both listings page with `limit` and a cursor. See [the plan](../plans/archive/revision-restore.md) |
 | [ARCH-02](../pages.md#page-contract) | Pages are a restricted runtime: a plain `PageRequest` snapshot, buffered output applied after the handler, allow-listed headers, `GET`/`POST`/`HEAD` only, and a 1 MiB form cap |

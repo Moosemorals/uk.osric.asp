@@ -78,9 +78,10 @@ and the logs quote them:
 | `PAGE002` | `PageApiChecker` | page code escaped its method, or a declaration block declared something other than a type |
 | `PAGE003` | `PageImageBuilder` | the page waited too long for a compile slot |
 | `PAGE004` | `PageImageBuilder` | the page took too long to compile |
-| `PAGE005` | `Sdk`, from the `[Obsolete]` attributes on `IContext.Features` and `IPageFeatures` | the page used a capability name DEC-228 retired |
 | `SCRIPT001` | `JavaScriptValidator` | the assistant's script check found a syntax error |
 | `SCRIPT002` | `JavaScriptValidator` | the assistant's script check found an opener the failed parse never closed |
+
+`PAGE005` is retired with the alias it named and is never reused for a different meaning (DEC-254).
 
 ## Where does code go?
 

@@ -119,6 +119,8 @@ uk.osric.asp.Sdk.IPageCapabilities.TryGet<T>(out T? capability) -> bool
 *REMOVED*uk.osric.asp.Sdk.IPageFeatures.Get<T>() -> T?
 *REMOVED*uk.osric.asp.Sdk.IPageFeatures.GetRequired<T>() -> T!
 *REMOVED*uk.osric.asp.Sdk.IPageFeatures.TryGet<T>(out T? feature) -> bool
+*REMOVED*uk.osric.asp.Sdk.IPageFeatures
+*REMOVED*uk.osric.asp.Sdk.IContext.Features.get -> uk.osric.asp.Sdk.IPageFeatures!
 uk.osric.asp.Sdk.IPageSession
 uk.osric.asp.Sdk.IPageSession.AllKeysAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageSessionKey>!>!
 uk.osric.asp.Sdk.IPageSession.DeleteAsync(string! key) -> System.Threading.Tasks.Task<bool>!

@@ -185,27 +185,6 @@ public sealed class EditorEndpointTests : IntegrationTest {
     }
 
     [Test]
-    public async Task AStoredPageThatSaysFeaturesStillServesAndWarnsAsync() {
-        using HttpClient client = await CreateSignedInClientAsync();
-
-        await PostEditorAsync(client, "legacy", """
-            <% _ = ctx.Features.Get<IPageStorage>(); %>
-            <p>The old name still serves.</p>
-            """);
-        HttpResponseMessage served = await client.GetAsync("/legacy");
-        PageTemplate stored = (await ReadPageAsync("/legacy"))!;
-        string body = await served.Content.ReadAsStringAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(served.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(body, Does.Contain("The old name still serves."));
-            Assert.That(stored.Image?.Diagnostics, Has.Some.Matches<PageDiagnostic>(
-                diagnostic => diagnostic is not null
-                    && diagnostic.Message.StartsWith("PAGE005:", StringComparison.Ordinal)));
-        });
-    }
-
-    [Test]
     public async Task APageThatGuardsTheIdentityIsServedUnderNullableAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
 

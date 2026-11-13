@@ -6,18 +6,13 @@ namespace uk.osric.asp.Web.Pages;
 using System.Diagnostics.CodeAnalysis;
 using uk.osric.asp.Sdk;
 
-// The stored pages that still say ctx.Features reach this object as IPageFeatures, so the registry
-// implements the deprecated alias until IDEA-026 removes it (DEC-228).
-#pragma warning disable PAGE005
-
 /// <summary>The registry a page reads its optional capabilities from.</summary>
 /// <remarks>
 /// Built while a layer is being constructed and handed to the page as the read-only
 /// <see cref="IPageCapabilities"/>, so nothing page code can name can add or replace a capability the
 /// host decided on.
 /// </remarks>
-internal sealed class PageCapabilities : IPageCapabilities, IPageFeatures {
-#pragma warning restore PAGE005
+internal sealed class PageCapabilities : IPageCapabilities {
 
     private readonly Dictionary<Type, object> _capabilities = [];
 
