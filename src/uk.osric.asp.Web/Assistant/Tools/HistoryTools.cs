@@ -49,11 +49,12 @@ internal sealed class ListRevisionsTool : AssistantTool {
             return services.Results.Failure(PageToolData.HashRefusal, "Invalid revision hash");
         }
 
-        if (await services.Pages.GetHeadAsync(path, cancellationToken) is not { } head) {
+        PageHistory history = await services.Store.HistoryAsync(path, cancellationToken);
+        if (!history.Exists) {
             return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
         }
 
-        IReadOnlyList<PageRevisionSummary> revisions = await services.Pages.ListRevisionsAsync(path, cancellationToken);
+        IReadOnlyList<PageRevisionSummary> revisions = history.Revisions;
         int start = 0;
         if (beforeText is not null) {
             int index = IndexOf(revisions, beforeText);
@@ -69,7 +70,7 @@ internal sealed class ListRevisionsTool : AssistantTool {
         bool truncated = page.Count > limit;
         object data = new {
             path = path.Key,
-            deleted = head.IsDeleted,
+            deleted = history.IsDeleted,
             revisions = page.Take(limit).Select(revision => new {
                 hash = revision.Hash,
                 savedAt = revision.SavedAt,
@@ -131,11 +132,11 @@ internal sealed class ReadRevisionTool : AssistantTool {
             return services.Results.Failure(PageToolData.HashRefusal, "Invalid revision hash");
         }
 
-        if (await services.Pages.GetHeadAsync(path, cancellationToken) is null) {
+        if (!(await services.Store.HistoryAsync(path, cancellationToken)).Exists) {
             return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
         }
 
-        PageRevisionTemplate? revision = await services.Pages.GetRevisionAsync(path, hash, cancellationToken);
+        PageRevisionTemplate? revision = await services.Store.RevisionAsync(path, hash, cancellationToken);
         if (revision is null) {
             return services.Results.Failure(
                 $"That hash is not a revision of {ToolPaths.Describe(path)}. Use a hash list_revisions returned.",
@@ -199,20 +200,20 @@ internal sealed class RestoreRevisionTool : AssistantTool {
             return services.Results.Failure(PageToolData.HashRefusal, "Invalid revision hash");
         }
 
-        if (await services.Pages.GetHeadAsync(path, cancellationToken) is null) {
+        if (!(await services.Store.HistoryAsync(path, cancellationToken)).Exists) {
             return services.Results.Failure(
                 $"Page {ToolPaths.Describe(path)} was not found, so it has no revisions to restore. Use write_page to create it.",
                 $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
         }
 
-        PageRevisionTemplate? revision = await services.Pages.GetRevisionAsync(path, hash, cancellationToken);
+        PageRevisionTemplate? revision = await services.Store.RevisionAsync(path, hash, cancellationToken);
         if (revision is null) {
             return services.Results.Failure(
                 $"That hash is not a revision of {ToolPaths.Describe(path)}. Use a hash list_revisions returned.",
                 "Revision not found");
         }
 
-        PageTemplate? live = await services.Pages.GetAsync(path, cancellationToken);
+        PageTemplate? live = (await services.Store.ReadAsync(path, cancellationToken))?.Page;
         if (PageSourceChange.IsNoOp(live?.Template, revision.Template)) {
             return services.Results.Failure(
                 $"{ReadRevisionTool.ShortHash(revision.Hash)} has the source {ToolPaths.Describe(path)} already holds, so restoring it would change nothing. Choose a different revision, or edit the page.",

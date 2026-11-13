@@ -52,7 +52,9 @@ internal sealed class ListPagesTool : AssistantTool {
             }
         }
 
-        List<PageToolData.Entry> matching = await PageToolData.EntriesAsync(services, includeDeleted, prefix, cancellationToken);
+        PageScope? scope = prefix is null ? null : new PageScope(prefix, IncludeSelf: true, Recursive: true);
+        List<PageNode> matching = [.. (await services.Store.TreeAsync(includeDeleted, cancellationToken))
+            .Where(node => node.IsPage && (scope is null || scope.Value.Contains(node.Path)))];
         if (after is not null) {
             matching = [.. matching.Where(item => string.CompareOrdinal(item.Path.Key, after.Key) > 0)];
         }
@@ -62,9 +64,9 @@ internal sealed class ListPagesTool : AssistantTool {
             pages = matching.Take(limit).Select(item => new {
                 path = item.Path.Key,
                 kind = item.IsShellFile ? "shell" : "page",
-                mode = PageMode.Describe(services.Paths.CanWrite(item.Path)),
+                mode = PageMode.Describe(item.CanWrite),
                 deleted = item.IsDeleted,
-                status = item.Status,
+                status = item.State?.Describe(),
             }),
             truncated,
         };
@@ -97,45 +99,36 @@ internal sealed class ReadPageTool : AssistantTool {
         return await ReadAsync(path!, values.Integer("startLine"), values.Integer("endLine"), services, cancellationToken);
     }
 
+    // A shell file records no diagnostics; a page reports whatever the build that made its image wrote,
+    // the template-shape warnings included.
+    private static object[] PackageDiagnostics(PageRead read) => read.Page is null
+        ? []
+        : PageToolData.Diagnostics(read.Page);
+
     private async Task<ToolExecutionResult> ReadAsync(
         PagePath path,
         int? requestedStart,
         int? requestedEnd,
         ToolServices services,
         CancellationToken cancellationToken) {
-        string text;
-        string? revisionHash = null;
-        DateTimeOffset? savedAt = null;
-        string? compileStatus = null;
-        object[] diagnostics = [];
-        if (services.Paths.IsReserved(path)) {
-            text = ShellRoutes.Text(path);
-        } else {
-            PageTemplate? page = await services.Pages.GetAsync(path, cancellationToken);
-            if (page is null) {
-                return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
-            }
-
-            text = page.Template;
-            revisionHash = page.Hash;
-            savedAt = page.SavedAt;
-            compileStatus = PageToolData.ImageStatus(page, services.Pages.RuntimeId);
-            diagnostics = PageToolData.Diagnostics(page);
+        PageRead? read = await services.Store.ReadAsync(path, cancellationToken);
+        if (read is null) {
+            return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
         }
 
-        PageToolData.ProjectedSource? projected = PageToolData.ProjectSource(text, requestedStart, requestedEnd, services.Options);
+        PageToolData.ProjectedSource? projected = PageToolData.ProjectSource(read.Text, requestedStart, requestedEnd, services.Options);
         if (projected is null) {
             return services.Results.Failure("The requested line range is outside the page.", $"{Spec.Verb} {ToolPaths.Describe(path)}: invalid range");
         }
 
         object data = new {
             path = path.Key,
-            kind = services.Paths.IsReserved(path) ? "shell" : "page",
-            mode = PageMode.Describe(services.Paths.CanWrite(path)),
-            revisionHash,
-            savedAt,
-            compileStatus,
-            diagnostics,
+            kind = read.IsShellFile ? "shell" : "page",
+            mode = PageMode.Describe(read.CanWrite),
+            revisionHash = read.Page?.Hash,
+            savedAt = read.Page?.SavedAt,
+            compileStatus = read.State?.Describe(),
+            diagnostics = PackageDiagnostics(read),
             startLine = projected.StartLine,
             endLine = projected.EndLine,
             totalLines = projected.TotalLines,
@@ -186,7 +179,7 @@ internal sealed class EditPageTool : AssistantTool {
         }
 
         string expectedHash = values.RequiredString("expectedRevisionHash");
-        PageTemplate? current = await services.Pages.GetAsync(path!, cancellationToken);
+        PageTemplate? current = (await services.Store.ReadAsync(path!, cancellationToken))?.Page;
         if (current is null) {
             return services.Results.Failure($"Page {ToolPaths.Describe(path!)} was not found. Use write_page to create it.", $"{Spec.Verb} target not found");
         }
@@ -421,96 +414,20 @@ internal sealed class SearchPagesTool : AssistantTool {
         StringComparison comparison = values.Boolean("caseSensitive")
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
-        (List<object> matches, bool truncated) = await FindMatchesAsync<object>(services, [prefix],
-            line => line.Contains(query, comparison), recursive: true,
-            (path, line, text) => new { path = path.Key, line, text = text[..Math.Min(text.Length, 240)] },
-            cancellationToken);
+        // A search always descends: the tool asks for every page under the prefix.
+        PagePath root = prefix ?? s_root;
+        IReadOnlyList<PageRead> sources = await services.Store.SourcesAsync(
+            [new PageScope(root, IncludeSelf: true, Recursive: true)], cancellationToken);
+        LineMatches found = PageSourceSearch.Find(
+            sources, PageToolData.TemplateSourceLines, line => line.Contains(query, comparison), MatchLimit);
 
-        return services.Results.Success(new { query, matches, truncated }, $"Found {matches.Count} matches");
-    }
+        object[] matches = [.. found.Matches.Select(match => new {
+            path = match.Path.Key,
+            line = match.Line,
+            text = match.Text[..Math.Min(match.Text.Length, 240)],
+        })];
 
-    // The scan stops one match past the limit, so the caller can say that something was left behind
-    // rather than guess from the count. Keys are visited in ordinal order, so a result reads like a
-    // listing.
-    private static async Task<(List<T> Matches, bool Truncated)> FindMatchesAsync<T>(
-        ToolServices services,
-        IReadOnlyList<PagePath?> prefixes,
-        Func<string, bool> matches,
-        bool recursive,
-        Func<PagePath, int, string, T> project,
-        CancellationToken cancellationToken) {
-        List<T> found = [];
-        foreach ((PagePath path, string text) in await SourcesAsync(services, prefixes, recursive, cancellationToken)) {
-            string[] lines = PageToolData.TemplateSourceLines(text);
-            for (int index = 0; index < lines.Length; index++) {
-                if (!matches(lines[index])) {
-                    continue;
-                }
-                if (found.Count == MatchLimit) {
-                    return (found, true);
-                }
-                found.Add(project(path, index + 1, lines[index]));
-            }
-        }
-
-        return (found, false);
-    }
-
-    // The pages and shell records a command may read, in key order, so two searches of one tree agree.
-    private static async Task<List<(PagePath Path, string Text)>> SourcesAsync(
-        ToolServices services,
-        IReadOnlyList<PagePath?> prefixes,
-        bool recursive,
-        CancellationToken cancellationToken) {
-        List<(PagePath Path, string Text)> sources = [.. services.Paths.Reserved
-            .Where(path => IsInScope(path, prefixes, recursive))
-            .Select(path => (path, ShellRoutes.Text(path)))];
-
-        foreach (PageListing head in await services.Pages.ListAsync(cancellationToken)) {
-            if (head.IsDeleted || services.Paths.IsReserved(head.Path) || !IsInScope(head.Path, prefixes, recursive)) {
-                continue;
-            }
-
-            PageTemplate? page = await services.Pages.GetAsync(head.Path, cancellationToken);
-            if (page is not null) {
-                sources.Add((head.Path, page.Template));
-            }
-        }
-
-        sources.Sort((left, right) => string.CompareOrdinal(left.Path.Key, right.Path.Key));
-        return sources;
-    }
-
-    // Whether a key is inside what a command was told to read. A path names a file as readily as a
-    // folder, so the key it names is always in scope; what lives below it is in scope only when the
-    // caller asked for a search that descends.
-    private static bool IsInScope(PagePath key, IReadOnlyList<PagePath?> prefixes, bool recursive) {
-        foreach (PagePath? prefix in prefixes) {
-            PagePath scope = prefix ?? s_root;
-            if (string.Equals(key.Key, scope.Key, StringComparison.Ordinal)) {
-                return true;
-            }
-            if (recursive ? IsBelow(key, scope) : IsDirectlyBelow(key, scope)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // Whether a key lives anywhere below a path.
-    private static bool IsBelow(PagePath key, PagePath prefix) => prefix.Key == "/"
-        ? key.Key.Length > 1
-        : key.Key.StartsWith(prefix.Key + "/", StringComparison.Ordinal);
-
-    // Whether a key is an entry of a path: below it, and no deeper than one segment.
-    private static bool IsDirectlyBelow(PagePath key, PagePath prefix) {
-        if (!IsBelow(key, prefix)) {
-            return false;
-        }
-
-        string rest = prefix.Key == "/" ? key.Key[1..] : key.Key[(prefix.Key.Length + 1)..];
-        return !rest.Contains('/');
+        return services.Results.Success(new { query, matches, truncated = found.Truncated }, $"Found {matches.Length} matches");
     }
 }
 
@@ -540,41 +457,6 @@ internal static class PageToolData {
 
         return limit is >= 1 and <= MaxListingLimit;
     }
-
-    // One row of a listing: a stored page or one of the shell's own files. A shell file has no head,
-    // so it is never deleted and has no compile state.
-    public sealed record Entry(PagePath Path, bool IsShellFile, bool IsDeleted, string? Status);
-
-    public static async Task<List<Entry>> EntriesAsync(
-        ToolServices services,
-        bool includeDeleted,
-        PagePath? prefix,
-        CancellationToken cancellationToken) {
-        List<Entry> entries = [.. services.Paths.Reserved
-            .Where(path => IsUnderPrefix(path, prefix))
-            .Select(path => new Entry(path, IsShellFile: true, IsDeleted: false, Status: null))];
-
-        foreach (PageListing head in await services.Pages.ListAsync(cancellationToken)) {
-            if (services.Paths.IsReserved(head.Path) || !IsUnderPrefix(head.Path, prefix)) {
-                continue;
-            }
-            if (!includeDeleted && head.IsDeleted) {
-                continue;
-            }
-            entries.Add(new Entry(head.Path, IsShellFile: false, head.IsDeleted, head.State.Describe()));
-        }
-
-        entries.Sort((left, right) => string.CompareOrdinal(left.Path.Key, right.Path.Key));
-        return entries;
-    }
-
-    // The page is shown as it stands against the running build, so a page compiled by an earlier one
-    // says Stale rather than repeating diagnostics that are about to be replaced.
-    public static string ImageStatus(PageTemplate page, string currentRuntimeId) => PageImageStatus.Describe(
-        page.Image?.RuntimeId,
-        page.Image?.Bytes is not null,
-        page.Image?.Diagnostics.Count > 0,
-        currentRuntimeId).Describe();
 
     public static object[] Diagnostics(PageTemplate page) => page.Image is null
         ? []
@@ -676,9 +558,4 @@ internal static class PageToolData {
         int separator = diagnostic.Message.IndexOf(':');
         return separator > 0 ? diagnostic.Message[..separator] : null;
     }
-
-    private static bool IsUnderPrefix(PagePath path, PagePath? prefix) => prefix is null
-        || string.Equals(path.Key, prefix.Key, StringComparison.Ordinal)
-        || prefix.Key == "/"
-        || path.Key.StartsWith(prefix.Key + "/", StringComparison.Ordinal);
 }

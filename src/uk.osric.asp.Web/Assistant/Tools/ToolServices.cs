@@ -48,8 +48,11 @@ internal sealed class ToolServices(
     /// <summary>The renderer behind <c>diff_page</c>.</summary>
     public DiffRenderer Diff { get; } = diff;
 
-    /// <summary>The page editor, resolved from the call's scope.</summary>
+    /// <summary>The page editor, resolved from the call's scope: the writes, and nothing else.</summary>
     public PageEditor Pages => scope.GetRequiredService<PageEditor>();
+
+    /// <summary>The one read seam over the page store, made once for the call.</summary>
+    public IPageStoreReader Store => _store ??= new PageStoreReader(Pages, Paths);
 
     /// <summary>The editor's own key, so a tool's link lands on the page the owner moved it to.</summary>
     public string EditorPath => EditorPaths.Of(scope);
@@ -59,4 +62,6 @@ internal sealed class ToolServices(
 
     /// <summary>Shapes and bounds what a tool answers with.</summary>
     public ToolResults Results { get; } = new(options);
+
+    private IPageStoreReader? _store;
 }

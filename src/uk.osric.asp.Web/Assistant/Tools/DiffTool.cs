@@ -45,7 +45,7 @@ internal sealed class DiffPageTool : AssistantTool {
             return services.Results.Failure(PageToolData.HashRefusal, "Invalid revision hash");
         }
 
-        IReadOnlyList<PageRevisionSummary> revisions = await services.Pages.ListRevisionsAsync(path, cancellationToken);
+        IReadOnlyList<PageRevisionSummary> revisions = (await services.Store.HistoryAsync(path, cancellationToken)).Revisions;
         if (revisions.Count == 0) {
             return services.Results.Failure($"Page {ToolPaths.Describe(path)} has no saved revisions to compare.", $"{Spec.Verb} {ToolPaths.Describe(path)}: no revisions");
         }
@@ -66,9 +66,9 @@ internal sealed class DiffPageTool : AssistantTool {
             resolvedFrom = previous.Hash;
         }
 
-        PageRevisionTemplate? before = await services.Pages.GetRevisionTemplateByHashAsync(resolvedFrom, cancellationToken);
-        PageRevisionTemplate? after = await services.Pages.GetRevisionTemplateByHashAsync(resolvedTo, cancellationToken);
-        if (before is null || before.Path != path || after is null || after.Path != path) {
+        PageRevisionTemplate? before = await services.Store.RevisionAsync(path, resolvedFrom, cancellationToken);
+        PageRevisionTemplate? after = await services.Store.RevisionAsync(path, resolvedTo, cancellationToken);
+        if (before is null || after is null) {
             return services.Results.Failure($"One of those revisions is not a revision of {ToolPaths.Describe(path)}.", "Revision not found");
         }
 

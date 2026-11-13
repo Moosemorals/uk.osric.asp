@@ -35,12 +35,12 @@ internal sealed class CheckScriptTool : AssistantTool {
             return noSource;
         }
 
-        PageTemplate? page = await services.Pages.GetAsync(path, cancellationToken);
+        PageRead? page = await services.Store.ReadAsync(path, cancellationToken);
         if (page is null) {
             return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
         }
 
-        return CheckTemplate(services, page.Template, path);
+        return CheckTemplate(services, page.Text, path);
     }
 
     internal static ToolExecutionResult CheckTemplate(ToolServices services, string template, PagePath? path) {
