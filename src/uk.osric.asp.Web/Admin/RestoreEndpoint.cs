@@ -44,6 +44,11 @@ internal static class RestoreEndpoint {
         IReadOnlyList<SeedPlan> plan = await PlanAsync(pages, context.RequestAborted);
         int work = plan.Count(seed => seed.State != SeedState.Current);
 
+        // Minted before the first byte. Storing the antiforgery cookie is a header write, and the
+        // table has gone out by the time the button is written, so a visitor who arrives without one
+        // - the cookie is a session cookie and the sign-in cookie is not - would lose the button.
+        AntiforgeryTokenSet? tokens = work == 0 ? null : antiforgery.GetAndStoreTokens(context);
+
         await BeginAsync(context, "Restore every seed");
         await context.Response.WriteAsync("<h1>Restore every seed</h1>");
         await context.Response.WriteAsync(BackLinks);
@@ -58,10 +63,9 @@ internal static class RestoreEndpoint {
 
         await WriteStateTableAsync(context, plan);
 
-        if (work == 0) {
+        if (tokens is null) {
             await context.Response.WriteAsync("<p>Every seed already carries its bundled source, so there is nothing to restore.</p>");
         } else {
-            AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
             await context.Response.WriteAsync($"""
                 <form method="post" action="/admin/restore" class="form">
                     {AntiforgeryField.Hidden(tokens)}
