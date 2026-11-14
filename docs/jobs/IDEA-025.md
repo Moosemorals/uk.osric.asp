@@ -15,8 +15,9 @@ SPDX-License-Identifier: MIT
 > proposed an `IAssistantConversations` capability; that is exactly the specialist capability the site
 > must not build (DEC-291). What a page actually lacks is three connection-shaped things — a stream
 > that outlives the render budget, an outbound body read as it arrives, and work that outlives the
-> request — and the plan builds those generically first. A job is a library with one entry point, not
-> a page render: it has no document to write. The sketch is kept as the record of what the port still
+> request — and the plan builds those generically first. A worker is a fourth kind: a program with one
+> entry point, compiled like a page and never served like a library. A job is one run of it, not a
+> page render: it has no document to write. The sketch is kept as the record of what the port still
 > has to answer, not as the shape of the work.
 
 ## Idea
@@ -68,10 +69,11 @@ movable **yet**. This job is what would move it.
    `/assistant.js` stops being necessary; the seeded page could carry a tiny module later, for
    progressive rendering only, and that is the one place a page is allowed `ctx.AllowScripts()`.
 5. **Approvals.** The approval card is a form posting a decision; it is the same shape as the page's
-   own saves, so once the job exists the card is markup and the decision is a stored row that the
-   next job reads.
+   own saves, so once the job exists the card is markup. The decision is either a message to the
+   running job — which pauses its silence clock while it waits, up to the job's ceiling — or a stored
+   row that the next job reads. The page chooses; the assistant's port records which.
 6. **What stays shell whatever happens.** `/metrics` and `/heath` because they are the runtime, and
-   `/status` because it is bootstrap (DEC-210). The run loop is a job library under
+   `/status` because it is bootstrap (DEC-210). The run loop is a worker under
    [the page-apps plan](../plans/page-apps.md), so it is page code too; the question is only which
    route serves the view.
 

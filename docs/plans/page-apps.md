@@ -8,10 +8,10 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Proposed 2026-11-14 — awaiting the owner's answer; nothing is built |
-| Size | Large — three capabilities and a readiness pass, each phase merging on its own |
-| Area | Sdk, Web (pages and work), deploy, docs |
-| Location | `src/uk.osric.asp.Sdk/`, `src/uk.osric.asp.Runtime/`, `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Work/`, `deploy/Caddyfile`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
-| Spike | None. The assistant proves every shape this plan generalises: a long response, an upstream stream, and work that outlives a request |
+| Size | Large — three capabilities, a fourth page kind and a readiness pass, each phase merging on its own |
+| Area | Core, Sdk, Runtime, Web (pages and work), deploy, docs |
+| Location | `src/uk.osric.asp.Core/`, `src/uk.osric.asp.Sdk/`, `src/uk.osric.asp.Runtime/`, `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Work/`, `deploy/Caddyfile`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
+| Spike | None. The assistant proves the long response, the upstream stream and work that outlives a request; the worker kind is the compiler's existing page/library split with an entry point instead of a handler |
 | Decisions | Named in prose; numbers are taken from `trunk` when the work merges (`DEC-09`, `DEC-232`, `DEC-281`) |
 | Backlog | [IDEA-025](../jobs/IDEA-025.md) (the assistant as a page, re-scoped by this plan), [IDEA-033](../jobs/IDEA-033.md) (a page has no per-account store), [the streaming plan](page-streaming.md) (ARCH-13, where a page learned to stream but not to keep the stream) |
 
@@ -19,7 +19,7 @@ SPDX-License-Identifier: MIT
 
 The assistant stays in the shell because a page cannot hold a live connection, read an upstream stream,
 or work after its request — and, for its tools, because a page may not save another page. The first
-three are connection-shaped and generic; this plan builds them. The fourth is authority and is a
+three are runtime-shaped and generic; this plan builds them. The fourth is authority and is a
 question for the port.
 
 Each of the three is a generic capability, not a feature of the assistant:
@@ -31,11 +31,16 @@ Each of the three is a generic capability, not a feature of the assistant:
 > **A page can read an outbound response as it arrives.** A page relays an upstream stream instead of
 > waiting for a whole body it will never fit in its buffer.
 
-> **A page can start work that outlives the request.** The unit of work is a **job library**: a
-> stored library that declares one type with a `RunAsync` entry point. A page starts it by key, and
-> the job works for that page — its storage and egress are the page's — while the page follows its
-> events through a bounded journal and may cancel it. The job has a context and capabilities, and no
-> response to write.
+> **A page can start work that outlives the request.** The program is a **worker**: a stored source of
+> kind Worker, compiled to an entry-point assembly, never served and never wrapped. A page starts a
+> **job** of it by key, **sends it messages**, and the job **receives** them and **publishes events**.
+> The page can find the job again, follow its events through a bounded journal and cancel it. A job
+> works for that page — its storage is the page's, its egress is the worker's — and has no response to
+> write.
+
+The page-side surface is six calls — start, send, read events, get, list, cancel — and the worker side
+is two — receive and publish. Everything else (the queue, the slots, the ring, the sweeper) is the
+shell's. That is the whole of the management noise.
 
 Nothing here is shaped like a conversation. There is no `IAssistantConversations`, no memory
 capability, no chat event bus and no specialist job type. The assistant is the worked example; the
@@ -50,18 +55,18 @@ view outlived the view and had to be withdrawn ([DEC-291](../decisions.md)).
 | The assistant does | What it needs | Where that belongs |
 | --- | --- | --- |
 | Lists conversations, reads a transcript, edits options, deletes, shows memory rows | Durable rows owned by one account | Page code over storage — but `IPageStorage` is shared by every visitor and capped at 256 KiB per page in the shipped configuration. The owner's store is [IDEA-033](../jobs/IDEA-033.md) |
-| Starts a run from a message, bounds the queue and the concurrency | Work after the response has gone | **Background jobs** (this plan): a library entry point, invoked by the shell |
-| Streams deltas, replays them after a reconnect, stops a run | A sequenced journal with live subscribers and a bounded replay | **Background jobs** — the journal belongs to the job, not to a standalone event bus |
-| Asks for approval, asks to continue | A decision written by one request and read by another | Page code over storage: the job ends at the question and a new job resumes with the answer |
+| Starts a run from a message, bounds the queue and the concurrency | Work after the response has gone | **Workers and jobs** (this plan): a worker entry point, invoked by the job runner |
+| Streams deltas, replays them after a reconnect, stops a run | A sequenced journal with live subscribers and a bounded replay | **Workers and jobs** — the journal belongs to the job, not to a standalone event bus |
+| Asks for approval, asks to continue | A decision sent as a message to the running job, or a stored row that starts the next job | **Workers and jobs** — the message channel; the page chooses whether to wait or to end |
 | Streams from the provider | An outbound body read as it arrives | **Streaming outbound HTTP** (this plan) |
 | Renders deltas as they are written | A response written while the page runs | **The stream's own lifetime** (this plan) |
-| Reads and edits pages through eighteen tools | Read every page; write any page the shell does not route | `IPageCatalog` already reads everything, but `IPageWriter` writes only the page's own key. Writing *another* page is the authority question in [phase 4](#phase-4--what-a-port-still-lacks-documents-only); the tools write every page the shell does not route (DEC-253) |
+| Reads and edits pages through eighteen tools | Read every page; write any page the shell does not route | `IPageCatalog` already reads everything, but `IPageWriter` writes only the page's own key. Writing *another* page is the authority question in [phase 5](#phase-5--what-a-port-still-lacks-documents-only); the tools write every page the shell does not route (DEC-253) |
 | Remembers, recalls, forgets | Owner-scoped rows with search and versions | Page code over the owner's store; memory is not a capability |
 | Renders a model's Markdown | A renderer that is safe on untrusted text | `IMarkdownRenderer` exists, but only the permissive profile. The restricted profile (DEC-164) is a named gap for the port |
 | Reads the provider's balance | One outbound GET | `IHttpFetch` already does it |
 | Shows budgets, usage and timings | Instruments | Page code can log; instruments stay the shell's |
 
-The table is the point of the exercise. The assistant is one page plus three connection-shaped
+The table is the point of the exercise. The assistant is one page plus three runtime-shaped
 primitives and one authority question, not one conversation-shaped capability. A page can already do
 the rest: forms, identity, antiforgery, storage, fetch, Markdown, the page store read, the page's own
 save, page libraries.
@@ -94,9 +99,10 @@ run resumable — the queue, the journal, the stop and the approval — is a set
 in `Assistant/`, reachable only by shell code.
 
 That is the largest gap and the one most easily over-built. The generic version is not a conversation
-service or a task framework: it is **a type in a library, with one entry point, started by a page and
-owned by the visitor who started it**. A job has no document, no visitor and no response; giving it a
-page's handler would mean carrying a response-shaped context it can never use.
+service or a task framework: it is **a stored worker — a program with one entry point, compiled like a
+page and never served like a library — started as a job by a page and owned by the visitor who started
+it**. A job has no document, no visitor and no response; giving it a page's handler would mean carrying
+a response-shaped context it can never use.
 
 ## Goals
 
@@ -107,27 +113,32 @@ page's handler would mean carrying a response-shaped context it can never use.
    fault — and a stream is not recorded as a ten-minute page render.
 4. A page can read an outbound response body as lines arrive, under the same lifetime rule, with byte,
    silence and ceiling bounds and the existing credential and header rules.
-5. A page can start a **job library** — a stored library declaring one `IJob` type — with a
-   form-shaped input, owned by `ctx.User`, bounded by a queue, a concurrency limit, a silence clock
-   re-armed by the job's own published events, and a ceiling.
-6. A running job can publish bounded, sequenced events; any request owned by the same visitor can
+5. A page can start a **job** of a **worker** — a stored program of kind Worker with exactly one
+   `IWorker` entry point — with a first message, owned by `ctx.User`, bounded by a queue, a concurrency
+   limit, a silence clock re-armed by the job's own activity, and a ceiling.
+6. A page can send a job further messages; the job can wait for one without being cut for silence; a
+   worker's wait is bounded by the job's ceiling, not by the silence clock. The page can list its
+   owner's jobs and find the one it started, so a reload can reconnect to a running job.
+7. A running job can publish bounded, sequenced events; any request owned by the same visitor can
    read them after a sequence, wait briefly for the next one, and cancel the job.
-7. A job has a context and the work capabilities, and no response: it cannot write, flush, set a
-   status, use a layout or a session, or read an antiforgery field. It keeps its durable state in the
-   starting page's storage and reports progress through its own published events.
-8. `/help`, the page contract, configuration, [pages](../pages.md), [architecture](../architecture.md)
-   and [the jobs](../jobs/README.md) say what a page author may rely on, in the same change.
-9. The assistant is never named in `Sdk`, and no new type exists only for it.
+8. A job has a context and the work capabilities, and no response: it cannot write, flush, set a
+   status, use a layout or a session, or read an antiforgery field. Its storage is the starting page's,
+   its egress is the worker's, and it reports progress through its own published events.
+9. A worker is a fourth kind: compiled to an entry-point assembly when it is saved, never served,
+   never wrapped, never an asset, and never a library another page or library may `using`.
+10. `/help`, the page contract, configuration, [pages](../pages.md), [architecture](../architecture.md)
+    and [the jobs](../jobs/README.md) say what a page author may rely on, in the same change.
+11. The assistant is never named in `Sdk`, and no new type exists only for it.
 
 ## Non-goals
 
 - **Porting the assistant in this plan.** The plan ends with what a port still lacks. The port is its
-  own step, with its own plan, after the authority question in phase 4 is answered.
+  own step, with its own plan, after the authority question in phase 5 is answered.
 - **A per-account store.** [IDEA-033](../jobs/IDEA-033.md) is the owner's rows, with SQL, quotas, a
   schema lifecycle and a privacy sentence. Nothing here stores data for an account.
-- **A general page-store writer.** A page still writes only its own key and a job library writes no
+- **A general page-store writer.** A page still writes only its own key and a worker writes no
   page at all. The assistant's tools write every page the shell does not route; granting that to page
-  or job code is a decision about authority, not a connection primitive, and phase 4 records it rather
+  or job code is a decision about authority, not a connection primitive, and phase 5 records it rather
   than smuggling it in.
 - **A durable job queue.** Jobs are in memory. A restart loses a live job; the starting page's storage
   is what survives, and a page that finds its state says "running" with no job knows it was
@@ -143,7 +154,7 @@ page's handler would mean carrying a response-shaped context it can never use.
   today; HTTP streaming covers SSE, long-poll and progressive HTML.
 - **A seeded app, demo or SSE library.** What a page writes is page code. The first app that wants an
   SSE formatter seeds a library; the shell does not ship one speculatively (`DEC-08`).
-- **A restricted Markdown profile.** It is the port's gap, named in phase 4, not a connection
+- **A restricted Markdown profile.** It is the port's gap, named in phase 5, not a connection
   capability. Adding it here would mix a renderer decision into a lifetime plan.
 - **New assistant metrics.** The assistant's own instruments stay as they are; jobs are logged, not
   folded into its panels.
@@ -203,29 +214,45 @@ including a fetch. A page that wants a long upstream read writes and commits its
 commit is what moves it onto the stream and outbound-stream clocks. This is a consequence, not a
 mechanism, and `/help` says it beside the streaming example.
 
-**D8 — a job is a library with an entry point, not a page render.** A library declares one public type
-with a parameterless constructor implementing `IJob`, and its `RunAsync(IJobContext)`. A page starts
-it with `IPageJobs.StartAsync(libraryKey, input)`; the job runs as the signed-in owner and **for the
-starting page**, because the page is the principal and the library is only the code. A job has no
-document and no request, so it has no page handler and no response context. A missing key, a page, an
-asset, a reserved key, an anonymous render and a full queue are refused as values. A library with no
-`IJob`, two `IJob`s or one that does not compile is a **failed job** with its reason on the journal,
-because finding and checking the entry point is the compiler's work and must not run inside the
-starting request. Rejected: a future render of the page that started it (a page's handler writes to a
-response that does not exist; its layout, session and antiforgery members would be dead weight, and
-the view and the work would share one source for no reason); a `Func<IContext, Task>` (it closes over a
-dead request and hands the shell an opaque lifetime); an assistant run type (the specialist capability
-this plan exists to avoid).
+**D8 — a worker is a fourth kind.** A stored source is **Text**, **Page**, **Library** or **Worker**. A
+Worker is declaration-only like a library, but it declares exactly one public type with a parameterless
+constructor implementing `IWorker`, and it is compiled to an entry-point assembly when it is saved. It
+is never served, never wrapped, never an asset and never a library: the closure includes libraries and
+excludes workers, so a page or library that names a worker gets a missing-namespace diagnostic. The
+kind is the lifecycle, not a badge: it says what the runtime does with the source. Rejected: a library
+with an `IWorker` and a per-start compile (no entry-point diagnostic when the author saves, a compile
+on every job, and a page could `using` the program as if it were a module); a future render of the page
+that started it (a page's handler writes a response that does not exist, and its layout, session and
+antiforgery members would be dead weight); a `Func<IContext, Task>` (it closes over a dead request and
+hands the shell an opaque lifetime); an assistant run type (the specialist capability this plan exists
+to avoid).
 
-**D9 — two surfaces, and the owner is structural.** `IPageJobs` — `StartAsync`, `GetAsync`,
-`ListAsync`, `ReadEventsAsync`, `CancelAsync` — is offered to every page. The running job is handed an
-`IJobContext` — `Id`, `Path` (the starting page), `Library` (the job's own key), `User`, `Input`,
-`Aborted`, `Capabilities`, three log members and `Publish(type, dataJson)`. Neither takes an owner:
-`IPageJobs` is bound to `ctx.User`, an anonymous render is refused, and every read and cancel filters
-on the job's owner before it answers. Rejected: an owner argument (`DEC-190`); one interface for both
-sides (a viewer would meet `Publish`, and a job would meet `StartAsync` it has no reason to call).
+**D9 — a job is one run of a worker, started by a page and owned by the visitor.** `IPageJobs.StartAsync(
+workerKey, firstMessage)` starts it; the job runs as the signed-in owner. A missing key, a page, an
+asset, a library, a reserved key, an anonymous render and a full queue are refused as values, because
+the kind is known at save and the start needs no compile to say no. The job works **for the starting
+page**: the page is the principal and the worker is the code. Rejected: a job that names another page
+(a page can already link to one; widening the authority is a later decision); a job as a `Func` or a
+delegate; an assistant run type.
 
-**D10 — the journal is in memory, bounded and replayable; the durable record is the page's.** A job's
+**D10 — six page calls, two worker calls, and the owner is structural.** `IPageJobs` — `StartAsync`,
+`SendAsync`, `GetAsync`, `ListAsync`, `ReadEventsAsync`, `CancelAsync` — is offered to every page. The
+running job is handed an `IWorkerContext` — `Id`, `Path` (the starting page), `Worker` (the worker's
+key), `User`, `Input` (the first message), `Aborted`, `Capabilities`, three log members,
+`ReceiveAsync` and `Publish(type, dataJson)`. A message is a string (JSON or text) bounded by
+`Pages:Jobs:MaxMessageBytes`; the pending queue is bounded by `MaxPendingMessages`. `ReceiveAsync`
+takes an optional wait, capped by `MaxWaitSeconds`; it returns `null` when the wait elapses or the job
+can no longer receive, and `Aborted` tells the two apart. `ListAsync` answers the owner's jobs with `Id`,
+`Worker`, `Path`, `State`, `StartedAt`, `EndedAt` and `Failure`, where the state is `Queued`,
+`Running`, `Completed`, `Failed` or `Cancelled`, so a page that lost its id can find the job it
+started, and `ReadEventsAsync` replays from a sequence. Neither surface takes an owner:
+`IPageJobs` is bound to `ctx.User`, an anonymous render is refused, and every read, send and cancel
+filters on the job's owner before it answers. Rejected: an owner argument (`DEC-190`); one interface for
+both sides (a viewer would meet `ReceiveAsync`, and a worker would meet `SendAsync` it has no reason to
+call); a typed message object (`JsonSerializer` is already the page's, and a worker that wants a shape
+can parse one).
+
+**D11 — the journal is in memory, bounded and replayable; the durable record is the page's.** A job's
 events are `(sequence, type, json)` in a ring bounded by `Pages:Jobs:MaxEvents`,
 `MaxEventBytes` and `RetentionMinutes`, with live subscribers and a replay window. A viewer that asks
 for a sequence the ring no longer holds gets a reset event. There is no `PageJobs` table. Rejected: a
@@ -233,42 +260,48 @@ durable journal (events are for viewers, not history, and the starting page's st
 an unbounded ring (a job that publishes in a loop would grow the process); a table for job status (a
 second source of truth the page's storage already answers).
 
-**D11 — a job has its own lifetime and its own slot.** A job takes a job slot
+**D12 — a job has its own lifetime and its own slot.** A job takes a job slot
 (`Pages:Jobs:MaxConcurrent`), not a render slot, because it is not answering a visitor. Its deadline
-is `Pages:Jobs:SilenceSeconds` re-armed by every `Publish`, plus `Pages:Jobs:MaxDurationSeconds` from
-the start. A job that stops publishing is cut, so a wedged job cannot burn the ceiling. Rejected: the
-render deadline (a job legitimately outlives a request); an absolute deadline only (a page that hits a
-synchronous loop would run for the ceiling); sharing the render slots (a background job would pay for a
-visitor's slot).
+is `Pages:Jobs:SilenceSeconds` re-armed by every `Publish` and by every return from `ReceiveAsync`,
+plus `Pages:Jobs:MaxDurationSeconds` from the start. **A wait in `ReceiveAsync` pauses the silence
+clock**: a job waiting for its owner is not a job that has gone quiet, and the ceiling is what bounds
+the wait. A timed wait returns and the clock resumes, so a worker can do periodic work between
+messages without a sleep primitive. A job that keeps working but never publishes or receives is cut, so a wedged job cannot burn
+the ceiling. A job that waits holds its slot; a worker that would rather free it ends the job at the
+question and a new job resumes, which is the page's choice. Rejected: the render deadline (a job
+legitimately outlives a request); an absolute deadline only (a page that hits a synchronous loop would
+run for the ceiling); sharing the render slots (a background job would pay for a visitor's slot);
+cutting a job that is waiting on its owner (the approval case).
 
-**D12 — a viewer waits, it does not sleep.** `ReadEventsAsync(jobId, after, wait)` returns when there
+**D13 — a viewer waits, it does not sleep.** `ReadEventsAsync(jobId, after, wait)` returns when there
 are events, when the job ends, or when the wait elapses — whichever is first — with `Events`, `Next`,
-`Reset`, `State` and `Failure`. The wait is capped by `Pages:Jobs:MaxEventWaitSeconds` and by the
+`Reset`, `State` and `Failure`. The wait is capped by `Pages:Jobs:MaxWaitSeconds` and by the
 render's stream budget. A viewer streams the batches as SSE and writes a comment when one is empty.
 Rejected: allowing `Task.Delay` (a general fairness hole, and the policy denies it); a poll per reload
 (a whole document per event); a second pub/sub capability (the wait belongs to the journal).
 
-**D13 — a job works for the page, so its capabilities are the page's.** `IJobContext` has no `Write`,
-`FlushAsync`, `SetStatus`, `SetContentType`, `SetHeader`, `Redirect`, `AntiforgeryField` or
-`IPageLayout`; its `Capabilities` offer `IPageStorage`, `IHttpFetch`, `IPageCatalog`,
-`IMarkdownRenderer` and `IPageJobs`, with storage, credentials and the catalog scope bound to the
-**starting page's** key. A job and its view therefore share storage: the job writes the transcript and
-the view reads it. `IPageWriter` is not offered: a job keeps data, not code, and the authority to save
-a page is the port's question. Rejected: an `IContext` (it makes a job look like a visitor's request
-and hands it a response nobody receives); a full page capability set (a job that saved its library
-would be writing the code it is running); storage bound to the library (the code would own the data,
-and a view could not read what its job wrote); no capabilities at all (a job could reach nothing).
+**D14 — a job's capabilities split data from code.** `IWorkerContext` has no `Write`, `FlushAsync`,
+`SetStatus`, `SetContentType`, `SetHeader`, `Redirect`, `AntiforgeryField` or `IPageLayout`; its
+`Capabilities` offer `IPageStorage`, `IHttpFetch`, `IPageCatalog`, `IMarkdownRenderer` and
+`IPageJobs`, with **storage bound to the starting page** (the data) and **egress and catalog bound to
+the worker** (the code). A job and its view therefore share storage: the job writes the transcript and
+the view reads it, while the worker's credential stays the worker's. `IPageWriter` is not offered: a
+job keeps data, not code, and the authority to save a page is the port's question. Rejected: one key
+for all three (either the worker owns the page's data or the page owns the worker's credential); an
+`IContext` (a job looks like a visitor's request and is handed a response nobody receives); no
+capabilities at all.
 
-**D14 — a job library is compiled when it starts, not when it is saved.** The library's source and its
-`using` closure are policy-checked and emitted as a job assembly by the compiler, then loaded for that
-job and released when it ends. A library that pages compile into their own assemblies is unaffected:
-there is still no shared runtime assembly (`DEC-289`), because each dependent and each job has its own
-copy. Rejected: storing a job image on the revision (a library stores source, verdict and diagnostics,
-and a job image would be a second kind of library storage for a rare operation); caching a loaded
-assembly across jobs (statics would become a channel between jobs, and one job's code would outlive
-its own start).
+**D15 — a worker's image is a page's mechanics without a handler.** The worker's source and its
+`using` closure are policy-checked and emitted at save, and the image and symbols are stored on the
+revision with the Worker kind, the `TemplateFingerprint`, the `RuntimeId` and the closure fingerprint.
+A worker whose library moved is rebuilt lazily on its next start, the way a page is rebuilt on its next
+request; the runner loads the image and finds the single `IWorker`, and a load or compile failure fails
+the job with its reason on the journal. There is still no shared runtime assembly (`DEC-289`): each
+worker has its own. Rejected: compiling per start (the save cannot say whether the entry point is
+valid, and every job pays for it); caching a loaded assembly across jobs (statics would become a
+channel between jobs); a generated handler (the worker has no response).
 
-**D15 — the controls stay where they are.** `Pages:Render` keeps the pre-commit budget; a new
+**D16 — the controls stay where they are.** `Pages:Render` keeps the pre-commit budget; a new
 `Pages:Stream` section owns the stream slots, silence and ceiling; `Pages:Fetch` grows the outbound
 stream values; a new `Pages:Jobs` section owns the job bounds. Every value is required, with a range
 that stops a zero switching a guard off (`DEC-282`). Rejected: one section for all page work (the
@@ -281,7 +314,7 @@ The shipped values, for the implementation to start from:
 | --- | --- |
 | `Pages:Stream` | `Slots` 8, `SilenceSeconds` 60, `MaxSeconds` 1800 |
 | `Pages:Fetch` (new) | `StreamSilenceSeconds` 30, `StreamMaxSeconds` 600, `MaxStreamBytes` 4 MiB |
-| `Pages:Jobs` | `QueueCapacity` 8, `MaxConcurrent` 2, `SilenceSeconds` 120, `MaxDurationSeconds` 1800, `MaxEvents` 512, `MaxEventBytes` 256 KiB, `RetentionMinutes` 30, `MaxEventWaitSeconds` 30, `MaxInputBytes` 16 KiB |
+| `Pages:Jobs` | `QueueCapacity` 8, `MaxConcurrent` 2, `SilenceSeconds` 120, `MaxDurationSeconds` 1800, `MaxEvents` 512, `MaxEventBytes` 256 KiB, `RetentionMinutes` 30, `MaxWaitSeconds` 30, `MaxMessageBytes` 16 KiB, `MaxPendingMessages` 32 |
 
 ## Phases
 
@@ -338,49 +371,79 @@ in the log and the metric.
 **Done when** a page can relay an upstream line stream to a visitor that outlives the render budget,
 with every failure a value and the socket closed on every path.
 
-### Phase 3 — work that outlives the request
+### Phase 3 — the Worker kind
 
-- `Sdk`: `IPageJobs`, `IJob`, `IJobContext` and their values (`PageJobStart`, `PageJobInfo`,
-  `PageJobState`, `PageJobEvent`, `PageJobEvents`). `IJob` is the one method a job library declares;
-  `IJobContext` is what that method is handed.
-- `Runtime`: compile a job library — its source and its `using` closure, policy-checked, emitted as an
-  assembly under the compile slot — and load it so the entry point can be found. The entry point must
-  be exactly one public `IJob` with a parameterless constructor in the named library; the closure is
-  compiled in and is not a source of entry points. The worker compiles, so a slow compile is the job's
-  time and not the starting request's. `IPageCompiler` and the `Runtime` public surface grow the
-  compile and load of a job, recorded as `page.compile.duration` with reason `job`.
+- `Core`: `PageKind` gains `Worker`; `PageRevisions.TemplateKind` stores it (3) beside text, page and
+  library. A declaration-only source is generated as a library; the compiler refines the verdict to
+  Worker when it declares exactly one `IWorker`, and reports two as a diagnostic. No data migration: the
+  column is a nullable int and an existing source keeps its kind until it is saved again.
+- `Sdk`: `IWorker` and `IWorkerContext` in `PublicAPI.Unshipped.txt`. `IWorker` is the one entry point a
+  worker declares; `IWorkerContext` is its parameter, so the contract exists when the worker compiles.
+  The runner that supplies the context arrives in phase 4.
+- `Runtime`: compile a worker — its source and its `using` closure, policy-checked, emitted to an
+  assembly — and load it so the entry point can be found. The entry point is exactly one public type
+  with a parameterless constructor implementing `IWorker`. `IPageCompiler` and the `Runtime` public
+  surface grow the compile and load of a worker, recorded as `page.compile.duration` with reason
+  `worker`.
+- `Web`: `PageImage` stores a worker's bytes and symbols; `PageImageBuilder` chooses the worker compile
+  when the source declares the entry point; `PageAssetPolicy`, the endpoint, the renderer's
+  `FromStored` and the versioned-asset path treat a worker as never served, never wrapped and never an
+  asset; `PageLibraries`' closure candidates exclude workers, so a page or library naming one gets a
+  missing-namespace diagnostic; the page list, the editor state, `PageMode`/`PageImageStatus` and the
+  assistant's facts say "worker".
+- Tests: a declaration-only source with one `IWorker` saves as a worker with an image; two entry points
+  is a diagnostic; a source that does not compile is stored with its diagnostics; a worker key answers
+  `404`; a worker is never an asset and a `?v=` naming one is `404`; a page or library naming a worker
+  is a compile error; a worker whose library moved is rebuilt; the editor and the assistant see the
+  kind.
+- `/help`, [pages](../pages.md) and its kinds table, the [glossary](../glossary.md), the assistant's
+  prompt vocabulary, [architecture](../architecture.md), and [storage](../storage.md) for the column.
+
+**Done when** a stored declaration-only source with one entry point is a worker: compiled and checked
+when it is saved, stored with its image, never served, and invisible as a library to pages.
+
+### Phase 4 — jobs that outlive the request
+
+- `Sdk`: `IPageJobs` and its values (`PageJobStart`, `PageJobSendResult`, `PageJobInfo`, `PageJobState`,
+  `PageJobEvent`, `PageJobEvents`); `IWorker` and `IWorkerContext` are already in place from phase 3.
 - `Web/Work`: the generic queue (the existing `BoundedWorkQueue`), a job registry, a bounded journal
-  with subscribers and a wait, and a `BackgroundService` worker. The assistant's `RunStream` shape is
-  the starting point, not a shared type: a job is not a run. The worker holds the job's loaded library
-  for the job's lifetime and releases it at the end.
-- The job's context: the owner as `PageUser`, the starting page as `Path`, the library as `Library`,
-  the input as `IReadOnlyDictionary<string, string>`, the work capability set bound to the starting
-  page's key, and the job's own deadline.
+  with subscribers and a wait, and a `BackgroundService` runner. The assistant's `RunStream` shape is
+  the starting point, not a shared type: a job is not a run. The runner loads the worker's stored image
+  — rebuilding it lazily when its library moved — finds the single `IWorker`, invokes it, and releases
+  the assembly at the end.
+- The job's context: the owner as `PageUser`, the starting page as `Path`, the worker key as `Worker`,
+  the first message as `Input`, a timed or indefinite `ReceiveAsync` for later messages, storage bound to the starting page,
+  fetch and catalog bound to the worker, and the job's own deadline. `SendAsync` writes a bounded
+  pending queue; `ReceiveAsync` pauses the silence clock while it waits.
 - `Pages:Jobs` with `QueueCapacity`, `MaxConcurrent`, `SilenceSeconds`, `MaxDurationSeconds`,
-  `MaxEvents`, `MaxEventBytes`, `RetentionMinutes`, `MaxEventWaitSeconds` and `MaxInputBytes`.
-- Tests: a library with one `IJob` starts and writes the starting page's storage, which the view
-  reads; a page starts it by key; a viewer reads the journal and waits for the next event; cancel ends
-  the job at its next await; a missing key, a page key, a reserved key, an anonymous render and a full
-  queue are refused as values; a library with no `IJob`, two `IJob`s and a compile failure are failed
-  jobs with reasons; a job that goes silent is cut; a job's context has no response members; the
-  library's closure compiles and the policy is applied to it; another account cannot read or cancel
-  it; the render slot count is unchanged while a job runs; the library is never served.
-- `/help`, [pages](../pages.md#page-api-policy), [architecture](../architecture.md#where-a-view-lives)
-  if the audit changes, [logging](../logging.md) for the job's lines.
+  `MaxEvents`, `MaxEventBytes`, `RetentionMinutes`, `MaxWaitSeconds`, `MaxMessageBytes` and
+  `MaxPendingMessages`.
+- Tests: a worker starts and writes the starting page's storage, which the view reads; a page starts it
+  by key and sends it a message the worker receives; an indefinite wait in `ReceiveAsync` outlives the
+  silence clock but not the ceiling; a timed wait returns and the worker publishes afterwards; a full
+  pending queue is refused as a value; a message after the job ends is refused; a page lists its owner's jobs and reconnects to the running one; a viewer reads the
+  journal and waits for the next event; cancel ends the job at its next await; a missing key, a page, a
+  library, a reserved key, an anonymous render and a full queue are refused as values; a worker whose
+  image fails to load or compile is a failed job with its reason; a job that works without publishing
+  or receiving is cut; a job's context has no response members; the storage is the page's and the
+  credential is the worker's; another account cannot read, send to or cancel it; the render slot count
+  is unchanged while a job runs.
+- `/help`, [pages](../pages.md), [logging](../logging.md) for the job's lines.
 
-**Done when** a stored library can be started as a job by a page, a second request can stream its
-events, stop it, and read what it wrote, with no assistant type in `Sdk`.
+**Done when** a stored worker can be started as a job by a page, sent a message, found again by a
+second request, streamed, stopped and read, with no assistant type in `Sdk`.
 
-### Phase 4 — what a port still lacks (documents only)
+### Phase 5 — what a port still lacks (documents only)
 
-- Re-scope [IDEA-025](../jobs/IDEA-025.md): the conversation view, the run as a job, the memory view,
-  the approval as a stored decision and a new job, and the transcript on the owner's store.
+- Re-scope [IDEA-025](../jobs/IDEA-025.md): the conversation view, the run as a worker and a job, the
+  memory view, the approval as a stored decision and a new job, and the transcript on the owner's
+  store.
 - Name the remaining gaps honestly: [IDEA-033](../jobs/IDEA-033.md) for the transcript and memory, the
   page-store write authority for the tools, and the restricted Markdown profile.
-- The authority question, written as a decision for the owner: does a job library get a page writer
-  for the keys the assistant's tools may edit, so one configured job library (or one page) has the
-  authority and nothing else does? A page writer is the largest authority in the port and is not a
-  connection primitive; phase 4 records the choice, it does not make it.
+- The authority question, written as a decision for the owner: does a worker get a page writer for the
+  keys the assistant's tools may edit, so one configured worker (or one page) has the authority and
+  nothing else does? A page writer is the largest authority in the port and is not a connection
+  primitive; phase 5 records the choice, it does not make it.
 - The audit in [architecture](../architecture.md#where-a-view-lives) and the programme.
 
 **Done when** the port is either a step with a plan and every capability it needs, or the audit says
@@ -399,12 +462,13 @@ The suites follow the phases; every behaviour is a NUnit test, named for the beh
   credential and redirect rules.
 - `Web.IntegrationTests/PageFetchTests` — a scripted `IPageFetcher` answers a stream, and a page relays
   it through a real flush.
-- `Web.IntegrationTests/PageJobTests` — a library with one `IJob` starts, observes, waits, cancels,
-  refuses, isolates, and has no response at all.
-- `Runtime.Tests/PageCompilerTests` — a job library compiles with its closure, and its policy
-  violations are its own lines.
-- `Core.Tests`/`Runtime.Tests` — only if a pure helper (a journal sequence, an SSE line formatter in a
-  page library) appears; the connection work is I/O and belongs in `Web`.
+- `Web.IntegrationTests/PageWorkerTests` — a worker is compiled at save, answers `404`, is never an
+  asset and is not a closure candidate for a page; a worker whose library moved is rebuilt.
+- `Runtime.Tests/PageCompilerTests` — a worker compiles with its closure, exactly one entry point, and
+  its policy violations are its own lines.
+- `Web.IntegrationTests/PageJobTests` — a worker starts, is sent a message, is found after a reload,
+  observes, waits, cancels, refuses, isolates, writes the starting page's storage and has no response
+  at all.
 - `Web.Tests/PageApiPolicyTests` — a page that names the new Sdk types compiles; `Task.Delay`,
   `ValueTask` and `IAsyncEnumerable` stay denied until a decision says otherwise.
 
@@ -417,13 +481,17 @@ client.
 | --- | --- |
 | **Slot accounting double-releases or leaks.** The render slot is released at the commit and the stream slot at the end; an abandoned page keeps running. | One owner (`RenderLifetime`) with an idempotent release, and tests that assert the semaphore's count after each ending. |
 | **A page uses the long stream to burn CPU.** | The stream slot, the silence rule and the ceiling; the residual is the same in-process trust SEC-03 records. |
+| **The worker kind touches every `PageKind` switch.** A missed branch serves, wraps or closes a worker. | One predicate set on `PageAssetPolicy`/the endpoint, and a test for each of the four kinds at each branch. |
+| **A worker stays in the job slot while it waits for a message.** | A wait pauses the silence clock but not the ceiling; `MaxConcurrent` bounds the number of waits; a worker that would rather free the slot ends the job at the question and a new job resumes. |
+| **A page floods a worker.** | `MaxPendingMessages` bounds the queue and `SendAsync` refuses rather than grows it. |
+| **A worker becomes a module by accident.** A page names a worker and compiles it in. | The closure includes libraries and excludes workers; the diagnostic is a missing namespace. Code shared by a view and a worker is a library. |
 | **A job becomes a scheduler or a task framework.** | The non-goals name scheduling, retries, durability and dependencies; a new need gets a job file, not a feature. |
 | **A job survives the request but not the deploy.** | Jobs are in memory and the plan says so; the starting page's storage is the record, and a page detects an interrupted job by asking for it. |
 | **The outbound stream is a second egress with different rules.** | One implementation of the credential, header, redirect and origin rules; the buffered and streaming paths call the same helpers. |
 | **The page API policy makes the stream awkward.** | The line-at-a-time shape is chosen for `Task`, not `ValueTask`; the policy test pins it. |
 | **The render histogram loses its meaning.** | The commit is the render's end for a streamed page, and `page.stream.duration` carries the rest. |
 | **A viewer holds a stream open forever.** | The stream ceiling, the journal's retention, and `ReadEventsAsync`'s bounded wait. |
-| **The port is assumed to be delivered.** | This plan says it is not, and phase 4 records the authority question rather than answering it by code. |
+| **The port is assumed to be delivered.** | This plan says it is not, and phase 5 records the authority question rather than answering it by code. |
 
 ## Considered and rejected
 
@@ -442,17 +510,28 @@ client.
   journal is a part of the job.
 - **A durable job queue or a `PageJobs` table.** The starting page's storage is the record; a table would be a
   second source of truth and a migration for nothing at this size.
+- **A durable message channel.** A message is delivered to a live job; a restart loses the pending
+  queue, and the page's storage is what a resumed job reads. A message bus is a different job.
 - **A job as a page render.** A page's handler writes a response; a job has none, and its context
-  would carry layout, session and antiforgery members it must not use. A library entry point says
-  what a job is without pretending it is a visit.
+  would carry layout, session and antiforgery members it must not use. A worker entry point says what
+  a job is without pretending it is a visit.
+- **A library with an entry point, compiled per start.** It needs no kind, but the author gets no
+  entry-point diagnostic when they save, every job pays for a compile, and a page could `using` the
+  program as if it were a module. The worker kind is the same idea with the lifecycle made explicit.
+- **A request/response RPC between a page and a worker.** Messages are one way in and events one way
+  out; a worker that wants to answer publishes an event, and a page that wants a reply reads it.
+- **A typed message object.** A message is a string; a worker that wants a shape parses it with
+  `JsonSerializer`, which the page contract already offers.
+- **A worker a page may `using`.** A worker is a program; its types are its own. Shared code is a
+  library both the page and the worker name.
 - **A general page writer now.** It is the largest authority in the port and is not a connection
-  primitive. Phase 4 writes the question down.
+  primitive. Phase 5 writes the question down.
 - **`Task.Delay` and `IAsyncEnumerable` in pages.** The wait belongs to the journal; the stream is a
   line at a time. Both denials keep the render's bound meaningful.
 - **A seeded SSE helper or a demo app.** Page code, not shell; the first app seeds a library
   (`DEC-08`).
 - **New assistant metrics.** The assistant's panels answer the assistant's questions; a job's
-  lifetime is a page instrument (`page.stream.*`) or a log line, not an assistant one.
+  lifetime is a page instrument (`page.stream.duration`) or a log line, not an assistant one.
 
 ## Components
 
@@ -462,49 +541,62 @@ client.
 | `PageBudget` and the three options records | The stream, job and fetch bounds | `src/uk.osric.asp.Web/Pages/` |
 | `IHttpFetch.StreamAsync` and `HttpFetchStream` | The page's outbound body, a line at a time | `src/uk.osric.asp.Sdk/` |
 | `OutboundFetcher` and `PageFetcher` | One implementation of the outbound rules for both paths | `src/uk.osric.asp.Web/Pages/` |
-| `IPageJobs` | Start, observe, wait and cancel, from a page | `src/uk.osric.asp.Sdk/` |
-| `IJob` and `IJobContext` | The entry point a job library declares, and the work context it is given | `src/uk.osric.asp.Sdk/` |
-| `Runtime` job compile | A library and its closure, policy-checked and emitted for one job | `src/uk.osric.asp.Runtime/` |
-| `Web/Work` | The queue, the registry, the journal and the worker | `src/uk.osric.asp.Web/Work/` |
-| The job host | Loads the job's library, finds the entry point, runs it under a job slot and releases it | `src/uk.osric.asp.Web/Work/` |
-| `/help` | The author manual: the lifetime, the stream, the job and its capabilities | `src/uk.osric.asp.Web/Pages/Seeds/help` |
+| `PageKind`, `PageImage` and `PageAssetPolicy` | The fourth kind, its stored image and the never-served, never-wrapped, never-asset rules | `src/uk.osric.asp.Core/` and `src/uk.osric.asp.Web/Pages/` |
+| `Runtime` worker compile and load | A worker and its closure, policy-checked, emitted and loaded for the entry point | `src/uk.osric.asp.Runtime/` |
+| `IPageJobs` | Start, send, observe, find, wait and cancel, from a page | `src/uk.osric.asp.Sdk/` |
+| `IWorker` and `IWorkerContext` | The entry point a worker declares, and the work context a job is given: receive messages, publish events | `src/uk.osric.asp.Sdk/` |
+| `Web/Work` | The queue, the registry, the message channel, the journal and the runner | `src/uk.osric.asp.Web/Work/` |
+| The job runner | Loads the worker's image, finds the entry point, runs it under a job slot and releases it | `src/uk.osric.asp.Web/Work/` |
+| `/help` | The author manual: the lifetime, the stream, the worker kind, the message protocol and the job | `src/uk.osric.asp.Web/Pages/Seeds/help` |
 
 ## Documentation and decisions
 
-- `docs/pages.md` — the execution budget, streaming, the API policy, a job library under the library
-  kind, and a new section each for the outbound stream and jobs.
+- `docs/pages.md` — the execution budget, streaming, the API policy, the four kinds with a worker
+  section, and a new section each for the outbound stream and jobs.
 - `docs/architecture.md` — configuration's new sections, and the audit if a route changes (it should
-  not: this plan adds capabilities, not views).
-- `docs/metrics.md` — `page.stream.duration`, the `job` compile reason, and the correction to the
+  not: this plan adds capabilities and a kind, not views).
+- `docs/metrics.md` — `page.stream.duration`, the `worker` compile reason, and the correction to the
   render histogram's top-bucket sentence.
-- `docs/logging.md` — a job's start, end and reason; no prompt, transcript or memory in a log line.
+- `docs/logging.md` — a job's start, end and reason; a message is never logged; no prompt, transcript
+  or memory in a log line.
+- `docs/storage.md` — the fourth `TemplateKind` value.
+- `docs/glossary.md` — **Worker** and **Job**, and why a worker is not a thread.
 - `docs/testing.md` — the suites and what belongs in the real host.
 - `src/uk.osric.asp.Web/Pages/Seeds/help` — the author manual, updated with each phase (DEC-173).
 - `docs/jobs/IDEA-025.md` and `docs/jobs/README.md` — the re-scope and the programme.
 - Decisions proposed, numbered at merge: the split budget, the stream slot and its refusal, the stream
-  instrument, the line-shaped outbound stream, the job as a library entry point, the three job
-  surfaces (`IPageJobs`, `IJob`, `IJobContext`), the job compile, the in-memory journal, the job's own
-  lifetime and slot, the bounded wait, the work-only capability set, and the configuration sections.
+  instrument, the line-shaped outbound stream, the worker kind, the job as a run of it, the job surface
+  (`IPageJobs`) and the worker contract (`IWorker`, `IWorkerContext`), the message channel, the worker
+  image and staleness, the data/code capability split, the closure exclusion, the in-memory journal,
+  the job's own lifetime and slot, the bounded wait, and the configuration sections.
 
 ## Delivered when
 
 - A stored page can hold a live response for minutes, bounded by silence and a ceiling, without holding
   a render slot.
 - A stored page can relay an outbound stream, line by line, under the same rules as a fetch.
-- A stored page can start a job library, another request can follow and cancel it, and the job's
-  durable state is the starting page's storage.
-- `/help` teaches all three, and the page contract's XML documentation matches.
+- A declaration-only source with one entry point is a **worker**: compiled and checked when it is
+  saved, stored with its image, answered `404`, never wrapped, never an asset and never a library a
+  page may name.
+- A stored page can start a worker as a job, send it messages, find it again after a reload, follow
+  and cancel it, and the job's durable state is the starting page's storage.
+- `/help` teaches all of it, and the page contract's XML documentation matches.
 - `make check` passes after every phase, and each phase has merged on the owner's answer.
 - IDEA-025 says what a port still lacks, and the authority question is written down for the owner.
 
 ## Open questions
 
 1. **The page-store write authority.** The assistant's tools save other pages. A page cannot, and a
-   job can only keep data. The port cannot happen without an answer. Does a job library get a page
-   writer for another key, bound to one configured job library, or does `IPageWriter` grow a key for
-   any caller? Phase 4 records the choice.
-2. **The names.** `IPageJobs`, `IJob`, `IJobContext`, `StreamAsync`, `HttpFetchStream` and
-   `PageStreamRefusedException` are the working names; the implementation phase settles them beside
-   the existing vocabulary in [the glossary](../glossary.md).
+   job can only keep data. The port cannot happen without an answer. Does a worker get a page writer
+   for another key, bound to one configured worker, or does `IPageWriter` grow a key for any caller?
+   Phase 5 records the choice.
+2. **The names.** `Worker` and `Job` are the working names for the kind and one run of it;
+   `IPageJobs`, `IWorker`, `IWorkerContext`, `StreamAsync`, `HttpFetchStream` and
+   `PageStreamRefusedException` are the surfaces. The implementation phase settles them beside the
+   existing vocabulary in [the glossary](../glossary.md), and the glossary says why a worker is not a
+   `System.Threading.Thread`.
 3. **How long a viewer may replay.** The ring's `RetentionMinutes` is a policy value; the first
    customer should say what "long enough to reconnect" means.
+4. **Whether an approval wait holds a job slot.** `ReceiveAsync` pauses the silence clock but not the
+   ceiling, and the job keeps its slot while it waits. The channel allows the alternative — end the
+   job at the question and start a new one with the answer — and the assistant's port chooses.
