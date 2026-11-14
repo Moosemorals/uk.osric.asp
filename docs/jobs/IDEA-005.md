@@ -16,6 +16,10 @@ SPDX-License-Identifier: MIT
 > `IPageLayout` reached through `ctx.Capabilities`, the chain renders under one slot and deadline, and
 > the shell keeps its own document (DEC-148–DEC-158). What is left of this item is shared **code**:
 > a named declaration a second page can compile against.
+>
+> **The shared-code half is planned, not built:** [page libraries](../plans/page-libraries.md) makes a
+> page one of three kinds and lets a library be named by a `using`, and it ends by moving
+> `PageDocument` out of `Sdk` into `ShellDocument`.
 
 ## Idea
 

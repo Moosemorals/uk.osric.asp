@@ -119,6 +119,7 @@ approval.
 | 7 | [ARCH-13](ARCH-13.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | — |
 | 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase | — |
 | 9 | [Page first](../plans/page-first.md) — re-scope against 5–8: DEC-210 and DEC-211 are recorded, but the audit and the memory page are not; build the page, or archive the plan behind IDEA-024 and IDEA-025 | L | 5–8 | the plan, then build-or-close | — |
+| 10 | [Page libraries](../plans/page-libraries.md) — IDEA-005's shared-code half: a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | — |
 
 The [assistant edit-safety plan](../plans/archive/assistant-edit-safety.md) landed between steps 5 and
 6 and is not a numbered job: it gives the edit tool its diff and line assertions, numbers the reads,
@@ -145,10 +146,9 @@ the other.
 
 Not in this programme: [OPS-03](OPS-03.md) is the obvious next candidate once the list above is
 empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
-[IDEA-001](IDEA-001.md) wants a third-party editor; [IDEA-005](IDEA-005.md) is a compile-time
-question of its own; [IDEA-020](IDEA-020.md) records why a destructive reset is not built;
-[IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7 touches; and
-[IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page.
+[IDEA-001](IDEA-001.md) wants a third-party editor; [IDEA-020](IDEA-020.md) records why a
+destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7
+touches; and [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page.
 
 ## Closed
 
