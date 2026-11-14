@@ -50,7 +50,8 @@ template-language spike](../spikes/vscode-template-language.md) of the same day:
 editor — is what is left. IDEA-033 came out of the
 [page-first re-scope](../plans/page-first.md) of 2026-11-14 (DEC-291): the memory page the plan first
 moved needs the assistant's own store, so the capability a page actually lacks is somewhere to keep
-something for a signed-in account.
+something for a signed-in account. IDEA-034 came out of the owner's question of 2026-11-14: the
+analyzers work turned the XML documentation on and the image carries it, and nothing reads it.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -67,6 +68,7 @@ something for a signed-in account.
 | [IDEA-030](IDEA-030.md) | — | M | Every view writes its own navigation: the shell, the admin, the assistant and the seeds each assemble the same links |
 | [IDEA-031](IDEA-031.md) | — | S | Some policy is still a constant in code: password and user-name length, the security headers, the page API allow-list, and the internal retry and sweep periods |
 | [IDEA-033](IDEA-033.md) | — | L | A page has no persistent per-account store: `IPageStorage` is shared by every visitor, `IPageSession` goes when the visitor signs out, and nothing keeps anything for a signed-in account |
+| [IDEA-034](IDEA-034.md) | — | M | The XML documentation is built and packed, and nothing reads it: no reference page for the build that is serving the site, and the page assistant cannot read the page contract's own words |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
