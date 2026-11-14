@@ -34,6 +34,10 @@ internal sealed class PageEndpoint() {
         PageEditor? editor = null) {
         ArgumentNullException.ThrowIfNull(context);
 
+        // Created only when a line is written: creating a category is visible to a test that pins the
+        // page logger, and a successful request has nothing to say here.
+        ILogger EndpointLogger() => loggerFactory.CreateLogger<PageEndpoint>();
+
         PagePath path = PagePath.Normalize(context.Request.RouteValues["path"] as string);
 
         // A key is a path, so a decoded delimiter means the URL names no page. Checked before the
@@ -193,6 +197,7 @@ internal sealed class PageEndpoint() {
         // One body, one fetch allowance and one template allowance for the whole chain: the chrome is
         // part of the response, so a layout must not be able to buffer, fetch or read beside the
         // page's own budgets.
+        PageBodySink bodySink = new(context, environment, session);
         PageChain chain = new(
             environment,
             editor,
@@ -202,6 +207,7 @@ internal sealed class PageEndpoint() {
             session,
             isHead,
             new BodyBudget(environment.Render.MaxBodyChars),
+            bodySink,
             new RenderFetchBudget(environment.Fetch.MaxRequestsPerRender),
             new ReadBudget(environment.Read.MaxSourceCharsPerRender),
             assets,
@@ -216,9 +222,24 @@ internal sealed class PageEndpoint() {
         // One slot and one deadline for the whole chain, so a wrapped page costs one render rather
         // than two.
         await using PageRenderer.RenderSession render = await pages.OpenSessionAsync(path, context.RequestAborted);
-        RenderResult result = selection is null
-            ? await render.RenderAsync(path, page)
-            : await render.RenderAsync(path, page, selection);
+
+        RenderResult result;
+        try {
+            result = selection is null
+                ? await render.RenderAsync(path, page)
+                : await render.RenderAsync(path, page, selection);
+        } catch (Exception exception) when (page.IsCommitted) {
+            // The response is already on the wire, so there is no error page to write and no status to
+            // change. A client that left is not a page fault; anything else is.
+            if (ResponseWrite.IsDisconnect(context, exception)) {
+                EndpointLogger().LogDebug(exception, "Page {Path} lost the client after committing its response", path.Key);
+            } else {
+                EndpointLogger().LogError(exception, "Page {Path} failed after committing its response; the response was truncated", path.Key);
+            }
+
+            context.Abort();
+            return;
+        }
 
         switch (result.Status) {
             case RenderStatus.NotFound:
@@ -228,8 +249,40 @@ internal sealed class PageEndpoint() {
                 await WriteCompileErrorAsync(context, result.Diagnostics);
                 return;
             case RenderStatus.Timeout:
+                if (page.IsCommitted) {
+                    // A 504 cannot replace headers that are already sent. The renderer has already
+                    // logged and counted the abandonment; this is the truncation.
+                    EndpointLogger().LogWarning("Page {Path} outran its budget after committing its response; the response was truncated", path.Key);
+                    context.Abort();
+                    return;
+                }
+
                 await WriteTimeoutAsync(context, path);
                 return;
+        }
+
+        if (page.IsCommitted) {
+            if (versionHash is not null) {
+                environment.Metrics.RecordAsset(PageMetrics.AssetNonAsset);
+            }
+
+            if (contentLayout.Layout is not null && PageChain.IsHtml(page.ToResponse().ContentType)) {
+                EndpointLogger().LogWarning(
+                    "Page {Path} flushed its response and then named layout {Layout}; the page was served alone",
+                    path.Key, contentLayout.Layout);
+            }
+
+            try {
+                await page.CompleteAsync();
+            } catch (Exception exception) when (ResponseWrite.IsDisconnect(context, exception)) {
+                EndpointLogger().LogDebug(exception, "Page {Path} lost the client while finishing its response", path.Key);
+                context.Abort();
+            } catch (Exception exception) {
+                EndpointLogger().LogError(exception, "Page {Path} failed while finishing its response; the response was truncated", path.Key);
+                context.Abort();
+            }
+
+            return;
         }
 
         if (result.IsSource) {
@@ -351,51 +404,19 @@ internal sealed class PageEndpoint() {
         string body,
         PageEnvironment environment,
         PageSessionRequest session) {
-        if (response.Location is not null) {
-            // A redirect can carry the promise of a page the visitor is not yet allowed to see, so it
-            // is never cached, whoever asked.
-            SecurityHeaders.NoStore(context);
-            WriteSessionCookie(context, environment, session);
-            Redirect.To(context, response.Status, response.Location);
+        if (await PageResponseWriter.ApplyAsync(
+            context, response, environment, session, start: false, context.RequestAborted)) {
             return;
-        }
-
-        // A redirect carries no document to run a script in, so its policy is left alone.
-        if (response.AllowsScripts) {
-            SecurityHeaders.AllowScripts(context);
-        }
-
-        context.Response.StatusCode = response.Status;
-        context.Response.ContentType = response.ContentType;
-        foreach ((string name, string value) in response.Headers) {
-            context.Response.Headers[name] = value;
         }
 
         byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
 
-        // Every page that runs code is per-visitor: a page session can be written by any render, so
-        // the body has no business in a shared cache and no business inviting a conditional request.
-        // Copies first, then overrides, so a page cannot weaken it with SetHeader.
-        SecurityHeaders.NoStore(context);
-        context.Response.Headers.Remove("ETag");
-        WriteSessionCookie(context, environment, session);
-
-        if (response.Status is >= StatusCodes.Status200OK
-            and not StatusCodes.Status204NoContent
-            and not StatusCodes.Status304NotModified) {
+        if (PageResponseWriter.AllowsBody(response)) {
             context.Response.ContentLength = bodyBytes.LongLength;
         }
 
         if (!HttpMethods.IsHead(context.Request.Method)) {
             await context.Response.Body.WriteAsync(bodyBytes.AsMemory(), context.RequestAborted);
-        }
-    }
-
-    // Minted lazily, so a page that only reads costs a visitor no cookie and the next write is the
-    // first thing that needs one.
-    private static void WriteSessionCookie(HttpContext context, PageEnvironment environment, PageSessionRequest session) {
-        if (session.NeedsCookie) {
-            PageSessionCookie.Write(context, session.Id, environment.SessionCookie);
         }
     }
 

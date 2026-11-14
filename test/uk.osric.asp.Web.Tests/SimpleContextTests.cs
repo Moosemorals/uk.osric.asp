@@ -399,6 +399,159 @@ public sealed class SimpleContextTests {
         Assert.That(logs.Entries[0].Message, Is.EqualTo("broken"));
     }
 
+    [Test]
+    public async Task TheFirstFlushStartsTheResponseOnceAndWritesTheBuffer() {
+        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
+
+        context.Write("first");
+        await context.FlushAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(context.IsCommitted, Is.True);
+            Assert.That(sink.Started, Has.Count.EqualTo(1));
+            Assert.That(sink.Started[0].Status, Is.EqualTo(200));
+            Assert.That(sink.Chunks, Is.EqualTo(["first"]));
+        });
+    }
+
+    [Test]
+    public async Task TheSecondFlushWritesOnlyWhatCameAfter() {
+        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
+
+        context.Write("one");
+        await context.FlushAsync();
+        context.Write("two");
+        await context.FlushAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(sink.Started, Has.Count.EqualTo(1), "the response is committed once");
+            Assert.That(sink.Chunks, Is.EqualTo(["one", "two"]));
+        });
+    }
+
+    [Test]
+    public async Task TheTailAfterTheLastFlushIsSentAtCompletion() {
+        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
+
+        context.Write("one");
+        await context.FlushAsync();
+        context.Write("two");
+        await context.CompleteAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(sink.Started, Has.Count.EqualTo(1));
+            Assert.That(sink.Chunks, Is.EqualTo(["one", "two"]));
+        });
+    }
+
+    [Test]
+    public async Task AnEmptyFirstFlushStartsTheResponseWithoutWritingABody() {
+        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
+
+        await context.FlushAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(context.IsCommitted, Is.True);
+            Assert.That(sink.Started, Has.Count.EqualTo(1));
+            Assert.That(sink.Chunks, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void AContextWithNoSinkCannotStream() {
+        SimpleContext context = CreateContext(out _);
+
+        Assert.That(() => context.FlushAsync(), Throws.InvalidOperationException.With.Message.Contains("cannot stream"));
+    }
+
+    [Test]
+    public void ALayoutCannotStream() {
+        SimpleContext context = CreateStreamingContext(out _, out _, isLayout: true);
+
+        Assert.That(() => context.FlushAsync(), Throws.InvalidOperationException.With.Message.Contains("layout"));
+    }
+
+    [Test]
+    public void ARedirectCannotStream() {
+        SimpleContext context = CreateStreamingContext(out _, out _);
+
+        context.Redirect("/elsewhere");
+
+        Assert.That(() => context.FlushAsync(), Throws.InvalidOperationException.With.Message.Contains("redirect"));
+    }
+
+    [Test]
+    public void AWrappedPageCannotStream() {
+        SimpleContext context = CreateStreamingContext(out _, out _, wouldWrap: _ => true);
+
+        Assert.That(() => context.FlushAsync(),
+            Throws.InvalidOperationException.With.Message.Contains("Set IPageLayout.Layout to null"));
+        Assert.That(context.IsCommitted, Is.False);
+    }
+
+    [Test]
+    public async Task AFlushAfterAbandonWritesNothing() {
+        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
+
+        context.Write("buffered");
+        context.Abandon();
+        await context.FlushAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(context.IsCommitted, Is.False);
+            Assert.That(sink.Started, Is.Empty);
+            Assert.That(sink.Chunks, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task ResponseSettingsAfterTheFlushThrow() {
+        SimpleContext context = CreateStreamingContext(out _, out _);
+        await context.FlushAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(() => context.SetStatus(201), Throws.InvalidOperationException);
+            Assert.That(() => context.SetContentType("text/plain"), Throws.InvalidOperationException);
+            Assert.That(() => context.SetHeader("X-Late", "1"), Throws.InvalidOperationException);
+            Assert.That(() => context.AllowScripts(), Throws.InvalidOperationException);
+            Assert.That(() => context.Redirect("/elsewhere"), Throws.InvalidOperationException);
+            Assert.That(() => context.RedirectToLogin(), Throws.InvalidOperationException);
+            Assert.That(() => _ = context.AntiforgeryField, Throws.InvalidOperationException);
+        });
+    }
+
+    [Test]
+    public async Task StreamingKeepsWriteEscapedAndWriteRawRaw() {
+        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
+
+        context.Write("<b>");
+        context.WriteRaw("<i>");
+        await context.FlushAsync();
+
+        Assert.That(sink.Chunks, Is.EqualTo(["&lt;b&gt;<i>"]));
+    }
+
+    [Test]
+    public async Task TheBodyCapStopsAtTheFirstFlush() {
+        SimpleContext context = CreateStreamingContext(out _, out _, maxBodyChars: 10);
+
+        context.Write("0123456789");
+        await context.FlushAsync();
+        context.Write("0123456789");
+        await context.FlushAsync();
+        context.Write("0123456789");
+
+        Assert.That(context.IsCommitted, Is.True);
+    }
+
+    [Test]
+    public void TheBodyCapStillRefusesAnOversizedBufferBeforeTheFlush() {
+        SimpleContext context = CreateStreamingContext(out _, out _, maxBodyChars: 10);
+
+        Assert.That(() => context.Write("01234567890"), Throws.InvalidOperationException.With.Message.Contains("10"));
+        Assert.That(context.IsCommitted, Is.False);
+    }
+
     // A page-level store over an empty one, registered as the capability the endpoint offers.
     private static PageCapabilities CapabilitiesFor(string path) {
         PageStorageScope storage = new(
@@ -428,6 +581,29 @@ public sealed class SimpleContextTests {
             user,
             loginRedirect,
             antiforgeryField);
+    }
+
+    private static SimpleContext CreateStreamingContext(
+        out StringWriter output,
+        out FakePageBodySink sink,
+        bool isLayout = false,
+        Func<string, bool>? wouldWrap = null,
+        int maxBodyChars = 4 * 1024 * 1024) {
+        output = new StringWriter();
+        sink = new FakePageBodySink();
+
+        return new SimpleContext(
+            NullLoggerFactory.Instance,
+            TestHttp.Request("/page"),
+            CancellationToken.None,
+            output,
+            CapabilitiesFor("/page"),
+            TestContentTypes.Shipped,
+            maxBodyChars,
+            TestOptions.Editor.Key,
+            isLayout: isLayout,
+            bodySink: sink,
+            wouldWrap: wouldWrap);
     }
 
     private static SimpleContext CreateContext(string path, out RecordingLoggerFactory logs) {

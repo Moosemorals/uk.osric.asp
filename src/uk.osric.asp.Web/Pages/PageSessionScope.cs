@@ -22,7 +22,8 @@ internal sealed class PageSessionScope(
     PageSessionOptions options,
     PageSessionRequest session,
     bool writable,
-    bool slides) : RenderBoundCapability, IPageSession {
+    bool slides,
+    PageCommitState? commit = null) : RenderBoundCapability, IPageSession {
 
     // One instance is enough: JsonSerializerOptions is thread-safe once it has been used, and every
     // page serialises the same way page storage does.
@@ -49,6 +50,14 @@ internal sealed class PageSessionScope(
         ValidateKey(key);
         ThrowIfReadOnly();
         ThrowIfEnded();
+
+        // A first write after the commit would mint a session whose cookie cannot be sent, leaving a
+        // row nothing can reach. A visitor who already presented a cookie needs no header, so the
+        // write is ordinary.
+        if (commit?.Committed == true && !session.Exists) {
+            throw new InvalidOperationException(
+                $"{path.Key} cannot start a session after its response was flushed; write the session before the first flush.");
+        }
 
         string json = JsonSerializer.Serialize(value, s_json);
         PageSessionCaps caps = options.For(session.Account);

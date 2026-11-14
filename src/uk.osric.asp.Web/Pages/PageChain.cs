@@ -25,6 +25,7 @@ internal sealed class PageChain {
 
     private readonly CancellationToken _aborted;
     private readonly Func<string> _antiforgeryField;
+    private readonly IPageBodySink _bodySink;
     private readonly BodyBudget _bodyBudget;
     private readonly PageEnvironment _environment;
     private readonly PageEditor? _editor;
@@ -48,6 +49,7 @@ internal sealed class PageChain {
     /// <param name="session">The visitor's session, resolved once by the endpoint.</param>
     /// <param name="isHead">Whether the request is a HEAD, which renders but never writes state.</param>
     /// <param name="bodyBudget">The allowance the whole chain shares.</param>
+    /// <param name="bodySink">Where a flushing content layer writes its response.</param>
     /// <param name="fetchBudget">The fetch allowance the whole chain shares.</param>
     /// <param name="readBudget">The template allowance the whole chain shares.</param>
     /// <param name="assets">The live assets every layer's links may be versioned against.</param>
@@ -66,6 +68,7 @@ internal sealed class PageChain {
         PageSessionRequest session,
         bool isHead,
         BodyBudget bodyBudget,
+        IPageBodySink bodySink,
         RenderFetchBudget fetchBudget,
         ReadBudget readBudget,
         IReadOnlyDictionary<string, string> assets,
@@ -77,6 +80,7 @@ internal sealed class PageChain {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(bodyBudget);
+        ArgumentNullException.ThrowIfNull(bodySink);
         ArgumentNullException.ThrowIfNull(fetchBudget);
         ArgumentNullException.ThrowIfNull(readBudget);
         ArgumentNullException.ThrowIfNull(assets);
@@ -92,6 +96,7 @@ internal sealed class PageChain {
         _isHead = isHead;
         _aborted = aborted;
         _bodyBudget = bodyBudget;
+        _bodySink = bodySink;
         _fetchBudget = fetchBudget;
         _readBudget = readBudget;
         _assets = assets;
@@ -104,19 +109,21 @@ internal sealed class PageChain {
     /// <param name="writer">The buffer the layer's body goes to.</param>
     /// <param name="layout">The layer's slots.</param>
     /// <param name="isLayout">Whether the layer is a layout, which may not touch the response.</param>
-    public SimpleContext CreateLayer(PagePath key, TextWriter writer, PageLayoutState layout, bool isLayout) {
+    public SimpleContext CreateLayer(PagePath key, StringWriter writer, PageLayoutState layout, bool isLayout) {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(layout);
 
         PageStorageScope storage = new(key, _environment.StateStore, _environment.Storage, writable: !_isHead);
+        PageCommitState commit = new();
         PageSessionScope session = new(
             key,
             _environment.SessionStore,
             _environment.Sessions,
             _session,
             writable: !_isHead && !isLayout,
-            slides: !_isHead);
+            slides: !_isHead,
+            commit: commit);
         PageHttpFetch fetch = new(
             key,
             _isHead,
@@ -173,7 +180,10 @@ internal sealed class PageChain {
             key,
             isLayout,
             _bodyBudget,
-            href => PageAssetMap.Resolve(_assets, href));
+            href => PageAssetMap.Resolve(_assets, href),
+            commit,
+            isLayout ? null : _bodySink,
+            contentType => IsHtml(contentType) && layout.Layout is not null);
     }
 
     /// <summary>Wraps the content in the layouts it names, outermost last.</summary>
@@ -281,6 +291,6 @@ internal sealed class PageChain {
         return new PageChainResult.Served(response with { AllowsScripts = allowsScripts }, innerBody);
     }
 
-    private static bool IsHtml(string contentType) =>
+    internal static bool IsHtml(string contentType) =>
         contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase);
 }

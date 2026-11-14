@@ -20,6 +20,11 @@ namespace uk.osric.asp.Sdk;
 /// It is not a guard. The content has already run by the time the layout starts, so a layout hides
 /// chrome; it cannot prevent a side effect.
 /// </para>
+/// <para>
+/// A page that streams its response with <see cref="IContext.FlushAsync"/> is served alone: clear
+/// <see cref="Layout"/> before the first flush, because a layout needs the whole body before it can
+/// write its own.
+/// </para>
 /// </remarks>
 public interface IPageLayout {
 

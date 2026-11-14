@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using System.Globalization;
 using System.Net;
+using System.Text;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Http;
@@ -20,6 +21,7 @@ using uk.osric.asp.Web.Http;
 /// operator-facing: changing them breaks configured filters and log queries.
 /// </para>
 /// </remarks>
+#pragma warning disable CA1001 // One render's context; the flush gate never allocates a wait handle.
 internal sealed class SimpleContext : IContext {
 
     // A page must not be able to clobber the shell's own cookies or framing. Everything that changes
@@ -38,17 +40,21 @@ internal sealed class SimpleContext : IContext {
 
     private readonly Func<string>? _antiforgeryFactory;
     private readonly Func<string, string>? _assetUrl;
+    private readonly IPageBodySink? _bodySink;
     private readonly Lock _body = new();
     private readonly PageCapabilities _capabilities;
+    private readonly PageCommitState _commit;
     private readonly Dictionary<string, string> _headers = [with(StringComparer.OrdinalIgnoreCase)];
     private readonly string _editorPath;
+    private readonly SemaphoreSlim _flushing = new(1, 1);
     private readonly string _loginRedirect;
     private readonly BodyBudget _bodyBudget;
     private readonly bool _isLayout;
     private readonly ILogger _logger;
     private readonly PagePath _path;
     private readonly PageRequest _request;
-    private readonly TextWriter _writer;
+    private readonly StringWriter _writer;
+    private readonly Func<string, bool>? _wouldWrap;
 
     // Written once, under the body lock, so two reads in one render hand out one token: the token and
     // its cookie are a pair, and minting a second would leave the first unverifiable.
@@ -59,6 +65,7 @@ internal sealed class SimpleContext : IContext {
     private volatile bool _abandoned;
     private bool _allowsScripts;
     private string _contentType;
+    private CancellationToken _deadline = CancellationToken.None;
     private string? _location;
     private int _status = PageResponse.Default.Status;
 
@@ -88,13 +95,22 @@ internal sealed class SimpleContext : IContext {
     /// no map and every link is left as written.
     /// </param>
     /// <param name="editorPath">The editor key a layout's remedy links to.</param>
+    /// <param name="commitState">
+    /// Whether this layer has committed its response, shared with the capabilities that would need to
+    /// set a header after the commit.
+    /// </param>
+    /// <param name="bodySink">Where a flushing page writes, or <see langword="null"/> when it cannot stream.</param>
+    /// <param name="wouldWrap">
+    /// Whether a response of this content type would be wrapped in a layout, in which case it cannot
+    /// stream.
+    /// </param>
 #pragma warning disable CA1068 // CancellationToken parameters must come last
     public SimpleContext(
 #pragma warning restore CA1068 // CancellationToken parameters must come last
         ILoggerFactory loggerFactory,
         PageRequest request,
         CancellationToken aborted,
-        TextWriter writer,
+        StringWriter writer,
         PageCapabilities capabilities,
         PageContentTypes contentTypes,
         int maxBodyChars,
@@ -105,7 +121,10 @@ internal sealed class SimpleContext : IContext {
         PagePath? path = null,
         bool isLayout = false,
         BodyBudget? bodyBudget = null,
-        Func<string, string>? assetUrl = null) {
+        Func<string, string>? assetUrl = null,
+        PageCommitState? commitState = null,
+        IPageBodySink? bodySink = null,
+        Func<string, bool>? wouldWrap = null) {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
@@ -118,6 +137,8 @@ internal sealed class SimpleContext : IContext {
         // The path is canonical here: PageEndpoint redirects anything else before building a context.
         _logger = loggerFactory.CreateLogger(PageCategory);
         _bodyBudget = bodyBudget ?? new BodyBudget(maxBodyChars);
+        _bodySink = bodySink;
+        _commit = commitState ?? new PageCommitState();
         _isLayout = isLayout;
         _path = path ?? PagePath.Normalize(request.Path);
         _request = request;
@@ -125,6 +146,7 @@ internal sealed class SimpleContext : IContext {
         _editorPath = editorPath;
         _antiforgeryFactory = antiforgeryField;
         _assetUrl = assetUrl;
+        _wouldWrap = wouldWrap;
         Aborted = aborted;
         _capabilities = capabilities;
         _writer = writer;
@@ -170,9 +192,15 @@ internal sealed class SimpleContext : IContext {
         }
     }
 
+    /// <summary>Whether the first flush has committed the response.</summary>
+    public bool IsCommitted => _commit.Committed;
+
     /// <summary>Gives the page the render's deadline, so its I/O is cancelled with the render.</summary>
     /// <param name="deadline">The deadline's token; it outlives this context's use of it.</param>
-    public void AttachDeadline(CancellationToken deadline) => _capabilities.AttachDeadline(deadline);
+    public void AttachDeadline(CancellationToken deadline) {
+        _deadline = deadline;
+        _capabilities.AttachDeadline(deadline);
+    }
 
     /// <summary>Stops the page writing, once its render has been given up on.</summary>
     /// <remarks>
@@ -224,6 +252,118 @@ internal sealed class SimpleContext : IContext {
         WriteBody(message);
     }
 
+    /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">
+    /// This render cannot stream, the page is a layout, it has redirected, or it is still wrapped in a
+    /// layout.
+    /// </exception>
+    public async Task FlushAsync() {
+        ThrowIfCannotStream();
+
+        using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(Aborted, _deadline);
+        CancellationToken cancellationToken = linked.Token;
+
+        await _flushing.WaitAsync(cancellationToken);
+        try {
+            string text;
+            bool first;
+
+            lock (_body) {
+                if (_abandoned) {
+                    return;
+                }
+
+                text = TakeBuffer();
+                first = !_commit.Committed;
+                if (first) {
+                    _commit.Committed = true;
+                }
+            }
+
+            if (first) {
+                await _bodySink!.StartAsync(ToResponse(), cancellationToken);
+            }
+
+            if (text.Length > 0) {
+                await _bodySink!.WriteAsync(Encoding.UTF8.GetBytes(text), cancellationToken);
+            }
+        } finally {
+            _ = _flushing.Release();
+        }
+    }
+
+    /// <summary>Writes whatever the page left buffered after its last flush.</summary>
+    /// <remarks>
+    /// Only a committed response has a body to complete; a buffered one is shaped from the context by
+    /// the endpoint. A disconnect or a deadline that fires during this last write is the response
+    /// ending, not a page fault.
+    /// </remarks>
+    public async Task CompleteAsync() {
+        if (_bodySink is null || !_commit.Committed) {
+            return;
+        }
+
+        using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(Aborted, _deadline);
+        CancellationToken cancellationToken = linked.Token;
+
+        await _flushing.WaitAsync(cancellationToken);
+        try {
+            string text;
+
+            lock (_body) {
+                if (_abandoned) {
+                    return;
+                }
+
+                text = TakeBuffer();
+            }
+
+            if (text.Length > 0) {
+                await _bodySink.WriteAsync(Encoding.UTF8.GetBytes(text), cancellationToken);
+            }
+        } catch (OperationCanceledException) {
+            // The response is already committed and the client or the deadline has ended it; there is
+            // nothing left to write and nothing to report as a page fault.
+        } finally {
+            _ = _flushing.Release();
+        }
+    }
+
+    // Validated before the commit: a redirect has no body, a layout cannot stream, and a page that
+    // would be wrapped has no place to put the bytes before the layout has run.
+    private void ThrowIfCannotStream() {
+        if (_isLayout) {
+            throw new InvalidOperationException($"{Path} is a layout; a layout is markup and cannot stream.");
+        }
+
+        if (_bodySink is null) {
+            throw new InvalidOperationException($"{Path} cannot stream its response in this render.");
+        }
+
+        if (_location is not null) {
+            throw new InvalidOperationException($"{Path} has redirected; a redirect has no body to stream.");
+        }
+
+        if (_wouldWrap?.Invoke(_contentType) == true) {
+            throw new InvalidOperationException(
+                $"{Path} is wrapped in a layout, which needs its whole body before it can run. Set IPageLayout.Layout to null and write the page's own document before the first flush.");
+        }
+    }
+
+    private string TakeBuffer() {
+        StringBuilder buffer = _writer.GetStringBuilder();
+        string text = buffer.ToString();
+        _ = buffer.Clear();
+        return text;
+    }
+
+    private void ThrowIfCommitted(string member) {
+        if (_commit.Committed) {
+            throw new InvalidOperationException(
+                $"{Path} has already flushed its response; {member} must be called before the first flush.");
+        }
+    }
+
     // The page's identity belongs on the scope, not the category: see PageCategory.
     private void LogAt(LogLevel level, string message) {
         // Checked first so a filtered level costs what it did through LogInformation and friends,
@@ -244,7 +384,9 @@ internal sealed class SimpleContext : IContext {
                 return;
             }
 
-            if (!_bodyBudget.TryCharge(text.Length)) {
+            // The cap exists to bound what is held in memory before the response can be sent. Once the
+            // page has committed, its body is on the wire and a total cap would defeat streaming.
+            if (!_commit.Committed && !_bodyBudget.TryCharge(text.Length)) {
                 throw new InvalidOperationException(
                     $"{Path} wrote more than {_bodyBudget.MaxChars} characters; the render was stopped.");
             }
@@ -262,6 +404,8 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public void SetStatus(int status) {
+        ThrowIfCommitted(nameof(SetStatus));
+
         if (IgnoreAsLayout(nameof(SetStatus), status.ToString(CultureInfo.InvariantCulture))) {
             return;
         }
@@ -274,6 +418,8 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public void SetContentType(string contentType) {
+        ThrowIfCommitted(nameof(SetContentType));
+
         if (IgnoreAsLayout(nameof(SetContentType), contentType)) {
             return;
         }
@@ -285,6 +431,8 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public void SetHeader(string name, string value) {
+        ThrowIfCommitted(nameof(SetHeader));
+
         if (IgnoreAsLayout(nameof(SetHeader), name)) {
             return;
         }
@@ -305,6 +453,8 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public void AllowScripts() {
+        ThrowIfCommitted(nameof(AllowScripts));
+
         // The one response setting a layout shares: its script is part of its chrome, so the union
         // with the content's is what the response is served with.
         _allowsScripts = true;
@@ -312,6 +462,8 @@ internal sealed class SimpleContext : IContext {
 
     /// <inheritdoc/>
     public void Redirect(string location, int status = 302) {
+        ThrowIfCommitted(nameof(Redirect));
+
         if (IgnoreAsLayout(nameof(Redirect), location)) {
             return;
         }
@@ -340,6 +492,8 @@ internal sealed class SimpleContext : IContext {
     /// <inheritdoc/>
     public string AntiforgeryField {
         get {
+            ThrowIfCommitted(nameof(AntiforgeryField));
+
             if (_antiforgeryFactory is null) {
                 return string.Empty;
             }
@@ -378,4 +532,5 @@ internal sealed class SimpleContext : IContext {
         return s_allowedHeaders.Contains(name)
             || name.StartsWith(CustomHeaderPrefix, StringComparison.OrdinalIgnoreCase);
     }
+#pragma warning restore CA1001
 }

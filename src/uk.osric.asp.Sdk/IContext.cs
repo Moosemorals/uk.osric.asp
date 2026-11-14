@@ -13,7 +13,8 @@ namespace uk.osric.asp.Sdk;
 /// <para>
 /// Status, content type and headers are applied after <see cref="IHandler.HandleAsync"/> completes. The
 /// body is buffered until then, so a page that throws produces a clean error response rather than
-/// half a document.
+/// half a document. A page that calls <see cref="FlushAsync"/> opts into sending its body while it
+/// runs; from the first flush the response is committed and those settings are final.
 /// </para>
 /// <para>
 /// The handler is asynchronous, so <c>await</c> is an ordinary expression in a code block and inside
@@ -74,6 +75,40 @@ public interface IContext {
     /// <summary>Writes escaped HTML to the output.</summary>
     /// <param name="message">The text to escape and write.</param>
     public void Write(string message);
+
+    /// <summary>Sends what has been written so far and commits the response.</summary>
+    /// <returns>A task that completes when the bytes have been handed to the response.</returns>
+    /// <remarks>
+    /// <para>
+    /// The first flush is the commit point: the status, content type, headers and script policy are
+    /// applied and the response starts, so they are final from then on. A later
+    /// <see cref="SetStatus"/>, <see cref="SetContentType"/>, <see cref="SetHeader"/>,
+    /// <see cref="AllowScripts"/>, <see cref="Redirect"/> or read of <see cref="AntiforgeryField"/>
+    /// throws instead of silently doing nothing. Writes after a flush are buffered until the next
+    /// flush, and whatever remains when the handler returns is sent then.
+    /// </para>
+    /// <para>
+    /// A page that flushes is served alone: a layout needs the whole body before it can run, so a
+    /// flush while the page would be wrapped throws. Clear <c>IPageLayout.Layout</c> and write the
+    /// page's own document first. A layout itself cannot flush.
+    /// </para>
+    /// <para>
+    /// Streaming does not change the escaping rule: <see cref="Write"/> still encodes and
+    /// <see cref="WriteRaw"/> still writes the caller's markup. A page that fails after its first
+    /// flush has no error page to fall back on; the response is truncated and the failure is logged.
+    /// The render budget still applies, so a stream is ended at its deadline, and a <c>HEAD</c>
+    /// request commits the response but sends no body.
+    /// </para>
+    /// <para>
+    /// This takes no cancellation token, like every other I/O member here: the render owns
+    /// <see cref="Aborted"/> and the deadline and links them per call.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// The render cannot stream, the page is a layout, it has redirected, or it is still wrapped in a
+    /// layout.
+    /// </exception>
+    public Task FlushAsync();
 
     /// <summary>Sets the response status code.</summary>
     /// <param name="status">The code to send, between 100 and 599.</param>

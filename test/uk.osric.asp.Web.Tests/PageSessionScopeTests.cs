@@ -306,6 +306,37 @@ public sealed class PageSessionScopeTests {
         await Assert.ThrowsAsync<OperationCanceledException>(() => page.SetAsync("key", 1));
     }
 
+    [Test]
+    public async Task AFirstWriteAfterTheCommitIsRefusedAsync() {
+        FakePageSessionStore store = new();
+        PageCommitState commit = new() { Committed = true };
+        PageSessionRequest session = NewSession();
+        IPageSession page = new PageSessionScope(
+            Key("/page"), store, TestOptions.Session, session, writable: true, slides: true, commit: commit);
+
+        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => page.SetAsync("draft", "hello"));
+
+        Assert.Multiple(() => {
+            Assert.That(refused?.Message, Does.Contain("before the first flush"));
+            Assert.That(store.Raw(session.Id, "/page", "draft"), Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task AWriteWithAnExistingSessionAfterTheCommitIsAllowedAsync() {
+        FakePageSessionStore store = new();
+        PageCommitState commit = new() { Committed = true };
+        PageSessionRequest existing = new(PageSessionCookie.Mint(), null, presented: true, exists: true);
+        store.Seed(existing.Id, "/page", "other", "\"x\"");
+        IPageSession page = new PageSessionScope(
+            Key("/page"), store, TestOptions.Session, existing, writable: true, slides: true, commit: commit);
+
+        await page.SetAsync("draft", "hello");
+
+        Assert.That(store.Raw(existing.Id, "/page", "draft"), Is.Not.Null);
+    }
+
     private static PagePath Key(string path) => PagePath.Normalize(path);
 
     private static PageSessionRequest NewSession(string? account = null) =>

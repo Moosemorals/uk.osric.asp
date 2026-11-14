@@ -10,6 +10,8 @@ public interface IHandler {
     /// <returns>A task that completes when the page has finished.</returns>
     /// <remarks>
     /// The host awaits the returned task; the response is shaped from the context once it completes.
+    /// A page that calls <see cref="IContext.FlushAsync"/> commits the response earlier, and the rest
+    /// of the body is sent as it is written.
     /// A page must not start work it does not await, because nothing else in the render waits for it
     /// and the answer may already have been given when it finishes.
     /// </remarks>

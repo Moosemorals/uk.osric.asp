@@ -22,7 +22,10 @@ internal sealed record RenderOptions {
     /// <summary>Page renders allowed to run at once; further requests wait without a thread.</summary>
     public required int Slots { get; init; }
 
-    /// <summary>How much body a page may buffer before it is refused.</summary>
+    /// <summary>
+    /// How much body a page may buffer before it is refused. It stops at the first flush: a streaming
+    /// page's body is on the wire and is not charged after its response has been committed.
+    /// </summary>
     public required int MaxBodyChars { get; init; }
 
     /// <summary>Abandoned renders alive at once before the health check reports unhealthy.</summary>

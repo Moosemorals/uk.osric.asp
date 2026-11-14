@@ -114,6 +114,7 @@ uk.osric.asp.Sdk.PageSaveResult.PageSaveResult(string! Hash, System.Collections.
 uk.osric.asp.Sdk.IDiffRenderer
 uk.osric.asp.Sdk.IDiffRenderer.ToHtml(string! before, string! after) -> string!
 uk.osric.asp.Sdk.IContext.Capabilities.get -> uk.osric.asp.Sdk.IPageCapabilities!
+uk.osric.asp.Sdk.IContext.FlushAsync() -> System.Threading.Tasks.Task!
 uk.osric.asp.Sdk.IPageCapabilities
 uk.osric.asp.Sdk.IPageCapabilities.Get<T>() -> T?
 uk.osric.asp.Sdk.IPageCapabilities.GetRequired<T>() -> T!

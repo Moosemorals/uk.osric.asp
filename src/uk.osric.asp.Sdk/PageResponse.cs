@@ -6,7 +6,9 @@ namespace uk.osric.asp.Sdk;
 /// <summary>What a page asked the response to be.</summary>
 /// <remarks>
 /// The shell applies this after the handler has returned, which is why the body is buffered: a page
-/// that throws contributes no status, no headers and no output.
+/// that throws contributes no status, no headers and no output. A page that calls
+/// <see cref="IContext.FlushAsync"/> applies it at the first flush instead, and the response is final
+/// from then on.
 /// </remarks>
 /// <param name="Status">The status code, normally <c>200</c>.</param>
 /// <param name="ContentType">The content type, normally <c>text/html; charset=utf-8</c>.</param>

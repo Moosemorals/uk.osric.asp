@@ -19,6 +19,12 @@ internal sealed class FakePageStateStore(PageStorageOptions? options = null) : I
     /// <summary>How long a read takes, so a test can leave a page suspended in an <c>await</c>.</summary>
     public TimeSpan ReadDelay { get; set; }
 
+    /// <summary>When set, a read waits for the gate, so a test can hold a page at a known point.</summary>
+    public TaskCompletionSource? ReadGate { get; set; }
+
+    /// <summary>Completes when a read has reached the point where it would wait for <see cref="ReadGate"/>.</summary>
+    public TaskCompletionSource ReadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     /// <summary>Pages whose head is live; a write to any other page is refused.</summary>
     public HashSet<string> LivePages { get; } = [];
 
@@ -28,6 +34,12 @@ internal sealed class FakePageStateStore(PageStorageOptions? options = null) : I
 
     public async Task<string?> GetValueAsync(PagePath path, string key, CancellationToken cancellationToken = default) {
         LastCancellationToken = cancellationToken;
+        _ = ReadStarted.TrySetResult();
+
+        if (ReadGate is { } gate) {
+            await gate.Task.WaitAsync(cancellationToken);
+        }
+
         await Task.Delay(ReadDelay, cancellationToken);
 
         return _pages.TryGetValue(path.Key, out Dictionary<string, string>? keys)

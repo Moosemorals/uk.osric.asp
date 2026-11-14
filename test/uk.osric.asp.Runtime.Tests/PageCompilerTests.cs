@@ -505,6 +505,8 @@ public sealed class PageCompilerTests {
             _output.Append(message);
         }
 
+        public Task FlushAsync() => Task.CompletedTask;
+
         public void SetStatus(int status) { }
 
         public void SetContentType(string contentType) { }
