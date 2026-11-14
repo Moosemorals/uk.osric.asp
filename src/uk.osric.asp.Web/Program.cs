@@ -83,20 +83,22 @@ internal class Program {
             Directory.CreateDirectory(Path.GetDirectoryName(connection.DataSource)
                 ?? throw new InvalidOperationException("The storage database must have a parent directory."));
         }
+
+        AdminOptions admin = AdminOptions.FromConfiguration(settings.At("Admin"));
+        ArchiveOptions archive = ArchiveOptions.FromConfiguration(settings.At("Pages:Archive"));
         AssistantOptions assistant = AssistantOptions.FromConfiguration(settings.At("Assistant"));
         AuthenticationOptions authentication = AuthenticationOptions.FromConfiguration(settings.At("Authentication"));
-        ArchiveOptions archive = ArchiveOptions.FromConfiguration(settings.At("Pages:Archive"));
-        AdminOptions admin = AdminOptions.FromConfiguration(settings.At("Admin"));
         CompileOptions compile = CompileOptions.FromConfiguration(settings.At("Pages:Compile"));
-        PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(settings.At("Pages:Layout"));
-        PageEditorOptions editor = PageEditorOptions.FromConfiguration(settings.At("Pages:Editor"));
-        RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
-        PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
-        PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
-        PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
-        PageFetchOptions fetch = PageFetchOptions.FromConfiguration(settings.At("Pages:Fetch"));
-        PageContentTypes contentTypes = PageContentTypesConfiguration.FromConfiguration(settings.At("Pages:ContentTypes"));
         MetricsOptions metrics = MetricsOptions.FromConfiguration(settings.At("Metrics"));
+        PageContentTypes contentTypes = PageContentTypesConfiguration.FromConfiguration(settings.At("Pages:ContentTypes"));
+        PageEditorOptions editor = PageEditorOptions.FromConfiguration(settings.At("Pages:Editor"));
+        PageFetchOptions fetch = PageFetchOptions.FromConfiguration(settings.At("Pages:Fetch"));
+        PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(settings.At("Pages:Layout"));
+        PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
+        PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
+        PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
+        RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
+
         string[] reservedKeys = [.. settings.At("Pages").List("ReservedPaths", "page keys", minimum: 1)];
         settings.Complete();
         ReservedPaths reserved = new(reservedKeys);
@@ -119,10 +121,10 @@ internal class Program {
         // The upload limits and the framework's form parser come from the same cap, so an oversized
         // body is refused rather than buffered, and a normal one never spills to a temporary file.
         builder.Services.Configure<FormOptions>(options => {
-            options.MultipartBodyLengthLimit = archive.MaxUploadBytes + (64 * 1024);
             options.MemoryBufferThreshold = archive.MaxUploadBytes + (64 * 1024);
-            options.ValueCountLimit = 1024;
+            options.MultipartBodyLengthLimit = archive.MaxUploadBytes + (64 * 1024);
             options.MultipartHeadersLengthLimit = 16 * 1024;
+            options.ValueCountLimit = 1024;
         });
 
         builder.Services.Configure<ForwardedHeadersOptions>(options => {
@@ -139,39 +141,16 @@ internal class Program {
             options.KnownIPNetworks.Clear();
         });
 
+        // Hosted services
         builder.Services.AddHostedService<PageStorageSampler>();
-
-        builder.Services.AddSingleton(compile);
-        builder.Services.AddSingleton(services => new PageHealth(
-            services.GetRequiredService<RenderOptions>().AbandonedLimit));
-        builder.Services.AddSingleton(layout);
-        builder.Services.AddSingleton(reserved);
-        builder.Services.AddSingleton(editor);
-        builder.Services.AddSingleton(TimeProvider.System);
-
-        builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
-        builder.Services.AddSingleton<MarkdownRenderer>();
-        builder.Services.AddSingleton<DiffRenderer>();
-        builder.Services.AddSingleton<IPasswordService, PasswordService>();
-        builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
-        builder.Services.AddSingleton<PageBudget>();
-        builder.Services.AddSingleton<PageMetrics>();
-        builder.Services.AddSingleton<PageStorageRefresh>();
-        builder.Services.AddSingleton(render);
-        builder.Services.AddSingleton(contentTypes);
-        builder.Services.AddSingleton(storage);
-        builder.Services.AddSingleton(session);
-        builder.Services.AddSingleton(PageSessionCookieOptions.For(builder.Environment));
-        builder.Services.AddSingleton<IPageSessionStore, SqlitePageSessionStore>();
         builder.Services.AddHostedService<PageSessionCleanupService>();
-        builder.Services.AddSingleton(archive);
-        builder.Services.AddSingleton(read);
-        builder.Services.AddSingleton(admin);
-        builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
-        builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
-        builder.Services.AddSingleton<PageLibraries>();
-        builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
-        builder.Services.AddSingleton(fetch);
+        builder.Services.AddHostedService<ImportWorker>();
+
+        // Stuff with their own registration extensions
+        builder.Services.AddEditorAuthentication(builder.Environment, authentication);
+        builder.Services.AddHealthChecks()
+            .AddCheck<StorageHealthCheck>("storage")
+            .AddCheck<AbandonedRenderHealthCheck>("pages");
         builder.Services.AddHttpClient(OutboundFetcher.ClientName)
             .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
@@ -180,28 +159,69 @@ internal class Program {
                 AutomaticDecompression = DecompressionMethods.All,
                 PooledConnectionLifetime = TimeSpan.FromMinutes(2),
             });
-        builder.Services.AddSingleton<OutboundFetcher>();
-        builder.Services.AddSingleton<IPageFetcher, PageFetcher>();
+
+        // Options types, sort alphabetically so the list is easy to scan.
+        builder.Services.AddSingleton(admin);
+        builder.Services.AddSingleton(archive);
+        builder.Services.AddSingleton(authentication);
+        builder.Services.AddSingleton(compile);
+        builder.Services.AddSingleton(contentTypes);
+        builder.Services.AddSingleton(editor);
+        builder.Services.AddSingleton(layout);
+        builder.Services.AddSingleton(metrics);
+        builder.Services.AddSingleton(read);
+        builder.Services.AddSingleton(render);
+        builder.Services.AddSingleton(reserved);
+        builder.Services.AddSingleton(session);
+        builder.Services.AddSingleton(storage);
+        builder.Services.AddSingleton(fetch);
+
+        // Singletons, sort alphabetically so the list is easy to scan.
+        builder.Services.AddSingleton(PageSessionCookieOptions.For(builder.Environment));
+        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(services => new PageEnvironment(
-            services.GetRequiredService<ReservedPaths>(),
-            services.GetRequiredService<PageEditorOptions>(),
-            services.GetRequiredService<PageLayoutConfiguration>(),
-            services.GetRequiredService<RenderOptions>(),
-            services.GetRequiredService<PageContentTypes>(),
-            services.GetRequiredService<PageStorageOptions>(),
-            services.GetRequiredService<PageFetchOptions>(),
-            services.GetRequiredService<PageReadOptions>(),
-            services.GetRequiredService<IPageStateStore>(),
-            services.GetRequiredService<IPageReadStore>(),
-            services.GetRequiredService<PageSaver>(),
-            services.GetRequiredService<IPageFetcher>(),
-            services.GetRequiredService<PageMetrics>(),
-            services.GetRequiredService<IAntiforgery>(),
-            services.GetRequiredService<MarkdownRenderer>(),
-            services.GetRequiredService<DiffRenderer>(),
-            services.GetRequiredService<PageSessionOptions>(),
-            services.GetRequiredService<IPageSessionStore>(),
-            services.GetRequiredService<PageSessionCookieOptions>()));
+              services.GetRequiredService<ReservedPaths>(),
+              services.GetRequiredService<PageEditorOptions>(),
+              services.GetRequiredService<PageLayoutConfiguration>(),
+              services.GetRequiredService<RenderOptions>(),
+              services.GetRequiredService<PageContentTypes>(),
+              services.GetRequiredService<PageStorageOptions>(),
+              services.GetRequiredService<PageFetchOptions>(),
+              services.GetRequiredService<PageReadOptions>(),
+              services.GetRequiredService<IPageStateStore>(),
+              services.GetRequiredService<IPageReadStore>(),
+              services.GetRequiredService<PageSaver>(),
+              services.GetRequiredService<IPageFetcher>(),
+              services.GetRequiredService<PageMetrics>(),
+              services.GetRequiredService<IAntiforgery>(),
+              services.GetRequiredService<MarkdownRenderer>(),
+              services.GetRequiredService<DiffRenderer>(),
+              services.GetRequiredService<PageSessionOptions>(),
+              services.GetRequiredService<IPageSessionStore>(),
+              services.GetRequiredService<PageSessionCookieOptions>()));
+        builder.Services.AddSingleton(services => new PageHealth(services.GetRequiredService<RenderOptions>().AbandonedLimit));
+
+        builder.Services.AddSingleton<ChartRenderer>();
+        builder.Services.AddSingleton<Dashboard>();
+        builder.Services.AddSingleton<DiffRenderer>();
+        builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
+        builder.Services.AddSingleton<IPageFetcher, PageFetcher>();
+        builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
+        builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
+        builder.Services.AddSingleton<IPageSessionStore, SqlitePageSessionStore>();
+        builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
+        builder.Services.AddSingleton<IPasswordService, PasswordService>();
+        builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
+        builder.Services.AddSingleton<ImportQueue>();
+        builder.Services.AddSingleton<ImportStageStore>();
+        builder.Services.AddSingleton<MarkdownRenderer>();
+        builder.Services.AddSingleton<OutboundFetcher>();
+        builder.Services.AddSingleton<PageBudget>();
+        builder.Services.AddSingleton<PageImageBuilder>();
+        builder.Services.AddSingleton<PageLibraries>();
+        builder.Services.AddSingleton<PageMetrics>();
+        builder.Services.AddSingleton<PageSaver>();
+        builder.Services.AddSingleton<PageStorageRefresh>();
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         // Registered whether or not the assistant is enabled: the tables are migrated either way, and
@@ -214,19 +234,12 @@ internal class Program {
             services.GetRequiredService<ILogger<SqlitePageStore>>(),
             services.GetRequiredService<PageStorageRefresh>(),
             services.GetRequiredService<IPageCompiler>().RuntimeId));
+
         builder.Services.AddScoped<IPageBatchStore, SqlitePageBatchStore>();
-        builder.Services.AddScoped<PageArchiveReader>();
-        builder.Services.AddScoped<ImportProcessor>();
-        builder.Services.AddSingleton<ImportStageStore>();
-        builder.Services.AddSingleton<ImportQueue>();
-        builder.Services.AddHostedService<ImportWorker>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
+        builder.Services.AddScoped<ImportProcessor>();
+        builder.Services.AddScoped<PageArchiveReader>();
         builder.Services.AddScoped<PageEditor>();
-        // The save is a singleton because a page's save can outlive the request that started it, and
-        // the image builder has no per-request state: a compiler, the compile budget and the meters,
-        // all singletons already.
-        builder.Services.AddSingleton<PageSaver>();
-        builder.Services.AddSingleton<PageImageBuilder>();
         builder.Services.AddScoped<PageRenderer>();
 
         if (assistantEnabled) {
@@ -251,19 +264,8 @@ internal class Program {
             builder.Services.AddHttpClient<IAccountBalanceClient, AccountBalanceClient>(client => {
                 client.Timeout = Timeout.InfiniteTimeSpan;
             }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-
         }
 
-        // The sign-in policy is built above with the other options, and the registration keeps it for
-        // the rate limiter and the cookie it configures.
-        builder.Services.AddSingleton(authentication);
-        builder.Services.AddEditorAuthentication(builder.Environment, authentication);
-
-        builder.Services.AddHealthChecks()
-            .AddCheck<StorageHealthCheck>("storage")
-            .AddCheck<AbandonedRenderHealthCheck>("pages");
-
-        builder.Services.AddSingleton(metrics);
         builder.Services.AddSingleton<IMetricsSource>(services => {
             // The per-query deadline belongs to the source: one slow query must not hold the page.
             return new PrometheusSource(
@@ -274,38 +276,37 @@ internal class Program {
                 services.GetRequiredService<ILogger<PrometheusSource>>(),
                 metrics.QueryTimeout);
         });
-        builder.Services.AddSingleton<ChartRenderer>();
-        builder.Services.AddSingleton<Dashboard>();
-
         // Metrics only: registering no instrumentation package means no tracer or logger provider.
         // The exporter serves /metrics on this listener; Caddy refuses that path publicly.
         builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics
-            .AddMeter(PageMetrics.MeterName)
-            .AddMeter(AssistantMetrics.MeterName)
+            // Try to keep these sorted alpha
             .AddMeter("Microsoft.AspNetCore.Hosting")
             .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
             .AddMeter("System.Runtime")
-            .AddView("page.render.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.render.wait", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.compile.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.load.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.invoke.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.import.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.fetch.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.image.size", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.ImageBuckets })
-            .AddView("assistant.run.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.RunDurationBuckets })
+            .AddMeter(AssistantMetrics.MeterName)
+            .AddMeter(PageMetrics.MeterName)
+            .AddView("assistant.memory.chars", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCharBuckets })
+            .AddView("assistant.memory.recalled", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCountBuckets })
             .AddView("assistant.provider.first_token.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ProviderBuckets })
             .AddView("assistant.provider.request.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ProviderBuckets })
-            .AddView("assistant.tool.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ToolDurationBuckets })
+            .AddView("assistant.run.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.RunDurationBuckets })
             .AddView("assistant.run.steps", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.StepBuckets })
             .AddView("assistant.run.tool_calls", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ToolCallBuckets })
-            .AddView("assistant.memory.recalled", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCountBuckets })
-            .AddView("assistant.memory.chars", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCharBuckets })
+            .AddView("assistant.tool.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ToolDurationBuckets })
+            .AddView("page.compile.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.fetch.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.image.size", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.ImageBuckets })
+            .AddView("page.import.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.invoke.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.load.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.render.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.render.wait", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddPrometheusExporter());
 
         WebApplication app = builder.Build();
 
+        // run pending database migrations
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
