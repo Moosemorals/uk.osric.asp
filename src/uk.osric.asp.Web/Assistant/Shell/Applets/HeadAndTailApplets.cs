@@ -12,12 +12,10 @@ using uk.osric.asp.Core.Shell;
 /// </remarks>
 internal abstract class HeadOrTailApplet : ShellApplet {
 
-    private const int DefaultLines = 10;
-
     public override string Usage => $"{Name} [-n <count>] [key ...]";
 
     public override string? Notes =>
-        "-n <count> may be written -n5, and ten is the default. With more than one key each one is\n"
+        "-n <count> may be written -n5, and the site's configured default is used otherwise. With more than one key each one is\n"
         + $"named in a '==> key <==' line, as a shell's {Name} does.";
 
     public override ShellSyntax Syntax => new(
@@ -35,7 +33,7 @@ internal abstract class HeadOrTailApplet : ShellApplet {
             return refusal;
         }
 
-        int count = line.Number('n') ?? DefaultLines;
+        int count = line.Number('n') ?? context.Options.ShellDefaultLines;
         List<string> rows = [];
         foreach (PageRead file in files) {
             if (files.Count > 1) {

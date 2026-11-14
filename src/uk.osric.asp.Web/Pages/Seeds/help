@@ -303,11 +303,12 @@ scrubbed. The seeded <a href="/recent">/recent</a> is a public listing and the s
 <a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is a guarded source and history view: the same capability, with and
 without that one line. Both are demonstrations of this capability and of the editor's cheap half
 (IDEA-017), not the editor itself.</p>
-<p>The read is bounded. One listing returns at most 500 rows and refuses rather than truncating, and
-one render may pull in at most 512 KiB of template across the page and its layouts, which is also a
-refusal rather than half a page. A listing charges nothing, because its rows are metadata and the
-body cap bounds what a page can write out of them. Both limits are set under
-<code>Pages:Read</code>.</p>
+<p>The read is bounded. One listing returns at most the configured row cap (500 as shipped) and
+refuses rather than truncating, and one render may pull in at most the configured source budget
+(512 KiB as shipped) across the page and its layouts, which is also a refusal rather than half a
+page. A listing charges nothing, because its rows are metadata and the body cap bounds what a page
+can write out of them. Both limits are set under <code>Pages:Read</code>, and a missing or unusable
+value stops the site at startup rather than being quietly replaced.</p>
 
 <h2 id="writing">Saving the page you are</h2>
 <p><code>IPageWriter</code> saves the source of the page that calls it. It is bound to

@@ -17,7 +17,7 @@ public sealed class StatusEndpointTests {
     private static readonly DateTimeOffset Now =
         DateTimeOffset.Parse("2026-11-02T06:00:00Z", CultureInfo.InvariantCulture);
 
-    private static readonly MetricsOptions Options = new() {
+    private static readonly MetricsOptions Options = TestOptions.Metrics with {
         PrometheusUrl = new Uri("http://prometheus:9090"),
         TimeZone = TimeZoneInfo.Utc,
     };
@@ -117,6 +117,7 @@ public sealed class StatusEndpointTests {
                 ]))),
                 Options),
             new TestClock { Now = Now },
+            Options,
             NullLogger<Dashboard>.Instance);
 
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/status");

@@ -102,8 +102,8 @@ public sealed class AssistantTranscriptTests {
             1,
             new ShellConversationStore(messages),
             new TestAntiforgery(),
-            new RunRegistry(new AssistantOptions(), TimeProvider.System),
-            new AssistantOptions(),
+            new RunRegistry(TestOptions.Assistant, TimeProvider.System),
+            TestOptions.Assistant,
             new StubAccountBalanceClient(),
             new MarkdownRenderer());
 

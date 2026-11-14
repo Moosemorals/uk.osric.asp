@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System.Reflection;
 using System.Text.Json;
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Configuration;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
@@ -16,7 +16,7 @@ public sealed class PageContentTypesConfigurationTests {
 
     [Test]
     public void TheShippedSectionMapsEveryExtension() {
-        PageContentTypes contentTypes = ReadShipped();
+        PageContentTypes contentTypes = TestOptions.ContentTypes;
 
         Assert.Multiple(() => {
             Assert.That(contentTypes.Fallback, Is.EqualTo("text/html; charset=utf-8"));
@@ -52,105 +52,95 @@ public sealed class PageContentTypesConfigurationTests {
     }
 
     [Test]
-    public void AMissingFallbackTakesTheSdkDefault() {
-        PageContentTypes contentTypes = Read(new Dictionary<string, string?> {
-            ["Pages:ContentTypes:Extensions:.js"] = "text/javascript",
-        });
+    public void AMissingFallbackStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => Read(
+            ShippedConfiguration.WithoutSection("Pages:ContentTypes:Fallback")))!;
 
-        Assert.That(contentTypes.Fallback, Is.EqualTo(PageResponse.Default.ContentType));
-        Assert.That(contentTypes.FallbackRule.ScriptPolicy, Is.EqualTo(PageScriptPolicy.None));
-        Assert.That(contentTypes.ForPath("/notes"), Is.EqualTo(PageResponse.Default.ContentType));
+        Assert.That(error.Message, Does.Contain("Pages:ContentTypes:Fallback is not set."));
     }
 
     [Test]
     public void AFallbackObjectCarriesItsPolicy() {
-        PageContentTypes contentTypes = Read(new Dictionary<string, string?> {
-            ["Pages:ContentTypes:Fallback:ContentType"] = "text/plain; charset=utf-8",
-            ["Pages:ContentTypes:Fallback:ScriptPolicy"] = "self",
-        });
+        PageContentTypes contentTypes = Read(ShippedConfiguration.Read(
+            ("Pages:ContentTypes:Fallback:ContentType", "text/plain; charset=utf-8"),
+            ("Pages:ContentTypes:Fallback:ScriptPolicy", "self")));
 
-        Assert.That(contentTypes.Fallback, Is.EqualTo("text/plain; charset=utf-8"));
-        Assert.That(contentTypes.ScriptsForPath("/notes"), Is.EqualTo(PageScriptPolicy.Self));
+        Assert.Multiple(() => {
+            Assert.That(contentTypes.Fallback, Is.EqualTo("text/plain; charset=utf-8"));
+            Assert.That(contentTypes.ScriptsForPath("/notes"), Is.EqualTo(PageScriptPolicy.Self));
+        });
     }
 
     [Test]
-    public void ALegacyStringRowGetsTheNoScriptPolicy() {
-        PageContentTypes contentTypes = Read(new Dictionary<string, string?> {
-            ["Pages:ContentTypes:Extensions:.js"] = "text/javascript",
-        });
+    public void AStringRowGetsTheNoScriptPolicy() {
+        PageContentTypes contentTypes = Read(ShippedConfiguration.Read(
+            ("Pages:ContentTypes:Extensions:.wasm", "application/wasm")));
 
-        Assert.That(contentTypes.ForPath("/app.js"), Is.EqualTo("text/javascript"));
-        Assert.That(contentTypes.ScriptsForPath("/app.js"), Is.EqualTo(PageScriptPolicy.None));
+        Assert.Multiple(() => {
+            Assert.That(contentTypes.ForPath("/app.wasm"), Is.EqualTo("application/wasm"));
+            Assert.That(contentTypes.ScriptsForPath("/app.wasm"), Is.EqualTo(PageScriptPolicy.None));
+        });
     }
 
     [Test]
     public void ARowObjectCarriesItsPolicy() {
-        PageContentTypes contentTypes = Read(new Dictionary<string, string?> {
-            ["Pages:ContentTypes:Extensions:.htmlx:ContentType"] = "text/html; charset=utf-8",
-            ["Pages:ContentTypes:Extensions:.htmlx:ScriptPolicy"] = "self",
-        });
+        PageContentTypes contentTypes = Read(ShippedConfiguration.Read(
+            ("Pages:ContentTypes:Extensions:.htmlx:ContentType", "text/html; charset=utf-8"),
+            ("Pages:ContentTypes:Extensions:.htmlx:ScriptPolicy", "self")));
 
-        Assert.That(contentTypes.ForPath("/page.htmlx"), Is.EqualTo("text/html; charset=utf-8"));
-        Assert.That(contentTypes.ScriptsForPath("/page.htmlx"), Is.EqualTo(PageScriptPolicy.Self));
+        Assert.Multiple(() => {
+            Assert.That(contentTypes.ForPath("/page.htmlx"), Is.EqualTo("text/html; charset=utf-8"));
+            Assert.That(contentTypes.ScriptsForPath("/page.htmlx"), Is.EqualTo(PageScriptPolicy.Self));
+        });
     }
 
     [Test]
-    public void AnUnknownScriptPolicyIsRejected() {
-        ArgumentException? failure = Assert.Throws<ArgumentException>(() => Read(new Dictionary<string, string?> {
-            ["Pages:ContentTypes:Extensions:.html:ContentType"] = "text/html; charset=utf-8",
-            ["Pages:ContentTypes:Extensions:.html:ScriptPolicy"] = "inline",
-        }));
+    public void AnUnknownScriptPolicyStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => Read(ShippedConfiguration.Read(
+            ("Pages:ContentTypes:Extensions:.html:ContentType", "text/html; charset=utf-8"),
+            ("Pages:ContentTypes:Extensions:.html:ScriptPolicy", "inline"))))!;
 
-        Assert.That(failure?.Message, Does.Contain(".html"));
-        Assert.That(failure?.Message, Does.Contain("inline"));
+        Assert.Multiple(() => {
+            Assert.That(error.Message, Does.Contain("Pages:ContentTypes:Extensions:.html:ScriptPolicy"));
+            Assert.That(error.Message, Does.Contain("inline"));
+        });
     }
 
     [TestCase("1")]
     [TestCase("2")]
-    public void ANumericScriptPolicyIsRejected(string value) {
+    public void ANumericScriptPolicyStopsTheSite(string value) {
         Assert.That(
-            () => Read(new Dictionary<string, string?> {
-                ["Pages:ContentTypes:Extensions:.html:ContentType"] = "text/html; charset=utf-8",
-                ["Pages:ContentTypes:Extensions:.html:ScriptPolicy"] = value,
-            }),
-            Throws.ArgumentException);
+            () => Read(ShippedConfiguration.Read(
+                ("Pages:ContentTypes:Extensions:.html:ContentType", "text/html; charset=utf-8"),
+                ("Pages:ContentTypes:Extensions:.html:ScriptPolicy", value))),
+            Throws.TypeOf<ConfigurationException>());
     }
 
     [Test]
-    public void ABlankFallbackIsRejected() {
+    public void ABlankFallbackStopsTheSite() {
         Assert.That(
-            () => Read(new Dictionary<string, string?> { ["Pages:ContentTypes:Fallback"] = "" }),
-            Throws.ArgumentException);
+            () => Read(ShippedConfiguration.Read(("Pages:ContentTypes:Fallback", ""))),
+            Throws.TypeOf<ConfigurationException>());
     }
 
     [Test]
     public void AnInvalidRowNamesItsKey() {
-        ArgumentException? failure = Assert.Throws<ArgumentException>(() => Read(new Dictionary<string, string?> {
-            ["Pages:ContentTypes:Extensions:.js"] = "not-a-media-type",
-        }));
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => Read(
+            ShippedConfiguration.Read(("Pages:ContentTypes:Extensions:.weird", "not-a-media-type"))))!;
 
-        Assert.That(failure?.Message, Does.Contain(".js"));
-    }
-
-    [Test]
-    public void TwoRowsDifferingOnlyInCaseAreRejected() {
-        Assert.That(
-            () => Read(new Dictionary<string, string?> {
-                ["Pages:ContentTypes:Extensions:.js"] = "text/javascript",
-                ["Pages:ContentTypes:Extensions:.JS"] = "text/javascript",
-            }),
-            Throws.ArgumentException);
+        Assert.That(error.Message, Does.Contain(".weird"));
     }
 
     [Test]
     public void ARowMappedToTheFallbackBehavesLikeNoRow() {
-        PageContentTypes withRow = Read(new Dictionary<string, string?> {
-            ["Pages:ContentTypes:Extensions:.html"] = "text/html; charset=utf-8",
-        });
-        PageContentTypes withoutRow = Read([]);
+        PageContentTypes withRow = Read(ShippedConfiguration.Read(
+            ("Pages:ContentTypes:Extensions:.html", "text/html; charset=utf-8")));
+        PageContentTypes withoutRow = TestOptions.ContentTypes;
 
-        Assert.That(withRow.ForPath("/notes"), Is.EqualTo(withoutRow.ForPath("/notes")));
-        Assert.That(withRow.ForPath("/notes.html"), Is.EqualTo(withoutRow.ForPath("/notes.html")));
+        Assert.Multiple(() => {
+            Assert.That(withRow.ForPath("/notes"), Is.EqualTo(withoutRow.ForPath("/notes")));
+            Assert.That(withRow.ForPath("/notes.html"), Is.EqualTo(withoutRow.ForPath("/notes.html")));
+        });
     }
 
     [Test]
@@ -158,31 +148,13 @@ public sealed class PageContentTypesConfigurationTests {
         RecordingLoggerFactory logs = new();
 
         _ = PageContentTypesConfiguration.FromConfiguration(
-            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> {
-                ["Pages:ContentTypes:Extensions:.js"] = "text/javascript",
-            }).Build(),
+            ShippedConfiguration.Read(("Pages:ContentTypes:Extensions:.wasm", "application/wasm")),
             logs.CreateLogger("Pages.ContentTypes"));
 
         Assert.That(logs.Entries, Has.Count.EqualTo(1));
         Assert.That(logs.Entries[0].Message, Does.Contain("text/html; charset=utf-8"));
         Assert.That(logs.Entries[0].Message, Does.Contain("None"));
-        Assert.That(logs.Entries[0].Message, Does.Contain("1"));
-    }
-
-    private static PageContentTypes ReadShipped() {
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddJsonFile(AppSettingsPath(), optional: false)
-            .Build();
-
-        return Read(configuration);
-    }
-
-    private static PageContentTypes Read(Dictionary<string, string?> values) {
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(values)
-            .Build();
-
-        return Read(configuration);
+        Assert.That(logs.Entries[0].Message, Does.Contain("8"));
     }
 
     private static PageContentTypes Read(IConfiguration configuration) =>

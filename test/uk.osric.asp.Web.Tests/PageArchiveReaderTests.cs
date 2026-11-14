@@ -92,7 +92,7 @@ public sealed class PageArchiveReaderTests {
             [("/about", "About")],
             [("/about", new string('k', 24), "1")]);
 
-        AssertRejected(Reader(storage: new PageStorageOptions { MaxKeyChars = 16 }).Read(bytes), "state key");
+        AssertRejected(Reader(storage: TestOptions.Storage with { MaxKeyChars = 16 }).Read(bytes), "state key");
     }
 
     [Test]
@@ -101,7 +101,7 @@ public sealed class PageArchiveReaderTests {
             [("/about", "About")],
             [("/about", "visits", $"\"{new string('v', 64)}\"")]);
 
-        AssertRejected(Reader(storage: new PageStorageOptions { MaxValueBytes = 16 }).Read(bytes), "state value");
+        AssertRejected(Reader(storage: TestOptions.Storage with { MaxValueBytes = 16 }).Read(bytes), "state value");
     }
 
     [Test]
@@ -137,7 +137,7 @@ public sealed class PageArchiveReaderTests {
     public void TooManyPagesAreRejected() {
         byte[] bytes = TestArchive.Build([("/one", "1"), ("/two", "2"), ("/three", "3")]);
 
-        AssertRejected(Reader(new ArchiveOptions { MaxPages = 2 }).Read(bytes), "import limit");
+        AssertRejected(Reader(TestOptions.Archive with { MaxPages = 2 }).Read(bytes), "import limit");
     }
 
     [Test]
@@ -208,8 +208,8 @@ public sealed class PageArchiveReaderTests {
     }
 
     private static PageArchiveReader Reader(ArchiveOptions? options = null, PageStorageOptions? storage = null) =>
-        new(options ?? new ArchiveOptions(),
-            storage ?? new PageStorageOptions(),
+        new(options ?? TestOptions.Archive,
+            storage ?? TestOptions.Storage,
             new ReservedPaths(ReservedPaths.Default),
             NullLogger<PageArchiveReader>.Instance);
 }

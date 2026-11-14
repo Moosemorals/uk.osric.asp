@@ -225,7 +225,7 @@ public sealed class SqlitePageSessionStoreTests {
     [Test]
     public async Task AMintRemovesExpiredRowsBeforeItEvictsALiveSessionAsync() {
         TestClock clock = new();
-        PageSessionOptions options = new() { MaxLiveSessions = 2 };
+        PageSessionOptions options = TestOptions.Session with { MaxLiveSessions = 2 };
         IPageSessionStore store = Store(clock, options);
         _ = await store.EnsureAsync("stale", account: null);
         clock.Now = DateTimeOffset.UnixEpoch.AddMinutes(1);
@@ -242,7 +242,7 @@ public sealed class SqlitePageSessionStoreTests {
     [Test]
     public async Task TheCapEvictsTheMostIdleAnonymousSessionFirstAsync() {
         TestClock clock = new();
-        IPageSessionStore store = Store(clock, new PageSessionOptions { MaxLiveSessions = 2 });
+        IPageSessionStore store = Store(clock, TestOptions.Session with { MaxLiveSessions = 2 });
         _ = await store.EnsureAsync("older-stranger", account: null);
         clock.Now = DateTimeOffset.UnixEpoch.AddMinutes(1);
         _ = await store.EnsureAsync("newer-stranger", account: null);
@@ -259,7 +259,7 @@ public sealed class SqlitePageSessionStoreTests {
     [Test]
     public async Task WithNoAnonymousSessionLeftTheMostIdleSignedInSessionGoesAsync() {
         TestClock clock = new();
-        IPageSessionStore store = Store(clock, new PageSessionOptions { MaxLiveSessions = 2 });
+        IPageSessionStore store = Store(clock, TestOptions.Session with { MaxLiveSessions = 2 });
         _ = await store.EnsureAsync("first", account: "owner");
         clock.Now = DateTimeOffset.UnixEpoch.AddMinutes(1);
         _ = await store.EnsureAsync("second", account: "owner");
@@ -277,7 +277,7 @@ public sealed class SqlitePageSessionStoreTests {
         TestClock clock = new();
         // A cap of zero is what the configuration clamps away from; it is the one state in which the
         // table has room for nothing and holds nothing, so the guard is what answers.
-        IPageSessionStore store = Store(clock, new PageSessionOptions { MaxLiveSessions = 0 });
+        IPageSessionStore store = Store(clock, TestOptions.Session with { MaxLiveSessions = 0 });
 
         Assert.That(await store.EnsureAsync("session-id", account: null), Is.False);
         Assert.That(await store.FindAsync("session-id"), Is.Null);
@@ -286,14 +286,14 @@ public sealed class SqlitePageSessionStoreTests {
     [Test]
     public async Task TheSweepTrimsAnOverfullTableToItsCapAsync() {
         TestClock clock = new();
-        PageSessionOptions options = new() { MaxLiveSessions = 2 };
+        PageSessionOptions options = TestOptions.Session with { MaxLiveSessions = 2 };
         IPageSessionStore store = Store(clock, options);
         _ = await store.EnsureAsync("first", account: null);
         clock.Now = DateTimeOffset.UnixEpoch.AddMinutes(1);
         _ = await store.EnsureAsync("second", account: null);
 
         // Shrinking the cap is what a configuration change looks like to a table that is already full.
-        IPageSessionStore smaller = Store(clock, new PageSessionOptions { MaxLiveSessions = 1 });
+        IPageSessionStore smaller = Store(clock, TestOptions.Session with { MaxLiveSessions = 1 });
         PageSessionSweep sweep = await smaller.RemoveExpiredAsync();
 
         Assert.That(sweep.AnonymousEvicted, Is.EqualTo(1));
@@ -304,7 +304,7 @@ public sealed class SqlitePageSessionStoreTests {
     [Test]
     public async Task AnEvictedSessionsValuesGoTooAsync() {
         TestClock clock = new();
-        PageSessionOptions options = new() { MaxLiveSessions = 1 };
+        PageSessionOptions options = TestOptions.Session with { MaxLiveSessions = 1 };
         IPageSessionStore store = Store(clock, options);
         _ = await store.EnsureAsync("first", account: null);
         await store.SetValueAsync("first", "/page", "key", "1", PageSessionCaps.Anonymous);
@@ -334,6 +334,6 @@ public sealed class SqlitePageSessionStoreTests {
     private IPageSessionStore Store(TimeProvider? clock = null, PageSessionOptions? options = null) =>
         new SqlitePageSessionStore(
             DatabaseTemplate.Factory(_options),
-            options ?? new PageSessionOptions(),
+            options ?? TestOptions.Session,
             clock ?? TimeProvider.System);
 }

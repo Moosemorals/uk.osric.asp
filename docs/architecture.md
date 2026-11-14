@@ -106,7 +106,7 @@ clean compile does not hide them, and they never stop a page being served (DEC-2
 | Deciding when to compile, store and run a page | `Web`, in `PageImageBuilder`, `PageRenderer` and `PageEditor` |
 | Reading the page store for a tool or the virtual shell | `Web`, in `PageStoreReader`, over `PageEditor` and `PagePathPolicy`; the tree and the scope are `Core`'s `PageTree` and `PageScope` (DEC-274, DEC-277) |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
-| I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core |
+| I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core; configuration is read once at startup by `ConfigurationReader` |
 | Source storage: the EF Core context and its migrations | `Web`, under `Storage` |
 | A table's EF entity | `Web`, with the vertical that owns it (`Users`, `Authentication`, `Pages`, `Assistant`) |
 | The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteConversationStore` | `Web`, beside the interface it implements |
@@ -131,6 +131,42 @@ A new view starts as a page. It becomes an endpoint only when it needs something
 — identity, cookies, the page store, framing headers, or work that outlives the request. The editor
 is the worked example: it is the seeded `/pages`, which is offered `IPageEditor` by its key, and
 [IDEA-030](jobs/IDEA-030.md) is the remaining tidying. See [jobs](jobs/README.md).
+
+## Configuration
+
+Configuration is the only source of a policy value (DEC-282). There is no fallback in code, so the
+value the site runs with is the one an operator can see and change in `appsettings.json`, an
+environment variable or a deployment's own settings file.
+
+- **The shape.** An options record in `Web` and a `FromConfiguration` factory beside it, reading
+  every value through `ConfigurationReader` (`Web/Configuration`). The record's properties are
+  `required`, so a half-populated policy cannot be built.
+- **The failure.** A missing, blank, malformed or out-of-range value is recorded rather than thrown,
+  and `Program` builds every section through one reader before it builds anything else. One
+  `Complete` then throws a `ConfigurationException` listing every problem in every section, naming
+  each key with its accepted range and the value this repository ships. `Program.Main` writes that
+  one report to standard error and exits non-zero, so an operator fixes one list rather than finding
+  one section per restart, and never meets a stack trace. The host never serves with half a
+  configuration.
+- **Joining the report.** Each options record has two factories: one from `IConfiguration`, which
+  reports its own section and throws, and one from a `ConfigurationReader`, which adds its problems
+  to the caller's report so `Program` can make one of them.
+- **The file.** `appsettings.json` is the source of truth for the shipped values, and
+  `ShippedConfigurationTests` proves every factory can read it. A production override may be partial:
+  configuration providers merge key by key.
+- **The recommendation is guidance.** A factory passes a recommended value only so the message can
+  say what normally works; it is never used as a fallback.
+- **A range is a safety net, not a straitjacket.** It is wide enough that only a mistake meets it:
+  its job is to stop a zero or a typo switching a guard off, not to ration a legitimate deployment.
+- **What stays in code.** An invariant — a cryptographic or wire-format constant, a schema
+  constraint, an algorithm work cap, or the floor and ceiling that keeps a configured value from
+  switching a guard off. A security policy may be configured only in the direction that keeps or
+  tightens the shipped guarantee; [IDEA-031](jobs/IDEA-031.md) holds the list of policy-shaped values
+  that remain constants and the question of whether to expose them.
+
+Each subsystem documents its own keys: [pages](pages.md#page-execution-budget),
+[the shell](shell.md#authentication-and-the-editor), [storage](storage.md),
+[metrics](metrics.md), and [the assistant](assistant.md).
 
 ## Visibility
 

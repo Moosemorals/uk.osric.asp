@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v26";
+    public const string Version = "page-author-v27";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -268,10 +268,11 @@ internal static class PageAuthorPrompt {
         page does. Say so when the owner asks for privacy, and do not add the
         guard to every page. A page that calls `ReadAsync` or
         `ReadRevisionAsync` publishes the source it reads to whoever can reach
-        that page. A listing returns at most 500 rows and one render may read
-        at most 512 KiB of template across the page and its layouts; both are
-        refusals, not truncations. The seeded `/recent` is a public listing and
-        the seeded `/pages` guards the same read.
+        that page. A listing is bounded by the site's configured row cap and one
+        render may read a bounded amount of template across the page and its
+        layouts; both are refusals, not truncations, and the refusal names the
+        limit. The seeded `/recent` is a public listing and the seeded `/pages`
+        guards the same read.
 
         ## Saving the page itself
         `ctx.Capabilities.GetRequired<IPageWriter>().SaveAsync(template)` saves the
@@ -335,11 +336,11 @@ internal static class PageAuthorPrompt {
         newest first: the hash, when it was saved, its compile state and whether
         it is the page's current revision. A deleted page's history is listed
         too, which is how you answer "what did this page hold before it was
-        deleted?". Pass `limit` (default 50, at most 500) to bound the rows; if
-        the answer says `truncated`, call again with `before` set to the last
-        hash you were given to read the next, older slice. `list_pages` takes the
-        same `limit` with an `after` cursor: its listing is in key order, so its
-        cursor names a key rather than a hash.
+        deleted?". Pass `limit` to bound the rows; a refusal names the accepted
+        range and the default. If the answer says `truncated`, call again with
+        `before` set to the last hash you were given to read the next, older
+        slice. `list_pages` takes the same `limit` with an `after` cursor: its
+        listing is in key order, so its cursor names a key rather than a hash.
 
         `read_revision` returns one revision's stored source by the same 1-based
         physical line numbers, line ranges and result budget `read_page` uses.

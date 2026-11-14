@@ -14,7 +14,7 @@ using uk.osric.asp.Web.Pages;
 internal sealed class FakePageStateStore(PageStorageOptions? options = null) : IPageStateStore {
 
     private readonly Dictionary<string, Dictionary<string, string>> _pages = [];
-    private readonly PageStorageOptions _options = options ?? new PageStorageOptions();
+    private readonly PageStorageOptions _options = options ?? TestOptions.Storage;
 
     /// <summary>How long a read takes, so a test can leave a page suspended in an <c>await</c>.</summary>
     public TimeSpan ReadDelay { get; set; }

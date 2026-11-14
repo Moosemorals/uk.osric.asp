@@ -46,8 +46,9 @@ approval (DEC-219).
 
 The assistant also reads and restores history. `list_revisions` answers a page's retained revisions
 newest first — hash, save time, creation runtime, compile state, whether it is the head and its
-editor URL — including for a tombstoned path, and takes `limit` (default 50, at most 500) with a
-`before` cursor that names the last hash given, so a long history is read a slice at a time;
+editor URL — including for a tombstoned path, and takes `limit` with a `before` cursor that names the
+last hash given, so a long history is read a slice at a time; a refusal names the accepted range and
+the default (`Assistant:MaxListLimit` and `Assistant:DefaultListLimit`);
 `truncated` says there is more. `list_pages` takes the same `limit` with an `after` cursor, because
 its listing is in key order rather than in time. `read_revision` answers one revision's stored
 source through the same 1-based physical lines, line ranges and result budget `read_page` uses,
@@ -169,10 +170,11 @@ results, context and event replay. The shipped caps are 160 steps and 128 tool c
 500,000 estimated-token request budget with a 393,216-token output limit, and 131,072 characters
 for one tool result. `deepseek-flash` reports a 1,048,576-token context window and a 393,216-token
 output maximum; the request budget stays below the window so the output reserve fits. Each cap is
-configuration rather than a constant, and each provider request is bounded by silence rather than
-duration:
-the deadline is re-armed for every event the provider sends, so a model that reasons for minutes is not
-cut off, while a stalled stream ends the step with `provider_timeout`. The whole run uses the same
+configuration rather than a constant — the shipped `appsettings.json` is the whole list — and every
+one of them is required, so a missing or out-of-range value stops the site at startup
+([configuration](architecture.md#configuration)). Each provider request is bounded by silence rather
+than duration: the deadline is re-armed for every event the provider sends, so a model that reasons
+for minutes is not cut off, while a stalled stream ends the step with `provider_timeout`. The whole run uses the same
 two-minute silence rule, re-armed per streamed event; keep-alive comments are not events, and the
 clock stops while a tool runs or an approval waits for its owner, because neither is the run going
 quiet. A budget is a different matter: running out of steps or tool calls pauses the run instead of

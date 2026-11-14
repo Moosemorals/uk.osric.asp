@@ -44,11 +44,11 @@ internal sealed class PageHarness : IDisposable {
         ContentTypes = contentTypes ?? TestContentTypes.Shipped;
         Markdown = markdown ?? new MarkdownRenderer();
         Diff = diff ?? new DiffRenderer();
-        StorageOptions = storageOptions ?? new PageStorageOptions();
-        FetchOptions = fetchOptions ?? new PageFetchOptions();
-        ReadOptions = new PageReadOptions();
-        Options = options ?? new RenderOptions();
-        Budget = budget ?? new PageBudget(Options, new CompileOptions());
+        StorageOptions = storageOptions ?? TestOptions.Storage;
+        FetchOptions = fetchOptions ?? TestOptions.Fetch;
+        ReadOptions = TestOptions.Read;
+        Options = options ?? TestOptions.Render;
+        Budget = budget ?? new PageBudget(Options, TestOptions.Compile);
         Health = health ?? new PageHealth(Options.AbandonedLimit);
         Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
         Metrics = new PageMetrics();
@@ -138,7 +138,7 @@ internal sealed class PageHarness : IDisposable {
 
     public async Task<(RenderResult Result, string Output)> RenderAsync(
         string path,
-        int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
+        int? maxBodyChars = null,
         bool isHead = false,
         PageUser? user = null,
         bool withFetch = true,
@@ -156,7 +156,7 @@ internal sealed class PageHarness : IDisposable {
     /// <summary>Builds one layer's context, with or without the capabilities the host normally adds.</summary>
     public SimpleContext CreateContext(
         PagePath path,
-        int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
+        int? maxBodyChars = null,
         bool isHead = false,
         PageUser? user = null,
         RenderFetchBudget? budget = null,
@@ -176,7 +176,7 @@ internal sealed class PageHarness : IDisposable {
 
         if (withSession) {
             PageSessionScope session = new(
-                path, Sessions, new PageSessionOptions(), Session, writable: !isHead, slides: !isHead);
+                path, Sessions, TestOptions.Session, Session, writable: !isHead, slides: !isHead);
             capabilities.Add<IPageSession>(session);
         }
 
@@ -220,7 +220,8 @@ internal sealed class PageHarness : IDisposable {
             new StringWriter(),
             capabilities,
             ContentTypes,
-            maxBodyChars,
+            maxBodyChars ?? TestOptions.Render.MaxBodyChars,
+            TestOptions.Editor.Key,
             user);
     }
 
@@ -237,8 +238,8 @@ internal sealed class PageHarness : IDisposable {
 
         return new PageEnvironment(
             new ReservedPaths(ReservedPaths.Default),
-            editor ?? new PageEditorOptions(),
-            new PageLayoutConfiguration { Default = layout },
+            editor ?? TestOptions.Editor,
+            TestOptions.Layout with { Default = layout },
             Options,
             ContentTypes,
             StorageOptions,
@@ -252,7 +253,7 @@ internal sealed class PageHarness : IDisposable {
             antiforgery,
             Markdown,
             Diff,
-            new PageSessionOptions(),
+            TestOptions.Session,
             Sessions,
             TestSessions.Cookie);
     }

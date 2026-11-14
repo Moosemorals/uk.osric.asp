@@ -90,6 +90,29 @@ this is what podman does about it.
   raising it without leaving memory for the page cache only moves the kill from the container to the
   kernel's choice of victim.
 
+## Configuration
+
+Every policy value the site needs is required: there is no fallback in code, so a host that is missing
+one does not start. The image ships a complete `appsettings.json`, and a deployment overrides only what
+it changes in `~/.config/uk.osric.asp/appsettings.Production.json` or an environment variable
+(`Assistant__ApiKey`, `ConnectionStrings__Storage`). Providers merge key by key, so an override file
+does not have to repeat the rest.
+
+A value that is missing, blank, malformed or out of range stops the process before it serves. Every
+bad key in every section is reported in one paragraph at once — one line per key, with the range it
+accepts and the value this repository ships — so a hand-written config can be repaired in one pass:
+
+```
+The site cannot start because its configuration is incomplete or invalid:
+  Pages:Render:TimeoutSeconds is 0, which is outside the accepted range of 0.05 to 60. Set it to a number from 0.05 to 60; 5 is recommended.
+Set these values in appsettings.json, appsettings.<Environment>.json or an environment variable, then start the site again.
+```
+
+The app exits non-zero, so `systemctl --user status uk.osric.asp` shows the restart limit rather than
+a serving site, and the same text is on the journal. Fix the setting, restart, and the site comes up.
+The list of keys is in the shipped `appsettings.json`; each subsystem's document explains what its
+section is for.
+
 ## Storage and migrations
 
 Source storage uses EF Core with SQLite. The local default is `ConnectionStrings:Storage` set to

@@ -16,14 +16,14 @@ internal sealed class ImportHarness : IDisposable {
         IPageCompiler? compiler = null,
         ArchiveOptions? options = null,
         PageStorageOptions? storage = null) {
-        Options = options ?? new ArchiveOptions();
-        Storage = storage ?? new PageStorageOptions();
+        Options = options ?? TestOptions.Archive;
+        Storage = storage ?? TestOptions.Storage;
         Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
         Metrics = new PageMetrics();
 
         Images = new PageImageBuilder(
             Compiler,
-            new PageBudget(new RenderOptions(), new CompileOptions()),
+            new PageBudget(TestOptions.Render, TestOptions.Compile),
             Metrics,
             NullLogger<PageImageBuilder>.Instance);
         Processor = new ImportProcessor(Images, Batches, Metrics, Options, NullLogger<ImportProcessor>.Instance);

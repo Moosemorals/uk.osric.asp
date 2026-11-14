@@ -4,130 +4,180 @@
 namespace uk.osric.asp.Web.Assistant;
 
 using Microsoft.Extensions.Options;
+using uk.osric.asp.Web.Configuration;
 
 /// <summary>The assistant's configuration: provider, model, limits and the enabled switch.</summary>
-internal sealed class AssistantOptions {
-    public bool Enabled { get; init; }
-    public string BaseUrl { get; init; } = "https://api.deepseek.com";
-    public string ChatCompletionsPath { get; init; } = "/chat/completions";
-    public string Model { get; init; } = "deepseek-flash";
-    public string? ApiKey { get; init; }
-    public string ReasoningField { get; init; } = "reasoning_content";
-    public bool RequireApiKey { get; init; } = true;
-    public bool AllowInsecureHttp { get; init; }
-    public double Temperature { get; init; } = 0.2;
+/// <remarks>
+/// Every value comes from <c>Assistant</c> and none has a fallback: a missing or unusable one stops
+/// the site at startup. <c>ApiKey</c> is the one optional value, and only while the assistant is off
+/// or the provider does not need one.
+/// </remarks>
+internal sealed record AssistantOptions {
+    public required bool Enabled { get; init; }
+    public required string BaseUrl { get; init; }
+    public required string ChatCompletionsPath { get; init; }
+    public required string Model { get; init; }
+    public required string? ApiKey { get; init; }
+    public required string ReasoningField { get; init; }
+    public required bool RequireApiKey { get; init; }
+    public required bool AllowInsecureHttp { get; init; }
+    public required double Temperature { get; init; }
+
     /// <summary>The provider completion limit; DeepSeek-V4.1-Flash reports a maximum of 393,216.</summary>
-    public int MaxOutputTokens { get; init; } = 393_216;
-    public bool IncludeUsage { get; init; } = true;
-    public int MaxSteps { get; init; } = 160;
-    public int MaxToolCalls { get; init; } = 128;
-    public int MaxToolCallsPerStep { get; init; } = 8;
-    public int MaxActiveRuns { get; init; } = 2;
-    public int MaxQueuedRuns { get; init; } = 8;
-    public double RequestTimeoutSeconds { get; init; } = 120;
-    public double RunTimeoutSeconds { get; init; } = 120;
-    public double ToolTimeoutSeconds { get; init; } = 10;
+    public required int MaxOutputTokens { get; init; }
+
+    public required bool IncludeUsage { get; init; }
+    public required int MaxSteps { get; init; }
+    public required int MaxToolCalls { get; init; }
+    public required int MaxToolCallsPerStep { get; init; }
+    public required int MaxActiveRuns { get; init; }
+    public required int MaxQueuedRuns { get; init; }
+    public required double RequestTimeoutSeconds { get; init; }
+    public required double RunTimeoutSeconds { get; init; }
+    public required double ToolTimeoutSeconds { get; init; }
+
     /// <summary>How long the account balance panel waits for the provider before it shows nothing.</summary>
-    public double BalanceTimeoutSeconds { get; init; } = 3;
-    public int MaxProviderRetries { get; init; } = 1;
-    public int MaxMessageChars { get; init; } = 16_384;
-    public int MaxPageChars { get; init; } = 262_144;
-    public int MaxToolArgumentChars { get; init; } = 131_072;
-    public int MaxToolResultChars { get; init; } = 131_072;
+    public required double BalanceTimeoutSeconds { get; init; }
+
+    public required int MaxProviderRetries { get; init; }
+    public required int MaxMessageChars { get; init; }
+    public required int MaxPageChars { get; init; }
+    public required int MaxToolArgumentChars { get; init; }
+    public required int MaxToolResultChars { get; init; }
 
     /// <summary>
     /// How much text one tool may answer with before it is cut: half of <see cref="MaxToolResultChars"/>,
     /// because the answer still has to fit back inside the JSON envelope with room for escaping.
     /// </summary>
     public int ToolResultBudget => MaxToolResultChars / 2;
+
     /// <summary>The estimated prompt tokens one request may spend.</summary>
-    public int MaxContextTokens { get; init; } = 500_000;
+    public required int MaxContextTokens { get; init; }
+
     /// <summary>The model's whole context window; DeepSeek-V4.1-Flash reports 1,048,576.</summary>
-    public int ModelContextTokens { get; init; } = 1_048_576;
+    public required int ModelContextTokens { get; init; }
+
     /// <summary>The most memories one owner may hold; past this <c>remember</c> refuses.</summary>
-    public int MaxMemoriesPerOwner { get; init; } = 200;
+    public required int MaxMemoriesPerOwner { get; init; }
+
     /// <summary>The longest memory, in characters. One longer is refused, never truncated.</summary>
-    public int MaxMemoryChars { get; init; } = 1_000;
+    public required int MaxMemoryChars { get; init; }
+
     /// <summary>The most memories one run may be given.</summary>
-    public int MaxMemoriesPerRun { get; init; } = 12;
+    public required int MaxMemoriesPerRun { get; init; }
+
     /// <summary>The most characters a run's memory block may cost.</summary>
-    public int MaxMemoryCharsPerRun { get; init; } = 4_000;
+    public required int MaxMemoryCharsPerRun { get; init; }
+
     /// <summary>The most candidates a memory search ranks, for recall and for the tool.</summary>
-    public int MaxMemorySearchResults { get; init; } = 50;
+    public required int MaxMemorySearchResults { get; init; }
+
     /// <summary>The most terms one message contributes to a recall query.</summary>
-    public int MaxMemoryQueryTerms { get; init; } = 12;
-    public int HeartbeatSeconds { get; init; } = 15;
-    public int JournalMaxEvents { get; init; } = 20_000;
-    public int JournalMaxBytes { get; init; } = 4_194_304;
-    public int JournalTtlMinutes { get; init; } = 10;
-    public string WritablePathPrefix { get; init; } = "";
-}
+    public required int MaxMemoryQueryTerms { get; init; }
 
-/// <summary>Rejects an assistant configuration its client could not use.</summary>
-internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOptions> {
-    private const int MinimumContextTokens = 16_384;
+    public required int HeartbeatSeconds { get; init; }
+    public required int JournalMaxEvents { get; init; }
+    public required int JournalMaxBytes { get; init; }
+    public required int JournalTtlMinutes { get; init; }
 
-    public ValidateOptionsResult Validate(string? name, AssistantOptions options) {
-        ArgumentNullException.ThrowIfNull(options);
+    /// <summary>A page-key prefix the assistant may write within; blank means the whole site.</summary>
+    public required string WritablePathPrefix { get; init; }
 
-        if (!options.Enabled) {
-            return ValidateOptionsResult.Success;
+    /// <summary>What one <c>search_pages</c> call may return.</summary>
+    public required int MaxSearchMatches { get; init; }
+
+    /// <summary>Rows a listing answers with when the caller names no <c>limit</c>.</summary>
+    public required int DefaultListLimit { get; init; }
+
+    /// <summary>The most rows one listing will answer with.</summary>
+    public required int MaxListLimit { get; init; }
+
+    /// <summary>Lines one virtual-shell <c>grep</c> may show before it says there are more.</summary>
+    public required int ShellMatchLimit { get; init; }
+
+    /// <summary>Lines <c>head</c> and <c>tail</c> show when no count is given.</summary>
+    public required int ShellDefaultLines { get; init; }
+
+    /// <summary>Reads <c>Assistant</c>.</summary>
+    /// <param name="configuration">The application configuration.</param>
+    /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
+    public static AssistantOptions FromConfiguration(IConfiguration configuration) {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        ConfigurationReader reader = new(configuration, "Assistant");
+        AssistantOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Assistant</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Assistant</c>, which the caller completes.</param>
+    internal static AssistantOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        bool enabled = reader.Switch("Enabled", recommended: false);
+        bool requireApiKey = reader.Switch("RequireApiKey", recommended: true);
+        string? apiKey = reader.OptionalText("ApiKey");
+
+        AssistantOptions options = new() {
+            Enabled = enabled,
+            BaseUrl = reader.Text("BaseUrl", "an absolute URL such as https://api.deepseek.com"),
+            ChatCompletionsPath = reader.Text("ChatCompletionsPath", "a path such as /chat/completions"),
+            Model = reader.Text("Model", "the provider's model name, such as deepseek-flash"),
+            ApiKey = string.IsNullOrWhiteSpace(apiKey) ? null : apiKey,
+            ReasoningField = reader.Text("ReasoningField", "the JSON field a reasoning model streams, such as reasoning_content"),
+            RequireApiKey = requireApiKey,
+            AllowInsecureHttp = reader.Switch("AllowInsecureHttp", recommended: false),
+            Temperature = reader.Decimal("Temperature", recommended: 0.2, minimum: 0, maximum: 2),
+            MaxOutputTokens = reader.Number("MaxOutputTokens", recommended: 393_216, minimum: 1, maximum: 2_000_000),
+            IncludeUsage = reader.Switch("IncludeUsage", recommended: true),
+            MaxSteps = reader.Number("MaxSteps", recommended: 160, minimum: 1, maximum: 1_000),
+            MaxToolCalls = reader.Number("MaxToolCalls", recommended: 128, minimum: 1, maximum: 1_000),
+            MaxToolCallsPerStep = reader.Number("MaxToolCallsPerStep", recommended: 64, minimum: 1, maximum: 1_000),
+            MaxActiveRuns = reader.Number("MaxActiveRuns", recommended: 2, minimum: 1, maximum: 16),
+            MaxQueuedRuns = reader.Number("MaxQueuedRuns", recommended: 8, minimum: 1, maximum: 256),
+            RequestTimeoutSeconds = reader.Decimal("RequestTimeoutSeconds", recommended: 120, minimum: 1, maximum: 3_600),
+            RunTimeoutSeconds = reader.Decimal("RunTimeoutSeconds", recommended: 120, minimum: 1, maximum: 86_400),
+            ToolTimeoutSeconds = reader.Decimal("ToolTimeoutSeconds", recommended: 10, minimum: 1, maximum: 3_600),
+            BalanceTimeoutSeconds = reader.Decimal("BalanceTimeoutSeconds", recommended: 3, minimum: 1, maximum: 60),
+            MaxProviderRetries = reader.Number("MaxProviderRetries", recommended: 1, minimum: 0, maximum: 10),
+            MaxMessageChars = reader.Number("MaxMessageChars", recommended: 16_384, minimum: 1, maximum: 1_048_576),
+            MaxPageChars = reader.Number("MaxPageChars", recommended: 262_144, minimum: 1, maximum: 4_194_304),
+            MaxToolArgumentChars = reader.Number("MaxToolArgumentChars", recommended: 131_072, minimum: 1, maximum: 4_194_304),
+            MaxToolResultChars = reader.Number("MaxToolResultChars", recommended: 131_072, minimum: 1, maximum: 4_194_304),
+            MaxContextTokens = reader.Number("MaxContextTokens", recommended: 500_000, minimum: 16_384, maximum: 4_194_304),
+            ModelContextTokens = reader.Number("ModelContextTokens", recommended: 1_048_576, minimum: 16_384, maximum: 16_777_216),
+            MaxMemoriesPerOwner = reader.Number("MaxMemoriesPerOwner", recommended: 200, minimum: 1, maximum: 10_000),
+            MaxMemoryChars = reader.Number("MaxMemoryChars", recommended: 1_000, minimum: 1, maximum: 100_000),
+            MaxMemoriesPerRun = reader.Number("MaxMemoriesPerRun", recommended: 12, minimum: 1, maximum: 1_000),
+            MaxMemoryCharsPerRun = reader.Number("MaxMemoryCharsPerRun", recommended: 4_000, minimum: 1, maximum: 1_000_000),
+            MaxMemorySearchResults = reader.Number("MaxMemorySearchResults", recommended: 50, minimum: 1, maximum: 1_000),
+            MaxMemoryQueryTerms = reader.Number("MaxMemoryQueryTerms", recommended: 12, minimum: 2, maximum: 100),
+            HeartbeatSeconds = reader.Number("HeartbeatSeconds", recommended: 15, minimum: 1, maximum: 300),
+            JournalMaxEvents = reader.Number("JournalMaxEvents", recommended: 20_000, minimum: 1, maximum: 1_000_000),
+            JournalMaxBytes = reader.Number("JournalMaxBytes", recommended: 4_194_304, minimum: 1_024, maximum: 1_073_741_824),
+            JournalTtlMinutes = reader.Number("JournalTtlMinutes", recommended: 10, minimum: 1, maximum: 1_440),
+            WritablePathPrefix = reader.Text("WritablePathPrefix", "a page-key prefix such as /drafts, or a blank string for the whole site",
+                allowEmpty: true),
+            MaxSearchMatches = reader.Number("MaxSearchMatches", recommended: 100, minimum: 1, maximum: 1_000),
+            DefaultListLimit = reader.Number("DefaultListLimit", recommended: 50, minimum: 1, maximum: 1_000),
+            MaxListLimit = reader.Number("MaxListLimit", recommended: 500, minimum: 1, maximum: 1_000),
+            ShellMatchLimit = reader.Number("ShellMatchLimit", recommended: 100, minimum: 1, maximum: 1_000),
+            ShellDefaultLines = reader.Number("ShellDefaultLines", recommended: 10, minimum: 1, maximum: 1_000),
+        };
+
+        reader.FailIf(enabled && requireApiKey && options.ApiKey is null, "ApiKey",
+            "is not set. Set it to the provider's key, or set Assistant:RequireApiKey to false for a provider that needs none");
+        reader.FailIf(options.DefaultListLimit > options.MaxListLimit, "DefaultListLimit",
+            $"is {options.DefaultListLimit}, which is larger than MaxListLimit ({options.MaxListLimit})");
+
+        ValidateOptionsResult validation = new AssistantOptionsValidator().Validate(name: null, options);
+        if (validation.Failed) {
+            foreach (string failure in validation.Failures) {
+                reader.Fail(failure);
+            }
         }
 
-        List<string> failures = [];
-        if (options.RequireApiKey && string.IsNullOrWhiteSpace(options.ApiKey)) {
-            failures.Add("Assistant is enabled, but Assistant__ApiKey is required.");
-        }
-        if (!Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out Uri? baseUri)
-            || (baseUri.Scheme != Uri.UriSchemeHttps
-                && !(baseUri.IsLoopback || options.AllowInsecureHttp))) {
-            failures.Add("Assistant:BaseUrl must be an absolute HTTPS URL unless it is loopback or Assistant:AllowInsecureHttp is true.");
-        } else if (baseUri.UserInfo.Length > 0 || baseUri.Query.Length > 0 || baseUri.Fragment.Length > 0) {
-            failures.Add("Assistant:BaseUrl must not contain credentials, a query or a fragment.");
-        }
-        if (string.IsNullOrWhiteSpace(options.Model)) {
-            failures.Add("Assistant:Model must not be empty.");
-        }
-        if (string.IsNullOrWhiteSpace(options.ChatCompletionsPath)
-            || !options.ChatCompletionsPath.StartsWith('/')) {
-            failures.Add("Assistant:ChatCompletionsPath must be an absolute path.");
-        }
-        if (options.Temperature is < 0 or > 2 || double.IsNaN(options.Temperature)) {
-            failures.Add("Assistant:Temperature must be between 0 and 2.");
-        }
-        if (options.MaxOutputTokens <= 0 || options.MaxSteps <= 0 || options.MaxToolCalls <= 0
-            || options.MaxToolCallsPerStep <= 0 || options.MaxActiveRuns <= 0 || options.MaxQueuedRuns <= 0
-            || !double.IsFinite(options.RequestTimeoutSeconds) || !double.IsFinite(options.RunTimeoutSeconds)
-            || !double.IsFinite(options.ToolTimeoutSeconds) || !double.IsFinite(options.BalanceTimeoutSeconds)
-            || options.RequestTimeoutSeconds <= 0 || options.RunTimeoutSeconds <= 0 || options.ToolTimeoutSeconds <= 0
-            || options.BalanceTimeoutSeconds <= 0
-            || options.MaxProviderRetries < 0 || options.MaxMessageChars <= 0 || options.MaxPageChars <= 0
-            || options.MaxToolArgumentChars <= 0 || options.MaxToolResultChars <= 0
-            || options.MaxContextTokens <= 0 || options.ModelContextTokens <= 0
-            || options.HeartbeatSeconds <= 0 || options.JournalMaxEvents <= 0
-            || options.JournalMaxBytes <= 0 || options.JournalTtlMinutes <= 0) {
-            failures.Add("Assistant limits and timeouts must be positive; MaxProviderRetries may be zero.");
-        }
-        if (options.MaxContextTokens < MinimumContextTokens) {
-            failures.Add($"Assistant:MaxContextTokens must be at least {MinimumContextTokens}.");
-        }
-        if ((long)options.MaxContextTokens + options.MaxOutputTokens > options.ModelContextTokens) {
-            failures.Add(
-                $"Assistant:MaxContextTokens plus Assistant:MaxOutputTokens must not exceed Assistant:ModelContextTokens "
-                + $"({options.MaxContextTokens} + {options.MaxOutputTokens} > {options.ModelContextTokens}).");
-        }
-        if (options.MaxMemoriesPerOwner <= 0 || options.MaxMemoryChars <= 0
-            || options.MaxMemoriesPerRun <= 0 || options.MaxMemoryCharsPerRun <= 0
-            || options.MaxMemorySearchResults <= 0) {
-            failures.Add("Assistant memory limits must be positive.");
-        }
-        if (options.MaxMemoryChars > options.MaxMemoryCharsPerRun) {
-            failures.Add("Assistant:MaxMemoryChars must not exceed Assistant:MaxMemoryCharsPerRun.");
-        }
-        if (options.MaxMemoryQueryTerms < 2) {
-            failures.Add("Assistant:MaxMemoryQueryTerms must be at least 2, so a query is not a single letter.");
-        }
-
-        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+        return options;
     }
 }

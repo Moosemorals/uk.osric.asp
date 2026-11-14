@@ -18,7 +18,7 @@ public sealed class PageToolExecutorMemoryTests {
 
     private static DatabaseTemplate? s_template;
 
-    private readonly AssistantOptions _options = new() {
+    private readonly AssistantOptions _options = TestOptions.Assistant with {
         MaxToolArgumentChars = 4_096,
         MaxToolResultChars = 4_096,
         MaxPageChars = 4_096,
@@ -48,6 +48,7 @@ public sealed class PageToolExecutorMemoryTests {
             builder.UseSqlite(DatabaseTemplate.ConnectionString(_databasePath)));
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(_options);
+        services.AddSingleton(TestOptions.Editor);
         services.AddSingleton(new AssistantMetrics());
         services.AddScoped<IMemoryStore, SqliteMemoryStore>();
         _services = services.BuildServiceProvider();

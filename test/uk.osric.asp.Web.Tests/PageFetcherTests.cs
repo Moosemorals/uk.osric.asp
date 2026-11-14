@@ -6,9 +6,11 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Net;
+using System.Reflection;
 using System.Text;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Configuration;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
@@ -276,7 +278,7 @@ public sealed class PageFetcherTests {
         HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             Respond(HttpStatusCode.OK, new string('x', 4096)),
-            new PageFetchOptions { MaxResponseBytes = 1024 });
+            TestOptions.Fetch with { MaxResponseBytes = 1024 });
 
         Assert.That(response.Truncated, Is.True);
         Assert.That(response.Body, Has.Length.EqualTo(1024));
@@ -298,7 +300,7 @@ public sealed class PageFetcherTests {
         HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new SlowHandler(),
-            new PageFetchOptions { TimeoutSeconds = 0.25 });
+            TestOptions.Fetch with { TimeoutSeconds = 0.25 });
 
         Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.Timeout));
     }
@@ -311,7 +313,7 @@ public sealed class PageFetcherTests {
         HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new SlowHandler(),
-            new PageFetchOptions { TimeoutSeconds = 30 },
+            TestOptions.Fetch with { TimeoutSeconds = 30 },
             aborted.Token);
 
         Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.Aborted));
@@ -325,7 +327,7 @@ public sealed class PageFetcherTests {
         HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             new SlowHandler(),
-            new PageFetchOptions { TimeoutSeconds = 30 },
+            TestOptions.Fetch with { TimeoutSeconds = 30 },
             CancellationToken.None,
             deadline.Token);
 
@@ -338,7 +340,7 @@ public sealed class PageFetcherTests {
         PageMetrics metrics = new();
         PageFetcher fetcher = Fetcher(
             new StubHttpMessageHandler(Respond(HttpStatusCode.OK, "ok")),
-            new PageFetchOptions(),
+            TestOptions.Fetch,
             metrics);
 
         await fetcher.FetchAsync(Request("https://api.example.com/"), "/page", CancellationToken.None, CancellationToken.None);
@@ -569,7 +571,7 @@ public sealed class PageFetcherTests {
         Dictionary<string, string?> values = CredentialConfiguration();
         values.Remove($"Pages:Fetch:Credentials:assistant:{missing}");
 
-        Assert.Throws<InvalidOperationException>(() => Options(values));
+        Assert.Throws<ConfigurationException>(() => Options(values));
     }
 
     [TestCase("Content-Type")]
@@ -580,7 +582,7 @@ public sealed class PageFetcherTests {
         Dictionary<string, string?> values = CredentialConfiguration();
         values["Pages:Fetch:Credentials:assistant:Header"] = header;
 
-        Assert.Throws<InvalidOperationException>(() => Options(values));
+        Assert.Throws<ConfigurationException>(() => Options(values));
     }
 
     [TestCase(" Bearer")]
@@ -590,7 +592,7 @@ public sealed class PageFetcherTests {
         Dictionary<string, string?> values = CredentialConfiguration();
         values["Pages:Fetch:Credentials:assistant:Scheme"] = scheme;
 
-        Assert.Throws<InvalidOperationException>(() => Options(values));
+        Assert.Throws<ConfigurationException>(() => Options(values));
     }
 
     [TestCase("https://api.deepseek.com")]
@@ -601,7 +603,7 @@ public sealed class PageFetcherTests {
         Dictionary<string, string?> values = CredentialConfiguration();
         values["Pages:Fetch:Credentials:assistant:Host"] = host;
 
-        Assert.Throws<InvalidOperationException>(() => Options(values));
+        Assert.Throws<ConfigurationException>(() => Options(values));
     }
 
     [Test]
@@ -609,7 +611,7 @@ public sealed class PageFetcherTests {
         Dictionary<string, string?> values = CredentialConfiguration();
         values["Pages:Fetch:Credentials:assistant:Value"] = "secret\r\nInjected: yes";
 
-        InvalidOperationException? exception = Assert.Throws<InvalidOperationException>(() => Options(values));
+        ConfigurationException? exception = Assert.Throws<ConfigurationException>(() => Options(values));
 
         Assert.That(exception?.Message, Does.Not.Contain("secret"));
     }
@@ -623,14 +625,10 @@ public sealed class PageFetcherTests {
 
     [Test]
     public void FetchLimitsComeFromConfiguration() {
-        ConfigurationBuilder builder = new();
-        builder.AddInMemoryCollection(new Dictionary<string, string?> {
-            ["Pages:Fetch:TimeoutSeconds"] = "2.5",
-            ["Pages:Fetch:MaxResponseBytes"] = "2048",
-            ["Pages:Fetch:MaxRedirects"] = "0",
-        });
-
-        PageFetchOptions options = PageFetchOptions.FromConfiguration(builder.Build());
+        PageFetchOptions options = PageFetchOptions.FromConfiguration(ShippedConfiguration.Read(
+            ("Pages:Fetch:TimeoutSeconds", "2.5"),
+            ("Pages:Fetch:MaxResponseBytes", "2048"),
+            ("Pages:Fetch:MaxRedirects", "0")));
 
         Assert.Multiple(() => {
             Assert.That(options.TimeoutSeconds, Is.EqualTo(2.5));
@@ -661,7 +659,7 @@ public sealed class PageFetcherTests {
         CancellationToken aborted = default,
         CancellationToken deadline = default) {
         StubHttpMessageHandler handler = new(respond);
-        PageFetcher fetcher = Fetcher(handler, options ?? new PageFetchOptions());
+        PageFetcher fetcher = Fetcher(handler, options ?? TestOptions.Fetch);
 
         return await fetcher.FetchAsync(request, "/page", aborted, deadline);
     }
@@ -672,7 +670,7 @@ public sealed class PageFetcherTests {
         PageFetchOptions? options = null,
         CancellationToken aborted = default,
         CancellationToken deadline = default) {
-        PageFetcher fetcher = Fetcher(handler, options ?? new PageFetchOptions());
+        PageFetcher fetcher = Fetcher(handler, options ?? TestOptions.Fetch);
 
         return await fetcher.FetchAsync(request, "/page", aborted, deadline);
     }
@@ -694,7 +692,7 @@ public sealed class PageFetcherTests {
         string? scheme = "Bearer",
         string value = "secret-value",
         string page = "/page") {
-        return new PageFetchOptions {
+        return TestOptions.Fetch with {
             Credentials = new Dictionary<string, PageCredential>(StringComparer.OrdinalIgnoreCase) {
                 ["assistant"] = new("assistant", host, header, scheme, value, PagePath.Normalize(page)),
             },
@@ -711,10 +709,18 @@ public sealed class PageFetcherTests {
 
     private static PageFetchOptions Options(Dictionary<string, string?> values) {
         ConfigurationBuilder builder = new();
-        builder.AddInMemoryCollection(values);
+        _ = builder.AddJsonFile(ShippedPath());
+        _ = builder.AddInMemoryCollection(values);
 
         return PageFetchOptions.FromConfiguration(builder.Build());
     }
+
+    private static string ShippedPath() => Path.Combine(
+        typeof(PageFetcherTests).Assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(attribute => attribute.Key == "RepoRoot")
+            .Value!,
+        "src", "uk.osric.asp.Web", "appsettings.json");
 
     private sealed class SlowHandler : HttpMessageHandler {
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {

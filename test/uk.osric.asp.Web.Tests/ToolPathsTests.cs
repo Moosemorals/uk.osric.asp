@@ -96,10 +96,10 @@ public sealed class ToolPathsTests {
         });
 
     private static ToolServices Services() => new(
-        new ServiceCollection().BuildServiceProvider(),
+        new ServiceCollection().AddSingleton(TestOptions.Editor).BuildServiceProvider(),
         new ToolContext("owner", ConversationId: 1, RunId: "run-1"),
-        new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions()),
-        new AssistantOptions(),
+        new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
+        TestOptions.Assistant,
         new AssistantMetrics(),
         new FakeAssistantFetcher(),
         new DiffRenderer());

@@ -64,6 +64,7 @@ editor — is what is left.
 | [IDEA-027](IDEA-027.md) | — | S | A page cannot leave a message for a page it sends a visitor to |
 | [IDEA-029](IDEA-029.md) | — | L | VS Code cannot check a page as it is typed: highlighting and clickable diagnostics are static |
 | [IDEA-030](IDEA-030.md) | — | M | Every view writes its own navigation: the shell, the admin, the assistant and the seeds each assemble the same links |
+| [IDEA-031](IDEA-031.md) | — | S | Some policy is still a constant in code: password and user-name length, the security headers, the page API allow-list, and the internal retry and sweep periods |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.

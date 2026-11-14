@@ -78,8 +78,11 @@ internal static class ShellRunner {
             return ShellOutcome.Refused(refusal.Error!, refusal.Summary);
         }
 
-        ShellOutput output = new();
-        ShellContext context = new(matched.Line, expanded, store, output, s_registry);
+        ShellOutput output = new() {
+            MatchLimit = options.ShellMatchLimit,
+            ListingLimit = options.MaxListLimit,
+        };
+        ShellContext context = new(matched.Line, expanded, store, output, s_registry, options);
         ShellResult result = await applet.RunAsync(matched.Line, context, cancellationToken);
         if (!result.IsSuccess) {
             return ShellOutcome.Refused(result.Error!, result.Summary);

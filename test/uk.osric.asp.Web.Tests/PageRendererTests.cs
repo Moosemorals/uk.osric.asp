@@ -200,10 +200,10 @@ public sealed class PageRendererTests {
     [Test]
     public async Task APageThatOutrunsTheBudgetIsAbandonedAsync() {
         FakePageStore storage = new();
-        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, options: options,
-            budget: new PageBudget(options, new CompileOptions()), health: health);
+            budget: new PageBudget(options, TestOptions.Compile), health: health);
         await pages.StoreCompiledAsync("/slow", SlowPage);
 
         long start = Stopwatch.GetTimestamp();
@@ -218,9 +218,9 @@ public sealed class PageRendererTests {
     [Test]
     public async Task AnAbandonedPageStopsWritingToTheResponseAsync() {
         FakePageStore storage = new();
-        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
         using PageHarness pages = new(storage, options: options,
-            budget: new PageBudget(options, new CompileOptions()));
+            budget: new PageBudget(options, TestOptions.Compile));
         await pages.StoreCompiledAsync("/chatty",
             "before<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600); while (System.DateTime.UtcNow < until) { } %>after");
 
@@ -238,7 +238,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task AnAbandonedPageWaitingOnStorageIsCancelledAndReleasedAsync() {
         FakePageStore storage = new();
-        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         FakePageStateStore state = new() { ReadDelay = TimeSpan.FromSeconds(30) };
         state.LivePages.Add("/waiting");
@@ -246,7 +246,7 @@ public sealed class PageRendererTests {
         using PageHarness pages = new(
             storage,
             options: options,
-            budget: new PageBudget(options, new CompileOptions()),
+            budget: new PageBudget(options, TestOptions.Compile),
             health: health,
             state: state,
             rendererLogger: logs.CreateLogger<PageRenderer>());
@@ -275,10 +275,10 @@ public sealed class PageRendererTests {
     [Test]
     public async Task AnAbandonedPageIsReleasedFromTheHealthCountWhenItFinishesAsync() {
         FakePageStore storage = new();
-        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, options: options,
-            budget: new PageBudget(options, new CompileOptions()), health: health);
+            budget: new PageBudget(options, TestOptions.Compile), health: health);
         await pages.StoreCompiledAsync("/slow", SlowPage);
 
         await pages.RenderAsync("/slow");
@@ -296,10 +296,10 @@ public sealed class PageRendererTests {
     public async Task APageWhoseCompileOutlivesTheBudgetIsServedByTheNextRequestAsync() {
         FakePageStore storage = new();
         storage["/cold"] = new PageTemplate(PageHarness.Key("/cold"), "<% ctx.Write(\"Hello.\"); %>");
-        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, new SlowCompiler(new PageCompiler()), options,
-            new PageBudget(options, new CompileOptions()), health);
+            new PageBudget(options, TestOptions.Compile), health);
 
         (RenderResult first, string firstOutput) = await pages.RenderAsync("/cold");
 
@@ -319,8 +319,8 @@ public sealed class PageRendererTests {
     public async Task ARenderThatWaitsPastTheBudgetForASlotIsDroppedAsync() {
         FakePageStore storage = new();
         storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>");
-        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds, Slots = 1 };
-        PageBudget budget = new(options, new CompileOptions());
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds, Slots = 1 };
+        PageBudget budget = new(options, TestOptions.Compile);
         using PageHarness pages = new(storage, options: options, budget: budget, health: new PageHealth(options.AbandonedLimit));
 
         await budget.RenderSlots.WaitAsync();
@@ -338,8 +338,8 @@ public sealed class PageRendererTests {
     public async Task ARenderThatSpendsItsBudgetWaitingForACompileSlotTimesOutAsync() {
         FakePageStore storage = new();
         storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>");
-        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
-        PageBudget budget = new(options, new CompileOptions());
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
+        PageBudget budget = new(options, TestOptions.Compile);
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, options: options, budget: budget, health: health);
 
@@ -363,10 +363,10 @@ public sealed class PageRendererTests {
     public async Task ARenderThatSpendsItsBudgetOnTheReadTimesOutWithoutRunningThePageAsync() {
         FakePageStore storage = new() { ReadDelay = TimeSpan.FromMilliseconds(600) };
         storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>");
-        RenderOptions options = new() { TimeoutSeconds = BudgetSeconds };
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, options: options,
-            budget: new PageBudget(options, new CompileOptions()), health: health);
+            budget: new PageBudget(options, TestOptions.Compile), health: health);
 
         long start = Stopwatch.GetTimestamp();
         (RenderResult result, string output) = await pages.RenderAsync("/hello");
@@ -383,7 +383,7 @@ public sealed class PageRendererTests {
     public async Task APageThatWritesPastTheBodyCapFailsAsync() {
         FakePageStore storage = new();
         storage["/chatty"] = new PageTemplate(PageHarness.Key("/chatty"), "0123456789");
-        using PageHarness pages = new(storage, options: new RenderOptions { MaxBodyChars = 5 });
+        using PageHarness pages = new(storage, options: TestOptions.Render with { MaxBodyChars = 5 });
 
         InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(
             () => pages.RenderAsync("/chatty", maxBodyChars: 5));

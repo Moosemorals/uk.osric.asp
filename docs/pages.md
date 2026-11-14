@@ -321,8 +321,8 @@ waits for it against one deadline that covers both queueing and running:
   thread. A request that waits past the deadline is shed: it answers `504` immediately without ever
   running the page.
 - `Pages:Render:TimeoutSeconds` is the whole budget, and may be fractional: the deadline is honoured
-  in milliseconds, and the configuration is clamped at `PageBudget.MinimumTimeoutSeconds` so a zero
-  cannot switch the limit off. When it expires the site answers `504`, calls
+  in milliseconds, and a value below `PageBudget.MinimumTimeoutSeconds` is refused at startup, so a
+  zero cannot switch the limit off. When it expires the site answers `504`, calls
   `SimpleContext.Abandon` so the still-running page cannot write any more, and gives up on it. A
   render that never returns cannot be reclaimed: it is counted, logged with the page's path and the
   elapsed time, and recorded on `page.render.abandoned`. A page that is *waiting* on an `await`
@@ -343,6 +343,10 @@ waits for it against one deadline that covers both queueing and running:
   request answers `504` without starting the page. The next request is served from the store.
 - `Pages:Render:MaxBodyChars` caps the buffered body, so a page that writes in a loop fails quickly
   instead of growing the process.
+
+Every key in this section is required: a missing or out-of-range value stops the site at startup
+with a sentence naming the key, its range and the shipped value. See
+[configuration](architecture.md#configuration).
 
 The handler still runs in the site's process, and the `IContext` it writes to is unchanged, so a page
 can still mutate process-wide state; that is the residual SEC-03 records.

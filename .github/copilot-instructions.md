@@ -62,6 +62,33 @@ what a page author can do — a context member, a capability, a layout slot, an 
 content type or a response rule — updates `/help` in the same change, and its plan says so beside
 the tests and the architecture notes.
 
+## Configuration
+
+A **policy value** comes from configuration, never from a literal and never from a fallback in code
+(DEC-282). A policy value is a limit, timeout, quota, retry count, cache or sweep interval, feature
+switch, host or credential list, or a name that decides routing or authority.
+
+- The shape is an options record in `Web`, with a `FromConfiguration` factory that reads every value
+  through `ConfigurationReader` (under `Web/Configuration`), and a test for the shipped value, an
+  override and a refusal. `appsettings.json` is the shipped source of truth; a production override
+  may be partial because providers merge key by key.
+- Nothing has a code fallback. A missing, blank, malformed or out-of-range value stops the process at
+  startup with a `ConfigurationException` that names the key, the accepted range and the recommended
+  value. Every section's problems are collected into one report before it is made, so an operator
+  fixes a list rather than one section per restart. `Program.Main` writes that report to standard
+  error and exits non-zero.
+- A range is a safety net, not a straitjacket: wide enough that only a mistake meets it. It exists so
+  a bad value cannot switch a guard off, not to ration a legitimate deployment, and the refusal names
+  the range so the operator can see what is allowed.
+- `Core` never reads configuration: the shell turns a setting into a plain value and passes it in.
+- A genuinely optional value is declared and documented as optional. Absent is not the same as
+  blank, and blank is accepted only where blank has a meaning.
+- An **invariant** stays in code: a cryptographic or wire-format constant, a schema constraint, an
+  algorithm work cap, or the floor and ceiling that keep a configured value from switching a guard
+  off. A security policy may be configured only in the direction that keeps or tightens the shipped
+  guarantee; one that configuration could only weaken stays an invariant until a decision says
+  otherwise ([IDEA-031](../docs/jobs/IDEA-031.md) holds the list).
+
 ## JavaScript
 
 Seeded scripts under `Pages/Seeds` and any new JavaScript are native ES modules: no bundler, no npm,

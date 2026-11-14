@@ -16,9 +16,9 @@ internal sealed class ListRevisionsTool : AssistantTool {
         "list_revisions",
         "List a page's retained revisions, newest first: each hash, when it was saved, the runtime that created it, "
         + "its compile state and whether it is the page's current revision. A deleted page's history is listed too, "
-        + "which is what answers \"what did this page hold before it was deleted?\". `limit` (1-500, default 50) bounds "
-        + "the rows and `truncated` says there are more, so pass `before` with the last hash you were given to read the "
-        + "next, older slice. Read-only: it changes nothing and needs no approval.",
+        + "which is what answers \"what did this page hold before it was deleted?\". `limit` bounds the rows and "
+        + "`truncated` says there are more, so pass `before` with the last hash you were given to read the next, older "
+        + "slice. A refusal names the accepted range. Read-only: it changes nothing and needs no approval.",
         false,
         [
             new("path", ToolArgumentType.String, true),
@@ -40,8 +40,8 @@ internal sealed class ListRevisionsTool : AssistantTool {
             return noSource;
         }
 
-        if (!PageToolData.TryReadLimit(values, out int limit)) {
-            return services.Results.Failure(PageToolData.LimitRefusal, $"{Spec.Verb} refused");
+        if (!PageToolData.TryReadLimit(values, services.Options, out int limit)) {
+            return services.Results.Failure(PageToolData.LimitRefusal(services.Options), $"{Spec.Verb} refused");
         }
 
         string? beforeText = values.String("before");

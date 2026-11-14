@@ -38,12 +38,14 @@ internal sealed class ShellRegistry {
 /// <param name="Store">The one read seam over the page store.</param>
 /// <param name="Output">Where the answer is written.</param>
 /// <param name="Registry">The applets, which <c>help</c> reads.</param>
+/// <param name="Options">The assistant's configured limits, for the defaults an applet uses.</param>
 internal sealed class ShellContext(
     ShellCommandLine line,
     IReadOnlyList<PageNode> paths,
     IPageStoreReader store,
     IShellOutput output,
-    ShellRegistry registry) {
+    ShellRegistry registry,
+    AssistantOptions options) {
 
     /// <summary>The parsed command line.</summary>
     public ShellCommandLine Line { get; } = line;
@@ -59,4 +61,7 @@ internal sealed class ShellContext(
 
     /// <summary>The applets, which <c>help</c> reads.</summary>
     public ShellRegistry Registry { get; } = registry;
+
+    /// <summary>The assistant's configured limits.</summary>
+    public AssistantOptions Options { get; } = options;
 }

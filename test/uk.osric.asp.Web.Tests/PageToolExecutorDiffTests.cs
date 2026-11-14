@@ -145,7 +145,7 @@ public sealed class PageToolExecutorDiffTests {
         await storage.SavePageAsync(first);
         await storage.SavePageAsync(second);
 
-        ToolExecutionResult result = await RunAsync(storage, """{"path":"/notes"}""", new AssistantOptions {
+        ToolExecutionResult result = await RunAsync(storage, """{"path":"/notes"}""", TestOptions.Assistant with {
             MaxToolArgumentChars = 8_192,
             MaxToolResultChars = 2_048,
             MaxPageChars = 8_192,
@@ -166,12 +166,13 @@ public sealed class PageToolExecutorDiffTests {
         using PageHarness pages = new(storage);
         using ServiceProvider services = new ServiceCollection()
             .AddScoped(_ => pages.Editor)
+            .AddSingleton(TestOptions.Editor)
             .BuildServiceProvider();
 
         PageToolExecutor tools = new(
             services.GetRequiredService<IServiceScopeFactory>(),
-            new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions()),
-            options ?? new AssistantOptions { MaxToolArgumentChars = 8_192, MaxToolResultChars = 8_192, MaxPageChars = 8_192 },
+            new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
+            options ?? TestOptions.Assistant with { MaxToolArgumentChars = 8_192, MaxToolResultChars = 8_192, MaxPageChars = 8_192 },
             new AssistantMetrics(),
             new FakeAssistantFetcher(),
             new DiffRenderer());

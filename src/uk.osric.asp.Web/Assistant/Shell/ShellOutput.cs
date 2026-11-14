@@ -47,10 +47,10 @@ internal sealed class ShellOutput : IShellOutput {
     private readonly StringBuilder _text = new();
 
     /// <inheritdoc/>
-    public int MatchLimit { get; init; } = 100;
+    public required int MatchLimit { get; init; }
 
     /// <inheritdoc/>
-    public int ListingLimit { get; init; } = 500;
+    public required int ListingLimit { get; init; }
 
     /// <inheritdoc/>
     public bool Truncated { get; private set; }

@@ -28,7 +28,7 @@ public sealed class PageSessionScopeTests {
     public async Task APageWritesUnderItsOwnPathAndReadsItBackAsync() {
         FakePageSessionStore store = new();
         PageSessionRequest session = NewSession();
-        IPageSession page = new PageSessionScope(Key("/page"), store, new PageSessionOptions(), session, writable: true, slides: true);
+        IPageSession page = new PageSessionScope(Key("/page"), store, TestOptions.Session, session, writable: true, slides: true);
 
         await page.SetAsync("draft", "hello");
 
@@ -115,7 +115,7 @@ public sealed class PageSessionScopeTests {
         PageSessionRequest session = NewSession();
         store.Seed(session.Id, "/page", "visits", "1");
         PageSessionScope page = new(
-            Key("/page"), store, new PageSessionOptions(), session, writable: false, slides: false);
+            Key("/page"), store, TestOptions.Session, session, writable: false, slides: false);
 
         Assert.That((await page.TryGetValueAsync<int>("visits")).Value, Is.EqualTo(1));
         Assert.That(await page.KeysAsync(), Is.Not.Empty);
@@ -127,7 +127,7 @@ public sealed class PageSessionScopeTests {
     public async Task ALayoutMayNotWriteAsync() {
         FakePageSessionStore store = new();
         PageSessionScope page = new(
-            Key("/_layout"), store, new PageSessionOptions(), NewSession(), writable: false, slides: true);
+            Key("/_layout"), store, TestOptions.Session, NewSession(), writable: false, slides: true);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => page.SetAsync("draft", "x"));
     }
@@ -135,7 +135,7 @@ public sealed class PageSessionScopeTests {
     [Test]
     public async Task AValueOverTheCapIsRefusedBeforeARowIsWrittenAsync() {
         FakePageSessionStore store = new();
-        PageSessionOptions options = new() {
+        PageSessionOptions options = TestOptions.Session with {
             Anonymous = new PageSessionCaps(MaxValueBytes: 16, MaxKeys: 8, MaxTotalBytes: 1024),
         };
         IPageSession page = new PageSessionScope(
@@ -147,7 +147,7 @@ public sealed class PageSessionScopeTests {
 
     [Test]
     public async Task AKeyLongerThanTheCapIsRefusedAsync() {
-        PageSessionOptions options = new() { MaxKeyChars = 4 };
+        PageSessionOptions options = TestOptions.Session with { MaxKeyChars = 4 };
         IPageSession page = new PageSessionScope(
             Key("/page"), new FakePageSessionStore(), options, NewSession(), writable: true, slides: true);
 
@@ -165,7 +165,7 @@ public sealed class PageSessionScopeTests {
     [Test]
     public async Task AWritePastTheKeyCountIsRefusedAsync() {
         FakePageSessionStore store = new();
-        PageSessionOptions options = new() {
+        PageSessionOptions options = TestOptions.Session with {
             Anonymous = new PageSessionCaps(MaxValueBytes: 1024, MaxKeys: 2, MaxTotalBytes: 4096),
         };
         IPageSession page = new PageSessionScope(
@@ -180,7 +180,7 @@ public sealed class PageSessionScopeTests {
     [Test]
     public async Task AWritePastTheByteTotalIsRefusedAsync() {
         FakePageSessionStore store = new();
-        PageSessionOptions options = new() {
+        PageSessionOptions options = TestOptions.Session with {
             Anonymous = new PageSessionCaps(MaxValueBytes: 1024, MaxKeys: 8, MaxTotalBytes: 64),
         };
         IPageSession page = new PageSessionScope(
@@ -195,7 +195,7 @@ public sealed class PageSessionScopeTests {
     [Test]
     public async Task ASignedInSessionUsesTheSignedInCapsAsync() {
         FakePageSessionStore store = new();
-        PageSessionOptions options = new() {
+        PageSessionOptions options = TestOptions.Session with {
             Anonymous = new PageSessionCaps(MaxValueBytes: 16, MaxKeys: 8, MaxTotalBytes: 1024),
             SignedIn = new PageSessionCaps(MaxValueBytes: 4096, MaxKeys: 32, MaxTotalBytes: 16384),
         };
@@ -230,7 +230,7 @@ public sealed class PageSessionScopeTests {
         PageSessionRequest session = NewSession();
         store.Seed(session.Id, "/page", "visits", "1");
         PageSessionScope page = new(
-            Key("/page"), store, new PageSessionOptions(), session, writable: false, slides: false);
+            Key("/page"), store, TestOptions.Session, session, writable: false, slides: false);
         store.Clock.Now = DateTimeOffset.UnixEpoch.AddDays(1);
 
         _ = await page.TryGetValueAsync<int>("visits");
@@ -271,7 +271,7 @@ public sealed class PageSessionScopeTests {
     [Test]
     public async Task AnAbandonedRenderCannotUseTheSessionAsync() {
         PageSessionScope page = new(
-            Key("/page"), new FakePageSessionStore(), new PageSessionOptions(), NewSession(), writable: true, slides: true);
+            Key("/page"), new FakePageSessionStore(), TestOptions.Session, NewSession(), writable: true, slides: true);
 
         page.Abandon();
 
@@ -285,7 +285,7 @@ public sealed class PageSessionScopeTests {
     public async Task TheRenderDeadlineIsPassedToTheStoreAsync() {
         FakePageSessionStore store = new();
         PageSessionScope page = new(
-            Key("/page"), store, new PageSessionOptions(), NewSession(), writable: true, slides: true);
+            Key("/page"), store, TestOptions.Session, NewSession(), writable: true, slides: true);
         using CancellationTokenSource deadline = new();
         page.AttachDeadline(deadline.Token);
 
@@ -298,7 +298,7 @@ public sealed class PageSessionScopeTests {
     public async Task AnAlreadyCancelledDeadlineRefusesTheCallAsync() {
         FakePageSessionStore store = new();
         PageSessionScope page = new(
-            Key("/page"), store, new PageSessionOptions(), NewSession(), writable: true, slides: true);
+            Key("/page"), store, TestOptions.Session, NewSession(), writable: true, slides: true);
         using CancellationTokenSource deadline = new();
         deadline.Cancel();
         page.AttachDeadline(deadline.Token);
@@ -315,7 +315,7 @@ public sealed class PageSessionScopeTests {
         new PageSessionScope(
             Key(pagePath),
             store,
-            new PageSessionOptions(),
+            TestOptions.Session,
             session ?? NewSession(),
             writable: true,
             slides: true);

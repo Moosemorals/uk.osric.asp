@@ -420,7 +420,7 @@ public sealed class AssistantMemoryStoreTests {
         StorageDbContext database,
         int maximumMemoriesPerOwner = 200,
         int maximumMemoryChars = 1_000) =>
-        new(database, new AssistantOptions {
+        new(database, TestOptions.Assistant with {
             MaxMemoriesPerOwner = maximumMemoriesPerOwner,
             MaxMemoryChars = maximumMemoryChars,
             MaxMemoriesPerRun = 12,

@@ -974,7 +974,7 @@ public sealed class PageToolExecutorTests {
         }
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services, new AssistantOptions {
+        PageToolExecutor tools = CreateTools(services, TestOptions.Assistant with {
             MaxToolArgumentChars = 4096,
             MaxToolResultChars = 65536,
             MaxPageChars = 4096,
@@ -1370,7 +1370,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services, new AssistantOptions {
+        PageToolExecutor tools = CreateTools(services, TestOptions.Assistant with {
             MaxToolArgumentChars = 8192,
             MaxToolResultChars = 4096,
             MaxPageChars = 1024,
@@ -1576,7 +1576,7 @@ public sealed class PageToolExecutorTests {
         storage["/long"] = new PageTemplate(PageHarness.Key("/long"), new string('x', 2000));
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services, new AssistantOptions {
+        PageToolExecutor tools = CreateTools(services, TestOptions.Assistant with {
             MaxToolArgumentChars = 4096,
             MaxToolResultChars = 1024,
             MaxPageChars = 4096,
@@ -1891,14 +1891,17 @@ public sealed class PageToolExecutorTests {
     }
 
     private static ServiceProvider Services(PageEditor editor) =>
-        new ServiceCollection().AddScoped(_ => editor).BuildServiceProvider();
+        new ServiceCollection()
+            .AddScoped(_ => editor)
+            .AddSingleton(TestOptions.Editor)
+            .BuildServiceProvider();
 
     private static readonly ToolContext Context = new("owner", ConversationId: 1, RunId: "run-1");
 
     private static PageToolExecutor CreateTools(ServiceProvider services, AssistantOptions? options = null) => new(
         services.GetRequiredService<IServiceScopeFactory>(),
-        new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions()),
-        options ?? new AssistantOptions { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
+        new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
+        options ?? TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
         new AssistantMetrics(),
         new FakeAssistantFetcher(),
         new DiffRenderer());

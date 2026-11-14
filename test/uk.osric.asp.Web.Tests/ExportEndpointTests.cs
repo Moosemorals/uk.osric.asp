@@ -201,7 +201,7 @@ public sealed class ExportEndpointTests {
     }
 
     private static PageArchiveReader Reader() =>
-        new(new ArchiveOptions(), new PageStorageOptions(), Reserved, NullLogger<PageArchiveReader>.Instance);
+        new(TestOptions.Archive, TestOptions.Storage, Reserved, NullLogger<PageArchiveReader>.Instance);
 
     private static PagePath Key(string path) => PagePath.Normalize(path);
 }

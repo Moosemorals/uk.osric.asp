@@ -29,7 +29,7 @@ public sealed class AccountBalanceClientTests {
             request = message;
             return Task.FromResult(Response(HttpStatusCode.OK, Body));
         });
-        AccountBalanceClient balance = new(client, new AssistantOptions { ApiKey = "private-key" },
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { ApiKey = "private-key" },
             NullLogger<AccountBalanceClient>.Instance);
 
         AccountBalance? result = await balance.GetAsync(CancellationToken.None);
@@ -54,7 +54,7 @@ public sealed class AccountBalanceClientTests {
             request = message;
             return Task.FromResult(Response(HttpStatusCode.OK, Body));
         });
-        AccountBalanceClient balance = new(client, new AssistantOptions { RequireApiKey = false },
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { RequireApiKey = false },
             NullLogger<AccountBalanceClient>.Instance);
 
         _ = await balance.GetAsync(CancellationToken.None);
@@ -65,7 +65,7 @@ public sealed class AccountBalanceClientTests {
     [Test]
     public async Task AnErrorStatusIsNoBalanceAsync() {
         using HttpClient client = Client((_, _) => Task.FromResult(Response(HttpStatusCode.Unauthorized, "private provider text")));
-        AccountBalanceClient balance = new(client, new AssistantOptions { ApiKey = "private-key" },
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { ApiKey = "private-key" },
             NullLogger<AccountBalanceClient>.Instance);
 
         AccountBalance? result = await balance.GetAsync(CancellationToken.None);
@@ -76,7 +76,7 @@ public sealed class AccountBalanceClientTests {
     [Test]
     public async Task ABodyThatIsNotTheBalanceJsonIsNoBalanceAsync() {
         using HttpClient client = Client((_, _) => Task.FromResult(Response(HttpStatusCode.OK, "not the balance")));
-        AccountBalanceClient balance = new(client, new AssistantOptions { RequireApiKey = false },
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { RequireApiKey = false },
             NullLogger<AccountBalanceClient>.Instance);
 
         AccountBalance? result = await balance.GetAsync(CancellationToken.None);
@@ -87,7 +87,7 @@ public sealed class AccountBalanceClientTests {
     [Test]
     public async Task AnUnreachableProviderIsNoBalanceAsync() {
         using HttpClient client = Client((_, _) => throw new HttpRequestException("the socket is closed"));
-        AccountBalanceClient balance = new(client, new AssistantOptions { RequireApiKey = false },
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { RequireApiKey = false },
             NullLogger<AccountBalanceClient>.Instance);
 
         AccountBalance? result = await balance.GetAsync(CancellationToken.None);
@@ -103,7 +103,7 @@ public sealed class AccountBalanceClientTests {
         });
         AccountBalanceClient balance = new(
             client,
-            new AssistantOptions { RequireApiKey = false, BalanceTimeoutSeconds = 0.05 },
+            TestOptions.Assistant with { RequireApiKey = false, BalanceTimeoutSeconds = 0.05 },
             NullLogger<AccountBalanceClient>.Instance);
 
         AccountBalance? result = await balance.GetAsync(CancellationToken.None);

@@ -165,14 +165,14 @@ internal sealed class PageChain {
             capabilities,
             _environment.ContentTypes,
             _environment.Render.MaxBodyChars,
+            _environment.Editor.Key,
             _user,
             _loginRedirect,
             _antiforgeryField,
             key,
             isLayout,
             _bodyBudget,
-            href => PageAssetMap.Resolve(_assets, href),
-            _environment.Editor.Key);
+            href => PageAssetMap.Resolve(_assets, href));
     }
 
     /// <summary>Wraps the content in the layouts it names, outermost last.</summary>

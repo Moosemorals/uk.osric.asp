@@ -14,12 +14,16 @@ using System.Globalization;
 /// </remarks>
 /// <param name="renderer">Draws one panel at a time.</param>
 /// <param name="time">The clock a cache entry's age is measured against.</param>
+/// <param name="options">How long an answer is reused and how many windows are kept.</param>
 /// <param name="logger">Where an incomplete page is explained.</param>
-internal sealed class Dashboard(ChartRenderer renderer, TimeProvider time, ILogger<Dashboard> logger) {
+internal sealed class Dashboard(
+    ChartRenderer renderer,
+    TimeProvider time,
+    MetricsOptions options,
+    ILogger<Dashboard> logger) {
 
-    private static readonly TimeSpan CacheFor = TimeSpan.FromSeconds(15);
-    private const int MaxCachedWindows = 16;
-
+    private readonly TimeSpan _cacheFor = options.CacheFor;
+    private readonly int _maxCachedWindows = options.MaxCachedWindows;
     private readonly Lock _gate = new();
     private readonly Dictionary<(long Start, long Length), CachedPage> _cache = [];
 
@@ -33,7 +37,7 @@ internal sealed class Dashboard(ChartRenderer renderer, TimeProvider time, ILogg
         (long, long) key = (window.Start.UtcTicks, window.Length.Ticks);
 
         lock (_gate) {
-            if (_cache.TryGetValue(key, out CachedPage? cached) && now - cached.At < CacheFor) {
+            if (_cache.TryGetValue(key, out CachedPage? cached) && now - cached.At < _cacheFor) {
                 return cached.Page;
             }
         }
@@ -42,7 +46,7 @@ internal sealed class Dashboard(ChartRenderer renderer, TimeProvider time, ILogg
 
         lock (_gate) {
             _cache[key] = new CachedPage(page, now);
-            while (_cache.Count > MaxCachedWindows) {
+            while (_cache.Count > _maxCachedWindows) {
                 (long, long) oldest = _cache.MinBy(entry => entry.Value.At).Key;
                 _cache.Remove(oldest);
             }

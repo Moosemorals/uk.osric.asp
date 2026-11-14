@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using Microsoft.Extensions.Configuration;
+using uk.osric.asp.Web.Configuration;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>How <c>Pages:Layout</c> and <c>Pages:Render:MaxLayoutDepth</c> are read.</summary>
@@ -16,35 +16,49 @@ public sealed class PageLayoutConfigurationTests {
     [TestCase("/_layout/", "/_layout")]
     [TestCase("/a/../_layout", "/_layout")]
     public void TheDefaultLayoutComesFromConfigurationAndNormalises(string configured, string expected) {
-        Assert.That(Configuration(configured).Default, Is.EqualTo(expected));
+        PageLayoutConfiguration options = PageLayoutConfiguration.FromConfiguration(
+            ShippedConfiguration.Read(("Pages:Layout", configured)));
+
+        Assert.That(options.Default, Is.EqualTo(expected));
     }
 
-    [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]
-    public void ABlankDefaultMeansNoLayout(string? configured) {
-        Assert.That(Configuration(configured).Default, Is.Null);
+    public void ABlankDefaultMeansNoLayout(string configured) {
+        PageLayoutConfiguration options = PageLayoutConfiguration.FromConfiguration(
+            ShippedConfiguration.Read(("Pages:Layout", configured)));
+
+        Assert.That(options.Default, Is.Null);
     }
 
-    [TestCase(null, 4)]
-    [TestCase(1, 1)]
-    [TestCase(16, 16)]
-    [TestCase(0, 1)]
-    [TestCase(-3, 1)]
-    [TestCase(400, 16)]
-    public void TheLayoutDepthComesFromConfigurationAndIsClamped(int? configured, int expected) {
-        RenderOptions options = RenderOptions.FromConfiguration(Settings(
-            ("Pages:Render:MaxLayoutDepth", configured?.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+    [Test]
+    public void AMissingLayoutStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
+            PageLayoutConfiguration.FromConfiguration(ShippedConfiguration.Without("Pages:Layout")))!;
 
-        Assert.That(options.MaxLayoutDepth, Is.EqualTo(expected));
+        Assert.That(error.Message, Does.Contain("Pages:Layout is not set."));
     }
 
-    private static PageLayoutConfiguration Configuration(string? layout) =>
-        PageLayoutConfiguration.FromConfiguration(Settings(("Pages:Layout", layout)));
+    [TestCase(1)]
+    [TestCase(16)]
+    public void TheLayoutDepthComesFromConfiguration(int configured) {
+        RenderOptions options = RenderOptions.FromConfiguration(ShippedConfiguration.Read(
+            ("Pages:Render:MaxLayoutDepth", configured.ToString(System.Globalization.CultureInfo.InvariantCulture))));
 
-    private static IConfiguration Settings(params (string Key, string? Value)[] values) {
-        return new ConfigurationBuilder()
-            .AddInMemoryCollection(values.Select(value => new KeyValuePair<string, string?>(value.Key, value.Value)))
-            .Build();
+        Assert.That(options.MaxLayoutDepth, Is.EqualTo(configured));
+    }
+
+    [TestCase(0)]
+    [TestCase(-3)]
+    [TestCase(400)]
+    public void ALayoutDepthOutsideTheRangeStopsTheSite(int configured) {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => RenderOptions.FromConfiguration(
+            ShippedConfiguration.Read(
+                ("Pages:Render:MaxLayoutDepth", configured.ToString(System.Globalization.CultureInfo.InvariantCulture)))))!;
+
+        Assert.Multiple(() => {
+            Assert.That(error.Message, Does.Contain("Pages:Render:MaxLayoutDepth"));
+            Assert.That(error.Message, Does.Contain("from 1 to 16"));
+        });
     }
 }

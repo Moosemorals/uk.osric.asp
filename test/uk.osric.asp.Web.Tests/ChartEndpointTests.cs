@@ -15,7 +15,7 @@ public sealed class ChartEndpointTests {
     private static readonly DateTimeOffset Now =
         DateTimeOffset.Parse("2026-11-02T06:00:00Z", CultureInfo.InvariantCulture);
 
-    private static readonly MetricsOptions Options = new() {
+    private static readonly MetricsOptions Options = TestOptions.Metrics with {
         PrometheusUrl = new Uri("http://prometheus:9090"),
         TimeZone = TimeZoneInfo.Utc,
     };
@@ -88,7 +88,7 @@ public sealed class ChartEndpointTests {
     ]));
 
     private static Dashboard New(FakeMetricsSource source) =>
-        new(new ChartRenderer(source, Options), new TestClock { Now = Now }, NullLogger<Dashboard>.Instance);
+        new(new ChartRenderer(source, Options), new TestClock { Now = Now }, TestOptions.Metrics, NullLogger<Dashboard>.Instance);
 
     private static async Task<(HttpContext Context, FakeMetricsSource Source)> GetAsync(
         string query,

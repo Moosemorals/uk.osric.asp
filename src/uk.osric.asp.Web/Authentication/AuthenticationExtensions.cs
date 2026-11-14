@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using uk.osric.asp.Web.Errors;
@@ -17,15 +16,17 @@ using uk.osric.asp.Web.Users;
 /// <summary>Registers the editor's local-account authentication and its protections.</summary>
 internal static class AuthenticationExtensions {
 
-    // Routine use renews the ticket; a month without a visit means signing in again.
-    private static readonly TimeSpan LongTermWindow = TimeSpan.FromDays(30);
-
     /// <summary>Adds cookie authentication, authorisation, antiforgery and login throttling.</summary>
     /// <param name="services">The service collection.</param>
     /// <param name="environment">The host environment, which decides the cookie secure policy.</param>
-    public static IServiceCollection AddEditorAuthentication(this IServiceCollection services, IWebHostEnvironment environment) {
+    /// <param name="authentication">The sign-in policy, read from configuration.</param>
+    public static IServiceCollection AddEditorAuthentication(
+        this IServiceCollection services,
+        IWebHostEnvironment environment,
+        AuthenticationOptions authentication) {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(environment);
+        ArgumentNullException.ThrowIfNull(authentication);
 
         _ = services.AddDataProtection().SetApplicationName("uk.osric.asp");
 
@@ -44,7 +45,7 @@ internal static class AuthenticationExtensions {
                 options.Cookie.SecurePolicy = SecurePolicy(environment);
                 options.LoginPath = "/login";
                 options.ReturnUrlParameter = "returnUrl";
-                options.ExpireTimeSpan = LongTermWindow;
+                options.ExpireTimeSpan = authentication.TicketLifetime;
                 options.SlidingExpiration = true;
 
                 options.Events.OnRedirectToLogin = async context => {
@@ -133,10 +134,6 @@ internal static class AuthenticationExtensions {
             options.SuppressXFrameOptionsHeader = true;
         });
 
-        services.AddOptions<LoginRateLimitOptions>()
-            .Validate(options => options.PermitLimit > 0, "The login permit limit must be positive.")
-            .Validate(options => options.Window > TimeSpan.Zero, "The login window must be positive.");
-
         services.AddRateLimiter(options => {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = (context, cancellationToken) => {
@@ -149,9 +146,7 @@ internal static class AuthenticationExtensions {
             };
 
             options.AddPolicy(LoginRateLimitPolicy.Name, context => {
-                LoginRateLimitOptions limit = context.RequestServices
-                    .GetRequiredService<IOptions<LoginRateLimitOptions>>()
-                    .Value;
+                LoginRateLimitOptions limit = authentication.Login;
 
                 // Per client, so one address spending its attempts cannot deny sign-in to the
                 // owner. Caddy writes X-Forwarded-For and the publish is loopback only, so the

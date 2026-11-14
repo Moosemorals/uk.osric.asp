@@ -214,7 +214,7 @@ public sealed partial class ImportEndpointTests {
 
     [Test]
     public async Task AnImportOverTheCompiledCapWritesNothing() {
-        using ImportHarness harness = new(options: new ArchiveOptions { MaxCompiledBytes = 1 });
+        using ImportHarness harness = new(options: TestOptions.Archive with { MaxCompiledBytes = 1 });
         ImportStage stage = harness.Stage(("/about", "About <% ctx.Write(\"hello\"); %>", []));
 
         await ApproveAsync(harness, stage.Id, ["/about"]);

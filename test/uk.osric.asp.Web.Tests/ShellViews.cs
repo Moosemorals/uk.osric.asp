@@ -189,13 +189,13 @@ internal static class ShellViews {
             NullLoggerFactory.Instance,
             new PageEnvironment(
                 Reserved,
-                new PageEditorOptions(),
-                new PageLayoutConfiguration { Default = "/_layout" },
-                new RenderOptions(),
+                TestOptions.Editor,
+                TestOptions.Layout with { Default = "/_layout" },
+                TestOptions.Render,
                 TestContentTypes.Shipped,
-                new PageStorageOptions(),
-                new PageFetchOptions(),
-                new PageReadOptions(),
+                TestOptions.Storage,
+                TestOptions.Fetch,
+                TestOptions.Read,
                 new FakePageStateStore(),
                 readStore ?? new FakePageReadStore(),
                 harness.Saver,
@@ -204,7 +204,7 @@ internal static class ShellViews {
                 new TestAntiforgery(),
                 new MarkdownRenderer(),
                 new DiffRenderer(),
-                new PageSessionOptions(),
+                TestOptions.Session,
                 new FakePageSessionStore(),
                 TestSessions.Cookie),
             harness.Editor);
@@ -234,7 +234,7 @@ internal static class ShellViews {
     }
 
     private static async Task<string> StatusAsync() {
-        MetricsOptions options = new() {
+        MetricsOptions options = TestOptions.Metrics with {
             PrometheusUrl = new Uri("http://prometheus:9090"),
             TimeZone = TimeZoneInfo.Utc,
         };
@@ -245,6 +245,7 @@ internal static class ShellViews {
                 ]),
             ])), options),
             new TestClock(),
+            options,
             NullLogger<Dashboard>.Instance);
         DefaultHttpContext context = TestHttp.CreateContext(null);
 
@@ -292,13 +293,13 @@ internal static class ShellViews {
             NullLoggerFactory.Instance,
             new PageEnvironment(
                 Reserved,
-                new PageEditorOptions(),
-                new PageLayoutConfiguration(),
-                new RenderOptions(),
+                TestOptions.Editor,
+                TestOptions.Layout,
+                TestOptions.Render,
                 TestContentTypes.Shipped,
-                new PageStorageOptions(),
-                new PageFetchOptions(),
-                new PageReadOptions(),
+                TestOptions.Storage,
+                TestOptions.Fetch,
+                TestOptions.Read,
                 new FakePageStateStore(),
                 new FakePageReadStore(),
                 pages.Saver,
@@ -307,7 +308,7 @@ internal static class ShellViews {
                 new TestAntiforgery(),
                 new MarkdownRenderer(),
                 new DiffRenderer(),
-                new PageSessionOptions(),
+                TestOptions.Session,
                 new FakePageSessionStore(),
                 TestSessions.Cookie));
 
@@ -317,7 +318,7 @@ internal static class ShellViews {
     private static async Task<string> AssistantListAsync() {
         DefaultHttpContext context = AuthenticatedContext("/assistant");
         await AssistantEndpoint.ListAsync(context, new ShellConversationStore(), new TestAntiforgery(),
-            Microsoft.Extensions.Options.Options.Create(new AssistantOptions { Enabled = true }));
+            TestOptions.Assistant with { Enabled = true });
         return await TestHttp.ReadBodyAsync(context);
     }
 
@@ -361,7 +362,7 @@ internal static class ShellViews {
             ]
             : []);
         await AssistantEndpoint.ConversationAsync(context, 1, conversations, new TestAntiforgery(),
-            new RunRegistry(new AssistantOptions(), TimeProvider.System), new AssistantOptions(),
+            new RunRegistry(TestOptions.Assistant, TimeProvider.System), TestOptions.Assistant,
             new StubAccountBalanceClient(), new MarkdownRenderer());
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -375,7 +376,7 @@ internal static class ShellViews {
     private static async Task<string> AssistantMemoryAsync() {
         DefaultHttpContext context = AuthenticatedContext(AssistantMemoryEndpoint.Path);
         await AssistantMemoryEndpoint.ListAsync(context, new ShellMemoryStore(), new TestAntiforgery(),
-            new AssistantOptions { MaxMemoriesPerOwner = 200, MaxMemoryChars = 1_000 });
+            TestOptions.Assistant with { MaxMemoriesPerOwner = 200, MaxMemoryChars = 1_000 });
         return await TestHttp.ReadBodyAsync(context);
     }
 
@@ -395,7 +396,7 @@ internal static class ShellViews {
                 .AddInMemoryCollection(new Dictionary<string, string?> { ["Admin:Changelist"] = file })
                 .Build();
 
-            await ChangesEndpoint.HandleAsync(context, configuration);
+            await ChangesEndpoint.HandleAsync(context, new AdminOptions { Changelist = file });
 
             return await TestHttp.ReadBodyAsync(context);
         } finally {
@@ -448,7 +449,7 @@ internal static class ShellViews {
     private static async Task<string> AdminImportAsync() {
         DefaultHttpContext context = AuthenticatedContext("/admin/import");
 
-        await ImportEndpoint.UploadFormAsync(context, new TestAntiforgery(), new ArchiveOptions());
+        await ImportEndpoint.UploadFormAsync(context, new TestAntiforgery(), TestOptions.Archive);
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -464,9 +465,9 @@ internal static class ShellViews {
 
         await ImportEndpoint.UploadAsync(
             context,
-            new PageArchiveReader(new ArchiveOptions(), new PageStorageOptions(), Reserved, NullLogger<PageArchiveReader>.Instance),
-            new ImportStageStore(new ArchiveOptions(), new TestClock()),
-            new ArchiveOptions(),
+            new PageArchiveReader(TestOptions.Archive, TestOptions.Storage, Reserved, NullLogger<PageArchiveReader>.Instance),
+            new ImportStageStore(TestOptions.Archive, new TestClock()),
+            TestOptions.Archive,
             NullLoggerFactory.Instance);
 
         return await TestHttp.ReadBodyAsync(context);
@@ -475,7 +476,7 @@ internal static class ShellViews {
     private static async Task<string> AdminImportReviewAsync() {
         DefaultHttpContext context = AuthenticatedContext("/admin/import/0123456789abcdef0123456789abcdef");
         context.Request.RouteValues["id"] = "0123456789abcdef0123456789abcdef";
-        ImportStageStore stages = new(new ArchiveOptions(), new TestClock());
+        ImportStageStore stages = new(TestOptions.Archive, new TestClock());
         stages.Create([
             new PageArchiveEntry(PageHarness.Key("/page"), Source, [new("visits", "1")]),
             new PageArchiveEntry(PageHarness.Key("/notes"), Source, []),
@@ -489,7 +490,7 @@ internal static class ShellViews {
     private static async Task<string> AdminImportProgressAsync() {
         DefaultHttpContext context = AuthenticatedContext("/admin/import/0123456789abcdef0123456789abcdef/progress");
         context.Request.RouteValues["id"] = "0123456789abcdef0123456789abcdef";
-        ImportStageStore stages = new(new ArchiveOptions(), new TestClock());
+        ImportStageStore stages = new(TestOptions.Archive, new TestClock());
         ImportStage stage = stages.Create([new PageArchiveEntry(PageHarness.Key("/page"), Source, [])]);
         stage.TryApprove([PageHarness.Key("/page")]);
 

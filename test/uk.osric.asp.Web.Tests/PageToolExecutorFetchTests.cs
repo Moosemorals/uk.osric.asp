@@ -109,7 +109,7 @@ public sealed class PageToolExecutorFetchTests {
             body,
             HttpFetchFailure.None,
             false));
-        PageToolExecutor tools = CreateTools(fetcher, new AssistantOptions {
+        PageToolExecutor tools = CreateTools(fetcher, TestOptions.Assistant with {
             MaxToolArgumentChars = 4096,
             MaxToolResultChars = 4096,
             MaxPageChars = 4096,
@@ -175,12 +175,14 @@ public sealed class PageToolExecutorFetchTests {
     }
 
     private static PageToolExecutor CreateTools(FakeAssistantFetcher fetcher, AssistantOptions? options = null) {
-        ServiceProvider services = new ServiceCollection().BuildServiceProvider();
+        ServiceProvider services = new ServiceCollection()
+            .AddSingleton(TestOptions.Editor)
+            .BuildServiceProvider();
 
         return new PageToolExecutor(
             services.GetRequiredService<IServiceScopeFactory>(),
-            new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions()),
-            options ?? new AssistantOptions { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
+            new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
+            options ?? TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
             new AssistantMetrics(),
             fetcher,
             new DiffRenderer());
