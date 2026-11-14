@@ -15,7 +15,7 @@ using uk.osric.asp.Web.Pages;
 internal sealed class FakePageSessionStore(PageSessionOptions? options = null) : IPageSessionStore {
 
     private readonly Dictionary<string, Row> _sessions = [];
-    private readonly PageSessionOptions _options = options ?? new PageSessionOptions();
+    private readonly PageSessionOptions _options = options ?? TestOptions.Session;
 
     /// <summary>The caps this store enforces.</summary>
     public PageSessionOptions Options => _options;

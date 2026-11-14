@@ -216,7 +216,7 @@ public sealed class PageCatalogScopeTests {
         store.Save("/one", "1");
         store.Save("/two", "2");
         store.Save("/three", "3");
-        PageCatalogScope scope = Scope(store, options: new PageReadOptions { MaxRowsPerList = 2 });
+        PageCatalogScope scope = Scope(store, options: TestOptions.Read with { MaxRowsPerList = 2 });
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
             () => scope.ListAsync(""));
@@ -318,7 +318,7 @@ public sealed class PageCatalogScopeTests {
         FakePageReadStore store,
         PageReadOptions? options = null,
         ReadBudget? budget = null) {
-        PageReadOptions read = options ?? new PageReadOptions();
+        PageReadOptions read = options ?? TestOptions.Read;
 
         return new PageCatalogScope(
             PagePath.Normalize("/test"),

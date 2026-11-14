@@ -424,7 +424,7 @@ public sealed class PageLayoutChainTests {
             <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
-        Rendered rendered = await RenderAsync("/page", render: new RenderOptions { MaxLayoutDepth = 1 });
+        Rendered rendered = await RenderAsync("/page", render: TestOptions.Render with { MaxLayoutDepth = 1 });
 
         Assert.That(rendered.Body, Does.Contain("<h1>Page</h1>"));
         // One layout was rendered, and it wrapped the page: the default points at itself, so a
@@ -439,7 +439,7 @@ public sealed class PageLayoutChainTests {
             <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
             """);
 
-        Rendered rendered = await RenderAsync("/page", render: new RenderOptions { Slots = 1 });
+        Rendered rendered = await RenderAsync("/page", render: TestOptions.Render with { Slots = 1 });
 
         Assert.That(rendered.Body, Does.Contain("<h1>Page</h1>"));
         // A second render under the same one-slot budget would deadlock if the chain did not share
@@ -457,7 +457,7 @@ public sealed class PageLayoutChainTests {
             """);
 
         InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await RenderAsync("/page", render: new RenderOptions { MaxBodyChars = 100 }));
+            async () => await RenderAsync("/page", render: TestOptions.Render with { MaxBodyChars = 100 }));
 
         Assert.That(thrown.Message, Does.Contain("/_layout"));
     }
@@ -600,7 +600,7 @@ public sealed class PageLayoutChainTests {
             """);
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => RenderAsync("/page", read: new PageReadOptions { MaxSourceCharsPerRender = 12 }));
+            () => RenderAsync("/page", read: TestOptions.Read with { MaxSourceCharsPerRender = 12 }));
 
         Assert.That(refused?.Message, Does.Contain("MaxSourceCharsPerRender"));
     }
@@ -660,7 +660,7 @@ public sealed class PageLayoutChainTests {
         PageReadOptions? read = null,
         bool withEditor = false) {
 
-        RenderOptions options = render ?? new RenderOptions();
+        RenderOptions options = render ?? TestOptions.Render;
         PageSaver saver = CreateSaver(options);
         DefaultHttpContext context = TestHttp.CreateContext(path.TrimStart('/'), "GET", path);
         context.Request.QueryString = new QueryString(query);
@@ -671,13 +671,13 @@ public sealed class PageLayoutChainTests {
 
         PageEnvironment environment = new(
             new ReservedPaths(ReservedPaths.Default),
-            new PageEditorOptions(),
-            new PageLayoutConfiguration { Default = DefaultLayout },
+            TestOptions.Editor,
+            TestOptions.Layout with { Default = DefaultLayout },
             options,
             TestContentTypes.Shipped,
-            new PageStorageOptions(),
-            new PageFetchOptions(),
-            read ?? new PageReadOptions(),
+            TestOptions.Storage,
+            TestOptions.Fetch,
+            read ?? TestOptions.Read,
             _state,
             _readStore,
             saver,
@@ -686,7 +686,7 @@ public sealed class PageLayoutChainTests {
             _antiforgery,
             new MarkdownRenderer(),
             new DiffRenderer(),
-            new PageSessionOptions(),
+            TestOptions.Session,
             new FakePageSessionStore(),
             TestSessions.Cookie);
 
@@ -697,14 +697,14 @@ public sealed class PageLayoutChainTests {
     }
 
     private PageSaver CreateSaver(RenderOptions options) {
-        PageBudget budget = new(options, new CompileOptions());
+        PageBudget budget = new(options, TestOptions.Compile);
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageSaver(new FakePageRevisionStore(_storage), images, _metrics, NullLogger<PageSaver>.Instance);
     }
 
     private PageRenderer CreateRenderer(RenderOptions options) {
-        PageBudget budget = new(options, new CompileOptions());
+        PageBudget budget = new(options, TestOptions.Compile);
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageRenderer(

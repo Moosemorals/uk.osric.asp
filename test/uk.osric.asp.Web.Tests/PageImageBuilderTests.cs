@@ -66,7 +66,7 @@ public sealed class PageImageBuilderTests {
 
     [Test]
     public void ABuildThatOutranItsBudgetIsReported() {
-        PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 0.25 });
+        PageBudget budget = new(TestOptions.Render, TestOptions.Compile with { TimeoutSeconds = 0.25 });
         using PageHarness pages = new(new FakePageStore(), new StallingCompiler(), budget: budget);
 
         PageImage compilation = Build(pages, "/stalled", "<% ctx.Write(\"Hello.\"); %>");
@@ -79,7 +79,7 @@ public sealed class PageImageBuilderTests {
 
     [Test]
     public async Task ACompileThatWaitedPastItsBudgetForASlotIsReportedAsync() {
-        PageBudget budget = new(new RenderOptions(), new CompileOptions { TimeoutSeconds = 0.25 });
+        PageBudget budget = new(TestOptions.Render, TestOptions.Compile with { TimeoutSeconds = 0.25 });
         using PageHarness pages = new(new FakePageStore(), budget: budget);
 
         await budget.CompileSlots.WaitAsync();

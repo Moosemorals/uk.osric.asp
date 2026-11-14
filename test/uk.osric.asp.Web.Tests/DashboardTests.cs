@@ -14,7 +14,7 @@ public sealed class DashboardTests {
     private static readonly DateTimeOffset Now =
         DateTimeOffset.Parse("2026-11-02T06:00:00Z", CultureInfo.InvariantCulture);
 
-    private static readonly MetricsOptions Options = new() {
+    private static readonly MetricsOptions Options = TestOptions.Metrics with {
         PrometheusUrl = new Uri("http://prometheus:9090"),
         TimeZone = TimeZoneInfo.Utc,
     };
@@ -42,6 +42,34 @@ public sealed class DashboardTests {
         await dashboard.GetAsync(window, CancellationToken.None);
 
         Assert.That(source.Calls, Is.EqualTo(afterFirst * 2));
+    }
+
+    [Test]
+    public async Task TheCacheDurationAndWindowCountComeFromConfiguration() {
+        FakeMetricsSource source = new(_ => Answer());
+        TestClock clock = new() { Now = Now };
+        MetricsOptions options = TestOptions.Metrics with {
+            CacheFor = TimeSpan.FromSeconds(1),
+            MaxCachedWindows = 1,
+        };
+        Dashboard dashboard = New(source, clock, options);
+        ChartWindow hour = ChartWindow.At(Now, TimeSpan.FromHours(1));
+
+        await dashboard.GetAsync(hour, CancellationToken.None);
+        int afterFirst = source.Calls;
+        clock.Now = Now.AddSeconds(2);
+        await dashboard.GetAsync(hour, CancellationToken.None);
+        int afterExpiry = source.Calls;
+
+        await dashboard.GetAsync(ChartWindow.At(Now.AddHours(-1), TimeSpan.FromHours(1)), CancellationToken.None);
+        await dashboard.GetAsync(hour, CancellationToken.None);
+        int afterSecondWindow = source.Calls;
+
+        Assert.Multiple(() => {
+            Assert.That(afterExpiry, Is.EqualTo(afterFirst * 2), "a configured one-second cache expires after a second");
+            Assert.That(afterSecondWindow, Is.GreaterThan(afterExpiry + afterFirst),
+                "one cached window cannot hold the second, so the first is queried again");
+        });
     }
 
     [Test]
@@ -214,6 +242,6 @@ public sealed class DashboardTests {
             });
     }
 
-    private static Dashboard New(IMetricsSource source, TimeProvider clock) =>
-        new(new ChartRenderer(source, Options), clock, NullLogger<Dashboard>.Instance);
+    private static Dashboard New(IMetricsSource source, TimeProvider clock, MetricsOptions? options = null) =>
+        new(new ChartRenderer(source, options ?? Options), clock, options ?? TestOptions.Metrics, NullLogger<Dashboard>.Instance);
 }

@@ -91,12 +91,12 @@ public sealed class SqlitePageBatchStoreTests {
     public async Task AMergedStateOverTheCapWritesNothing() {
         await DatabaseTemplate.SavePageAsync(_options, "/one", "old one");
         await DatabaseTemplate.SavePageAsync(_options, "/two", "old two");
-        await new SqlitePageStateStore(DatabaseTemplate.Factory(_options), new PageStorageOptions(), TimeProvider.System)
+        await new SqlitePageStateStore(DatabaseTemplate.Factory(_options), TestOptions.Storage, TimeProvider.System)
             .SetValueAsync(Key("/two"), "kept", "\"kept\"");
         (string oneHead, string twoHead) = await HeadsAsync();
 
         // Sixteen bytes cannot hold both the key the page already has and the one the archive brings.
-        ObservingStore store = Store(new PageStorageOptions { MaxPageBytes = 16, MaxValueBytes = 16 });
+        ObservingStore store = Store(TestOptions.Storage with { MaxPageBytes = 16, MaxValueBytes = 16 });
 
         PageBatchResult result = await store.SaveBatchAsync([
             Batch("/one", "new one", [new("visits", "1")]),
@@ -111,7 +111,7 @@ public sealed class SqlitePageBatchStoreTests {
         Assert.That(await HeadRevisionAsync(database, "/two"), Is.EqualTo(twoHead));
         Assert.That(await database.Set<PageRevision>().CountAsync(), Is.EqualTo(2));
 
-        IPageStateStore state = new SqlitePageStateStore(DatabaseTemplate.Factory(_options), new PageStorageOptions(), TimeProvider.System);
+        IPageStateStore state = new SqlitePageStateStore(DatabaseTemplate.Factory(_options), TestOptions.Storage, TimeProvider.System);
         Assert.That(await state.ListKeysAsync(Key("/two")), Is.EqualTo(new List<string> { "kept" }));
     }
 
@@ -119,7 +119,7 @@ public sealed class SqlitePageBatchStoreTests {
         new(PageTemplate.NewRevision(Key(path), source, null, "test-runtime"), state);
 
     private ObservingStore Store(PageStorageOptions? storage = null) {
-        return new ObservingStore(new StorageDbContext(_options), storage ?? new PageStorageOptions(), TimeProvider.System);
+        return new ObservingStore(new StorageDbContext(_options), storage ?? TestOptions.Storage, TimeProvider.System);
     }
 
     private async Task<(string One, string Two)> HeadsAsync() {

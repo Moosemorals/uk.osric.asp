@@ -96,15 +96,15 @@ internal sealed class SimpleContext : IContext {
         TextWriter writer,
         PageCapabilities capabilities,
         PageContentTypes contentTypes,
-        int maxBodyChars = RenderOptions.DefaultMaxBodyChars,
+        int maxBodyChars,
+        string editorPath,
         PageUser? user = null,
         string loginRedirect = "/login",
         Func<string>? antiforgeryField = null,
         PagePath? path = null,
         bool isLayout = false,
         BodyBudget? bodyBudget = null,
-        Func<string, string>? assetUrl = null,
-        string editorPath = PageEditorOptions.DefaultKey) {
+        Func<string, string>? assetUrl = null) {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);

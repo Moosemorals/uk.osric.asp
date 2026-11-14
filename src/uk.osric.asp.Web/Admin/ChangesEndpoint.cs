@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Admin;
 
-using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Net;
 using uk.osric.asp.Web.Html;
@@ -20,17 +19,14 @@ internal static class ChangesEndpoint {
     /// <summary>Where a commit's own page lives.</summary>
     internal const string RepositoryUrl = "https://github.com/Moosemorals/uk.osric.asp";
 
-    /// <summary>The file the build packs, unless configuration names another.</summary>
-    private const string DefaultFile = "changes.txt";
-
     /// <summary>Renders the changelist.</summary>
     /// <param name="context">The request being answered.</param>
-    /// <param name="configuration">Names the file through <c>Admin:Changelist</c>.</param>
-    public static async Task HandleAsync(HttpContext context, IConfiguration configuration) {
+    /// <param name="options">Names the file, from <c>Admin:Changelist</c>.</param>
+    public static async Task HandleAsync(HttpContext context, AdminOptions options) {
         ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(options);
 
-        string? text = await ReadAsync(configuration, context.RequestAborted);
+        string? text = await ReadAsync(options, context.RequestAborted);
         IReadOnlyList<Commit> commits = text is null ? [] : Parse(text);
 
         await ShellDocument.BeginAsync(context, "Changelist", SiteNavigation.For(context), stylesheets: ["/admin.css"]);
@@ -60,17 +56,18 @@ internal static class ChangesEndpoint {
     }
 
     /// <summary>The file's contents, or <see langword="null"/> when this build carries none.</summary>
-    internal static async Task<string?> ReadAsync(IConfiguration configuration, CancellationToken cancellationToken) {
-        string path = PathOf(configuration);
+    internal static async Task<string?> ReadAsync(AdminOptions options, CancellationToken cancellationToken) {
+        string path = PathOf(options);
         return File.Exists(path) ? await File.ReadAllTextAsync(path, cancellationToken) : null;
     }
 
     /// <summary>The file's path; a relative setting is resolved beside the assembly.</summary>
-    internal static string PathOf(IConfiguration configuration) {
-        ArgumentNullException.ThrowIfNull(configuration);
+    internal static string PathOf(AdminOptions options) {
+        ArgumentNullException.ThrowIfNull(options);
 
-        string configured = configuration["Admin:Changelist"] is { Length: > 0 } value ? value : DefaultFile;
-        return Path.IsPathRooted(configured) ? configured : Path.Combine(AppContext.BaseDirectory, configured);
+        return Path.IsPathRooted(options.Changelist)
+            ? options.Changelist
+            : Path.Combine(AppContext.BaseDirectory, options.Changelist);
     }
 
     /// <summary>The file's lines, with a full hash recognised as a commit.</summary>

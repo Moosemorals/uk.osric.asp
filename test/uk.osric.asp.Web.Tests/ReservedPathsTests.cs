@@ -63,17 +63,8 @@ public sealed class ReservedPathsTests {
     }
 
     [Test]
-    public void EmptyConfigurationFallsBackToTheDefaults() {
-        ReservedPaths reserved = new([]);
-
-        Assert.That(reserved.IsReserved(PagePath.Normalize("/admin/scrub")), Is.True);
-    }
-
-    [Test]
-    public void MissingConfigurationFallsBackToTheDefaults() {
-        ReservedPaths reserved = new(null);
-
-        Assert.That(reserved.IsReserved(PagePath.Normalize("/favicon.ico")), Is.True);
+    public void AnEmptyListIsRefusedRatherThanReservingNothing() {
+        Assert.That(() => new ReservedPaths([]), Throws.ArgumentException);
     }
 
     [Test]

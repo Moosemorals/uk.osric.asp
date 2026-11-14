@@ -3,12 +3,13 @@
 
 namespace uk.osric.asp.Web.Authentication;
 
-/// <summary>The fixed window applied to sign-in attempts.</summary>
-internal sealed class LoginRateLimitOptions {
+/// <summary>The fixed window a client address may spend sign-in attempts in.</summary>
+/// <remarks>Read from <c>Authentication:Login</c>.</remarks>
+internal sealed record LoginRateLimitOptions {
 
-    /// <summary>Attempts allowed in one window.</summary>
-    public int PermitLimit { get; set; } = 10;
+    /// <summary>Attempts allowed per window.</summary>
+    public required int PermitLimit { get; init; }
 
-    /// <summary>The window length.</summary>
-    public TimeSpan Window { get; set; } = TimeSpan.FromMinutes(1);
+    /// <summary>The length of the window.</summary>
+    public required TimeSpan Window { get; init; }
 }

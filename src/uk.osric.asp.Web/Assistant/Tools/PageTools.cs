@@ -39,8 +39,8 @@ internal sealed class ListPagesTool : AssistantTool {
         }
 
         bool includeDeleted = values.Boolean("includeDeleted");
-        if (!PageToolData.TryReadLimit(values, out int limit)) {
-            return services.Results.Failure(PageToolData.LimitRefusal, $"{Spec.Verb} refused");
+        if (!PageToolData.TryReadLimit(values, services.Options, out int limit)) {
+            return services.Results.Failure(PageToolData.LimitRefusal(services.Options), $"{Spec.Verb} refused");
         }
 
         string? afterText = values.String("after");
@@ -382,8 +382,6 @@ internal sealed class DeletePageTool : AssistantTool {
 /// <summary>Searches live page source and the shell files' records for a literal substring.</summary>
 internal sealed class SearchPagesTool : AssistantTool {
 
-    private const int MatchLimit = 100;
-
     private static readonly PagePath s_root = PagePath.Normalize("/");
 
     public override ToolSpec Spec { get; } = new(
@@ -419,7 +417,8 @@ internal sealed class SearchPagesTool : AssistantTool {
         IReadOnlyList<PageRead> sources = await services.Store.SourcesAsync(
             [new PageScope(root, IncludeSelf: true, Recursive: true)], cancellationToken);
         LineMatches found = PageSourceSearch.Find(
-            sources, PageToolData.TemplateSourceLines, line => line.Contains(query, comparison), MatchLimit);
+            sources, PageToolData.TemplateSourceLines, line => line.Contains(query, comparison),
+            services.Options.MaxSearchMatches);
 
         object[] matches = [.. found.Matches.Select(match => new {
             path = match.Path.Key,
@@ -434,28 +433,25 @@ internal sealed class SearchPagesTool : AssistantTool {
 /// <summary>What the page tools share: the line rule, the listing rows and the diagnostic shape.</summary>
 internal static class PageToolData {
 
-    /// <summary>The rows a listing answers with when the caller names no <c>limit</c>.</summary>
-    public const int DefaultListingLimit = 50;
-
-    /// <summary>The most rows a listing will answer with, so one call cannot exhaust the result budget.</summary>
-    public const int MaxListingLimit = 500;
-
     /// <summary>The refusal a hash that is not 64 lowercase hexadecimal characters gets.</summary>
     public const string HashRefusal =
         "A revision hash is 64 lowercase hexadecimal characters; use the hash list_revisions returned.";
 
-    /// <summary>The refusal a <c>limit</c> outside 1..<see cref="MaxListingLimit"/> gets.</summary>
-    public static string LimitRefusal =>
-        $"`limit` must be between 1 and {MaxListingLimit}; omit it for {DefaultListingLimit} rows.";
+    /// <summary>The refusal a <c>limit</c> outside the configured range gets.</summary>
+    /// <param name="options">The assistant's configured listing limits.</param>
+    public static string LimitRefusal(AssistantOptions options) {
+        return $"`limit` must be between 1 and {options.MaxListLimit}; omit it for {options.DefaultListLimit} rows.";
+    }
 
-    /// <summary>Reads a caller's <c>limit</c>, or the default when it named none.</summary>
+    /// <summary>Reads a caller's <c>limit</c>, or the configured default when it named none.</summary>
     /// <param name="values">The validated arguments.</param>
+    /// <param name="options">The assistant's configured listing limits.</param>
     /// <param name="limit">The number of rows to answer with.</param>
     /// <returns>False when the argument was supplied and is outside the accepted range.</returns>
-    public static bool TryReadLimit(ToolValues values, out int limit) {
-        limit = values.Integer("limit") ?? DefaultListingLimit;
+    public static bool TryReadLimit(ToolValues values, AssistantOptions options, out int limit) {
+        limit = values.Integer("limit") ?? options.DefaultListLimit;
 
-        return limit is >= 1 and <= MaxListingLimit;
+        return limit >= 1 && limit <= options.MaxListLimit;
     }
 
     public static object[] Diagnostics(PageTemplate page) => page.Image is null

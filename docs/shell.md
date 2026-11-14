@@ -94,7 +94,7 @@ write buffer 2
   the wire is the document's base sheets, then each layout's from outermost in, then the page's in
   the order it asked; an exact duplicate is linked once and an href that is not site-relative is
   refused rather than blocked silently by `style-src 'self'` (DEC-155).
-- **Depth and cycles.** `Pages:Render:MaxLayoutDepth` (four by default, clamped 1–16) bounds the
+- **Depth and cycles.** `Pages:Render:MaxLayoutDepth` (four shipped, accepted 1–16) bounds the
   chain and a seen-set stops at the first repeat — which is why the seeded `/_layout`, pre-filled
   with the default like every layer, needs no special case.
 - **Failure is not symmetric.** A *default* layout that is missing or does not compile serves the
@@ -174,9 +174,9 @@ page has to be deleted before it can be scrubbed.
   at the CLI prompt and in the login request. The policy is a 12-character minimum and a 1024
   maximum, with no composition rules.
 - The sign-in is a cookie from `Microsoft.AspNetCore.Authentication.Cookies`, named `a`. It slides
-  for 30 days of inactivity, and the login form's **Keep me signed in** checkbox makes it persistent
-  across browser restarts. It is not the page session, which is a different cookie with its own
-  lifetime.
+  for `Authentication:TicketLifetimeDays` (30 shipped) of inactivity, and the login form's **Keep me
+  signed in** checkbox makes it persistent across browser restarts. It is not the page session,
+  which is a different cookie with its own lifetime.
 - The cookie carries a random 128-bit key, not the identity: the framework's own data-protected
   ticket lives in the `AuthTickets` table in the same SQLite database, so the request header stays
   small and serialisation stays the framework's. A sign-in always mints a new key; only a sliding
@@ -193,8 +193,9 @@ page has to be deleted before it can be scrubbed.
   shell files: it lists and reads a record of each one and can never write one, and `ShellRoutes`
   is pinned to `ReservedPaths.Default` by a test, so a new route adds its record in the same change
   (DEC-198).
-- Sign-in is throttled by a fixed window of ten attempts a minute (`LoginRateLimitOptions`), and a
-  request over the limit is answered `429` before any password is hashed. The window is per client
+- Sign-in is throttled by a fixed window of `Authentication:Login:PermitLimit` attempts
+  (ten shipped) every `Authentication:Login:WindowSeconds` (sixty shipped), and a request over the
+  limit is answered `429` before any password is hashed. The window is per client
   address, taken from the `X-Forwarded-For` Caddy writes, so one address spending its attempts
   cannot deny sign-in to anyone else. The address is folded into one of 1024 buckets, because the
   limiter never releases a partition and the address is otherwise unbounded (DEC-118).

@@ -8,6 +8,21 @@ SPDX-License-Identifier: MIT
 Work test-first. Write the failing test, make it pass, then refactor — the refactor step is where the
 core stays pure and the shell stays thin.
 
+## Configuration
+
+Configuration is required, so a test starts from the shipped file rather than from a second copy of
+the values. `ShippedConfiguration.Read()` reads the real `appsettings.json`; `Read(("Key", "value"))`
+overrides one key, `Without` removes one and `WithoutSection` removes a whole section. `TestOptions`
+builds every options record through its real factory on top of that file, and a test that wants a
+different value starts from `TestOptions.Read with { … }`.
+
+An options test covers three things: the shipped value, an override, and the refusal — a missing,
+blank, malformed or out-of-range value throws `ConfigurationException` naming the key, the range and
+the shipped value. `ShippedConfigurationTests` proves every factory can read the file the site ships
+with, so a new required key and a forgotten row fail here rather than at the first deploy.
+`ConfigurationStartupTests` drives the real host with a bad value and asserts the report an operator
+sees.
+
 ## The five suites
 
 | Project | Tool | Scope | Speed |

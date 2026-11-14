@@ -3,40 +3,39 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using uk.osric.asp.Web.Configuration;
+
 /// <summary>Bounds what one compilation may cost.</summary>
 /// <remarks>
 /// Roslyn honours a cancellation token between operations rather than inside one, so the timeout is a
 /// coarse bound on a pathological template, not a hard one. The slot count is the part that holds.
+/// Every value comes from <c>Pages:Compile</c>.
 /// </remarks>
 internal sealed record CompileOptions {
 
-    /// <summary>Compiles allowed to run at once when none is configured.</summary>
-    public const int DefaultSlots = 1;
-
-    /// <summary>The budget for one compile, in seconds, when none is configured.</summary>
-    public const double DefaultTimeoutSeconds = 5;
-
     /// <summary>Compiles allowed to run at once.</summary>
-    public int Slots { get; init; } = DefaultSlots;
+    public required int Slots { get; init; }
 
-    /// <summary>The budget for one compile.</summary>
+    /// <summary>The budget for one compile, in seconds.</summary>
     /// <remarks>May be a fraction of a second, down to <see cref="PageBudget.MinimumTimeoutSeconds"/>.</remarks>
-    public double TimeoutSeconds { get; init; } = DefaultTimeoutSeconds;
+    public required double TimeoutSeconds { get; init; }
 
     /// <summary>The budget as a time span.</summary>
     public TimeSpan Timeout => TimeSpan.FromSeconds(TimeoutSeconds);
 
-    /// <summary>Reads <c>Pages:Compile</c>, falling back to the defaults.</summary>
+    /// <summary>Reads <c>Pages:Compile</c>.</summary>
     /// <param name="configuration">The application configuration.</param>
-    /// <returns>The options to use.</returns>
+    /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
     public static CompileOptions FromConfiguration(IConfiguration configuration) {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        IConfigurationSection section = configuration.GetSection("Pages:Compile");
-
-        return new CompileOptions {
-            Slots = Math.Max(1, section.GetValue("Slots", DefaultSlots)),
-            TimeoutSeconds = Math.Max(PageBudget.MinimumTimeoutSeconds, section.GetValue("TimeoutSeconds", DefaultTimeoutSeconds)),
+        ConfigurationReader reader = new(configuration, "Pages:Compile");
+        CompileOptions options = new() {
+            Slots = reader.Number("Slots", recommended: 1, minimum: 1, maximum: 32),
+            TimeoutSeconds = reader.Decimal("TimeoutSeconds", recommended: 5,
+                minimum: PageBudget.MinimumTimeoutSeconds, maximum: 60),
         };
+        reader.Complete();
+        return options;
     }
 }

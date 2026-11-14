@@ -3,62 +3,56 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using uk.osric.asp.Web.Configuration;
+
 /// <summary>Bounds what one page's key/value store may cost.</summary>
 /// <remarks>
-/// Every cap is clamped to a safe minimum, and <see cref="MaxPageBytes"/> is never allowed below
-/// <see cref="MaxValueBytes"/>, so a single value at the per-value limit still fits an empty page.
+/// Every value comes from <c>Pages:Storage</c>, and <see cref="MaxPageBytes"/> must be at least
+/// <see cref="MaxValueBytes"/> so a single value at the per-value limit still fits an empty page.
 /// </remarks>
 internal sealed record PageStorageOptions {
 
-    /// <summary>The longest key, in characters, when none is configured.</summary>
-    public const int DefaultMaxKeyChars = 200;
-
-    /// <summary>One value, in bytes, when none is configured.</summary>
-    public const int DefaultMaxValueBytes = 64 * 1024;
-
-    /// <summary>Keys one page may hold, when none is configured.</summary>
-    public const int DefaultMaxKeysPerPage = 256;
-
-    /// <summary>One page's keys and values together, in bytes, when none is configured.</summary>
-    public const int DefaultMaxPageBytes = 256 * 1024;
-
-    /// <summary>One storage command, in seconds, when none is configured.</summary>
-    public const int DefaultCommandTimeoutSeconds = 5;
-
     /// <summary>The longest key a page may use.</summary>
-    public int MaxKeyChars { get; init; } = DefaultMaxKeyChars;
+    public required int MaxKeyChars { get; init; }
 
     /// <summary>The largest one JSON value may be, in bytes.</summary>
-    public int MaxValueBytes { get; init; } = DefaultMaxValueBytes;
+    public required int MaxValueBytes { get; init; }
 
     /// <summary>The most keys one page may hold.</summary>
-    public int MaxKeysPerPage { get; init; } = DefaultMaxKeysPerPage;
+    public required int MaxKeysPerPage { get; init; }
 
     /// <summary>The most bytes one page's keys and values may total.</summary>
-    public int MaxPageBytes { get; init; } = DefaultMaxPageBytes;
+    public required int MaxPageBytes { get; init; }
 
     /// <summary>How long one storage command may run.</summary>
-    public int CommandTimeoutSeconds { get; init; } = DefaultCommandTimeoutSeconds;
+    public required int CommandTimeoutSeconds { get; init; }
 
     /// <summary>The command timeout as a time span.</summary>
     public TimeSpan CommandTimeout => TimeSpan.FromSeconds(CommandTimeoutSeconds);
 
-    /// <summary>Reads <c>Pages:Storage</c>, falling back to the defaults when it is missing or silly.</summary>
+    /// <summary>Reads <c>Pages:Storage</c>.</summary>
     /// <param name="configuration">The application configuration.</param>
-    /// <returns>The options to use; never values that would disable a cap.</returns>
+    /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
     public static PageStorageOptions FromConfiguration(IConfiguration configuration) {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        IConfigurationSection section = configuration.GetSection("Pages:Storage");
-        int maxValueBytes = Math.Max(1024, section.GetValue("MaxValueBytes", DefaultMaxValueBytes));
-        int maxPageBytes = Math.Max(1024, section.GetValue("MaxPageBytes", DefaultMaxPageBytes));
+        ConfigurationReader reader = new(configuration, "Pages:Storage");
+        int maxValueBytes = reader.Number("MaxValueBytes", recommended: 64 * 1024,
+            minimum: 1024, maximum: 16 * 1024 * 1024);
+        int maxPageBytes = reader.Number("MaxPageBytes", recommended: 256 * 1024,
+            minimum: 1024, maximum: 64 * 1024 * 1024);
 
-        return new PageStorageOptions {
-            MaxKeyChars = Math.Max(16, section.GetValue("MaxKeyChars", DefaultMaxKeyChars)),
+        reader.FailIf(maxPageBytes < maxValueBytes, "MaxPageBytes",
+            $"is {maxPageBytes}, which is smaller than MaxValueBytes ({maxValueBytes})");
+
+        PageStorageOptions options = new() {
+            MaxKeyChars = reader.Number("MaxKeyChars", recommended: 200, minimum: 16, maximum: 4_096),
             MaxValueBytes = maxValueBytes,
-            MaxKeysPerPage = Math.Max(1, section.GetValue("MaxKeysPerPage", DefaultMaxKeysPerPage)),
-            MaxPageBytes = Math.Max(maxPageBytes, maxValueBytes),
-            CommandTimeoutSeconds = Math.Max(1, section.GetValue("CommandTimeoutSeconds", DefaultCommandTimeoutSeconds)),
+            MaxKeysPerPage = reader.Number("MaxKeysPerPage", recommended: 256, minimum: 1, maximum: 65_536),
+            MaxPageBytes = maxPageBytes,
+            CommandTimeoutSeconds = reader.Number("CommandTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
         };
+        reader.Complete();
+        return options;
     }
 }

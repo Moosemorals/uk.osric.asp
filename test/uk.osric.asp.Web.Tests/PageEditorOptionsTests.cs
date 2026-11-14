@@ -4,16 +4,15 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Configuration;
+using uk.osric.asp.Web.Configuration;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
 public sealed class PageEditorOptionsTests {
 
     [Test]
-    public void TheEditorIsPagesWhenNothingIsConfigured() {
-        PageEditorOptions options = PageEditorOptions.FromConfiguration(new ConfigurationBuilder().Build());
-
-        Assert.That(options.Key, Is.EqualTo("/pages"));
+    public void TheShippedKeyIsTheSeededEditor() {
+        Assert.That(TestOptions.Editor.Key, Is.EqualTo("/pages"));
     }
 
     [Test]
@@ -25,19 +24,32 @@ public sealed class PageEditorOptionsTests {
     }
 
     [Test]
-    public void AKeyNoRequestCouldReachFallsBackToTheDefault() {
-        PageEditorOptions options = PageEditorOptions.FromConfiguration(
-            Configuration(new() { ["Pages:Editor:Key"] = "/pages?edit=/about" }));
+    public void AMissingKeyStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(
+            () => PageEditorOptions.FromConfiguration(new ConfigurationBuilder().Build()))!;
 
-        Assert.That(options.Key, Is.EqualTo(PageEditorOptions.DefaultKey));
+        Assert.That(error.Message, Does.Contain("Pages:Editor:Key is not set."));
     }
 
     [Test]
-    public void ABlankKeyFallsBackToTheDefault() {
-        PageEditorOptions options = PageEditorOptions.FromConfiguration(
-            Configuration(new() { ["Pages:Editor:Key"] = "  " }));
+    public void AKeyNoRequestCouldReachStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(
+            () => PageEditorOptions.FromConfiguration(
+                Configuration(new() { ["Pages:Editor:Key"] = "/pages?edit=/about" })))!;
 
-        Assert.That(options.Key, Is.EqualTo(PageEditorOptions.DefaultKey));
+        Assert.Multiple(() => {
+            Assert.That(error.Message, Does.Contain("Pages:Editor:Key"));
+            Assert.That(error.Message, Does.Contain("not an addressable page key"));
+        });
+    }
+
+    [Test]
+    public void ABlankKeyStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(
+            () => PageEditorOptions.FromConfiguration(
+                Configuration(new() { ["Pages:Editor:Key"] = "  " })))!;
+
+        Assert.That(error.Message, Does.Contain("Pages:Editor:Key is blank."));
     }
 
     private static IConfiguration Configuration(Dictionary<string, string?> values) =>

@@ -95,10 +95,12 @@ internal sealed class AspApplication(
         if (changelist is not null) {
             builder.UseSetting("Admin:Changelist", changelist);
         }
+        // The shared fixture signs in many times; the dedicated throttle test lowers this. The key is
+        // the one the host reads, so the test exercises the binding rather than overriding a service.
+        builder.UseSetting("Authentication:Login:PermitLimit", loginPermitLimit.ToString(CultureInfo.InvariantCulture));
+
         builder.ConfigureTestServices(services => {
             services.AddSingleton<IPageCompiler>(Compiler);
-            // The shared fixture signs in many times; the dedicated throttle test lowers this.
-            services.Configure<LoginRateLimitOptions>(options => options.PermitLimit = loginPermitLimit);
 
             if (!realPasswordHasher) {
                 // Registered last, so it wins over the singleton the host registered.

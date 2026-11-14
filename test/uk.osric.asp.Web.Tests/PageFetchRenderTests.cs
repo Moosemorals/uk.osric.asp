@@ -78,7 +78,7 @@ public sealed class PageFetchRenderTests {
             "ok",
             HttpFetchFailure.None,
             false));
-        PageFetchOptions options = new() { MaxRequestsPerRender = 2 };
+        PageFetchOptions options = TestOptions.Fetch with { MaxRequestsPerRender = 2 };
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
         await pages.StoreCompiledAsync("/greedy", """
             <%
@@ -166,7 +166,7 @@ public sealed class PageFetchRenderTests {
     [Test]
     public async Task TwoLayersSharingABudgetMakeOneRequestTooManyAsync() {
         FakePageFetcher fetcher = new();
-        PageFetchOptions options = new() { MaxRequestsPerRender = 1 };
+        PageFetchOptions options = TestOptions.Fetch with { MaxRequestsPerRender = 1 };
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
         RenderFetchBudget budget = new(options.MaxRequestsPerRender);
         IHttpFetch outer = pages.CreateContext(PageHarness.Key("/page"), budget: budget)

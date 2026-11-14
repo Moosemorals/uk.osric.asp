@@ -21,9 +21,10 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageEndpointTests {
 
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
-    private static readonly RenderOptions Options = new();
-    private static readonly PageStorageOptions StorageOptions = new();
-    private static readonly PageFetchOptions FetchOptions = new();
+    private static readonly RenderOptions Options = TestOptions.Render;
+    private static readonly PageStorageOptions StorageOptions = TestOptions.Storage;
+    private static readonly PageFetchOptions FetchOptions = TestOptions.Fetch;
+    private static readonly PageLayoutConfiguration NoLayout = TestOptions.Layout with { Default = null };
     private readonly RecordingCompiler _compiler = new(new PageCompiler());
     private readonly PageMetrics _metrics = new();
     private readonly TestAntiforgery _antiforgery = new();
@@ -39,13 +40,13 @@ public sealed class PageEndpointTests {
         PageLayoutConfiguration? layout = null) {
         return new PageEnvironment(
             Reserved,
-            new PageEditorOptions(),
-            layout ?? new PageLayoutConfiguration(),
+            TestOptions.Editor,
+            layout ?? NoLayout,
             render ?? Options,
             contentTypes ?? TestContentTypes.Shipped,
             StorageOptions,
             FetchOptions,
-            new PageReadOptions(),
+            TestOptions.Read,
             new FakePageStateStore(),
             new FakePageReadStore(),
             Saver(render ?? Options),
@@ -54,7 +55,7 @@ public sealed class PageEndpointTests {
             _antiforgery,
             new MarkdownRenderer(),
             new DiffRenderer(),
-            new PageSessionOptions(),
+            TestOptions.Session,
             new FakePageSessionStore(),
             TestSessions.Cookie);
     }
@@ -515,7 +516,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         storage["/slow.cs"] = new PageTemplate(PagePath.Normalize("/slow.cs"),
             "<% System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600); while (System.DateTime.UtcNow < until) { } %>");
-        RenderOptions options = new() { TimeoutSeconds = 0.25 };
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = 0.25 };
 
         long start = Stopwatch.GetTimestamp();
         await PageEndpoint.HandleAsync(context, CreatePages(storage, options), NullLoggerFactory.Instance, EndpointEnvironment(options));
@@ -531,7 +532,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = CreateContext("chatty.cs");
         FakePageStore storage = new();
         storage["/chatty.cs"] = new PageTemplate(PagePath.Normalize("/chatty.cs"), "0123456789");
-        RenderOptions options = new() { MaxBodyChars = 5 };
+        RenderOptions options = TestOptions.Render with { MaxBodyChars = 5 };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             PageEndpoint.HandleAsync(context, CreatePages(storage, options), NullLoggerFactory.Instance, EndpointEnvironment(options)));
@@ -908,7 +909,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = StoreAsset("/mine.html", Source);
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance,
-            EndpointEnvironment(layout: new PageLayoutConfiguration { Default = "/_layout" }));
+            EndpointEnvironment(layout: TestOptions.Layout with { Default = "/_layout" }));
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
@@ -928,7 +929,7 @@ public sealed class PageEndpointTests {
         FakePageStore storage = StoreAsset("/mine.htmlx", Source);
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance,
-            EndpointEnvironment(contentTypes: withSelf, layout: new PageLayoutConfiguration { Default = "/_layout" }));
+            EndpointEnvironment(contentTypes: withSelf, layout: TestOptions.Layout with { Default = "/_layout" }));
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
         Assert.That(context.Response.Headers["Content-Security-Policy"].ToString(), Does.Contain("script-src 'self'"));
@@ -946,7 +947,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext("mine.html", "GET", "/mine.html");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance,
-            EndpointEnvironment(layout: new PageLayoutConfiguration { Default = "/_layout" }));
+            EndpointEnvironment(layout: TestOptions.Layout with { Default = "/_layout" }));
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<title>Mine</title>"));
@@ -959,7 +960,7 @@ public sealed class PageEndpointTests {
 
         DefaultHttpContext context = TestHttp.CreateContext("fragment.html", "GET", "/fragment.html");
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance,
-            EndpointEnvironment(layout: new PageLayoutConfiguration { Default = "/_layout" }));
+            EndpointEnvironment(layout: TestOptions.Layout with { Default = "/_layout" }));
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("<p>Fragment</p>"));
@@ -977,7 +978,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext("doc.htm", "GET", "/doc.htm");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance,
-            EndpointEnvironment(layout: new PageLayoutConfiguration { Default = "/_layout" }));
+            EndpointEnvironment(layout: TestOptions.Layout with { Default = "/_layout" }));
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("<title>Doc</title>"));
@@ -1001,7 +1002,7 @@ public sealed class PageEndpointTests {
     }
 
     private PageSaver Saver(RenderOptions render) {
-        PageBudget budget = new(render, new CompileOptions());
+        PageBudget budget = new(render, TestOptions.Compile);
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageSaver(
@@ -1010,7 +1011,7 @@ public sealed class PageEndpointTests {
 
     private PageRenderer CreatePages(IPageStore storage, RenderOptions? options = null) {
         RenderOptions render = options ?? Options;
-        PageBudget budget = new(render, new CompileOptions());
+        PageBudget budget = new(render, TestOptions.Compile);
         PageImageBuilder compilations = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageRenderer(

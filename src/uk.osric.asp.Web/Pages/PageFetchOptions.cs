@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Configuration;
 
 /// <summary>Bounds the host's outbound HTTP, for pages and for the assistant's fetch tool.</summary>
 /// <remarks>
@@ -19,58 +20,51 @@ using uk.osric.asp.Core.Pages;
 /// </remarks>
 internal sealed record PageFetchOptions {
 
-    /// <summary>The per-fetch timeout, in seconds, when none is configured.</summary>
-    public const double DefaultTimeoutSeconds = 4;
-
-    /// <summary>The largest response body, in bytes, when none is configured.</summary>
-    public const int DefaultMaxResponseBytes = 1024 * 1024;
-
-    /// <summary>Requests one render may make, when none is configured.</summary>
-    public const int DefaultMaxRequestsPerRender = 10;
-
-    /// <summary>Redirects one fetch may follow, when none is configured.</summary>
-    public const int DefaultMaxRedirects = 3;
-
     /// <summary>The longest credential name <c>Pages:Fetch:Credentials</c> accepts.</summary>
     public const int MaximumCredentialNameLength = 64;
 
     /// <summary>How long one fetch may take.</summary>
     /// <remarks>May be a fraction of a second, down to <see cref="PageBudget.MinimumTimeoutSeconds"/>.</remarks>
-    public double TimeoutSeconds { get; init; } = DefaultTimeoutSeconds;
+    public required double TimeoutSeconds { get; init; }
 
     /// <summary>The most decompressed bytes one response may return.</summary>
-    public int MaxResponseBytes { get; init; } = DefaultMaxResponseBytes;
+    public required int MaxResponseBytes { get; init; }
 
     /// <summary>The most requests one render may make.</summary>
-    public int MaxRequestsPerRender { get; init; } = DefaultMaxRequestsPerRender;
+    public required int MaxRequestsPerRender { get; init; }
 
     /// <summary>The most redirects one fetch may follow; zero disables following.</summary>
-    public int MaxRedirects { get; init; } = DefaultMaxRedirects;
+    public required int MaxRedirects { get; init; }
 
     /// <summary>The operator-configured credentials a page may name, by name.</summary>
-    public IReadOnlyDictionary<string, PageCredential> Credentials { get; init; } =
-        new Dictionary<string, PageCredential>(StringComparer.OrdinalIgnoreCase);
+    public required IReadOnlyDictionary<string, PageCredential> Credentials { get; init; }
 
     /// <summary>The per-fetch budget as a time span.</summary>
     public TimeSpan Timeout => TimeSpan.FromSeconds(TimeoutSeconds);
 
     /// <summary>Reads <c>Pages:Fetch</c>.</summary>
     /// <param name="configuration">The application configuration.</param>
-    /// <returns>The options to use.</returns>
+    /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
     public static PageFetchOptions FromConfiguration(IConfiguration configuration) {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        IConfigurationSection section = configuration.GetSection("Pages:Fetch");
-
-        return new PageFetchOptions {
-            TimeoutSeconds = Math.Max(PageBudget.MinimumTimeoutSeconds, section.GetValue("TimeoutSeconds", DefaultTimeoutSeconds)),
-            MaxResponseBytes = Math.Max(1024, section.GetValue("MaxResponseBytes", DefaultMaxResponseBytes)),
-            MaxRequestsPerRender = Math.Max(1, section.GetValue("MaxRequestsPerRender", DefaultMaxRequestsPerRender)),
-            MaxRedirects = Math.Max(0, section.GetValue("MaxRedirects", DefaultMaxRedirects)),
-            Credentials = ReadCredentials(section.GetSection("Credentials")),
+        ConfigurationReader reader = new(configuration, "Pages:Fetch");
+        PageFetchOptions options = new() {
+            TimeoutSeconds = reader.Decimal("TimeoutSeconds", recommended: 4,
+                minimum: PageBudget.MinimumTimeoutSeconds, maximum: 60),
+            MaxResponseBytes = reader.Number("MaxResponseBytes", recommended: 1024 * 1024,
+                minimum: 1024, maximum: 64 * 1024 * 1024),
+            MaxRequestsPerRender = reader.Number("MaxRequestsPerRender", recommended: 10,
+                minimum: 1, maximum: 100),
+            MaxRedirects = reader.Number("MaxRedirects", recommended: 3, minimum: 0, maximum: 20),
+            Credentials = ReadCredentials(configuration.GetSection("Pages:Fetch:Credentials")),
         };
+        reader.Complete();
+        return options;
     }
 
+    // The section is optional: no page naming a credential needs one, and the shipped file carries an
+    // empty object rather than omitting it only so an operator can see the shape to copy.
     private static IReadOnlyDictionary<string, PageCredential> ReadCredentials(IConfigurationSection section) {
         return section.GetChildren().ToDictionary(
             entry => entry.Key,
@@ -84,7 +78,7 @@ internal sealed record PageFetchOptions {
     private static PageCredential ReadCredential(IConfigurationSection entry) {
         string name = entry.Key;
         if (name.Length is 0 or > MaximumCredentialNameLength || name.Any(char.IsControl)) {
-            throw new InvalidOperationException($"{entry.Path}: the name must be 1 to {MaximumCredentialNameLength} characters with no control characters.");
+            throw new ConfigurationException($"{entry.Path}: the name must be 1 to {MaximumCredentialNameLength} characters with no control characters.");
         }
 
         return new PageCredential(
@@ -106,7 +100,7 @@ internal sealed record PageFetchOptions {
             || host.Contains('@')
             || host.Any(char.IsWhiteSpace)
             || Uri.CheckHostName(host) is UriHostNameType.Unknown) {
-            throw new InvalidOperationException($"{entry.Path}: Host must be a bare host name with no scheme, path, query or port.");
+            throw new ConfigurationException($"{entry.Path}: Host must be a bare host name with no scheme, path, query or port.");
         }
 
         return new Uri($"https://{host}/").IdnHost;
@@ -117,7 +111,7 @@ internal sealed record PageFetchOptions {
         if (header.Any(char.IsControl)
             || (!string.Equals(header, "Authorization", StringComparison.OrdinalIgnoreCase)
                 && !header.StartsWith("X-", StringComparison.OrdinalIgnoreCase))) {
-            throw new InvalidOperationException($"{entry.Path}: Header must be Authorization or an X- header.");
+            throw new ConfigurationException($"{entry.Path}: Header must be Authorization or an X- header.");
         }
 
         return header;
@@ -132,7 +126,7 @@ internal sealed record PageFetchOptions {
         if (!string.Equals(scheme, scheme.Trim(), StringComparison.Ordinal)
             || scheme.Contains('\r')
             || scheme.Contains('\n')) {
-            throw new InvalidOperationException($"{entry.Path}: Scheme must not contain CR, LF or surrounding whitespace.");
+            throw new ConfigurationException($"{entry.Path}: Scheme must not contain CR, LF or surrounding whitespace.");
         }
 
         return scheme;
@@ -141,7 +135,7 @@ internal sealed record PageFetchOptions {
     private static string ReadValue(IConfigurationSection entry) {
         string? value = entry["Value"];
         if (string.IsNullOrEmpty(value) || value.Contains('\r') || value.Contains('\n')) {
-            throw new InvalidOperationException($"{entry.Path}: Value is required and must not contain CR or LF.");
+            throw new ConfigurationException($"{entry.Path}: Value is required and must not contain CR or LF.");
         }
 
         return value;
@@ -150,12 +144,12 @@ internal sealed record PageFetchOptions {
     private static PagePath ReadPage(IConfigurationSection entry) {
         string? page = entry["Page"];
         if (string.IsNullOrWhiteSpace(page)) {
-            throw new InvalidOperationException($"{entry.Path}: Page is required.");
+            throw new ConfigurationException($"{entry.Path}: Page is required.");
         }
 
         PagePath key = PagePath.Normalize(page);
         if (!key.IsAddressable) {
-            throw new InvalidOperationException($"{entry.Path}: Page must be an addressable page path.");
+            throw new ConfigurationException($"{entry.Path}: Page must be an addressable page path.");
         }
 
         return key;

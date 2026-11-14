@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using uk.osric.asp.Web.Admin;
 
 [TestFixture]
@@ -62,7 +61,7 @@ public sealed class ChangesEndpointTests {
     public async Task ABuildWithoutAChangelistSaysSoAsync() {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/changes");
 
-        await ChangesEndpoint.HandleAsync(context, Config(MissingPath()));
+        await ChangesEndpoint.HandleAsync(context, Options(MissingPath()));
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("This build carries no changelist"));
@@ -70,7 +69,7 @@ public sealed class ChangesEndpointTests {
 
     [Test]
     public void ARelativeSettingIsResolvedBesideTheAssembly() {
-        string path = ChangesEndpoint.PathOf(Config("changes.txt"));
+        string path = ChangesEndpoint.PathOf(Options("changes.txt"));
 
         Assert.That(path, Is.EqualTo(Path.Combine(AppContext.BaseDirectory, "changes.txt")));
     }
@@ -81,7 +80,7 @@ public sealed class ChangesEndpointTests {
         _files.Add(file);
 
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/changes");
-        await ChangesEndpoint.HandleAsync(context, Config(file));
+        await ChangesEndpoint.HandleAsync(context, Options(file));
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -89,8 +88,5 @@ public sealed class ChangesEndpointTests {
     private static string MissingPath() =>
         Path.Combine(Path.GetTempPath(), $"uk.osric.asp.missing.{Guid.NewGuid():N}.txt");
 
-    private static IConfiguration Config(string path) =>
-        new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Admin:Changelist"] = path })
-            .Build();
+    private static AdminOptions Options(string path) => new() { Changelist = path };
 }

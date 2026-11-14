@@ -130,9 +130,9 @@ public sealed class PageMetricsTests {
         // The capture has to start before the meter so no instrument is missed.
         using MetricCapture capture = MetricCapture.Start();
         FakePageStore storage = new();
-        RenderOptions options = new() { TimeoutSeconds = 0.25 };
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = 0.25 };
         using PageHarness pages = new(storage, options: options,
-            budget: new PageBudget(options, new CompileOptions()));
+            budget: new PageBudget(options, TestOptions.Compile));
         await pages.Editor.SaveAsync(Key("/slow"), SlowPage);
 
         await pages.RenderAsync("/slow");

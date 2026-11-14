@@ -39,7 +39,7 @@ internal static class SiteNavigation {
         // document writer, and a flag passed by each view is a flag one of them will forget. An
         // installation with no assistant configured answers nothing, so the item is left out.
         bool assistantEnabled = context.RequestServices
-            ?.GetService<IOptions<AssistantOptions>>()?.Value.Enabled == true;
+            ?.GetService<AssistantOptions>()?.Enabled == true;
         bool authenticated = context.User.Identity?.IsAuthenticated == true;
 
         return Nav(

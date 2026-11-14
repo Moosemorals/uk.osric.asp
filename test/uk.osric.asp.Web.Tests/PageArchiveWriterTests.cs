@@ -62,7 +62,7 @@ public sealed class PageArchiveWriterTests {
     }
 
     private static PageArchiveReader Reader() =>
-        new(new ArchiveOptions(), new PageStorageOptions(), new ReservedPaths(ReservedPaths.Default), NullLogger<PageArchiveReader>.Instance);
+        new(TestOptions.Archive, TestOptions.Storage, new ReservedPaths(ReservedPaths.Default), NullLogger<PageArchiveReader>.Instance);
 
     private static PagePath Key(string path) => PagePath.Normalize(path);
 }

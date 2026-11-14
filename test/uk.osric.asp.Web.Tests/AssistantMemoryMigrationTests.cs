@@ -37,7 +37,7 @@ public sealed class AssistantMemoryMigrationTests {
             .And.Contain("AssistantMemories_ad")
             .And.Contain("AssistantMemories_au"));
 
-        SqliteMemoryStore memories = new(database, new AssistantOptions(), TimeProvider.System);
+        SqliteMemoryStore memories = new(database, TestOptions.Assistant, TimeProvider.System);
         await memories.RememberAsync("owner", MemoryKind.Preference, "The owner prefers colour.", new MemorySource(1, "run-1"));
         IReadOnlyList<MemoryCandidate> found = await memories.RecallAsync("owner", "\"colour\"*", 50);
 
@@ -65,7 +65,7 @@ public sealed class AssistantMemoryMigrationTests {
     public async Task ARebuiltDatabaseAnswersARecallAgainAsync() {
         await using StorageDbContext database = new(DatabaseTemplate.Options(_databasePath));
         await database.Database.MigrateAsync();
-        SqliteMemoryStore memories = new(database, new AssistantOptions(), TimeProvider.System);
+        SqliteMemoryStore memories = new(database, TestOptions.Assistant, TimeProvider.System);
         await memories.RememberAsync("owner", MemoryKind.Fact, "The site runs on Podman.", new MemorySource(1, "run-1"));
 
         await database.Database.MigrateAsync(PreviousMigration);

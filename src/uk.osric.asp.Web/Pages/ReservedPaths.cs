@@ -14,30 +14,36 @@ using uk.osric.asp.Core.Pages;
 /// </para>
 /// <para>
 /// The list lives in configuration (<c>Pages:ReservedPaths</c>) because the routes belong to the
-/// shell; <see cref="Default"/> is used whenever the section is missing or empty, so a configuration
-/// mistake cannot silently switch the check off.
+/// shell, and the section is required: a mistake stops the site rather than silently switching the
+/// check off.
 /// </para>
 /// </remarks>
 internal sealed class ReservedPaths {
 
-    /// <summary>The keys reserved when none are configured.</summary>
+    /// <summary>The keys the shipped <c>appsettings.json</c> carries; a test holds the two together.</summary>
     public static IReadOnlyList<string> Default { get; } =
         ["/admin/changes", "/admin/export", "/admin/import", "/admin/restore", "/admin/scrub", "/assistant", "/favicon.ico", "/heath", "/login", "/logout", "/metrics", "/status"];
 
     private readonly IReadOnlyList<PagePath> _keys;
 
     /// <summary>Creates the list from the configured keys.</summary>
-    /// <param name="paths">The configured keys; <see cref="Default"/> is used when this is empty.</param>
-    public ReservedPaths(IEnumerable<string>? paths) {
-        List<PagePath> keys = [];
+    /// <param name="paths">The configured keys, which must hold at least one.</param>
+    /// <exception cref="ArgumentException">No key was given, so no route would be reserved.</exception>
+    public ReservedPaths(IEnumerable<string> paths) {
+        ArgumentNullException.ThrowIfNull(paths);
 
-        foreach (string path in paths ?? []) {
+        List<PagePath> keys = [];
+        foreach (string path in paths) {
             if (!string.IsNullOrWhiteSpace(path)) {
                 keys.Add(PagePath.Normalize(path));
             }
         }
 
-        _keys = keys.Count > 0 ? keys : [.. Default.Select(PagePath.Normalize)];
+        if (keys.Count == 0) {
+            throw new ArgumentException("At least one reserved page key is required.", nameof(paths));
+        }
+
+        _keys = keys;
     }
 
     /// <summary>The reserved keys themselves, in configuration order, as canonical paths.</summary>

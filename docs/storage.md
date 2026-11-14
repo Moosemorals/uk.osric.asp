@@ -40,8 +40,10 @@ the sweep and the eviction order: one on `(Account, UpdatedAt)` and one on `Upda
 
 The caps live in `Pages:Session`: one value's bytes, one session's key count and byte total, and the
 idle lifetime, for an anonymous visitor and for a signed-in one, plus the live-session cap and a
-command timeout. The values are clamped to a safe minimum the way `Pages:Storage` is, and the key
-length is `Pages:Storage:MaxKeyChars` because a session key is the same kind of key. Each write is
+command timeout. Every value is required: a missing or out-of-range one stops the site at startup
+with a message naming the key, its range and the shipped value
+([configuration](architecture.md#configuration)). The key length is `Pages:Storage:MaxKeyChars`
+because a session key is the same kind of key. Each write is
 one statement that refuses at the cap, the way `SqlitePageStateStore.UpsertAsync` does: the session
 must still exist, the key count must stay inside its cap and the byte total inside its cap. The caps
 are per visitor, not per page, so one page's keys can use the room another would have had.
@@ -93,8 +95,8 @@ read-only singleton over the context factory, it answers with small `Web` record
 `PagePath`, and `PageCatalogScope` maps them to the three `Sdk` values. A listing returns every head
 the store holds — live, tombstoned, seeded and reserved — marked `IsDeleted`, `IsReserved` and
 `IsHtml`, and a prefix selects a subtree rather than a string prefix. `Pages:Read:MaxRowsPerList`
-(500 default) is enforced in the statement and refuses one row past the cap,
-`Pages:Read:MaxSourceCharsPerRender` (512 KiB default) is one `ReadBudget` shared by every layer of
+(500 shipped) is enforced in the statement and refuses one row past the cap,
+`Pages:Read:MaxSourceCharsPerRender` (512 KiB shipped) is one `ReadBudget` shared by every layer of
 the chain and refuses rather than truncating, and both the deadline and abandonment stop a read. The
 read is as public as the page that calls it: the host adds no gate, a page that wants privacy writes
 the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that

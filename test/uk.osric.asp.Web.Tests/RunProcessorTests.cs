@@ -21,7 +21,7 @@ public sealed class RunProcessorTests {
 
     private static DatabaseTemplate? s_template;
 
-    private readonly AssistantOptions _options = new() {
+    private readonly AssistantOptions _options = TestOptions.Assistant with {
         RunTimeoutSeconds = 5,
         RequestTimeoutSeconds = 3,
         ToolTimeoutSeconds = 2,
@@ -468,11 +468,15 @@ public sealed class RunProcessorTests {
 
     [Test]
     public async Task AnOverBudgetRunFailsBeforeTheProviderIsCalled() {
-        AssistantOptions options = new() {
+        AssistantOptions options = TestOptions.Assistant with {
+            Enabled = true,
+            ApiKey = "configured",
             RunTimeoutSeconds = 5,
             RequestTimeoutSeconds = 3,
             ToolTimeoutSeconds = 2,
             MaxContextTokens = 1_000,
+            MaxOutputTokens = 1_000,
+            ModelContextTokens = 16_384,
         };
         ScriptedClient client = new([new ContentDelta("Never sent."), new Finished("stop")]);
         (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
@@ -509,7 +513,7 @@ public sealed class RunProcessorTests {
         (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) = await StartRunAsync(
             client,
             seed: (store, created, runId) => SeedAsync(store, created.Id, runId, seeds),
-            measureOptions: (_, _, _) => Task.FromResult(new AssistantOptions {
+            measureOptions: (_, _, _) => Task.FromResult(TestOptions.Assistant with {
                 RunTimeoutSeconds = 5,
                 RequestTimeoutSeconds = 3,
                 ToolTimeoutSeconds = 2,
@@ -598,7 +602,7 @@ public sealed class RunProcessorTests {
         int toolSeconds = 2,
         int steps = 40,
         int calls = 16,
-        int callsPerStep = 8) => new() {
+        int callsPerStep = 8) => TestOptions.Assistant with {
             RunTimeoutSeconds = seconds,
             RequestTimeoutSeconds = 3,
             ToolTimeoutSeconds = toolSeconds,

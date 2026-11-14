@@ -163,7 +163,7 @@ public sealed class SqlitePageStateStoreTests {
     public async Task TheKeyCountCapRefusesTheWriteAndLeavesNoRowAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         IPageStateStore store = new SqlitePageStateStore(
-            DatabaseTemplate.Factory(_options), new PageStorageOptions { MaxKeysPerPage = 2 }, TimeProvider.System);
+            DatabaseTemplate.Factory(_options), TestOptions.Storage with { MaxKeysPerPage = 2 }, TimeProvider.System);
 
         await store.SetValueAsync(Key("/page.cs"), "one", "1");
         await store.SetValueAsync(Key("/page.cs"), "two", "2");
@@ -179,7 +179,7 @@ public sealed class SqlitePageStateStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         IPageStateStore store = new SqlitePageStateStore(
             DatabaseTemplate.Factory(_options),
-            new PageStorageOptions { MaxValueBytes = 4096, MaxPageBytes = 64 },
+            TestOptions.Storage with { MaxValueBytes = 4096, MaxPageBytes = 64 },
             TimeProvider.System);
 
         await store.SetValueAsync(Key("/page.cs"), "small", "1");
@@ -195,7 +195,7 @@ public sealed class SqlitePageStateStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         IPageStateStore store = new SqlitePageStateStore(
             DatabaseTemplate.Factory(_options),
-            new PageStorageOptions { MaxValueBytes = 4096, MaxPageBytes = 64 },
+            TestOptions.Storage with { MaxValueBytes = 4096, MaxPageBytes = 64 },
             TimeProvider.System);
         await store.SetValueAsync(Key("/page.cs"), "key", new string('x', 40));
 
@@ -209,7 +209,7 @@ public sealed class SqlitePageStateStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
         PageStorageRefresh refresh = new();
         IPageStateStore store = new SqlitePageStateStore(
-            DatabaseTemplate.Factory(_options), new PageStorageOptions(), TimeProvider.System, refresh);
+            DatabaseTemplate.Factory(_options), TestOptions.Storage, TimeProvider.System, refresh);
 
         await store.SetValueAsync(Key("/page.cs"), "key", "1");
 
@@ -242,7 +242,7 @@ public sealed class SqlitePageStateStoreTests {
     }
 
     private IPageStateStore Store() {
-        return new SqlitePageStateStore(DatabaseTemplate.Factory(_options), new PageStorageOptions(), TimeProvider.System);
+        return new SqlitePageStateStore(DatabaseTemplate.Factory(_options), TestOptions.Storage, TimeProvider.System);
     }
 
     private static PagePath Key(string path) => PagePath.Normalize(path);

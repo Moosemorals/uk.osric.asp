@@ -17,7 +17,8 @@ internal static class TestHttp {
     // host.
     private static readonly IServiceProvider s_services = new ServiceCollection()
         .AddLogging()
-        .AddSingleton(new ReservedPaths(ReservedPaths.Default))
+        .AddSingleton(TestOptions.Reserved)
+        .AddSingleton(TestOptions.Editor)
         .BuildServiceProvider();
 
     /// <summary>Builds a context whose body can be read back after the handler has run.</summary>

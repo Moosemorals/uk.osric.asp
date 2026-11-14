@@ -312,6 +312,19 @@ public sealed class PageToolExecutorHistoryTests {
     }
 
     [Test]
+    public async Task AListingLimitOutsideTheConfiguredRangeNamesItAsync() {
+        AssistantOptions options = TestOptions.Assistant with { DefaultListLimit = 5, MaxListLimit = 10 };
+
+        ToolExecutionResult result = await RunAsync(new FakePageStore(), "list_pages", """{"limit":11}""", options);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("between 1 and 10"));
+            Assert.That(result.Content, Does.Contain("5 rows"));
+        });
+    }
+
+    [Test]
     public async Task ListPagesRefusesABadLimitAsync() {
         ToolExecutionResult result = await RunAsync(new FakePageStore(), "list_pages", """{"limit":0}""");
 
@@ -321,7 +334,7 @@ public sealed class PageToolExecutorHistoryTests {
         });
     }
 
-    private static AssistantOptions SmallBudget() => new() {
+    private static AssistantOptions SmallBudget() => TestOptions.Assistant with {
         MaxToolArgumentChars = 65_536,
         MaxToolResultChars = 2_048,
         MaxPageChars = 65_536,
@@ -347,12 +360,13 @@ public sealed class PageToolExecutorHistoryTests {
         using PageHarness pages = new(storage);
         using ServiceProvider services = new ServiceCollection()
             .AddScoped(_ => pages.Editor)
+            .AddSingleton(TestOptions.Editor)
             .BuildServiceProvider();
 
         PageToolExecutor tools = new(
             services.GetRequiredService<IServiceScopeFactory>(),
-            new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), new AssistantOptions()),
-            options ?? new AssistantOptions { MaxToolArgumentChars = 65_536, MaxToolResultChars = 65_536, MaxPageChars = 65_536 },
+            new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
+            options ?? TestOptions.Assistant with { MaxToolArgumentChars = 65_536, MaxToolResultChars = 65_536, MaxPageChars = 65_536 },
             new AssistantMetrics(),
             new FakeAssistantFetcher(),
             new DiffRenderer());

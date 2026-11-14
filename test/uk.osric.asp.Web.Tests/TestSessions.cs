@@ -11,7 +11,7 @@ using uk.osric.asp.Web.Pages;
 internal static class TestSessions {
 
     /// <summary>The caps and lifetimes a test starts from.</summary>
-    public static PageSessionOptions Options => new();
+    public static PageSessionOptions Options => TestOptions.Session;
 
     /// <summary>The cookie name and policy a test starts from.</summary>
     public static PageSessionCookieOptions Cookie { get; } =

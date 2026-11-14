@@ -4,7 +4,7 @@
 namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Configuration;
 
 /// <summary>Reads <c>Pages:ContentTypes</c> into the pure map a page's response is shaped from.</summary>
 /// <remarks>
@@ -14,33 +14,48 @@ using uk.osric.asp.Sdk;
 /// read once; nothing in the shell observes changes while the process runs.
 /// </para>
 /// <para>
-/// A row is either the old spelling — a media type string, with script policy <c>none</c> — or an
-/// object with <c>ContentType</c> and <c>ScriptPolicy</c>. The policy belongs to the extension, not to
-/// the final response type, and an unknown policy is fatal rather than silently becoming <c>none</c>.
-/// A missing <c>Fallback</c> takes <see cref="PageResponse.Default"/>'s content type, so the SDK's
-/// default and the site's fallback cannot drift apart.
+/// A row is either the shorter spelling — a media type string, which by definition has script policy
+/// <c>none</c> — or an object with <c>ContentType</c> and <c>ScriptPolicy</c>. The policy belongs to
+/// the extension, not to the final response type. The fallback and at least one extension are
+/// required.
 /// </para>
 /// </remarks>
 internal static class PageContentTypesConfiguration {
 
+    /// <summary>Reads the section.</summary>
+    /// <param name="configuration">The application configuration.</param>
+    /// <param name="logger">Where the map is reported once.</param>
+    /// <exception cref="ConfigurationException">A row is missing or unusable.</exception>
     public static PageContentTypes FromConfiguration(IConfiguration configuration, ILogger logger) {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(logger);
 
-        IConfigurationSection section = configuration.GetSection("Pages:ContentTypes");
-        PageContentTypeRule fallback = ReadRule(
-            section.GetSection("Fallback"),
-            PageResponse.Default.ContentType,
-            "The fallback content type");
+        ConfigurationReader reader = new(configuration, "Pages:ContentTypes");
+        reader.FailIf(!configuration.GetSection("Pages:ContentTypes:Fallback").Exists(), "Fallback",
+            "is not set. Add ContentType and ScriptPolicy for a key with no mapped extension");
 
-        KeyValuePair<string, PageContentTypeRule>[] extensions = [
-            .. section.GetSection("Extensions").GetChildren()
+        IConfigurationSection extensions = configuration.GetSection("Pages:ContentTypes:Extensions");
+        reader.FailIf(!extensions.GetChildren().Any(), "Extensions",
+            "is empty. Add at least one extension such as .html");
+
+        PageContentTypeRule fallback = ReadRule(reader.For("Fallback"));
+        KeyValuePair<string, PageContentTypeRule>[] rules = [
+            .. extensions.GetChildren()
                 .Select(child => new KeyValuePair<string, PageContentTypeRule>(
                     child.Key,
-                    ReadRule(child, defaultMediaType: null, $"The content type for '{child.Key}'"))),
+                    ReadRule(reader.For("Extensions").For(child.Key)))),
         ];
+        reader.Complete();
 
-        PageContentTypes contentTypes = PageContentTypes.Create(fallback, extensions);
+        PageContentTypes contentTypes;
+        try {
+            contentTypes = PageContentTypes.Create(fallback, rules);
+        } catch (ArgumentException exception) {
+            // The map's own rules — an unknown extension, a row repeated in another case, a media
+            // type that is not one — are configuration mistakes too, so they read the same way.
+            throw new ConfigurationException(exception.Message);
+        }
+
         logger.LogInformation(
             "Pages serve {FallbackContentType} with script policy {FallbackScriptPolicy} by default and map {ExtensionCount} extensions",
             contentTypes.Fallback,
@@ -49,40 +64,29 @@ internal static class PageContentTypesConfiguration {
         return contentTypes;
     }
 
-    private static PageContentTypeRule ReadRule(
-        IConfigurationSection section,
-        string? defaultMediaType,
-        string source) {
-        if (section.Value is { } value) {
-            if (string.IsNullOrWhiteSpace(value)) {
-                throw new ArgumentException($"{source} is blank.", nameof(section));
-            }
-
-            return new PageContentTypeRule(value);
+    // A rule that could not be read is an empty rule: the map is never built, because Complete throws
+    // first, so the placeholder only satisfies the compiler.
+    private static PageContentTypeRule ReadRule(ConfigurationReader reader) {
+        if (reader.ValueOrNull() is not null) {
+            string mediaType = reader.Value("a media type such as text/html; charset=utf-8");
+            return new PageContentTypeRule(mediaType);
         }
 
-        string? mediaType = section["ContentType"];
-        if (string.IsNullOrWhiteSpace(mediaType)) {
-            if (defaultMediaType is not null) {
-                return new PageContentTypeRule(defaultMediaType);
-            }
+        string content = reader.Text("ContentType", "a media type such as text/html; charset=utf-8");
 
-            throw new ArgumentException($"{source} has no ContentType.", nameof(section));
-        }
-
-        return new PageContentTypeRule(mediaType, ParseScriptPolicy(section["ScriptPolicy"], source));
+        return new PageContentTypeRule(content, ParseScriptPolicy(reader));
     }
 
-    private static PageScriptPolicy ParseScriptPolicy(string? value, string source) {
-        if (string.IsNullOrWhiteSpace(value)) {
-            return PageScriptPolicy.None;
-        }
-
-        string policy = value.Trim();
+    private static PageScriptPolicy ParseScriptPolicy(ConfigurationReader reader) {
+        string policy = reader.Text("ScriptPolicy", "'none' or 'self'");
 
         return policy.Equals("none", StringComparison.OrdinalIgnoreCase) ? PageScriptPolicy.None
             : policy.Equals("self", StringComparison.OrdinalIgnoreCase) ? PageScriptPolicy.Self
-            : throw new ArgumentException(
-                $"{source} has an unknown ScriptPolicy '{value}'; use 'none' or 'self'.", nameof(value));
+            : Unreadable(reader, policy);
+    }
+
+    private static PageScriptPolicy Unreadable(ConfigurationReader reader, string policy) {
+        reader.Fail("ScriptPolicy", $"is \"{policy}\", which is not 'none' or 'self'");
+        return PageScriptPolicy.None;
     }
 }

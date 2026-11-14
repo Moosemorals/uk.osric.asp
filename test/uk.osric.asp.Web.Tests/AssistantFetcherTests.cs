@@ -113,7 +113,7 @@ public sealed class AssistantFetcherTests {
         HttpFetchResponse response = await FetchAsync(
             "https://example.com/",
             new StubHttpMessageHandler(Respond(HttpStatusCode.OK, new string('x', 4096))),
-            new PageFetchOptions { MaxResponseBytes = 1024 });
+            TestOptions.Fetch with { MaxResponseBytes = 1024 });
 
         Assert.Multiple(() => {
             Assert.That(response.Truncated, Is.True);
@@ -126,7 +126,7 @@ public sealed class AssistantFetcherTests {
         HttpFetchResponse response = await FetchAsync(
             "https://example.com/",
             new SlowHandler(),
-            new PageFetchOptions { TimeoutSeconds = 0.25 });
+            TestOptions.Fetch with { TimeoutSeconds = 0.25 });
 
         Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.Timeout));
     }
@@ -137,7 +137,7 @@ public sealed class AssistantFetcherTests {
         PageFetchOptions? options = null) {
         AssistantFetcher fetcher = new(new OutboundFetcher(
             new StubHttpClientFactory(handler),
-            options ?? new PageFetchOptions(),
+            options ?? TestOptions.Fetch,
             NullLogger<OutboundFetcher>.Instance));
 
         return await fetcher.FetchAsync(url, CancellationToken.None);

@@ -316,7 +316,7 @@ public sealed class PageEditorPageTests {
         Store("/about", "about");
 
         Rendered rendered = await RenderAsync(
-            "?edit=%2Fabout", path: Desk, editor: new PageEditorOptions { Key = Desk });
+            "?edit=%2Fabout", path: Desk, editor: TestOptions.Editor with { Key = Desk });
 
         Assert.Multiple(() => {
             Assert.That(rendered.Body, Does.Contain("action=\"/desk?edit=%2Fabout\""), "the form posts to the page itself");

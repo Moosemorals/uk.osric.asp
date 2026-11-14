@@ -49,5 +49,5 @@ public sealed class PagePathPolicyTests {
 
     private static PagePathPolicy CreatePaths(string writablePrefix = "") => new(
         new ReservedPaths(ReservedPaths.Default),
-        new AssistantOptions { WritablePathPrefix = writablePrefix });
+        TestOptions.Assistant with { WritablePathPrefix = writablePrefix });
 }

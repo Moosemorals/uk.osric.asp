@@ -10,7 +10,7 @@ public sealed class RunRegistryTests {
 
     [Test]
     public async Task ReplaysEventsAfterTheRequestedSequenceAsync() {
-        RunRegistry registry = new(new AssistantOptions(), TimeProvider.System);
+        RunRegistry registry = new(TestOptions.Assistant, TimeProvider.System);
         Assert.That(registry.TryStart("run-1", 1, out RunStream? stream), Is.True);
         stream!.Publish("run.started", new { model = "test" });
         stream.Publish("content.delta", new { text = "answer" });
@@ -24,7 +24,7 @@ public sealed class RunRegistryTests {
 
     [Test]
     public async Task RetainedJournalSupportsMultipleSubscribersAsync() {
-        RunRegistry registry = new(new AssistantOptions(), TimeProvider.System);
+        RunRegistry registry = new(TestOptions.Assistant, TimeProvider.System);
         registry.TryStart("run-1", 1, out RunStream? stream);
         stream!.Publish("content.delta", new { text = "one" });
         stream.Publish("content.delta", new { text = "two" });
@@ -38,7 +38,7 @@ public sealed class RunRegistryTests {
 
     [Test]
     public async Task TruncatedJournalResetsInsteadOfReturningAnIncompleteReplayAsync() {
-        AssistantOptions options = new() { JournalMaxEvents = 2 };
+        AssistantOptions options = TestOptions.Assistant with { JournalMaxEvents = 2 };
         RunRegistry registry = new(options, TimeProvider.System);
         registry.TryStart("run-1", 1, out RunStream? stream);
         stream!.Publish("content.delta", new { text = "one" });
@@ -53,7 +53,7 @@ public sealed class RunRegistryTests {
 
     [Test]
     public void AllowsOnlyOneActiveRunForAConversationAndStopCancelsIt() {
-        RunRegistry registry = new(new AssistantOptions(), TimeProvider.System);
+        RunRegistry registry = new(TestOptions.Assistant, TimeProvider.System);
         Assert.That(registry.TryStart("run-1", 1, out RunStream? first), Is.True);
 
         Assert.That(registry.TryStart("run-2", 1, out _), Is.False);
@@ -63,7 +63,7 @@ public sealed class RunRegistryTests {
 
     [Test]
     public void QueueRejectsRunsBeyondItsConfiguredCapacity() {
-        RunQueue queue = new(new AssistantOptions { MaxQueuedRuns = 1 });
+        RunQueue queue = new(TestOptions.Assistant with { MaxQueuedRuns = 1 });
 
         Assert.That(queue.TryEnqueue(new QueuedRun(1, "run-1", "owner")), Is.True);
         Assert.That(queue.TryEnqueue(new QueuedRun(2, "run-2", "owner")), Is.False);
@@ -72,7 +72,7 @@ public sealed class RunRegistryTests {
     [Test]
     public void ExpiredCompletedJournalIsNotReturnedOnLookup() {
         AdvancingTimeProvider clock = new();
-        RunRegistry registry = new(new AssistantOptions { JournalTtlMinutes = 1 }, clock);
+        RunRegistry registry = new(TestOptions.Assistant with { JournalTtlMinutes = 1 }, clock);
         Assert.That(registry.TryStart("run-1", 1, out _), Is.True);
         registry.Complete("run-1", 1);
         clock.Advance(TimeSpan.FromMinutes(2));

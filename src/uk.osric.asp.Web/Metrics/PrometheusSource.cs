@@ -17,7 +17,6 @@ using uk.osric.asp.Core.Charting;
 /// </remarks>
 internal sealed class PrometheusSource : IMetricsSource {
 
-    private static readonly TimeSpan DefaultQueryTimeout = TimeSpan.FromSeconds(2);
     // The exporter sanitises tag names: the tag `page.path` is the label `page_path`.
     private static readonly string[] LabelKeys = [
         "page_path", "outcome", "result", "reason", "kind", "model", "tool", "http_response_status_code", "le",
@@ -30,13 +29,13 @@ internal sealed class PrometheusSource : IMetricsSource {
     /// <summary>Creates a source over a client whose base address is the Prometheus origin.</summary>
     /// <param name="http">The client to send queries with.</param>
     /// <param name="logger">Records what a failed query actually failed with.</param>
-    /// <param name="queryTimeout">The per-query deadline; two seconds unless a test says otherwise.</param>
-    public PrometheusSource(HttpClient http, ILogger<PrometheusSource> logger, TimeSpan? queryTimeout = null) {
+    /// <param name="queryTimeout">The per-query deadline, from <c>Metrics:QueryTimeoutSeconds</c>.</param>
+    public PrometheusSource(HttpClient http, ILogger<PrometheusSource> logger, TimeSpan queryTimeout) {
         ArgumentNullException.ThrowIfNull(http);
         ArgumentNullException.ThrowIfNull(logger);
         _http = http;
         _logger = logger;
-        _queryTimeout = queryTimeout ?? DefaultQueryTimeout;
+        _queryTimeout = queryTimeout;
     }
 
     // Named in every failure, because "did not answer" without an address is a puzzle rather than a

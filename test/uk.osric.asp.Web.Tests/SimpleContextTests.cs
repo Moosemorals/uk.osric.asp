@@ -402,7 +402,7 @@ public sealed class SimpleContextTests {
     // A page-level store over an empty one, registered as the capability the endpoint offers.
     private static PageCapabilities CapabilitiesFor(string path) {
         PageStorageScope storage = new(
-            PagePath.Normalize(path), new FakePageStateStore(), new PageStorageOptions(), writable: true);
+            PagePath.Normalize(path), new FakePageStateStore(), TestOptions.Storage, writable: true);
 
         return new PageCapabilities().Add<IPageStorage>(storage);
     }
@@ -423,7 +423,8 @@ public sealed class SimpleContextTests {
             output,
             CapabilitiesFor(path),
             contentTypes ?? TestContentTypes.Shipped,
-            RenderOptions.DefaultMaxBodyChars,
+            TestOptions.Render.MaxBodyChars,
+            TestOptions.Editor.Key,
             user,
             loginRedirect,
             antiforgeryField);
@@ -437,6 +438,8 @@ public sealed class SimpleContextTests {
             CancellationToken.None,
             new StringWriter(),
             CapabilitiesFor("/page"),
-            TestContentTypes.Shipped);
+            TestContentTypes.Shipped,
+            TestOptions.Render.MaxBodyChars,
+            TestOptions.Editor.Key);
     }
 }

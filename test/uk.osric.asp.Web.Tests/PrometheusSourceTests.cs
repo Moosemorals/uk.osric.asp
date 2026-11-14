@@ -121,7 +121,7 @@ public sealed class PrometheusMetricsSourceTests {
                 Content = new StringContent("<html>bad gateway</html>", Encoding.UTF8, "text/html"),
             }));
 
-        QueryResult result = await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance)
+        QueryResult result = await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance, TestOptions.Metrics.QueryTimeout)
             .QueryAsync("up", From, To, Step, CancellationToken.None);
 
         Assert.That(((MetricsUnavailable)result).Reason, Does.Contain("502"));
@@ -134,7 +134,7 @@ public sealed class PrometheusMetricsSourceTests {
                 Content = new StringContent("<html>not prometheus</html>", Encoding.UTF8, "text/html"),
             }));
 
-        QueryResult result = await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance)
+        QueryResult result = await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance, TestOptions.Metrics.QueryTimeout)
             .QueryAsync("up", From, To, Step, CancellationToken.None);
 
         Assert.That(((MetricsUnavailable)result).Reason, Does.Contain("cannot read"));
@@ -156,7 +156,7 @@ public sealed class PrometheusMetricsSourceTests {
             """));
         using HttpClient http = Client(handler);
 
-        await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance).QueryAsync("sum(rate(x[5m]))", From, To, Step, CancellationToken.None);
+        await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance, TestOptions.Metrics.QueryTimeout).QueryAsync("sum(rate(x[5m]))", From, To, Step, CancellationToken.None);
 
         string uri = handler.Requests.Single().ToString();
         Assert.That(uri, Does.Contain("query=sum%28rate%28x%5B5m%5D%29%29"));
@@ -194,14 +194,14 @@ public sealed class PrometheusMetricsSourceTests {
     private static async Task<QueryResult> FailingAsync(Exception inner) {
         using HttpClient http = Client(new StubHttpMessageHandler(_ => throw new HttpRequestException("boom", inner)));
 
-        return await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance)
+        return await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance, TestOptions.Metrics.QueryTimeout)
             .QueryAsync("up", From, To, Step, CancellationToken.None);
     }
 
     private static async Task<QueryResult> QueryAsync(string body, HttpStatusCode status = HttpStatusCode.OK) {
         using HttpClient http = Client(new StubHttpMessageHandler(_ => Json(body, status)));
 
-        return await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance)
+        return await new PrometheusSource(http, NullLogger<PrometheusSource>.Instance, TestOptions.Metrics.QueryTimeout)
             .QueryAsync("up", From, To, Step, CancellationToken.None);
     }
 

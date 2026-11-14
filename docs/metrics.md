@@ -223,7 +223,7 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
 - **`/status` is a shell endpoint.** It writes body markup inside `ShellDocument`, so its head, sheet
   list, menu and footer are the shell's (see [the shell](shell.md)). It queries Prometheus over the
   shared network and draws SVG from pure `Core` functions (`LineChart`, `Heatmap`, `StackedAreaChart`,
-  `NiceTicks`); it is owner-only, cached for fifteen seconds, and a Prometheus failure is a banner
+  `NiceTicks`); it is owner-only, cached for fifteen seconds (`Metrics:CacheSeconds`), and a Prometheus failure is a banner
   rather than a `500`, because the page is what gets opened when something is broken. The window is
   chosen by a `duration` token — `1h`, `3h`, `8h`, `1d`, `7d` or `30d`; the token is matched against
   that list, never parsed as a length of time, and anything unrecognised is the default day. The nav
@@ -231,7 +231,10 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   things: how far back the queries reach and the sample step, which widens in whole minutes so a
   thirty-day view asks for a few hundred points rather than the 43,200 a minute step would, because
   Prometheus refuses a range query over 11,000 points. Each window is cached separately, in a bounded
-  map, so switching back does not re-query and a link cannot grow it without limit.
+  map, so switching back does not re-query and a link cannot grow it without limit. A query's deadline
+  is `Metrics:QueryTimeoutSeconds` (two seconds shipped), the map holds
+  `Metrics:MaxCachedWindows` windows, and the URL and time zone come from the same section. Every
+  value is required ([configuration](architecture.md#configuration)).
 - **The image carries tzdata.** Only the axis labels are local; the positions, queries and samples are
   UTC. The base is `aspnet:11.0-alpine-extra` (DEC-82) because plain alpine has no
   `/usr/share/zoneinfo` and resolving `Europe/London` inside it throws.

@@ -4,36 +4,33 @@
 namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Configuration;
 
 /// <summary>Which page the host offers the editor capability to.</summary>
 /// <remarks>
-/// The capability is a handle on the whole store, so the key that holds it is policy and lives with
-/// the other policy values rather than in a constant that needs a rebuild to change. A value that
-/// names no page falls back to the default, so a typo cannot leave a release with no editor.
+/// The capability is a handle on the whole store, so the key that holds it is policy and comes from
+/// <c>Pages:Editor:Key</c>. A key no request could reach is refused at startup rather than left to
+/// become a site with no editor.
 /// </remarks>
 internal sealed record PageEditorOptions {
 
-    /// <summary>The editor's key when none is configured.</summary>
-    public const string DefaultKey = "/pages";
-
     /// <summary>The one content key that is offered <c>IPageEditor</c>.</summary>
-    public string Key { get; init; } = DefaultKey;
+    public required string Key { get; init; }
 
-    /// <summary>Reads <c>Pages:Editor</c>, falling back to the default when the key names no page.</summary>
+    /// <summary>Reads <c>Pages:Editor</c>.</summary>
     /// <param name="configuration">The application configuration.</param>
-    /// <returns>The options to use; never a key no request could reach.</returns>
+    /// <exception cref="ConfigurationException">The key is missing or names no page a request could reach.</exception>
     public static PageEditorOptions FromConfiguration(IConfiguration configuration) {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        string? configured = configuration.GetSection("Pages:Editor").GetValue<string>("Key");
-        if (string.IsNullOrWhiteSpace(configured)) {
-            return new PageEditorOptions();
-        }
-
+        ConfigurationReader reader = new(configuration, "Pages:Editor");
+        string configured = reader.Text("Key", "a page key such as /pages");
         PagePath path = PagePath.Normalize(configured);
 
-        return new PageEditorOptions {
-            Key = path.IsAddressable ? path.Key : DefaultKey,
-        };
+        reader.FailIf(!path.IsAddressable, "Key",
+            $"is \"{configured}\", which is not an addressable page key such as /pages");
+        reader.Complete();
+
+        return new PageEditorOptions { Key = path.Key };
     }
 }

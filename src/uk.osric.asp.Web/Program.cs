@@ -18,6 +18,7 @@ using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
+using uk.osric.asp.Web.Configuration;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Health;
@@ -32,7 +33,17 @@ using uk.osric.asp.Web.Users;
 // Internal, like the rest of the shell; the integration tests reach it through InternalsVisibleTo.
 /// <summary>Imperative shell: wires the web host to the functional core.</summary>
 internal class Program {
-    public static async Task Main(string[] args) {
+    public static async Task<int> Main(string[] args) {
+        try {
+            await RunAsync(args);
+            return 0;
+        } catch (ConfigurationException exception) {
+            Console.Error.WriteLine(exception.Message);
+            return 1;
+        }
+    }
+
+    private static async Task RunAsync(string[] args) {
         bool isUserCommand = UserCommands.IsCommand(args);
         WebApplicationBuilder builder = WebApplication.CreateBuilder(
             isUserCommand ? [] : args);
@@ -59,15 +70,38 @@ internal class Program {
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
             builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
         }
-        string connectionString = builder.Configuration.GetConnectionString("Storage")
-            ?? throw new InvalidOperationException("ConnectionStrings:Storage must be configured.");
+        // Every value the site needs is read here, before anything is built, so a missing one is one
+        // readable line on standard error and a non-zero exit rather than a failure mid-request.
+        ConfigurationReader connections = new(builder.Configuration, "ConnectionStrings");
+        string connectionString = connections.Text("Storage",
+            "a SQLite connection string such as Data Source=data/storage.db");
+        connections.Complete();
+
         SqliteConnectionStringBuilder connection = [with(connectionString)];
         if (connection.DataSource.Length > 0 && connection.DataSource != ":memory:") {
             connection.DataSource = Path.GetFullPath(connection.DataSource, builder.Environment.ContentRootPath);
             Directory.CreateDirectory(Path.GetDirectoryName(connection.DataSource)
                 ?? throw new InvalidOperationException("The storage database must have a parent directory."));
         }
-        bool assistantEnabled = builder.Configuration.GetValue<bool>("Assistant:Enabled");
+        AssistantOptions assistant = AssistantOptions.FromConfiguration(builder.Configuration);
+        AuthenticationOptions authentication = AuthenticationOptions.FromConfiguration(builder.Configuration);
+        ArchiveOptions archive = ArchiveOptions.FromConfiguration(builder.Configuration);
+        AdminOptions admin = AdminOptions.FromConfiguration(builder.Configuration);
+        CompileOptions compile = CompileOptions.FromConfiguration(builder.Configuration);
+        PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(builder.Configuration);
+        PageEditorOptions editor = PageEditorOptions.FromConfiguration(builder.Configuration);
+        RenderOptions render = RenderOptions.FromConfiguration(builder.Configuration);
+        PageStorageOptions storage = PageStorageOptions.FromConfiguration(builder.Configuration);
+        PageSessionOptions session = PageSessionOptions.FromConfiguration(builder.Configuration);
+        PageReadOptions read = PageReadOptions.FromConfiguration(builder.Configuration);
+        PageFetchOptions fetch = PageFetchOptions.FromConfiguration(builder.Configuration);
+        MetricsOptions metrics = MetricsOptions.FromConfiguration(builder.Configuration);
+
+        ConfigurationReader pagesSection = new(builder.Configuration, "Pages");
+        string[] reservedKeys = [.. pagesSection.List("ReservedPaths", "page keys", minimum: 1)];
+        pagesSection.Complete();
+        ReservedPaths reserved = new(reservedKeys);
+        bool assistantEnabled = assistant.Enabled;
 
         // Configuration: the database, its options, and the proxy trust the host depends on.
         // The scoped context is what the stores on the request inject; the factory is what lets a
@@ -79,18 +113,13 @@ internal class Program {
             optionsLifetime: ServiceLifetime.Singleton);
         builder.Services.AddDbContextFactory<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
 
-        builder.Services.AddOptions<AssistantOptions>()
-            .Bind(builder.Configuration.GetSection("Assistant"))
-            .ValidateOnStart();
-        builder.Services.AddSingleton<IValidateOptions<AssistantOptions>, AssistantOptionsValidator>();
-        // Bound whether or not the assistant is switched on: the memory store reads its caps from it,
-        // and an account removal sweeps memory even when the assistant is disabled.
-        builder.Services.AddSingleton(services => services.GetRequiredService<IOptions<AssistantOptions>>().Value);
+        // Registered whether or not the assistant is switched on: the memory store reads its caps from
+        // it, and an account removal sweeps memory even when the assistant is disabled.
+        builder.Services.AddSingleton(assistant);
 
         // The upload limits and the framework's form parser come from the same cap, so an oversized
         // body is refused rather than buffered, and a normal one never spills to a temporary file.
         builder.Services.Configure<FormOptions>(options => {
-            ArchiveOptions archive = ArchiveOptions.FromConfiguration(builder.Configuration);
             options.MultipartBodyLengthLimit = archive.MaxUploadBytes + (64 * 1024);
             options.MemoryBufferThreshold = archive.MaxUploadBytes + (64 * 1024);
             options.ValueCountLimit = 1024;
@@ -113,13 +142,12 @@ internal class Program {
 
         builder.Services.AddHostedService<PageStorageSampler>();
 
-        builder.Services.AddSingleton(CompileOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(compile);
         builder.Services.AddSingleton(services => new PageHealth(
             services.GetRequiredService<RenderOptions>().AbandonedLimit));
-        builder.Services.AddSingleton(PageLayoutConfiguration.FromConfiguration(builder.Configuration));
-        builder.Services.AddSingleton(new ReservedPaths(
-            builder.Configuration.GetSection("Pages:ReservedPaths").Get<string[]>()));
-        builder.Services.AddSingleton(PageEditorOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(layout);
+        builder.Services.AddSingleton(reserved);
+        builder.Services.AddSingleton(editor);
         builder.Services.AddSingleton(TimeProvider.System);
 
         builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
@@ -130,21 +158,22 @@ internal class Program {
         builder.Services.AddSingleton<PageBudget>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PageStorageRefresh>();
-        builder.Services.AddSingleton(RenderOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(render);
         builder.Services.AddSingleton(services => PageContentTypesConfiguration.FromConfiguration(
             builder.Configuration,
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Pages.ContentTypes")));
-        builder.Services.AddSingleton(PageStorageOptions.FromConfiguration(builder.Configuration));
-        builder.Services.AddSingleton(PageSessionOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(storage);
+        builder.Services.AddSingleton(session);
         builder.Services.AddSingleton(PageSessionCookieOptions.For(builder.Environment));
         builder.Services.AddSingleton<IPageSessionStore, SqlitePageSessionStore>();
         builder.Services.AddHostedService<PageSessionCleanupService>();
-        builder.Services.AddSingleton(ArchiveOptions.FromConfiguration(builder.Configuration));
-        builder.Services.AddSingleton(PageReadOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(archive);
+        builder.Services.AddSingleton(read);
+        builder.Services.AddSingleton(admin);
         builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
         builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
         builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
-        builder.Services.AddSingleton(PageFetchOptions.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton(fetch);
         builder.Services.AddHttpClient(OutboundFetcher.ClientName)
             .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
@@ -227,24 +256,25 @@ internal class Program {
 
         }
 
-        builder.Services.AddEditorAuthentication(builder.Environment);
+        // The sign-in policy is built above with the other options, and the registration keeps it for
+        // the rate limiter and the cookie it configures.
+        builder.Services.AddSingleton(authentication);
+        builder.Services.AddEditorAuthentication(builder.Environment, authentication);
 
         builder.Services.AddHealthChecks()
             .AddCheck<StorageHealthCheck>("storage")
             .AddCheck<AbandonedRenderHealthCheck>("pages");
 
-        builder.Services.AddSingleton(services => MetricsOptions.FromConfiguration(
-            builder.Configuration,
-            services.GetRequiredService<ILoggerFactory>().CreateLogger("Metrics")));
+        builder.Services.AddSingleton(metrics);
         builder.Services.AddSingleton<IMetricsSource>(services => {
-            MetricsOptions options = services.GetRequiredService<MetricsOptions>();
             // The per-query deadline belongs to the source: one slow query must not hold the page.
             return new PrometheusSource(
                 new HttpClient {
-                    BaseAddress = options.PrometheusUrl,
+                    BaseAddress = metrics.PrometheusUrl,
                     Timeout = Timeout.InfiniteTimeSpan,
                 },
-                services.GetRequiredService<ILogger<PrometheusSource>>());
+                services.GetRequiredService<ILogger<PrometheusSource>>(),
+                metrics.QueryTimeout);
         });
         builder.Services.AddSingleton<ChartRenderer>();
         builder.Services.AddSingleton<Dashboard>();
@@ -277,6 +307,7 @@ internal class Program {
             .AddPrometheusExporter());
 
         WebApplication app = builder.Build();
+
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
