@@ -169,7 +169,7 @@ the C# extension, which has a launch configuration in `.vscode/launch.json`.
 - [The shell](docs/shell.md) — the document shell, layouts, error responses and authentication.
 - [Storage](docs/storage.md) — revisions, page state, and import and export.
 - [Metrics](docs/metrics.md) — the instruments and the `/status` dashboard.
-- [Assistant](docs/assistant.md) — the optional `/assistant` subsystem.
+- [Assistant](docs/assistant.md) — the `/assistant` subsystem.
 - [Glossary](docs/glossary.md) — the site's own words, each with the neighbouring term it is not.
 - [Logging](docs/logging.md) — what gets logged, at which level, and with which scope.
 - [Decisions](docs/decisions.md) — the policy choices behind the site, and what each one replaced.

@@ -448,10 +448,10 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_SHA_REF)
 	$(SSH) $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_SHA_REF)
-	@# The assistant's EnvironmentFile is optional in intent but not in podman: quadlet turns it into
+	@# The assistant's EnvironmentFile has no optional form in podman: quadlet turns it into
 	@# `podman run --env-file`, which has no `-` form and fails the container when the path is
-	@# absent. Seed it once so a host that never enables the assistant still starts; a host that does
-	@# has already filled it in, and `test -e` leaves the secret alone.
+	@# absent. Seed it once so the path exists; it must hold Assistant__ApiKey, because the host
+	@# refuses to start without one. `test -e` leaves the secret alone.
 	$(SSH) $(HOST) 'install -d -m 0700 .config/uk.osric.asp; test -e .config/uk.osric.asp/assistant.env || install -m 0600 /dev/null .config/uk.osric.asp/assistant.env'
 	@# The host's settings override is the same shape of problem: a single-file bind of a missing
 	@# path becomes a directory and the app cannot read it. Seed it once with an empty object, which

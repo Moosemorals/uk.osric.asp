@@ -142,7 +142,7 @@ is the worked example: it is the seeded `/pages`, which is offered `IPageEditor`
 | --- | --- | --- |
 | `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | DEC-210 |
 | `/status`, `/status/chart` | **Bootstrap.** Diagnosing why a page did not load starts here | DEC-210 |
-| `/admin/changes`, `/admin/reference` | **The build's own facts.** Both read a file the image carries — the changelist and the XML documentation — which a page cannot read | DEC-255, DEC-301 |
+| `/admin/changes`, `/admin/reference` | **The build's own facts.** Both read a file the image carries — the changelist and the XML documentation — which a page cannot read | DEC-255, DEC-302 |
 | `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | DEC-210, DEC-256 |
 | `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | DEC-210 |
 | `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** A live run needs a stream and the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [ARCH-13](jobs/ARCH-13.md), [IDEA-025](jobs/IDEA-025.md) |
@@ -303,6 +303,6 @@ stay a map:
 - [The shell](shell.md) — the document shell, layouts, error responses, and authentication.
 - [Storage](storage.md) — revisions, page state, and importing and exporting an archive.
 - [Metrics and the dashboard](metrics.md) — the instruments and `/status`.
-- [AI page assistant](assistant.md) — the optional `/assistant` subsystem.
+- [AI page assistant](assistant.md) — the `/assistant` subsystem.
 - [Deployment](../deploy/README.md) — quadlets, Caddy, the first release and rollback.
 - [Running it](../deploy/operations.md) — limits, storage, backups, metrics and proxy trust.

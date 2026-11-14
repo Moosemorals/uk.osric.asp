@@ -9,7 +9,7 @@ using uk.osric.asp.Core.Assistant;
 [TestFixture]
 public sealed class AssistantBalanceTests : IntegrationTest {
 
-    internal override AspApplication CreateApplication() => new(assistantEnabled: true);
+    internal override AspApplication CreateApplication() => new();
 
     [Test]
     public async Task TheConversationShowsTheProvidersCurrentBalanceAsync() {
@@ -34,7 +34,6 @@ public sealed class AssistantBalanceTests : IntegrationTest {
 public sealed class AssistantBalanceUnavailableTests : IntegrationTest {
 
     internal override AspApplication CreateApplication() => new(
-        assistantEnabled: true,
         accountBalanceClient: new StubAccountBalanceClient { Balance = null });
 
     [Test]
@@ -58,7 +57,6 @@ public sealed class AssistantBalanceUnavailableTests : IntegrationTest {
 public sealed class AssistantBalanceNotAvailableTests : IntegrationTest {
 
     internal override AspApplication CreateApplication() => new(
-        assistantEnabled: true,
         accountBalanceClient: new StubAccountBalanceClient {
             Balance = new(false, [new CurrencyBalance("CNY", "0.00", "0.00", "0.00")]),
         });

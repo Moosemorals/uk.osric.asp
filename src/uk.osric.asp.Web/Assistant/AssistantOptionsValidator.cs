@@ -8,17 +8,13 @@ using Microsoft.Extensions.Options;
 /// <summary>Rejects an assistant configuration whose values cannot all be true at once.</summary>
 /// <remarks>
 /// The reader owns "present, a number, inside its range" for every key; this owns the rules a range
-/// cannot express. A disabled assistant is not asked about its provider, because nothing reaches one.
+/// cannot express.
 /// </remarks>
 internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOptions> {
 
     /// <inheritdoc/>
     public ValidateOptionsResult Validate(string? name, AssistantOptions options) {
         ArgumentNullException.ThrowIfNull(options);
-
-        if (!options.Enabled) {
-            return ValidateOptionsResult.Success;
-        }
 
         List<string> failures = [];
         if (!Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out Uri? baseUri)

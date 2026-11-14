@@ -36,7 +36,7 @@ internal static class ShellRoutes {
             "The documentation this build carries: one page per product assembly, with every type and member. The page contract's own words are read with the reference tool."),
         new("/admin/restore", "GET, POST", "the owner",
             "Restores every page the release ships with from its bundled source, showing what would change and then what it changed."),
-        new("/assistant", "GET, POST, HEAD", "the owner; only while Assistant:Enabled is true",
+        new("/assistant", "GET, POST, HEAD", "the owner",
             "The page assistant: conversations, transcript, run stream, tool approvals, the owner's memory list and the pause a run takes when it runs out of budget."),
         new("/admin/scrub", "GET, POST", "the owner",
             "Scrubs a deleted page and every revision it retained, once the page's key is typed to confirm."),

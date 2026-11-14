@@ -51,7 +51,11 @@ editor — is what is left. IDEA-033 came out of the
 [page-first re-scope](../plans/page-first.md) of 2026-11-14 (DEC-291): the memory page the plan first
 moved needs the assistant's own store, so the capability a page actually lacks is somewhere to keep
 something for a signed-in account. IDEA-034 came out of the owner's question of 2026-11-14: the
-analyzers work turned the XML documentation on and the image carries it, and nothing reads it.
+analyzers work turned the XML documentation on and the image carries it, and nothing reads it; it
+closed the same day by [its plan](../plans/xml-reference.md) (DEC-302). IDEA-035 came out of the
+same day's follow-up question about removing `Assistant:Enabled`: four
+places read the flag, but the key rule is what the tests and the deployment actually depend on, and
+it closed the same day (DEC-301).
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -163,9 +167,10 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [IDEA-035](../decisions.md) | The assistant always runs: `Assistant:Enabled`, the disabled note, the `404` fallback and the key exemption are gone, and `Assistant:ApiKey` is required at startup. DEC-301 |
 | [ARCH-16](../plans/archive/page-store-reader.md) | The assistant's tools and its virtual shell read through one `PageStoreReader`: the tree with its facts, the sources in a scope, one key, a history and one revision. `PageTree` and `PageScope` moved to `Core`, and the loose lists, source walks and scope copies are gone. DEC-274–DEC-280 |
 | [IDEA-005](../plans/page-libraries.md) | Pages share code: a page is text, a page with code or a **library**, and a library is bound by an ordinary `using` — a page's own directives name the namespaces it declares, the closure is resolved to a fixed point and each library compiles as its own syntax tree in the page's compilation. A library is checked on save, never served, never wrapped and never an asset, and a dependent page goes stale when the library's head moves. The seeded `/_lib/document` writes the document the seeded `/_layout` uses, and `Sdk`'s `PageDocument` is `Web`'s `ShellDocument`. See [the plan](../plans/page-libraries.md) |
-| [IDEA-034](../plans/xml-reference.md) | The reference: the XML documentation this build carries is served at `/admin/reference` for all four assemblies and read by the assistant through a `reference` tool over the page contract; the corpus is read once per process, anchors are stable slugs, `<inheritdoc/>` copies down when the source is ours, and the help page links the types and members it names. DEC-301 |
+| [IDEA-034](../plans/xml-reference.md) | The reference: the XML documentation this build carries is served at `/admin/reference` for all four assemblies and read by the assistant through a `reference` tool over the page contract; the corpus is read once per process, anchors are stable slugs, `<inheritdoc/>` copies down when the source is ours, and the help page links the types and members it names. DEC-302 |
 | [IDEA-019](../decisions.md) | Every request value survives: `QueryValues` and `FormValues` keep each name's values in order, and the API policy admits encoding, SHA-2 hashing, HMAC signing, a random source and a constant-time compare. DEC-257 |
 | [IDEA-017](../plans/archive/page-editor.md) | The editor is a page: `IPageEditor`, the read state, the seeded `/pages` editor and its module, and `/edit` retired to an ordinary key with scrub moved to `/admin/scrub`. See [the plan](../plans/archive/page-editor.md) |
 | [IDEA-028](../decisions.md) | `/admin/restore` lists every seed's state, restores each changed, missing or tombstoned one in a single POST and reports every outcome; a matching seed and a page the owner made are untouched. DEC-256 |
@@ -211,7 +216,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | IDEA-004 | The page contract is its own reference-free assembly, `uk.osric.asp.Sdk`. See [the plan](../plans/archive/page-sdk-split.md) |
 | IDEA-006 | `/site.css` is a seeded page rather than a static file, so the site's look is edited like any other page. See [the plan](../plans/archive/non-html-pages.md) |
 | IDEA-007 | `/rocket.svg` is a seeded page served as `image/svg+xml`. See [the plan](../plans/archive/non-html-pages.md) |
-| IDEA-008 | Implemented as the authenticated page-author assistant, off by default, with bounded page-store tools (DEC-111). See [the plan](../plans/archive/ai-page-assistant.md) |
+| IDEA-008 | Implemented as the authenticated page-author assistant with bounded page-store tools (DEC-111, always on since DEC-301). See [the plan](../plans/archive/ai-page-assistant.md) |
 | IDEA-009 | Pages leave and return as a SQLite archive through `/admin/export` and `/admin/import` (DEC-139). See [the plan](../plans/archive/page-import-export.md) |
 | IDEA-010 | A retained revision is an **asset**: `?v=<hash>` on a page's own URL selects it, a page with no C# is never compiled and is served from source, a versioned asset promises `immutable` with the hash as a strong `ETag`, an unversioned response stays `no-store`, and the shell tags its own links (DEC-238–DEC-248). Runtime-change cleanup of obsolete images and symbols is deferred, not part of this job. See [the plan](../plans/archive/immutable-page-assets.md) |
 | IDEA-011 | Pages opt into the existing sign-in with `ctx.User`, `ctx.RedirectToLogin()` and `ctx.AntiforgeryField` (DEC-132–DEC-137). See [the plan](../plans/archive/page-authentication.md) |

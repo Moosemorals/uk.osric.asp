@@ -8,7 +8,7 @@ using System.Net;
 [TestFixture]
 public sealed class AssistantOptionsTests : IntegrationTest {
 
-    internal override AspApplication CreateApplication() => new(assistantEnabled: true);
+    internal override AspApplication CreateApplication() => new();
 
     [Test]
     public async Task SavingOptionsRenamesAndSwitchesApprovalModeWithoutARedirectAsync() {

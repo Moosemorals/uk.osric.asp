@@ -22,7 +22,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "A fragment"; %><h1>Fragment</h1>
         """;
 
-    internal override AspApplication CreateApplication() => new(pageLayout: "/_layout", assistantEnabled: true);
+    internal override AspApplication CreateApplication() => new(pageLayout: "/_layout");
 
     [Test]
     public async Task EveryPageIsWrappedInTheSeededLayout() {

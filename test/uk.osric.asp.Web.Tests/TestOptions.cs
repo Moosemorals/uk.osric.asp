@@ -60,7 +60,12 @@ internal static class TestOptions {
     public static ReservedPaths Reserved { get; } = new(ReservedKeys());
 
     /// <summary>The assistant's limits.</summary>
-    public static AssistantOptions Assistant { get; } = AssistantOptions.FromConfiguration(Configuration);
+    /// <remarks>
+    /// The key is a test value: the shipped file carries none, and the host refuses to start without
+    /// one. Nothing in this suite reaches a provider, so its value cannot matter.
+    /// </remarks>
+    public static AssistantOptions Assistant { get; } =
+        AssistantOptions.FromConfiguration(ShippedConfiguration.Read(("Assistant:ApiKey", "test-key")));
 
     /// <summary>The sign-in policy.</summary>
     public static AuthenticationOptions Authentication { get; } = AuthenticationOptions.FromConfiguration(Configuration);

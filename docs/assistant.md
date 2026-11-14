@@ -5,12 +5,15 @@ SPDX-License-Identifier: MIT
 
 # AI page assistant
 
-The optional `/assistant` subsystem is host code under a reserved prefix rather than a stored page,
-is off by default, and filters every operation by the signed-in owner. [Pages](pages.md) describes
-the page store its tools edit; [the plan](plans/archive/ai-page-assistant.md) has the reasoning.
+The `/assistant` subsystem is host code under a reserved prefix rather than a stored page, and filters
+every operation by the signed-in owner. [Pages](pages.md) describes the page store its tools edit;
+[the plan](plans/archive/ai-page-assistant.md) has the reasoning.
 
-When enabled it is an authenticated owner feature: the views are host code under the reserved
-`/assistant` prefix, and `/assistant.js` plus `/assistant.css` are seeded, protected assets.
+It is an authenticated owner feature: the views are host code under the reserved `/assistant` prefix,
+and `/assistant.js` plus `/assistant.css` are seeded, protected assets. It is not switchable: the
+provider's key is the one value a deployment must supply, the host refuses to start without
+`Assistant:ApiKey` unless `Assistant:RequireApiKey` says the provider needs none, and a host that
+cannot answer for the assistant never comes up at all (DEC-301).
 
 A submitted message and its queued run are committed together. A hosted worker owns the run after the
 request returns; the browser is only a viewer and can disconnect without cancelling work. SQLite is
@@ -19,7 +22,7 @@ replay; on restart, active runs become interrupted, unresolved approvals fail cl
 tool calls receive synthetic results rather than being replayed to the provider.
 
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
-endpoint. Enabling the feature sends the system prompt, conversation transcript, and page source read
+endpoint. A run sends the system prompt, conversation transcript, and page source read
 by tools to that provider. No provider SDK is used. The tools are nineteen types under
 `Assistant/Tools`, each carrying its name, its description, its argument schema, its approval flag,
 the verb its refusals use, whether it changes a page and its own run, beside the code that runs it;

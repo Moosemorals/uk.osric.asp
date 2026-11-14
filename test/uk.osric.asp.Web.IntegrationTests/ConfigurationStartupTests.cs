@@ -40,6 +40,18 @@ public sealed class ConfigurationStartupTests {
         });
     }
 
+    [Test]
+    public void AMissingProviderKeyStopsTheHostAndNamesIt() {
+        string report = ReportFor(new Dictionary<string, string?> {
+            ["Assistant:ApiKey"] = null,
+        });
+
+        Assert.Multiple(() => {
+            Assert.That(report, Does.Contain("Assistant:ApiKey is not set."));
+            Assert.That(report, Does.Not.Contain("ApiKey="));
+        });
+    }
+
     private static string ReportFor(Dictionary<string, string?> settings) {
         using AspApplication application = new(settings: settings);
         using StringWriter captured = new();
