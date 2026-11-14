@@ -31,6 +31,7 @@ internal sealed class RunRegistry(AssistantOptions options, TimeProvider clock) 
             }
             if (stream.IsExpired(clock.GetUtcNow())) {
                 _runs.Remove(runId);
+                stream.Dispose();
                 return null;
             }
             return stream;
@@ -54,7 +55,8 @@ internal sealed class RunRegistry(AssistantOptions options, TimeProvider clock) 
         DateTimeOffset now = clock.GetUtcNow();
         lock (_gate) {
             foreach (string runId in _runs.Where(pair => pair.Value.IsExpired(now)).Select(pair => pair.Key).ToArray()) {
-                _runs.Remove(runId);
+                _runs.Remove(runId, out RunStream? expired);
+                expired?.Dispose();
             }
         }
     }

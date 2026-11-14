@@ -178,7 +178,7 @@ internal static class ObservationMasker {
             return 0;
         }
 
-        replace(JsonValue.Create(placeholder)!);
+        replace(JsonValue.Create(placeholder));
         return 1;
     }
 }

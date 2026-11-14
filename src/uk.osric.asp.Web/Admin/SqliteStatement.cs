@@ -15,7 +15,10 @@ internal static class SqliteStatement {
         ArgumentNullException.ThrowIfNull(connection);
 
         using SqliteCommand command = connection.CreateCommand();
+        // The statement is a fixed string chosen by the caller, never a value from a request or an archive.
+#pragma warning disable CA2100
         command.CommandText = sql;
+#pragma warning restore CA2100
         command.ExecuteNonQuery();
     }
 }

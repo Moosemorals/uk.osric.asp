@@ -64,6 +64,58 @@ dotnet_diagnostic.CA1873.severity = none
 # '{**path}' or '{id}' the analyzer cannot see being read is still the route the endpoint serves.
 dotnet_diagnostic.ASP0018.severity = none
 
+#### Analyzers: the rules this codebase does not follow ####
+# AnalysisMode=All is on in Directory.Build.props, so every CA rule is live. Each entry here is a
+# rule left off deliberately, with the reason, rather than a warning someone muted.
+
+# CA2007: ASP.NET Core has no SynchronizationContext to capture, so a ConfigureAwait on every await
+# would be a word that changes nothing. This is the .NET guidance for an application, not a library.
+dotnet_diagnostic.CA2007.severity = none
+
+# CA1848: the LoggerMessage source generator buys a partial class and a delegate per call site for
+# allocations nothing has measured. The calls are already structured - a template and arguments,
+# never interpolation - and the repo prefers the obvious call until a profile says otherwise.
+dotnet_diagnostic.CA1848.severity = none
+
+# CA1307: every hit here is a char overload - Contains('/'), IndexOf('.'), EndsWith('>') - and a char
+# comparison is ordinal by definition. CA1310, which covers the string overloads where culture can
+# change the answer, stays on and is clean.
+dotnet_diagnostic.CA1307.severity = none
+
+# CA1308: lowercase is the normal form for what this tree normalises - a page key, a hex revision
+# hash, a configuration switch, the assistant's fold - and ToLowerInvariant round-trips each of them.
+dotnet_diagnostic.CA1308.severity = none
+
+# CA1054/CA1055/CA1056: a URL is a string wherever a page author writes one. IContext, IHttpFetch and
+# HttpFetchRequest are the contract a compiled page binds against, and /help teaches
+# `ctx.AssetUrl("/site.css")`; a Uri parameter would be a wrapper the author has to construct.
+dotnet_diagnostic.CA1054.severity = none
+dotnet_diagnostic.CA1055.severity = none
+dotnet_diagnostic.CA1056.severity = none
+
+# CA1032: these exceptions have exactly one shape - UserFacingException needs the message approved
+# for display, and the internal ones carry a code or the setting that is wrong. A parameterless or
+# inner-only constructor would only make an exception with nothing to say possible.
+dotnet_diagnostic.CA1032.severity = none
+
+# CA1716: `Get<T>()` and the `template` parameter are page vocabulary, taught by /help and compiled
+# into the pages stored on the site; renaming them to avoid a keyword buys the reader nothing.
+dotnet_diagnostic.CA1716.severity = none
+
+# CA1031: every catch-all in this tree is a boundary that logs and carries on - a worker loop, a
+# cleanup tick, a request that has to answer anyway - which is the shape the house style allows
+# (exceptions only where they are handled, no silent catches). A silent one is what review catches.
+dotnet_diagnostic.CA1031.severity = none
+
+#### IDE rules that catch defects rather than taste ####
+# The rest of the style category stays as it is: promoting IDE0022 would rewrite every method in the
+# tree. These five found real dead code, an unused parameter and stale suppressions in the sweep.
+dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0059.severity = warning
+dotnet_diagnostic.IDE0060.severity = warning
+dotnet_diagnostic.IDE0004.severity = warning
+dotnet_diagnostic.IDE0370.severity = warning
+
 #### Naming ####
 # Rules
 dotnet_naming_rule.types_and_namespaces_should_be_pascalcase = types_and_namespaces:pascalcase
@@ -159,3 +211,39 @@ dotnet_diagnostic.CA1859.severity = none
 # namespace each, which is why the rule is scoped to src.
 [src/**/*.cs]
 dotnet_style_namespace_match_folder = true:warning
+
+#### Test code ####
+# The test tree is evidence, not product surface, and most of the full rule set is noise there. Each
+# exception is named rather than inherited from a blanket "tests are exempt", so a rule that would
+# catch a genuine mistake in a test still runs.
+[test/**/*.cs]
+# NUnit requires a public fixture.
+dotnet_diagnostic.CA1515.severity = none
+# HttpClient owns and disposes the request content it is handed; the helpers here build that content
+# and return it to the call, so the analyzer cannot follow the ownership across the method.
+dotnet_diagnostic.CA2000.severity = none
+# A relative request path is a string in HttpClient's API, which is what a test reads.
+dotnet_diagnostic.CA2234.severity = none
+# A test helper guards what the test needs; an argument exception would only obscure the failure.
+dotnet_diagnostic.CA1062.severity = none
+# A double is instantiated by the container or through a static holder, which this rule cannot see.
+dotnet_diagnostic.CA1812.severity = none
+# Racing a task against a short delay is how a test proves a timeout; the timer's cost is the proof.
+dotnet_diagnostic.CA2027.severity = none
+# One options instance per assertion is clearer than a shared static in a fixture.
+dotnet_diagnostic.CA1869.severity = none
+# Randomness in a test picks data, not keys.
+dotnet_diagnostic.CA5394.severity = none
+# A test's SQL is a constant it wrote to arrange a fixture.
+dotnet_diagnostic.CA2100.severity = none
+# A fixture disposes its fields in TearDown, which the analyzer cannot see from the field list.
+dotnet_diagnostic.CA1001.severity = none
+# NUnit discovers instance methods only, so a test that touches no field is still not static.
+dotnet_diagnostic.CA1822.severity = none
+# Nothing outside the test assembly binds to it, so a nested helper type is not a public surface.
+dotnet_diagnostic.CA1034.severity = none
+
+# CA1720: String and Integer are the JSON Schema type names this enum represents, so renaming them
+# would lose the word the provider uses for the type.
+[src/uk.osric.asp.Core/Assistant/ToolArguments.cs]
+dotnet_diagnostic.CA1720.severity = none

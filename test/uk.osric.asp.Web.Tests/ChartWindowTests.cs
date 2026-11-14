@@ -15,7 +15,7 @@ public sealed class ChartWindowTests {
     public void TheTokensAreTheOnesTheNavShows() {
         Assert.That(
             ChartWindow.Tokens.Select(window => window.Token),
-            Is.EqualTo((string[])["1h", "3h", "8h", "1d", "7d", "30d"]));
+            Is.EqualTo(["1h", "3h", "8h", "1d", "7d", "30d"]));
     }
 
     [Test]

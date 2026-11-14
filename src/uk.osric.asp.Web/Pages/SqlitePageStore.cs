@@ -375,7 +375,9 @@ internal sealed class SqlitePageStore(
 
     private async Task ExecuteNonQueryAsync(string sql, CancellationToken cancellationToken) {
         await using DbCommand command = database.Database.GetDbConnection().CreateCommand();
+#pragma warning disable CA2100 // Every caller passes a constant statement and binds its values.
         command.CommandText = sql;
+#pragma warning restore CA2100
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -410,7 +412,9 @@ internal sealed class SqlitePageStore(
 
     private async Task<object?> ExecuteScalarAsync(string sql, CancellationToken cancellationToken) {
         await using DbCommand command = database.Database.GetDbConnection().CreateCommand();
+#pragma warning disable CA2100 // Every caller passes a constant statement and binds its values.
         command.CommandText = sql;
+#pragma warning restore CA2100
         return await command.ExecuteScalarAsync(cancellationToken);
     }
 

@@ -349,15 +349,16 @@ internal sealed class SqliteConversationStore(
             return false;
         }
 
+        string? noBudget = null;
         int updated = await database.Set<Run>()
             .Where(run => run.Id == runId)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(run => run.Status, status)
                 .SetProperty(run => run.ErrorCode, errorCode)
                 .SetProperty(run => run.ErrorMessage, errorMessage)
-                .SetProperty(run => run.PausedBudget, (string?)null)
+                .SetProperty(run => run.PausedBudget, noBudget)
                 .SetProperty(run => run.StartedAt, run => run.StartedAt ?? (status == "running" ? now : null))
-                .SetProperty(run => run.CompletedAt, IsRunning(status) ? (DateTimeOffset?)null : now), cancellationToken);
+                .SetProperty(run => run.CompletedAt, IsRunning(status) ? null : now), cancellationToken);
         if (updated > 0) {
             await database.Set<Conversation>()
             .Where(conversation => conversation.Id == conversationId)
@@ -411,6 +412,7 @@ internal sealed class SqliteConversationStore(
         }
 
         DateTimeOffset now = clock.GetUtcNow();
+        string? noBudget = null;
         // Every right-hand side reads the row as it was, so the budget that ran out is widened by one
         // window and the other keeps its value, whichever order the columns are set in.
         int updated = await database.Set<Run>()
@@ -419,7 +421,7 @@ internal sealed class SqliteConversationStore(
                 && run.Status == RunBudget.Awaiting)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(run => run.Status, "running")
-                .SetProperty(run => run.PausedBudget, (string?)null)
+                .SetProperty(run => run.PausedBudget, noBudget)
                 .SetProperty(run => run.StepLimit, run => run.PausedBudget == RunBudget.Steps
                     ? (run.StepLimit ?? stepWindow) + stepWindow
                     : run.StepLimit)

@@ -87,6 +87,7 @@ internal sealed class SimpleContext : IContext {
     /// Resolves a link against the request's asset map, or <see langword="null"/> when the render has
     /// no map and every link is left as written.
     /// </param>
+    /// <param name="editorPath">The editor key a layout's remedy links to.</param>
 #pragma warning disable CA1068 // CancellationToken parameters must come last
     public SimpleContext(
 #pragma warning restore CA1068 // CancellationToken parameters must come last

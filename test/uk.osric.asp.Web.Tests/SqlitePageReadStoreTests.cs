@@ -58,7 +58,7 @@ public sealed class SqlitePageReadStoreTests {
 
         IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/", 10);
 
-        Assert.That(rows.Select(row => row.Key), Is.EqualTo((string[])["/gone", "/site.css"]));
+        Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/gone", "/site.css"]));
         Assert.That(rows.Single(row => row.Key == "/gone").IsDeleted, Is.True);
         Assert.That(rows.Single(row => row.Key == "/site.css").IsDeleted, Is.False);
     }
@@ -91,7 +91,7 @@ public sealed class SqlitePageReadStoreTests {
 
         IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/", 2);
 
-        Assert.That(rows.Select(row => row.Key), Is.EqualTo((string[])["/one", "/three"]));
+        Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/one", "/three"]));
     }
 
     [Test]
@@ -102,7 +102,7 @@ public sealed class SqlitePageReadStoreTests {
 
         IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/100%", 10);
 
-        Assert.That(rows.Select(row => row.Key), Is.EqualTo((string[])["/100%"]));
+        Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/100%"]));
     }
 
     [Test]
@@ -113,7 +113,7 @@ public sealed class SqlitePageReadStoreTests {
 
         IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/blog", 10);
 
-        Assert.That(rows.Select(row => row.Key), Is.EqualTo((string[])["/blog", "/blog/post"]));
+        Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/blog", "/blog/post"]));
     }
 
     [Test]

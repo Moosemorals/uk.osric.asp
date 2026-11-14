@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Pages;
@@ -148,7 +147,7 @@ public sealed class PageToolExecutorFetchTests {
     [Test]
     public async Task FetchPassesACancellationThroughToTheRunAsync() {
         using CancellationTokenSource cancelled = new();
-        cancelled.Cancel();
+        await cancelled.CancelAsync();
         PageToolExecutor tools = CreateTools(new FakeAssistantFetcher());
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => tools.ExecuteAsync(
@@ -184,7 +183,6 @@ public sealed class PageToolExecutorFetchTests {
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
             options ?? TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
             new AssistantMetrics(),
-            fetcher,
-            new DiffRenderer());
+            fetcher);
     }
 }

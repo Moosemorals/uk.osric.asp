@@ -375,7 +375,9 @@ internal sealed class SqliteMemoryStore(
 
         try {
             await using DbCommand command = connection.CreateCommand();
+#pragma warning disable CA2100 // Every caller passes a constant statement and binds its values.
             command.CommandText = sql;
+#pragma warning restore CA2100
             bind(command);
 
             await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -387,10 +389,10 @@ internal sealed class SqliteMemoryStore(
                     reader.GetString(2),
                     reader.GetInt32(3),
                     Instant(reader.GetString(4)),
-                    reader.IsDBNull(5) ? null : Instant(reader.GetString(5)),
+                    (await reader.IsDBNullAsync(5, cancellationToken)) ? null : Instant(reader.GetString(5)),
                     reader.GetInt32(6),
                     reader.GetBoolean(7),
-                    reader.IsDBNull(8) ? null : reader.GetInt64(8)));
+                    (await reader.IsDBNullAsync(8, cancellationToken)) ? null : reader.GetInt64(8)));
             }
 
             return memories;

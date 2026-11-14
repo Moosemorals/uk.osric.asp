@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.Assistant;
 using Microsoft.Extensions.DependencyInjection;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Text;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant.Tools;
 
 /// <summary>What one tool call produced, as the model receives it.</summary>
@@ -22,8 +21,7 @@ internal sealed class PageToolExecutor(
     PagePathPolicy paths,
     AssistantOptions options,
     AssistantMetrics metrics,
-    IAssistantFetcher fetcher,
-    DiffRenderer diff) {
+    IAssistantFetcher fetcher) {
 
     private readonly ToolResults _results = new(options);
 
@@ -53,7 +51,7 @@ internal sealed class PageToolExecutor(
         }
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
-        ToolServices services = new(scope.ServiceProvider, context, paths, options, metrics, fetcher, diff);
+        ToolServices services = new(scope.ServiceProvider, context, paths, options, metrics, fetcher);
         return await tool.RunAsync(new ToolValues(parsed.Values), services, cancellationToken);
     }
 

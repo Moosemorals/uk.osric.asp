@@ -49,7 +49,7 @@ public sealed class MarkdownRenderer : IMarkdownRenderer {
     /// <param name="markdown">The Markdown to render.</param>
     /// <returns>HTML that is safe to write into the assistant transcript.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="markdown"/> is <see langword="null"/>.</exception>
-    public string ToRestrictedHtml(string markdown) {
+    public static string ToRestrictedHtml(string markdown) {
         ArgumentNullException.ThrowIfNull(markdown);
 
         return Render(markdown, s_restrictedPipeline, restricted: true);

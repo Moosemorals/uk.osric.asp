@@ -105,7 +105,7 @@ public static class Heatmap {
         // The shade legend sits under the title, where the line charts put theirs, so it never lands on
         // the time axis.
         WriteLegend(svg, band, max, valueUnit);
-        ChartChrome.WriteTimeLabels(svg, x.Ticks, plot, size, tick => plot.Time(tick, span));
+        ChartChrome.WriteTimeLabels(svg, x.Ticks, size, tick => plot.Time(tick, span));
         ChartChrome.Border(svg, plot);
 
         double cellWidth = columns == 0 ? plot.Width : plot.Width / columns;

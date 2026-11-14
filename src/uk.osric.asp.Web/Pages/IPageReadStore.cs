@@ -13,6 +13,9 @@ using uk.osric.asp.Core.Pages;
 /// <param name="TemplateKind">
 /// What the head's template is for, or <see langword="null"/> when it has never been judged.
 /// </param>
+/// <param name="RuntimeId">The build that compiled the head, or <see langword="null"/> when it has no image.</param>
+/// <param name="HasImage">Whether the head has a stored image.</param>
+/// <param name="HasDiagnostics">Whether the head's stored compile has diagnostics.</param>
 internal sealed record PageReadHead(
     string Key,
     DateTimeOffset SavedAt,

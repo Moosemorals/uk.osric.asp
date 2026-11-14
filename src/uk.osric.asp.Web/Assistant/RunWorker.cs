@@ -19,7 +19,9 @@ internal sealed class RunWorker(
         try {
             await foreach (QueuedRun queued in queue.ReadAllAsync(stoppingToken)) {
                 await activeSlots.WaitAsync(stoppingToken);
+#pragma warning disable CA2025 // Every run holding the semaphore is awaited before it is disposed.
                 Task run = RunAsync(queued, activeSlots, stoppingToken);
+#pragma warning restore CA2025
                 activeRuns.Add(run);
                 activeRuns.RemoveWhere(task => task.IsCompleted);
             }

@@ -34,7 +34,7 @@ public sealed class HeatmapTests {
             Row("0.5", 15, 40),
         ]);
 
-        Assert.That(rows.Select(row => row.Label), Is.EqualTo((string[])["0.1", "0.5", "+Inf"]));
+        Assert.That(rows.Select(row => row.Label), Is.EqualTo(["0.1", "0.5", "+Inf"]));
         Assert.That(Values(rows[0]), Is.EqualTo("10 20"));
         Assert.That(Values(rows[1]), Is.EqualTo("5 20"));
         Assert.That(Values(rows[2]), Is.EqualTo("5 60"));
@@ -67,7 +67,7 @@ public sealed class HeatmapTests {
 
     [Test]
     public void EveryNonEmptySampleAppearsInARun() {
-        string svg = Render(Row("0.1", 1, 0, (double?)null), Row("0.5", 2, 3, 4));
+        string svg = Render(Row("0.1", 1, 0, null), Row("0.5", 2, 3, 4));
 
         Assert.That(Cells(svg), Is.EqualTo(3), "one run in the first row and two in the second");
         Assert.That(svg, Does.Contain(">0.1: 1 renders/s (05:00)<"));

@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
 
 /// <summary>The transcript renders the assistant's Markdown and keeps everything else plain.</summary>
@@ -104,8 +103,7 @@ public sealed class AssistantTranscriptTests {
             new TestAntiforgery(),
             new RunRegistry(TestOptions.Assistant, TimeProvider.System),
             TestOptions.Assistant,
-            new StubAccountBalanceClient(),
-            new MarkdownRenderer());
+            new StubAccountBalanceClient());
 
         return await TestHttp.ReadBodyAsync(context);
     }

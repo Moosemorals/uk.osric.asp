@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Assistant;
 
 using System.Text;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>One of the site's own routes, as the assistant may read it.</summary>
 /// <param name="Path">The canonical key the route owns.</param>

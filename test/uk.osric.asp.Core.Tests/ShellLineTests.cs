@@ -40,8 +40,8 @@ public sealed class ShellLineTests {
 
         Assert.Multiple(() => {
             Assert.That(word.Text, Is.EqualTo("prefixpost"));
-            Assert.That(word.Segments.Select(segment => segment.Text), Is.EqualTo((string[])["pre", "fix", "post"]));
-            Assert.That(word.Segments.Select(segment => segment.IsLiteral), Is.EqualTo((bool[])[false, true, false]));
+            Assert.That(word.Segments.Select(segment => segment.Text), Is.EqualTo(["pre", "fix", "post"]));
+            Assert.That(word.Segments.Select(segment => segment.IsLiteral), Is.EqualTo([false, true, false]));
         });
     }
 
@@ -54,7 +54,7 @@ public sealed class ShellLineTests {
             Assert.That(result.Tokens, Has.Count.EqualTo(7), "four words, an operator, two words");
             Assert.That(result.Operator, Is.EqualTo(new ShellOperator('|')));
             Assert.That(result.Words.Select(word => word.Text),
-                Is.EqualTo((string[])["grep", "foo", "/a", "head", "-n", "2"]));
+                Is.EqualTo(["grep", "foo", "/a", "head", "-n", "2"]));
         });
     }
 

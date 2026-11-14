@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
 
 /// <summary>The live transcript's content route is authorized and renders the restricted profile.</summary>
@@ -18,7 +17,7 @@ public sealed class AssistantMessageContentTests {
         Message message = Assistant("**Saved**\n\n| Name | Value |\n| --- | --- |\n| one | 1 |");
 
         await AssistantEndpoint.MessageContentAsync(
-            context, 1, message.Id, new ShellConversationStore([message]), new MarkdownRenderer());
+            context, 1, message.Id, new ShellConversationStore([message]));
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.Multiple(() => {
@@ -37,7 +36,7 @@ public sealed class AssistantMessageContentTests {
             "<script>alert(1)</script>\n\n![x](https://example.com/x.png)\n\n[x](javascript:alert(1))");
 
         await AssistantEndpoint.MessageContentAsync(
-            context, 1, message.Id, new ShellConversationStore([message]), new MarkdownRenderer());
+            context, 1, message.Id, new ShellConversationStore([message]));
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.Multiple(() => {
@@ -62,7 +61,7 @@ public sealed class AssistantMessageContentTests {
         };
 
         await AssistantEndpoint.MessageContentAsync(
-            context, 1, message.Id, new ShellConversationStore([message]), new MarkdownRenderer());
+            context, 1, message.Id, new ShellConversationStore([message]));
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
     }
@@ -73,7 +72,7 @@ public sealed class AssistantMessageContentTests {
         Message message = Assistant("**Saved**");
 
         await AssistantEndpoint.MessageContentAsync(
-            context, 2, message.Id, new ShellConversationStore([message]), new MarkdownRenderer());
+            context, 2, message.Id, new ShellConversationStore([message]));
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
     }
@@ -83,7 +82,7 @@ public sealed class AssistantMessageContentTests {
         DefaultHttpContext context = OwnerContext();
 
         await AssistantEndpoint.MessageContentAsync(
-            context, 1, 99, new ShellConversationStore([]), new MarkdownRenderer());
+            context, 1, 99, new ShellConversationStore([]));
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
     }

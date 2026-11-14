@@ -194,11 +194,13 @@ internal sealed class PageArchiveReader(
 
         using (SqliteCommand command = connection.CreateCommand()) {
             // The table name is one of the two constants above, never a value from the archive.
+#pragma warning disable CA2100
             command.CommandText = table switch {
                 PageArchiveFormat.PagesTable => """PRAGMA table_info("Pages")""",
                 PageArchiveFormat.PageStateTable => """PRAGMA table_info("PageState")""",
                 _ => throw new ArgumentOutOfRangeException(nameof(table), table, "Not an archive table."),
             };
+#pragma warning restore CA2100
 
             using SqliteDataReader reader = command.ExecuteReader();
             while (reader.Read()) {
@@ -435,7 +437,9 @@ internal sealed class PageArchiveReader(
 
     private static List<string> ReadStrings(SqliteConnection connection, string sql) {
         using SqliteCommand command = connection.CreateCommand();
+#pragma warning disable CA2100 // The statement is a constant chosen by this class.
         command.CommandText = sql;
+#pragma warning restore CA2100
 
         List<string> values = [];
         using SqliteDataReader reader = command.ExecuteReader();
@@ -450,7 +454,9 @@ internal sealed class PageArchiveReader(
 
     private static long ReadInteger(SqliteConnection connection, string sql) {
         using SqliteCommand command = connection.CreateCommand();
+#pragma warning disable CA2100 // The statement is a constant chosen by this class.
         command.CommandText = sql;
+#pragma warning restore CA2100
         return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
     }
 

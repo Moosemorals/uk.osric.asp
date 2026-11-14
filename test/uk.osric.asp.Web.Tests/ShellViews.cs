@@ -366,7 +366,7 @@ internal static class ShellViews {
             : []);
         await AssistantEndpoint.ConversationAsync(context, 1, conversations, new TestAntiforgery(),
             new RunRegistry(TestOptions.Assistant, TimeProvider.System), TestOptions.Assistant,
-            new StubAccountBalanceClient(), new MarkdownRenderer());
+            new StubAccountBalanceClient());
         return await TestHttp.ReadBodyAsync(context);
     }
 
@@ -395,10 +395,6 @@ internal static class ShellViews {
 
         try {
             DefaultHttpContext context = AuthenticatedContext("/admin/changes");
-            IConfiguration configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?> { ["Admin:Changelist"] = file })
-                .Build();
-
             await ChangesEndpoint.HandleAsync(context, new AdminOptions { Changelist = file });
 
             return await TestHttp.ReadBodyAsync(context);

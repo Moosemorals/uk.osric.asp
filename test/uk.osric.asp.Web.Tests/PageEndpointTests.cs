@@ -349,7 +349,7 @@ public sealed class PageEndpointTests {
     public async Task ACancelledRequestNeverReadsStorageAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         using CancellationTokenSource cancellation = new();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
         context.RequestAborted = cancellation.Token;
         FakePageStore storage = new();
 

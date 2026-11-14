@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using System.Text.Json;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
 
 /// <summary>
@@ -171,8 +170,7 @@ public sealed class AssistantChangedPagesTests {
             new TestAntiforgery(),
             new RunRegistry(TestOptions.Assistant, TimeProvider.System),
             TestOptions.Assistant,
-            new StubAccountBalanceClient(),
-            new MarkdownRenderer());
+            new StubAccountBalanceClient());
 
         return await TestHttp.ReadBodyAsync(context);
     }

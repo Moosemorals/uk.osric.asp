@@ -41,6 +41,7 @@ internal sealed class PageChain {
 
     /// <summary>Creates the chain for one request.</summary>
     /// <param name="environment">What the endpoint needs beyond the renderer.</param>
+    /// <param name="editor">The editor, when the request may save; unused layers never ask.</param>
     /// <param name="loggerFactory">Creates the logger every layer writes through.</param>
     /// <param name="request">The request snapshot, shared by every layer.</param>
     /// <param name="user">The signed-in account, or <see langword="null"/>.</param>
@@ -64,13 +65,13 @@ internal sealed class PageChain {
         PageUser? user,
         PageSessionRequest session,
         bool isHead,
-        CancellationToken aborted,
         BodyBudget bodyBudget,
         RenderFetchBudget fetchBudget,
         ReadBudget readBudget,
         IReadOnlyDictionary<string, string> assets,
         string loginRedirect,
-        Func<string> antiforgeryField) {
+        Func<string> antiforgeryField,
+        CancellationToken aborted) {
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(request);

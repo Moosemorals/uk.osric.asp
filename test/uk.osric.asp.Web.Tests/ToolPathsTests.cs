@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Assistant.Tools;
 using uk.osric.asp.Web.Pages;
@@ -101,6 +100,5 @@ public sealed class ToolPathsTests {
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
         TestOptions.Assistant,
         new AssistantMetrics(),
-        new FakeAssistantFetcher(),
-        new DiffRenderer());
+        new FakeAssistantFetcher());
 }

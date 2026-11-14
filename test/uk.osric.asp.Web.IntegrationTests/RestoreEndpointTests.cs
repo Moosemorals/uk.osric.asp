@@ -108,7 +108,7 @@ public sealed partial class RestoreEndpointTests : IntegrationTest {
     }
 
     /// <summary>Signs in on a client with no cookie jar, returning only the sign-in cookie.</summary>
-    private async Task<string> SignInByHandAsync(HttpClient client) {
+    private static async Task<string> SignInByHandAsync(HttpClient client) {
         HttpResponseMessage rendered = await client.GetAsync("/login");
         string form = await rendered.Content.ReadAsStringAsync();
 

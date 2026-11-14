@@ -14,6 +14,9 @@ using uk.osric.asp.Web.Authentication;
 /// see different sessions. A row is minted on the first write rather than on the request, which is
 /// what keeps a page that never uses the session from costing a visitor a cookie or a row.
 /// </remarks>
+// One request lives as long as its pipeline, and the semaphore never allocates a wait handle, so
+// there is nothing to dispose: the class is not IDisposable for a field that would be a no-op.
+#pragma warning disable CA1001
 internal sealed class PageSessionRequest(string id, string? account, bool presented, bool exists) {
 
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -215,3 +218,4 @@ internal static class PageSessionResolver {
         return new PageSessionRequest(presented, user?.Name, presented: true, exists: true);
     }
 }
+#pragma warning restore CA1001

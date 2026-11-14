@@ -61,7 +61,7 @@ public sealed class ScrubEndpointTests {
         PagePath path = await DeletedPageAsync(storage);
         using PageHarness pages = new(storage);
 
-        DefaultHttpContext context = PostContext(pages, path, "not-the-key");
+        DefaultHttpContext context = PostContext(path, "not-the-key");
         await ScrubEndpoint.ScrubAsync(context, pages.Editor, NullLoggerFactory.Instance);
         string body = await TestHttp.ReadBodyAsync(context);
         bool stillThere = await PageExistsAsync(storage, path);
@@ -76,7 +76,7 @@ public sealed class ScrubEndpointTests {
     [Test]
     public async Task AMissingConfirmationIsRefusedAsync() {
         FakePageStore storage = new();
-        PagePath path = await DeletedPageAsync(storage);
+        _ = await DeletedPageAsync(storage);
         using PageHarness pages = new(storage);
 
         DefaultHttpContext context = TestHttp.CreateContext("gone", "POST", "/admin/scrub/gone");
@@ -92,7 +92,7 @@ public sealed class ScrubEndpointTests {
         PagePath path = await DeletedPageAsync(storage);
         using PageHarness pages = new(storage);
 
-        DefaultHttpContext context = PostContext(pages, path, path.Key);
+        DefaultHttpContext context = PostContext(path, path.Key);
         await ScrubEndpoint.ScrubAsync(context, pages.Editor, NullLoggerFactory.Instance);
         bool stillThere = await PageExistsAsync(storage, path);
 
@@ -109,7 +109,7 @@ public sealed class ScrubEndpointTests {
         storage["/live"] = new PageTemplate(PagePath.Normalize("/live"), "<p>live</p>");
         using PageHarness pages = new(storage);
 
-        DefaultHttpContext context = PostContext(pages, PagePath.Normalize("/live"), "/live");
+        DefaultHttpContext context = PostContext(PagePath.Normalize("/live"), "/live");
         await ScrubEndpoint.ScrubAsync(context, pages.Editor, NullLoggerFactory.Instance);
         bool stillThere = await PageExistsAsync(storage, PagePath.Normalize("/live"));
 
@@ -142,7 +142,7 @@ public sealed class ScrubEndpointTests {
         return context;
     }
 
-    private static DefaultHttpContext PostContext(PageHarness pages, PagePath path, string confirmation) {
+    private static DefaultHttpContext PostContext(PagePath path, string confirmation) {
         DefaultHttpContext context = TestHttp.CreateContext(path.Key.TrimStart('/'), "POST", "/admin/scrub" + path.Key);
         context.Request.ContentType = "application/x-www-form-urlencoded";
         context.Request.Form = new FormCollection(new Dictionary<string, StringValues>(

@@ -83,9 +83,14 @@ public sealed class GrepPattern {
 
     /// <summary>Whether a line of page source matches.</summary>
     /// <param name="line">One line, without its line break.</param>
-    public bool IsMatch(string line) => _literal is not null
-        ? line.Contains(_literal, _comparison)
-        : _expression!.IsMatch(line);
+    /// <exception cref="ArgumentNullException"><paramref name="line"/> is <see langword="null"/>.</exception>
+    public bool IsMatch(string line) {
+        ArgumentNullException.ThrowIfNull(line);
+
+        return _literal is not null
+            ? line.Contains(_literal, _comparison)
+            : _expression!.IsMatch(line);
+    }
 
     /// <summary>Rewrites a basic regular expression into the form <see cref="Regex"/> reads.</summary>
     /// <remarks>

@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
@@ -174,8 +173,7 @@ public sealed class PageToolExecutorDiffTests {
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
             options ?? TestOptions.Assistant with { MaxToolArgumentChars = 8_192, MaxToolResultChars = 8_192, MaxPageChars = 8_192 },
             new AssistantMetrics(),
-            new FakeAssistantFetcher(),
-            new DiffRenderer());
+            new FakeAssistantFetcher());
 
         return await tools.ExecuteAsync("diff_page", arguments, Context, CancellationToken.None);
     }

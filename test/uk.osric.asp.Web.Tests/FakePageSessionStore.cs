@@ -52,7 +52,9 @@ internal sealed class FakePageSessionStore(PageSessionOptions? options = null) :
         }
 
         DateTimeOffset now = Clock.GetUtcNow();
+#pragma warning disable CA1849 // The fake sweeps a dictionary; nothing here can block.
         _ = RemoveExpired(now);
+#pragma warning restore CA1849
 
         while (_sessions.Count >= _options.MaxLiveSessions) {
             (int anonymous, int signedIn) = Evict();

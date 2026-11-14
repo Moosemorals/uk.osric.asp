@@ -201,13 +201,13 @@ internal sealed class PageEndpoint() {
             user,
             session,
             isHead,
-            context.RequestAborted,
             new BodyBudget(environment.Render.MaxBodyChars),
             new RenderFetchBudget(environment.Fetch.MaxRequestsPerRender),
             new ReadBudget(environment.Read.MaxSourceCharsPerRender),
             assets,
             LoginRedirect.For(path, context.Request.QueryString),
-            () => antiforgeryField ??= AntiforgeryField.Hidden(environment.Antiforgery.GetAndStoreTokens(context)));
+            () => antiforgeryField ??= AntiforgeryField.Hidden(environment.Antiforgery.GetAndStoreTokens(context)),
+            context.RequestAborted);
 
         PageLayoutState contentLayout = new(environment.Layout.Default);
         StringWriter output = new();
@@ -460,7 +460,7 @@ internal sealed class PageEndpoint() {
                 return true;
             }
 
-            buffer.Write(chunk, 0, read);
+            await buffer.WriteAsync(chunk.AsMemory(0, read), context.RequestAborted);
         }
 
         return false;

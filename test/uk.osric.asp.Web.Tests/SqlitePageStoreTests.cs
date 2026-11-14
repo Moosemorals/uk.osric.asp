@@ -140,7 +140,7 @@ public sealed class SqlitePageStoreTests {
 
         Assert.That(rows, Has.Length.EqualTo(Writers));
         Assert.That(rows, Has.All.Matches<PageRevision>(row => row is not null && row.TemplateHash == TemplateFingerprint.Of(row.Template)));
-        PageHead head = (await reader.Set<PageHead>().SingleAsync(row => row.Path == path.Key))!;
+        PageHead head = await reader.Set<PageHead>().SingleAsync(row => row.Path == path.Key);
         Assert.That(rows, Has.Some.Matches<PageRevision>(row => row is not null && row.RevisionId == head.RevisionId));
     }
 
@@ -467,7 +467,9 @@ public sealed class SqlitePageStoreTests {
 
         await using SqliteConnection pinned = new(connectionString.ToString());
         await pinned.OpenAsync();
+#pragma warning disable CA1849 // SQLite's deferred flag exists only on the synchronous overload.
         await using SqliteTransaction snapshot = pinned.BeginTransaction(deferred: true);
+#pragma warning restore CA1849
         await using (SqliteCommand read = pinned.CreateCommand()) {
             read.Transaction = snapshot;
             read.CommandText = "SELECT \"Template\" FROM \"PageRevisions\" WHERE \"Path\" = '/pinned'";

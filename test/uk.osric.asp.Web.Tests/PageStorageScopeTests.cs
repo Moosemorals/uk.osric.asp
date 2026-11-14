@@ -212,7 +212,7 @@ public sealed class PageStorageScopeTests {
     public async Task AnAlreadyCancelledDeadlineRefusesTheCallAsync() {
         PageStorageScope storage = new(Key("/page"), Live(), TestOptions.Storage, writable: true);
         using CancellationTokenSource deadline = new();
-        deadline.Cancel();
+        await deadline.CancelAsync();
         storage.AttachDeadline(deadline.Token);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => storage.SetAsync("key", 1));

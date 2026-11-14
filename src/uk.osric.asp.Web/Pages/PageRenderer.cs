@@ -156,8 +156,8 @@ internal sealed class PageRenderer(
         SimpleContext context,
         PageSelection? selection,
         CancellationTokenSource deadline,
-        CancellationToken cancellationToken,
-        Action abandoned) {
+        Action abandoned,
+        CancellationToken cancellationToken) {
 
         long start = Stopwatch.GetTimestamp();
         string outcome = PageMetrics.RenderError;
@@ -206,7 +206,7 @@ internal sealed class PageRenderer(
             }
 
             RenderResult rendered = await RunAsync(
-                path, loaded.Image.Bytes, loaded.Image.Symbols, context, deadline, cancellationToken, abandoned);
+                path, loaded.Image.Bytes, loaded.Image.Symbols, context, deadline, abandoned, cancellationToken);
             outcome = rendered.Status == RenderStatus.Timeout ? PageMetrics.RenderTimeout : PageMetrics.RenderOk;
 
             return rendered;
@@ -373,8 +373,8 @@ internal sealed class PageRenderer(
         byte[]? symbols,
         SimpleContext context,
         CancellationTokenSource deadline,
-        CancellationToken cancellationToken,
-        Action abandoned) {
+        Action abandoned,
+        CancellationToken cancellationToken) {
 
         // A page that arrived compiled in time can still have spent the budget on the way here - a
         // lazy compile is bounded by the compile options, not by the render's budget - and starting
@@ -492,6 +492,7 @@ internal sealed class PageRenderer(
         /// <summary>Renders one layer of the chain under this session's slot and deadline.</summary>
         /// <param name="path">The layer's canonical key.</param>
         /// <param name="context">The context the layer writes to.</param>
+        /// <param name="selection">Which representation to render, or <see langword="null"/> for the page's own.</param>
         internal async Task<RenderResult> RenderAsync(PagePath path, SimpleContext context, PageSelection? selection = null) {
             ArgumentNullException.ThrowIfNull(context);
 
@@ -504,7 +505,7 @@ internal sealed class PageRenderer(
             // calls are cancelled with the render and not only with the request.
             context.AttachDeadline(deadline.Token);
 
-            return await _renderer.RenderLayerAsync(path, context, selection, deadline, _cancellationToken, () => _abandoned = true);
+            return await _renderer.RenderLayerAsync(path, context, selection, deadline, () => _abandoned = true, _cancellationToken);
         }
 
         /// <inheritdoc/>

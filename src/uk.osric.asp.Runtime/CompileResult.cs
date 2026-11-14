@@ -13,7 +13,11 @@ using uk.osric.asp.Core.Compilation;
 /// compiled cleanly. <see cref="PageDiagnostic"/> values rather than Roslyn types keep Roslyn out
 /// of the shell.
 /// </param>
+// The arrays are the compiler's emitted blobs, handed over once and never mutated; wrapping them in
+// a read-only view would copy the image or invent a type the emitter does not produce.
+#pragma warning disable CA1819
 public sealed record CompileResult(byte[]? Image, byte[]? Symbols, IReadOnlyList<PageDiagnostic> Diagnostics) {
+#pragma warning restore CA1819
 
     /// <summary>Whether the page can run; warnings do not stop it.</summary>
     public bool IsSuccess =>

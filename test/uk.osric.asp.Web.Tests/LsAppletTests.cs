@@ -18,7 +18,7 @@ public sealed class LsAppletTests {
 
         string output = await ShellKernelHarness.OutputAsync(pages.Editor, "ls /a");
 
-        Assert.That(output.Split('\n'), Is.EqualTo((string[])["/a/deep", "/a/one", "/a/two"]),
+        Assert.That(output.Split('\n'), Is.EqualTo(["/a/deep", "/a/one", "/a/two"]),
             "what is at /a, and not what is below it");
     }
 
@@ -50,8 +50,8 @@ public sealed class LsAppletTests {
 
         Assert.Multiple(() => {
             Assert.That(recursive.Split('\n'), Does.Contain("/d/a").And.Contain("/d/b"));
-            Assert.That(reversed.Split('\n'), Is.EqualTo((string[])["/d/b", "/d/a"]));
-            Assert.That(clustered.Split('\n'), Is.EqualTo((string[])["/d/b", "/d/a"]), "-Rr is two flags");
+            Assert.That(reversed.Split('\n'), Is.EqualTo(["/d/b", "/d/a"]));
+            Assert.That(clustered.Split('\n'), Is.EqualTo(["/d/b", "/d/a"]), "-Rr is two flags");
         });
     }
 
@@ -74,7 +74,7 @@ public sealed class LsAppletTests {
 
         string output = await ShellKernelHarness.OutputAsync(pages.Editor, "ls /b /a");
 
-        Assert.That(output.Split('\n'), Is.EqualTo((string[])["/b/two", "/a/one"]));
+        Assert.That(output.Split('\n'), Is.EqualTo(["/b/two", "/a/one"]));
     }
 
     [Test]

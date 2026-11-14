@@ -33,12 +33,12 @@ internal sealed class ShellRegistry {
 }
 
 /// <summary>What an applet is given for one run.</summary>
-/// <param name="Line">The parsed command line.</param>
-/// <param name="Paths">The paths its operands named, expanded and validated.</param>
-/// <param name="Store">The one read seam over the page store.</param>
-/// <param name="Output">Where the answer is written.</param>
-/// <param name="Registry">The applets, which <c>help</c> reads.</param>
-/// <param name="Options">The assistant's configured limits, for the defaults an applet uses.</param>
+/// <param name="line">The parsed command line.</param>
+/// <param name="paths">The paths its operands named, expanded and validated.</param>
+/// <param name="store">The one read seam over the page store.</param>
+/// <param name="output">Where the answer is written.</param>
+/// <param name="registry">The applets, which <c>help</c> reads.</param>
+/// <param name="options">The assistant's configured limits, for the defaults an applet uses.</param>
 internal sealed class ShellContext(
     ShellCommandLine line,
     IReadOnlyList<PageNode> paths,

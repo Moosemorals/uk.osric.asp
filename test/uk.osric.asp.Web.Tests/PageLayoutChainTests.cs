@@ -255,7 +255,7 @@ public sealed class PageLayoutChainTests {
 
         Rendered rendered = await RenderAsync("/page");
 
-        Assert.That(Sheets(rendered.Body), Is.EqualTo((string[])[
+        Assert.That(Sheets(rendered.Body), Is.EqualTo([
             "/site.css", "/outer.css", "/middle.css", "/page.css",
         ]));
     }
@@ -269,7 +269,7 @@ public sealed class PageLayoutChainTests {
 
         Rendered rendered = await RenderAsync("/page");
 
-        Assert.That(Sheets(rendered.Body), Is.EqualTo((string[])["/site.css"]));
+        Assert.That(Sheets(rendered.Body), Is.EqualTo(["/site.css"]));
     }
 
     [Test]
@@ -284,7 +284,7 @@ public sealed class PageLayoutChainTests {
 
         Rendered rendered = await RenderAsync("/page");
 
-        Assert.That(Sheets(rendered.Body), Is.EqualTo((string[])[
+        Assert.That(Sheets(rendered.Body), Is.EqualTo([
             "/site.css", "/second.css", "/first.css",
         ]));
     }
@@ -303,7 +303,7 @@ public sealed class PageLayoutChainTests {
 
         Rendered rendered = await RenderAsync("/page");
 
-        Assert.That(Sheets(rendered.Body), Is.EqualTo((string[])["/site.css", "/page.css"]));
+        Assert.That(Sheets(rendered.Body), Is.EqualTo(["/site.css", "/page.css"]));
     }
 
     [Test]

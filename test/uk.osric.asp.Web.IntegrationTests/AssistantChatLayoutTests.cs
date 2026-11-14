@@ -16,6 +16,8 @@ using uk.osric.asp.Web.Assistant;
 public sealed partial class AssistantChatLayoutTests : IntegrationTest {
     private const string Arguments = """{"path":"/missing-page-for-layout-test"}""";
 
+    private static readonly string[] UsageRows = ["prompt", "cached", "completion", "reasoning", "total"];
+
     private readonly ToolCallingClient _provider = new(Arguments);
 
     internal override AspApplication CreateApplication() => new(assistantEnabled: true, chatCompletionClient: _provider);
@@ -128,7 +130,7 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
             Assert.That(body, Does.Contain($"<span id=\"assistant-usage-reasoning\">{BudgetAmount.Format(usage.GetProperty("reasoning").GetInt64())}</span>"));
             Assert.That(body, Does.Contain($"<span id=\"assistant-usage-total\">{BudgetAmount.Format(usage.GetProperty("total").GetInt64())}</span>"));
             Assert.That(body, Does.Contain("<span id=\"assistant-usage-cached-share\">(60%)</span>"));
-            foreach (string row in new[] { "prompt", "cached", "completion", "reasoning", "total" }) {
+            foreach (string row in UsageRows) {
                 Assert.That(body, Does.Contain($"data-usage=\"{row}\""), $"the {row} usage row is missing its hook");
             }
         });

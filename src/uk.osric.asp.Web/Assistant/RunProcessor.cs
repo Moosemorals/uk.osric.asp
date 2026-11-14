@@ -481,7 +481,7 @@ internal sealed class RunProcessor(
         Task<ApprovalResolutionResult> wait = approvals.WaitAsync(queued.RunId, call.Id, waiterCancellation.Token);
         bool created = await StoreAsync(store => store.CreateApprovalAsync(queued.RunId, call.Id, cancellationToken));
         if (!created) {
-            waiterCancellation.Cancel();
+            await waiterCancellation.CancelAsync();
             try {
                 await wait;
             } catch (OperationCanceledException) {

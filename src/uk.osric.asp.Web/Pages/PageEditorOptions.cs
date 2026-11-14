@@ -19,9 +19,6 @@ internal sealed record PageEditorOptions {
 
     /// <summary>Reads <c>Pages:Editor</c>.</summary>
     /// <param name="configuration">The application configuration.</param>
-    /// <exception cref="ConfigurationException">The key is missing or names no page a request could reach.</exception>
-    /// <summary>Reads <c>Pages:Editor</c>.</summary>
-    /// <param name="configuration">The application configuration.</param>
     /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
     public static PageEditorOptions FromConfiguration(IConfiguration configuration) {
         ArgumentNullException.ThrowIfNull(configuration);

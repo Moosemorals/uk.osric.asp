@@ -36,7 +36,7 @@ internal sealed class RestrictedLinkRenderer : HtmlObjectRenderer<LinkInline> {
             renderer.Write('"');
             if (!string.IsNullOrEmpty(link.Title)) {
                 renderer.Write(" title=\"");
-                renderer.WriteEscape(link.Title!);
+                renderer.WriteEscape(link.Title);
                 renderer.Write('"');
             }
             renderer.Write(" rel=\"");

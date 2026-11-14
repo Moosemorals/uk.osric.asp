@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Assistant.Tools;
 
 using Microsoft.Extensions.DependencyInjection;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
@@ -20,15 +19,13 @@ using uk.osric.asp.Web.Pages;
 /// <param name="options">The assistant's configured limits.</param>
 /// <param name="metrics">Where the run's counters go.</param>
 /// <param name="fetcher">The HTTP fetch behind <c>fetch</c>.</param>
-/// <param name="diff">The renderer behind <c>diff_page</c>.</param>
 internal sealed class ToolServices(
     IServiceProvider scope,
     ToolContext context,
     PagePathPolicy paths,
     AssistantOptions options,
     AssistantMetrics metrics,
-    IAssistantFetcher fetcher,
-    DiffRenderer diff) {
+    IAssistantFetcher fetcher) {
 
     /// <summary>The owner, conversation and run the call belongs to.</summary>
     public ToolContext Context { get; } = context;
@@ -44,9 +41,6 @@ internal sealed class ToolServices(
 
     /// <summary>The HTTP fetch behind <c>fetch</c>.</summary>
     public IAssistantFetcher Fetcher { get; } = fetcher;
-
-    /// <summary>The renderer behind <c>diff_page</c>.</summary>
-    public DiffRenderer Diff { get; } = diff;
 
     /// <summary>The page editor, resolved from the call's scope: the writes, and nothing else.</summary>
     public PageEditor Pages => scope.GetRequiredService<PageEditor>();

@@ -82,6 +82,10 @@ internal sealed class PageEditor(
     /// <param name="path">The canonical key to save.</param>
     /// <param name="template">The template text.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
+    /// <param name="renderDeadline">
+    /// The token of the render that asked for the save, or <see langword="default"/> when no page is
+    /// waiting; a compile bounded by it can be given up on without losing the save.
+    /// </param>
     /// <returns>
     /// The revision that became the page's head and the compiler's author-facing diagnostics, so a
     /// caller that reports the save can name the revision without a second read.

@@ -6,14 +6,15 @@ namespace uk.osric.asp.Web.Pages;
 using uk.osric.asp.Core.Pages;
 
 /// <summary>A page's template, the image built from it, and the revision it will be saved as.</summary>
-/// <param name="Path">The canonical key the page is stored under.</param>
-/// <param name="Template">The template text.</param>
-/// <param name="Image">
-/// The image built from the template, or <see langword="null"/> when this build has never compiled
-/// it. A template without one is compiled on its next request.
-/// </param>
 internal sealed record PageTemplate {
 
+    /// <summary>Builds a revision with a fresh id, timestamp and hash.</summary>
+    /// <param name="Path">The canonical key the page is stored under.</param>
+    /// <param name="Template">The template text.</param>
+    /// <param name="Image">
+    /// The image built from the template, or <see langword="null"/> when this build has never
+    /// compiled it. A template without one is compiled on its next request.
+    /// </param>
     public PageTemplate(PagePath Path, string Template, PageImage? Image = null)
         : this(Path, Template, Image,
             Guid.NewGuid().ToString("N"),

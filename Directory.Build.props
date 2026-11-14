@@ -21,6 +21,14 @@ SPDX-License-Identifier: MIT
     <Features>runtime-async=on</Features>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!--
+      The full CA rule set, including the rules the SDK leaves off because they are noisy in general.
+      TreatWarningsAsErrors is set below, so a violation is a build failure rather than advice;
+      .editorconfig names the handful this codebase deliberately does not follow, with the reason, so
+      every exception is a decision someone can read.
+    -->
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>All</AnalysisMode>
     <UseArtifactsOutput>true</UseArtifactsOutput>
     <IsPackable>false</IsPackable>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
@@ -35,6 +43,21 @@ SPDX-License-Identifier: MIT
       checkout happens to live: the machine that builds an image is not part of the image.
     -->
     <ContinuousIntegrationBuild Condition="'$(ContinuousIntegrationBuild)' == ''">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!--
+    Test projects are recognised by name suffix so none of them repeats test settings. The suffix is
+    read here rather than in Directory.Build.targets because a documentation file has to be decided
+    before the SDK targets that look for one.
+  -->
+  <PropertyGroup>
+    <IsTestProject Condition="$(MSBuildProjectName.EndsWith('Tests'))">true</IsTestProject>
+    <!--
+      A product assembly publishes its own documentation, and an undocumented public member is then a
+      build failure (CS1591). Test and tool projects hold no surface anything binds to, and a fixture
+      has to be public for NUnit, so they are left out.
+    -->
+    <GenerateDocumentationFile Condition="'$(IsTestProject)' != 'true'">true</GenerateDocumentationFile>
   </PropertyGroup>
 
 </Project>

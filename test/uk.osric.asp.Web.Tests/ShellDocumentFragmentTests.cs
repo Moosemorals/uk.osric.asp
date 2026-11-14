@@ -31,7 +31,7 @@ public sealed class ShellDocumentFragmentTests {
     [Test]
     public void TheSheetIsLinkedBeforeTheView() {
         Assert.That(Sheets(ShellDocument.Head("Title", ["/editor.css"])),
-            Is.EqualTo((string[])["/site.css", "/editor.css"]));
+            Is.EqualTo(["/site.css", "/editor.css"]));
     }
 
     [Test]
@@ -42,7 +42,7 @@ public sealed class ShellDocumentFragmentTests {
     [Test]
     public void EverySheetThePageAsksForIsLinkedInTheOrderItAsked() {
         Assert.That(Sheets(ShellDocument.Head("Title", ["/blog.css", "/print.css"])),
-            Is.EqualTo((string[])["/site.css", "/blog.css", "/print.css"]));
+            Is.EqualTo(["/site.css", "/blog.css", "/print.css"]));
     }
 
     [Test]
@@ -59,7 +59,7 @@ public sealed class ShellDocumentFragmentTests {
             ["/editor.css"],
             resolveHref: href => href + "?v=token");
 
-        Assert.That(Sheets(head), Is.EqualTo((string[])["/site.css?v=token", "/editor.css?v=token"]));
+        Assert.That(Sheets(head), Is.EqualTo(["/site.css?v=token", "/editor.css?v=token"]));
         string? icon = MarkupReader.Parse(head).Elements("link")
             .Single(link => link.Attribute("rel") == "icon").Attribute("href");
         Assert.That(icon, Is.EqualTo("/rocket.svg?v=token"));
@@ -76,7 +76,7 @@ public sealed class ShellDocumentFragmentTests {
     [Test]
     public void TheSameSheetIsLinkedOnlyOnce() {
         Assert.That(Sheets(ShellDocument.Head("Title", ["/site.css", "/page.css", "/page.css"])),
-            Is.EqualTo((string[])["/site.css", "/page.css"]));
+            Is.EqualTo(["/site.css", "/page.css"]));
     }
 
     [TestCase("https://example.com/site.css")]
@@ -92,7 +92,7 @@ public sealed class ShellDocumentFragmentTests {
 
     [Test]
     public void ASingleSlashIsSiteRelative() {
-        Assert.That(Sheets(ShellDocument.Head("Title", ["/"])), Is.EqualTo((string[])["/site.css", "/"]));
+        Assert.That(Sheets(ShellDocument.Head("Title", ["/"])), Is.EqualTo(["/site.css", "/"]));
     }
 
     [Test]

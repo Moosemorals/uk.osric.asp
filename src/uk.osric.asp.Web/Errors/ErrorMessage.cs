@@ -55,6 +55,7 @@ internal sealed record ErrorMessage(
 
     /// <summary>The wording for a form the host refused before an endpoint could read it.</summary>
     /// <param name="isAuthenticated">Whether the reader is signed in.</param>
+    /// <param name="editorPath">The editor key the remedies link to.</param>
     /// <remarks>
     /// A stale antiforgery token is the most common 400 a person sees, and the one case that has to
     /// promise the work was not lost with the form.

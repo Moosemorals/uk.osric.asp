@@ -265,16 +265,15 @@ internal static class ChartChrome {
                 .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
         }
 
-        WriteTimeLabels(svg, ticks, plot, size, at);
+        WriteTimeLabels(svg, ticks, size, at);
     }
 
     /// <summary>Writes the time labels without the lines, for a plot whose cells are the grid.</summary>
     /// <param name="svg">The drawing being written.</param>
     /// <param name="ticks">The time ticks.</param>
-    /// <param name="plot">The plot they name.</param>
     /// <param name="size">The full drawing area, whose floor the labels sit above.</param>
     /// <param name="at">Where a tick's position sits horizontally.</param>
-    internal static void WriteTimeLabels(StringBuilder svg, IReadOnlyList<ChartTick> ticks, ChartPlot plot, ChartSize size, Func<double, double> at) {
+    internal static void WriteTimeLabels(StringBuilder svg, IReadOnlyList<ChartTick> ticks, ChartSize size, Func<double, double> at) {
         ArgumentNullException.ThrowIfNull(svg);
 
         foreach (ChartTick tick in ticks.OrderBy(tick => tick.Position)) {

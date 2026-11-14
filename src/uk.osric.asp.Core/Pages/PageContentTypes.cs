@@ -14,7 +14,8 @@ namespace uk.osric.asp.Core.Pages;
 /// <para>
 /// The map is a default, not a constraint: a page can still call <c>ctx.SetContentType</c> to send
 /// something else. The script policy deliberately stays with the extension rather than following a
-/// changed content type. <see cref="Create"/> validates and throws because the only caller is startup
+/// changed content type. <see cref="Create(PageContentTypeRule, IEnumerable{KeyValuePair{string, PageContentTypeRule}})"/>
+/// validates and throws because the only caller is startup
 /// configuration; <see cref="ForPath"/> and <see cref="ScriptsForPath"/> never throw.
 /// </para>
 /// </remarks>
@@ -62,7 +63,7 @@ public sealed class PageContentTypes {
                 throw new ArgumentException($"The content type for '{key}' is blank.", nameof(extensions));
             }
 
-            rules.Add(new(key!, new PageContentTypeRule(mediaType)));
+            rules.Add(new(key, new PageContentTypeRule(mediaType)));
         }
 
         return Create(new PageContentTypeRule(fallback), rules);

@@ -49,7 +49,7 @@ public sealed class MarkdownRendererTests {
     [Test]
     public void BothProfilesRenderAPipeTableWithScopedHeadersAndNoInlineStyle() {
         string page = _renderer.ToHtml(Table);
-        string restricted = _renderer.ToRestrictedHtml(Table);
+        string restricted = MarkdownRenderer.ToRestrictedHtml(Table);
 
         Assert.Multiple(() => {
             Assert.That(page, Does.Contain("<table>"));
@@ -65,7 +65,7 @@ public sealed class MarkdownRendererTests {
 
     [Test]
     public void TheRestrictedProfileTreatsRawHtmlAsText() {
-        string html = _renderer.ToRestrictedHtml("<script>alert(1)</script>");
+        string html = MarkdownRenderer.ToRestrictedHtml("<script>alert(1)</script>");
 
         Assert.Multiple(() => {
             Assert.That(html, Does.Not.Contain("<script>"));
@@ -75,7 +75,7 @@ public sealed class MarkdownRendererTests {
 
     [Test]
     public void TheRestrictedProfileDropsAnImageToItsAltText() {
-        string html = _renderer.ToRestrictedHtml("![a picture](/picture.png)");
+        string html = MarkdownRenderer.ToRestrictedHtml("![a picture](/picture.png)");
 
         Assert.Multiple(() => {
             Assert.That(html, Does.Not.Contain("<img"));
@@ -85,7 +85,7 @@ public sealed class MarkdownRendererTests {
 
     [Test]
     public void TheRestrictedProfileKeepsAnAllowedLinkAndItsText() {
-        string html = _renderer.ToRestrictedHtml(
+        string html = MarkdownRenderer.ToRestrictedHtml(
             "[off site](https://example.com) [on site](/about) [anchor](#top)");
 
         Assert.Multiple(() => {
@@ -101,7 +101,7 @@ public sealed class MarkdownRendererTests {
     [TestCase("mailto:owner@example.com")]
     [TestCase("//example.com")]
     public void TheRestrictedProfileRefusesAnUnsafeLinkAndKeepsItsText(string url) {
-        string html = _renderer.ToRestrictedHtml($"[click]({url})");
+        string html = MarkdownRenderer.ToRestrictedHtml($"[click]({url})");
 
         Assert.Multiple(() => {
             Assert.That(html, Does.Not.Contain("<a "));
@@ -111,7 +111,7 @@ public sealed class MarkdownRendererTests {
 
     [Test]
     public void TheRestrictedProfileFlattensHeadingsToH3() {
-        string html = _renderer.ToRestrictedHtml("# One\n\n#### Four");
+        string html = MarkdownRenderer.ToRestrictedHtml("# One\n\n#### Four");
 
         Assert.Multiple(() => {
             Assert.That(html, Does.Contain("<h3>One</h3>"));
@@ -123,7 +123,7 @@ public sealed class MarkdownRendererTests {
 
     [Test]
     public void TheRestrictedProfileDoesNotAutoLinkABareUrl() {
-        string html = _renderer.ToRestrictedHtml("https://example.com");
+        string html = MarkdownRenderer.ToRestrictedHtml("https://example.com");
 
         Assert.That(html, Does.Not.Contain("<a "));
         Assert.That(html, Does.Contain("https://example.com"));
@@ -131,7 +131,7 @@ public sealed class MarkdownRendererTests {
 
     [Test]
     public void TheRestrictedProfileEscapesAFencedCodeBlock() {
-        string html = _renderer.ToRestrictedHtml("```html\n<script>alert(1)</script>\n```");
+        string html = MarkdownRenderer.ToRestrictedHtml("```html\n<script>alert(1)</script>\n```");
 
         Assert.Multiple(() => {
             Assert.That(html, Does.Not.Contain("<script>"));
@@ -143,7 +143,7 @@ public sealed class MarkdownRendererTests {
     public void ANullDocumentIsRefused() {
         Assert.Multiple(() => {
             Assert.That(() => _renderer.ToHtml(null!), Throws.ArgumentNullException);
-            Assert.That(() => _renderer.ToRestrictedHtml(null!), Throws.ArgumentNullException);
+            Assert.That(() => MarkdownRenderer.ToRestrictedHtml(null!), Throws.ArgumentNullException);
         });
     }
 }

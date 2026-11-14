@@ -9,7 +9,7 @@ using System.Text.Json;
 using System.Threading.Channels;
 
 /// <summary>One run's journal of events and its live subscribers.</summary>
-internal sealed class RunStream(string runId, AssistantOptions options, TimeProvider clock) {
+internal sealed class RunStream(string runId, AssistantOptions options, TimeProvider clock) : IDisposable {
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly Lock _gate = new();
@@ -66,8 +66,15 @@ internal sealed class RunStream(string runId, AssistantOptions options, TimeProv
         if (_completed || _stop.IsCancellationRequested) {
             return false;
         }
-        _stop.Cancel();
-        return true;
+
+        try {
+            _stop.Cancel();
+            return true;
+        } catch (ObjectDisposedException) {
+            // The registry swept the stream between the check and the cancel. Its journal had already
+            // expired, so there is nothing left to stop.
+            return false;
+        }
     }
 
     public void Complete() {
@@ -133,6 +140,9 @@ internal sealed class RunStream(string runId, AssistantOptions options, TimeProv
         _sequence,
         "stream.reset",
         JsonSerializer.Serialize(new { reason }, s_jsonOptions));
+
+    /// <summary>Releases the stop source once nothing can still be waiting on the run.</summary>
+    public void Dispose() => _stop.Dispose();
 
     private static int EventBytes(RunEvent @event) =>
         Encoding.UTF8.GetByteCount(@event.DataJson) + Encoding.UTF8.GetByteCount(@event.Type) + @event.RunId.Length + 24;

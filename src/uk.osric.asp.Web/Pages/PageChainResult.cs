@@ -13,10 +13,10 @@ internal closed record PageChainResult {
     /// <summary>The chain produced a document.</summary>
     /// <param name="Response">The response the content owns, with every layer's script permission.</param>
     /// <param name="Body">The outermost layer's body.</param>
-    public sealed record Served(PageResponse Response, string Body) : PageChainResult;
+    internal sealed record Served(PageResponse Response, string Body) : PageChainResult;
 
     /// <summary>The chain could not be built, so there is a failure to report instead of a document.</summary>
     /// <param name="StatusCode">The status to send.</param>
     /// <param name="Error">What to tell the reader.</param>
-    public sealed record Failed(int StatusCode, ErrorMessage Error) : PageChainResult;
+    internal sealed record Failed(int StatusCode, ErrorMessage Error) : PageChainResult;
 }

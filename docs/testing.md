@@ -322,7 +322,16 @@ produce one image id, because a reproducible image is the only reason a commit t
 build the host is running. It needs podman and the pinned base image, which is why it lives in `ci`
 rather than in `check`.
 
-Warnings are errors (`Directory.Build.props`), so a project that builds locally will pass the gate;
+Warnings are errors (`Directory.Build.props`) and the full `CA` rule set is on (`AnalysisMode=All`),
+so a project that builds locally will pass the gate. The exceptions are named in `.editorconfig` with
+their reason — the `ConfigureAwait` rule an ASP.NET Core application has no context for, the logging
+generator the tree does not need, the string rules a page contract written in strings cannot follow —
+and the test tree has its own short list for NUnit's fixture shape and for content `HttpClient` owns.
+A rule that is not in that list stays on everywhere, which is why `CA1001`, `CA1062`, `CA1068` and
+the rest found real work when the set was first turned up. Five `IDE` rules that find defects rather
+than taste (an unused member, an unnecessary assignment or parameter, a redundant cast, a suppression
+that suppresses nothing) are warnings for the same reason. Each product assembly also emits its XML
+documentation, so CS1591 holds "the public surface of `Core` is documented". Beyond that,
 `make audit` fails on a vulnerable or deprecated NuGet package, and every suite runs under a session
 timeout so a wedged run fails instead of sitting there. The three unit suites get a minute
 (`TEST_FAST_TIMEOUT`, in milliseconds): they answer in seconds, and a run that reaches a minute is

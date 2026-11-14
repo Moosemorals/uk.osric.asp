@@ -300,7 +300,7 @@ public sealed class PageSessionScopeTests {
         PageSessionScope page = new(
             Key("/page"), store, TestOptions.Session, NewSession(), writable: true, slides: true);
         using CancellationTokenSource deadline = new();
-        deadline.Cancel();
+        await deadline.CancelAsync();
         page.AttachDeadline(deadline.Token);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => page.SetAsync("key", 1));

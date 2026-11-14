@@ -8,7 +8,6 @@ using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
@@ -706,7 +705,7 @@ public sealed class PageToolExecutorTests {
 
         Assert.Multiple(() => {
             Assert.That(Output(plain), Is.EqualTo("/a/child"), "ls names what is at the path, as a filesystem does");
-            Assert.That(Output(deeper).Split('\n'), Is.EqualTo((string[])["/a/child", "/a/child/grandchild"]));
+            Assert.That(Output(deeper).Split('\n'), Is.EqualTo(["/a/child", "/a/child/grandchild"]));
         });
     }
 
@@ -748,8 +747,8 @@ public sealed class PageToolExecutorTests {
             "shell", "{\"command\":\"find /a -type d\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(Output(all).Split('\n'), Is.EqualTo((string[])["/a", "/a/b", "/a/b/c"]));
-            Assert.That(Output(typed).Split('\n'), Is.EqualTo((string[])["/a", "/a/b"]), "the folders, and only the folders");
+            Assert.That(Output(all).Split('\n'), Is.EqualTo(["/a", "/a/b", "/a/b/c"]));
+            Assert.That(Output(typed).Split('\n'), Is.EqualTo(["/a", "/a/b"]), "the folders, and only the folders");
         });
     }
 
@@ -892,7 +891,7 @@ public sealed class PageToolExecutorTests {
             Assert.That(Output(flat), Is.EqualTo("/top:1: needle here"),
                 "a search reads the level it was given, as a filesystem search does");
             Assert.That(Output(deep).Split('\n'),
-                Is.EqualTo((string[])["/folder/deep:1: needle below", "/top:1: needle here"]));
+                Is.EqualTo(["/folder/deep:1: needle below", "/top:1: needle here"]));
         });
     }
 
@@ -927,7 +926,7 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "shell", "{\"command\":\"grep alpha /a /b\"}", Context, CancellationToken.None);
 
-        Assert.That(Output(result).Split('\n'), Is.EqualTo((string[])["/a:1: alpha", "/b:1: alpha"]));
+        Assert.That(Output(result).Split('\n'), Is.EqualTo(["/a:1: alpha", "/b:1: alpha"]));
     }
 
     [Test]
@@ -1038,8 +1037,8 @@ public sealed class PageToolExecutorTests {
             "shell", "{\"command\":\"ls -r /d\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(Output(forwards).Split('\n'), Is.EqualTo((string[])["/d/a", "/d/b", "/d/c"]));
-            Assert.That(Output(backwards).Split('\n'), Is.EqualTo((string[])["/d/c", "/d/b", "/d/a"]));
+            Assert.That(Output(forwards).Split('\n'), Is.EqualTo(["/d/a", "/d/b", "/d/c"]));
+            Assert.That(Output(backwards).Split('\n'), Is.EqualTo(["/d/c", "/d/b", "/d/a"]));
         });
     }
 
@@ -1216,7 +1215,7 @@ public sealed class PageToolExecutorTests {
             "shell", "{\"command\":\"grep -c needle /\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(Output(names).Split('\n'), Is.EqualTo((string[])["/a", "/c"]),
+            Assert.That(Output(names).Split('\n'), Is.EqualTo(["/a", "/c"]),
                 "one key per matching page, however many of its lines match");
             Assert.That(Output(counts).Split('\n'), Does.Contain("/a:2").And.Contain("/b:0").And.Contain("/c:1"),
                 "a count answers for every page searched, zeros included");
@@ -1862,9 +1861,6 @@ public sealed class PageToolExecutorTests {
         });
     }
 
-    private static string[] Paths(ToolExecutionResult result) =>
-        [.. Data(result).GetProperty("pages").EnumerateArray().Select(page => page.GetProperty("path").GetString()!)];
-
     private static string[] PagePaths(ToolExecutionResult result) => [.. Data(result)
         .GetProperty("pages").EnumerateArray()
         .Where(page => page.GetProperty("kind").GetString() == "page")
@@ -1903,6 +1899,5 @@ public sealed class PageToolExecutorTests {
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
         options ?? TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
         new AssistantMetrics(),
-        new FakeAssistantFetcher(),
-        new DiffRenderer());
+        new FakeAssistantFetcher());
 }

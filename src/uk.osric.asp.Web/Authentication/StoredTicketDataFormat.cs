@@ -10,8 +10,8 @@ using System.Security.Cryptography;
 
 /// <summary>Puts a random key in the cookie and keeps the protected ticket in SQLite.</summary>
 /// <remarks>
-/// The handler never sees this difference: <see cref="Protect"/> still returns the cookie value and
-/// <see cref="Unprotect"/> still returns the ticket. The inner format is the framework's own, so
+/// The handler never sees this difference: <see cref="Protect(AuthenticationTicket)"/> still returns the cookie value and
+/// <see cref="Unprotect(string?)"/> still returns the ticket. The inner format is the framework's own, so
 /// serialisation and the data protection purposes stay exactly as they were.
 /// </remarks>
 /// <param name="inner">The framework format whose output is stored instead of sent.</param>

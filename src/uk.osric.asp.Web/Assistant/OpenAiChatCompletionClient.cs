@@ -224,7 +224,10 @@ internal sealed class OpenAiChatCompletionClient(
         }
 
         double backoff = Math.Min(5_000, 250 * Math.Pow(2, attempt));
+        // Jitter spreads retries; it is not a secret and does not need a cryptographic source.
+#pragma warning disable CA5394
         return TimeSpan.FromMilliseconds(backoff + Random.Shared.Next(0, 200));
+#pragma warning restore CA5394
     }
 
     private static ProviderException ProviderError(HttpStatusCode status) => status switch {

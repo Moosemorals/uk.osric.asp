@@ -99,5 +99,5 @@ internal sealed record ChartWindow(DateTimeOffset Start, TimeSpan Length) {
     /// <summary>One window the nav offers.</summary>
     /// <param name="Token">The value carried in the <c>duration</c> query string, and the nav's label.</param>
     /// <param name="Length">How far back the queries reach.</param>
-    public sealed record WindowToken(string Token, TimeSpan Length);
+    internal sealed record WindowToken(string Token, TimeSpan Length);
 }

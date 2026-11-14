@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
@@ -228,8 +227,7 @@ public sealed class PageToolExecutorMemoryTests {
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), _options),
         _options,
         _services.GetRequiredService<AssistantMetrics>(),
-        new FakeAssistantFetcher(),
-        new DiffRenderer());
+        new FakeAssistantFetcher());
 
     private static JsonElement Data(ToolExecutionResult result) {
         using JsonDocument document = JsonDocument.Parse(result.Content);

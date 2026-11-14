@@ -84,7 +84,7 @@ public sealed class DiffRendererTests {
 
     [Test]
     public void TheUnifiedTextIsTheSameComparison() {
-        string text = _renderer.ToUnifiedDiff("one\ntwo", "one\nTWO");
+        string text = DiffRenderer.ToUnifiedDiff("one\ntwo", "one\nTWO");
 
         Assert.That(text, Is.EqualTo("@@ -1,2 +1,2 @@\n one\n-two\n+TWO\n"));
     }
@@ -94,8 +94,8 @@ public sealed class DiffRendererTests {
         Assert.Multiple(() => {
             Assert.Throws<ArgumentNullException>(() => _renderer.ToHtml(null!, "one"));
             Assert.Throws<ArgumentNullException>(() => _renderer.ToHtml("one", null!));
-            Assert.Throws<ArgumentNullException>(() => _renderer.ToUnifiedDiff(null!, "one"));
-            Assert.Throws<ArgumentNullException>(() => _renderer.ToUnifiedDiff("one", null!));
+            Assert.Throws<ArgumentNullException>(() => DiffRenderer.ToUnifiedDiff(null!, "one"));
+            Assert.Throws<ArgumentNullException>(() => DiffRenderer.ToUnifiedDiff("one", null!));
         });
     }
 }

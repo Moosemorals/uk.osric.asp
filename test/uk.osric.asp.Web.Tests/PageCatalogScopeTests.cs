@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Tests;
 
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 
@@ -127,7 +126,7 @@ public sealed class PageCatalogScopeTests {
 
         IReadOnlyList<PageEntry> entries = await Scope(store).ListAsync("");
 
-        Assert.That(entries.Select(entry => entry.Key), Is.EqualTo((string[])["/about", "/blog", "/blog/post"]));
+        Assert.That(entries.Select(entry => entry.Key), Is.EqualTo(["/about", "/blog", "/blog/post"]));
     }
 
     [Test]
@@ -139,7 +138,7 @@ public sealed class PageCatalogScopeTests {
 
         IReadOnlyList<PageEntry> entries = await Scope(store).ListAsync("/blog");
 
-        Assert.That(entries.Select(entry => entry.Key), Is.EqualTo((string[])["/blog", "/blog/post"]));
+        Assert.That(entries.Select(entry => entry.Key), Is.EqualTo(["/blog", "/blog/post"]));
     }
 
     [Test]
@@ -159,7 +158,7 @@ public sealed class PageCatalogScopeTests {
         store.Save("/blog/post", "post");
 
         Assert.That((await Scope(store).ListAsync("/Blog/")).Select(entry => entry.Key),
-            Is.EqualTo((string[])["/blog", "/blog/post"]));
+            Is.EqualTo(["/blog", "/blog/post"]));
     }
 
     [Test]
@@ -282,7 +281,7 @@ public sealed class PageCatalogScopeTests {
         store.Save("/blog", "source");
         PageCatalogScope scope = Scope(store);
         using CancellationTokenSource deadline = new();
-        deadline.Cancel();
+        await deadline.CancelAsync();
         scope.AttachDeadline(deadline.Token);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => scope.ListAsync(""));

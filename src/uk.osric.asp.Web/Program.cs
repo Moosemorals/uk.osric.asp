@@ -38,7 +38,7 @@ internal class Program {
             await RunAsync(args);
             return 0;
         } catch (ConfigurationException exception) {
-            Console.Error.WriteLine(exception.Message);
+            await Console.Error.WriteLineAsync(exception.Message);
             return 1;
         }
     }

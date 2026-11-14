@@ -100,8 +100,7 @@ internal static class AssistantEndpoint {
         IAntiforgery antiforgery,
         RunRegistry registry,
         AssistantOptions options,
-        IAccountBalanceClient balanceClient,
-        MarkdownRenderer markdown) {
+        IAccountBalanceClient balanceClient) {
         ArgumentNullException.ThrowIfNull(context);
 
         string? owner = Owner(context);
@@ -175,7 +174,7 @@ internal static class AssistantEndpoint {
                 await WriteChangedPagesAsync(context, turn);
             }
             foreach (Message message in turn) {
-                await WriteMessageAsync(context, message, calls, markdown);
+                await WriteMessageAsync(context, message, calls);
             }
         }
         await context.Response.WriteAsync("""
@@ -616,8 +615,7 @@ internal static class AssistantEndpoint {
         HttpContext context,
         long id,
         long messageId,
-        IConversationStore conversations,
-        MarkdownRenderer markdown) {
+        IConversationStore conversations) {
         string? owner = Owner(context);
         Message? message = owner is null
             ? null
@@ -633,14 +631,13 @@ internal static class AssistantEndpoint {
 
         SecurityHeaders.NoStore(context);
         context.Response.ContentType = "text/html; charset=utf-8";
-        await context.Response.WriteAsync(markdown.ToRestrictedHtml(message.Content));
+        await context.Response.WriteAsync(MarkdownRenderer.ToRestrictedHtml(message.Content));
     }
 
     private static async Task WriteMessageAsync(
         HttpContext context,
         Message message,
-        IReadOnlyDictionary<string, (string Name, string Arguments)> calls,
-        MarkdownRenderer markdown) {
+        IReadOnlyDictionary<string, (string Name, string Arguments)> calls) {
         if (message.Role == "user") {
             await context.Response.WriteAsync($"<article class=\"assistant-message user-message\"><h2 class=\"visually-hidden\">You</h2><pre>{Encode(message.Content)}</pre></article>");
             return;
@@ -657,7 +654,7 @@ internal static class AssistantEndpoint {
             }
             if (!string.IsNullOrEmpty(message.Content)) {
                 await context.Response.WriteAsync(
-                    $"<div class=\"assistant-content\">{markdown.ToRestrictedHtml(message.Content)}</div>");
+                    $"<div class=\"assistant-content\">{MarkdownRenderer.ToRestrictedHtml(message.Content)}</div>");
             }
             if (message.Status != "complete") {
                 await context.Response.WriteAsync($"<p class=\"assistant-incomplete\">{Encode(Describe(message.Status))}</p>");

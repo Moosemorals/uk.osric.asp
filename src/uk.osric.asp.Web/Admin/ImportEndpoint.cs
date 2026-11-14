@@ -417,7 +417,7 @@ internal sealed class ImportEndpoint {
                 return null;
             }
 
-            buffer.Write(chunk, 0, read);
+            await buffer.WriteAsync(chunk.AsMemory(0, read), context.RequestAborted);
         }
 
         return buffer.ToArray();

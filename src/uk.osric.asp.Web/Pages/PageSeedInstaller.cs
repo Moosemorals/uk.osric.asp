@@ -16,7 +16,7 @@ using uk.osric.asp.Web.Editor;
 internal static class PageSeedInstaller {
 
     /// <summary>What the live head holds relative to the bundled source.</summary>
-    public enum SeedState {
+    internal enum SeedState {
         Current,
         Changed,
         Missing,
@@ -24,7 +24,7 @@ internal static class PageSeedInstaller {
     }
 
     /// <summary>What one seed's install did.</summary>
-    public enum SeedOutcome {
+    internal enum SeedOutcome {
         Unchanged,
         Restored,
         SavedWithErrors,
@@ -32,14 +32,14 @@ internal static class PageSeedInstaller {
     }
 
     /// <summary>One seed, its bundled source and what the store holds now.</summary>
-    public sealed record SeedPlan(PagePath Path, string Source, SeedState State);
+    internal sealed record SeedPlan(PagePath Path, string Source, SeedState State);
 
     /// <summary>One seed and the outcome of trying to install it.</summary>
     /// <param name="Path">The page's key.</param>
     /// <param name="Was">What the store held before.</param>
     /// <param name="Outcome">What this run did.</param>
     /// <param name="Hash">The revision it stored, or the current head when nothing was written.</param>
-    public sealed record SeedResult(PagePath Path, SeedState Was, SeedOutcome Outcome, string? Hash = null);
+    internal sealed record SeedResult(PagePath Path, SeedState Was, SeedOutcome Outcome, string? Hash = null);
 
     /// <summary>The pages this release ships with.</summary>
     public static IReadOnlyList<PagePath> SeedPaths() => PageAssetSeeder.SeedPaths();

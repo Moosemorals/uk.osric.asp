@@ -17,7 +17,7 @@ using IDiffRenderer = uk.osric.asp.Sdk.IDiffRenderer;
 /// change markers and the sideways scroll container are all classes the site's sheets style.
 /// </para>
 /// <para>
-/// <see cref="ToUnifiedDiff"/> is the assistant's form, beside the table the way
+/// <see cref="ToUnifiedDiff(DiffDocument)"/> is the assistant's form, beside the table the way
 /// <see cref="MarkdownRenderer.ToRestrictedHtml"/> sits beside the page profile. It is not on the
 /// Sdk capability, because a page does not need text; a page that does can render the changes itself.
 /// </para>
@@ -64,7 +64,7 @@ public sealed class DiffRenderer : IDiffRenderer {
     /// <param name="after">The later document.</param>
     /// <returns>The line changes, which <see cref="ToHtml"/> and <see cref="ToUnifiedDiff(DiffDocument)"/> consume.</returns>
     /// <exception cref="ArgumentNullException">Either document is <see langword="null"/>.</exception>
-    public DiffDocument Compare(string before, string after) {
+    public static DiffDocument Compare(string before, string after) {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
 
@@ -76,7 +76,7 @@ public sealed class DiffRenderer : IDiffRenderer {
     /// <param name="after">The later document.</param>
     /// <returns>The text <see cref="UnifiedDiff.Format"/> writes; empty when nothing changed.</returns>
     /// <exception cref="ArgumentNullException">Either document is <see langword="null"/>.</exception>
-    public string ToUnifiedDiff(string before, string after) {
+    public static string ToUnifiedDiff(string before, string after) {
         return ToUnifiedDiff(Compare(before, after));
     }
 
@@ -84,7 +84,7 @@ public sealed class DiffRenderer : IDiffRenderer {
     /// <param name="diff">The comparison to write.</param>
     /// <returns>The text <see cref="UnifiedDiff.Format"/> writes; empty when nothing changed.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="diff"/> is <see langword="null"/>.</exception>
-    public string ToUnifiedDiff(DiffDocument diff) {
+    public static string ToUnifiedDiff(DiffDocument diff) {
         ArgumentNullException.ThrowIfNull(diff);
 
         return UnifiedDiff.Format(diff);

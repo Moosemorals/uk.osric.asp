@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Assistant.Tools;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Diff;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
@@ -72,8 +73,8 @@ internal sealed class DiffPageTool : AssistantTool {
             return services.Results.Failure($"One of those revisions is not a revision of {ToolPaths.Describe(path)}.", "Revision not found");
         }
 
-        DiffDocument comparison = services.Diff.Compare(before.Template, after.Template);
-        string text = services.Diff.ToUnifiedDiff(comparison);
+        DiffDocument comparison = DiffRenderer.Compare(before.Template, after.Template);
+        string text = DiffRenderer.ToUnifiedDiff(comparison);
         int budget = services.Options.ToolResultBudget;
         bool truncated = text.Length > budget;
         if (truncated) {

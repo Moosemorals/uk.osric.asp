@@ -8,6 +8,7 @@ using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Diff;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant.Shell;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
@@ -142,6 +143,10 @@ internal sealed class ReadPageTool : AssistantTool {
 /// <summary>Replaces physical template lines if the revision is still the one read.</summary>
 internal sealed class EditPageTool : AssistantTool {
 
+    private static readonly string[] UnchangedWarnings = [
+        "The edit left the page byte-identical, so nothing was saved. Check the line numbers and the replacement text.",
+    ];
+
     public override ToolSpec Spec { get; } = new(
         "edit_page",
         "Replace physical lines of a page's stored template source if the current revision hash still matches. Lines include literal HTML and template delimiters as authored, not generated C# or rendered HTML. Give either `startLine` and `replacement` (with an optional `endLine`, which defaults to `startLine`), or a non-empty `edits` array of those objects; `edits` applies every hunk against the same hash in one save. `expectFirst` and `expectLast` name the exact text the first and last selected lines must still hold, so an off-by-one is refused instead of replacing the wrong line. The result carries a unified diff and the added and removed line counts. A shell file is refused: the owner changes the shell in code.",
@@ -210,11 +215,11 @@ internal sealed class EditPageTool : AssistantTool {
                 truncated = false,
                 diff = string.Empty,
                 diagnostics = PageToolData.Diagnostics(current),
-                warnings = new[] { "The edit left the page byte-identical, so nothing was saved. Check the line numbers and the replacement text." },
+                warnings = UnchangedWarnings,
             }, $"Edited {ToolPaths.Describe(path)}: no change");
         }
 
-        DiffDocument comparison = services.Diff.Compare(current.Template, edited.Content!);
+        DiffDocument comparison = DiffRenderer.Compare(current.Template, edited.Content!);
         (string diff, bool diffTruncated) = BoundedDiff(services, comparison);
 
         ConditionalPageSaveResult saved = await services.Pages.SaveIfRevisionAsync(
@@ -306,7 +311,7 @@ internal sealed class EditPageTool : AssistantTool {
     // line break and this answer has already saved the page: a result that overflowed into a refusal
     // would report a successful edit as a failure.
     private static (string Text, bool Truncated) BoundedDiff(ToolServices services, DiffDocument comparison) {
-        string text = services.Diff.ToUnifiedDiff(comparison);
+        string text = DiffRenderer.ToUnifiedDiff(comparison);
         int budget = Math.Max(1, services.Options.MaxToolResultChars / 5);
         if (text.Length <= budget) {
             return (text, false);
@@ -476,7 +481,7 @@ internal static class PageToolData {
     /// <param name="EndLine">The last 1-based line in the answer.</param>
     /// <param name="TotalLines">How many lines the whole source has.</param>
     /// <param name="Truncated">Whether the text was windowed because it exceeded the budget.</param>
-    public sealed record ProjectedSource(string Text, int StartLine, int EndLine, int TotalLines, bool Truncated);
+    internal sealed record ProjectedSource(string Text, int StartLine, int EndLine, int TotalLines, bool Truncated);
 
     /// <summary>Reads a source as a 1-based inclusive line range, windowed to the result budget.</summary>
     /// <param name="content">The stored source.</param>

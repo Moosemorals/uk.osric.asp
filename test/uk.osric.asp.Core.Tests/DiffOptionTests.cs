@@ -51,7 +51,7 @@ public sealed class DiffOptionTests {
         Assert.Multiple(() => {
             Assert.That(diff.Hunks, Has.Count.EqualTo(1));
             Assert.That(diff.Hunks[0].Lines.Select(line => line.Kind),
-                Is.EqualTo((DiffLineKind[])[DiffLineKind.Context, DiffLineKind.Removed, DiffLineKind.Added, DiffLineKind.Context]));
+                Is.EqualTo([DiffLineKind.Context, DiffLineKind.Removed, DiffLineKind.Added, DiffLineKind.Context]));
             Assert.That(diff.Hunks[0].Lines[0].Text, Is.EqualTo("one   "), "a context line keeps its trailing blanks");
             Assert.That(diff.Hunks[0].Lines[1].Text, Is.EqualTo("OLD\tline"));
             Assert.That(diff.Hunks[0].Lines[2].Text, Is.EqualTo("NEW line"));

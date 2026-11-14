@@ -21,21 +21,21 @@ public sealed class SiteNavigationTests {
 
     [Test]
     public void AnAnonymousVisitorIsOfferedHomeAboutPrivacyAndSignIn() {
-        Assert.That(Texts(anonymous: true), Is.EqualTo((string[])["Home", "About", "Privacy", "Sign in"]));
+        Assert.That(Texts(anonymous: true), Is.EqualTo(["Home", "About", "Privacy", "Sign in"]));
     }
 
     [Test]
     public void ASignedInVisitorIsOfferedEveryTool() {
         Assert.That(Texts(anonymous: false, assistant: true),
-            Is.EqualTo((string[])["Home", "About", "Privacy", "Assistant", "Pages", "Admin", "Sign out"]));
+            Is.EqualTo(["Home", "About", "Privacy", "Assistant", "Pages", "Admin", "Sign out"]));
     }
 
     [Test]
     public void TheAssistantIsOfferedOnlyWhenItIsEnabled() {
         Assert.That(Texts(anonymous: false, assistant: false),
-            Is.EqualTo((string[])["Home", "About", "Privacy", "Pages", "Admin", "Sign out"]));
+            Is.EqualTo(["Home", "About", "Privacy", "Pages", "Admin", "Sign out"]));
         Assert.That(Texts(anonymous: true, assistant: true),
-            Is.EqualTo((string[])["Home", "About", "Privacy", "Sign in"]));
+            Is.EqualTo(["Home", "About", "Privacy", "Sign in"]));
     }
 
     [Test]

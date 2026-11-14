@@ -6,13 +6,6 @@ SPDX-License-Identifier: MIT
 <Project>
 
   <!--
-    Test projects are recognised by name suffix so none of them repeats test settings.
-  -->
-  <PropertyGroup>
-    <IsTestProject Condition="$(MSBuildProjectName.EndsWith('Tests'))">true</IsTestProject>
-  </PropertyGroup>
-
-  <!--
     Every test asserts, so the framework is one project-wide using rather than a line repeated in
     every file. Helpers and fakes in a test project share it with no harm.
   -->

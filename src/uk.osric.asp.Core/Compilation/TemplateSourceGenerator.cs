@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Core.Compilation;
 
+using System.Globalization;
 using System.Text;
 using uk.osric.asp.Core.Pages;
 
@@ -167,7 +168,7 @@ public static class TemplateSourceGenerator {
         // The closing braces are generated, but an unclosed page block is reported here. Mapping the
         // postlude to one line past the template turns that author typo into a positioned diagnostic
         // instead of an unmapped error the runtime would treat as a compiler fault.
-        result.Append($"#line {TemplateLines.Count(template) + 1} \"{TemplateName}\"");
+        result.Append(string.Create(CultureInfo.InvariantCulture, $"#line {TemplateLines.Count(template) + 1} \"{TemplateName}\""));
         result.Append(Environment.NewLine);
         result.Append("}}");
         result.Append(Environment.NewLine);
@@ -210,7 +211,7 @@ public static class TemplateSourceGenerator {
         // line to the token's template column makes Roslyn's column match the author's column too.
         result.Append(NullableEnable);
         result.Append(Environment.NewLine);
-        result.Append($"#line {token.Position.Line} \"{TemplateName}\"");
+        result.Append(string.Create(CultureInfo.InvariantCulture, $"#line {token.Position.Line} \"{TemplateName}\""));
         result.Append(Environment.NewLine);
         result.Append(' ', token.Position.Column - 1);
         result.Append(token.Value);
@@ -234,13 +235,13 @@ public static class TemplateSourceGenerator {
         // the page, so one enable covers them and one disable closes them.
         result.Append(NullableEnable);
         result.Append(Environment.NewLine);
-        result.Append($"#line {opener.Line} \"{TemplateName}\"");
+        result.Append(string.Create(CultureInfo.InvariantCulture, $"#line {opener.Line} \"{TemplateName}\""));
         result.Append(Environment.NewLine);
         result.Append(' ', opener.Column - 1);
         result.Append(token.Type == TokenType.Write ? "ctx.Write(" : "ctx.WriteRaw(");
         result.Append(Environment.NewLine);
 
-        result.Append($"#line {expressionPosition.Line} \"{TemplateName}\"");
+        result.Append(string.Create(CultureInfo.InvariantCulture, $"#line {expressionPosition.Line} \"{TemplateName}\""));
         result.Append(Environment.NewLine);
         result.Append(' ', expressionPosition.Column - 1);
         result.Append(expression);

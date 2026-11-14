@@ -20,7 +20,7 @@ public sealed class ShellPatternAndSearchTests {
         string catted = await ShellKernelHarness.OutputAsync(pages.Editor, "cat /vim/*.js");
 
         Assert.Multiple(() => {
-            Assert.That(listed.Split('\n'), Is.EqualTo((string[])["/vim/vim.js"]), "a star never crosses a /");
+            Assert.That(listed.Split('\n'), Is.EqualTo(["/vim/vim.js"]), "a star never crosses a /");
             Assert.That(catted, Is.EqualTo("needle one"), "the star stops at the segment: /vim/sub/deep.js is below it");
         });
     }
@@ -78,7 +78,7 @@ public sealed class ShellPatternAndSearchTests {
         string counts = await ShellKernelHarness.OutputAsync(pages.Editor, "grep -c needle /");
 
         Assert.Multiple(() => {
-            Assert.That(names.Split('\n'), Is.EqualTo((string[])["/a", "/c"]), "one key per page, however many lines match");
+            Assert.That(names.Split('\n'), Is.EqualTo(["/a", "/c"]), "one key per page, however many lines match");
             Assert.That(counts.Split('\n'), Does.Contain("/a:2").And.Contain("/c:1"));
         });
     }
@@ -94,8 +94,8 @@ public sealed class ShellPatternAndSearchTests {
         string headed = await ShellKernelHarness.OutputAsync(pages.Editor, "head -n 1 /a /b");
 
         Assert.Multiple(() => {
-            Assert.That(counted.Split('\n'), Is.EqualTo((string[])["2 /a", "1 /b", "3 total"]));
-            Assert.That(headed.Split('\n'), Is.EqualTo((string[])["==> /a <==", "one", "", "==> /b <==", "three"]));
+            Assert.That(counted.Split('\n'), Is.EqualTo(["2 /a", "1 /b", "3 total"]));
+            Assert.That(headed.Split('\n'), Is.EqualTo(["==> /a <==", "one", "", "==> /b <==", "three"]));
         });
     }
 

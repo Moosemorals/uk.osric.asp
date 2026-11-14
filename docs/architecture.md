@@ -196,6 +196,14 @@ The files also carry `#nullable enable` so the analyzer records annotations, and
 parses every line as an entry they can carry no licence header: they are named in `REUSE.toml`
 instead. `Web` keeps that marker in its unshipped file, which is why its shipped file is empty.
 
+**Analysis is at full strength.** `Directory.Build.props` turns on every `CA` rule
+(`AnalysisMode=All`) on top of the nullable context, and a warning is an error. The rules this
+codebase does not follow are named in `.editorconfig` beside the reason — the ones that assume a
+synchronization context, a library's URL vocabulary, or a public surface this application does not
+have — so an exception is a decision rather than a warning someone muted. Test projects take a
+shorter list for NUnit's fixture shape. Each product assembly emits its XML documentation, which
+makes an undocumented public member a build failure rather than a paragraph.
+
 The narrowing loop is mechanical and compiler-checked: make a member `internal`, build, and the
 compiler names the one caller that needs it. `InternalsVisibleTo` keeps the test projects compiling,
 so only a genuine cross-assembly use fails. The public surface that remains is the smallest the

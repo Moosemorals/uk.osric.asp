@@ -101,6 +101,7 @@ public sealed class AssistantProviderClientTests {
     [Test]
     public async Task RetriesRateLimitBeforeTheStreamStartsAsync() {
         int calls = 0;
+#pragma warning disable CA2025 // The handler answers synchronously; the client holds the response for the call.
         using HttpClient client = Client(_ => {
             calls++;
             HttpResponseMessage response = calls == 1
@@ -111,6 +112,7 @@ public sealed class AssistantProviderClientTests {
             }
             return Task.FromResult(response);
         });
+#pragma warning restore CA2025
         OpenAiChatCompletionClient provider = new(client, TestOptions.Assistant with { RequireApiKey = false, MaxProviderRetries = 1 }, NullLogger<OpenAiChatCompletionClient>.Instance);
 
         await CollectAsync(provider);

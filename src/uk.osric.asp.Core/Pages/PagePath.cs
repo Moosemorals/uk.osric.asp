@@ -90,5 +90,6 @@ public sealed record PagePath {
         return new PagePath('/' + string.Join('/', normalized));
     }
 
+    /// <summary>The page key, as the site spells it.</summary>
     public override string ToString() => Key;
 }

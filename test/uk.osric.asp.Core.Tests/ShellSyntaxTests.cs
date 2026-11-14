@@ -41,7 +41,7 @@ public sealed class ShellSyntaxTests {
         Assert.Multiple(() => {
             Assert.That(clustered.Has('l') && clustered.Has('R') && clustered.Has('r'), Is.True);
             Assert.That(repeated.Has('l'), Is.True);
-            Assert.That(repeated.Arguments.Select(argument => argument.Word.Text), Is.EqualTo((string[])["/a"]));
+            Assert.That(repeated.Arguments.Select(argument => argument.Word.Text), Is.EqualTo(["/a"]));
         });
     }
 
@@ -61,7 +61,7 @@ public sealed class ShellSyntaxTests {
             Assert.Multiple(() => {
                 Assert.That(line.Has('b'), Is.True);
                 Assert.That(line.Number('U'), Is.EqualTo(2));
-                Assert.That(line.Arguments.Select(argument => argument.Word.Text), Is.EqualTo((string[])["/a", "/b"]));
+                Assert.That(line.Arguments.Select(argument => argument.Word.Text), Is.EqualTo(["/a", "/b"]));
             });
         }
     }
@@ -98,7 +98,7 @@ public sealed class ShellSyntaxTests {
         ShellCommandLine line = Match(s_grep, "grep alpha /a /b");
 
         Assert.That(line.Arguments.Select(argument => (argument.Kind, argument.Word.Text)),
-            Is.EqualTo(((ShellOperandKind, string)[])[(ShellOperandKind.Text, "alpha"), (ShellOperandKind.Prefix, "/a"), (ShellOperandKind.Prefix, "/b")]));
+            Is.EqualTo([(ShellOperandKind.Text, "alpha"), (ShellOperandKind.Prefix, "/a"), (ShellOperandKind.Prefix, "/b")]));
     }
 
     [Test]

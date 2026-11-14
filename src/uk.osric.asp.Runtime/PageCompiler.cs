@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Emit;
+using System.Globalization;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Sdk;
 // The page contract has a diagnostic value of its own, so the compiler names its own type here.
@@ -50,6 +51,7 @@ public sealed class PageCompiler : IPageCompiler {
 
     /// <summary>Compiles generated C# source into an assembly image.</summary>
     /// <param name="source">The generated C# source, not the page template.</param>
+    /// <param name="libraries">The compiled sources the page named, in closure order.</param>
     /// <param name="cancellationToken">Bounds the compile between Roslyn operations.</param>
     /// <returns>The image, and the author-facing diagnostics when the page does not compile.</returns>
     /// <exception cref="InvalidOperationException">
@@ -140,6 +142,7 @@ public sealed class PageCompiler : IPageCompiler {
 
     /// <summary>Loads a compiled image so its handler can be run.</summary>
     /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
+    /// <param name="symbols">The portable PDB emitted beside the image, when there was one.</param>
     /// <returns>The loaded handler; dispose it to release the assembly.</returns>
     public LoadedPage Load(byte[] image, byte[]? symbols = null) {
         ArgumentNullException.ThrowIfNull(image);
@@ -262,7 +265,7 @@ public sealed class PageCompiler : IPageCompiler {
             mapped.Add(new PageDiagnostic(
                 isError ? PageDiagnosticSeverity.Error : PageDiagnosticSeverity.Warning,
                 new TemplatePosition(span.StartLinePosition.Line + 1, span.StartLinePosition.Character + 1),
-                $"{diagnostic.Id}: {diagnostic.GetMessage()}") {
+                $"{diagnostic.Id}: {diagnostic.GetMessage(CultureInfo.InvariantCulture)}") {
                 Source = source,
             });
 
@@ -270,7 +273,7 @@ public sealed class PageCompiler : IPageCompiler {
         }
 
         if (unmappedErrors.Count > 0 && !hasMappedError) {
-            string details = string.Join(" ", unmappedErrors.Select(diagnostic => $"{diagnostic.Id}: {diagnostic.GetMessage()}"));
+            string details = string.Join(" ", unmappedErrors.Select(diagnostic => $"{diagnostic.Id}: {diagnostic.GetMessage(CultureInfo.InvariantCulture)}"));
             throw new InvalidOperationException(
                 $"The generated page source did not compile: {details} This is a compiler fault, not a page error.");
         }

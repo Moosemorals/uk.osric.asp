@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Pages;
-using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
@@ -368,8 +367,7 @@ public sealed class PageToolExecutorHistoryTests {
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
             options ?? TestOptions.Assistant with { MaxToolArgumentChars = 65_536, MaxToolResultChars = 65_536, MaxPageChars = 65_536 },
             new AssistantMetrics(),
-            new FakeAssistantFetcher(),
-            new DiffRenderer());
+            new FakeAssistantFetcher());
 
         return await tools.ExecuteAsync(tool, arguments, Context, CancellationToken.None);
     }

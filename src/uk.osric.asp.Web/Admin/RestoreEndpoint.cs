@@ -223,6 +223,4 @@ internal static class RestoreEndpoint {
         _ => "unknown",
     };
 
-    private static bool HasErrors(IReadOnlyList<PageDiagnostic> diagnostics) =>
-        diagnostics.Any(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error);
 }

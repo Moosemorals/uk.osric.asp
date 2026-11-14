@@ -150,4 +150,9 @@ judgement calls it cannot express:
 - `StringComparison.Ordinal`/`OrdinalIgnoreCase` unless linguistic comparison is intended.
 - Structured logging with message templates and arguments, never interpolation.
 - Comment the non-obvious *why*; do not narrate the code. XML-document the public surface of `Core`;
-  the shell is not documented member by member.
+  the product assemblies emit their documentation, so an undocumented public member is a build
+  failure (CS1591). The shell is not documented member by member.
+- The full `CA` rule set is on (`AnalysisMode=All`) and a warning is an error. A rule this codebase
+  does not follow is turned off in `.editorconfig` beside its reason; a `#pragma` at a call site
+  carries one too. Never mute a warning without saying why, and never add an exception to save a
+  single line.

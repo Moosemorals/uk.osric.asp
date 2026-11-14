@@ -57,6 +57,9 @@ internal static class PageApiChecker {
     /// <summary>Reports everything a library may not do.</summary>
     /// <param name="tree">The parsed generated library source.</param>
     /// <param name="model">The semantic model bound to <paramref name="tree"/>.</param>
+    /// <param name="authored">
+    /// The trees whose own types the policy trusts; the library and its closure when omitted.
+    /// </param>
     /// <returns>The author-facing diagnostics to fail the compile with; empty when the library is acceptable.</returns>
     /// <exception cref="InvalidOperationException">
     /// The generated source itself violates the policy. That is a compiler fault, not an author's error.

@@ -34,7 +34,7 @@ public sealed class ToolApprovalCoordinatorTests {
         ToolApprovalCoordinator coordinator = new();
         using CancellationTokenSource cancellation = new();
         Task<ApprovalResolutionResult> wait = coordinator.WaitAsync("run", "call", cancellation.Token);
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
 
         await Assert.CatchAsync<OperationCanceledException>(async () => await wait);
 
