@@ -91,6 +91,7 @@ internal class Program {
         PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(settings.At("Pages:Layout"));
         PageEditorOptions editor = PageEditorOptions.FromConfiguration(settings.At("Pages:Editor"));
         RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
+        StreamOptions stream = StreamOptions.FromConfiguration(settings.At("Pages:Stream"));
         PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
         PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
         PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
@@ -158,6 +159,7 @@ internal class Program {
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton(render);
+        builder.Services.AddSingleton(stream);
         builder.Services.AddSingleton(contentTypes);
         builder.Services.AddSingleton(storage);
         builder.Services.AddSingleton(session);
@@ -287,6 +289,7 @@ internal class Program {
             .AddMeter("System.Runtime")
             .AddView("page.render.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.render.wait", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.stream.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.StreamBuckets })
             .AddView("page.compile.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.load.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.invoke.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })

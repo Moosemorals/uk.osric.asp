@@ -359,13 +359,18 @@ port.
 - `PageMetrics` records the render at the commit and the stream when it ends; `StatusCatalogue` and
   `PageMetricsTests` learn the new instrument.
 - `Sdk`: `PageStreamRefusedException` in `PublicAPI.Unshipped.txt`.
-- `deploy/Caddyfile`: a response whose content type starts with `text/event-stream` is excluded from
-  `encode`, so a page's SSE is not buffered by the proxy, and `deploy/README.md` says why. The
-  assistant's path exclusion stays until its events route becomes the page's; a progressive-HTML
-  stream through the proxy is a deployment choice the README names, because `text/html` is still
-  compressed.
-- `/help`, [pages](../pages.md#streaming), [pages](../pages.md#page-execution-budget),
-  [configuration](../architecture.md#configuration) and the plan's own decision notes.
+- `deploy/Caddyfile`: nothing, after all. The pinned Caddy 2.11 flushes a `text/event-stream` response
+  as it is written and `flush_interval -1` stops it waiting for the app, so a compressed page stream
+  arrives one event at a time — measured against the pinned binary through this Caddyfile, six
+  one-second events a second apart with `Content-Encoding: zstd`. A response matcher cannot express
+  "not this content type", so the alternative was an explicit list of compressible types to maintain,
+  for no gain. `deploy/README.md` records the measurement and why the assistant's path exclusion is
+  that route's rather than streaming's.
+- `/help`, [pages](../pages.md#streaming), [pages](../pages.md#page-execution-budget), the
+  [glossary](../glossary.md) entries the budget and the slot already had, [metrics](../metrics.md),
+  [testing](../testing.md) and [logging](../logging.md). [configuration](../architecture.md#configuration)
+  needs no edit: it names the pattern and sends a reader to the subsystem, and the keys are documented
+  where the budget is.
 
 **Done when** a page can stream past `Pages:Render:TimeoutSeconds` while a page that stalls before its
 first flush still answers `504`, and a page that flushes then goes quiet is truncated with its reason

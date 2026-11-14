@@ -134,6 +134,14 @@ and applies them.
   Move the file and rename each key (`Agent__Enabled` → `Assistant__Enabled`, and so on) rather than
   copying the contents; the old file is ignored from that release on. The storage tables are renamed
   by a migration on first start, which keeps every conversation.
+- **Streaming through Caddy:** a page that sends `text/event-stream` needs nothing from this proxy.
+  The pinned Caddy flushes such a response as it is written — it sends the headers without waiting for
+  its 512-byte minimum — and `flush_interval -1` stops it waiting for the app either, so events arrive
+  one at a time. `encode` still compresses them, because `text/event-stream` matches its default
+  `text/*` list, and the browser decompresses the stream as it arrives. That was measured, not
+  assumed: six one-second events through this Caddyfile arrived a second apart with
+  `Content-Encoding: zstd`. The exclusion below is therefore the assistant route's, not streaming's,
+  and goes when that route becomes a page.
 - **Assistant streaming through Caddy:** `/assistant/*/events` is excluded from compression and the
   reverse proxy flushes events immediately. Verify through the proxy with a real queued conversation
   using `curl -N`, not only against the Kestrel port. A run continues if its browser is closed; the

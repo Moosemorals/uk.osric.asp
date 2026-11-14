@@ -28,13 +28,16 @@ internal static class StatusCatalogue {
 
     /// <summary>Every panel, in the order the page draws them.</summary>
     public static IReadOnlyList<Panel> Panels { get; } = [
-        // Pages: nine histograms, four counters, three gauges, and one panel that composes instruments.
+        // Pages: ten histograms, five counters, three gauges, and one panel that composes instruments.
         Heatmap(Page("page.render.duration"), "Render duration",
             "How long a render takes from request to response, split into duration buckets so slow renders stand out.",
             "seconds", "renders/s"),
         Heatmap(Page("page.render.wait"), "Render slot wait",
             "How long a render waits for a free render slot before it starts; a growing wait means renders are queuing.",
             "seconds", "renders/s"),
+        Heatmap(Page("page.stream.duration"), "Stream duration",
+            "How long a committed response stays on the wire, split by whether it completed, went quiet, hit its ceiling, lost its client or failed.",
+            "seconds", "streams/s"),
         RenderChain(),
         Heatmap(Page("page.compile.duration"), "Compile duration",
             "How long Roslyn spends compiling one page, split into duration buckets.",

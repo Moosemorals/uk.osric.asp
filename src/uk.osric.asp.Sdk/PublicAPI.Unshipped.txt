@@ -228,3 +228,5 @@ uk.osric.asp.Sdk.IContext.EditorPath.get -> string!
 *REMOVED*static uk.osric.asp.Sdk.PageDocument.Nav(string! label, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.NavLink>! links, string? className = null) -> string!
 *REMOVED*static uk.osric.asp.Sdk.PageDocument.OpenMain() -> string!
 *REMOVED*uk.osric.asp.Sdk.PageDocument
+uk.osric.asp.Sdk.PageStreamRefusedException
+uk.osric.asp.Sdk.PageStreamRefusedException.PageStreamRefusedException(string! message) -> void

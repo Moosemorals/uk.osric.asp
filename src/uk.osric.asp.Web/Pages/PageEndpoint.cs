@@ -228,9 +228,17 @@ internal sealed class PageEndpoint() {
             result = selection is null
                 ? await render.RenderAsync(path, page)
                 : await render.RenderAsync(path, page, selection);
+        } catch (PageStreamRefusedException) when (!page.IsCommitted) {
+            // Capacity, not a page bug: nothing has been committed, so the ordinary problem document
+            // can still answer. A page that wanted to explain the wait catches this itself.
+            EndpointLogger().LogWarning("Page {Path} could not start a live stream: every stream slot is taken", path.Key);
+
+            await WriteStreamFullAsync(context, path);
+            return;
         } catch (Exception exception) when (page.IsCommitted) {
             // The response is already on the wire, so there is no error page to write and no status to
             // change. A client that left is not a page fault; anything else is.
+            render.Fail();
             if (ResponseWrite.IsDisconnect(context, exception)) {
                 EndpointLogger().LogDebug(exception, "Page {Path} lost the client after committing its response", path.Key);
             } else {
@@ -252,7 +260,9 @@ internal sealed class PageEndpoint() {
                 if (page.IsCommitted) {
                     // A 504 cannot replace headers that are already sent. The renderer has already
                     // logged and counted the abandonment; this is the truncation.
-                    EndpointLogger().LogWarning("Page {Path} outran its budget after committing its response; the response was truncated", path.Key);
+                    EndpointLogger().LogWarning(
+                        "Page {Path} ended its stream ({Reason}) after committing its response; the response was truncated",
+                        path.Key, render.StreamOutcome);
                     context.Abort();
                     return;
                 }
@@ -274,10 +284,19 @@ internal sealed class PageEndpoint() {
 
             try {
                 await page.CompleteAsync();
+                if (render.TokenCancelled) {
+                    render.Truncated();
+                } else if (context.RequestAborted.IsCancellationRequested) {
+                    render.Complete(clientLeft: true);
+                } else {
+                    render.Complete(clientLeft: false);
+                }
             } catch (Exception exception) when (ResponseWrite.IsDisconnect(context, exception)) {
+                render.Complete(clientLeft: true);
                 EndpointLogger().LogDebug(exception, "Page {Path} lost the client while finishing its response", path.Key);
                 context.Abort();
             } catch (Exception exception) {
+                render.Fail();
                 EndpointLogger().LogError(exception, "Page {Path} failed while finishing its response; the response was truncated", path.Key);
                 context.Abort();
             }
@@ -428,6 +447,13 @@ internal sealed class PageEndpoint() {
         await context.Response.WriteAsync(PageLayout.Diagnostics(DiagnosticLine.From(diagnostics)));
         await ShellDocument.EndAsync(context);
     }
+
+    private static Task WriteStreamFullAsync(HttpContext context, PagePath path) =>
+        ErrorResponses.WriteAsync(context, StatusCodes.Status503ServiceUnavailable, new ErrorMessage(
+            "page.stream_full",
+            "The site is at its live-stream limit",
+            $"{path} could not start a live stream because too many are open. Try again shortly.",
+            ErrorMessage.DefaultRemedies(context.User.Identity?.IsAuthenticated == true, EditorPaths.Of(context.RequestServices))));
 
     private static Task WriteTimeoutAsync(HttpContext context, PagePath path) =>
         ErrorResponses.WriteAsync(context, StatusCodes.Status504GatewayTimeout, new ErrorMessage(

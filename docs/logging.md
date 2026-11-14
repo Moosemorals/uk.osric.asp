@@ -132,7 +132,7 @@ query strings, page source, prompts and reasoning are never in one. Nor is anyth
 | Layer | Logs |
 | --- | --- |
 | `Program` | the host starting, with the environment; nothing per request |
-| `PageEndpoint`/`PageRenderer` | render outcomes worth knowing (abandoned, timed out); the rest is metrics |
+| `PageEndpoint`/`PageRenderer` | render outcomes worth knowing (abandoned, timed out, a stream truncated and why); the rest is metrics |
 | `PageImageBuilder`/`PageCompiler` | compile faults (Error); compile timeouts (Warning); the generated source of a failure (Debug) |
 | `EditorEndpoint`/`PageEditor` | saves (Information); a scrub that did not complete (Error) |
 | `Authentication` | sign-in, failed sign-in, sign-out (Information); a ticket that would not be deleted (Warning) |

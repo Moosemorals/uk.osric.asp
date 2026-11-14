@@ -1037,7 +1037,7 @@ public sealed class PageEndpointTests {
     }
 
     private PageSaver Saver(RenderOptions render) {
-        PageBudget budget = new(render, TestOptions.Compile);
+        PageBudget budget = new(render, TestOptions.Compile, TestOptions.Stream);
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageSaver(
@@ -1047,7 +1047,7 @@ public sealed class PageEndpointTests {
 
     private PageRenderer CreatePages(IPageStore storage, RenderOptions? options = null) {
         RenderOptions render = options ?? Options;
-        PageBudget budget = new(render, TestOptions.Compile);
+        PageBudget budget = new(render, TestOptions.Compile, TestOptions.Stream);
         PageImageBuilder compilations = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageRenderer(

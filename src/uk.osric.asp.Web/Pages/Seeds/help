@@ -185,15 +185,25 @@ flush:</p>
 <code>ctx.AntiforgeryField</code> throw. Read the antiforgery field and write any new session state
 before the first flush: their cookies can no longer be sent afterwards.</p>
 <p>A failure after the commit cannot become an error page. An exception is logged and the response is
-truncated; the render deadline truncates it too instead of answering <code>504</code>. A
-<code>HEAD</code> request commits but sends no body, and a streamed response has no
+truncated. A <code>HEAD</code> request commits but sends no body, and a streamed response has no
 <code>Content-Length</code>.</p>
 <p><code>Pages:Render:MaxBodyChars</code> still caps what is buffered before the first flush. After the
-commit the body is not charged, because it is already on its way to the visitor. The render slot and
-deadline still apply, so a stream is short unless the host's budget says otherwise.</p>
+commit the body is not charged, because it is already on its way to the visitor.</p>
+<p>The commit is also where the render's own budget ends and the stream's two clocks start. A stream
+is truncated when nothing has been flushed for <code>Pages:Stream:SilenceSeconds</code> (60 seconds by
+default), and at the latest <code>Pages:Stream:MaxSeconds</code> after the commit (30 minutes by
+default) however busy it is. Every flush restarts the silence clock. A page that stops to think for
+longer than the silence allowance, or that wants to stay open for longer than the ceiling, is ended
+and the reason is logged; the alternative would be a page nobody can reclaim.</p>
+<p>A committed stream holds one of the site's <code>Pages:Stream:Slots</code> (8 by default) and hands
+its render slot back, so a stream that is mostly waiting does not cost the render pool anything and
+the site cannot be held open by more streams than that. When every slot is taken the first flush
+throws <code>PageStreamRefusedException</code> before anything is committed, and the visitor gets
+<code>503</code>; a page that would rather explain the wait catches it itself.</p>
 <p>A server-sent-events page sets <code>text/event-stream</code>, adds
 <code>X-Accel-Buffering: no</code> with <code>ctx.SetHeader</code>, writes one event at a time and
-flushes after each. The render deadline still ends it.</p>
+flushes after each. Each flush is what keeps it inside the silence allowance, and the ceiling is what
+ends a conversation that would otherwise never finish.</p>
 
 <h2 id="head-and-scripts">Stylesheets, head and scripts</h2>
 <p>The page's key chooses its initial content type from the host's extension map; an unmapped key is

@@ -129,44 +129,38 @@ internal sealed class PageRenderer(
                 path.Key, waited.TotalMilliseconds);
 
             deadline.Dispose();
-            return new RenderSession(this, deadline: null, slotHeld: false, cancellationToken);
+            return new RenderSession(this, lifetime: null, cancellationToken);
         }
 
         metrics.RecordWait(Stopwatch.GetElapsedTime(queueStart));
 
-        return new RenderSession(this, deadline, slotHeld: true, cancellationToken);
-    }
-
-    // Releasing here rather than in RenderSession keeps the semaphore private to the renderer: a
-    // session only says whether the slot it was given is still held.
-    private void CloseSession(bool slotHeld, CancellationTokenSource? deadline, bool abandoned) {
-        if (slotHeld) {
-            budget.RenderSlots.Release();
-        }
-
-        // An abandoned layer's continuation disposes the deadline once the page finally stops, so
-        // doing it here would pull the token out from under a render that is still running.
-        if (deadline is not null && !abandoned) {
-            deadline.Dispose();
-        }
+        return new RenderSession(this, new RenderLifetime(budget, path, metrics, deadline), cancellationToken);
     }
 
     private async Task<RenderResult> RenderLayerAsync(
         PagePath path,
         SimpleContext context,
         PageSelection? selection,
-        CancellationTokenSource deadline,
-        Action abandoned,
+        RenderLifetime lifetime,
         CancellationToken cancellationToken) {
 
         long start = Stopwatch.GetTimestamp();
         string outcome = PageMetrics.RenderError;
         string cache = PageMetrics.CacheNone;
+        CommitRecorder recorder = new();
+
+        // A streamed render answers at its commit, so that is where its duration is recorded; the
+        // stream's own lifetime is page.stream.duration. The finally records a render that never
+        // streamed with the outcome it actually reached.
+        lifetime.OnCommit(() => {
+            metrics.RecordRender(path, PageMetrics.RenderOk, cache, Stopwatch.GetElapsedTime(start));
+            recorder.Mark();
+        });
 
         try {
             CachedPage? loaded;
             try {
-                loaded = await LoadAsync(path, selection, deadline.Token, cancellationToken);
+                loaded = await LoadAsync(path, selection, lifetime.Token, cancellationToken);
             } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                 // The read outlived the budget, so the page never ran and there is no thread to
                 // give up on: the answer is the same 504 all the same.
@@ -206,14 +200,17 @@ internal sealed class PageRenderer(
             }
 
             RenderResult rendered = await RunAsync(
-                path, loaded.Image.Bytes, loaded.Image.Symbols, context, deadline, abandoned, cancellationToken);
+                path, loaded.Image.Bytes, loaded.Image.Symbols, context, lifetime, cancellationToken);
             outcome = rendered.Status == RenderStatus.Timeout ? PageMetrics.RenderTimeout : PageMetrics.RenderOk;
 
             return rendered;
         } finally {
             // Reaching here by exception leaves the outcome as `error`, which is what a dashboard
-            // should see: the page was neither served nor reported as a compile failure.
-            metrics.RecordRender(path, outcome, cache, Stopwatch.GetElapsedTime(start));
+            // should see: the page was neither served nor reported as a compile failure. A streamed
+            // render has already recorded itself at its commit.
+            if (!recorder.Recorded) {
+                metrics.RecordRender(path, outcome, cache, Stopwatch.GetElapsedTime(start));
+            }
         }
     }
 
@@ -372,15 +369,14 @@ internal sealed class PageRenderer(
         byte[] image,
         byte[]? symbols,
         SimpleContext context,
-        CancellationTokenSource deadline,
-        Action abandoned,
+        RenderLifetime lifetime,
         CancellationToken cancellationToken) {
 
         // A page that arrived compiled in time can still have spent the budget on the way here - a
         // lazy compile is bounded by the compile options, not by the render's budget - and starting
         // it now would race it against an already-cancelled delay and answer either way. The image
         // is stored by then, so the next request renders it.
-        if (deadline.IsCancellationRequested) {
+        if (lifetime.Token.IsCancellationRequested) {
             return RenderResult.TimedOut;
         }
 
@@ -397,7 +393,7 @@ internal sealed class PageRenderer(
         // page that is waiting hands its thread back while it waits, so an abandoned render costs
         // a task rather than a thread.
         Task page = Task.Run(() => template.InvokeAsync(context), CancellationToken.None);
-        Task expiry = Task.Delay(Timeout.InfiniteTimeSpan, deadline.Token);
+        Task expiry = Task.Delay(Timeout.InfiniteTimeSpan, lifetime.Token);
 
         if (await Task.WhenAny(page, expiry) == page) {
             try {
@@ -414,7 +410,7 @@ internal sealed class PageRenderer(
         }
 
         if (page.IsCanceled
-            && (deadline.IsCancellationRequested || cancellationToken.IsCancellationRequested)) {
+            && (lifetime.Token.IsCancellationRequested || cancellationToken.IsCancellationRequested)) {
             // The page stopped because we asked it to: the answer was already given, or the
             // visitor left. That is not a page fault, so it is not counted as one.
             template.Dispose();
@@ -423,8 +419,7 @@ internal sealed class PageRenderer(
             return RenderResult.TimedOut;
         }
 
-        Abandon(path, context, template, page, deadline, invokeStart, cancellationToken.IsCancellationRequested);
-        abandoned();
+        Abandon(path, context, template, page, lifetime, invokeStart, cancellationToken.IsCancellationRequested);
 
         return RenderResult.TimedOut;
     }
@@ -434,7 +429,7 @@ internal sealed class PageRenderer(
         SimpleContext context,
         LoadedPage template,
         Task page,
-        CancellationTokenSource deadline,
+        RenderLifetime lifetime,
         long invokeStart,
         bool disconnected) {
 
@@ -442,12 +437,21 @@ internal sealed class PageRenderer(
 
         metrics.RecordInvoke(path, false, elapsed);
         metrics.RecordAbandoned(path);
+        lifetime.Abandon(disconnected);
         context.Abandon();
         health.Register();
 
         if (disconnected) {
             logger.LogWarning("Page {Path} was abandoned after {ElapsedMs:0} ms because the client went away",
                 path.Key, elapsed.TotalMilliseconds);
+        } else if (lifetime.IsStreaming) {
+            string reason = lifetime.Outcome switch {
+                PageMetrics.StreamCeiling => "reached its stream ceiling",
+                PageMetrics.StreamSilence => "went quiet",
+                _ => "failed",
+            };
+            logger.LogWarning("Page {Path} was abandoned after {ElapsedMs:0} ms because the stream {Reason}; the response was truncated",
+                path.Key, elapsed.TotalMilliseconds, reason);
         } else {
             logger.LogWarning("Page {Path} exceeded its {TimeoutSeconds} s budget after {ElapsedMs:0} ms; the render was abandoned",
                 path.Key, PageBudget.DescribeSeconds(budget.RenderOptions.Timeout), elapsed.TotalMilliseconds);
@@ -458,7 +462,7 @@ internal sealed class PageRenderer(
         // returns late does not leave the site asking to be restarted.
         _ = page.ContinueWith(finished => {
             template.Dispose();
-            deadline.Dispose();
+            lifetime.DisposeDeadline();
             health.Release();
 
             if (finished.Exception is { } failure) {
@@ -469,49 +473,68 @@ internal sealed class PageRenderer(
 
     private sealed record CachedPage(PageImage? Image, string? Source, string Cache, bool IsLibrary = false);
 
-    /// <summary>One request's render slot and deadline, shared by every layer of its chain.</summary>
+    private sealed class CommitRecorder {
+        private int _recorded;
+
+        public bool Recorded => Volatile.Read(ref _recorded) != 0;
+
+        public void Mark() => Volatile.Write(ref _recorded, 1);
+    }
+
+    /// <summary>One request's lifetime and slots, shared by every layer of its chain.</summary>
     internal sealed class RenderSession : IAsyncDisposable {
 
         private readonly CancellationToken _cancellationToken;
         private readonly PageRenderer _renderer;
-        private readonly bool _slotHeld;
-        private CancellationTokenSource? _deadline;
-        private bool _abandoned;
+        private readonly RenderLifetime? _lifetime;
 
-        internal RenderSession(
-            PageRenderer renderer,
-            CancellationTokenSource? deadline,
-            bool slotHeld,
-            CancellationToken cancellationToken) {
+        internal RenderSession(PageRenderer renderer, RenderLifetime? lifetime, CancellationToken cancellationToken) {
             _renderer = renderer;
-            _deadline = deadline;
-            _slotHeld = slotHeld;
+            _lifetime = lifetime;
             _cancellationToken = cancellationToken;
         }
 
-        /// <summary>Renders one layer of the chain under this session's slot and deadline.</summary>
+        /// <summary>Whether this request has committed its response and is holding a stream slot.</summary>
+        internal bool IsStreaming => _lifetime?.IsStreaming ?? false;
+
+        /// <summary>How the stream ended, for the endpoint's log line.</summary>
+        internal string? StreamOutcome => _lifetime?.Outcome;
+
+        /// <summary>Marks the stream as ended normally, or by the client leaving.</summary>
+        /// <param name="clientLeft">Whether the request was aborted.</param>
+        internal void Complete(bool clientLeft) => _lifetime?.Complete(clientLeft);
+
+        /// <summary>Marks the stream as ended by a page fault.</summary>
+        internal void Fail() => _lifetime?.Fail();
+
+        /// <summary>Marks the stream as ended by the clock that fired during its last write.</summary>
+        internal void Truncated() => _lifetime?.Truncated();
+
+        /// <summary>Whether the render's deadline has fired.</summary>
+        internal bool TokenCancelled => _lifetime?.Token.IsCancellationRequested == true;
+
+        /// <summary>Renders one layer of the chain under this session's lifetime.</summary>
         /// <param name="path">The layer's canonical key.</param>
         /// <param name="context">The context the layer writes to.</param>
         /// <param name="selection">Which representation to render, or <see langword="null"/> for the page's own.</param>
         internal async Task<RenderResult> RenderAsync(PagePath path, SimpleContext context, PageSelection? selection = null) {
             ArgumentNullException.ThrowIfNull(context);
 
-            if (_deadline is not { } deadline) {
+            if (_lifetime is not { } lifetime) {
                 // The slot was never taken: the request was already over before it started.
                 return RenderResult.TimedOut;
             }
 
             // Attached here rather than when the session opened, so every layer's storage and fetch
             // calls are cancelled with the render and not only with the request.
-            context.AttachDeadline(deadline.Token);
+            context.AttachLifetime(lifetime);
 
-            return await _renderer.RenderLayerAsync(path, context, selection, deadline, () => _abandoned = true, _cancellationToken);
+            return await _renderer.RenderLayerAsync(path, context, selection, lifetime, _cancellationToken);
         }
 
         /// <inheritdoc/>
         public ValueTask DisposeAsync() {
-            _renderer.CloseSession(_slotHeld, _deadline, _abandoned);
-            _deadline = null;
+            _lifetime?.Dispose();
 
             return ValueTask.CompletedTask;
         }

@@ -11,6 +11,8 @@ moosemorals.com {
 	# header names the proxy the same way, so remove any that reaches the response.
 	header -Server
 	header -Via
+	# A page's own event stream needs no exclusion: this Caddy flushes text/event-stream as it is
+	# written, compressed or not. Only the shell's events route is excluded, until it becomes a page.
 	@notAssistantEvents not path /assistant/*/events
 	encode @notAssistantEvents zstd gzip
 	# Prometheus scrapes inside the podman network. The public origin must not serve metrics.

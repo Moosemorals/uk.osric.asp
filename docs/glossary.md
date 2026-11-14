@@ -45,7 +45,8 @@ this: those are the `Assistant:Max*` limits on one run or conversation, drawn as
 pairs (DEC-141, DEC-159).
 
 **Owner:** pages — `PageBudget`, `Pages:Render:TimeoutSeconds`, `Pages:Render:Slots`,
-`Pages:Render:MaxBodyChars`, `Pages:Compile:TimeoutSeconds` and `Pages:Compile:Slots`.
+`Pages:Render:MaxBodyChars`, `Pages:Compile:TimeoutSeconds` and `Pages:Compile:Slots`; a committed
+stream leaves the budget for its own clocks in `Pages:Stream`.
 
 ## Capability
 An ability the host grants one render and withholds from the next: storage, the visitor's session,
@@ -402,8 +403,9 @@ or their deadline passes.
 
 **Not** a thread or a budget. A slot bounds concurrency; the budget bounds time.
 
-**Owner:** pages — `PageBudget.RenderSlots` and `PageBudget.CompileSlots`; `Pages:Render:Slots` and
-`Pages:Compile:Slots`.
+**Owner:** pages — `PageBudget.RenderSlots`, `PageBudget.CompileSlots` and `PageBudget.StreamSlots`;
+`Pages:Render:Slots`, `Pages:Compile:Slots` and `Pages:Stream:Slots`. A committed stream swaps its
+render slot for a stream slot, so what it holds while it waits is the site's stream allowance.
 
 ## Staleness
 The state of a stored image that no longer matches the current template or runtime.

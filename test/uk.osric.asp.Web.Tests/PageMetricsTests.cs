@@ -132,7 +132,7 @@ public sealed class PageMetricsTests {
         FakePageStore storage = new();
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = 0.25 };
         using PageHarness pages = new(storage, options: options,
-            budget: new PageBudget(options, TestOptions.Compile));
+            budget: new PageBudget(options, TestOptions.Compile, TestOptions.Stream));
         await pages.Editor.SaveAsync(Key("/slow"), SlowPage);
 
         await pages.RenderAsync("/slow");
@@ -164,6 +164,28 @@ public sealed class PageMetricsTests {
             PageMetrics.SecondsBuckets[^1],
             Is.GreaterThan(cap),
             $"the compile deadline is {cap} s, so a compile recorded at it must land in a real bucket (DEC-214)");
+    }
+
+    [Test]
+    public async Task ACommittedStreamIsMeasuredAsItsOwnLifetimeAsync() {
+        using MetricCapture capture = MetricCapture.Start();
+        using PageMetrics metrics = new();
+        StreamOptions stream = TestOptions.Stream with { Slots = 1, SilenceSeconds = 30, MaxSeconds = 60 };
+        using PageBudget budget = new(TestOptions.Render with { Slots = 1 }, TestOptions.Compile, stream);
+
+        // The renderer holds the render slot before it opens a lifetime, so a test that opens one by
+        // hand has to hold it too.
+        Assert.That(await budget.RenderSlots.WaitAsync(0), Is.True);
+
+        using (RenderLifetime lifetime = new(budget, Key("/stream"), metrics, new CancellationTokenSource())) {
+            await lifetime.BeginStreamAsync();
+            await Task.Delay(50);
+            lifetime.Complete(clientLeft: false);
+        }
+
+        Assert.That(capture.Count("page.stream.duration", "outcome", PageMetrics.StreamCompleted), Is.EqualTo(1));
+        Assert.That(capture.For("page.stream.duration", "/stream"), Has.Count.EqualTo(1),
+            "the stream's own duration is attributed to the page that committed it");
     }
 
     [Test]

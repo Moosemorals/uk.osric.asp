@@ -27,6 +27,7 @@ internal sealed class PageMetrics : IDisposable {
     public static IReadOnlyList<MetricInstrument> Instruments { get; } = [
         new("page.render.duration", InstrumentKind.Histogram, "s"),
         new("page.render.wait", InstrumentKind.Histogram, "s"),
+        new("page.stream.duration", InstrumentKind.Histogram, "s"),
         new("page.compile.duration", InstrumentKind.Histogram, "s"),
         new("page.load.duration", InstrumentKind.Histogram, "s"),
         new("page.invoke.duration", InstrumentKind.Histogram, "s"),
@@ -54,6 +55,14 @@ internal sealed class PageMetrics : IDisposable {
     public static readonly double[] SecondsBuckets =
         [0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 
+    /// <summary>Buckets for <c>page.stream.duration</c>, in seconds.</summary>
+    /// <remarks>
+    /// A stream is measured in the lifetime after its commit, so the scale starts at a second and
+    /// runs to the longest ceiling the configuration accepts.
+    /// </remarks>
+    public static readonly double[] StreamBuckets =
+        [1, 5, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 86_400];
+
     /// <summary>Buckets for <c>page.image.size</c>, in bytes.</summary>
     /// <remarks>Emitting an assembly costs tens of kilobytes, so the scale starts above a kilobyte.</remarks>
     public static readonly double[] ImageBuckets =
@@ -80,6 +89,21 @@ internal sealed class PageMetrics : IDisposable {
 
     /// <summary>The page outran its execution budget and was abandoned.</summary>
     public const string RenderTimeout = "timeout";
+
+    /// <summary>The stream reached its own ceiling.</summary>
+    public const string StreamCeiling = "ceiling";
+
+    /// <summary>The stream went quiet for longer than its silence allows.</summary>
+    public const string StreamSilence = "silence";
+
+    /// <summary>The stream's page returned normally.</summary>
+    public const string StreamCompleted = "completed";
+
+    /// <summary>The visitor left, and the stream ended with them.</summary>
+    public const string StreamClientLeft = "client-left";
+
+    /// <summary>The stream's page faulted after the commit.</summary>
+    public const string StreamError = "error";
 
     /// <summary>An asset was served from source.</summary>
     public const string AssetServed = "served";
@@ -155,6 +179,7 @@ internal sealed class PageMetrics : IDisposable {
     private readonly Meter _meter;
     private readonly Histogram<double> _renderDuration;
     private readonly Histogram<double> _renderWait;
+    private readonly Histogram<double> _streamDuration;
     private readonly Histogram<double> _compileDuration;
     private readonly Histogram<double> _loadDuration;
     private readonly Histogram<double> _invokeDuration;
@@ -176,6 +201,8 @@ internal sealed class PageMetrics : IDisposable {
             "page.render.duration", "s", "Time to serve one page request, including a lazy compile.");
         _renderWait = _meter.CreateHistogram<double>(
             "page.render.wait", "s", "Time a render spends waiting for a slot before it starts.");
+        _streamDuration = _meter.CreateHistogram<double>(
+            "page.stream.duration", "s", "Time a committed response stays on the wire before it ends.");
         _compileDuration = _meter.CreateHistogram<double>(
             "page.compile.duration", "s", "Time Roslyn spends compiling one page.");
         _loadDuration = _meter.CreateHistogram<double>(
@@ -230,6 +257,20 @@ internal sealed class PageMetrics : IDisposable {
         };
 
         _renderDuration.Record(duration.TotalSeconds, tags);
+    }
+
+    /// <summary>Records how long a committed stream stayed open and how it ended.</summary>
+    /// <param name="path">The page that streamed.</param>
+    /// <param name="outcome">One of <see cref="StreamCompleted"/>, <see cref="StreamSilence"/>,
+    /// <see cref="StreamCeiling"/>, <see cref="StreamClientLeft"/> or <see cref="StreamError"/>.</param>
+    /// <param name="duration">The lifetime from the commit to the end.</param>
+    public void RecordStream(PagePath path, string outcome, TimeSpan duration) {
+        TagList tags = new() {
+            { "page.path", path.Key },
+            { "outcome", outcome },
+        };
+
+        _streamDuration.Record(duration.TotalSeconds, tags);
     }
 
     /// <summary>Records time spent queueing for a render slot.</summary>

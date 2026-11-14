@@ -190,20 +190,92 @@ public sealed class PageStreamingTests {
 
     [Test]
     [NonParallelizable]
-    public async Task ATimeoutAfterTheFlushTruncatesInsteadOfAnswering504Async() {
+    public async Task AStreamOutlivesTheRenderBudgetAsync() {
         Store("/stream", """
             <% ctx.Write("prefix"); await ctx.FlushAsync();
                System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600);
-               while (System.DateTime.UtcNow < until) { } %>
+               while (System.DateTime.UtcNow < until) { }
+               ctx.Write("done"); await ctx.FlushAsync(); %>
             """);
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = 0.25 };
+        StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 10, MaxSeconds = 30 };
 
-        (DefaultHttpContext context, string body) = await RenderAsync("/stream", options: options);
+        (DefaultHttpContext context, string body) = await RenderAsync("/stream", options: options, stream: stream);
+
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+            Assert.That(body, Is.EqualTo("prefixdone"),
+                "the render budget must stop at the commit; the stream has its own clocks");
+        });
+    }
+
+    [Test]
+    [NonParallelizable]
+    public async Task AStreamThatGoesQuietIsTruncatedAsync() {
+        Store("/stream", """
+            <% ctx.Write("prefix"); await ctx.FlushAsync();
+               System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600);
+               while (System.DateTime.UtcNow < until) { }
+               ctx.Write("done"); await ctx.FlushAsync(); %>
+            """);
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = 5 };
+        StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 0.1, MaxSeconds = 30 };
+        RecordingLoggerFactory logs = new();
+
+        (DefaultHttpContext context, string body) = await RenderAsync("/stream", options: options, stream: stream, logs: logs);
 
         Assert.Multiple(() => {
             Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
             Assert.That(body, Is.EqualTo("prefix"));
+            Assert.That(logs.Entries.Any(entry =>
+                entry.Level == LogLevel.Warning
+                && entry.Message.Contains("went quiet", StringComparison.Ordinal)), Is.True);
         });
+    }
+
+    [Test]
+    [NonParallelizable]
+    public async Task AStreamAtItsCeilingIsTruncatedAsync() {
+        Store("/stream", """
+            <% ctx.Write("prefix"); await ctx.FlushAsync();
+               System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600);
+               while (System.DateTime.UtcNow < until) { }
+               ctx.Write("done"); await ctx.FlushAsync(); %>
+            """);
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = 5 };
+        StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 10, MaxSeconds = 0.1 };
+        RecordingLoggerFactory logs = new();
+
+        (DefaultHttpContext context, string body) = await RenderAsync("/stream", options: options, stream: stream, logs: logs);
+
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+            Assert.That(body, Is.EqualTo("prefix"));
+            Assert.That(logs.Entries.Any(entry =>
+                entry.Level == LogLevel.Warning
+                && entry.Message.Contains("stream ceiling", StringComparison.Ordinal)), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task AFullStreamPoolRefusesTheFirstFlushWith503Async() {
+        Store("/stream", """<% ctx.Write("hi"); await ctx.FlushAsync(); %>""");
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = 5 };
+        StreamOptions stream = TestOptions.Stream with { Slots = 1, SilenceSeconds = 10, MaxSeconds = 30 };
+        PageBudget budget = new(options, TestOptions.Compile, stream);
+
+        await budget.StreamSlots.WaitAsync();
+        try {
+            (DefaultHttpContext context, string body) = await RenderAsync("/stream", options: options, stream: stream, budget: budget);
+
+            Assert.Multiple(() => {
+                Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status503ServiceUnavailable));
+                Assert.That(body, Does.Contain("live-stream limit"));
+            });
+        } finally {
+            budget.StreamSlots.Release();
+            budget.Dispose();
+        }
     }
 
     [Test]
@@ -278,9 +350,13 @@ public sealed class PageStreamingTests {
         string method = "GET",
         RenderOptions? options = null,
         string? layout = null,
-        RecordingLoggerFactory? logs = null) {
+        RecordingLoggerFactory? logs = null,
+        StreamOptions? stream = null,
+        PageBudget? budget = null) {
         RenderOptions render = options ?? TestOptions.Render;
-        PageSaver saver = CreateSaver(render);
+        StreamOptions streaming = stream ?? TestOptions.Stream;
+        PageBudget shared = budget ?? new PageBudget(render, TestOptions.Compile, streaming);
+        PageSaver saver = CreateSaver(shared);
         DefaultHttpContext context = TestHttp.CreateContext(path.TrimStart('/'), method, path);
         PageEnvironment environment = new(
             new ReservedPaths(ReservedPaths.Default),
@@ -305,7 +381,7 @@ public sealed class PageStreamingTests {
 
         ILoggerFactory factory = logs is null ? NullLoggerFactory.Instance : logs;
 
-        return (PageEndpoint.HandleAsync(context, CreateRenderer(render), factory, environment), context);
+        return (PageEndpoint.HandleAsync(context, CreateRenderer(render, shared, logs), factory, environment), context);
     }
 
     private async Task<(DefaultHttpContext Context, string Body)> RenderAsync(
@@ -313,15 +389,16 @@ public sealed class PageStreamingTests {
         string method = "GET",
         RenderOptions? options = null,
         string? layout = null,
-        RecordingLoggerFactory? logs = null) {
-        (Task run, DefaultHttpContext context) = Start(path, method, options, layout, logs);
+        RecordingLoggerFactory? logs = null,
+        StreamOptions? stream = null,
+        PageBudget? budget = null) {
+        (Task run, DefaultHttpContext context) = Start(path, method, options, layout, logs, stream, budget);
         await run;
 
         return (context, await TestHttp.ReadBodyAsync(context));
     }
 
-    private PageSaver CreateSaver(RenderOptions options) {
-        PageBudget budget = new(options, TestOptions.Compile);
+    private PageSaver CreateSaver(PageBudget budget) {
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageSaver(
@@ -329,8 +406,7 @@ public sealed class PageStreamingTests {
             _metrics, NullLogger<PageSaver>.Instance);
     }
 
-    private PageRenderer CreateRenderer(RenderOptions options) {
-        PageBudget budget = new(options, TestOptions.Compile);
+    private PageRenderer CreateRenderer(RenderOptions options, PageBudget budget, RecordingLoggerFactory? logs) {
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageRenderer(
@@ -341,6 +417,6 @@ public sealed class PageStreamingTests {
             _metrics,
             budget,
             new PageHealth(options.AbandonedLimit),
-            NullLogger<PageRenderer>.Instance);
+            logs?.CreateLogger<PageRenderer>() ?? NullLogger<PageRenderer>.Instance);
     }
 }

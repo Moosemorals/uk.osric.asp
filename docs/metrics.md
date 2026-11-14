@@ -16,6 +16,7 @@ the other half of the same question and live in [logging](logging.md).
 | --- | --- | --- | --- |
 | `page.render.duration` | histogram | s | `page.path` (`(not-found)` for a miss), `outcome` (`ok`, `compile-error`, `error`, `not-found`, `timeout`), `cache` (`hit`, `miss`, `none`) |
 | `page.render.wait` | histogram | s | — time spent waiting for a render slot; site-wide, not per page |
+| `page.stream.duration` | histogram | s | `page.path`, `outcome` (`completed`, `silence`, `ceiling`, `client-left`, `error`) — the committed life of a streamed response |
 | `page.render.abandoned` | counter | — | `page.path` — renders given up on at the deadline |
 | `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`) |
 | `page.load.duration` | histogram | s | `page.path` |
@@ -53,7 +54,10 @@ The wait histogram carries no path tag for the same reason, and because queueing
 site rather than of a page.
 
 Durations are seconds to match OpenTelemetry and ASP.NET Core's own hosting instruments, so do not
-add a request-duration metric of our own. A run's duration is wall-clock, so it includes the time an
+add a request-duration metric of our own. A streamed render is measured twice on purpose: its
+`page.render.duration` ends at the commit, where the visitor stopped waiting for the page, and
+`page.stream.duration` covers the committed lifetime that follows, so the two are adjacent rather than
+nested. A run's duration is wall-clock, so it includes the time an
 approval or a continuation waited for its owner, as `assistant.run.duration` always has. On a cache
 miss `page.compile.duration` is a subset of
 `page.render.duration`; never add the two together. `page.path` is bounded by the number of stored
@@ -83,11 +87,11 @@ instrument, and the instrument's type decides the chart (DEC-180).
 | counter whose labels partition one total | stacked area | The parts and the whole are readable, and the top edge of the stack is the total. |
 | gauge | line chart | A level over time. |
 
-`StatusCatalogue` holds the list: seventeen Pages panels (nine heatmaps for the duration and size
-histograms, stacked areas for the render chain, cache lookups and staleness, line charts for abandoned
-renders, layout fallbacks and the three storage gauges), ten Assistant panels (eight heatmaps, the
-token counter as a line chart and memory writes as a stacked area), and five Host panels from the
-framework's own meters
+`StatusCatalogue` holds the list: nineteen Pages panels (ten heatmaps for the duration and size
+histograms, stacked areas for the render chain, cache lookups, staleness and asset requests, line
+charts for abandoned renders, layout fallbacks and the three storage gauges), ten Assistant panels
+(eight heatmaps, the token counter as a line chart and memory writes as a stacked area), and five Host
+panels from the framework's own meters
 — process memory, process CPU, connections and active requests, request duration and the HTTP status
 mix. Combined panels are allowed where several series answer one question: the Host panels read
 meters this repository does not register, and the Pages render chain composes four that it does.
@@ -209,7 +213,8 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
 - **The buckets are ours, and they reach past the cap.** Each scale's top boundary is larger than the
   cap its series measures, so a sample recorded at its deadline is a real bucket rather than `+Inf`
   (DEC-214) — the sample a panel is opened for. The page durations share one scale to 10 s, past the
-  five-second compile deadline a save keeps too; a tool call has one to 20 s, past
+  five-second compile deadline a save keeps too; a stream's committed lifetime has its own scale, from
+  a second to the day a `Pages:Stream:MaxSeconds` ceiling may reach; a tool call has one to 20 s, past
   `Assistant:ToolTimeoutSeconds`; the two provider waits one to 240 s, past
   `Assistant:RequestTimeoutSeconds`; and the run's step and tool-call counts one each to 192,
   past `Assistant:MaxSteps` (160) and `Assistant:MaxToolCalls` (128). A run's own length has no

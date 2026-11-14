@@ -176,10 +176,13 @@ commit point and the whole of the opt-in:
 - `AntiforgeryField` must be read before the first flush; after it, the field's cookie can no longer
   be sent. A first session write after the commit is refused for the same reason; a write with a
   session the visitor already has is ordinary, because it needs no header.
-- The render deadline and the render slot still apply. A stream that outlives the deadline is
-  truncated, and a long-lived stream holds its slot. This is the shape a page needs for progressive
-  HTML, long-poll and server-sent events; it does not make an unbounded stream safe, which is the
-  assistant page's own problem.
+- The commit ends the render's budget and starts the stream's own clocks, so a stream outlives
+  `Pages:Render:TimeoutSeconds` and is bounded by `Pages:Stream` instead (see [the page execution
+  budget](#page-execution-budget)). A committed stream gives its render slot back and takes a stream
+  slot, so one that is mostly waiting costs the render pool nothing; when every stream slot is taken
+  the first flush throws `PageStreamRefusedException` before anything is committed, and the endpoint
+  answers `503`. This is the shape a page needs for progressive HTML, long-poll and server-sent
+  events; it does not make an unbounded stream safe, which is the app's own problem.
 
 ## Assets and versioned URLs
 
@@ -408,8 +411,15 @@ waits for it against one deadline that covers both queueing and running:
   request answers `504` without starting the page. The next request is served from the store.
 - `Pages:Render:MaxBodyChars` caps the buffered body, so a page that writes in a loop fails quickly
   instead of growing the process. The cap stops at the first flush: a streamed body is already on the
-  wire and is not charged, so a post-commit loop is bounded by the deadline and the container rather
-  than by this setting.
+  wire and is not charged, so a post-commit loop is bounded by the stream's clocks and the container
+  rather than by this setting.
+- A committed stream is bounded by `Pages:Stream` instead of by the render budget. The commit ends
+  the render's deadline and starts two clocks: `SilenceSeconds` truncates a stream that flushes
+  nothing for that long, and `MaxSeconds` truncates one that is still busy that far past its commit,
+  so neither a page that stopped talking nor one that never stops can hold a slot forever. Every
+  flush restarts the silence clock. `Slots` caps how many streams may be committed at once; a render
+  whose first flush finds none is answered `503` and never commits. Each truncation is logged with
+  its reason and recorded as the stream's outcome on `page.stream.duration`.
 
 Every key in this section is required: a missing or out-of-range value stops the site at startup
 with a sentence naming the key, its range and the shipped value. See

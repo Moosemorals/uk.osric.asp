@@ -701,7 +701,7 @@ public sealed class PageLayoutChainTests {
     }
 
     private PageSaver CreateSaver(RenderOptions options) {
-        PageBudget budget = new(options, TestOptions.Compile);
+        PageBudget budget = new(options, TestOptions.Compile, TestOptions.Stream);
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageSaver(
@@ -710,7 +710,7 @@ public sealed class PageLayoutChainTests {
     }
 
     private PageRenderer CreateRenderer(RenderOptions options) {
-        PageBudget budget = new(options, TestOptions.Compile);
+        PageBudget budget = new(options, TestOptions.Compile, TestOptions.Stream);
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageRenderer(

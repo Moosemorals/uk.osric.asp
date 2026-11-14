@@ -85,7 +85,10 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   the commit point: the first flush applies the response, a wrapped page cannot flush, a streamed
   page is served alone, the tail is sent at completion, the body cap stops at the commit, `HEAD`
   writes nothing and a committed exception or deadline truncates rather than answering an error page
-  or a `504`. `DisconnectGuardTests` pins the write after a client disconnect as a Debug-level end,
+  or a `504`. `RenderLifetimeTests` proves the lifetime those cases lean on: the commit moves the
+  render slot to a stream slot and gives it back when the stream ends, a full stream pool refuses
+  before anything is committed, and a flush re-arms the silence clock while the ceiling ends a stream
+  that keeps talking. `DisconnectGuardTests` pins the write after a client disconnect as a Debug-level end,
   `Web.IntegrationTests/PageStreamingTests` and `AssistantDisconnectTests` drive the same shapes
   through the real host. `LoginRedirectTests` pins the
   `returnUrl` it builds, and `SimpleContextTests` the guard's status per method, the one-token-per-
@@ -170,7 +173,8 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   findings recorded beside the plan.
 - **The execution budget** is tested in `Web.Tests` (`PageRendererTests` for the render deadline, the
   render queue, the abandoned context and the body cap; `PageImageBuilderTests` for the compile queue
-  and the compile deadline; `AbandonedRenderHealthCheckTests` for the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the
+  and the compile deadline; `RenderLifetimeTests` for the stream's own clocks and slots;
+  `AbandonedRenderHealthCheckTests` for the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the
   host on a one-second budget and asserts `504`. A slow page there burns CPU against a wall clock
   rather than sleeping, because the page API policy refuses `Thread.Sleep` and `Task.Delay`. Nothing
   asserts on the podman restart: that belongs to the supervisor, not to `WebApplicationFactory`.
