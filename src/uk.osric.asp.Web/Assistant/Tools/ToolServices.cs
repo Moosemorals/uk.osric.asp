@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Assistant.Tools;
 
 using Microsoft.Extensions.DependencyInjection;
+using uk.osric.asp.Web.Documentation;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
@@ -57,5 +58,10 @@ internal sealed class ToolServices(
     /// <summary>Shapes and bounds what a tool answers with.</summary>
     public ToolResults Results { get; } = new(options);
 
+    /// <summary>The documentation this build carries, read only when a tool asks for it.</summary>
+    public ReferenceLibrary Reference => _reference ??= scope.GetRequiredService<ReferenceLibrary>();
+
     private IPageStoreReader? _store;
+
+    private ReferenceLibrary? _reference;
 }

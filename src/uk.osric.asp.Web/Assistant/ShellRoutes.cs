@@ -32,6 +32,8 @@ internal static class ShellRoutes {
             "Lists the page store's contents and downloads it as a SQLite archive."),
         new("/admin/import", "GET, POST", "the owner",
             "Uploads a page archive, shows what it would change and applies it all or nothing."),
+        new("/admin/reference", "GET", "anyone",
+            "The documentation this build carries: one page per product assembly, with every type and member. The page contract's own words are read with the reference tool."),
         new("/admin/restore", "GET, POST", "the owner",
             "Restores every page the release ships with from its bundled source, showing what would change and then what it changed."),
         new("/assistant", "GET, POST, HEAD", "the owner; only while Assistant:Enabled is true",

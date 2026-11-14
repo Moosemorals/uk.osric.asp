@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v27";
+    public const string Version = "page-author-v28";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -402,11 +402,19 @@ internal static class PageAuthorPrompt {
         `CryptographicOperations.FixedTimeEquals` are allowed; nothing else in
         `System.Security.Cryptography` is.
 
+        The contract's own documentation is in the reference: `reference
+        type="IPageStorage"` for a type you can name, and `reference
+        query="cookie"` when you cannot. It answers the summary, remarks,
+        signatures, parameters and returns the compiler documented, so prefer
+        it to guessing a member name or an argument list. It covers the page
+        contract (`uk.osric.asp.Sdk`) only; `/admin/reference` serves the same
+        documentation for the host's own assemblies to a reader.
+
         ## Shell files
         The site's shell files are its own routes: `/admin/changes`,
-        `/admin/export`, `/admin/import`, `/admin/restore`, `/admin/scrub`,
-        `/assistant`, `/favicon.ico`, `/heath`, `/login`, `/logout`,
-        `/metrics` and `/status`, plus whatever the host adds to
+        `/admin/export`, `/admin/import`, `/admin/reference`, `/admin/restore`,
+        `/admin/scrub`, `/assistant`, `/favicon.ico`, `/heath`, `/login`,
+        `/logout`, `/metrics` and `/status`, plus whatever the host adds to
         `Pages:ReservedPaths`. The editor is not one of them: it is a stored
         page at `Pages:Editor:Key` — `/pages` as shipped — whose own code
         guards it. They are listed and they can be read: `cat` and
