@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>An in-memory <see cref="IPageReadStore"/> that applies the same rules as the real one.</summary>
@@ -36,7 +37,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
         string key,
         string template,
         DateTimeOffset? savedAt = null,
-        bool? templateHasCode = null,
+        PageKind? templateKind = null,
         string? runtimeId = null,
         bool hasImage = false,
         bool hasDiagnostics = false,
@@ -49,7 +50,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
         }
 
         hash ??= "hash-" + revisions.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-" + key;
-        revisions.Add(new FakeRevision(hash, when, template, templateHasCode, runtimeId, hasImage, hasDiagnostics));
+        revisions.Add(new FakeRevision(hash, when, template, templateKind, runtimeId, hasImage, hasDiagnostics));
 
         return hash;
     }
@@ -70,7 +71,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
             .Select(item => {
                 FakeRevision latest = item.Value[^1];
                 return new PageReadHead(
-                    item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key), latest.TemplateHasCode,
+                    item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key), latest.TemplateKind,
                     latest.RuntimeId, latest.HasImage, latest.HasDiagnostics);
             })];
     }
@@ -130,7 +131,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
         string Hash,
         DateTimeOffset SavedAt,
         string Template,
-        bool? TemplateHasCode,
+        PageKind? TemplateKind,
         string? RuntimeId,
         bool HasImage,
         bool HasDiagnostics);

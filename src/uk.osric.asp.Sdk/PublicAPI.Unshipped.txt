@@ -31,6 +31,8 @@ uk.osric.asp.Sdk.PageEntry.IsHtml.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsAsset.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsAsset.init -> void
 uk.osric.asp.Sdk.PageEntry.IsHtml.init -> void
+uk.osric.asp.Sdk.PageEntry.IsLibrary.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsLibrary.init -> void
 uk.osric.asp.Sdk.PageEntry.IsReserved.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsReserved.init -> void
 uk.osric.asp.Sdk.PageEntry.Key.get -> string!

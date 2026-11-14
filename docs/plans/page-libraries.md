@@ -320,7 +320,9 @@ phase 2 is the migration; phase 3 is the mechanism; phase 4 is the seed and the 
 
 ### Phase 2 — the kind in storage and serving (Web + migration)
 
-- The migration: add `TemplateKind`, derive it from `TemplateHasCode`, drop that column.
+- The migration: rename the column. The old values already mean the new ones — `0` is text and
+  `1` is a page — because `PageKind` is ordered that way, so nothing is copied and nothing is
+  rewritten; `Down` maps a library back to "has code".
 - `PageImage`, `PageTemplate`, `PageImageState`, `PageEntry` and the read store follow the kind;
   `IsLibrary` joins `IsAsset` on `PageEntry`.
 - `PageEndpoint`: a library key answers `404`, and so does a versioned URL naming one; nothing is
@@ -365,16 +367,13 @@ phase 2 is the migration; phase 3 is the mechanism; phase 4 is the seed and the 
 
 ## Storage
 
-`PageRevisions` gains `TemplateKind` (nullable int) and `TemplateLibraries` (nullable text). The
-migration:
-
-1. adds both columns;
-2. writes `TemplateKind` from `TemplateHasCode`, leaving `NULL` where it was never judged;
-3. drops `TemplateHasCode`.
+`TemplateHasCode` becomes `TemplateKind` (nullable int), and phase 3 adds `TemplateLibraries`
+(nullable text). The migration is a rename, because the two answers are ordered the same way: a stored
+`0` meant "no code" and is text, a stored `1` meant "has code" and is a page, and `NULL` still means
+never judged. No row can hold a library yet, so nothing is backfilled and nothing is rewritten.
 
 `TemplateLibraries` is written with the image and is an opaque fingerprint: nothing reads it back as
-data, and a null or empty value means "no libraries", which is the truth for every page today. Old
-rows recompile on their next request (the runtime id moved), so nothing is backfilled.
+data, and a null or empty value means "no libraries", which is the truth for every page today.
 
 ## Risks and unknowns
 
@@ -417,6 +416,8 @@ here when they land, beside the decision they would reopen (D12).
 
 - **The seeded example.** A library seed is worth it only if the owner will read it; if not, `/help`
   is enough and the recursive seeder waits for a reason.
-- **The state words.** "Library", "Library with warnings" and "Library failed" are the proposal;
-  the editor, the assistant and `read_page` must agree on the spelling, and the decision is cheap to
-  change while it is one function.
+- **The state words.** Phase 2 answered this one: "Library" when the check reported nothing and
+  "Library with issues" when it reported anything. A library stores no assembly, so the listing knows
+  that its check said something but not whether it was a warning or an error; the editor shows the
+  diagnostics themselves. Splitting the two would need another stored signal, and it is not worth one
+  yet.

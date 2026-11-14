@@ -48,7 +48,7 @@ internal sealed class PageCatalogScope(
         entries.EnsureCapacity(rows.Count);
         foreach (PageReadHead row in rows) {
             PageImageState state = PageImageStatus.Describe(
-                row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateHasCode);
+                row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateKind);
             entries.Add(new PageEntry(
                 row.Key,
                 row.SavedAt,
@@ -56,7 +56,8 @@ internal sealed class PageCatalogScope(
                 row.IsDeleted,
                 reserved.IsReserved(PagePath.Normalize(row.Key)),
                 IsHtml(row.Key)) {
-                IsAsset = PageAssetPolicy.IsAsset(row.TemplateHasCode),
+                IsAsset = PageAssetPolicy.IsAsset(row.TemplateKind),
+                IsLibrary = PageAssetPolicy.IsLibrary(row.TemplateKind),
                 State = state.Describe(),
             });
         }

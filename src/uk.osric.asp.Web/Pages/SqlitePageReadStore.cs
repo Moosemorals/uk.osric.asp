@@ -43,7 +43,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                     head.IsDeleted,
                     revision.SavedAt,
                     revision.Hash,
-                    revision.TemplateHasCode,
+                    revision.TemplateKind,
                     revision.RuntimeId,
                     HasImage = revision.Image != null,
                     HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
@@ -53,7 +53,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
             .ToArrayAsync(cancellationToken);
 
         return [.. rows.Select(row => new PageReadHead(
-            row.Path, row.SavedAt, row.Hash, row.IsDeleted, row.TemplateHasCode,
+            row.Path, row.SavedAt, row.Hash, row.IsDeleted, row.TemplateKind,
             row.RuntimeId, row.HasImage, row.HasDiagnostics))];
     }
 

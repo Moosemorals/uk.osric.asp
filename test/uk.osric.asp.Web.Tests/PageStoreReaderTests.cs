@@ -124,8 +124,8 @@ public sealed class PageStoreReaderTests {
         // A stored no-code page carries the revision's own verdict, which generation writes beside
         // the image; the listing and the read both judge from that column.
         storage["/plain.txt"] = new PageTemplate(PageHarness.Key("/plain.txt"), "just text", new PageImage(
-            TemplateFingerprint.Of("just text"), pages.Editor.RuntimeId, null, null, [], HasCode: false)) {
-            TemplateHasCode = false,
+            TemplateFingerprint.Of("just text"), pages.Editor.RuntimeId, null, null, [], Kind: PageKind.Text)) {
+            Kind = PageKind.Text,
         };
         storage.CurrentRuntimeId = pages.Editor.RuntimeId;
         PageStoreReader reader = Reader(pages);

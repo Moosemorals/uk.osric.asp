@@ -250,8 +250,8 @@ internal static class PageAuthorPrompt {
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
         and never writes. `ListAsync(prefix)` lists the heads under a subtree
-        and returns `PageEntry` rows with `Key`, `SavedAt`, `Hash` and four
-        marks: `IsDeleted`, `IsReserved`, `IsHtml` and `IsAsset`. A prefix is a subtree,
+        and returns `PageEntry` rows with `Key`, `SavedAt`, `Hash` and five
+        marks: `IsDeleted`, `IsReserved`, `IsHtml`, `IsAsset` and `IsLibrary`. A prefix is a subtree,
         not a string prefix: `/blog` lists `/blog` and `/blog/post`, never
         `/blogroll`; `""` and `/` are the whole store. `ReadAsync(key)` reads a
         live page's template as a `PageSource`, or null when there is none;

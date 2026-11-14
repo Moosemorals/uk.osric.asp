@@ -138,14 +138,18 @@ internal sealed class PageSaver(
     /// </remarks>
     internal void RecordSaved(PagePath path, PageImage image, long start) {
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
-        metrics.RecordSave(path, image.Bytes is not null || image.HasCode is false, duration);
+        metrics.RecordSave(path, image.Bytes is not null || image.Kind is PageKind.Text, duration);
         logger.LogInformation("Saved {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key, duration.TotalMilliseconds,
             Outcome(image));
     }
 
     private static string Outcome(PageImage image) {
-        if (image.HasCode is false) {
+        if (image.Kind is PageKind.Text) {
             return "stored as source";
+        }
+
+        if (image.Kind is PageKind.Library) {
+            return image.Diagnostics.Count > 0 ? "library with issues" : "library";
         }
 
         if (image.Bytes is null) {

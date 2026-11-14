@@ -56,10 +56,11 @@ reaches a signed-in session when no anonymous one is left. That order is what ke
 anonymous visitors from pushing the owner's own session out.
 
 `PageRevisions` holds every save as a separate row, including its source, revision hash, creation
-runtime id, optional compilation result and a nullable `TemplateHasCode` verdict. The verdict is
-written by the generation that judged the source: `0` means the template has no code, so there is no
-image and every request serves the stored source; `1` means it has code, and the image fields are
-whatever the compile reached; `NULL` means the revision has never been judged. A lazy compile fills a
+runtime id, optional compilation result and a nullable `TemplateKind` verdict. The verdict is
+written by the generation that judged the source: `0` is a template with no code, so there is no
+image and every request serves the stored source; `1` is a page, and the image fields are whatever
+the compile reached; `2` is a library, which is checked and stores no assembly; `NULL` means the
+revision has never been judged. A lazy compile fills a
 `NULL` verdict on the revision it compiled. Nothing backfills a row that already exists — including
 the seeded assets — so a revision keeps `NULL` until it is next saved, restored or first generated.
 

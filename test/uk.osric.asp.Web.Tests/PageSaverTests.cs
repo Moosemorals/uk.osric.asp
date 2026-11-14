@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
@@ -97,7 +98,7 @@ public sealed class PageSaverTests {
             SavedRevision saved = await pages.Saver.SaveAsync(
                 PageHarness.Key("/site.css"), "body { color: red; }", CancellationToken.None);
 
-            Assert.That(saved.Revision.TemplateHasCode, Is.False);
+            Assert.That(saved.Revision.Kind, Is.EqualTo(PageKind.Text));
             Assert.That(saved.Revision.Image, Is.Not.Null);
             Assert.That(saved.Revision.Image?.Bytes, Is.Null);
             Assert.That(PageHarness.Stored(storage, "/site.css").Template, Is.EqualTo("body { color: red; }"));
@@ -119,7 +120,7 @@ public sealed class PageSaverTests {
         PageTemplate stored = PageHarness.Stored(storage, "/fault");
         Assert.That(stored.Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
         Assert.That(stored.Image, Is.Null);
-        Assert.That(stored.TemplateHasCode, Is.Null, "a compiler fault never judged the source");
+        Assert.That(stored.Kind, Is.Null, "a compiler fault never judged the source");
         Assert.That(stored.CreationRuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
     }
 

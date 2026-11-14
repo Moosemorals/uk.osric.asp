@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 
 /// <summary>The image compiled from a page's template, stored beside it.</summary>
 /// <param name="TemplateHash">The fingerprint of the template the image was built from.</param>
@@ -14,10 +15,10 @@ using uk.osric.asp.Core.Compilation;
 /// The compiler's author-facing diagnostics, errors and warnings, in template space; empty when the
 /// template compiled cleanly.
 /// </param>
-/// <param name="HasCode">
-/// Whether the template had anything to compile, or <see langword="null"/> when the stored row has
-/// never been judged. A record built by generation always knows; a stored image from before the
-/// verdict existed keeps the null.
+/// <param name="Kind">
+/// What the template is for, or <see langword="null"/> when the stored row has never been judged. A
+/// record built by generation always knows; a stored image from before the verdict existed keeps the
+/// null.
 /// </param>
 internal sealed record PageImage(
     string TemplateHash,
@@ -25,7 +26,7 @@ internal sealed record PageImage(
     byte[]? Bytes,
     byte[]? Symbols,
     IReadOnlyList<PageDiagnostic> Diagnostics,
-    bool? HasCode = true) {
+    PageKind? Kind = PageKind.Page) {
 
     /// <summary>Whether the stored image still matches the template and the build it came from.</summary>
     /// <param name="templateHash">The fingerprint of the template as it is now.</param>

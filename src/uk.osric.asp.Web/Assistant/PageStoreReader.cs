@@ -212,5 +212,5 @@ internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths) : 
         page.Image?.Bytes is not null,
         page.Image?.Diagnostics.Count > 0,
         pages.RuntimeId,
-        page.TemplateHasCode);
+        page.Kind);
 }

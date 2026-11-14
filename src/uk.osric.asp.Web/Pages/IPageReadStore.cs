@@ -3,20 +3,22 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using uk.osric.asp.Core.Pages;
+
 /// <summary>One row of a page listing, as the read store answers it.</summary>
 /// <param name="Key">The page's canonical key.</param>
 /// <param name="SavedAt">When the head's revision was saved.</param>
 /// <param name="Hash">The head's revision hash.</param>
 /// <param name="IsDeleted">Whether the page is a tombstone.</param>
-/// <param name="TemplateHasCode">
-/// Whether the head's template has code, or <see langword="null"/> when it has never been judged.
+/// <param name="TemplateKind">
+/// What the head's template is for, or <see langword="null"/> when it has never been judged.
 /// </param>
 internal sealed record PageReadHead(
     string Key,
     DateTimeOffset SavedAt,
     string Hash,
     bool IsDeleted,
-    bool? TemplateHasCode = null,
+    PageKind? TemplateKind = null,
     string? RuntimeId = null,
     bool HasImage = false,
     bool HasDiagnostics = false);

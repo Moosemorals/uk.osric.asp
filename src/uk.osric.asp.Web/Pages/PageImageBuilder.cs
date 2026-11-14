@@ -55,7 +55,7 @@ internal sealed class PageImageBuilder(
                 Bytes: null,
                 Symbols: null,
                 Diagnostics: shape,
-                HasCode: false);
+                Kind: PageKind.Text);
         }
 
         // A template that does not parse never reaches the compiler, but it fails exactly like a
@@ -63,6 +63,13 @@ internal sealed class PageImageBuilder(
         // recompiled on every request.
         CompileResult result;
         if (generated.Source is { } generatedSource) {
+            // A library contributes its declarations and no handler, so it is generated again in that
+            // shape: the page's unit carries a handler nothing can run, and the library's rule would
+            // rightly refuse it.
+            GeneratedSource source = generated.Kind is PageKind.Library
+                ? TemplateSourceGenerator.GenerateLibrary(template).Source!
+                : generatedSource;
+
             using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(budget.CompileOptions.Timeout);
 
@@ -92,7 +99,11 @@ internal sealed class PageImageBuilder(
             } else {
                 try {
                     try {
-                        result = compiler.Compile(generatedSource, deadline.Token);
+                        // A library is checked, never emitted: there is nothing to run, and the
+                        // answer the author needs is its diagnostics.
+                        result = generated.Kind is PageKind.Library
+                            ? compiler.CompileLibrary(source, deadline.Token)
+                            : compiler.Compile(source, deadline.Token);
                     } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                         // Roslyn honours the token between operations, so this is a coarse bound: it is
                         // stored like any other page error so the editor shows it and the page is not
@@ -136,6 +147,6 @@ internal sealed class PageImageBuilder(
             result.Image,
             result.Symbols,
             PageDiagnostic.SortedForDisplay([.. shape, .. result.Diagnostics]),
-            generated.Kind is not PageKind.Text);
+            generated.Kind);
     }
 }

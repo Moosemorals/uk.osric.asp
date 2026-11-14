@@ -150,15 +150,26 @@ carry one, and `HEAD` retains the representation length.
 
 ## Assets and versioned URLs
 
+Every stored revision is one of three kinds, judged from its tokens by generation and stored beside
+the source (`PageKind`): **text** (no C#), **page** (C# that renders) and **library** (only
+declaration blocks). A kind is a property of the source rather than of the key, so editing a page can
+change what it is; there is no configuration for it.
+
 A page with no code is never compiled. Generation reads the tokens it already produced, and a
-template made only of text has nothing to compile: the revision is stored with no image, its
-verdict is `TemplateHasCode = false`, and every request writes the stored source out byte for byte.
+template made only of text has nothing to compile: the revision is stored with no image, its kind is
+text, and every request writes the stored source out byte for byte.
 Such a page has only the template-shape warnings `TemplateShapeCheck` can find without compiling
 (DEC-273); a clean text page has none.
 
 A no-code page is a complete representation: it is never wrapped, so its stored source is the
 response even for an HTML key. It gets no banner, no skip link, no base sheet and no title
 requirement; if it wants chrome, it adds a code block and becomes a fragment.
+
+A **library** is a template whose only tokens are declaration blocks. It has nothing to render, so it
+is never served: its key answers `404` and it is never an asset, never pinned with `?v=` and never
+wrapped. It is checked when it is saved — Roslyn analyses it and the diagnostics are stored beside the
+source, with no assembly — and a page API violation inside it is reported at the library's own line.
+A library has to declare at least one type, and it may declare a namespace, which a page may not.
 
 An **asset** is exactly a page with no code. `PageAssetPolicy.IsAsset` is the one answer the
 endpoint, `ctx.AssetUrl` and the head resolver use. There is no document extension list.

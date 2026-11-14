@@ -74,6 +74,11 @@ the banner, the <code>main</code> landmark and the close. Your page writes only 
 source is the response, and it must write its own whole document. Add a code block &mdash; even one
 that only sets a title &mdash; if you want the site chrome. There is no hidden layout for a static
 page.</p>
+<p>A page whose blocks are <strong>only declarations</strong> &mdash; <code>&lt;%! ... %&gt;</code> and
+nothing else &mdash; is a <strong>library</strong>: it has nothing to render, so it is never served and
+its own URL answers &ldquo;not found&rdquo;. It is still checked when you save it, so a type that will not
+compile is reported like any other page's. A library has to declare at least one type, and the page API
+policy applies to it exactly as it does to code in a page.</p>
 <p>Do not write a doctype, <code>html</code>, <code>head</code>, <code>body</code>, a
 <code>title</code> element or the site menu in a page with code. Start at the page's first heading and
 write one <code>h1</code>.</p>

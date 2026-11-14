@@ -34,6 +34,12 @@ public readonly record struct PageEntry(
     /// <summary>Whether the head has no code, so its source is the response.</summary>
     public bool IsAsset { get; init; }
 
+    /// <summary>
+    /// Whether the head is a library: declarations only, compiled into the pages that name it and
+    /// never served.
+    /// </summary>
+    public bool IsLibrary { get; init; }
+
     /// <summary>What the head's image compiled to, in the host's words.</summary>
     public string State { get; init; } = string.Empty;
 }

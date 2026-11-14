@@ -39,16 +39,26 @@ public sealed class PageAssetMapTests {
     [Test]
     public async Task TheMapReadsOnlyLiveNoCodeHeadsAsync() {
         FakePageReadStore store = new();
-        store.Save("/site.css", "body { }", templateHasCode: false);
-        store.Save("/rocket.svg", "<svg />", templateHasCode: false);
-        store.Save("/page.html", "<!DOCTYPE html>", templateHasCode: false);
-        store.Save("/notes", "<h1>Fragment</h1>", templateHasCode: false);
-        store.Save("/app.js", "export {};", templateHasCode: true);
-        store.Save("/gone.css", "body { }", templateHasCode: false);
+        store.Save("/site.css", "body { }", templateKind: PageKind.Text);
+        store.Save("/rocket.svg", "<svg />", templateKind: PageKind.Text);
+        store.Save("/page.html", "<!DOCTYPE html>", templateKind: PageKind.Text);
+        store.Save("/notes", "<h1>Fragment</h1>", templateKind: PageKind.Text);
+        store.Save("/app.js", "export {};", templateKind: PageKind.Page);
+        store.Save("/gone.css", "body { }", templateKind: PageKind.Text);
         store.Delete("/gone.css");
 
         IReadOnlyDictionary<string, string> map = await PageAssetMap.LoadAsync(store, 500);
 
         Assert.That(map.Keys, Is.EquivalentTo(["/site.css", "/rocket.svg", "/page.html", "/notes"]));
+    }
+
+    [Test]
+    public async Task ALibraryIsNeverAVersionedLinkAsync() {
+        FakePageReadStore store = new();
+        store.Save("/_lib/document", "<%! class Document { } %>", templateKind: PageKind.Library);
+
+        IReadOnlyDictionary<string, string> map = await PageAssetMap.LoadAsync(store, 500);
+
+        Assert.That(map, Is.Empty);
     }
 }

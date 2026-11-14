@@ -71,7 +71,7 @@ public sealed class PageAssetSeederTests {
 
         Assert.That(image.Diagnostics, Is.Empty,
             $"{path}: {string.Join("; ", image.Diagnostics.Select(diagnostic => diagnostic.Message))}");
-        Assert.That(image.Bytes, image.HasCode is true ? Is.Not.Null : Is.Null, path);
+        Assert.That(image.Bytes, image.Kind is PageKind.Page ? Is.Not.Null : Is.Null, path);
     }
 
     [Test]

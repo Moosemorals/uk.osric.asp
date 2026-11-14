@@ -826,13 +826,36 @@ public sealed class PageEndpointTests {
     }
 
     [Test]
+    public async Task ALibraryKeyIsNotFoundAsync() {
+        FakePageStore storage = StoreLibrary("/_lib/document");
+        DefaultHttpContext context = TestHttp.CreateContext("_lib/document", "GET", "/_lib/document");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound),
+            "a library has no representation to serve");
+    }
+
+    [Test]
+    public async Task AVersionedLibraryRevisionIsNotFoundAsync() {
+        FakePageStore storage = StoreLibrary("/_lib/document");
+        string hash = PageHarness.Stored(storage, "/_lib/document").Hash;
+        DefaultHttpContext context = TestHttp.CreateContext("_lib/document", "GET", "/_lib/document");
+        context.Request.QueryString = new QueryString($"?v={hash}");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
+    }
+
+    [Test]
     public async Task AnOldRevisionStillServesItsBytesAfterANewerSaveAsync() {
         FakePageStore storage = StoreAsset("/site.css", "body { color: red; }");
         string oldHash = PageHarness.Stored(storage, "/site.css").Hash;
         storage["/site.css"] = PageTemplate.NewRevision(
             PageHarness.Key("/site.css"),
             "body { color: blue; }",
-            new PageImage(TemplateFingerprint.Of("body { color: blue; }"), _compiler.RuntimeId, null, null, [], HasCode: false),
+            new PageImage(TemplateFingerprint.Of("body { color: blue; }"), _compiler.RuntimeId, null, null, [], Kind: PageKind.Text),
             _compiler.RuntimeId);
         string newHash = PageHarness.Stored(storage, "/site.css").Hash;
 
@@ -997,8 +1020,20 @@ public sealed class PageEndpointTests {
         storage[path] = PageTemplate.NewRevision(
             key,
             source,
-            new PageImage(TemplateFingerprint.Of(source), "test:runtime", null, null, [], HasCode: false),
+            new PageImage(TemplateFingerprint.Of(source), "test:runtime", null, null, [], Kind: PageKind.Text),
             "test:runtime");
+    }
+
+    private static FakePageStore StoreLibrary(string path) {
+        const string Source = "<%! namespace Site { class Document { } } %>";
+        FakePageStore storage = new();
+        storage[path] = PageTemplate.NewRevision(
+            PageHarness.Key(path),
+            Source,
+            new PageImage(TemplateFingerprint.Of(Source), "test:runtime", null, null, [], PageKind.Library),
+            "test:runtime");
+
+        return storage;
     }
 
     private PageSaver Saver(RenderOptions render) {

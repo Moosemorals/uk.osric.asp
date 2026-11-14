@@ -378,6 +378,8 @@ internal sealed class ImportEndpoint {
         ImportPageStatus.CompiledWithWarnings => "compiled with warnings",
         ImportPageStatus.CompiledWithErrors => "compiled with errors",
         ImportPageStatus.CompilerFault => "compiled with a compiler fault",
+        ImportPageStatus.Library => "checked as a library",
+        ImportPageStatus.LibraryWithIssues => "checked as a library, with issues",
         _ => "not compiled",
     };
 

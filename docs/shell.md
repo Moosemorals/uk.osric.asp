@@ -52,7 +52,8 @@ prove left to a recorded hand pass (DEC-110).
 A page with code is a fragment. The host wraps every `text/html` page with code in the layout named
 by `Pages:Layout` (`/_layout` as seeded), unless the page clears `IPageLayout.Layout`. A page with no
 code is a complete representation and is never wrapped: its stored source is the response, whether
-the key is HTML or not. A redirect, a `HEAD`'s empty body, a non-HTML content type, a no-code page
+the key is HTML or not. A library is neither: it has nothing to render, so its key answers `404` and
+no layout ever meets it. A redirect, a `HEAD`'s empty body, a non-HTML content type, a no-code page
 and the layout itself are never wrapped (DEC-149). A code page that wants its own document clears
 `IPageLayout.Layout` itself.
 
@@ -60,7 +61,7 @@ and the layout itself are never wrapped (DEC-149). A code page that wants its ow
 
 There are two response shapes. The ordinary one is buffered, wrapped where the rules say, and
 written by `WritePageAsync` with `Cache-Control: no-store` and no validator. The second exists only
-for an asset: a revision with `TemplateHasCode = false`. It is never rendered, loaded or compiled;
+for an asset: a revision whose kind is text. It is never rendered, loaded or compiled;
 the stored source is the response, and `PageEndpoint.WriteSourceAsync` writes it on its own path with
 the extension's content type, `Content-Length`, the shell's security headers and no session cookie.
 
