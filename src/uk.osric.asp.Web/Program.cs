@@ -169,6 +169,7 @@ internal class Program {
         builder.Services.AddSingleton(admin);
         builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
         builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
+        builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
         builder.Services.AddSingleton(fetch);
         builder.Services.AddHttpClient(OutboundFetcher.ClientName)

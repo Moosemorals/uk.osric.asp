@@ -238,14 +238,14 @@ public sealed class PageWriterScopeTests {
 
         public string RuntimeId => "test:positionless";
 
-        public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) =>
+        public CompileResult Compile(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) =>
             new(null, null, [
                 new CoreDiagnostic(CoreSeverity.Error, null,
                     "PAGE003: the page waited longer than 10 s for a compile slot."),
             ]);
 
         public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) =>
-            Compile(source, cancellationToken);
+            Compile(source, [], cancellationToken);
 
         public LoadedPage Load(byte[] image, byte[]? symbols = null) =>
             throw new NotSupportedException("this compiler never produces an image");

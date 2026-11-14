@@ -214,7 +214,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        CompileResult result = Compiler.Compile(new GeneratedSource(source));
+        CompileResult result = Compiler.Compile(new GeneratedSource(source), []);
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Diagnostics, Is.Empty);
@@ -254,7 +254,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedSource(source)));
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedSource(source), []));
     }
 
     [Test]
@@ -267,7 +267,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedSource(source)));
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedSource(source), []));
     }
 
     [Test]
@@ -283,7 +283,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        CompileResult result = Compiler.Compile(new GeneratedSource(source));
+        CompileResult result = Compiler.Compile(new GeneratedSource(source), []);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -372,7 +372,7 @@ public sealed class PageCompilerTests {
             }}
             """;
 
-        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedSource(source)));
+        Assert.Throws<InvalidOperationException>(() => Compiler.Compile(new GeneratedSource(source), []));
     }
 
     [Test]
@@ -431,7 +431,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void RuntimeIdStartsWithTheFormatAndPolicyVersions() {
-        Assert.That(PageCompiler.RuntimeId, Does.StartWith("6:4:"));
+        Assert.That(PageCompiler.RuntimeId, Does.StartWith("7:4:"));
     }
 
     [Test]
@@ -454,7 +454,7 @@ public sealed class PageCompilerTests {
     }
 
     private static CompileResult Compile(string template) {
-        return Compiler.Compile(TestTemplates.Generate(template));
+        return Compiler.Compile(TestTemplates.Generate(template), []);
     }
 
     private static LoadedPage Load(string template) {

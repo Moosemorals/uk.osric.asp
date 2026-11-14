@@ -28,4 +28,20 @@ public sealed class PageLibraryTests : IntegrationTest {
             Assert.That(listing, Does.Not.Contain("aria-label=\"View /_lib/document\""));
         });
     }
+
+    [Test]
+    public async Task APageUsesASavedLibraryThroughTheRealHostAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage library = await PostEditorAsync(client, "_lib/document",
+            "<%! namespace Site { public static class Document { public static string Head() => \"from the library\"; } } %>");
+        Assert.That(library.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        HttpResponseMessage page = await PostEditorAsync(client, "uses-library",
+            "<%! using Site; %><h1><% ctx.Write(Document.Head()); %></h1>");
+        Assert.That(page.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        string body = await (await client.GetAsync("/uses-library")).Content.ReadAsStringAsync();
+        Assert.That(body, Does.Contain("from the library"));
+    }
 }

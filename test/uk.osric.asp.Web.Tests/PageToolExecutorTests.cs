@@ -570,7 +570,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         storage["/loud"] = new PageTemplate(PageHarness.Key("/loud"), template, pages.Images.Build(
-            PageHarness.Key("/loud"), template, PageMetrics.ReasonSave, CancellationToken.None));
+            PageHarness.Key("/loud"), template, PageMetrics.ReasonSave, [], CancellationToken.None));
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
 

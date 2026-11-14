@@ -5,6 +5,7 @@ namespace uk.osric.asp.Runtime;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Emit;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Sdk;
@@ -18,7 +19,7 @@ public sealed class PageCompiler : IPageCompiler {
     // Bump this when a change outside the SDK and Core invalidates stored images: the compiler
     // options, the reference set, or how a compiled handler is invoked. The SDK's module version id
     // covers the page contract; Core's covers the generated source and its diagnostics.
-    private const string FormatVersion = "6";
+    private const string FormatVersion = "7";
 
     // Bump this whenever PageApiPolicy changes. The policy is applied when a page compiles, so an
     // image built under different rules would otherwise keep being served without ever being rechecked.
@@ -55,17 +56,42 @@ public sealed class PageCompiler : IPageCompiler {
     /// The generated source itself is broken. A diagnostic without a template position means the
     /// fault is in code the generator wrote, not in the page, so it must not be shown to the author.
     /// </exception>
-    public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
+    public CompileResult Compile(
+        GeneratedSource source,
+        IReadOnlyList<LibrarySource> libraries,
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(libraries);
 
-        SyntaxTree tree = CSharpSyntaxTree.ParseText(source.Text, cancellationToken: cancellationToken);
-        CSharpCompilation compilation = Create(tree);
+        SyntaxTree page = Parse(source);
+        Dictionary<string, SyntaxTree> candidates = [with(StringComparer.Ordinal)];
+        foreach (LibrarySource library in libraries) {
+            ArgumentNullException.ThrowIfNull(library);
+            candidates[library.Key] = Parse(library.Source);
+        }
+
+        IReadOnlyList<string> used = Closure(page, candidates);
+        List<SyntaxTree> authored = [page, .. used.Select(key => candidates[key])];
+        CSharpCompilation compilation = Create(authored);
 
         // The policy runs before emit, so a page that may not use an API never becomes an image that
-        // could be stored and served.
-        IReadOnlyList<PageDiagnostic> violations = PageApiChecker.Check(tree, compilation.GetSemanticModel(tree));
+        // could be stored and served. The closure's trees are authored code, so a page may call a
+        // library type the way it calls its own - and every library in the closure is checked here
+        // too, because that is what makes trusting its types safe.
+        List<PageDiagnostic> violations = [.. PageApiChecker.Check(
+            page, compilation.GetSemanticModel(page), authored)];
+
+        foreach (string key in used) {
+            SyntaxTree tree = candidates[key];
+            violations.AddRange(PageApiChecker
+                .CheckLibrary(tree, compilation.GetSemanticModel(tree), authored)
+                .Select(diagnostic => diagnostic with { Source = key }));
+        }
+
         if (violations.Count > 0) {
-            return new CompileResult(null, null, violations);
+            return new CompileResult(null, null, PageDiagnostic.SortedForDisplay(violations)) {
+                Libraries = used,
+            };
         }
 
         using MemoryStream image = new();
@@ -75,7 +101,9 @@ public sealed class PageCompiler : IPageCompiler {
             pdbStream: symbols,
             options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb),
             cancellationToken: cancellationToken);
-        List<PageDiagnostic> diagnostics = MapDiagnostics(result.Diagnostics);
+        List<PageDiagnostic> diagnostics = MapDiagnostics(
+            result.Diagnostics,
+            used.ToDictionary(key => candidates[key], key => key));
 
         if (!result.Success && !diagnostics.Exists(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error)) {
             throw new InvalidOperationException(
@@ -85,7 +113,9 @@ public sealed class PageCompiler : IPageCompiler {
         return new CompileResult(
             result.Success ? image.ToArray() : null,
             result.Success ? symbols.ToArray() : null,
-            diagnostics);
+            diagnostics) {
+            Libraries = used,
+        };
     }
 
     /// <inheritdoc/>
@@ -96,10 +126,11 @@ public sealed class PageCompiler : IPageCompiler {
     public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(source);
 
-        SyntaxTree tree = CSharpSyntaxTree.ParseText(source.Text, cancellationToken: cancellationToken);
-        CSharpCompilation compilation = Create(tree);
+        SyntaxTree tree = Parse(source);
+        CSharpCompilation compilation = Create([tree]);
 
-        IReadOnlyList<PageDiagnostic> violations = PageApiChecker.CheckLibrary(tree, compilation.GetSemanticModel(tree));
+        IReadOnlyList<PageDiagnostic> violations = PageApiChecker.CheckLibrary(
+            tree, compilation.GetSemanticModel(tree), [tree]);
         if (violations.Count > 0) {
             return new CompileResult(null, null, violations);
         }
@@ -116,18 +147,82 @@ public sealed class PageCompiler : IPageCompiler {
         return new LoadedPage(image, symbols);
     }
 
-    private CSharpCompilation Create(SyntaxTree tree) {
+    private static SyntaxTree Parse(GeneratedSource source) =>
+        CSharpSyntaxTree.ParseText(source.Text);
+
+    private CSharpCompilation Create(IReadOnlyList<SyntaxTree> trees) {
         // Both a page and a library are analysed exactly as the product's own code is, so `ctx.User`
         // is `PageUser?` in either. The generated scaffold disables nullable analysis around every
         // line it wrote itself, so a warning here can only be about the author's code.
         return CSharpCompilation.Create(
             assemblyName: $"Dynamic_{Guid.NewGuid():N}",
-            syntaxTrees: [tree],
+            syntaxTrees: trees,
             references: _references,
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
                 .WithNullableContextOptions(NullableContextOptions.Enable)
         );
     }
+
+    // A page reaches a library only through the namespaces its own using directives name, and a
+    // library it pulls in may reach another the same way. The fixed point is the closure: what the
+    // page is compiled with, and what its image depends on. The key order keeps the answer stable.
+    private static IReadOnlyList<string> Closure(
+        SyntaxTree page,
+        IReadOnlyDictionary<string, SyntaxTree> candidates) {
+        Dictionary<string, string> byNamespace = [with(StringComparer.Ordinal)];
+
+        foreach ((string key, SyntaxTree tree) in candidates) {
+            foreach (string declared in NamespacesOf(tree)) {
+                // Two libraries claiming one namespace is a diagnostic the page will see; the first
+                // in key order is the one that answers, so the closure does not depend on the order
+                // the candidates arrived in.
+                byNamespace.TryAdd(declared, key);
+            }
+        }
+
+        HashSet<string> used = [with(StringComparer.Ordinal)];
+        Queue<string> pending = new(UsingsOf(page));
+
+        while (pending.TryDequeue(out string? name)) {
+            if (!byNamespace.TryGetValue(name, out string? key) || !used.Add(key)) {
+                continue;
+            }
+
+            foreach (string next in UsingsOf(candidates[key])) {
+                pending.Enqueue(next);
+            }
+        }
+
+        return [.. used.Order(StringComparer.Ordinal)];
+    }
+
+    private static IEnumerable<string> NamespacesOf(SyntaxTree tree) =>
+        tree.GetRoot().DescendantNodes()
+            .OfType<BaseNamespaceDeclarationSyntax>()
+            .Select(FullName)
+            .Distinct(StringComparer.Ordinal);
+
+    private static string FullName(BaseNamespaceDeclarationSyntax @namespace) {
+        List<string> parts = [@namespace.Name.ToString()];
+
+        for (SyntaxNode? parent = @namespace.Parent; parent is not null; parent = parent.Parent) {
+            if (parent is BaseNamespaceDeclarationSyntax outer) {
+                parts.Insert(0, outer.Name.ToString());
+            }
+        }
+
+        return string.Join('.', parts);
+    }
+
+    // A static using names a type rather than a namespace, so it cannot pull a library in; an alias
+    // resolves to the name it aliases. `global::` is spelling, not part of the namespace.
+    private static IEnumerable<string> UsingsOf(SyntaxTree tree) =>
+        tree.GetRoot().DescendantNodes()
+            .OfType<UsingDirectiveSyntax>()
+            .Where(@using => !@using.StaticKeyword.IsKind(SyntaxKind.StaticKeyword) && @using.Name is not null)
+            .Select(@using => @using.Name!.ToString() is string name && name.StartsWith("global::", StringComparison.Ordinal)
+                ? name["global::".Length..]
+                : @using.Name!.ToString());
 
     // Mapped diagnostics belong to the page. Unmapped ones belong to generated code; they are a
     // fault unless a mapped error already explains the broken parse. Unmapped warnings are dropped.
@@ -137,7 +232,9 @@ public sealed class PageCompiler : IPageCompiler {
     // happen in the first place. Making an unmapped warning fatal instead would turn a new Roslyn
     // release into a 500 on a working page; ScaffoldTests is where that promise is checked, at build
     // time rather than at request time.
-    private static List<PageDiagnostic> MapDiagnostics(IEnumerable<Diagnostic> diagnostics) {
+    private static List<PageDiagnostic> MapDiagnostics(
+        IEnumerable<Diagnostic> diagnostics,
+        IReadOnlyDictionary<SyntaxTree, string>? sources = null) {
         List<PageDiagnostic> mapped = [];
         List<Diagnostic> unmappedErrors = [];
         bool hasMappedError = false;
@@ -157,10 +254,17 @@ public sealed class PageCompiler : IPageCompiler {
             }
 
             bool isError = diagnostic.Severity == DiagnosticSeverity.Error;
+            string? source = sources is not null
+                && diagnostic.Location.SourceTree is { } tree
+                && sources.TryGetValue(tree, out string? key)
+                    ? key
+                    : null;
             mapped.Add(new PageDiagnostic(
                 isError ? PageDiagnosticSeverity.Error : PageDiagnosticSeverity.Warning,
                 new TemplatePosition(span.StartLinePosition.Line + 1, span.StartLinePosition.Character + 1),
-                $"{diagnostic.Id}: {diagnostic.GetMessage()}"));
+                $"{diagnostic.Id}: {diagnostic.GetMessage()}") {
+                Source = source,
+            });
 
             hasMappedError |= isError;
         }

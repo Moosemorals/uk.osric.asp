@@ -168,8 +168,18 @@ requirement; if it wants chrome, it adds a code block and becomes a fragment.
 A **library** is a template whose only tokens are declaration blocks. It has nothing to render, so it
 is never served: its key answers `404` and it is never an asset, never pinned with `?v=` and never
 wrapped. It is checked when it is saved — Roslyn analyses it and the diagnostics are stored beside the
-source, with no assembly — and a page API violation inside it is reported at the library's own line.
-A library has to declare at least one type, and it may declare a namespace, which a page may not.
+source, with no assembly — and a page API violation inside it is reported at the library's own line
+and key. A library declares at least one type in a namespace, which is how a page names it; a page
+may not declare a namespace.
+
+A page is compiled with its **closure**: every library its own `using` directives name, and the
+libraries those name in turn, resolved to a fixed point from an index of the live libraries'
+namespaces. Only the closure is compiled and checked, so a broken library cannot reach a page that
+does not name it. Each library is a syntax tree of its own in the page's compilation, so nothing is
+spliced and a library's types are its own; the page API policy walks every tree, which is what makes
+the page's use of a library type trusted. The closure's keys and revision hashes are stored with the
+image as a fingerprint, and a page whose closure has moved is compiled again before it runs — the
+heads are read, the sources only when something actually compiles.
 
 An **asset** is exactly a page with no code. `PageAssetPolicy.IsAsset` is the one answer the
 endpoint, `ctx.AssetUrl` and the head resolver use. There is no document extension list.

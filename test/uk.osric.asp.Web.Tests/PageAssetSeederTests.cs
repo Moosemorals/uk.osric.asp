@@ -67,7 +67,7 @@ public sealed class PageAssetSeederTests {
         string template = (await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path)))!;
 
         PageImage image = pages.Images.Build(
-            PagePath.Normalize(path), template, PageMetrics.ReasonSave, CancellationToken.None);
+            PagePath.Normalize(path), template, PageMetrics.ReasonSave, [], CancellationToken.None);
 
         Assert.That(image.Diagnostics, Is.Empty,
             $"{path}: {string.Join("; ", image.Diagnostics.Select(diagnostic => diagnostic.Message))}");

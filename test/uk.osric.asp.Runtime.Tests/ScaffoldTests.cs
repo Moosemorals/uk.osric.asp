@@ -26,7 +26,7 @@ public sealed class ScaffoldTests {
     [TestCase("<%! sealed class Amount { public static int Value => 1; } %>")]
     [TestCase("<%! using System.Globalization; %><%= 1.5m.ToString(\"N2\", CultureInfo.InvariantCulture) %>")]
     public void TheScaffoldCompilesWithoutWarningsUnderNullableEnable(string template) {
-        CompileResult result = Compiler.Compile(TestTemplates.Generate(template));
+        CompileResult result = Compiler.Compile(TestTemplates.Generate(template), []);
 
         Assert.Multiple(() => {
             Assert.That(result.Diagnostics, Is.Empty, string.Join(Environment.NewLine, result.Diagnostics));

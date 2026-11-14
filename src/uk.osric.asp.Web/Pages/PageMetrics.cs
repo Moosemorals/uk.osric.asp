@@ -149,6 +149,9 @@ internal sealed class PageMetrics : IDisposable {
     public const string StaleTemplateChanged = "template-changed";
     public const string StaleRuntimeChanged = "runtime-changed";
 
+    /// <summary>A library the image was compiled against has moved since.</summary>
+    public const string StaleLibraryChanged = "library-changed";
+
     private readonly Meter _meter;
     private readonly Histogram<double> _renderDuration;
     private readonly Histogram<double> _renderWait;

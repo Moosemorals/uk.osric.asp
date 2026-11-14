@@ -60,7 +60,12 @@ runtime id, optional compilation result and a nullable `TemplateKind` verdict. T
 written by the generation that judged the source: `0` is a template with no code, so there is no
 image and every request serves the stored source; `1` is a page, and the image fields are whatever
 the compile reached; `2` is a library, which is checked and stores no assembly; `NULL` means the
-revision has never been judged. A lazy compile fills a
+revision has never been judged.
+
+`TemplateLibraries` is the fingerprint of the libraries an image was compiled against: one
+`key@revisionHash` per library, sorted and joined, and `NULL` or empty when the page named none. It is
+opaque, compared with the live heads rather than read as data, and it is what makes a library edit
+recompile exactly its dependents. A lazy compile fills a
 `NULL` verdict on the revision it compiled. Nothing backfills a row that already exists — including
 the seeded assets — so a revision keeps `NULL` until it is next saved, restored or first generated.
 

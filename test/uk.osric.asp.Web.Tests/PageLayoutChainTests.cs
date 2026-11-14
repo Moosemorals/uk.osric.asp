@@ -700,7 +700,9 @@ public sealed class PageLayoutChainTests {
         PageBudget budget = new(options, TestOptions.Compile);
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
-        return new PageSaver(new FakePageRevisionStore(_storage), images, _metrics, NullLogger<PageSaver>.Instance);
+        return new PageSaver(
+            new FakePageRevisionStore(_storage), images, new PageLibraries(new FakePageReadStore()),
+            _metrics, NullLogger<PageSaver>.Instance);
     }
 
     private PageRenderer CreateRenderer(RenderOptions options) {
@@ -711,6 +713,7 @@ public sealed class PageLayoutChainTests {
             _storage,
             _compiler,
             images,
+            new PageLibraries(new FakePageReadStore()),
             _metrics,
             budget,
             new PageHealth(options.AbandonedLimit),

@@ -692,3 +692,5 @@ static uk.osric.asp.Core.Pages.PageTree.IsBelow(uk.osric.asp.Core.Pages.PagePath
 static uk.osric.asp.Core.Pages.PageTree.IsDirectlyBelow(uk.osric.asp.Core.Pages.PagePath! key, uk.osric.asp.Core.Pages.PagePath! folder) -> bool
 static uk.osric.asp.Core.Pages.PageTree.FolderOf(string! key) -> string?
 static uk.osric.asp.Core.Pages.PageTree.FoldersAbove(string! key) -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Core.Compilation.PageDiagnostic.Source.get -> string?
+uk.osric.asp.Core.Compilation.PageDiagnostic.Source.init -> void

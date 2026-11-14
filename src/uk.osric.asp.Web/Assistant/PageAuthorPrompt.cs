@@ -105,6 +105,12 @@ internal static class PageAuthorPrompt {
         inside <%= %>: `ctx.Write(await SomethingAsync())` works. The variable
         `ctx` implements `IContext`.
 
+        A page may use a shared library by naming a namespace it declares in a
+        `<%! using Some.Namespace; %>` directive; the page is compiled with the
+        library, and only the libraries its usings reach. A page whose blocks are
+        only `<%! %>` declarations is itself a library: it is checked when saved,
+        is never served, and must declare its types inside a namespace.
+
         Forms use `<form class="form">` with one `<dl>` holding
         `<dt><label for="id">…</label></dt>` and `<dd>` around the control. A
         textarea goes in a `<fieldset>` whose `<legend>` contains its label.

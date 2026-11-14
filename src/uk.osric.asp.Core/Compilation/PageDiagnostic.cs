@@ -12,18 +12,27 @@ public sealed record PageDiagnostic(
     TemplatePosition? Position,
     string Message) {
 
-    /// <summary>Orders diagnostics the way the author reads the template: by line, then column.</summary>
+    /// <summary>
+    /// The key of the page the diagnostic belongs to, or <see langword="null"/> for the page being
+    /// compiled. A library compiled into a page contributes its diagnostics under its own key.
+    /// </summary>
+    public string? Source { get; init; }
+
+    /// <summary>Orders diagnostics the way the author reads them: the page first, then its libraries.</summary>
     /// <param name="diagnostics">The diagnostics to order.</param>
     /// <returns>The same diagnostics, ordered for display.</returns>
     /// <remarks>
-    /// A diagnostic without a position cannot be placed in the template, so it sorts last. The sort
-    /// is stable, so diagnostics at the same position keep the order the compiler gave them.
+    /// The page's own diagnostics come first, then each library's by key, and within one source a
+    /// diagnostic without a position sorts last. The sort is stable, so diagnostics at the same
+    /// position keep the order the compiler gave them.
     /// </remarks>
     public static IReadOnlyList<PageDiagnostic> SortedForDisplay(IEnumerable<PageDiagnostic> diagnostics) {
         ArgumentNullException.ThrowIfNull(diagnostics);
 
         return [.. diagnostics
-            .OrderBy(diagnostic => diagnostic.Position?.Line ?? int.MaxValue)
+            .OrderBy(diagnostic => diagnostic.Source is null ? 0 : 1)
+            .ThenBy(diagnostic => diagnostic.Source, StringComparer.Ordinal)
+            .ThenBy(diagnostic => diagnostic.Position?.Line ?? int.MaxValue)
             .ThenBy(diagnostic => diagnostic.Position?.Column ?? int.MaxValue)];
     }
 

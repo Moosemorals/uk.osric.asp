@@ -15,7 +15,7 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261114083521_AddPageRevisionTemplateKind";
+    public override string LastMigrationId => "20261114085056_AddPageRevisionTemplateLibraries";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -431,6 +431,9 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
 
                 b.Property<int?>("TemplateKind")
                     .HasColumnType("INTEGER");
+
+                b.Property<string>("TemplateLibraries")
+                    .HasColumnType("TEXT");
 
                 b.HasKey("RevisionId");
 

@@ -129,11 +129,29 @@ public sealed class PageImageBuilderTests {
     }
 
     [Test]
+    public void APageThatNamesALibraryStoresTheFingerprintOfItsClosure() {
+        using PageHarness pages = new(new FakePageStore());
+        PageLibrary library = new(
+            PageHarness.Key("/_lib/document"), "hash-one",
+            "<%! namespace Site { public static class Document { public static string Head() => \"hi\"; } } %>");
+
+        PageImage compilation = pages.Images.Build(
+            PageHarness.Key("/uses"), "<%! using Site; %><% ctx.Write(Document.Head()); %>",
+            PageMetrics.ReasonSave, [library], CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(compilation.Diagnostics, Is.Empty);
+            Assert.That(compilation.Bytes, Is.Not.Null.And.Not.Empty);
+            Assert.That(compilation.Libraries, Is.EqualTo("/_lib/document@hash-one"));
+        });
+    }
+
+    [Test]
     public void ALibraryWithABannedApiIsStoredWithItsDiagnostics() {
         using PageHarness pages = new(new FakePageStore());
 
         PageImage compilation = Build(pages, "/_lib/document",
-            "<%! class Helper { public static string Read() => System.IO.File.ReadAllText(\"x\"); } %>");
+            "<%! namespace Site { class Helper { public static string Read() => System.IO.File.ReadAllText(\"x\"); } } %>");
 
         Assert.Multiple(() => {
             Assert.That(compilation.Kind, Is.EqualTo(PageKind.Library));
@@ -177,6 +195,6 @@ public sealed class PageImageBuilderTests {
     private static PageImage Build(PageHarness pages, string path, string template) {
         PagePath key = PageHarness.Key(path);
 
-        return pages.Images.Build(key, template, PageMetrics.ReasonSave, CancellationToken.None);
+        return pages.Images.Build(key, template, PageMetrics.ReasonSave, [], CancellationToken.None);
     }
 }

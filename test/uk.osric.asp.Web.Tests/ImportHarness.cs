@@ -26,7 +26,8 @@ internal sealed class ImportHarness : IDisposable {
             new PageBudget(TestOptions.Render, TestOptions.Compile),
             Metrics,
             NullLogger<PageImageBuilder>.Instance);
-        Processor = new ImportProcessor(Images, Batches, Metrics, Options, NullLogger<ImportProcessor>.Instance);
+        Processor = new ImportProcessor(
+            Images, Batches, new PageLibraries(ReadStore), Metrics, Options, NullLogger<ImportProcessor>.Instance);
         Stages = new ImportStageStore(Options, Clock);
         Queue = new ImportQueue(Options);
         Reader = new PageArchiveReader(Options, Storage, Reserved, NullLogger<PageArchiveReader>.Instance);
@@ -41,6 +42,9 @@ internal sealed class ImportHarness : IDisposable {
     public PageMetrics Metrics { get; }
 
     public PageImageBuilder Images { get; }
+
+    /// <summary>The libraries every compile in this harness may name.</summary>
+    public FakePageReadStore ReadStore { get; } = new();
 
     public FakePageStore Pages { get; } = new();
 

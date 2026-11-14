@@ -294,7 +294,7 @@ public sealed class PageEndpointTests {
     public async Task StoredCompilationIsRenderedWithoutCompilingAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         PageCompiler compiler = new();
-        CompileResult compiled = compiler.Compile(TestTemplates.Generate("Hello."));
+        CompileResult compiled = compiler.Compile(TestTemplates.Generate("Hello."), []);
         PageImage compilation = new(
             TemplateFingerprint.Of("Hello."), PageCompiler.RuntimeId, compiled.Image, compiled.Symbols, compiled.Diagnostics);
         FakePageStore storage = new();
@@ -1041,7 +1041,8 @@ public sealed class PageEndpointTests {
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageSaver(
-            new FakePageRevisionStore(new FakePageStore()), images, _metrics, NullLogger<PageSaver>.Instance);
+            new FakePageRevisionStore(new FakePageStore()), images, new PageLibraries(new FakePageReadStore()),
+            _metrics, NullLogger<PageSaver>.Instance);
     }
 
     private PageRenderer CreatePages(IPageStore storage, RenderOptions? options = null) {
@@ -1053,6 +1054,7 @@ public sealed class PageEndpointTests {
             storage,
             _compiler,
             compilations,
+            new PageLibraries(new FakePageReadStore()),
             _metrics,
             budget,
             new PageHealth(render.AbandonedLimit),

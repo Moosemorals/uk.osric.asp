@@ -140,11 +140,14 @@ a key containing `?` or `#` is not addressable at all.
 
 ## Library page
 A stored page whose only blocks are declarations: it has nothing to render, so it is never served and
-its key answers `404`. It is checked when it is saved and keeps its diagnostics, but no assembly.
+its key answers `404`. It is checked when it is saved and keeps its diagnostics, but no assembly. A
+page names one with the `using` directive for a namespace it declares; the library is compiled into
+the page, and the keys and hashes of that closure are recorded with the page's image.
 
 **Not** an asset, even though both are never rendered: an asset *is* a representation and may be
 pinned with `?v=`, and a library is compiled into the pages that name it. **Owner:** pages —
-`PageKind`, `PageAssetPolicy.IsLibrary` and the library shape rule in `PageApiChecker`.
+`PageKind`, `PageAssetPolicy.IsLibrary`, the library shape rule in `PageApiChecker`, and the closure
+in `PageCompiler`.
 
 ## Markdown
 The source format a page may render to HTML, and the format an assistant reply is written in.

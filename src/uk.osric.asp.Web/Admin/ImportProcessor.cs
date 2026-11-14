@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Admin;
 
 using System.Diagnostics;
 using System.Globalization;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
@@ -23,6 +24,7 @@ using uk.osric.asp.Web.Pages;
 internal sealed class ImportProcessor(
     PageImageBuilder images,
     IPageBatchStore batches,
+    PageLibraries libraries,
     PageMetrics metrics,
     ArchiveOptions options,
     ILogger<ImportProcessor> logger) {
@@ -45,6 +47,13 @@ internal sealed class ImportProcessor(
         int compiled = 0;
 
         try {
+            // A page in the archive may name a library beside it, which is not in the store yet, so
+            // the archive's own libraries are offered to every compile in the batch as well as the
+            // stored ones. Their hash is the template's fingerprint rather than a revision hash, so
+            // a dependent recompiles once when the batch lands: one extra compile is the price of
+            // compiling before writing.
+            IReadOnlyList<PageLibrary> available = await AvailableAsync(stage, snapshot.Selected, cancellationToken);
+
             foreach (PagePath path in snapshot.Selected) {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -52,7 +61,8 @@ internal sealed class ImportProcessor(
                     throw new InvalidOperationException($"Import {stage.Id} has no staged page for {path.Key}.");
                 }
 
-                (PageImage? image, ImportPageStatus status) = Compile(stage.Id, path, entry.Source, cancellationToken);
+                (PageImage? image, ImportPageStatus status) =
+                    Compile(stage.Id, path, entry.Source, available, cancellationToken);
                 compiled++;
                 compiledBytes += image?.Bytes?.Length ?? 0;
                 stage.Record(new ImportPageResult(path, status, image?.Diagnostics ?? []));
@@ -90,13 +100,34 @@ internal sealed class ImportProcessor(
         }
     }
 
+    private async Task<IReadOnlyList<PageLibrary>> AvailableAsync(
+        ImportStage stage,
+        IReadOnlyList<PagePath> selected,
+        CancellationToken cancellationToken) {
+        Dictionary<string, PageLibrary> candidates = [with(StringComparer.Ordinal)];
+
+        foreach (PageLibrary stored in await libraries.LiveAsync(cancellationToken)) {
+            candidates[stored.Key.Key] = stored;
+        }
+
+        foreach (PagePath path in selected) {
+            if (stage.Find(path) is { } entry
+                && TemplateSourceGenerator.Generate(entry.Source).Kind is PageKind.Library) {
+                candidates[path.Key] = new PageLibrary(path, TemplateFingerprint.Of(entry.Source), entry.Source);
+            }
+        }
+
+        return [.. candidates.Values.OrderBy(library => library.Key.Key, StringComparer.Ordinal)];
+    }
+
     private (PageImage? Image, ImportPageStatus Status) Compile(
         string stageId,
         PagePath path,
         string source,
+        IReadOnlyList<PageLibrary> libraries,
         CancellationToken cancellationToken) {
         try {
-            PageImage image = images.Build(path, source, PageMetrics.ReasonImport, cancellationToken);
+            PageImage image = images.Build(path, source, PageMetrics.ReasonImport, libraries, cancellationToken);
             if (image.Kind is PageKind.Text) {
                 return (image, ImportPageStatus.StoredAsSource);
             }

@@ -21,6 +21,8 @@ internal sealed class PageRevision {
 
     public PageKind? TemplateKind { get; set; }
 
+    public string? TemplateLibraries { get; set; }
+
     public string? TemplateHash { get; set; }
 
     public string? RuntimeId { get; set; }

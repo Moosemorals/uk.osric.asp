@@ -55,12 +55,14 @@ internal sealed class PageHarness : IDisposable {
 
         Storage = storage;
         Images = new PageImageBuilder(Compiler, Budget, Metrics, NullLogger<PageImageBuilder>.Instance);
+        Libraries = new PageLibraries(ReadStore);
         Revisions = revisionStore ?? new FakePageRevisionStore(storage);
-        Saver = new PageSaver(Revisions, Images, Metrics, NullLogger<PageSaver>.Instance);
+        Saver = new PageSaver(Revisions, Images, Libraries, Metrics, NullLogger<PageSaver>.Instance);
         Renderer = new PageRenderer(
             storage,
             Compiler,
             Images,
+            Libraries,
             Metrics,
             Budget,
             Health,
@@ -69,6 +71,9 @@ internal sealed class PageHarness : IDisposable {
     }
 
     public RenderOptions Options { get; }
+
+    /// <summary>The libraries every compile in this harness may name, read from <see cref="ReadStore"/>.</summary>
+    public PageLibraries Libraries { get; }
 
     /// <summary>Where every save in this harness is written.</summary>
     public FakePageStore Storage { get; }

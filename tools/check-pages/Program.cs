@@ -23,7 +23,7 @@ foreach (string file in Files(args)) {
     }
 
     IReadOnlyList<PageDiagnostic> diagnostics = generated.Source is { } source
-        ? compiler.Compile(source).Diagnostics
+        ? compiler.Compile(source, []).Diagnostics
         : generated.Errors;
     foreach (PageDiagnostic diagnostic in PageDiagnostic.SortedForDisplay(diagnostics)) {
         string severity = diagnostic.Severity == PageDiagnosticSeverity.Error ? "error" : "warning";

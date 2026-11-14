@@ -59,6 +59,23 @@ internal sealed class FakePageReadStore : IPageReadStore {
     public void Delete(string key) => _deleted.Add(key);
 
     /// <inheritdoc/>
+    public Task<IReadOnlyList<PageReadHead>> ListLibrariesAsync(CancellationToken cancellationToken = default) {
+        LastCancellationToken = cancellationToken;
+
+        return Task.FromResult<IReadOnlyList<PageReadHead>>([
+            .. _pages
+                .Where(item => !_deleted.Contains(item.Key))
+                .OrderBy(item => item.Key, StringComparer.Ordinal)
+                .Select(item => (Key: item.Key, Revision: item.Value[^1]))
+                .Where(item => item.Revision.TemplateKind is PageKind.Library)
+                .Select(item => new PageReadHead(
+                    item.Key, item.Revision.SavedAt, item.Revision.Hash, IsDeleted: false,
+                    item.Revision.TemplateKind, item.Revision.RuntimeId,
+                    item.Revision.HasImage, item.Revision.HasDiagnostics)),
+        ]);
+    }
+
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, int limit, CancellationToken cancellationToken = default) {
         LastCancellationToken = cancellationToken;
         ReadCount++;

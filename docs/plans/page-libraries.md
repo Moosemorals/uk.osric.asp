@@ -111,8 +111,8 @@ directives against it, and repeats for the libraries those pulled in, to a fixed
 - **A fully qualified use without a `using` does not pull the library in.** Roslyn answers `CS0246`
   and the author adds the `using`; nothing is silent, and it is the error a C# author already knows.
 - **A page may not declare a namespace** (unchanged, `PAGE002`), so a page cannot become a library by
-  accident or pass itself off as one. A **library** may, because the rule exists only so the generated
-  `GeneratedPage` can be found, and a library has no handler.
+  accident or pass itself off as one. A **library must**, and it must declare a type inside it: a
+  library outside a namespace cannot be named by a `using`, so nothing could ever reach it.
 - **Two libraries with one type name** are `CS0101` at the second declaration, mapped to its own key.
   `n` is small; a namespace convention is an author's answer, not the host's.
 
@@ -183,7 +183,10 @@ author reads a diagnostic, and it is what makes a closure bigger than one page r
   compile slots, one compile per page — the same shape as the recompile after a deploy.
 
 Saving a library recompiles nothing. Its dependents go stale when their next request compares
-fingerprints, which is honest and needs no fan-out.
+fingerprints, which is honest and needs no fan-out. Comparing needs the libraries' identity, so a
+render whose image names a closure reads the library **heads** — keys and revision hashes, not
+sources — and only a page with an empty closure skips the read entirely. The sources are read when
+something is actually going to compile.
 
 ### D8 — a library stores source, verdict and diagnostics, not an assembly
 
@@ -317,6 +320,12 @@ phase 2 is the migration; phase 3 is the mechanism; phase 4 is the seed and the 
   refused at the library's own position; a namespaced `GeneratedPage` is allowed; a banned API inside
   a library is refused at its line; a nullable warning is mapped; a library's `#nullable` handling
   matches a page's.
+- Tests: a page calls the library its `using` names; a library's own `using` pulls in another; a
+  library the page does not name is never compiled; a library's error is reported under its key; a
+  missing namespace is Roslyn's own `CS0246`; a library outside a namespace is refused.
+- Tests: a page renders what its library returns; a library change recompiles exactly its dependents;
+  a banned API in a library fails the page that names it, with the library's key on the diagnostic;
+  the stored image carries the closure's fingerprint.
 
 ### Phase 2 — the kind in storage and serving (Web + migration)
 
@@ -342,9 +351,13 @@ phase 2 is the migration; phase 3 is the mechanism; phase 4 is the seed and the 
 - `TemplateLibraries`, the fingerprint, `IsCurrent`, the staleness reason and metric (D7), and the
   `docs/metrics.md` row that lists the reasons.
 - The callers: `PageImageBuilder` takes the candidates and the closure, `PageRenderer` reads them for
-  the lazy path, `PageSaver` for the save path, `ImportProcessor` compiles the libraries in a batch
-  first so a dependent imported beside its library is not reported as broken.
+  the lazy path, `PageSaver` for the save path, `ImportProcessor` for the archive's libraries as well
+  as the stored ones. An archive library has no revision hash yet, so the compile uses its template
+  fingerprint and the dependent recompiles once when the batch lands — one extra compile is the price
+  of compiling before writing.
 - `PageCompiler.FormatVersion` bumps once, so every stored image recompiles after the deploy.
+- `/help`, `pages.md`, `storage.md`, `metrics.md` and the glossary describe the `using` binding, the
+  closure and the `library-changed` staleness reason.
 - Tests: a page that uses a library compiles and runs; the closure is transitive; a library change
   makes exactly its dependents stale; a page with no library is untouched; a banned API in a library
   is reported at the library's key and line; a missing namespace is Roslyn's own error.

@@ -305,6 +305,7 @@ internal sealed class SqlitePageStore(
             .Where(row => row.RevisionId == revisionId && row.Template == expectedTemplate)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(row => row.TemplateKind, image.Kind)
+                .SetProperty(row => row.TemplateLibraries, image.Libraries)
                 .SetProperty(row => row.TemplateHash, image.TemplateHash)
                 .SetProperty(row => row.RuntimeId, image.RuntimeId)
                 .SetProperty(row => row.Image, image.Bytes)
@@ -433,6 +434,7 @@ internal sealed class SqlitePageStore(
             Template = template.Template,
             CreationRuntimeId = template.CreationRuntimeId,
             TemplateKind = template.Kind ?? image?.Kind,
+            TemplateLibraries = image?.Libraries,
             TemplateHash = image?.TemplateHash,
             RuntimeId = image?.RuntimeId,
             Image = image?.Bytes,
@@ -452,7 +454,8 @@ internal sealed class SqlitePageStore(
             revision.Image,
             revision.Symbols,
             Deserialize(revision.Diagnostics, revision.Image is not null),
-            revision.TemplateKind);
+            revision.TemplateKind,
+            revision.TemplateLibraries);
     }
 
     private IReadOnlyList<PageDiagnostic> Deserialize(string? json, bool hasImage) {

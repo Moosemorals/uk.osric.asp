@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Pages;
 
 using Microsoft.EntityFrameworkCore;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>The EF Core implementation of a page's read-only view of the store.</summary>
@@ -19,6 +20,33 @@ using uk.osric.asp.Web.Storage;
 /// </para>
 /// </remarks>
 internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> contexts) : IPageReadStore {
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<PageReadHead>> ListLibrariesAsync(CancellationToken cancellationToken = default) {
+        await using StorageDbContext database = contexts.CreateDbContext();
+
+        var rows = await database.Set<PageHead>().AsNoTracking()
+            .Where(head => !head.IsDeleted)
+            .Join(database.Set<PageRevision>().AsNoTracking(),
+                head => new { head.RevisionId, head.Path },
+                revision => new { revision.RevisionId, revision.Path },
+                (head, revision) => new {
+                    head.Path,
+                    revision.SavedAt,
+                    revision.Hash,
+                    revision.TemplateKind,
+                    revision.RuntimeId,
+                    HasImage = revision.Image != null,
+                    HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
+                })
+            .Where(row => row.TemplateKind == PageKind.Library)
+            .OrderBy(row => row.Path)
+            .ToArrayAsync(cancellationToken);
+
+        return [.. rows.Select(row => new PageReadHead(
+            row.Path, row.SavedAt, row.Hash, IsDeleted: false, row.TemplateKind,
+            row.RuntimeId, row.HasImage, row.HasDiagnostics))];
+    }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, int limit, CancellationToken cancellationToken = default) {

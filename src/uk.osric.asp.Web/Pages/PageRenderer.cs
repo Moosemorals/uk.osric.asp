@@ -47,6 +47,7 @@ internal sealed class PageRenderer(
     IPageStore storage,
     IPageCompiler compiler,
     PageImageBuilder images,
+    PageLibraries libraries,
     PageMetrics metrics,
     PageBudget budget,
     PageHealth health,
@@ -250,11 +251,13 @@ internal sealed class PageRenderer(
                 return null;
             }
 
-            if (FromStored(path, page) is { } stored) {
+            if (FromStored(path, page, await ClosureAsync(page, deadline)) is { } stored) {
                 return stored;
             }
 
-            PageImage image = images.Build(path, page.Template, PageMetrics.ReasonLazy, cancellationToken, deadline);
+            IReadOnlyList<PageLibrary> available = await libraries.LiveAsync(deadline);
+            PageImage image = images.Build(
+                path, page.Template, PageMetrics.ReasonLazy, available, cancellationToken, deadline);
 
             if (await storage.TrySetImageAsync(page.RevisionId, page.Template, image, cancellationToken)) {
                 PageTemplate? current = await storage.GetPageAsync(path, deadline);
@@ -281,11 +284,13 @@ internal sealed class PageRenderer(
         PageTemplate page,
         CancellationToken deadline,
         CancellationToken cancellationToken) {
-        if (FromStored(path, page) is { } stored) {
+        if (FromStored(path, page, await ClosureAsync(page, deadline)) is { } stored) {
             return stored;
         }
 
-        PageImage image = images.Build(path, page.Template, PageMetrics.ReasonLazy, cancellationToken, deadline);
+        IReadOnlyList<PageLibrary> available = await libraries.LiveAsync(deadline);
+        PageImage image = images.Build(
+            path, page.Template, PageMetrics.ReasonLazy, available, cancellationToken, deadline);
 
         // The row is fixed, so a failed write means it disappeared while it compiled: a scrub is the
         // one thing that removes it, and a scrubbed revision must not be served.
@@ -296,7 +301,7 @@ internal sealed class PageRenderer(
 
     // A text template is served from source on every request and is never generated or compiled
     // again; an unjudged one is generated once by LoadHeadAsync, because it has never been judged.
-    private CachedPage? FromStored(PagePath path, PageTemplate page) {
+    private CachedPage? FromStored(PagePath path, PageTemplate page, string? closure) {
         // A library is not a representation: nothing renders it, and its own URL answers 404 before
         // this runs. A layout that named one is not found rather than compiled as if it were a page.
         if (page.Kind is PageKind.Library) {
@@ -312,7 +317,7 @@ internal sealed class PageRenderer(
         }
 
         string templateHash = TemplateFingerprint.Of(page.Template);
-        if (page.Image is { } stored && stored.IsCurrent(templateHash, compiler.RuntimeId)) {
+        if (page.Image is { } stored && stored.IsCurrent(templateHash, compiler.RuntimeId, closure)) {
             metrics.RecordCacheLookup(PageMetrics.LookupHit);
 
             return stored.Kind is not PageKind.Text || stored.Bytes is not null
@@ -320,7 +325,7 @@ internal sealed class PageRenderer(
                 : new CachedPage(null, page.Template, PageMetrics.CacheHit);
         }
 
-        metrics.RecordStaleness(path, StalenessReason(page.Image));
+        metrics.RecordStaleness(path, StalenessReason(page.Image, closure));
         metrics.RecordCacheLookup(PageMetrics.LookupStale);
 
         return null;
@@ -332,14 +337,31 @@ internal sealed class PageRenderer(
         _ => new CachedPage(image, null, PageMetrics.CacheMiss),
     };
 
-    private string StalenessReason(PageImage? image) {
+    private string StalenessReason(PageImage? image, string? closure) {
         if (image is null) {
             return PageMetrics.StaleNeverCompiled;
         }
 
-        return string.Equals(image.RuntimeId, compiler.RuntimeId, StringComparison.Ordinal)
+        if (!string.Equals(image.RuntimeId, compiler.RuntimeId, StringComparison.Ordinal)) {
+            return PageMetrics.StaleRuntimeChanged;
+        }
+
+        return string.Equals(image.Libraries ?? string.Empty, closure ?? string.Empty, StringComparison.Ordinal)
             ? PageMetrics.StaleTemplateChanged
-            : PageMetrics.StaleRuntimeChanged;
+            : PageMetrics.StaleLibraryChanged;
+    }
+
+    // A page that named no library cannot acquire one without its source changing, and a changed
+    // source is already a miss, so only a page that named some needs this read. It is the heads and
+    // not the sources: judging staleness must not read a library's text.
+    private async Task<string?> ClosureAsync(PageTemplate page, CancellationToken deadline) {
+        if (string.IsNullOrEmpty(page.Image?.Libraries)) {
+            return null;
+        }
+
+        IReadOnlyList<PageLibraryHead> heads = await libraries.HeadsAsync(deadline);
+
+        return PageLibraryFingerprint.Of(heads.Select(head => (head.Key.Key, head.Hash)));
     }
 
     // RunAsync hands the deadline to the abandon continuation when it gives up on a page. The
