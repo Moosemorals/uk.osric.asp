@@ -123,8 +123,10 @@ The page's tree and one tree per library go into the same `CSharpCompilation`. N
 - **The using-order trap disappears.** Splicing library declarations into the page's unit would put
   the library's `using` directives after the page's types (`CS1529`) and need a text split the
   generator cannot do without parsing C#.
-- **A mapped path per library.** Each library tree writes `#line 1 "lib:/_lib/document"` around its
-  own blocks, so Roslyn reports that file's positions and the shell can name the library.
+- **A mapped path per library, but no key in it.** Each library tree writes the same `#line` mapping a
+  page does, so Roslyn reports the author's own lines and columns; the compiler attributes a
+  diagnostic to a key by the tree it came from, so there is no path convention to parse and no page
+  key inside a `#line` — a key may contain a quote, and a directive cannot be trusted with one.
 - **One compilation, one emit.** The libraries are copied into the page's image, so the page binds to
   them exactly as it binds to its own declarations.
 - **`Compile` takes candidates and answers which it used.** `IPageCompiler.Compile` gains the library
@@ -160,8 +162,9 @@ the author's business, exactly as it is inside a page's own declaration block.
 ### D6 — a diagnostic names the page it belongs to
 
 `PageDiagnostic` (both copies, `Core` and `Sdk`) gains a nullable `Source` key: `null` is the page
-being compiled, a key is the library it came from. `PageCompiler.MapDiagnostics` reads the mapped
-path (`page` or `lib:/key`) and sets it. `SortedForDisplay` groups by source first — the page's own
+being compiled, a key is the library it came from. `PageCompiler` knows which tree each diagnostic
+belongs to, so it sets the key without reading anything out of the source. `SortedForDisplay` groups
+by source first — the page's own
 diagnostics, then each library's by key — and then by line and column.
 
 The shell maps it in `PageDiagnostics.ToSdk`; the editor's diagnostic list says "in `/_lib/document`"
@@ -305,13 +308,15 @@ phase 2 is the migration; phase 3 is the mechanism; phase 4 is the seed and the 
 
 ### Phase 1 — generating and checking a library (Core + Runtime)
 
-- `TemplateSourceGenerator.GenerateLibrary(template, key)` emits the page's own declarations, each
-  `#line`-mapped to `lib:<key>`, and nothing else.
-- `PageApiChecker` grows the library shape rule (D5); `Runtime` compiles a library alone for its
-  diagnostics with no handler and no emit.
+- `TemplateSourceGenerator.GenerateLibrary(template)` emits the declarations, each `#line`-mapped to
+  the author's own lines, and nothing else: no handler, no body. It refuses a template that renders,
+  because the caller branches on the verdict before it asks.
+- `PageApiChecker` grows the library shape rule (D5) and `IPageCompiler.CompileLibrary` checks a
+  library alone: no handler, no emit, the diagnostics are the answer.
 - Tests: a namespace and a type compile; a statement, a `GeneratedPage` and an assembly attribute are
-  refused at the library's own position; a banned API inside a library is refused at its line; a
-  library's `#nullable` handling matches a page's.
+  refused at the library's own position; a namespaced `GeneratedPage` is allowed; a banned API inside
+  a library is refused at its line; a nullable warning is mapped; a library's `#nullable` handling
+  matches a page's.
 
 ### Phase 2 — the kind in storage and serving (Web + migration)
 

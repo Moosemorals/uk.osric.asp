@@ -15,6 +15,10 @@ internal sealed class FaultingCompiler : IPageCompiler {
         throw new InvalidOperationException("The generated page source did not compile.");
     }
 
+    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+        throw new InvalidOperationException("The generated page source did not compile.");
+    }
+
     public LoadedPage Load(byte[] image, byte[]? symbols = null) {
         throw new NotSupportedException("A faulting compiler never produces an image.");
     }
@@ -34,6 +38,12 @@ internal sealed class SlowCompiler(IPageCompiler inner) : IPageCompiler {
         return inner.Compile(source, cancellationToken);
     }
 
+    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+        Thread.Sleep(TimeSpan.FromMilliseconds(500));
+
+        return inner.CompileLibrary(source, cancellationToken);
+    }
+
     public LoadedPage Load(byte[] image, byte[]? symbols = null) {
         return inner.Load(image, symbols);
     }
@@ -49,6 +59,11 @@ internal sealed class StallingCompiler : IPageCompiler {
     public string RuntimeId => "stalling";
 
     public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
+        cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
+        throw new OperationCanceledException(cancellationToken);
+    }
+
+    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
         cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
         throw new OperationCanceledException(cancellationToken);
     }

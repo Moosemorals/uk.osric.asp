@@ -10,3 +10,5 @@ uk.osric.asp.Runtime.DiffRenderer.ToHtml(string! before, string! after) -> strin
 uk.osric.asp.Runtime.DiffRenderer.ToUnifiedDiff(string! before, string! after) -> string!
 uk.osric.asp.Runtime.DiffRenderer.Compare(string! before, string! after) -> uk.osric.asp.Core.Diff.DiffDocument!
 uk.osric.asp.Runtime.DiffRenderer.ToUnifiedDiff(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
+uk.osric.asp.Runtime.IPageCompiler.CompileLibrary(uk.osric.asp.Core.Compilation.GeneratedSource! source, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> uk.osric.asp.Runtime.CompileResult!
+uk.osric.asp.Runtime.PageCompiler.CompileLibrary(uk.osric.asp.Core.Compilation.GeneratedSource! source, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> uk.osric.asp.Runtime.CompileResult!

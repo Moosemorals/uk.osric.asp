@@ -331,6 +331,9 @@ public sealed partial class ImportEndpointTests {
         public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("the fixture failed this compile");
 
+        public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("the fixture failed this compile");
+
         public LoadedPage Load(byte[] image, byte[]? symbols = null) =>
             throw new NotSupportedException();
     }

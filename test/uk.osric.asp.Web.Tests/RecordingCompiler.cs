@@ -18,6 +18,11 @@ internal sealed class RecordingCompiler(IPageCompiler inner) : IPageCompiler {
         return inner.Compile(source, cancellationToken);
     }
 
+    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+        CompileCount++;
+        return inner.CompileLibrary(source, cancellationToken);
+    }
+
     public LoadedPage Load(byte[] image, byte[]? symbols = null) {
         return inner.Load(image, symbols);
     }

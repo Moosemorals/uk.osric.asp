@@ -32,6 +32,21 @@ public interface IPageCompiler {
     /// </exception>
     CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default);
 
+    /// <summary>Checks a library's generated source, which is never run and so is never emitted.</summary>
+    /// <param name="source">The generated library source, not the page template.</param>
+    /// <param name="cancellationToken">
+    /// Bounds the analysis. Roslyn observes it between operations rather than inside one.
+    /// </param>
+    /// <returns>
+    /// The author-facing diagnostics and no image: a library's answer is its errors, and what it
+    /// contributes to a dependent is compiled into that page.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// The generated source itself is broken. A fault is not an author diagnostic and must reach the
+    /// shell as an exception.
+    /// </exception>
+    CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default);
+
     /// <summary>Loads a compiled image and its portable symbols so its handler can be run.</summary>
     /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
     /// <param name="symbols">The portable PDB bytes emitted with the image, if present.</param>

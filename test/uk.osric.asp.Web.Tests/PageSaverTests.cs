@@ -191,6 +191,12 @@ public sealed class PageSaverTests {
             return inner.Compile(source, cancellationToken);
         }
 
+        public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+            onCompile();
+
+            return inner.CompileLibrary(source, cancellationToken);
+        }
+
         public LoadedPage Load(byte[] image, byte[]? symbols = null) {
             return inner.Load(image, symbols);
         }

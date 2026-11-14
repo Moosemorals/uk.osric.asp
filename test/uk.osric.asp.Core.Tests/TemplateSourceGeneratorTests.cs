@@ -394,3 +394,50 @@ public sealed class TemplateSourceGeneratorKindTests {
         Assert.That(result.Kind, Is.EqualTo(PageKind.Page));
     }
 }
+
+[TestFixture]
+public sealed class TemplateSourceGeneratorLibraryTests {
+
+    [Test]
+    public void ALibraryUnitDeclaresNoHandler() {
+        string? source = TemplateSourceGenerator.GenerateLibrary("<%! class Amount { } %>").Source?.Text;
+
+        Assert.That(source, Does.Contain("class Amount"));
+        Assert.That(source, Does.Not.Contain("GeneratedPage"));
+        Assert.That(source, Does.Not.Contain("HandleAsync"));
+    }
+
+    [Test]
+    public void ALibraryUnitImportsTheSdk() {
+        string? source = TemplateSourceGenerator.GenerateLibrary("<%! class Amount { } %>").Source?.Text;
+
+        Assert.That(source, Does.Contain("using uk.osric.asp.Sdk;"));
+    }
+
+    [Test]
+    public void DeclarationsKeepTheirTemplateOrderAndMapping() {
+        string? source = TemplateSourceGenerator.GenerateLibrary(
+            "<%! using System.Text; %>\n<%! class Amount { } %>").Source?.Text;
+
+        Assert.That(source, Does.Contain("#line 1 \"page\""));
+        Assert.That(source, Does.Contain("#line 2 \"page\""));
+        Assert.That(
+            source!.IndexOf("using System.Text;", StringComparison.Ordinal),
+            Is.LessThan(source.IndexOf("class Amount", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void ALibraryUnitLeavesTheAuthorsCodeNullableEnabled() {
+        string? source = TemplateSourceGenerator.GenerateLibrary("<%! class Amount { } %>").Source?.Text;
+
+        Assert.That(source, Does.Contain("#nullable enable"));
+        Assert.That(source, Does.Contain("#nullable disable"));
+    }
+
+    [TestCase("<% int value = 1; %>")]
+    [TestCase("<%! class Amount { } %>x")]
+    [TestCase("before<% if (true) {")]
+    public void ATemplateThatIsNotALibraryIsRefused(string template) {
+        Assert.That(() => TemplateSourceGenerator.GenerateLibrary(template), Throws.ArgumentException);
+    }
+}

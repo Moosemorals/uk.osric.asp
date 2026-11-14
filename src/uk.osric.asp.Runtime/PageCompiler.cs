@@ -59,16 +59,7 @@ public sealed class PageCompiler : IPageCompiler {
         ArgumentNullException.ThrowIfNull(source);
 
         SyntaxTree tree = CSharpSyntaxTree.ParseText(source.Text, cancellationToken: cancellationToken);
-        CSharpCompilation compilation = CSharpCompilation.Create(
-            assemblyName: $"Dynamic_{Guid.NewGuid():N}",
-            syntaxTrees: [tree],
-            references: _references,
-            // A page is analysed exactly as the product's own code is, so `ctx.User` is `PageUser?`
-            // in a page too. The generated scaffold disables nullable analysis around every line it
-            // wrote itself, so a warning here can only be about the page.
-            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-                .WithNullableContextOptions(NullableContextOptions.Enable)
-        );
+        CSharpCompilation compilation = Create(tree);
 
         // The policy runs before emit, so a page that may not use an API never becomes an image that
         // could be stored and served.
@@ -97,6 +88,25 @@ public sealed class PageCompiler : IPageCompiler {
             diagnostics);
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// A library is analysed and not emitted: there is nothing to run, and the one thing an author
+    /// needs is the diagnostics, positioned in the library's own template.
+    /// </remarks>
+    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(source);
+
+        SyntaxTree tree = CSharpSyntaxTree.ParseText(source.Text, cancellationToken: cancellationToken);
+        CSharpCompilation compilation = Create(tree);
+
+        IReadOnlyList<PageDiagnostic> violations = PageApiChecker.CheckLibrary(tree, compilation.GetSemanticModel(tree));
+        if (violations.Count > 0) {
+            return new CompileResult(null, null, violations);
+        }
+
+        return new CompileResult(null, null, MapDiagnostics(compilation.GetDiagnostics(cancellationToken)));
+    }
+
     /// <summary>Loads a compiled image so its handler can be run.</summary>
     /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
     /// <returns>The loaded handler; dispose it to release the assembly.</returns>
@@ -104,6 +114,19 @@ public sealed class PageCompiler : IPageCompiler {
         ArgumentNullException.ThrowIfNull(image);
 
         return new LoadedPage(image, symbols);
+    }
+
+    private CSharpCompilation Create(SyntaxTree tree) {
+        // Both a page and a library are analysed exactly as the product's own code is, so `ctx.User`
+        // is `PageUser?` in either. The generated scaffold disables nullable analysis around every
+        // line it wrote itself, so a warning here can only be about the author's code.
+        return CSharpCompilation.Create(
+            assemblyName: $"Dynamic_{Guid.NewGuid():N}",
+            syntaxTrees: [tree],
+            references: _references,
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+                .WithNullableContextOptions(NullableContextOptions.Enable)
+        );
     }
 
     // Mapped diagnostics belong to the page. Unmapped ones belong to generated code; they are a

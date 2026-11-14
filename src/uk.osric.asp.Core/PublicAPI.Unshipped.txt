@@ -577,6 +577,7 @@ uk.osric.asp.Core.Charting.ChartAxis.Divisor.init -> void
 *REMOVED*uk.osric.asp.Core.Charting.ValueUnit
 *REMOVED*~override uk.osric.asp.Core.Charting.ChartScale.Equals(object obj) -> bool
 *REMOVED*~override uk.osric.asp.Core.Charting.ChartScale.ToString() -> string
+static uk.osric.asp.Core.Compilation.TemplateSourceGenerator.GenerateLibrary(string! template) -> uk.osric.asp.Core.Compilation.TemplateGenerationResult!
 uk.osric.asp.Core.Compilation.TemplateGenerationResult.Kind.get -> uk.osric.asp.Core.Pages.PageKind
 uk.osric.asp.Core.Compilation.TemplateGenerationResult.Kind.init -> void
 const uk.osric.asp.Core.Pages.RevisionHash.Length = 64 -> int

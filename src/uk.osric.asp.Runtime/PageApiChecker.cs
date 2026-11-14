@@ -22,6 +22,12 @@ internal static class PageApiChecker {
     private const string HandlerNameMessage = "PAGE002: a page may not declare its own GeneratedPage.";
     private const string AssemblyAttributeMessage = "PAGE002: a page may not add assembly attributes.";
 
+    private const string LibraryShapeMessage =
+        "PAGE002: a library may only contain using directives, namespaces and type declarations.";
+    private const string LibraryEmptyMessage = "PAGE002: a library must declare a type.";
+    private const string LibraryHandlerMessage = "PAGE002: a library may not declare GeneratedPage.";
+    private const string LibraryAttributeMessage = "PAGE002: a library may not add assembly attributes.";
+
     /// <summary>Reports everything the page may not do.</summary>
     /// <param name="tree">The parsed generated source.</param>
     /// <param name="model">The semantic model bound to <paramref name="tree"/>.</param>
@@ -34,10 +40,27 @@ internal static class PageApiChecker {
         ArgumentNullException.ThrowIfNull(model);
 
         List<PageDiagnostic> shape = CheckShape(tree);
-        if (shape.Count > 0) {
-            return shape;
-        }
 
+        return shape.Count > 0 ? shape : CheckApi(tree, model);
+    }
+
+    /// <summary>Reports everything a library may not do.</summary>
+    /// <param name="tree">The parsed generated library source.</param>
+    /// <param name="model">The semantic model bound to <paramref name="tree"/>.</param>
+    /// <returns>The author-facing diagnostics to fail the compile with; empty when the library is acceptable.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The generated source itself violates the policy. That is a compiler fault, not an author's error.
+    /// </exception>
+    public static IReadOnlyList<PageDiagnostic> CheckLibrary(SyntaxTree tree, SemanticModel model) {
+        ArgumentNullException.ThrowIfNull(tree);
+        ArgumentNullException.ThrowIfNull(model);
+
+        List<PageDiagnostic> shape = CheckLibraryShape(tree);
+
+        return shape.Count > 0 ? shape : CheckApi(tree, model);
+    }
+
+    private static List<PageDiagnostic> CheckApi(SyntaxTree tree, SemanticModel model) {
         List<PageDiagnostic> diagnostics = [];
         List<ApiReference> used = [];
         HashSet<string> banned = [];
@@ -128,6 +151,61 @@ internal static class PageApiChecker {
         }
 
         return diagnostics;
+    }
+
+    // A library has no handler, so the page's rule cannot apply to it: it may declare namespaces,
+    // and what it declares is compiled into every page that names it. The rules that keep it from
+    // breaking those pages are the ones that matter: no second GeneratedPage in the same assembly,
+    // no assembly attributes on every dependent, and no statements, because a library is not run.
+    private static List<PageDiagnostic> CheckLibraryShape(SyntaxTree tree) {
+        if (tree.GetRoot() is not CompilationUnitSyntax unit) {
+            return [Error(tree.GetRoot(), LibraryShapeMessage)];
+        }
+
+        List<PageDiagnostic> diagnostics = [];
+        int types = 0;
+
+        foreach (AttributeListSyntax attribute in unit.AttributeLists) {
+            diagnostics.Add(Error(attribute, LibraryAttributeMessage));
+        }
+
+        CheckMembers(unit.Members, topLevel: true);
+
+        // A library that declares no type shares nothing, and nothing can name it.
+        if (types == 0 && diagnostics.Count == 0) {
+            diagnostics.Add(Error(unit, LibraryEmptyMessage));
+        }
+
+        return diagnostics;
+
+        void CheckMembers(SyntaxList<MemberDeclarationSyntax> members, bool topLevel) {
+            foreach (MemberDeclarationSyntax member in members) {
+                switch (member) {
+                    case BaseNamespaceDeclarationSyntax @namespace:
+                        CheckMembers(@namespace.Members, topLevel: false);
+                        break;
+                    case BaseTypeDeclarationSyntax type:
+                        Declares(type.Identifier.ValueText, type, topLevel);
+                        break;
+                    case DelegateDeclarationSyntax declaration:
+                        Declares(declaration.Identifier.ValueText, declaration, topLevel);
+                        break;
+                    default:
+                        diagnostics.Add(Error(member, LibraryShapeMessage));
+                        break;
+                }
+            }
+        }
+
+        void Declares(string name, SyntaxNode node, bool topLevel) {
+            // A namespaced GeneratedPage cannot collide with the dependent's handler; a global one can.
+            if (topLevel && string.Equals(name, LoadedPage.HandlerTypeName, StringComparison.Ordinal)) {
+                diagnostics.Add(Error(node, LibraryHandlerMessage));
+                return;
+            }
+
+            types++;
+        }
     }
 
     private static string? FindBanned(SyntaxNode node) {
