@@ -37,7 +37,7 @@ view to the next.
 - `PageLayout` keeps the fragments a shell view writes: `Gutter` and `Diagnostics` (a `ul` with `role="list"`,
   DEC-108). Everything the shell's own document needs — the head with its base sheets and icon, the
   banner with the skip link, `Nav`, `OpenMain`/`CloseMain` and the close — is
-  `Html/ShellDocument.cs`, and only the shell writes it (DEC-156, superseded). A stored page does
+  `Html/ShellDocument.cs`, and only the shell writes it (DEC-156, DEC-288). A stored page does
   not call it: the seeded layout writes its own document with the seeded
   [`/_lib/document`](../src/uk.osric.asp.Web/Pages/Seeds/_lib/document) library, so the owner can
   edit and restore what a stored page is served in. `Html/` keeps `DiagnosticLine`,

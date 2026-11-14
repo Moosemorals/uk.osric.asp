@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Built, awaiting the owner's merge — phases 0–4 are on the branch; see [Status](#status) |
+| Status | Done — phases 0–4 landed in DEC-283–DEC-289; see [Status](#status) |
 | Size | Large — a kind in the compiler, a column and its migration, an index and a closure, a per-tree policy, a source on every diagnostic, and the end of `PageDocument` in `Sdk` |
 | Spike | None. The tokenizer already reports the declarations, `TemplateHasCode` already proves a verdict can come from generation, and Roslyn already compiles more than one tree |
-| Decisions | cited by name until this merges; DEC-240's rule is kept and its column replaced, DEC-156 is superseded in phase 4, DEC-151's comparison test is extended to the document; D12 costs a shared assembly and leaves it out |
+| Decisions | DEC-283–DEC-289: the three kinds, the `using` closure, the per-tree policy, the fingerprint, a library's storage, the shell's document, and the shared assembly not built. DEC-240's rule is kept and its column replaced, DEC-151's comparison test is extended to the document, and DEC-156's `Sdk` half is superseded |
 | Backlog | [IDEA-005](../jobs/README.md#closed) — the layout half landed; this is the shared-code half, and the job closes with it |
 
 ## The short version
@@ -371,7 +371,7 @@ phase 2 is the migration; phase 3 is the mechanism; phase 4 is the seed and the 
 - `/help`: the library kind end to end, with the static-state caveat and the `WebUtility` example of
   what the policy still denies.
 - `PageDocument` merges into `ShellDocument` (D10), the seed calls the library (D11), the drift test
-  lands, DEC-156 is superseded and IDEA-018 closes with it.
+  lands, DEC-156's `Sdk` half is superseded and IDEA-018 closes with it.
 - The second numbers: `/_layout`'s compile duration and image size before and after it calls the
   library document, recorded beside phase 3's.
 - The documents: [pages](../pages.md) (three kinds, the closure), [shell](../shell.md) (the layout is
@@ -463,11 +463,11 @@ instrument is `page.cache.staleness{reason="library-changed"}`.
 
 ### What the merge has to know
 
-- **An installation that already holds the old seeds breaks.** A stored `_layout` or `/pages` that calls
-  `PageDocument` no longer compiles, so `/admin/restore` is the first thing to run after the deploy: it
-  installs the new `_layout` and the new editor over the old ones. The library seed arrives with it.
-- **Decisions to number at merge:** the library kind and its `using` closure, the shell keeping its own
-  document, and the seeded document library. DEC-156 is marked superseded in part here.
+- **An installation that already holds the old seeds is upgraded at startup.** A stored `_layout` or
+  `/pages` that names `PageDocument` no longer compiles, so seeding replaces that seed with the shipped
+  version once, logs the key it rewrote, and leaves the revision it replaced in the page's history.
+  `/admin/restore` shows the pair, and everything else the owner wrote is untouched.
+- **Decisions recorded at the merge:** DEC-283–DEC-289, listed above.
 - [`docs/decisions.md`](../decisions.md), [shell](../shell.md), [pages](../pages.md), [testing](../testing.md),
   [jobs](../jobs/README.md) (IDEA-005 and IDEA-018 close), and the seeded `/help` are updated on the
   branch.
