@@ -11,6 +11,14 @@ SPDX-License-Identifier: MIT
 | Area | Sdk, Web, assistant |
 | Location | `src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs`, `src/uk.osric.asp.Web/Assistant/RunQueue.cs`, `src/uk.osric.asp.Sdk/IContext.cs` |
 
+> **Re-scoped 2026-11-14** by [the page-apps plan](../plans/page-apps.md). The sketch below first
+> proposed an `IAssistantConversations` capability; that is exactly the specialist capability the site
+> must not build (DEC-291). What a page actually lacks is three connection-shaped things — a stream
+> that outlives the render budget, an outbound body read as it arrives, and work that outlives the
+> request — and the plan builds those generically first. A job is a library with one entry point, not
+> a page render: it has no document to write. The sketch is kept as the record of what the port still
+> has to answer, not as the shape of the work.
+
 ## Idea
 
 `/assistant` is the last view-shaped thing in the shell. The conversation list is a list and a form;
@@ -31,35 +39,41 @@ movable **yet**. This job is what would move it.
 
 ## Sketch
 
-1. **The capability first, the stream second.** A page needs
+1. **The capability first, the stream second.** ~~A page needs
    `ctx.Capabilities.GetRequired<IAssistantConversations>()`, bound to `ctx.User` as `IPageWriter` is
    (DEC-190): list conversations, read a transcript, start a run with a message, stop one, and
-   resolve a pending approval. The owner comes from the request, never from an argument, and an
-   anonymous render is refused by the capability rather than by the page.
+   resolve a pending approval.~~ **Withdrawn.** A conversation capability encodes one app's shape.
+   The generic pieces are the stream's lifetime, the outbound stream and a background job; the page
+   owns the conversations, transcript and approval state over storage, and the run is a job. The
+   owner still comes from the request and an anonymous render is still refused, but by the page's
+   own guard and the job capability's structural owner filter, not by a conversation type.
 2. **The memory view is one of its routes.** `/assistant/memory` is a list and a form already
    (DEC-205–DEC-209), and it becomes a route of this page rather than a capability of its own: the
-   same owner-bound capability answers for memory as it does for conversations, the pin stays the
-   owner's alone (DEC-206), a stale version is still refused with the stored content (DEC-207), a
-   refusal still keeps the text (DEC-208) and a forget still asks first (DEC-209). DEC-211, which
-   proposed `IMemoryCatalog` and `IMemoryWriter` in `Sdk`, is withdrawn (DEC-291). Memory's store, its
-   FTS5 recall, its versions, pins and provenance are the assistant's, written by its tools inside a
-   run, and a page capability would either duplicate them or take ownership of the schema the tools
-   depend on.
+   same page answers for memory as it does for conversations, over the starting page's storage and
+   the owner's rows, the pin stays the owner's alone (DEC-206), a stale version is still refused with
+   the stored content (DEC-207), a refusal still keeps the text (DEC-208) and a forget still asks
+   first (DEC-209). DEC-211, which proposed `IMemoryCatalog` and `IMemoryWriter` in `Sdk`, is
+   withdrawn (DEC-291). Memory's store, its FTS5 recall, its versions, pins and provenance are the
+   assistant's, written by its tools inside a run, and a page capability would either duplicate them
+   or take ownership of the schema the tools depend on.
 3. **A stream is not the only way to watch a run.** A page can already answer per request, and
    `/status` proves how far that goes without a script: a run view that reloads on its own — a
    `<meta http-equiv="refresh" content="2">`, or a `?run={id}` link the browser follows — would show
-   the transcript growing without a stream. It is worse than a stream (a whole document
-   every two seconds, and the textarea's draft would need care), and it is the cheap version worth
-   having before the expensive one, as the same site's "no JavaScript where markup will do" rule
-   argues (DEC-81).
+   the transcript growing without a stream. It is worse than a stream (a whole document every two
+   seconds, and the textarea's draft would need care), and it is the fallback a page keeps when its
+   script is not running, as the same site's "no JavaScript where markup will do" rule argues
+   (DEC-81). The long stream in [the page-apps plan](../plans/page-apps.md) makes the live version
+   possible; this job no longer has to choose.
 4. **The chat input and the seed.** The input posts and the page reloads on the run, so
    `/assistant.js` stops being necessary; the seeded page could carry a tiny module later, for
    progressive rendering only, and that is the one place a page is allowed `ctx.AllowScripts()`.
 5. **Approvals.** The approval card is a form posting a decision; it is the same shape as the page's
-   own saves, so once the capability exists the card is markup.
+   own saves, so once the job exists the card is markup and the decision is a stored row that the
+   next job reads.
 6. **What stays shell whatever happens.** `/metrics` and `/heath` because they are the runtime, and
-   `/status` because it is bootstrap (DEC-210). The assistant's own run loop is host code either way;
-   the question is only which route serves the view.
+   `/status` because it is bootstrap (DEC-210). The run loop is a job library under
+   [the page-apps plan](../plans/page-apps.md), so it is page code too; the question is only which
+   route serves the view.
 
 ## What would make it unnecessary
 

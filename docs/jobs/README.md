@@ -62,7 +62,7 @@ analyzers work turned the XML documentation on and the image carries it, and not
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
 | [IDEA-024](IDEA-024.md) | — | L | `/admin/import` and `/admin/export` are shell code because an archive is not a form |
-| [IDEA-025](IDEA-025.md) | — | L | The assistant's conversation is a stream and a set of host actions, not a page |
+| [IDEA-025](IDEA-025.md) | — | L | The assistant needs a long stream, an outbound stream and background work before its conversation can be a page |
 | [IDEA-027](IDEA-027.md) | — | S | A page cannot leave a message for a page it sends a visitor to |
 | [IDEA-029](IDEA-029.md) | — | L | VS Code cannot check a page as it is typed: highlighting and clickable diagnostics are static |
 | [IDEA-030](IDEA-030.md) | — | M | Every view writes its own navigation: the shell, the admin, the assistant and the seeds each assemble the same links |
@@ -121,7 +121,7 @@ approval.
 | 5 | [Page editor](../plans/archive/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | done |
 | 6 | [ARCH-16](#closed) — one read seam for the assistant's tools and its applets | M | 5, edit safety | merge | done |
 | 7 | [Pages can stream](../plans/page-streaming.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | done |
-| 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase | — |
+| 8 | [IDEA-025](IDEA-025.md) — the shell an app needs ([the plan](../plans/page-apps.md)): a long stream, an outbound stream, background work; the assistant port is later | L | 6, 7 | the plan, then every phase | in flight |
 | 9 | [Page first](../plans/page-first.md) — the rule and its audit; the memory capability it first proposed is withdrawn, and the gap a page actually has is IDEA-033 | S | — | merge | done |
 | 10 | [#closed](#closed) — page libraries: IDEA-005's shared-code half — a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | done |
 
@@ -144,6 +144,13 @@ plan and a named first customer. `/assistant/memory` stays a shell route until s
 Step 6 followed 5 rather than needing it: the editor's listing carries the compile state, and that is
 the state the assistant's one seam answers with too (DEC-276). Step 7 closed BUG-17's one loose end
 with the same write path: a client that leaves mid-write is no longer an unhandled exception.
+
+Step 8 was re-scoped on 2026-11-14. Its first sketch proposed an `IAssistantConversations`
+capability, which is the specialist capability the memory work had just taught the site to avoid
+(DEC-291). [The page-apps plan](../plans/page-apps.md) builds what a page actually lacks — a stream
+that outlives the render budget, an outbound body read as it arrives, and work that outlives the
+request — and leaves the assistant in the shell until the port has its own plan and the authority
+question in that plan is answered.
 
 **IDEA-026 had no data gate.** Its sketch made the query the gate, and the decision was to remove
 the alias without running it. The cost of being wrong is a stored page that no longer compiles:
