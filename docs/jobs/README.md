@@ -47,7 +47,10 @@ of that plan's fourth phase: retiring `/edit` and moving the editor's key into c
 that a dozen views each assemble their own navigation. IDEA-029 came out of the [VS Code
 template-language spike](../spikes/vscode-template-language.md) of the same day: highlighting and
 `make check-pages` landed in `tools/`, and the live half — a language server for the repository's
-editor — is what is left.
+editor — is what is left. IDEA-033 came out of the
+[page-first re-scope](../plans/page-first.md) of 2026-11-14 (DEC-291): the memory page the plan first
+moved needs the assistant's own store, so the capability a page actually lacks is somewhere to keep
+something for a signed-in account.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -63,6 +66,7 @@ editor — is what is left.
 | [IDEA-029](IDEA-029.md) | — | L | VS Code cannot check a page as it is typed: highlighting and clickable diagnostics are static |
 | [IDEA-030](IDEA-030.md) | — | M | Every view writes its own navigation: the shell, the admin, the assistant and the seeds each assemble the same links |
 | [IDEA-031](IDEA-031.md) | — | S | Some policy is still a constant in code: password and user-name length, the security headers, the page API allow-list, and the internal retry and sweep periods |
+| [IDEA-033](IDEA-033.md) | — | L | A page has no persistent per-account store: `IPageStorage` is shared by every visitor, `IPageSession` goes when the visitor signs out, and nothing keeps anything for a signed-in account |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -116,7 +120,7 @@ approval.
 | 6 | [ARCH-16](#closed) — one read seam for the assistant's tools and its applets | M | 5, edit safety | merge | done |
 | 7 | [Pages can stream](../plans/page-streaming.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | done |
 | 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase | — |
-| 9 | [Page first](../plans/page-first.md) — re-scope against 5–8: DEC-210 and DEC-211 are recorded, but the audit and the memory page are not; build the page, or archive the plan behind IDEA-024 and IDEA-025 | L | 5–8 | the plan, then build-or-close | — |
+| 9 | [Page first](../plans/page-first.md) — the rule and its audit; the memory capability it first proposed is withdrawn, and the gap a page actually has is IDEA-033 | S | — | merge | done |
 | 10 | [#closed](#closed) — page libraries: IDEA-005's shared-code half — a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | done |
 
 The [assistant edit-safety plan](../plans/archive/assistant-edit-safety.md) landed between steps 5 and
@@ -128,9 +132,12 @@ Steps 1 and 2 are independent and may run together, as may 6 and 7. Everything e
 files — the editor, `/pages`, `SimpleContext`, the assistant prompt — and is sequential. A long plan
 merges phase by phase so a regression is bisectable, and its branch goes when its last phase is in.
 
-Page first is less unstarted than its status row says: DEC-210 and DEC-211 are recorded and the
-rule is agreed, but [architecture](../architecture.md) has no audit table, `/memory` is still a shell
-route, and DEC-211 still names `ctx.Features` — the rename it has to follow is step 2's.
+Step 9 landed smaller than it was planned. The rule and its audit are in
+[architecture](../architecture.md#where-a-view-lives), the memory capability the first version proposed
+is withdrawn (DEC-291), and the view that would have used it is the assistant's — step 8. What a page
+actually lacks is somewhere to keep something for a signed-in account, and that is
+[IDEA-033](IDEA-033.md): a job with the shape, the cost and the open questions in it, waiting for a
+plan and a named first customer. `/assistant/memory` stays a shell route until step 8 replaces it.
 
 Step 6 followed 5 rather than needing it: the editor's listing carries the compile state, and that is
 the state the assistant's one seam answers with too (DEC-276). Step 7 closed BUG-17's one loose end
@@ -146,7 +153,8 @@ Not in this programme: [OPS-03](OPS-03.md) is the obvious next candidate once th
 empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
 [IDEA-001](IDEA-001.md) wants a third-party editor; [IDEA-020](IDEA-020.md) records why a
 destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7
-touched; and [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page.
+touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page; and
+[IDEA-033](IDEA-033.md) wants a plan and a named first customer before it is a step.
 
 ## Closed
 
@@ -162,7 +170,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | [IDEA-026](../decisions.md) | The `Features` alias is gone: `IPageFeatures`, `IContext.Features`, the `PAGE005` diagnostic and the `[Obsolete]` attributes are removed, and a page that still says `ctx.Features` no longer compiles. DEC-254 |
 | [ARCH-15](../decisions.md) | The assistant's only read-only keys are the shell's own routes: `Assistant:ProtectedPaths`, its `IsProtected` branch, the empty configuration row and the prompt's sentence are gone, so every page the shell does not route is the assistant's to write. DEC-253 |
 | [ARCH-07](../plans/archive/revision-restore.md) | A page's history restores: the editor confirms a revision or a seed install with a diff and saves the chosen source as a new revision, refusing the one that would change nothing; the assistant gains `list_revisions`, `read_revision` and an approval-gated `restore_revision`, and both listings page with `limit` and a cursor. See [the plan](../plans/archive/revision-restore.md) |
-| [ARCH-13](../plans/page-streaming.md) | A page can stream: `IContext.FlushAsync` makes the first flush the commit point, a flushing page is served alone, a committed failure truncates, the body cap stops at the commit, and a client disconnect is no longer an unhandled exception. See [the plan](../plans/page-streaming.md); its decisions are numbered at merge |
+| [ARCH-13](../plans/page-streaming.md) | A page can stream: `IContext.FlushAsync` makes the first flush the commit point, a flushing page is served alone, a committed failure truncates, the body cap stops at the commit, and a client disconnect is no longer an unhandled exception. DEC-292–DEC-300. See [the plan](../plans/page-streaming.md) |
 | [ARCH-02](../pages.md#page-contract) | Pages are a restricted runtime: a plain `PageRequest` snapshot, buffered output applied after the handler, allow-listed headers, `GET`/`POST`/`HEAD` only, and a 1 MiB form cap |
 | ARCH-03 | Renders and compiles each have a slot and a deadline, an abandoned render is logged and counted, and `/heath` reports it. See [the plan](../plans/archive/page-execution-budget.md). SEC-03 is deliberately still open |
 | ARCH-04 | `LoadedPage` unwraps the reflection wrapper with `ExceptionDispatchInfo`, so the shell sees the page's own exception |

@@ -132,6 +132,24 @@ A new view starts as a page. It becomes an endpoint only when it needs something
 is the worked example: it is the seeded `/pages`, which is offered `IPageEditor` by its key, and
 [IDEA-030](jobs/IDEA-030.md) is the remaining tidying. See [jobs](jobs/README.md).
 
+### Where a view lives
+
+> **Anything a page can serve is a page.** A route stays in the shell only for one of three reasons,
+> and "we have not got to it" is not one of them: it is a job.
+
+| Route | Why it is not a page | Where that is recorded |
+| --- | --- | --- |
+| `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | DEC-210 |
+| `/status`, `/status/chart`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load starts here, and the changelist is a file the image carries, which a page cannot read | DEC-210, DEC-255 |
+| `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | DEC-210, DEC-256 |
+| `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | DEC-210 |
+| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** A live run needs a stream and the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [ARCH-13](jobs/ARCH-13.md), [IDEA-025](jobs/IDEA-025.md) |
+| `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](jobs/IDEA-024.md) |
+
+The page column is the default, so a new route asks which column it is in before it is written, and
+"it is easier in C#" is an IDEA file rather than an answer. The list is expected to shrink: when
+IDEA-024 lands, import and export join the page column, and the rule is what stays the same.
+
 ## Configuration
 
 Configuration is the only source of a policy value (DEC-282). There is no fallback in code, so the

@@ -128,7 +128,9 @@ rather than overwriting it, and an invalid, too long or secret note re-renders t
 the owner typed still in it. Forgetting asks on a page of its own first, and says what the delete
 cannot reach. The page is server-rendered and script-free, it is a shell file the assistant may read
 and never save (DEC-198), and it is the only place a memory can be pinned: no tool has an argument
-for that (DEC-206).
+for that (DEC-206). It stays shell code until the assistant itself is a page
+([IDEA-025](jobs/IDEA-025.md)): the memory view is one of that page's routes, and the page capability
+that would have replaced it was withdrawn (DEC-291).
 
 Recall happens once per run, on the first step, and the block it builds is frozen for the rest of the
 run: a memory the model writes mid-run reaches the next run, not the turn that wrote it. The newest

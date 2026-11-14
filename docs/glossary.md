@@ -23,6 +23,18 @@ a URL naming one revision may promise never to change.
 stylesheet or writes its own whole document, and a library is never one at all. **Owner:** pages —
 `PageAssetPolicy`, `PageRevisions.TemplateKind` and `PageAssetMap`.
 
+## Bootstrap route
+A shell route that exists so the site can be repaired when a page is what is broken: `/login` and
+`/logout`, `/status` with its chart, `/admin/changes`, and the two recovery routes `/admin/restore`
+and `/admin/scrub`.
+
+**Not** a view that has not been ported yet. A route for a view a page could serve today is a page,
+and a route for one a page cannot serve yet has a job behind it (DEC-210); bootstrap is the reason
+that is never in the page column, because a page cannot answer when the page pipeline is what failed.
+**Owner:** shell — `LoginEndpoint`, `StatusEndpoint`, `ChartEndpoint`, `ChangesEndpoint`,
+`RestoreEndpoint` and `ScrubEndpoint`; the audit is in
+[architecture](architecture.md#where-a-view-lives).
+
 ## Budget
 The process-wide limit on how long a render or compile may take and how many may run at once,
 shared by every request.
@@ -188,9 +200,10 @@ answer. It is written only by a `remember` call the transcript shows, never by a
 The owner's own view of the assistant's memory: `/assistant/memory`, where every note is listed by
 kind, corrected, pinned or forgotten.
 
-**Not** a stored page. It is shell code under the reserved `/assistant` prefix, server-rendered like
-the editor and `/status`, so a page cannot claim the key and the assistant reads it as a shell file it
-may not save.
+**Not** a stored page, and not a capability of its own. It is shell code under the reserved
+`/assistant` prefix, server-rendered like the editor and `/status`, so a page cannot claim the key and
+the assistant reads it as a shell file it may not save. The view moves with the assistant page
+(IDEA-025) rather than becoming a capability of its own; DEC-211, which proposed one, was withdrawn.
 
 **Owner:** assistant — `AssistantMemoryEndpoint`, `/assistant.css` and DEC-205–DEC-209.
 

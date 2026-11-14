@@ -7,464 +7,336 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started — and overtaken in part: the editor became a page on 2026-11-13 ([page editor](archive/page-editor.md)), so the audit's first row is already spent and the re-scope the programme asks for is smaller than this plan assumed |
-| Size | Large — a rule and its audit, two capabilities, a store registration change, a seeded page and its sheet, and the tests for each |
-| Spike | None. The page contract already carries everything a form needs, and `/scratch` is the worked example |
-| Decisions | DEC-210 (the rule) and DEC-211 (the capability), recorded with this plan; DEC-205 is superseded in phase 3 |
-| Backlog | [IDEA-024](../jobs/IDEA-024.md) (a page cannot take an upload or serve a file), [IDEA-025](../jobs/IDEA-025.md) (the assistant conversation as a page) — the two remaining reasons a shell route is not already a page; streaming landed in [the streaming plan](page-streaming.md) |
+| Status | Done — DEC-291. The rule and the audit landed; the memory capability this plan first proposed was withdrawn before it was built, and the gap it was meant to fill is [IDEA-033](../jobs/IDEA-033.md) |
+| Size | Small — a rule and its audit in two documents, one withdrawn decision, one new job and the cross-references that pointed at it. No product code |
+| Spike | None. Nothing is built: the step records where a view lives and what a page still cannot do |
+| Decisions | DEC-210 (the rule) stands; DEC-211 is withdrawn; DEC-291 records the re-scope |
+| Backlog | [IDEA-025](../jobs/IDEA-025.md) (the assistant page, which now includes the memory view), [IDEA-024](../jobs/IDEA-024.md) (an archive is not a form), [IDEA-033](../jobs/IDEA-033.md) (a page has no persistent per-account store); streaming landed in [the streaming plan](page-streaming.md) |
 
 ## The short version
 
-The site is a page that can edit itself, and its shell has been quietly growing views that are not
-the page runtime at all. This plan makes the rule explicit and applies it to the first case:
+The site is a page that can edit itself, and its shell had been quietly growing views that are not the
+page runtime at all. The rule that stops that:
 
-> **Anything a page can serve is a page.** The shell keeps what bootstraps a broken site, what *is*
-> the page runtime, and what a page cannot do yet — and every one of those last ones has a job.
+> **Anything a page can serve is a page.** A route stays in the shell only for one of three reasons, and "we have not got to it" is not one of them: it is a job.
 
-The first customer is the owner's memory page, which landed last week as four shell routes
-(`/assistant/memory` and its save and forget). It is a list and a form with no JavaScript, no
-streaming and no upload — everything a page is *for*. It becomes:
+The first version of this plan applied it to the owner's memory page by adding `IMemoryCatalog` and
+`IMemoryWriter` to the page contract. That was host support for one view, and it would not survive the
+assistant becoming a page: once the conversation page exists, the memory view is one of its routes,
+served by the same owner-bound capability, and a memory-shaped capability would be a second thing that
+page has to be written against. Memory is the assistant's — its tools write it during a run, with FTS5
+recall, versions, pins and provenance — so it does not become a page capability at all. DEC-211 is
+withdrawn.
 
-- **One capability, owner-bound.** `IMemoryCatalog` (read) and `IMemoryWriter` (write) in `Sdk`,
-  offered through `ctx.Capabilities`, bound to `ctx.User` by the host so a page cannot name an owner.
-  An anonymous render is refused by the capability, not merely by the page's own guard.
-- **One stored page.** `/memory`, seeded like `/help` and `/scratch`, with its own `/memory.css`,
-  saving itself on a `POST` and answering `303` back to itself.
-- **Four shell routes fewer.** `AssistantMemoryEndpoint` and its registration go. `/status` stays,
-  deliberately: it is the first thing to read when a page did not load.
+What a page actually lacks is **persistent per-account storage**: `IPageStorage` is shared by every
+visitor and is the page's content, and `IPageSession` belongs to one browser and goes when it signs
+out. A page that wants a personal list, a preference or a record per signed-in account has nowhere to
+put it. That is a job of its own — SQL-shaped, one namespace per account, with the schema declared by
+the page — and it needs a plan and a named first customer before it is built.
 
-Nothing about recall changes, and the store's rules do not move: `EditAsync` is still the one write
-that can pin, a stale version is still refused with the stored content, and a forget is still the
-tool's delete.
+So this plan delivered three things and no code: the rule written into
+[architecture](../architecture.md#where-a-view-lives) with the audit beside it, DEC-211 withdrawn and
+the reasoning recorded below, and IDEA-033 written with every document that pointed at the old
+capability re-pointed at the right one.
 
 ## Goals
 
 1. One written rule for where code goes, applied to every route the shell answers today, with the
-   exceptions named and a job behind each.
-2. The memory page becomes a page: its list, its form, its confirmations, its styles and its tests are
-   page artefacts, editable and restorable like `/help`.
-3. Memory becomes a product capability: a page written by the owner can read and change their own
-   memory, and cannot touch anybody else's, by construction rather than by the page remembering to
-   check.
-4. The assistant's side gets smaller. The shell route, the endpoint, its four routes and their tests
-   are deleted, not wrapped.
-5. The page contract grows by one capability, deliberately: `Sdk` values, a refusal for an anonymous
-   render, the writer withheld from a layout, and the capability absent when the assistant is off.
+   exceptions named and a record behind each.
+2. The audit in the document a contributor reads before adding a view, and expected to shrink.
+3. The gap between what pages can keep and what an account needs named, shaped and costed, so the next
+   step starts from a brief rather than from a blank page.
 
-## Non-goals
+## What changed, and why
 
-- **Making everything a page at once.** This plan moves the memory page and writes the rule. The
-  other shell routes get jobs, not migrations.
-- **A per-route policy for pages.** Pages have no route policy and should not get one: the guard is
-  the page's `ctx.User` check and the backstop is the capability's refusal. Adding policy would put
-  authority in configuration, which is where a page cannot see it (DEC-02, DEC-169).
-- **A second page for the forget confirmation.** A page is its own route: the confirmation is
-  `/memory?forget={id}`, and the form posts back to the same key.
-- **A page-side editor.** `/edit` was the tool that repairs a broken page, so it could not be one —
-  until [IDEA-028](../jobs/README.md#closed) gave that job to `/admin/restore`, which is what let the
-  editor become the seeded `/pages`.
-- **Uploads or script endpoints.** Streaming is now a page capability; uploads and the assistant's
-  conversation are still backlog (IDEA-024, IDEA-025).
-- **Moving `/status`.** It stays shell: diagnosing why a page did not load starts there, which makes
-  it bootstrap rather than a view.
-- **Team memory, sharing, or memory in page state.** One owner per row is unchanged (DEC-184).
+| Claim in the first version | What is true |
+| --- | --- |
+| "Memory becomes a product capability: a page written by the owner can read and change their own memory" | Memory is the assistant's. Its store, its FTS5 recall, its versions, pins and provenance are written by the tools inside a run and read back into the next prompt. A page capability would either duplicate that store or invert who owns the schema |
+| "`IMemoryCatalog` and `IMemoryWriter` in `Sdk`, offered through `ctx.Capabilities`" | Those two interfaces are host support for one view. When the assistant becomes a page ([IDEA-025](../jobs/IDEA-025.md)), that page's capability answers for memory as it answers for conversations — one capability, owner-bound, and no memory-shaped type in `Sdk` |
+| "The first customer is the owner's memory page" | The first thing a page wants that it cannot have is not memory and not a view. It is somewhere to keep per-account data |
+| "`/assistant/memory` is deleted in phase 3" | It stays until the assistant page replaces it. Deleting it first would take away the owner's only view of their memory, and a page cannot replace it without the assistant's store |
+
+What survives is what the plan was written for: the rule, the audit's shape, and the observation that
+the list is expected to shrink.
 
 ## The rule
 
-> **Anything a page can serve is a page.** A route stays in the shell only for one of three reasons,
-> and "we have not got to it" is not one of them: it is a job.
+> **Anything a page can serve is a page.** A route stays in the shell only for one of three reasons, and "we have not got to it" is not one of them: it is a job.
+
+### The audit
+
+The list lives in [architecture](../architecture.md#where-a-view-lives), so a reader who has never
+seen this plan can find it. The `/assistant/memory` row is folded into `/assistant`, and the two
+recovery routes the first version left out are named.
 
 | Route | Why it is not a page | Where that is recorded |
 | --- | --- | --- |
-| ~~`/edit` and its commands~~ | **Landed as a page** with `/admin/restore` as the bootstrap. `scrub` stayed in the shell at `/admin/scrub` because it cannot be undone | DEC-210 superseded for this row by [page editor](archive/page-editor.md) |
 | `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | DEC-210 |
-| `/status`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load — the counters, the storage, the build and the commits in it — starts here; the changelist is a file the image carries, which a page cannot read | DEC-210, DEC-255 |
+| `/status`, `/status/chart`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load starts here, and the changelist is a file the image carries, which a page cannot read | DEC-210, DEC-255 |
+| `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | DEC-210, DEC-256 |
 | `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | DEC-210 |
-| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop and delete | **A page cannot, yet.** The live stream is now something a page can do ([the streaming plan](page-streaming.md)); the conversation's actions need a capability (IDEA-025) | [IDEA-025](../jobs/IDEA-025.md) |
+| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The live stream is now something a page can do ([the streaming plan](page-streaming.md)); the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [IDEA-025](../jobs/IDEA-025.md) |
 | `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](../jobs/IDEA-024.md) |
-| `/assistant/memory` | **It can.** This plan moves it | this plan |
 
-The table is the audit and it is expected to shrink: when IDEA-024 lands, import and export join the
-page column, and the rule is what stays the same. The changelist stays beside `/status`, because it
-reports a fact about the build rather than content the site holds. A new route starts by asking which column it is in, and
-"the page column" is the default answer.
+Two sentences go with the table: the page column is the default, so a new route asks which column it
+is in before it is written, and "it is easier in C#" is an IDEA file rather than an answer. The list
+is expected to shrink — when IDEA-024 lands, import and export join the page column, and the rule is
+what stays the same.
 
-## What exists today
+## The capability that is actually missing
 
-The pieces this plan builds on:
+| Store | Whose | How long | Where |
+| --- | --- | --- | --- |
+| `IPageStorage` | the page — every visitor shares it | until the key or the page goes | `PageState` |
+| `IPageSession` | one browser | until sign-out, or 30 minutes idle (8 hours signed in) | `PageSessions` |
+| `IPageCatalog` / `IPageWriter` | the page store itself | forever | `Pages`, `PageRevisions` |
+| **missing** | **one signed-in account** | **until the account or the page goes** | — |
 
-| Piece | Today | Used here for |
-| --- | --- | --- |
-| `IContext` and `IPageCapabilities` | `User`, `AntiforgeryField`, `Write`, `Redirect`, `SetStatus`, `SetHeader` and the capabilities | Everything the page needs; no contract change |
-| `IPageCatalog`, `IPageWriter`, `IPageStorage`, `IHttpFetch`, `IPageLayout`, `IMarkdownRenderer` | The capabilities a render offers, built per render in `PageChain` from `PageEnvironment` | The pattern the memory capability copies |
-| `PageWriterScope`, `PageCatalogScope`, `PageStorageScope` | Capability scopes in `Web.Pages`: mapping `Web` records to `Sdk` values and refusing what the policy forbids | The shape of `MemoryCatalogScope` and `MemoryWriterScope` |
-| `PageEnvironment` | The singleton record the renderer needs, which exists "so the endpoint's signature stays readable as the page contract grows a capability" | Gains the memory store, offered only while the assistant is enabled |
-| `IMemoryStore` and `SqliteMemoryStore` | Owner-scoped, every statement filtered in SQL, scoped over `StorageDbContext` | The rules the capability exposes; the registration changes in D3 |
-| `AssistantMemoryEndpoint` | The shell page: four routes, the list, the row and the confirmation | Deleted; the page replaces it |
-| `Pages/Seeds/memory`-shaped seeds | `/help`, `/scratch`, `/pages`, `/recent` and their sheets | The page's home, its stylesheet and its tests |
-| `PageHarness` | Renders a stored template with fakes for every capability | Gains a memory fake, so the page renders in a unit test |
-| `AccessibilityTests` | Twelve rules over every view in `ShellViews` | A page fixture, so the page is held to the same rules as a shell view |
+The gap is deliberate today: DEC-125's open-policy note says per-user state is "a later job with its
+own migration and decision", and the identity hook it needed has existed since DEC-132–DEC-137. This
+plan opens that job rather than building it.
 
-[IDEA-019](../jobs/README.md#closed) was "found together while asking what a shell view would need to
-become a page"; this plan is the answer for one view, and it needs none of IDEA-019's three gaps:
-memory needs no repeated values, no cookie and no hashing.
+[IDEA-033](../jobs/IDEA-033.md) — a page has no persistent per-account store — carries the analysis:
+
+- **Per account, not per page.** The namespace belongs to the signed-in account, so a page names its
+  own tables and can read what another page stored for the same account, which is the rule
+  `IPageSession`'s reads already follow. The job records the consequence: a page the assistant edits
+  can read another page's rows for the owner.
+- **SQL, not JSON documents.** A per-account page wants a list, an order, a filter and a search; a
+  document store would make every page load everything or grow a query language of its own. The schema
+  is declared by the page, so the host can create the table and index it — including FTS5 over the
+  columns the page names — which is the part page code cannot do for itself.
+- **The cost is real**, and is why this is a job and not a line in this plan: a schema lifecycle, a
+  quota per (account, page), a statement sandbox, a structural owner filter rather than a predicate a
+  page remembers to write, and a privacy sentence for a store that outlives sign-out.
+- **A customer first.** The owner names the page that will use it before it is built. A capability no
+  page uses is speculative work (DEC-08), and this site takes the obvious thing at small `n` (DEC-14).
+
+## Non-goals
+
+- **Building per-account storage now.** It needs a plan of its own, a migration, a sandbox and a first
+  customer. This step records it.
+- **A memory capability in `Sdk`.** Withdrawn (DEC-211). Memory's view arrives with the assistant page.
+- **Deleting `/assistant/memory`.** It is the owner's only view of their memory until the assistant
+  page exists. IDEA-025 takes it, and DEC-205 stands until then.
+- **Making any other view a page at once.** Each remaining shell route names its blocker; none of them
+  needs this step.
+- **A route policy for pages, team memory, or sharing.** Unchanged: the guard is the page's
+  `ctx.User` check, and authority that lives in configuration is authority a page cannot see (DEC-02,
+  DEC-169).
 
 ## What this touches
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Sdk/IMemoryCatalog.cs`, `IMemoryWriter.cs`, `MemoryNote.cs`, `MemoryEdit.cs`, `MemorySaveResult.cs` | The capability, its values and its request |
-| `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | The new surface |
-| `src/uk.osric.asp.Web/Pages/MemoryCatalogScope.cs`, `MemoryWriterScope.cs` | The owner binding, the anonymous refusal and the mapping |
-| `src/uk.osric.asp.Web/Pages/PageChain.cs` | Offers both capabilities, the writer only to the content layer, and neither to a layout |
-| `src/uk.osric.asp.Web/Pages/PageEnvironment.cs` | Carries the memory store, or nothing when the assistant is off |
-| `src/uk.osric.asp.Web/Assistant/SqliteMemoryStore.cs` | Over `IDbContextFactory<StorageDbContext>`, so it can be a singleton |
-| `src/uk.osric.asp.Web/Program.cs` | The store becomes a singleton; the four memory routes and `AssistantMemoryEndpoint` go |
-| `src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs` | The assistant navigation links to `/memory` |
-| `src/uk.osric.asp.Web/Assistant/AssistantMemoryEndpoint.cs` | Deleted |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | One sentence naming `/memory`; `Version` to `page-author-v15` |
-| `src/uk.osric.asp.Web/Pages/Seeds/memory`, `memory.css` | The page and its sheet |
-| `src/uk.osric.asp.Web/Pages/Seeds/assistant.css` | Its memory section goes, into `memory.css` |
-| `docs/architecture.md`, `docs/decisions.md` | The rule and the audit; DEC-205 moved to superseded in phase 3 |
-| `docs/assistant.md`, `docs/storage.md`, `docs/testing.md`, `docs/glossary.md` | The page, the capability, the suites, the terms |
-| `docs/jobs/IDEA-024.md`, `IDEA-025.md`, `docs/jobs/README.md` | The two jobs this plan opens |
-| `docs/plans/archive/assistant-memory-page.md` | A note: its shell view is superseded, its store work stands |
+| `docs/plans/page-first.md` | This plan, rewritten in place. The rule section and its `#the-rule` anchor are kept so DEC-210's citation still resolves; the memory capability, its phases and its tests are replaced by "what changed, and why", the audit and the pointer to IDEA-033 |
+| `docs/architecture.md` | "Where a view lives" under "Where does code go?": the rule, the audit table and the sentence that the list is expected to shrink |
+| `docs/decisions.md` | DEC-211 moved to Superseded, dated, marked never built, with IDEA-025 and IDEA-033 named; DEC-291 records the re-scope; DEC-125's open-policy note points at IDEA-033 |
+| `docs/jobs/IDEA-033.md` | New: the per-account store, its shape, its open questions, its cost and the trigger that would make documents enough |
+| `docs/jobs/IDEA-025.md` | The assistant page gains the memory view |
+| `docs/jobs/IDEA-024.md` | The citation "exactly as the memory writer does (DEC-211's rule)" becomes DEC-190, the rule it meant |
+| `docs/jobs/README.md` | IDEA-033 in the open table; programme step 9 re-worded to what this step is; the note under the programme corrected |
+| `docs/glossary.md` | **Bootstrap route** added, because the audit uses the word; **Memory page** gains the sentence about where the view moves |
+| `docs/assistant.md` | One sentence in the memory section: the view stays shell until the assistant is a page |
+| `docs/plans/archive/assistant-memory-page.md` | Its **Superseded** row points at IDEA-025, not at a capability that does not exist |
 
 ## Design
 
-### D1 — The rule, written down in three places
+### D1 — The rule stays; the audit moved to architecture
 
-A rule that lives in one conversation is a rule that erodes. It is written where each reader already
-looks:
+The audit is the durable half of the plan, and a reader should not have to find a plan to know which
+column a route is in. It lives in the section a contributor already reads before adding a view, with
+the two sentences that make it a rule rather than a list.
 
-- **`docs/decisions.md`, DEC-210** — the rule itself, with the three reasons and the audit's shape.
-- **`docs/architecture.md`** — a "Where a view lives" paragraph in the shell section: the shell answers
-  bootstrap, runtime and not-yet routes; a view that is a list, a form or a report is a page.
-- **This plan's table** — the audit as it stands today, and the note that it shrinks. The table is
-  copied into the architecture document so a reader without the plan sees the current division.
+`/assistant/memory` is not a row of its own, because a memory view is not a capability the shell keeps;
+it is part of the assistant, and the assistant is one row. That also keeps the table honest: its rows
+are routes the shell answers, not views inside a route.
 
-The default is the page column, and the default is what a reviewer asks for: a new shell route needs
-one of the three reasons in its pull request, and "it is easier in C#" is an IDEA file, not an answer.
+### D2 — DEC-211 is withdrawn, explicitly
 
-### D2 — The capability
+DEC-211 was recorded with the first version and never built, so it is not a decision that drifted — it
+is a decision that stopped being right before its code existed. It is in
+[Superseded](../decisions.md#superseded) with the date, the words "never built", and where the question
+went: IDEA-025 for the view, IDEA-033 for the capability a page actually lacks.
 
-Two interfaces, because a read and a write are not the same authority (the shell already makes that
-split between `IPageCatalog` and `IPageWriter`):
+It is not deleted and it is not silently edited. A reader who finds `IMemoryCatalog` in a branch or a
+note needs to find out why it is not in `Sdk`, and a Superseded row answers that. For the same reason
+the first version's design sections are described in "What changed, and why" rather than erased:
+DEC-09 makes a plan the record of the reasoning, including what was rejected.
 
-```csharp
-public interface IMemoryCatalog {
-    int Maximum { get; }                       // Assistant:MaxMemoriesPerOwner, for the count
-    IReadOnlyList<string> Kinds { get; }       // "preference", "fact", "feedback", "reference"
-    Task<IReadOnlyList<MemoryNote>> ListAsync();
-    Task<MemoryNote?> FindAsync(long id);
-}
+### D3 — Memory's view belongs to the assistant page
 
-public interface IMemoryWriter {
-    Task<MemorySaveResult> SaveAsync(MemoryEdit edit);
-    Task<bool> ForgetAsync(long id);
-}
-```
+[IDEA-025](../jobs/IDEA-025.md) already says the conversation list, the transcript and the approval
+card are page-shaped, and that the two host things are a stream and the run actions. It now says the
+memory view is page-shaped too:
 
-```csharp
-public sealed record MemoryNote(
-    long Id, string Kind, string Content, int Version, DateTimeOffset Written,
-    DateTimeOffset? LastUsed, int RecallCount, bool Pinned, long? SourceConversationId);
+- it is one of that page's routes rather than a page of its own;
+- the capability the assistant page is offered answers for memory as it does for conversations — the
+  owner comes from `ctx.User`, never from an argument, and an anonymous render is refused by the
+  capability (DEC-190's shape);
+- the pin stays the owner's alone (DEC-206), a stale version is still refused with the stored content
+  (DEC-207), a refusal still keeps the text (DEC-208), and a forget is still a delete that asks first
+  (DEC-209). DEC-205 is superseded when that route goes, not before.
 
-public sealed record MemoryEdit(long Id, int ExpectedVersion, string Kind, string Content, bool Pinned);
+IDEA-024's reference to "the memory writer (DEC-211's rule)" was corrected in the same change: the rule
+it means is DEC-190, `IPageWriter`'s refusal of an anonymous render.
 
-public sealed record MemorySaveResult(bool IsSuccess, MemoryNote? Memory, string? Error);
-```
+### D4 — IDEA-033 is written, not built
 
-The rules the capability keeps:
+The job is the deliverable, and the shape recorded in it is the owner's: SQL, one namespace per
+account, a schema the page declares. It says what it costs and what has to be decided, so the next plan
+starts from a brief:
 
-1. **The owner is never an argument.** `MemoryCatalogScope` and `MemoryWriterScope` hold the
-   request's `PageUser` and pass `user.Name` to the store. A page cannot name an owner, so no page —
-   edited by the assistant or written by the owner — can read or change another account's memory
-   (DEC-211).
-2. **An anonymous render is refused.** Both scopes throw the `UserFacingException` `PageWriterScope`
-   already uses, with a sentence that says to sign in. That is the backstop; the seed's own
-   `ctx.User` guard is the nicer redirect in front of it (DEC-190's rule, applied to memory).
-3. **The writer is not offered to a layout,** for the reason `IPageWriter` is not: a layout is markup,
-   and one that pinned a memory would do it on every render it wraps (DEC-194).
-4. **Absent, not null, when the assistant is off.** `PageEnvironment` carries the store only while
-   `Assistant:Enabled` is true, so the page finds `TryGet<IMemoryCatalog>` false and says the
-   assistant is somewhere else — the contract's existing answer for a capability a render does not
-   offer.
-5. **A page bug throws, a refusal is a value.** An unknown kind name or a second save in one render
-   throws `InvalidOperationException`, as a page bug does elsewhere; a stale version, a secret or a
-   note over the cap is `MemorySaveResult` with the sentence the store already answers with, so the
-   page can show it.
-6. **`Kinds` is strings, not an enum.** `Sdk` cannot see `Core.Assistant.MemoryKind` — `Sdk`
-   references nothing — and duplicating the enum would be a second thing to keep in step. The page
-   builds its select from `Kinds`, and the writer parses the name with `MemoryKinds.TryParse` in
-   `Web`.
+- **Where the schema is declared** — a declared type in the page's source, judged on save like a
+  library's shape rule, with runtime DDL and a configuration section named as the worse alternatives.
+- **How the owner filter becomes structural** — SQLite has no row-level security: a per-connection view
+  over an `Owner` column with `INSTEAD OF` triggers, one table per account, and a query API over
+  declared columns are the three shapes, each with its cost.
+- **The sandbox** — `SELECT`/`INSERT`/`UPDATE`/`DELETE` against declared names only, one statement, a
+  command timeout, a result cap, `trusted_schema = OFF`, and the page API's existing denial of
+  `Microsoft.Data.Sqlite` unchanged. [SQLite's security notes](https://www.sqlite.org/security.html)
+  are where the assumptions start: the library is not defended against hostile SQL, so the host has to
+  be.
+- **The quotas** — tables per page, columns per table, rows and bytes per (account, page), in a
+  `Pages:UserStore` section with every value required (DEC-282).
+- **The lifecycle** — a column added is fine, a column removed is refused or confirmed, a page deleted
+  takes its tables with it, `users remove` clears the account's rows, and an archive never carries any
+  of it, because it is personal data rather than content.
+- **What would make it unnecessary** — a page that keeps fewer than a screenful of values and never
+  orders or searches them: then JSON documents were enough, and the job says so.
 
-### D3 — The store becomes a singleton over the context factory
+### D5 — The housekeeping the re-scope owed
 
-Every page capability is a singleton over `IDbContextFactory<StorageDbContext>` (`IPageReadStore`,
-`IPageRevisionStore`), because `PageEnvironment` is a singleton and a page's task can outlive the
-request. `SqliteMemoryStore` is scoped over a `StorageDbContext` today because the run and the tools
-resolve it from a scope.
+The documents that pointed at the withdrawn capability were re-pointed, because a plan that leaves
+them pointing at nothing is how a rule erodes. The corrections are one line each and are listed in
+"What this touches": IDEA-025 gains the memory view, IDEA-024's citation becomes DEC-190, the
+memory-page plan's **Superseded** row points at IDEA-025, and [assistant](../assistant.md) says the
+view stays shell until the assistant is a page. The [glossary](../glossary.md) gains **Bootstrap
+route**, because the audit is unreadable without it, and **Memory page** gains the sentence about where
+the view moves.
 
-The change is mechanical and keeps every rule where it is: the store takes
-`IDbContextFactory<StorageDbContext>` and opens one context per call, and each write still opens its
-own transaction on that context. The assistant resolves the same singleton from its scope; the
-`users remove` sweep and the conversation delete are unaffected, because the delete does its
-provenance update in the conversation store's own transaction.
-
-`IMemoryStore`'s interface does not change, so `FakeMemoryStore`, `ShellMemoryStore` and the run
-processor's failing double stay as they are.
-
-### D4 — The page
-
-`/memory` is a seeded page — `Pages/Seeds/memory` — with `Pages/Seeds/memory.css` linked through
-`IPageLayout.AddStylesheet("/memory.css")`, exactly as `/status` does.
-
-Its shape is the shell page's, moved into a template:
-
-- the ordinary guard on the first line: `if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }`;
-- `layout.Title = "Memory"`, one `<h1>`, a `<p>` with the count against `Maximum`, one `<h2>` per kind
-  with rows in `MemoryListing` order, and the "nothing remembered yet" sentence when there are none;
-- one `form.form` per row posting to `ctx.Path`, with `ctx.AntiforgeryField` written raw, the row's
-  `expectedVersion` in a hidden field, the note in a textarea with its label in the fieldset's legend,
-  the kind as a select built from `Kinds`, and the pin as a checkbox;
-- a link per row to `?forget={id}`, which renders the confirmation in place of the list — the note,
-  its kind and date, the sentence about what a delete cannot reach, a form posting back, and a cancel
-  link to the bare key.
-
-The actions are one field, `action`, read from `ctx.Request.Form`:
-
-| `action` on a `POST` to `/memory` | What the page does |
-| --- | --- |
-| `save` | `IMemoryWriter.SaveAsync(new MemoryEdit(id, version, kind, content, pinned))`; `303` to `/memory` |
-| `forget` | `IMemoryWriter.ForgetAsync(id)`; `303` to `/memory` |
-
-A `303` after a successful write is DEC-195's rule for a page that saves, and it is what stops a
-reload reposting. A refusal does not redirect: the page renders itself with the store's sentence above
-the row and `ctx.SetStatus(400)` or `409`, keeping the submitted text (DEC-208 unchanged) and the
-version the row is now at, so one more save can fix it.
-
-Two page-authoring details the shell page had for free and the template must do itself:
-
-- **Encode the note.** `<%= ... %>` escapes; a note is never rendered with `ctx.WriteRaw` and never
-  through `IMarkdownRenderer`, because it is data the prompt already declares to be data.
-- **Unique ids.** Every control's id is `memory-{id}-…`, so two rows cannot claim the same label.
-
-### D5 — The lifecycle around the page
-
-- **Seeding.** `/memory` and `/memory.css` are two more seeds. A new key is created when it is
-  missing, so both appear on an existing site at its next start; a *changed* seed still needs the
-  owner to restore it from the page list, which the docs say (the same caveat `/help` has).
-- **The shell route goes.** `AssistantMemoryEndpoint`, its four `Map…` calls in `Program`, its
-  endpoint tests and its shell view fixtures are deleted. The assistant navigation on `/assistant`
-  and on a conversation links to `/memory` instead, and the page links back to `/assistant` so the
-  transcript is one click away.
-- **Reserved keys are unchanged.** `/assistant` is a prefix and stays one; `/memory` is an ordinary
-  page key, so `Pages:ReservedPaths`, `ReservedPaths.Default` and the shell-record test do not move.
-  The `/assistant` record's description loses its trailing memory sentence; the page is now something
-  the assistant may read *and edit*, like `/help`, and `PageAuthorPrompt` says so.
-- **The assistant's prompt** names `/memory` instead of `/assistant/memory`, and `Version` becomes
-  `page-author-v15`.
-- **There is no way to lock the page against the assistant.** `Assistant:ProtectedPaths` is gone
-  (ARCH-15): the page is the owner's, like `/help`, and the assistant may edit it.
-
-### D6 — Failure behaviour
-
-- **The signed-in visitor is not the owner of the row.** `FindAsync` and the writer answer as the
-  store does: not found. The page renders its 404 sentence and changes nothing.
-- **The note was edited by the assistant between the render and the save.** `409` with the stored
-  content; the page keeps the submitted text and shows both, as it does today.
-- **The store throws.** The render fails, and the shell's error page answers — a page has no error
-  document of its own, and inventing one would be a second error page.
-- **The assistant is disabled.** The capability is absent; the page renders its "not available here"
-  sentence with a `404`, rather than a sign-in loop.
-- **The render is a `HEAD`.** The page renders the list and the writer refuses, because a `HEAD` may
-  read and never write (`PageWriterScope`'s rule).
+[Storage](../storage.md)'s sentence — "Nothing in `Sdk`, `Runtime` or the page contract reaches
+memory" — is already true and stays; the withdrawal removes the exception that was going to be made to
+it.
 
 ## Considered and rejected
 
-- **One `IMemory` with read and write together.** The shell already separates `IPageCatalog` from
-  `IPageWriter` for exactly this reason: a page that lists memories has no business forgetting them,
-  and the split is what lets the writer be withheld from a layout and offered only where a write
-  makes sense.
-- **Passing the owner to the capability.** It turns a public page into a way to read anyone's memory.
-  The owner comes from the request, as it does for the page's own save.
-- **A pinned flag on the assistant's `UpdateAsync`.** DEC-206 stands: the pin is the owner's. The
-  capability is the owner's path, and the tool path still has no argument for it.
-- **Keeping `/assistant/memory` and calling the page a view of it.** Two addresses for one thing, one
-  of them a shell route that has to be maintained, tested and documented. The point of the rule is
-  that there is one.
-- **A second seeded page for the forget confirmation.** A page is its own route; a query parameter
-  and one form is less to seed, less to keep in step and less to write in the docs.
-- **A route policy for pages, so the memory page could be owner-only in configuration.** Pages have no
-  policy and should not get one: authority that lives in configuration is authority a page cannot
-  see, and the guard plus the capability refusal is the model the site already has (DEC-02, DEC-169).
-- **Keeping the shell page and only adding the capability.** Then two implementations of the same view
-  drift, and the rule has an exception on its first day.
-- **Making `/status` a page now.** It is bootstrap: it is what the owner reads when a page did not
-  load. Its charts and its Prometheus query are a capability of their own, and that is a different
-  plan.
+- **Keeping the memory capability and moving the page.** It would work today and cost a capability in
+  `Sdk` that the assistant page then has to coexist with, for one view of data the assistant already
+  owns. Two owner-binding paths to the same rows is the drift this plan exists to avoid.
+- **Moving memory onto the new per-account store.** The sharpest version of "no host support": memory
+  becomes a page's tables and the tools read them. Rejected because it inverts the dependency — the
+  assistant's tools would read a schema a page declared, and every rule of memory (versioning, pins,
+  secrets, the cap, recall) would have to be enforced in page code the tools cannot rely on.
+- **Building per-account storage now, since it is the real gap.** Rejected for this step: no page uses
+  it yet, the SQL shape needs a sandbox and a schema lifecycle, and a capability arrives with the view
+  that needs it. It is a job with the analysis in it, ready to be scheduled.
+- **JSON documents now and SQL later.** Cheaper, but it is the shape that would have to be thrown away
+  the first time a page wants an owner's rows sorted, searched or counted. The job records documents as
+  the thing to revisit if the first customer turns out small.
+- **One store per (account, page).** Isolation is tidier, but the data is the account's: a page that
+  shows a profile another page keeps, and the assistant page reading what a memory view wrote, are one
+  account's rows. Per account matches `IPageSession`'s read rule and is what the owner chose.
+- **Deleting DEC-211.** Deleting a decision loses the record of a question someone will ask again. It
+  moved to Superseded with the date and the destination.
 - **Doing the audit's remaining routes now.** Each needs a capability the contract does not have, and
   each is a job. The rule is worth having before the work, not after it.
+- **Making `/status` a page.** It is bootstrap: what the owner reads when a page did not load.
 
 ## Components
 
 | Component | Responsibility | Where |
 | --- | --- | --- |
-| `IMemoryCatalog` | The owner's memories, read, with the cap and the kinds | `Sdk` |
-| `IMemoryWriter` | The owner's save and forget | `Sdk` |
-| `MemoryNote`, `MemoryEdit`, `MemorySaveResult` | The values and the request | `Sdk` |
-| `MemoryCatalogScope` | Binds the request's user, refuses an anonymous render, maps the rows | `Web.Pages` |
-| `MemoryWriterScope` | The same for a write, refused on a `HEAD` and absent from a layout | `Web.Pages` |
-| `PageChain` | Offers the capabilities per render | `Web.Pages` |
-| `PageEnvironment` | Carries the store while the assistant is enabled | `Web.Pages` |
-| `Pages/Seeds/memory`, `memory.css` | The page and its sheet | `Web.Pages.Seeds` |
-| `docs/architecture.md` and DEC-210 | The rule and the audit | docs |
+| The rule and its audit | Where a view lives, and why each shell route is where it is | `docs/architecture.md` |
+| This plan | The re-scope, the rejected options and the destination of the withdrawn capability | `docs/plans/page-first.md` |
+| DEC-211, superseded | Why there is no memory capability in `Sdk` | `docs/decisions.md#superseded` |
+| DEC-291 | Memory is the assistant's; the gap is per-account storage | `docs/decisions.md` |
+| IDEA-033 | The per-account store: shape, questions, cost, trigger | `docs/jobs/IDEA-033.md` |
+| IDEA-025 | The assistant page, memory view included | `docs/jobs/IDEA-025.md` |
+| The programme's step 9 | What this step is, and what it is not | `docs/jobs/README.md` |
 
 ## Tests
 
-**`Web.Tests`**
+None. This step changed documents only, and the repository has no documentation test: there is no
+link-or-anchor suite to extend, and inventing one is a different job.
 
-- `MemoryCatalogScopeTests` / `MemoryWriterScopeTests` — the user is taken from the context and never
-  from an argument (two accounts, one store); an anonymous render is refused with the sign-in
-  sentence; a `HEAD` render cannot save; a layout is offered neither writer; an unknown kind and a
-  second save in one render throw; the mapping carries every field of `MemoryNote`.
-- `MemoryPageTests`, rendering the seed through `PageHarness` with the real store over a
-  `DatabaseTemplate` — the signed-out render redirects to sign-in and writes nothing; the list groups
-  by kind, pins first, shows the count and the "nothing remembered yet" sentence; the note is encoded;
-  `save` changes content, kind and pin and answers `303`; `forget` renders the confirmation, deletes
-  nothing on the `GET` and everything on the `POST`; a stale version answers `409` with the stored
-  content and the submitted text; a secret answers `400` with the rule and keeps the text; another
-  account's id is not found; the assistant being off renders the "not available" sentence.
-- `PageHarness` gains a memory fake, and `AccessibilityTests` gains a page fixture so the twelve rules
-  apply to the page as they do to a shell view — one `main`, one `h1`, no skipped heading level, a
-  label on every control, a textarea's label in its fieldset legend, and the rest.
+**The gate** was `make check` as for every step, with `license-check` the one that mattered, because
+the new job file carries an SPDX header like every other file, plus a manual pass over the relative
+links and anchors the change touched:
 
-**`Web.IntegrationTests`**
-
-- `MemoryPageTests` — with two accounts against the real host: the page lists what a run wrote,
-  another account's request for the same id changes nothing, a save from the page is in the next run's
-  prompt and a pin makes it survive a turn that asks nothing about it, a forget removes it from the
-  next request, and with the assistant disabled the page says so instead of failing.
-- `PageAssetTests` — the two new seeds are shipped and reachable by key.
-
-**`Web.BrowserTests`**
-
-- `MemoryPageBrowserTests` replaces `AssistantMemoryBrowserTests`, with only the URL changed: reach
-  `/memory`, edit, pin, forget through the confirmation, and see the list empty. The test also proves
-  the page's script-freedom: any console error fails it, as every browser test here does.
-
-**The gate.** `make check` and a relative-link and anchor check over `docs/`. The browser suite is
-`make deploy`'s (DEC-179).
+- `docs/plans/page-first.md#the-rule` still resolves from DEC-210;
+- every new `../jobs/IDEA-033.md` link resolves from the plan and from the jobs table;
+- the Superseded anchor from `docs/decisions.md` resolves;
+- the audit table's citations all name records that exist (DEC-210, DEC-255, DEC-256, the streaming
+  plan, IDEA-024, IDEA-025).
 
 ## Phases
 
-Each phase ends with a green `make check` and its tests written first.
+Each phase ended with a green `make check`; there was nothing to test first.
 
-### Phase 0 — the rule and the capability (one day)
+### Phase 0 — the rule and the audit
 
-- DEC-210 and DEC-211 are recorded with this plan; add the paragraph and the audit table to
-  [architecture](../architecture.md).
-- The `Sdk` types and the two scopes, with `MemoryCatalogScopeTests` and `MemoryWriterScopeTests`.
-- `PageChain` and `PageEnvironment` offer them; `PageHarness` gains the fake.
+- "Where a view lives" and the audit table in [architecture](../architecture.md#where-a-view-lives).
+- **Bootstrap route** in the [glossary](../glossary.md), and the sentence about where the memory view
+  moves in **Memory page**.
 
-**Done when** a page can read and change only its own visitor's memory, an anonymous render is refused,
-and a layout is offered neither.
+**Done when** a reader can tell, without opening a plan, why each shell route is in the shell and what
+would move it.
 
-### Phase 1 — the store becomes shareable (half a day)
+### Phase 1 — decisions
 
-- `SqliteMemoryStore` over `IDbContextFactory`, registered as a singleton.
-- `IMemoryStore` unchanged; the store, run processor and account-sweep tests still pass.
+- DEC-211 in Superseded: dated, "never built", with IDEA-025 and IDEA-033 named.
+- DEC-291 recorded, and DEC-125's open-policy note pointed at IDEA-033.
 
-**Done when** the assistant and the page share one store and `make check` is green.
+**Done when** nothing in `docs/` describes a memory capability that does not exist, and the reason it
+does not is one link away.
 
-### Phase 2 — the page (one to two days)
+### Phase 2 — the plan and the jobs
 
-- `Pages/Seeds/memory`, `Pages/Seeds/memory.css`, the layout's sheet and title.
-- `MemoryPageTests`: the list, the save, the forget, every refusal, the assistant-off sentence.
-- The accessibility page fixture.
+- This plan, in place of the first version.
+- [IDEA-033](../jobs/IDEA-033.md) written.
+- The memory view in IDEA-025; IDEA-024's citation corrected to DEC-190.
+- The jobs README: open table, programme step 9 and the note under the programme.
+- The memory-page plan's **Superseded** row pointed at IDEA-025; the sentence added to
+  [assistant](../assistant.md).
 
-**Done when** a seeded page lists, edits, pins and forgets a memory, and the twelve rules pass over it
-in a unit test.
-
-### Phase 3 — the shell route goes (half a day)
-
-- Delete `AssistantMemoryEndpoint`, its routes and its tests and shell-view fixtures, and move
-  DEC-205 to [superseded](../decisions.md#superseded) now that the route it describes is gone.
-- Point the assistant navigation and the prompt at `/memory`; `page-author-v15`; the `/assistant`
-  shell record loses its sentence.
-- `MemoryPageTests` in `Web.IntegrationTests`, and the browser test at the new key.
-
-**Done when** `/assistant/memory` is a `404` from a page's point of view — it is simply not a route —
-and the page is reached from the assistant.
-
-### Phase 4 — documents and the jobs (half a day)
-
-- [assistant](../assistant.md), [storage](../storage.md), [testing](../testing.md) and
-  [glossary](../glossary.md): the page, the capability, the suites, **Memory capability** and
-  **Bootstrap route**.
-- `assistant-memory-page.md` carries its superseded note (added with this plan); this plan's status
-  row says landed.
-- IDEA-024 and IDEA-025 are in [the backlog](../jobs/README.md), with their origin recorded.
-- Link and anchor check.
-
-**Done when** the docs describe what the code does, the audit's remaining rows each name a job, and
-`make check` passes.
-
-## Documentation and decisions
-
-- **DEC-210** — Anything a page can serve is a page. A route stays in the shell only because it
-  bootstraps a broken site (`/login`, `/logout`, `/status` and the recovery routes — `/edit` left this
-  list when the editor became a page), because it *is* the page runtime (`{**path}`, `/favicon.ico`,
-  `/heath`, `/metrics`), or because a page cannot do it yet — and each of those has a job. `/status`
-  counts as bootstrap because diagnosing why a page did not load starts with it.
-- **DEC-211** — Memory is a page capability, not a shell view: `IMemoryCatalog` and `IMemoryWriter`
-  reach a page through `ctx.Capabilities`, the request's signed-in account is the only owner they can
-  name, an anonymous render is refused by the capability itself, the writer is withheld from a layout
-  and from a `HEAD`, and the capability is absent while the assistant is off. The owner's memory page
-  is the seeded `/memory`, which replaces the shell route.
-
-DEC-205 — the memory page as shell code under `/assistant/memory` — moves to
-[superseded](../decisions.md#superseded) in phase 3, when the route it describes is deleted, with the
-date and DEC-211 as its replacement; it is deliberately not superseded before the code moves. DEC-206
-to DEC-209 stand unchanged: the pin is still the owner's, a stale version is still refused, a refusal
-still keeps the text, and a forget is still a delete with a page of its own.
-
-Docs changes: [architecture](../architecture.md) gains the "Where a view lives" paragraph and the
-audit table; [assistant](../assistant.md) moves the page out of its own section and into the pages it
-links; [storage](../storage.md) records that the store is a singleton over the factory and that the
-owner's write is reached from a page; [testing](../testing.md) names the suites;
-[glossary](../glossary.md) defines **Memory capability** and **Bootstrap route**;
-[the jobs](../jobs/README.md) list IDEA-024 and IDEA-025.
+**Done when** the plan says what it delivers, the job says what the capability costs, and every
+document that mentioned the withdrawn capability points at where the question went.
 
 ## Risks
 
 | Risk | Mitigation |
 | --- | --- |
-| **The guard is now the page's own code.** A future edit drops `ctx.User` and the page lists memory to an anonymous visitor. | It cannot: the capability refuses an anonymous render before it reads anything, and `MemoryCatalogScopeTests` proves it by name. The guard is the nicer redirect, not the authority (DEC-190, DEC-211). |
-| **A page can now write memory, and pages are editable by the assistant.** The assistant could rewrite the page to change what the owner sees or keep. | The page can only touch the signed-in owner's memory, the same person the assistant is talking to; every write is still keyed by the owner and versioned. If the assistant rewrites the page, the owner restores it from its seed like any other seed. |
-| **The memory page can be broken like any page.** A compile error leaves the owner unable to edit memory until the editor page is fixed. | `/admin/restore` is the way back — it restores the seeds from the bundled source through the same saver — and the page is deliberately small (DEC-256). |
-| **Two implementations of one view drift.** The shell page's tests and the page's tests both describe the same list. | There is only one, after phase 3 deletes the shell endpoint; nothing is left to drift. |
-| **`Sdk` grows and every page recompiles.** A new capability moves the Sdk module version and the runtime id. | One deliberate capability with two interfaces, values in `Sdk`, mapping in `Web`; every stored image recompiles on its next request, which is DEC-26's normal cost. |
-| **The store's registration change breaks the run path.** The assistant resolved it from a scope. | The interface does not change and the run processor resolves the same service; `RunProcessorTests` and the integration memory flow still pass in phase 1. |
-| **The rule becomes an excuse to churn.** Every shell route is "not a page yet" and someone starts a migration per view. | The rule names the three reasons and the plan moves one view; the rest are jobs with their blockers written down, not a queue of migrations. |
-| **The seeded page does not appear as expected.** A new key is created on start, but a changed seed is not reapplied. | The page's first landing is a new key, so it seeds; later changes to the seed are restored from the page list, which the docs say. |
+| **A withdrawn decision is read as a deleted one.** Someone re-proposes `IMemoryCatalog` in three months. | The Superseded row carries the date, the reason and the destination, and this plan keeps "what changed, and why" including the option that was rejected. |
+| **The audit rots.** A new shell route is added without a reason. | The rule and the table sit in the section a contributor reads before adding a view, and the table names the record for each row, so a missing row is visible. |
+| **IDEA-033 becomes a licence to build a database engine.** A page-declared schema with SQL access is the largest thing the page contract would ever have. | The job says what it costs, names the sandbox and the caps, and requires a named first customer. It is a job, not a plan, until the owner schedules it. |
+| **Per-account storage is never scheduled, so the gap stays.** | The gap is written down in three places — this plan, the job and DEC-125's note — and the trigger that would justify it early is in the job. |
+| **The job number was claimed elsewhere.** IDEA-032 is on `origin/idea-032`, which is unmerged. | IDEA-033 was the next free number on trunk and on that branch; a later branch that takes it renumbers this one. |
+| **The assistant page never happens, so `/assistant/memory` stays shell forever.** | That is an honest resting place: it is bootstrap-adjacent shell code with its own decision (DEC-205), and the audit names IDEA-025 as the way out. |
+
+## Documentation and decisions
+
+- **DEC-210** stands: the rule and its three reasons. Its list of examples loses `/edit`, which became
+  a page when the editor did, and names the recovery routes the audit covers.
+- **DEC-211** is in [Superseded](../decisions.md#superseded) — never built; the view is IDEA-025's and
+  the capability is IDEA-033's.
+- **DEC-291** records the re-scope: memory is the assistant's and its view arrives with the assistant
+  page; the page contract's missing capability is per-account storage.
+- **DEC-205–DEC-209** stand: the shell memory page is what exists today, and every rule it keeps moves
+  with the view when IDEA-025 replaces it.
+- Written by this step: [architecture](../architecture.md#where-a-view-lives) (the rule and the audit),
+  this plan, [IDEA-033](../jobs/IDEA-033.md), [the jobs](../jobs/README.md), the
+  [glossary](../glossary.md), [assistant](../assistant.md), and one line each in IDEA-024, IDEA-025 and
+  the archived memory-page plan.
 
 ## Delivered when
 
-- `docs/decisions.md` carries DEC-210 and DEC-211, DEC-205 is superseded, and
-  `docs/architecture.md` states the rule and the audit.
-- A page can read its visitor's memories through `ctx.Capabilities.GetRequired<IMemoryCatalog>()` and
-  change one through `IMemoryWriter`, and an anonymous render is refused by the capability.
-- `/memory` is a seeded page with its own sheet that lists every memory grouped by kind with the count,
-  saves content, kind and pin under the row's version, and forgets one through a confirmation — with
-  every refusal keeping the owner's text.
-- `AssistantMemoryEndpoint` and its four routes are deleted, the assistant navigation and the prompt
-  point at `/memory`, and `page-author-v15` is the prompt version.
-- `ShellViews` no longer renders a memory view, `AccessibilityTests` holds the page to the same twelve
-  rules, and the browser round trip runs against `/memory`.
-- IDEA-024 and IDEA-025 are in the backlog with their origin, and ARCH-13 is closed by the
-  streaming plan.
-- `docs/assistant.md`, `docs/storage.md`, `docs/testing.md` and `docs/glossary.md` describe what the
-  code does; the memory page plan carries its superseded note; this plan's status row says landed.
+- `docs/architecture.md` states the rule and carries the audit, and the glossary defines **Bootstrap
+  route**.
+- DEC-211 is in Superseded, dated and explained, and DEC-291 is recorded.
+- This plan says what it did and did not build, and why the first version was wrong.
+- `docs/jobs/IDEA-033.md` exists, with the per-account SQL shape, the open questions, the cost, the
+  privacy work and the trigger that would make documents enough, and it is in the open jobs table.
+- `docs/jobs/IDEA-025.md` carries the memory view, and IDEA-024 cites DEC-190 rather than DEC-211.
+- Nothing in `docs/` describes `IMemoryCatalog`, `IMemoryWriter` or a `/memory` seed as work in hand.
 - `make check` passes.

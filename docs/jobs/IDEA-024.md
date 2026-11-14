@@ -27,14 +27,14 @@ upload and download.
 
 ## Sketch
 
-1. **A domain capability, not a file API.** `IMemoryCatalog` and `IPageCatalog` are domain-shaped for
-   a reason: a generic `IFileSystem` or `IRequestBody` in `Sdk` would hand page code a byte stream and
-   the archive's format, and the export's correctness is `Web`'s (`PageArchiveWriter`,
-   `sqlite3_serialize`) rather than a page's. So the capability is
+1. **A domain capability, not a file API.** `IPageCatalog` is domain-shaped for a reason: a generic
+   `IFileSystem` or `IRequestBody` in `Sdk` would hand page code a byte stream and the archive's
+   format, and the export's correctness is `Web`'s (`PageArchiveWriter`, `sqlite3_serialize`) rather
+   than a page's. So the capability is
    `ctx.Capabilities.GetRequired<IPageArchive>()` with `Task<byte[]> ExportAsync()`,
    `Task<ArchivePlan> StageAsync(string fileName, byte[] archive)` and
-   `Task<PageSaveResult[]> ApplyAsync(ArchivePlan plan)`, refusing an anonymous render exactly as the
-   memory writer does (DEC-211's rule).
+   `Task<PageSaveResult[]> ApplyAsync(ArchivePlan plan)`, refusing an anonymous render exactly as
+   `IPageWriter` does (DEC-190).
 2. **The caps follow the capability.** `Pages:Archive:MaxUploadBytes` bounds `StageAsync`, and the
    export is bounded by the store; a page never sees the whole page store's bytes in one string, which
    is why the export would have to be a page-level capability rather than `IPageCatalog` plus a loop.
