@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Status | **Proposed** — waiting for the owner's answer on the questions at the end. Nothing is built |
 | Size | Medium — one reader and normaliser, one embedded stylesheet, two public routes, one seeded sheet, one assistant tool, the prose, and focused tests; no migration, no configuration key, no build change |
-| Spike | None. The facts below are measured on this branch: the publish carries the four XML files, their element set is known, and a scratch project confirmed `XslCompiledTransform` transforms a document on .NET 11 with no package |
+| Spike | None. The facts below are measured on this branch: the publish carries the four XML files, their element set is known, a scratch project confirmed `XslCompiledTransform` transforms a document on .NET 11 with no package, and the Microsoft Learn URL shapes were checked against the live API browser |
 | Decisions | The decision this plan records, numbered from `trunk` when the work merges: the documentation a build carries is served at `/reference` for all four product assemblies and read by the assistant through one `reference` tool over the page contract only; the corpus is read once per process from the XML beside the assembly and rendered by one embedded stylesheet. The audit in [architecture](../architecture.md#where-a-view-lives) gains the fourth reason below |
 | Backlog | [IDEA-034](../jobs/IDEA-034.md) — this plan is its development |
 
@@ -20,9 +20,10 @@ assembly now emits its XML documentation, `dotnet publish` carries it, and the i
 reads it. This plan gives it two readers:
 
 - **A person** gets a public `/reference`: an index of the four assemblies this build carries, and one
-  page per assembly listing every type and member with the words its author wrote. It describes the
-  build that is actually serving the site, not a version on GitHub, and the page contract's half is
-  what a page author writes against.
+  page per assembly listing every type and member with the words its author wrote. A reference to a
+  type the corpus does not hold links to its page on Microsoft Learn when the URL can be computed,
+  and an external link carries a small arrow. It describes the build that is actually serving the
+  site, not a version on GitHub, and the page contract's half is what a page author writes against.
 - **The page assistant** gets a read-only `reference` tool over the **page contract only**, for the
   member's own words, parameters and returns. The prompt already carries a reflection-derived
   signature block; the tool carries what the signature cannot.
@@ -57,7 +58,7 @@ The facts that shape the design, each counted from the files:
 | Ten type ids are nested types (`Pages.PageSeedInstaller.SeedResult`), and `T:` entries interrupt the outer type's members | A member's owner is computed from its id, never from the nearest preceding `T:` |
 | One explicit interface implementation has `#` in its id (`Web.Logging.LogScope.System#Collections#IEnumerable#GetEnumerator`), generic ids carry `` ` ``, `{`, `}` and `@` | A raw id is not a safe URL fragment: `#` truncates it and the rest need percent-encoding. Anchors are synthetic; the raw id is kept as the `title` |
 | `inheritdoc` appears 0, 1, 5 and 151 times (Sdk, Core, Runtime, Web) | The page renders a signature with a one-line note instead of a blank entry, and says why |
-| 4, 9, 19 and 62 `cref`s name a type the document does not hold (the BCL, or another product assembly) | A `cref` is a link when the target is in the corpus, and `code` when it is not. The BCL target is shortened (`string.Empty`, `Task`) rather than shown as an id |
+| 4, 9, 19 and 62 `cref`s name a type the document does not hold (the BCL, another product assembly, or a package) | A `cref` to a carried assembly links across the corpus; a `System.*` or `Microsoft.*` target becomes a Microsoft Learn link; anything else (`Markdig.*`) stays `code`. The link text is the shortened name (`string.Empty`, `Task`) |
 | The XML holds documented `internal` types as well as public ones, because the file has no visibility metadata | The page says it is not a filtered public surface. Filtering would need a public-surface list, which is a job of its own |
 
 ## Where the view lives
@@ -165,7 +166,7 @@ Parameter names are zipped in from the `<param>` elements when its count matches
 count, and omitted when it does not. By-ref parameters render as `ref` because the id does not say
 whether it was `ref`, `out` or `in`; the summary is where that is said.
 
-### D4 — Synthetic anchors, and `cref` resolved against the whole corpus
+### D4 — Synthetic anchors, and `cref` resolved across the corpus and the platform
 
 Every type section gets `t{n}` and every member `m{n}`, numbered in final document order. The raw id
 stays in a `title` attribute so a shortened display never loses information, and it stays the key of
@@ -173,9 +174,33 @@ the lookup map. Raw ids cannot be anchors: `#` truncates a URL fragment, and bac
 `@` are not fragment characters.
 
 Anchors are assigned while each document is built; one pass then builds an
-`id → (slug, anchor, text)` map across all four documents and resolves every `<see cref>`: a target
-in any carried assembly becomes `href="/reference/{slug}#{anchor}"` with the target's name as its
-text; a target outside the corpus stays `code`, shortened by the rules above (`string.Empty`, `Task`).
+`id → (slug, anchor, text)` map across all four documents and resolves every `<see cref>`:
+
+1. **In the corpus.** The target is a type or member of any carried assembly: the link is
+   `/reference/{slug}#{anchor}` and the text is the target's name.
+2. **On Microsoft Learn.** An unresolved target in a `System.*` or `Microsoft.*` namespace gets a
+   link to the API browser. The path is the id without its kind, parameter list and `~` return
+   suffix, lowercased invariant, with each type segment's `` `n `` written `-n` and a member's own
+   arity dropped. A field, event or constructor links to its declaring type's page instead of trying
+   its own: Learn has no page for an enum member or a nested constructor, and the type's page lists
+   every member.
+3. **Not computable.** A `Markdig.*` type, an id with `#`, a type of ours with no documented entry,
+   or any other namespace stays `code` with the shortened name.
+
+The base is `https://learn.microsoft.com/en-us/dotnet/api/`, with no `view` query: Learn serves its
+current version, and a pinned version becomes a 404 as it ages. Nothing is fetched to build a link;
+the URL is computed from the id, so the page works with no network and no test needs one. A computed
+URL can still 404 if Learn renames a page; that is the cost of not checking, and the link is worth it
+for the common case.
+
+The shapes were checked against Learn while this plan was written: `system.string`,
+`system.collections.generic.ireadonlylist-1`, `system.collections.generic.dictionary-2.enumerator.current`,
+`system.uri.idnhost`, `system.string.chars`, `system.string.join` (with `join-1` a 404, so method arity
+must go), `system.collections.generic.list-1.-ctor`, `system.string.op_implicit`,
+`microsoft.aspnetcore.http.iresult`, and `system.string` for `String.Empty` (with
+`system.text.regularexpressions.regexoptions.nonbacktracking` and
+`system.environment.specialfolder.desktop` 404s, so a field goes to its type).
+
 Cross-assembly links are the point of building one corpus: `Web.xml` has 62 crefs to the BCL and to
 `Core`, and a reader who meets `PageDiagnostic` should land on its entry.
 
@@ -225,6 +250,21 @@ follows inside the landmark. The seeded `reference.css` styles the type index, t
 the signature and kind lines, the parameter lists and the code blocks; nothing about the page depends
 on it, and a deployment that lost the sheet still reads.
 
+The sheet also marks a link that leaves the site:
+
+```css
+a[href^="http"]::after {
+    content: " ↗" / "";
+}
+```
+
+The arrow is `↗` (U+2197); `➸` or any other character is a one-line change. The empty alternative
+text keeps a decorative glyph out of the link's name where the browser supports it, and where the
+browser does not the declaration is dropped and the arrow is simply absent. The rule is in
+`reference.css` rather than `site.css`, so it marks the Learn links and the commit link on these two
+pages and nothing else; moving it to the base sheet makes it site-wide. The link opens in the same
+tab: an arrow is a signal, not a reason to open a window the reader did not ask for.
+
 Types and members are `div`s rather than `section`s: the Web page has 326 types and 1,183 members,
 and that many named regions is noise in a screen reader's landmark list rather than structure. The
 headings carry the structure, and the accessibility rules see an `h1` in the endpoint followed by
@@ -234,7 +274,7 @@ Inline doc elements map as follows:
 
 | Doc element | HTML |
 | --- | --- |
-| `see cref` | `<a href>` when the target is in the corpus, else `<code>` with the shortened name |
+| `see cref` | `<a href>` to the corpus entry or to Microsoft Learn; `<code>` with the shortened name when the target is not computable |
 | `see langword` | `<code>` |
 | `see href` | `<a href>`, the text or the URL |
 | `see` with content | `<a>`/`<code>` around its own text |
@@ -347,12 +387,13 @@ matches `/reference` exactly and everything beneath `/reference/`, and `/referen
 | [`PageAuthorPrompt.cs`](../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs) | The reference paragraph, `/reference` in the shell-file list, `v28` |
 | [`Pages/ReservedPaths.cs`](../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [`appsettings.json`](../../src/uk.osric.asp.Web/appsettings.json) | `/reference` |
 | [`Assistant/ShellRoutes.cs`](../../src/uk.osric.asp.Web/Assistant/ShellRoutes.cs) | One record, one line, pointing the model at the tool |
-| `Pages/Seeds/reference.css` | New seeded sheet |
+| `Pages/Seeds/reference.css` | New seeded sheet, including the external-link arrow |
 | [`Pages/Seeds/help`](../../src/uk.osric.asp.Web/Pages/Seeds/help) | The link to the reference, beside the page API paragraph (DEC-173) |
 | [`docs/shell.md`](../shell.md), [`docs/assistant.md`](../assistant.md) | The routes and the tool |
 | [`docs/architecture.md`](../architecture.md#where-a-view-lives), [`docs/glossary.md`](../glossary.md) | The audit's fourth reason, the **Build fact** entry, bootstrap's list |
 | [`docs/jobs/IDEA-034.md`](../jobs/IDEA-034.md), [`docs/jobs/README.md`](../jobs/README.md) | The plan link now; the job moves to Closed when the work merges |
 | [`docs/decisions.md`](../decisions.md) | One entry, numbered from `trunk` at the merge |
+| `test/uk.osric.asp.Web.BrowserTests/` | One test: the external-link arrow, which no string proves |
 
 ## Phases
 
@@ -372,10 +413,13 @@ Tests, using inline XML strings and a temp directory:
   ordinal order that does not depend on culture;
 - the display rule: every row of the table above, plus `Nullable`, an array, `{`/`}`, `@`, `` `0 ``,
   `#ctor`, `#cctor` and the parameter-name zip with matching and mismatching counts;
+- the Learn URL: a type, a generic type (`-1`), a nested type, a property, an indexer, a method, a
+  generic method (arity dropped), a field and a constructor (the declaring type's page), a
+  `Microsoft.*` type, and a `Markdig` type and an id with `#` (no link);
 - the document: nested `T:` entries interrupt the outer members and the owner is still right;
   members stay in source order; anchors are unique and URL-safe; types and members are counted;
-- `cref`: a same-assembly link, a cross-assembly link, an unresolved BCL target shortened, and a
-  `see` with its own text;
+- `cref`: a same-assembly link, a cross-assembly link, a `System.*` Learn link, an unresolvable
+  package cref that stays `code`, and a `see` with its own text;
 - the library: a missing file is absent, a malformed file is absent and logged, the corpus is read
   once for two calls, and an empty directory is an empty corpus.
 
@@ -383,11 +427,11 @@ Tests, using inline XML strings and a temp directory:
 
 `reference.xslt`, `ReferenceRenderer`, the embedded resource and the fragment cache.
 
-Tests: the type/member/heading structure; text and attribute escaping; a `cref` link and an
-unresolved `cref`; `langword`, `paramref`, `typeparamref`, `c`; `para`; both list kinds and a table
-list with `thead`/`th scope`; `strong`/`em`; `inheritdoc` alone and with other content; an unknown
-element keeping its text; no `<style>`, no `style` attribute, no script; the same document rendered
-twice is one transform.
+Tests: the type/member/heading structure; text and attribute escaping; a corpus `cref` link and a
+Learn `cref` link, and an unresolvable one as `code`; `langword`, `paramref`, `typeparamref`, `c`;
+`para`; both list kinds and a table list with `thead`/`th scope`; `strong`/`em`; `inheritdoc` alone
+and with other content; an unknown element keeping its text; no `<style>`, no `style` attribute, no
+script; the same document rendered twice is one transform.
 
 ### 3 — The human page
 
@@ -402,6 +446,9 @@ route's record and the reserved list stay in step.
 
 Integration: the real host serves both routes from the published layout, and `/reference/sdk`
 contains `IContext` and a member of `IPageStorage`.
+
+Browser: on `/reference/sdk`, a Learn link's `getComputedStyle(link, '::after').content` carries the
+arrow and an internal corpus link's is `none`, which is the one thing a string cannot prove.
 
 ### 4 — The assistant's tool
 
@@ -428,9 +475,10 @@ same merge.
    to `/reference` from the running container. The image gains one file, the seeded sheet; the
    stylesheet is inside the assembly and the XML files are rebuilt with it. If the XML files are
    missing, the page says so rather than failing.
-3. `make run` and a read of `/reference`, `/reference/sdk` and `/reference/web` in a browser: the
-   fragment, the type index, the anchors and the sheet.
-4. With the assistant enabled, one run that asks a question the contract answers (`IPageStorage`) and
+3. `make test-browser`, which runs the arrow test against the real host.
+4. `make run` and a read of `/reference`, `/reference/sdk` and `/reference/web` in a browser: the
+   fragment, the type index, the anchors, the Learn links with their arrow and the sheet.
+5. With the assistant enabled, one run that asks a question the contract answers (`IPageStorage`) and
    one that does not know the type (`cookie`), and a read of the transcript's tool calls.
 
 ## Risks
@@ -441,6 +489,10 @@ same merge.
 - **The page is large.** `Web` is 326 types and 1,183 members in one response. It is a reference, not
   a landing page; the type index is the navigation, and the fragment is cached. A per-namespace page
   is a later job if the page proves too big to use.
+- **Learn links are computed, not checked.** A page Learn renames, or a member it never documents,
+  answers `404`; the namespace guard and the declaring-type fallback keep the known shapes correct,
+  and everything else stays text. A link checker over the rendered pages would be a separate job, and
+  a network call at render time is not one.
 - **Memory.** The corpus and the fragments are held for the process. The measured source is ~900 kB;
   the trees and fragments are a few MB. This is the price of a per-process cache and is bounded by
   the four fixed assemblies.
