@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Html;
 
 /// <summary>One layer's <see cref="IPageLayout"/>, composed with the layers inside it.</summary>
 /// <remarks>
@@ -45,7 +46,25 @@ internal sealed class PageLayoutState(string? defaultLayout, PageLayoutState? in
     public string Head => string.Concat(_head) + (_inner?.Head ?? string.Empty);
 
     /// <inheritdoc/>
-    public IReadOnlyList<string> Stylesheets => _inner is null ? _stylesheets : [.. _stylesheets, .. _inner.Stylesheets];
+    /// <remarks>
+    /// Read outermost first, with a sheet another layer already asked for left out: the document
+    /// links each sheet once however many layers want it.
+    /// </remarks>
+    public IReadOnlyList<string> Stylesheets {
+        get {
+            List<string> sheets = [];
+
+            for (PageLayoutState? layer = this; layer is not null; layer = layer._inner) {
+                foreach (string href in layer._stylesheets) {
+                    if (!sheets.Contains(href, StringComparer.Ordinal)) {
+                        sheets.Add(href);
+                    }
+                }
+            }
+
+            return sheets;
+        }
+    }
 
     /// <inheritdoc/>
     public string Body { get; init; } = string.Empty;
@@ -62,7 +81,7 @@ internal sealed class PageLayoutState(string? defaultLayout, PageLayoutState? in
 
     /// <inheritdoc/>
     public void AddStylesheet(string href) {
-        if (!PageDocument.IsSiteRelative(href)) {
+        if (!ShellDocument.IsSiteRelative(href)) {
             throw new ArgumentException($"'{href}' is not a site-relative URL.", nameof(href));
         }
 

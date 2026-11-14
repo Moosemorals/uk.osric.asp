@@ -1,4 +1,4 @@
-<% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+<%! using Site.Document; %><% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
    // Asked for by name, this page is the document rather than the chrome around one, so nothing has
    // set a title for it. When it wraps a page, that page's title is already here.
    if (ctx.Path == ctx.Request.Path) { layout.Title = "Site"; }
@@ -16,9 +16,10 @@
        links.Add(new(ctx.EditorPath, "Pages", Under(ctx.EditorPath)));
        links.Add(new("/admin", "Admin", Under("/admin")));
        links.Add(new("/logout", "Sign out", At("/logout")));
-   } %><%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head, resolveHref: ctx.AssetUrl) %>
-<%== PageDocument.Banner(PageDocument.Nav("Site", links, "site-nav")) %>
-<%== PageDocument.OpenMain() %>
+   }
+   Document.Head(ctx, layout.Title, layout.Stylesheets, layout.Head, ctx.AssetUrl);
+   Document.Banner(ctx, "Site", links, "site-nav");
+   Document.OpenMain(ctx); %>
 <%== layout.Body %>
-<%== PageDocument.CloseMain() %>
-<%== PageDocument.End() %>
+<% Document.CloseMain(ctx);
+   Document.End(ctx); %>

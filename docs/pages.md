@@ -199,8 +199,9 @@ a revision with code is rendered normally with `no-store`.
 `ctx.AssetUrl(href)` versions a bare site-relative link when its target is a live, no-code asset and
 returns it unchanged otherwise; queries, fragments, absolute and protocol-relative URLs all keep
 their spelling, so an unversioned fallback still works. A page's own markup is never rewritten by
-the host. `PageDocument.Head` takes an optional resolver for its base sheets and icon, and the
-shell's own views resolve their sheets and scripts the same way.
+the host. A page that writes a document of its own resolves its base sheets and icon with
+`ctx.AssetUrl`, as the seeded document library does, and the shell's own views resolve their sheets
+and scripts the same way.
 
 Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
 over 1 MiB is refused with 413 before it is read. A page that outruns its execution budget is answered

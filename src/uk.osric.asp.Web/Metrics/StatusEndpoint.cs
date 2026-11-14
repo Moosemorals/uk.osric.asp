@@ -91,6 +91,6 @@ internal static class StatusEndpoint {
             token.Token,
             string.Equals(token.Token, current, StringComparison.Ordinal)))];
 
-        return context.Response.WriteAsync(PageDocument.Nav("Time window", links, "status-nav"), cancellationToken);
+        return context.Response.WriteAsync(ShellDocument.Nav("Time window", links, "status-nav"), cancellationToken);
     }
 }

@@ -58,7 +58,7 @@ internal static class AssistantEndpoint {
         await ShellDocument.BeginAsync(context, "Assistant",
             SiteNavigation.For(context), stylesheets: ["/assistant.css"]);
         await context.Response.WriteAsync("<h1>Assistant</h1>");
-        await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
+        await context.Response.WriteAsync(ShellDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations", true),
             new(AssistantMemoryEndpoint.Path, "Memory"),
             new(EditorPaths.Of(context.RequestServices), "Page list"),
@@ -135,7 +135,7 @@ internal static class AssistantEndpoint {
         await ShellDocument.BeginAsync(context, conversation.Title,
             SiteNavigation.For(context), stylesheets: ["/assistant.css"], bodyClass: "assistant-page");
         await context.Response.WriteAsync($"<h1>{Encode(conversation.Title)}</h1>");
-        await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
+        await context.Response.WriteAsync(ShellDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations"),
             new(AssistantMemoryEndpoint.Path, "Memory"),
             new(EditorPaths.Of(context.RequestServices), "Page list"),

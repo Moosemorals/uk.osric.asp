@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started |
+| Status | Built, awaiting the owner's merge — phases 0–4 are on the branch; see [Status](#status) |
 | Size | Large — a kind in the compiler, a column and its migration, an index and a closure, a per-tree policy, a source on every diagnostic, and the end of `PageDocument` in `Sdk` |
 | Spike | None. The tokenizer already reports the declarations, `TemplateHasCode` already proves a verdict can come from generation, and Roslyn already compiles more than one tree |
 | Decisions | cited by name until this merges; DEC-240's rule is kept and its column replaced, DEC-156 is superseded in phase 4, DEC-151's comparison test is extended to the document; D12 costs a shared assembly and leaves it out |
-| Backlog | [IDEA-005](../jobs/IDEA-005.md) — the layout half landed; this is the shared-code half, and it is the last of it |
+| Backlog | [IDEA-005](../jobs/README.md#closed) — the layout half landed; this is the shared-code half, and the job closes with it |
 
 ## The short version
 
@@ -422,8 +422,55 @@ data, and a null or empty value means "no libraries", which is the truth for eve
 
 ## Status
 
-Nothing built. Phases 0–4 are unstarted, and the measurements phase 3 and phase 4 take are recorded
-here when they land, beside the decision they would reopen (D12).
+Built on the `page-libraries` branch, one phase per commit, each gated with `make check` and merged by
+the owner:
+
+- **Phase 0** — `PageKind` in `Core.Pages`, judged by generation and carried on
+  `TemplateGenerationResult.Kind`, which replaces `HasCode`.
+- **Phase 1** — `TemplateSourceGenerator.GenerateLibrary`, the library shape rule, and
+  `IPageCompiler.CompileLibrary`, which checks and never emits.
+- **Phase 2** — the kind on the revision, the image and the listing; `AddPageRevisionTemplateKind` as a
+  rename of `TemplateHasCode`; a library answers `404` at its key and at every versioned URL, is never
+  wrapped and is never an asset.
+- **Phase 3** — the closure: `LibrarySource`, a namespace index over the live libraries, one syntax
+  tree each in the page's compilation, an authored-tree policy set, a source on every diagnostic, the
+  `TemplateLibraries` fingerprint and its column, and staleness on `library-changed`.
+- **Phase 4** — a recursive seeder that stores each seed's kind, the `/_lib/document` seed, the layout
+  calling it, `PageDocument` merged into `ShellDocument` and gone from `Sdk`, and the drift test
+  comparing the shell's document with the seeded layout's. `tools/check-pages` follows the seed folder
+  recursively, compiles a library as a library and offers the seed libraries to every page it checks,
+  and the layout-state deduplicates a sheet two layers both ask for, because the document is now a
+  page's to write rather than a builder's.
+
+### The numbers
+
+One in-memory compile after a warm-up, median of five, `PageImage.Bytes.Length` and a stopwatch around
+`PageImageBuilder.Build` — the same quantities `page.image.size` and `page.compile.duration` record:
+
+| Compiled | Image | Compile |
+| --- | --- | --- |
+| `/_layout` as seeded, naming `Site.Document` | 9 216 B | 76 ms |
+| the same document written inline, no library | 7 168 B | 43 ms |
+| a trivial page | 4 096 B | 13 ms |
+
+The library is the whole of the difference: one extra syntax tree and its type in the layout's image,
+about 2 KB and 33 ms, because nothing is trimmed to what the page calls. The inline control is by hand
+and drops the nav's `aria-current`, so the sizes are close rather than exact. These are small enough to
+watch rather than design around (D12, "What we will watch").
+
+No staleness count is recorded yet: it needs a deployment where one library edit is rendered, and the
+instrument is `page.cache.staleness{reason="library-changed"}`.
+
+### What the merge has to know
+
+- **An installation that already holds the old seeds breaks.** A stored `_layout` or `/pages` that calls
+  `PageDocument` no longer compiles, so `/admin/restore` is the first thing to run after the deploy: it
+  installs the new `_layout` and the new editor over the old ones. The library seed arrives with it.
+- **Decisions to number at merge:** the library kind and its `using` closure, the shell keeping its own
+  document, and the seeded document library. DEC-156 is marked superseded in part here.
+- [`docs/decisions.md`](../decisions.md), [shell](../shell.md), [pages](../pages.md), [testing](../testing.md),
+  [jobs](../jobs/README.md) (IDEA-005 and IDEA-018 close), and the seeded `/help` are updated on the
+  branch.
 
 ## Open questions
 

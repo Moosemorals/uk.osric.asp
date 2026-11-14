@@ -26,6 +26,6 @@ internal static class AdminNavigation {
             new("/help", "Help"),
         ];
 
-        return PageDocument.Nav(Label, links, "editor-menu");
+        return ShellDocument.Nav(Label, links, "editor-menu");
     }
 }

@@ -26,10 +26,10 @@ public sealed class StatusEndpointTests {
     public async Task TheDocumentIsTheBuildersOwn() {
         string body = await RenderAsync("");
 
-        string expectedStart = PageDocument.Head("Status", ["/status.css"])
-            + PageDocument.Banner(SiteNavigation.Nav(authenticated: false, assistantEnabled: false, "/status", string.Empty, "/pages"))
-            + PageDocument.OpenMain();
-        string expectedEnd = PageDocument.CloseMain() + PageDocument.End();
+        string expectedStart = ShellDocument.Head("Status", ["/status.css"])
+            + ShellDocument.Banner(SiteNavigation.Nav(authenticated: false, assistantEnabled: false, "/status", string.Empty, "/pages"))
+            + ShellDocument.OpenMain();
+        string expectedEnd = ShellDocument.CloseMain() + ShellDocument.End();
 
         Assert.That(body, Does.StartWith(expectedStart), "the head, menu and landmark come from the document tools");
         Assert.That(body, Does.EndWith(expectedEnd));

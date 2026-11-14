@@ -24,8 +24,9 @@ public sealed class SiteLayoutEditingTests : IntegrationTest {
             Does.Not.Contain("Chrome from the editor"));
 
         HttpResponseMessage saved = await PostEditorAsync(client, "_layout", """
-            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><%== PageDocument.Head(layout.Title) %>
-            <p>Chrome from the editor</p><%== PageDocument.OpenMain() %><%== layout.Body %><%== PageDocument.CloseMain() %><%== PageDocument.End() %>
+            <%! using Site.Document; %><% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               Document.Head(ctx, layout.Title, layout.Stylesheets, layout.Head, ctx.AssetUrl); %>
+            <p>Chrome from the editor</p><% Document.OpenMain(ctx); %><%== layout.Body %><% Document.CloseMain(ctx); Document.End(ctx); %>
             """);
         Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 

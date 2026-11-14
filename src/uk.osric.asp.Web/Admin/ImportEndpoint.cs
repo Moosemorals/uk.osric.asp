@@ -483,7 +483,7 @@ internal sealed class ImportEndpoint {
         await context.Response.WriteAsync(PageLayout.Diagnostics(
             [.. problems.Select(problem => new DiagnosticLine(problem, PageDiagnosticSeverity.Error, null))]));
         await context.Response.WriteAsync("<p>Nothing was staged or saved.</p>");
-        await context.Response.WriteAsync(PageDocument.Nav("Recovery navigation", [
+        await context.Response.WriteAsync(ShellDocument.Nav("Recovery navigation", [
             new("/admin/import", "Choose another file"),
             new(EditorPaths.Of(context.RequestServices), "Page list"),
         ], "editor-menu"));

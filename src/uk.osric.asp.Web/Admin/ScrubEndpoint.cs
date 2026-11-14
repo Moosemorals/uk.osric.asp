@@ -65,7 +65,7 @@ internal static class ScrubEndpoint {
                 </dl>
                 <button type="submit">Permanently scrub</button>
             </form>
-            {PageDocument.Nav("Confirmation navigation", [new(PageUrls.Editor(path, EditorPaths.Of(context.RequestServices)), "Cancel")], "editor-menu")}
+            {ShellDocument.Nav("Confirmation navigation", [new(PageUrls.Editor(path, EditorPaths.Of(context.RequestServices)), "Cancel")], "editor-menu")}
             """);
         await ShellDocument.EndAsync(context);
     }

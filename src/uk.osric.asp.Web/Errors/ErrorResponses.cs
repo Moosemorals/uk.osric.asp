@@ -81,7 +81,7 @@ internal static class ErrorResponses {
         }
         IReadOnlyList<NavLink> remedies = Remedies(context, message.Remedies);
         if (remedies.Count > 0) {
-            await context.Response.WriteAsync(PageDocument.Nav("Recovery navigation", remedies, "editor-menu"), cancellationToken);
+            await context.Response.WriteAsync(ShellDocument.Nav("Recovery navigation", remedies, "editor-menu"), cancellationToken);
         }
         // The code is the same identifier the problem document carries, so a person reporting a
         // failure and a program logging one name it the same way.

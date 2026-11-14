@@ -9,11 +9,23 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {
         Assert.That(PageAssetSeeder.SeedPaths().Select(path => path.Key), Is.EquivalentTo(SeedPaths));
+    }
+
+    // A library has to be known as one the moment it is seeded, or the layout that names it cannot
+    // be compiled on a fresh installation.
+    [Test]
+    public async Task ASeededLibraryIsStoredAsALibraryAsync() {
+        FakePageStore storage = new();
+
+        await PageAssetSeeder.SeedAsync(storage);
+
+        Assert.That(storage["/_lib/document"]?.Kind, Is.EqualTo(PageKind.Library));
+        Assert.That(storage["/about"]?.Kind, Is.EqualTo(PageKind.Page));
     }
 
     [Test]
@@ -64,10 +76,12 @@ public sealed class PageAssetSeederTests {
     [TestCaseSource(nameof(SeedPaths))]
     public async Task EveryShippedSeedIsStoredWithoutDiagnosticsAsync(string path) {
         using PageHarness pages = new(new FakePageStore());
+        await pages.SeedAsync();
         string template = (await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path)))!;
+        IReadOnlyList<PageLibrary> libraries = await pages.Libraries.LiveAsync();
 
         PageImage image = pages.Images.Build(
-            PagePath.Normalize(path), template, PageMetrics.ReasonSave, [], CancellationToken.None);
+            PagePath.Normalize(path), template, PageMetrics.ReasonSave, libraries, CancellationToken.None);
 
         Assert.That(image.Diagnostics, Is.Empty,
             $"{path}: {string.Join("; ", image.Diagnostics.Select(diagnostic => diagnostic.Message))}");
@@ -168,7 +182,7 @@ public sealed class PageAssetSeederTests {
     public async Task TheLayoutSeedIsAPageTheOwnerCanEdit() {
         string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/_layout"));
 
-        Assert.That(template, Does.Contain("PageDocument.Head"));
+        Assert.That(template, Does.Contain("Document.Head"));
         Assert.That(template, Does.Contain("layout.Body"));
         Assert.That(new ReservedPaths(ReservedPaths.Default).IsReserved(PagePath.Normalize("/_layout")), Is.False);
     }

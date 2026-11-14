@@ -1,0 +1,145 @@
+<%!
+using System;
+using System.Collections.Generic;
+
+namespace Site.Document {
+
+    /// <summary>Writes the document a stored page is served in.</summary>
+    /// <remarks>
+    /// It writes through <see cref="IContext"/>, so every value is escaped by the page runtime. The
+    /// page API refuses <c>System.Net.WebUtility</c>, and an encoder written here would be the one
+    /// place a mistake could not be seen.
+    /// </remarks>
+    public static class Document {
+
+        /// <summary>The text of the link that skips the chrome.</summary>
+        public const string SkipLinkText = "Skip to content";
+
+        /// <summary>The sheet every document links before the page's own.</summary>
+        public const string BaseStylesheet = "/site.css";
+
+        /// <summary>The icon every document links.</summary>
+        public const string Icon = "/rocket.svg";
+
+        /// <summary>Writes the doctype, the head and the open body.</summary>
+        /// <param name="ctx">The page's context.</param>
+        /// <param name="title">The title, escaped here.</param>
+        /// <param name="stylesheets">The sheets the page and its layouts asked for, in cascade order.</param>
+        /// <param name="head">Markup for the head, written as it is.</param>
+        /// <param name="resolveHref">Versions a link, normally <c>ctx.AssetUrl</c>.</param>
+        public static void Head(
+            IContext ctx,
+            string title,
+            IReadOnlyList<string> stylesheets,
+            string? head,
+            Func<string, string> resolveHref) {
+            ArgumentNullException.ThrowIfNull(ctx);
+            ArgumentNullException.ThrowIfNull(stylesheets);
+            ArgumentNullException.ThrowIfNull(resolveHref);
+            ArgumentException.ThrowIfNullOrWhiteSpace(title);
+
+            ctx.WriteRaw("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
+                + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>");
+            ctx.Write(title);
+            ctx.WriteRaw("</title>\n");
+
+            List<string> sheets = [BaseStylesheet, .. stylesheets];
+            HashSet<string> seen = [];
+            foreach (string href in sheets) {
+                if (!seen.Add(href)) {
+                    continue;
+                }
+
+                ctx.WriteRaw("<link rel=\"stylesheet\" href=\"");
+                ctx.Write(resolveHref(href));
+                ctx.WriteRaw("\">\n");
+            }
+
+            ctx.WriteRaw("<link rel=\"icon\" href=\"");
+            ctx.Write(resolveHref(Icon));
+            ctx.WriteRaw("\" type=\"image/svg+xml\">\n");
+
+            if (!string.IsNullOrEmpty(head)) {
+                ctx.WriteRaw(head);
+                ctx.WriteRaw("\n");
+            }
+
+            ctx.WriteRaw("</head>\n<body>\n");
+        }
+
+        /// <summary>Writes the skip link, the banner and the navigation landmark.</summary>
+        /// <param name="ctx">The page's context.</param>
+        /// <param name="label">The landmark's accessible name.</param>
+        /// <param name="links">The links, in reading order.</param>
+        /// <param name="className">A class for the nav.</param>
+        public static void Banner(IContext ctx, string label, IReadOnlyList<NavLink> links, string className) {
+            ArgumentNullException.ThrowIfNull(ctx);
+
+            ctx.WriteRaw("<a class=\"skip-link\" href=\"#main\">");
+            ctx.Write(SkipLinkText);
+            ctx.WriteRaw("</a>\n<header class=\"site-header\">\n");
+            Nav(ctx, label, links, className);
+            ctx.WriteRaw("\n</header>\n");
+        }
+
+        /// <summary>Writes a navigation landmark from its label and links.</summary>
+        /// <param name="ctx">The page's context.</param>
+        /// <param name="label">The landmark's accessible name, escaped here.</param>
+        /// <param name="links">The links, in reading order.</param>
+        /// <param name="className">A class for the nav.</param>
+        public static void Nav(IContext ctx, string label, IReadOnlyList<NavLink> links, string className) {
+            ArgumentNullException.ThrowIfNull(ctx);
+            ArgumentNullException.ThrowIfNull(links);
+            ArgumentException.ThrowIfNullOrWhiteSpace(label);
+
+            ctx.WriteRaw("<nav class=\"");
+            ctx.Write(className);
+            ctx.WriteRaw("\" aria-label=\"");
+            ctx.Write(label);
+            ctx.WriteRaw("\">");
+
+            for (int index = 0; index < links.Count; index++) {
+                NavLink link = links[index];
+                if (index > 0) {
+                    ctx.WriteRaw(" ");
+                }
+
+                if (link.IsCurrent) {
+                    ctx.WriteRaw("<span class=\"current\" aria-current=\"true\">");
+                    ctx.Write(link.Text);
+                    ctx.WriteRaw("</span>");
+                } else {
+                    ctx.WriteRaw("<a href=\"");
+                    ctx.Write(link.Href);
+                    ctx.WriteRaw("\">");
+                    ctx.Write(link.Text);
+                    ctx.WriteRaw("</a>");
+                }
+            }
+
+            ctx.WriteRaw("</nav>");
+        }
+
+        /// <summary>Opens the one main landmark the skip link targets.</summary>
+        /// <param name="ctx">The page's context.</param>
+        public static void OpenMain(IContext ctx) {
+            ArgumentNullException.ThrowIfNull(ctx);
+            ctx.WriteRaw("<main id=\"main\">");
+        }
+
+        /// <summary>Closes the landmark <see cref="OpenMain"/> opened.</summary>
+        /// <param name="ctx">The page's context.</param>
+        public static void CloseMain(IContext ctx) {
+            ArgumentNullException.ThrowIfNull(ctx);
+            ctx.WriteRaw("</main>");
+        }
+
+        /// <summary>Closes the document.</summary>
+        /// <param name="ctx">The page's context.</param>
+        public static void End(IContext ctx) {
+            ArgumentNullException.ThrowIfNull(ctx);
+            ctx.WriteRaw("</body>\n</html>");
+        }
+    }
+}
+%>

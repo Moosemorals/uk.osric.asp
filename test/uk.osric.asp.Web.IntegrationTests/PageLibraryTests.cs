@@ -13,19 +13,19 @@ public sealed class PageLibraryTests : IntegrationTest {
     public async Task ASavedLibraryIsListedAsOneAndItsUrlIsNotFoundAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage saved = await PostEditorAsync(client, "_lib/document",
-            "<%! namespace Site { public class Document { } } %>");
+        HttpResponseMessage saved = await PostEditorAsync(client, "lib/greeting",
+            "<%! namespace Site { public class Greeting { } } %>");
         Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        HttpResponseMessage page = await client.GetAsync("/_lib/document");
+        HttpResponseMessage page = await client.GetAsync("/lib/greeting");
         Assert.That(page.StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
             "a library has no representation to serve");
 
         string listing = await (await client.GetAsync("/pages")).Content.ReadAsStringAsync();
         Assert.Multiple(() => {
-            Assert.That(listing, Does.Contain("/_lib/document"));
+            Assert.That(listing, Does.Contain("/lib/greeting"));
             Assert.That(listing, Does.Contain("Library"));
-            Assert.That(listing, Does.Not.Contain("aria-label=\"View /_lib/document\""));
+            Assert.That(listing, Does.Not.Contain("aria-label=\"View /lib/greeting\""));
         });
     }
 
@@ -33,12 +33,12 @@ public sealed class PageLibraryTests : IntegrationTest {
     public async Task APageUsesASavedLibraryThroughTheRealHostAsync() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage library = await PostEditorAsync(client, "_lib/document",
-            "<%! namespace Site { public static class Document { public static string Head() => \"from the library\"; } } %>");
+        HttpResponseMessage library = await PostEditorAsync(client, "lib/greeting",
+            "<%! namespace Site { public static class Greeting { public static string Text() => \"from the library\"; } } %>");
         Assert.That(library.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         HttpResponseMessage page = await PostEditorAsync(client, "uses-library",
-            "<%! using Site; %><h1><% ctx.Write(Document.Head()); %></h1>");
+            "<%! using Site; %><h1><% ctx.Write(Greeting.Text()); %></h1>");
         Assert.That(page.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         string body = await (await client.GetAsync("/uses-library")).Content.ReadAsStringAsync();

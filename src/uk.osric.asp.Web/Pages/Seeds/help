@@ -97,7 +97,9 @@ pages that name it, and nothing else. A diagnostic from library code names the l
 it, rather than pointing at your page.</p>
 <p>A library's <code>static</code> fields are one copy for each page that names it, not one copy for
 the site: do not use them to share a value between pages. A library that does not compile stops the
-pages that name it from compiling until it is fixed.</p>
+pages that name it from compiling until it is fixed &mdash; and the editor page names the document
+library too, so <code>/admin/restore</code>, which is the shell's own route, is the way back when the
+editor will not open.</p>
 <p>Do not write a doctype, <code>html</code>, <code>head</code>, <code>body</code>, a
 <code>title</code> element or the site menu in a page with code. Start at the page's first heading and
 write one <code>h1</code>.</p>
@@ -139,22 +141,22 @@ logs a warning. A layout the page named that cannot be served is an error that n
 layout.</p>
 <p>A layout is not a guard. The content has already run by the time the layout starts, so a layout
 can hide chrome but cannot prevent a side effect.</p>
-<p>A minimal layout writes the document through the shared builder and puts the page in the middle:</p>
-<pre class="source" tabindex="0"><code>&lt;% var layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
+<p>A minimal layout calls the document library the site seeds at <code>/_lib/document</code> and puts
+the page in the middle:</p>
+<pre class="source" tabindex="0"><code>&lt;%! using Site.Document; %&gt;
+&lt;% var layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
    if (ctx.Path == ctx.Request.Path) { layout.Title = "Site"; }
    bool At(string href) =&gt; ctx.Request.Path == href;
-   var links = new System.Collections.Generic.List&lt;NavLink&gt; { new("/", "Home", At("/")) }; %&gt;
-&lt;%== PageDocument.Head(layout.Title, layout.Stylesheets, head: layout.Head,
-                        resolveHref: ctx.AssetUrl) %&gt;
-&lt;%== PageDocument.Banner(PageDocument.Nav("Site", links, "site-nav")) %&gt;
-&lt;%== PageDocument.OpenMain() %&gt;
+   var links = new System.Collections.Generic.List&lt;NavLink&gt; { new("/", "Home", At("/")) };
+   Document.Head(ctx, layout.Title, layout.Stylesheets, layout.Head, ctx.AssetUrl);
+   Document.Banner(ctx, "Site", links, "site-nav");
+   Document.OpenMain(ctx); %&gt;
 &lt;%== layout.Body %&gt;
-&lt;%== PageDocument.CloseMain() %&gt;
-&lt;%== PageDocument.End() %&gt;</code></pre>
-<p><code>resolveHref</code> is the head's link resolver. Passing <code>ctx.AssetUrl</code> is what
-lets the base sheet and the icon carry a revision hash; a layout that passes none writes exactly
-the URLs it wrote before.</p>
-<p>The seeded <code>/_layout</code> is the full version of that page, and you can edit or restore it
+&lt;% Document.CloseMain(ctx); Document.End(ctx); %&gt;</code></pre>
+<p>The last argument to <code>Head</code> is the link resolver: <code>ctx.AssetUrl</code> is what lets
+the base sheet and the icon carry a revision hash. The library is an ordinary stored page, so you can
+edit the document itself from the page list, and <code>/admin/restore</code> puts it back.</p>
+<p>The seeded <code>/_layout</code> is the full version of that page, and you can edit or restore both
 from the page list.</p>
 
 <h2 id="head-and-scripts">Stylesheets, head and scripts</h2>

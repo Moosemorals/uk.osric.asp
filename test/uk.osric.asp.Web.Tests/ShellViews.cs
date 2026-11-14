@@ -181,6 +181,9 @@ internal static class ShellViews {
             [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
 
         using PageHarness harness = new(pages);
+        // The seeded layout draws its document with a seeded library, and only the read side is
+        // asked for one.
+        await harness.MirrorSeededLibrariesAsync();
         using PageMetrics metrics = new();
 
         await PageEndpoint.HandleAsync(
