@@ -21,10 +21,19 @@ internal sealed record AdminOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Admin");
+        AdminOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Admin</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Admin</c>, which the caller completes.</param>
+    internal static AdminOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         AdminOptions options = new() {
             Changelist = reader.Text("Changelist", "a file name such as changes.txt"),
         };
-        reader.Complete();
         return options;
     }
 }

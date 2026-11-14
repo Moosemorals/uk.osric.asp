@@ -20,8 +20,8 @@ An options test covers three things: the shipped value, an override, and the ref
 blank, malformed or out-of-range value throws `ConfigurationException` naming the key, the range and
 the shipped value. `ShippedConfigurationTests` proves every factory can read the file the site ships
 with, so a new required key and a forgotten row fail here rather than at the first deploy.
-`ConfigurationStartupTests` drives the real host with a bad value and asserts the report an operator
-sees.
+`ConfigurationStartupTests` drives the real host with several bad values in several sections and
+asserts that one report names all of them.
 
 ## The five suites
 

@@ -31,6 +31,16 @@ internal sealed record MetricsOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Metrics");
+        MetricsOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Metrics</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Metrics</c>, which the caller completes.</param>
+    internal static MetricsOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         string url = reader.Text("PrometheusUrl", "an absolute URL such as http://prometheus:9090");
         string timeZoneId = reader.Text("TimeZone", "an IANA zone such as Europe/London");
         MetricsOptions options = new() {
@@ -41,7 +51,6 @@ internal sealed record MetricsOptions {
             CacheFor = TimeSpan.FromSeconds(reader.Number("CacheSeconds", recommended: 15, minimum: 0, maximum: 3_600)),
             MaxCachedWindows = reader.Number("MaxCachedWindows", recommended: 16, minimum: 1, maximum: 1_024),
         };
-        reader.Complete();
         return options;
     }
 

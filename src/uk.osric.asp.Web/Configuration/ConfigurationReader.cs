@@ -70,6 +70,18 @@ internal sealed class ConfigurationReader {
     /// <summary>The section's own value, for a setting written as a string rather than a set of keys.</summary>
     public string? ValueOrNull() => _configuration.GetSection(Section).Value;
 
+    /// <summary>Whether a key below this section exists at all.</summary>
+    /// <param name="key">The key, relative to this section.</param>
+    public bool Has(string key) => _configuration.GetSection(Section).GetSection(key).Exists();
+
+    /// <summary>The configuration a key below this section holds, for a reader that has to walk it.</summary>
+    /// <param name="key">The key, relative to this section.</param>
+    public IConfigurationSection SectionOf(string key) => _configuration.GetSection(Section).GetSection(key);
+
+    /// <summary>The entries of a section-like key below this one.</summary>
+    /// <param name="key">The key, relative to this section.</param>
+    public IEnumerable<IConfigurationSection> Children(string key) => SectionOf(key).GetChildren();
+
     /// <summary>Records a problem that the reader's own values could not express.</summary>
     /// <param name="key">The key it belongs to, relative to this section.</param>
     /// <param name="problem">The sentence, without a leading key and without a full stop.</param>

@@ -73,8 +73,13 @@ or credential list, or a name that decides routing or authority.
   override and a refusal. `appsettings.json` is the shipped source of truth; a production override
   may be partial because providers merge key by key.
 - Nothing has a code fallback. A missing, blank, malformed or out-of-range value stops the process at
-  startup with a `ConfigurationException` naming the key, the accepted range and the recommended
-  value. `Program.Main` writes that message to standard error and exits non-zero.
+  startup with a `ConfigurationException` that names the key, the accepted range and the recommended
+  value. Every section's problems are collected into one report before it is made, so an operator
+  fixes a list rather than one section per restart. `Program.Main` writes that report to standard
+  error and exits non-zero.
+- A range is a safety net, not a straitjacket: wide enough that only a mistake meets it. It exists so
+  a bad value cannot switch a guard off, not to ration a legitimate deployment, and the refusal names
+  the range so the operator can see what is allowed.
 - `Core` never reads configuration: the shell turns a setting into a plain value and passes it in.
 - A genuinely optional value is declared and documented as optional. Absent is not the same as
   blank, and blank is accepted only where blank has a meaning.

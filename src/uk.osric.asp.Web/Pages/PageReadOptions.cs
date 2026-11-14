@@ -31,13 +31,22 @@ internal sealed record PageReadOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Pages:Read");
+        PageReadOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Pages:Read</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Read</c>, which the caller completes.</param>
+    internal static PageReadOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         PageReadOptions options = new() {
             MaxRowsPerList = reader.Number("MaxRowsPerList", recommended: 500,
                 minimum: 1, maximum: MaximumRowsPerList),
             MaxSourceCharsPerRender = reader.Number("MaxSourceCharsPerRender", recommended: 512 * 1024,
                 minimum: MinimumSourceCharsPerRender, maximum: 16 * 1024 * 1024),
         };
-        reader.Complete();
         return options;
     }
 }

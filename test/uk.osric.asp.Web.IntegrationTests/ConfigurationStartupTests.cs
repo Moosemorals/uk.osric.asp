@@ -13,7 +13,35 @@ public sealed class ConfigurationStartupTests {
 
     [Test]
     public void AnOutOfRangeValueStopsTheHostBeforeItServes() {
-        using AspApplication application = new(renderTimeoutSeconds: 0);
+        string report = ReportFor(new Dictionary<string, string?> {
+            ["Pages:Render:TimeoutSeconds"] = "0",
+        });
+
+        Assert.Multiple(() => {
+            Assert.That(report, Does.Contain("Pages:Render:TimeoutSeconds is 0"));
+            Assert.That(report, Does.Contain("Set these values in appsettings.json"));
+        });
+    }
+
+    [Test]
+    public void EveryBadSectionIsReportedInOneStart() {
+        string report = ReportFor(new Dictionary<string, string?> {
+            ["Pages:Render:Slots"] = "0",
+            ["Pages:Read:MaxRowsPerList"] = "not a number",
+            ["Metrics:TimeZone"] = "Mars/Olympus",
+            ["Authentication:Login:PermitLimit"] = "0",
+        });
+
+        Assert.Multiple(() => {
+            Assert.That(report, Does.Contain("Pages:Render:Slots is 0"));
+            Assert.That(report, Does.Contain("Pages:Read:MaxRowsPerList is \"not a number\""));
+            Assert.That(report, Does.Contain("Metrics:TimeZone is \"Mars/Olympus\""));
+            Assert.That(report, Does.Contain("Authentication:Login:PermitLimit is 0"));
+        });
+    }
+
+    private static string ReportFor(Dictionary<string, string?> settings) {
+        using AspApplication application = new(settings: settings);
         using StringWriter captured = new();
         TextWriter original = Console.Error;
 
@@ -24,10 +52,6 @@ public sealed class ConfigurationStartupTests {
             Console.SetError(original);
         }
 
-        string report = captured.ToString();
-        Assert.Multiple(() => {
-            Assert.That(report, Does.Contain("Pages:Render:TimeoutSeconds is 0"));
-            Assert.That(report, Does.Contain("Set these values in appsettings.json"));
-        });
+        return captured.ToString();
     }
 }

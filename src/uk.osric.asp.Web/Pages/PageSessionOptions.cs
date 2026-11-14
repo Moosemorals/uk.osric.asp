@@ -54,6 +54,16 @@ internal sealed record PageSessionOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Pages:Session");
+        PageSessionOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Pages:Session</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Session</c>, which the caller completes.</param>
+    internal static PageSessionOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         PageSessionOptions options = new() {
             MaxKeyChars = reader.At("Pages:Storage").Number("MaxKeyChars", recommended: 200, minimum: 16, maximum: 4_096),
             Anonymous = PageSessionCaps.Read(reader.For("Anonymous"), PageSessionCaps.Anonymous),
@@ -63,7 +73,6 @@ internal sealed record PageSessionOptions {
             MaxLiveSessions = reader.Number("MaxLiveSessions", recommended: 2_048, minimum: 1, maximum: 1_000_000),
             CommandTimeoutSeconds = reader.Number("CommandTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
         };
-        reader.Complete();
         return options;
     }
 }

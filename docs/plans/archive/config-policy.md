@@ -24,9 +24,10 @@ This change makes configuration the only source.
 
 - **Every value read from `IConfiguration` is required.** There is no fallback in code. A missing,
   blank, malformed or out-of-range value stops the process at startup.
-- **The operator gets a sentence, not a stack trace.** `ConfigurationReader` collects every problem
-  in a section and reports them together, naming the key, the accepted range and the value this
-  repository ships. `Program.Main` writes that to standard error and exits non-zero.
+- **The operator gets one report, not a stack trace.** `ConfigurationReader` records a problem
+  rather than throwing, every section is built through one reader, and a single `Complete` reports
+  every bad key in every section at once, with the accepted range and the value this repository
+  ships. `Program.Main` writes that to standard error and exits non-zero.
 - **`appsettings.json` is the shipped source of truth.** A production override may be partial,
   because configuration providers merge key by key.
 - **The rule is written down** in the agent instructions and the architecture, and each subsystem
@@ -62,15 +63,19 @@ no page names a credential.
 ### The reader
 
 `Web/Configuration/ConfigurationException.cs` is the expected failure. `Web/Configuration/ConfigurationReader.cs`
-is one section's reader: it records a problem per key rather than throwing at the first, and
-`Complete` throws one `ConfigurationException` listing them all. A nested reader shares the problem
-list, so a section with sub-sections reports once.
+records a problem per key rather than throwing at the first, and `Complete` throws one
+`ConfigurationException` listing them all. Readers share the problem list — a nested section, a
+section another borrows from, and `Program`'s own reader included — so the whole configuration is one
+report. Every options record has two factories: one from `IConfiguration`, which reports its own
+section and throws, and one from a `ConfigurationReader`, which joins the caller's report.
 
-The message is the product:
+The message is the product, one line per bad key across every section:
 
 ```
 The site cannot start because its configuration is incomplete or invalid:
-  Pages:Render:TimeoutSeconds is 0, which is outside the accepted range of 0.05 to 60. Set it to a number from 0.05 to 60; 5 is recommended.
+  Pages:Render:Slots is 0, which is outside the accepted range of 1 to 64. Set it to a whole number from 1 to 64; 2 is recommended.
+  Pages:Read:MaxRowsPerList is "not a number", which is not a whole number. Set it to a whole number from 1 to 10000; 500 is recommended.
+  Metrics:TimeZone is "Mars/Olympus", which this host does not know; use an IANA zone such as Europe/London.
 Set these values in appsettings.json, appsettings.<Environment>.json or an environment variable, then start the site again.
 ```
 
@@ -113,15 +118,15 @@ code: every factory reads it, and its `Pages:ReservedPaths` is the list `ShellRo
 through its real factory on top of the shipped file, so the suite does not carry a second copy of the
 values. New suites: `ConfigurationReaderTests`, `MetricsOptionsTests`, `AuthenticationOptionsTests`,
 `ShippedConfigurationTests`, and `ConfigurationStartupTests` in the integration suite, which drives the
-real host with a bad value and asserts the paragraph an operator sees. The options tests that asserted
-a fallback or a clamp now assert the refusal.
+real host with bad values in several sections and asserts that one report names them all. The options
+tests that asserted a fallback or a clamp now assert the refusal.
 
 ## Considered and rejected
 
 | Option | Why not |
 | --- | --- |
 | Keep code defaults and log when one is used | Two sources of truth with a warning is still two sources; a deploy that half-works is worse than one that does not start |
-| Collect every section's problems in one report | Each factory reports its own section completely, which is the whole list an operator needs to fix before the next start. A global report would thread one reader through every registration for a marginal gain |
+| Report one section per start | Rejected on review: a hand-written file then costs one restart per section. One reader is threaded through every factory instead, and the report names every bad key at once |
 | A reflection test over options and the shipped file | The chosen enforcement is review and documentation. `ShippedConfigurationTests` covers the part that actually bites — a factory and the file disagreeing — without pinning every future literal |
 | A custom Roslyn analyzer | A new project and dependency for one owner, and it would have to whitelist the invariants the rule deliberately keeps |
 | Move the password, header and API-policy constants too | Configuration could only weaken them. [IDEA-031](../../jobs/IDEA-031.md) asks whether a tightening-only key is worth having |
@@ -136,11 +141,9 @@ a fallback or a clamp now assert the refusal.
 
 ## What is unsure
 
-- The number of regions: one startup report names one section. A host rebuilt from an empty file
-  meets several failures in sequence, one per start.
-- Whether every range is the one the owner would choose. They are generous, chosen to keep a mistake
-  from disabling a guard rather than to ration a legitimate deployment; IDEA-031 is the place to
-  argue about the ones that stayed.
+- Whether every range is the one the owner would choose. They are a safety net rather than a
+  straitjacket: wide enough that only a mistake meets them, and IDEA-031 is the place to argue about
+  the ones that stayed in code.
 - The integration test proves the report reaches standard error by capturing `Console.Error`, which
   is process-wide. The suite is not parallel, so it is safe today; a future parallel fixture would
   need a different seam.

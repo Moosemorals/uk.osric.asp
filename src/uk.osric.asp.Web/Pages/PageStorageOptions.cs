@@ -37,6 +37,16 @@ internal sealed record PageStorageOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Pages:Storage");
+        PageStorageOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Pages:Storage</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Storage</c>, which the caller completes.</param>
+    internal static PageStorageOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         int maxValueBytes = reader.Number("MaxValueBytes", recommended: 64 * 1024,
             minimum: 1024, maximum: 16 * 1024 * 1024);
         int maxPageBytes = reader.Number("MaxPageBytes", recommended: 256 * 1024,
@@ -52,7 +62,6 @@ internal sealed record PageStorageOptions {
             MaxPageBytes = maxPageBytes,
             CommandTimeoutSeconds = reader.Number("CommandTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
         };
-        reader.Complete();
         return options;
     }
 }

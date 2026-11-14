@@ -38,6 +38,16 @@ internal sealed record ArchiveOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Pages:Archive");
+        ArchiveOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Pages:Archive</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Archive</c>, which the caller completes.</param>
+    internal static ArchiveOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         ArchiveOptions options = new() {
             MaxUploadBytes = reader.Number("MaxUploadBytes", recommended: 16 * 1024 * 1024,
                 minimum: 1024, maximum: 512 * 1024 * 1024),
@@ -47,7 +57,6 @@ internal sealed record ArchiveOptions {
             StageTtlMinutes = reader.Number("StageTtlMinutes", recommended: 30, minimum: 1, maximum: 1_440),
             MaxStagedImports = reader.Number("MaxStagedImports", recommended: 3, minimum: 1, maximum: 32),
         };
-        reader.Complete();
         return options;
     }
 }

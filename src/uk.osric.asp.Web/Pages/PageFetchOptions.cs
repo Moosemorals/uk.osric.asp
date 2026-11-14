@@ -49,6 +49,16 @@ internal sealed record PageFetchOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Pages:Fetch");
+        PageFetchOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Pages:Fetch</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Fetch</c>, which the caller completes.</param>
+    internal static PageFetchOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         PageFetchOptions options = new() {
             TimeoutSeconds = reader.Decimal("TimeoutSeconds", recommended: 4,
                 minimum: PageBudget.MinimumTimeoutSeconds, maximum: 60),
@@ -57,9 +67,8 @@ internal sealed record PageFetchOptions {
             MaxRequestsPerRender = reader.Number("MaxRequestsPerRender", recommended: 10,
                 minimum: 1, maximum: 100),
             MaxRedirects = reader.Number("MaxRedirects", recommended: 3, minimum: 0, maximum: 20),
-            Credentials = ReadCredentials(configuration.GetSection("Pages:Fetch:Credentials")),
+            Credentials = ReadCredentials(reader.SectionOf("Credentials")),
         };
-        reader.Complete();
         return options;
     }
 

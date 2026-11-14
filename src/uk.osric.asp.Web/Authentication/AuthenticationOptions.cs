@@ -22,6 +22,16 @@ internal sealed record AuthenticationOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Authentication");
+        AuthenticationOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Authentication</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Authentication</c>, which the caller completes.</param>
+    internal static AuthenticationOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         AuthenticationOptions options = new() {
             TicketLifetime = TimeSpan.FromDays(reader.Number("TicketLifetimeDays", recommended: 30,
                 minimum: 1, maximum: 365)),
@@ -32,7 +42,6 @@ internal sealed record AuthenticationOptions {
                     minimum: 1, maximum: 3_600)),
             },
         };
-        reader.Complete();
         return options;
     }
 }

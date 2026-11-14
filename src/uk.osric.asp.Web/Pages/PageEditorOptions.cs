@@ -20,17 +20,30 @@ internal sealed record PageEditorOptions {
     /// <summary>Reads <c>Pages:Editor</c>.</summary>
     /// <param name="configuration">The application configuration.</param>
     /// <exception cref="ConfigurationException">The key is missing or names no page a request could reach.</exception>
+    /// <summary>Reads <c>Pages:Editor</c>.</summary>
+    /// <param name="configuration">The application configuration.</param>
+    /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
     public static PageEditorOptions FromConfiguration(IConfiguration configuration) {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Pages:Editor");
+        PageEditorOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Pages:Editor</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Editor</c>, which the caller completes.</param>
+    internal static PageEditorOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         string configured = reader.Text("Key", "a page key such as /pages");
         PagePath path = PagePath.Normalize(configured);
 
         reader.FailIf(!path.IsAddressable, "Key",
             $"is \"{configured}\", which is not an addressable page key such as /pages");
-        reader.Complete();
 
         return new PageEditorOptions { Key = path.Key };
+
     }
 }

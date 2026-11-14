@@ -40,6 +40,7 @@ using uk.osric.asp.Web.Users;
 /// write the layout; <c>SiteChromeTests</c> switches the shipped default on.
 /// </param>
 /// <param name="changelist">The file <c>/admin/changes</c> serves, for a fixture that proves the page.</param>
+/// <param name="settings">Extra keys applied last, for a fixture that proves a configuration failure.</param>
 internal sealed class AspApplication(
     int loginPermitLimit = 100,
     int renderTimeoutSeconds = 15,
@@ -54,7 +55,8 @@ internal sealed class AspApplication(
     int? maxContextTokens = null,
     int? maxOutputTokens = null,
     string? pageLayout = null,
-    string? changelist = null) : WebApplicationFactory<Program> {
+    string? changelist = null,
+    IReadOnlyDictionary<string, string?>? settings = null) : WebApplicationFactory<Program> {
 
     /// <summary>The database this host migrates and serves; it is deleted with the factory.</summary>
     public string DatabasePath { get; } =
@@ -98,6 +100,10 @@ internal sealed class AspApplication(
         // The shared fixture signs in many times; the dedicated throttle test lowers this. The key is
         // the one the host reads, so the test exercises the binding rather than overriding a service.
         builder.UseSetting("Authentication:Login:PermitLimit", loginPermitLimit.ToString(CultureInfo.InvariantCulture));
+        // Last, so a fixture that is about a configuration failure can break any key it names.
+        foreach ((string key, string? value) in settings ?? new Dictionary<string, string?>()) {
+            builder.UseSetting(key, value);
+        }
 
         builder.ConfigureTestServices(services => {
             services.AddSingleton<IPageCompiler>(Compiler);

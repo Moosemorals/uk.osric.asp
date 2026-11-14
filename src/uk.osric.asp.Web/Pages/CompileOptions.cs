@@ -30,12 +30,21 @@ internal sealed record CompileOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Pages:Compile");
+        CompileOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Pages:Compile</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Compile</c>, which the caller completes.</param>
+    internal static CompileOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         CompileOptions options = new() {
             Slots = reader.Number("Slots", recommended: 1, minimum: 1, maximum: 32),
             TimeoutSeconds = reader.Decimal("TimeoutSeconds", recommended: 5,
                 minimum: PageBudget.MinimumTimeoutSeconds, maximum: 60),
         };
-        reader.Complete();
         return options;
     }
 }

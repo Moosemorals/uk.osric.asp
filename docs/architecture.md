@@ -141,16 +141,23 @@ variable or a deployment's own settings file.
 - **The shape.** An options record in `Web` and a `FromConfiguration` factory beside it, reading
   every value through `ConfigurationReader` (`Web/Configuration`). The record's properties are
   `required`, so a half-populated policy cannot be built.
-- **The failure.** A missing, blank, malformed or out-of-range value is recorded and the section's
-  whole list is reported at once, naming each key with its accepted range and the value this
-  repository ships. `Complete` throws `ConfigurationException`; `Program.Main` writes the message to
-  standard error and exits non-zero, so the operator meets one readable paragraph rather than a
-  stack trace. The host never serves with half a configuration.
+- **The failure.** A missing, blank, malformed or out-of-range value is recorded rather than thrown,
+  and `Program` builds every section through one reader before it builds anything else. One
+  `Complete` then throws a `ConfigurationException` listing every problem in every section, naming
+  each key with its accepted range and the value this repository ships. `Program.Main` writes that
+  one report to standard error and exits non-zero, so an operator fixes one list rather than finding
+  one section per restart, and never meets a stack trace. The host never serves with half a
+  configuration.
+- **Joining the report.** Each options record has two factories: one from `IConfiguration`, which
+  reports its own section and throws, and one from a `ConfigurationReader`, which adds its problems
+  to the caller's report so `Program` can make one of them.
 - **The file.** `appsettings.json` is the source of truth for the shipped values, and
   `ShippedConfigurationTests` proves every factory can read it. A production override may be partial:
   configuration providers merge key by key.
 - **The recommendation is guidance.** A factory passes a recommended value only so the message can
   say what normally works; it is never used as a fallback.
+- **A range is a safety net, not a straitjacket.** It is wide enough that only a mistake meets it:
+  its job is to stop a zero or a typo switching a guard off, not to ration a legitimate deployment.
 - **What stays in code.** An invariant — a cryptographic or wire-format constant, a schema
   constraint, an algorithm work cap, or the floor and ceiling that keeps a configured value from
   switching a guard off. A security policy may be configured only in the direction that keeps or

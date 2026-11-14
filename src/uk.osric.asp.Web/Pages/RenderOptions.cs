@@ -41,6 +41,16 @@ internal sealed record RenderOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Pages:Render");
+        RenderOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Pages:Render</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Render</c>, which the caller completes.</param>
+    internal static RenderOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         RenderOptions options = new() {
             TimeoutSeconds = reader.Decimal("TimeoutSeconds", recommended: 5,
                 minimum: PageBudget.MinimumTimeoutSeconds, maximum: 60),
@@ -50,7 +60,6 @@ internal sealed record RenderOptions {
             AbandonedLimit = reader.Number("AbandonedLimit", recommended: 2, minimum: 1, maximum: 64),
             MaxLayoutDepth = reader.Number("MaxLayoutDepth", recommended: 4, minimum: 1, maximum: MaximumLayoutDepth),
         };
-        reader.Complete();
         return options;
     }
 }

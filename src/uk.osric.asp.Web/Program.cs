@@ -70,12 +70,12 @@ internal class Program {
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
             builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
         }
-        // Every value the site needs is read here, before anything is built, so a missing one is one
-        // readable line on standard error and a non-zero exit rather than a failure mid-request.
-        ConfigurationReader connections = new(builder.Configuration, "ConnectionStrings");
-        string connectionString = connections.Text("Storage",
+        // Every value the site needs is read here, through one reader, before anything is built: every
+        // section's problems are collected before the report is made, so an operator fixes one list
+        // rather than finding one section per restart.
+        ConfigurationReader settings = new(builder.Configuration, "ConnectionStrings");
+        string connectionString = settings.Text("Storage",
             "a SQLite connection string such as Data Source=data/storage.db");
-        connections.Complete();
 
         SqliteConnectionStringBuilder connection = [with(connectionString)];
         if (connection.DataSource.Length > 0 && connection.DataSource != ":memory:") {
@@ -83,23 +83,22 @@ internal class Program {
             Directory.CreateDirectory(Path.GetDirectoryName(connection.DataSource)
                 ?? throw new InvalidOperationException("The storage database must have a parent directory."));
         }
-        AssistantOptions assistant = AssistantOptions.FromConfiguration(builder.Configuration);
-        AuthenticationOptions authentication = AuthenticationOptions.FromConfiguration(builder.Configuration);
-        ArchiveOptions archive = ArchiveOptions.FromConfiguration(builder.Configuration);
-        AdminOptions admin = AdminOptions.FromConfiguration(builder.Configuration);
-        CompileOptions compile = CompileOptions.FromConfiguration(builder.Configuration);
-        PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(builder.Configuration);
-        PageEditorOptions editor = PageEditorOptions.FromConfiguration(builder.Configuration);
-        RenderOptions render = RenderOptions.FromConfiguration(builder.Configuration);
-        PageStorageOptions storage = PageStorageOptions.FromConfiguration(builder.Configuration);
-        PageSessionOptions session = PageSessionOptions.FromConfiguration(builder.Configuration);
-        PageReadOptions read = PageReadOptions.FromConfiguration(builder.Configuration);
-        PageFetchOptions fetch = PageFetchOptions.FromConfiguration(builder.Configuration);
-        MetricsOptions metrics = MetricsOptions.FromConfiguration(builder.Configuration);
-
-        ConfigurationReader pagesSection = new(builder.Configuration, "Pages");
-        string[] reservedKeys = [.. pagesSection.List("ReservedPaths", "page keys", minimum: 1)];
-        pagesSection.Complete();
+        AssistantOptions assistant = AssistantOptions.FromConfiguration(settings.At("Assistant"));
+        AuthenticationOptions authentication = AuthenticationOptions.FromConfiguration(settings.At("Authentication"));
+        ArchiveOptions archive = ArchiveOptions.FromConfiguration(settings.At("Pages:Archive"));
+        AdminOptions admin = AdminOptions.FromConfiguration(settings.At("Admin"));
+        CompileOptions compile = CompileOptions.FromConfiguration(settings.At("Pages:Compile"));
+        PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(settings.At("Pages:Layout"));
+        PageEditorOptions editor = PageEditorOptions.FromConfiguration(settings.At("Pages:Editor"));
+        RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
+        PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
+        PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
+        PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
+        PageFetchOptions fetch = PageFetchOptions.FromConfiguration(settings.At("Pages:Fetch"));
+        PageContentTypes contentTypes = PageContentTypesConfiguration.FromConfiguration(settings.At("Pages:ContentTypes"));
+        MetricsOptions metrics = MetricsOptions.FromConfiguration(settings.At("Metrics"));
+        string[] reservedKeys = [.. settings.At("Pages").List("ReservedPaths", "page keys", minimum: 1)];
+        settings.Complete();
         ReservedPaths reserved = new(reservedKeys);
         bool assistantEnabled = assistant.Enabled;
 
@@ -159,9 +158,7 @@ internal class Program {
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton(render);
-        builder.Services.AddSingleton(services => PageContentTypesConfiguration.FromConfiguration(
-            builder.Configuration,
-            services.GetRequiredService<ILoggerFactory>().CreateLogger("Pages.ContentTypes")));
+        builder.Services.AddSingleton(contentTypes);
         builder.Services.AddSingleton(storage);
         builder.Services.AddSingleton(session);
         builder.Services.AddSingleton(PageSessionCookieOptions.For(builder.Environment));
@@ -331,9 +328,10 @@ internal class Program {
         // a runtime that cannot supply one must fail the deploy, not the first page that gets saved.
         _ = app.Services.GetRequiredService<IPageCompiler>();
 
-        // A malformed content-type map is the same trade: the site does not come up with half a map,
-        // and the journal names the offending key before anything is served.
-        _ = app.Services.GetRequiredService<PageContentTypes>();
+        // The map is read and validated above with the rest of configuration; the journal line that
+        // says what pages will serve is written now that the logger exists.
+        PageContentTypesConfiguration.Log(
+            app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Pages.ContentTypes"), contentTypes);
 
         // Before anything that reads the scheme. Without it every request arrives as plain HTTP from
         // the proxy, so HSTS emits nothing and IsHttps is always false.

@@ -22,7 +22,7 @@ using uk.osric.asp.Web.Configuration;
 /// </remarks>
 internal static class PageContentTypesConfiguration {
 
-    /// <summary>Reads the section.</summary>
+    /// <summary>Reads the section and reports the map once.</summary>
     /// <param name="configuration">The application configuration.</param>
     /// <param name="logger">Where the map is reported once.</param>
     /// <exception cref="ConfigurationException">A row is missing or unusable.</exception>
@@ -31,37 +31,53 @@ internal static class PageContentTypesConfiguration {
         ArgumentNullException.ThrowIfNull(logger);
 
         ConfigurationReader reader = new(configuration, "Pages:ContentTypes");
-        reader.FailIf(!configuration.GetSection("Pages:ContentTypes:Fallback").Exists(), "Fallback",
-            "is not set. Add ContentType and ScriptPolicy for a key with no mapped extension");
+        PageContentTypes contentTypes = FromConfiguration(reader);
+        reader.Complete();
+        Log(logger, contentTypes);
+        return contentTypes;
+    }
 
-        IConfigurationSection extensions = configuration.GetSection("Pages:ContentTypes:Extensions");
-        reader.FailIf(!extensions.GetChildren().Any(), "Extensions",
+    /// <summary>Reads <c>Pages:ContentTypes</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:ContentTypes</c>, which the caller completes.</param>
+    internal static PageContentTypes FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        reader.FailIf(!reader.Has("Fallback"), "Fallback",
+            "is not set. Add ContentType and ScriptPolicy for a key with no mapped extension");
+        reader.FailIf(!reader.Children("Extensions").Any(), "Extensions",
             "is empty. Add at least one extension such as .html");
 
         PageContentTypeRule fallback = ReadRule(reader.For("Fallback"));
         KeyValuePair<string, PageContentTypeRule>[] rules = [
-            .. extensions.GetChildren()
+            .. reader.Children("Extensions")
                 .Select(child => new KeyValuePair<string, PageContentTypeRule>(
                     child.Key,
                     ReadRule(reader.For("Extensions").For(child.Key)))),
         ];
-        reader.Complete();
 
-        PageContentTypes contentTypes;
         try {
-            contentTypes = PageContentTypes.Create(fallback, rules);
+            return PageContentTypes.Create(fallback, rules);
         } catch (ArgumentException exception) {
             // The map's own rules — an unknown extension, a row repeated in another case, a media
             // type that is not one — are configuration mistakes too, so they read the same way.
-            throw new ConfigurationException(exception.Message);
+            reader.Fail(exception.Message);
+            // Inert: nothing is served, because Complete reports the problem before the map is used.
+            return PageContentTypes.Create("text/plain", []);
         }
+    }
+
+    /// <summary>Reports the map the site will serve.</summary>
+    /// <param name="logger">Where the map is reported once.</param>
+    /// <param name="contentTypes">The map that was read.</param>
+    internal static void Log(ILogger logger, PageContentTypes contentTypes) {
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(contentTypes);
 
         logger.LogInformation(
             "Pages serve {FallbackContentType} with script policy {FallbackScriptPolicy} by default and map {ExtensionCount} extensions",
             contentTypes.Fallback,
             contentTypes.FallbackRule.ScriptPolicy,
             contentTypes.ExtensionCount);
-        return contentTypes;
     }
 
     // A rule that could not be read is an empty rule: the map is never built, because Complete throws

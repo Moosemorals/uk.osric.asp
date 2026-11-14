@@ -98,8 +98,9 @@ it changes in `~/.config/uk.osric.asp/appsettings.Production.json` or an environ
 (`Assistant__ApiKey`, `ConnectionStrings__Storage`). Providers merge key by key, so an override file
 does not have to repeat the rest.
 
-A value that is missing, blank, malformed or out of range stops the process before it serves, with
-one paragraph naming each bad key, the range it accepts and the value this repository ships:
+A value that is missing, blank, malformed or out of range stops the process before it serves. Every
+bad key in every section is reported in one paragraph at once — one line per key, with the range it
+accepts and the value this repository ships — so a hand-written config can be repaired in one pass:
 
 ```
 The site cannot start because its configuration is incomplete or invalid:

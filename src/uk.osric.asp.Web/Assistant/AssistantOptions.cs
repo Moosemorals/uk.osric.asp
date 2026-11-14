@@ -105,6 +105,16 @@ internal sealed record AssistantOptions {
         ArgumentNullException.ThrowIfNull(configuration);
 
         ConfigurationReader reader = new(configuration, "Assistant");
+        AssistantOptions options = FromConfiguration(reader);
+        reader.Complete();
+        return options;
+    }
+
+    /// <summary>Reads <c>Assistant</c> into the caller's report.</summary>
+    /// <param name="reader">A reader opened on <c>Assistant</c>, which the caller completes.</param>
+    internal static AssistantOptions FromConfiguration(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
         bool enabled = reader.Switch("Enabled", recommended: false);
         bool requireApiKey = reader.Switch("RequireApiKey", recommended: true);
         string? apiKey = reader.OptionalText("ApiKey");
@@ -168,7 +178,6 @@ internal sealed record AssistantOptions {
             }
         }
 
-        reader.Complete();
         return options;
     }
 }
