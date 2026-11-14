@@ -10,3 +10,25 @@ uk.osric.asp.Runtime.DiffRenderer.ToHtml(string! before, string! after) -> strin
 uk.osric.asp.Runtime.DiffRenderer.ToUnifiedDiff(string! before, string! after) -> string!
 uk.osric.asp.Runtime.DiffRenderer.Compare(string! before, string! after) -> uk.osric.asp.Core.Diff.DiffDocument!
 uk.osric.asp.Runtime.DiffRenderer.ToUnifiedDiff(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
+uk.osric.asp.Runtime.IPageCompiler.CompileLibrary(uk.osric.asp.Core.Compilation.GeneratedSource! source, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> uk.osric.asp.Runtime.CompileResult!
+uk.osric.asp.Runtime.PageCompiler.CompileLibrary(uk.osric.asp.Core.Compilation.GeneratedSource! source, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> uk.osric.asp.Runtime.CompileResult!
+uk.osric.asp.Runtime.LibrarySource
+uk.osric.asp.Runtime.LibrarySource.Deconstruct(out string! Key, out uk.osric.asp.Core.Compilation.GeneratedSource! Source) -> void
+uk.osric.asp.Runtime.LibrarySource.Equals(uk.osric.asp.Runtime.LibrarySource? other) -> bool
+uk.osric.asp.Runtime.LibrarySource.Key.get -> string!
+uk.osric.asp.Runtime.LibrarySource.Key.init -> void
+uk.osric.asp.Runtime.LibrarySource.LibrarySource(string! Key, uk.osric.asp.Core.Compilation.GeneratedSource! Source) -> void
+uk.osric.asp.Runtime.LibrarySource.Source.get -> uk.osric.asp.Core.Compilation.GeneratedSource!
+uk.osric.asp.Runtime.LibrarySource.Source.init -> void
+override uk.osric.asp.Runtime.LibrarySource.Equals(object? obj) -> bool
+override uk.osric.asp.Runtime.LibrarySource.GetHashCode() -> int
+override uk.osric.asp.Runtime.LibrarySource.ToString() -> string!
+static uk.osric.asp.Runtime.LibrarySource.operator !=(uk.osric.asp.Runtime.LibrarySource? left, uk.osric.asp.Runtime.LibrarySource? right) -> bool
+static uk.osric.asp.Runtime.LibrarySource.operator ==(uk.osric.asp.Runtime.LibrarySource? left, uk.osric.asp.Runtime.LibrarySource? right) -> bool
+uk.osric.asp.Runtime.CompileResult.Libraries.get -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Runtime.CompileResult.Libraries.init -> void
+uk.osric.asp.Runtime.LibrarySource.<Clone>$() -> uk.osric.asp.Runtime.LibrarySource!
+*REMOVED*uk.osric.asp.Runtime.IPageCompiler.Compile(uk.osric.asp.Core.Compilation.GeneratedSource! source, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> uk.osric.asp.Runtime.CompileResult!
+*REMOVED*uk.osric.asp.Runtime.PageCompiler.Compile(uk.osric.asp.Core.Compilation.GeneratedSource! source, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> uk.osric.asp.Runtime.CompileResult!
+uk.osric.asp.Runtime.IPageCompiler.Compile(uk.osric.asp.Core.Compilation.GeneratedSource! source, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Runtime.LibrarySource!>! libraries, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> uk.osric.asp.Runtime.CompileResult!
+uk.osric.asp.Runtime.PageCompiler.Compile(uk.osric.asp.Core.Compilation.GeneratedSource! source, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Runtime.LibrarySource!>! libraries, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> uk.osric.asp.Runtime.CompileResult!

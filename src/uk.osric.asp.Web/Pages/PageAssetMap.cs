@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Html;
 
 /// <summary>The live assets one request may link by version, loaded at most once per request.</summary>
 /// <remarks>
@@ -81,7 +82,7 @@ internal static class PageAssetMap {
                 continue;
             }
 
-            if (PageAssetPolicy.IsAsset(head.TemplateHasCode)) {
+            if (PageAssetPolicy.IsAsset(head.TemplateKind)) {
                 map[PagePath.Normalize(head.Key).Key] = head.Hash;
             }
         }
@@ -101,7 +102,7 @@ internal static class PageAssetMap {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(href);
 
-        if (!PageDocument.IsSiteRelative(href)
+        if (!ShellDocument.IsSiteRelative(href)
             || href.Contains('?', StringComparison.Ordinal)
             || href.Contains('#', StringComparison.Ordinal)) {
             return href;

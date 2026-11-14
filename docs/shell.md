@@ -35,12 +35,15 @@ view to the next.
   is the builder's, like every other view's. A chart it draws can also be requested on its own at
   `/status/chart`, which is a drawing rather than a document and so does not go through this builder.
 - `PageLayout` keeps the fragments a shell view writes: `Gutter` and `Diagnostics` (a `ul` with `role="list"`,
-  DEC-108). Everything a document shares — the head with its base sheets and icon, the banner with
-  the skip link, `Nav`, `OpenMain`/`CloseMain` and the close — is `Sdk/PageDocument.cs`, so the
-  shell, a seeded layout and a page all write one document shape (DEC-156). `Html/` keeps
-  `DiagnosticLine`, `AntiforgeryField`, `SiteNavigation` and `PageUrls` beside it.
+  DEC-108). Everything the shell's own document needs — the head with its base sheets and icon, the
+  banner with the skip link, `Nav`, `OpenMain`/`CloseMain` and the close — is
+  `Html/ShellDocument.cs`, and only the shell writes it (DEC-156, DEC-288). A stored page does
+  not call it: the seeded layout writes its own document with the seeded
+  [`/_lib/document`](../src/uk.osric.asp.Web/Pages/Seeds/_lib/document) library, so the owner can
+  edit and restore what a stored page is served in. `Html/` keeps `DiagnosticLine`,
+  `AntiforgeryField`, `SiteNavigation` and `PageUrls` beside it.
 - A stored page with code is wrapped in a layout by default, so it writes a fragment rather than a
-  document; the layout writes the head, the banner and the landmark through the same builder. See
+  document; the layout writes the head, the banner and the landmark with the library. See
   "Layouts".
 
 Every one of these views is rendered once by `ShellViews` and checked against the shared accessibility
@@ -52,7 +55,8 @@ prove left to a recorded hand pass (DEC-110).
 A page with code is a fragment. The host wraps every `text/html` page with code in the layout named
 by `Pages:Layout` (`/_layout` as seeded), unless the page clears `IPageLayout.Layout`. A page with no
 code is a complete representation and is never wrapped: its stored source is the response, whether
-the key is HTML or not. A redirect, a `HEAD`'s empty body, a non-HTML content type, a no-code page
+the key is HTML or not. A library is neither: it has nothing to render, so its key answers `404` and
+no layout ever meets it. A redirect, a `HEAD`'s empty body, a non-HTML content type, a no-code page
 and the layout itself are never wrapped (DEC-149). A code page that wants its own document clears
 `IPageLayout.Layout` itself.
 
@@ -60,7 +64,7 @@ and the layout itself are never wrapped (DEC-149). A code page that wants its ow
 
 There are two response shapes. The ordinary one is buffered, wrapped where the rules say, and
 written by `WritePageAsync` with `Cache-Control: no-store` and no validator. The second exists only
-for an asset: a revision with `TemplateHasCode = false`. It is never rendered, loaded or compiled;
+for an asset: a revision whose kind is text. It is never rendered, loaded or compiled;
 the stored source is the response, and `PageEndpoint.WriteSourceAsync` writes it on its own path with
 the extension's content type, `Content-Length`, the shell's security headers and no session cookie.
 
@@ -103,8 +107,10 @@ write buffer 2
 - **The menu is written twice, on purpose.** `SiteNavigation` composes it from the principal for the
   shell's own views; the seeded `/_layout` writes it from `ctx.User` for stored pages. The shell's
   document must not depend on a stored page, because the error, health and sign-in routes have to
-  answer when the page pipeline is broken (DEC-151). Both go through `PageDocument.Nav`. The
-  editor is a stored page, so its menu is written by the page rather than by `SiteNavigation`.
+  answer when the page pipeline is broken (DEC-151). The shell's copy comes from
+  `ShellDocument.Nav`, the layout's from the seeded library, and an integration test compares the
+  document shape the two write as well as the items in it. The editor is a stored page, so its menu
+  is written by the page rather than by `SiteNavigation`.
 
 The layout is not a guard: the content has already run. It is not a data boundary: it reads its own
 storage and nothing of the page's.

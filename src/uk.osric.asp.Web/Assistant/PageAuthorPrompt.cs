@@ -105,6 +105,12 @@ internal static class PageAuthorPrompt {
         inside <%= %>: `ctx.Write(await SomethingAsync())` works. The variable
         `ctx` implements `IContext`.
 
+        A page may use a shared library by naming a namespace it declares in a
+        `<%! using Some.Namespace; %>` directive; the page is compiled with the
+        library, and only the libraries its usings reach. A page whose blocks are
+        only `<%! %>` declarations is itself a library: it is checked when saved,
+        is never served, and must declare its types inside a namespace.
+
         Forms use `<form class="form">` with one `<dl>` holding
         `<dt><label for="id">…</label></dt>` and `<dd>` around the control. A
         textarea goes in a `<fieldset>` whose `<legend>` contains its label.
@@ -250,8 +256,8 @@ internal static class PageAuthorPrompt {
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
         and never writes. `ListAsync(prefix)` lists the heads under a subtree
-        and returns `PageEntry` rows with `Key`, `SavedAt`, `Hash` and four
-        marks: `IsDeleted`, `IsReserved`, `IsHtml` and `IsAsset`. A prefix is a subtree,
+        and returns `PageEntry` rows with `Key`, `SavedAt`, `Hash` and five
+        marks: `IsDeleted`, `IsReserved`, `IsHtml`, `IsAsset` and `IsLibrary`. A prefix is a subtree,
         not a string prefix: `/blog` lists `/blog` and `/blog/post`, never
         `/blogroll`; `""` and `/` are the whole store. `ReadAsync(key)` reads a
         live page's template as a `PageSource`, or null when there is none;

@@ -193,7 +193,7 @@ internal sealed class FakePageStore : IPageStore {
             return Task.FromResult(false);
         }
 
-        PageTemplate compiled = target with { Image = image, TemplateHasCode = image.HasCode };
+        PageTemplate compiled = target with { Image = image, Kind = image.Kind };
         _revisions[compiled.Hash] = compiled;
         if (_pages.GetValueOrDefault(path.Key)?.RevisionId == revisionId) {
             _pages[path.Key] = compiled;
@@ -227,7 +227,7 @@ internal sealed class FakePageStore : IPageStore {
     }
 
     private PageImageState StateOf(PageImage? image) => PageImageStatus.Describe(
-        image?.RuntimeId, image?.Bytes is not null, image?.Diagnostics.Count > 0, CurrentRuntimeId, image?.HasCode);
+        image?.RuntimeId, image?.Bytes is not null, image?.Diagnostics.Count > 0, CurrentRuntimeId, image?.Kind);
 
     private void Check(CancellationToken cancellationToken) {
         LastCancellationToken = cancellationToken;

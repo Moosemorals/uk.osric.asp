@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Site.Document;
 %><%
     if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }
 
@@ -30,7 +31,7 @@ using System.Threading.Tasks;
         value is { Length: 64 } && value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
 
     // The one menu landmark this page draws, and the machine-readable form of a saved time.
-    void Menu(string label, IReadOnlyList<NavLink> links) => ctx.WriteRaw(PageDocument.Nav(label, links, "editor-menu"));
+    void Menu(string label, IReadOnlyList<NavLink> links) => Document.Nav(ctx, label, links, "editor-menu");
 
     static string Iso(System.DateTimeOffset when) =>
         when.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
@@ -443,7 +444,7 @@ run.</p>
     <tbody><%
                 foreach (PageEntry entry in rows) {
                     %><tr><%
-                    if (groupDeleted) {
+                    if (groupDeleted || entry.IsLibrary) {
                         %><th scope="row"><%= entry.Key %></th><%
                     } else {
                         %><th scope="row"><a href="<%= entry.Key %>" aria-label="View <%= entry.Key %>"><%= entry.Key %></a></th><%

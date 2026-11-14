@@ -30,7 +30,7 @@ the other half of the same question and live in [logging](logging.md).
 | `page.storage.database.size` | observable gauge | By | — whole database `page_count * page_size`, including indexes and freelist pages; excludes the separate WAL |
 | `page.storage.volume.capacity` | observable gauge | By | — total capacity of the filesystem volume containing the database |
 | `page.cache.lookups` | counter | — | `result` (`hit`, `stale`, `absent`) |
-| `page.cache.staleness` | counter | — | `page.path`, `reason` (`never-compiled`, `template-changed`, `runtime-changed`) |
+| `page.cache.staleness` | counter | — | `page.path`, `reason` (`never-compiled`, `template-changed`, `runtime-changed`, `library-changed`) |
 
 `AssistantMetrics` owns a `Meter` named `uk.osric.asp.Assistant` and records:
 

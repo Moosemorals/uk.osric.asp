@@ -93,9 +93,17 @@ internal sealed class PageEndpoint() {
                 return;
             }
 
-            if (PageAssetPolicy.IsAsset(selected.TemplateHasCode)) {
+            if (PageAssetPolicy.IsAsset(selected.Kind)) {
                 await WriteSourceAsync(context, path, selected.Template, versionHash, environment);
 
+                return;
+            }
+
+            // A library is not a representation, so a URL naming one is answered like an unknown key:
+            // there is nothing to send and nothing to promise.
+            if (PageAssetPolicy.IsLibrary(selected.Kind)) {
+                environment.Metrics.RecordAsset(PageMetrics.AssetUnknown);
+                await NotFound.WriteAsync(context, path);
                 return;
             }
 
@@ -148,11 +156,17 @@ internal sealed class PageEndpoint() {
         if (selection is null) {
             PageTemplate? head = await pages.GetPageAsync(path, context.RequestAborted);
             if (head is not null) {
-                if (PageAssetPolicy.IsAsset(head.TemplateHasCode)) {
+                if (PageAssetPolicy.IsAsset(head.Kind)) {
                     // Nothing is compiled or executed for this revision, and no render slot is taken:
                     // the stored source is the body, on this path, and a bare URL is not cacheable.
                     await WriteSourceAsync(context, path, head.Template, versionHash: null, environment);
 
+                    return;
+                }
+
+                if (PageAssetPolicy.IsLibrary(head.Kind)) {
+                    // A library has no representation: the editor opens it, a visitor cannot.
+                    await NotFound.WriteAsync(context, path);
                     return;
                 }
 

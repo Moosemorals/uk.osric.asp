@@ -18,4 +18,10 @@ public sealed record CompileResult(byte[]? Image, byte[]? Symbols, IReadOnlyList
     /// <summary>Whether the page can run; warnings do not stop it.</summary>
     public bool IsSuccess =>
         Diagnostics.All(diagnostic => diagnostic.Severity != PageDiagnosticSeverity.Error);
+
+    /// <summary>
+    /// The keys of the libraries the page was compiled with, in ordinal order; empty when it named
+    /// none. An image that carries this list was built against exactly these libraries.
+    /// </summary>
+    public IReadOnlyList<string> Libraries { get; init; } = [];
 }

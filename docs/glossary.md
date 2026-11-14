@@ -20,8 +20,8 @@ A revision with no code: it is a complete representation, the shell writes no ch
 a URL naming one revision may promise never to change.
 
 **Not** every stored page with a file extension. A page with code is never an asset, even if it is a
-stylesheet or writes its own whole document. **Owner:** pages — `PageAssetPolicy`,
-`PageRevisions.TemplateHasCode` and `PageAssetMap`.
+stylesheet or writes its own whole document, and a library is never one at all. **Owner:** pages —
+`PageAssetPolicy`, `PageRevisions.TemplateKind` and `PageAssetMap`.
 
 ## Budget
 The process-wide limit on how long a render or compile may take and how many may run at once,
@@ -137,6 +137,20 @@ a key containing `?` or `#` is not addressable at all.
 
 **Owner:** pages — `PagePath.Key` and `PagePath.Normalize`; the `Path` and `PagePath` columns in
 `PageHeads`, `PageRevisions` and `PageState`; `Pages:ReservedPaths`.
+
+## Library page
+A stored page whose only blocks are declarations: it has nothing to render, so it is never served and
+its key answers `404`. It is checked when it is saved and keeps its diagnostics, but no assembly. A
+page names one with the `using` directive for a namespace it declares; the library is compiled into
+the page, and the keys and hashes of that closure are recorded with the page's image.
+
+A library lives under `/_lib/` by convention, which is where the seeded document writer is and where
+a site's own helpers belong; the key is a name rather than a rule, and it is never served.
+
+**Not** an asset, even though both are never rendered: an asset *is* a representation and may be
+pinned with `?v=`, and a library is compiled into the pages that name it. **Owner:** pages —
+`PageKind`, `PageAssetPolicy.IsLibrary`, the library shape rule in `PageApiChecker`, and the closure
+in `PageCompiler`.
 
 ## Markdown
 The source format a page may render to HTML, and the format an assistant reply is written in.

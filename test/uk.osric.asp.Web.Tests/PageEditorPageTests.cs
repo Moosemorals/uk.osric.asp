@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 using System.Security.Claims;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
@@ -22,6 +23,7 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageEditorPageTests {
 
     private const string EditorPath = "/pages";
+    private const string DocumentLibraryPath = "/_lib/document";
 
     private readonly FakePageStore _storage = new();
     private readonly Dictionary<string, string> _hashes = [];
@@ -31,8 +33,9 @@ public sealed class PageEditorPageTests {
     [SetUp]
     public async Task StoreTheEditorPageAsync() {
         Store(EditorPath, (await SeedAsync(EditorPath))!);
+        Store(DocumentLibraryPath, (await SeedAsync(DocumentLibraryPath))!);
         Store("/_layout", """
-            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><%== PageDocument.Head(layout.Title, layout.Stylesheets) %><%== PageDocument.OpenMain() %><%== layout.Body %><%== PageDocument.CloseMain() %><%== PageDocument.End() %>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><title><%= layout.Title %></title><link rel="stylesheet" href="/site.css"><% foreach (string href in layout.Stylesheets) { %><link rel="stylesheet" href="<%= href %>"><% } %><main id="main"><%== layout.Body %></main></body></html>
             """);
     }
 
@@ -333,11 +336,12 @@ public sealed class PageEditorPageTests {
 
     private void Store(string path, string template) {
         PagePath key = PagePath.Normalize(path);
-        _storage[key.Key] = new PageTemplate(key, template);
+        PageKind kind = TemplateSourceGenerator.Generate(template).Kind;
+        _storage[key.Key] = new PageTemplate(key, template) { Kind = kind };
 
         // The catalog has to agree with the store about the head's hash, because the form carries the
         // hash it was rendered from and the save is conditional on it.
-        _hashes[key.Key] = _read.Save(key.Key, template, hash: _storage[key.Key]!.Hash);
+        _hashes[key.Key] = _read.Save(key.Key, template, templateKind: kind, hash: _storage[key.Key]!.Hash);
     }
 
     private void Delete(string path) => _read.Delete(PagePath.Normalize(path).Key);

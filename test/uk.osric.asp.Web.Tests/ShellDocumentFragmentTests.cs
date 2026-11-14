@@ -4,22 +4,23 @@
 namespace uk.osric.asp.Web.Tests;
 
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Html;
 
-/// <summary>The document policy the builder owns, asserted once for both callers.</summary>
+/// <summary>The document fragments the shell writes a view through.</summary>
 /// <remarks>
-/// The Sdk has no suite of its own, so the builder is tested from here where the rest of the markup
-/// is. A page and a shell view both write through it, so these rules are what stops them diverging.
+/// The stored layout writes its own document through the seeded library, so these rules are what
+/// keeps a shell view from forgetting the title, the sheets, the icon, the skip link or the landmark.
 /// </remarks>
 [TestFixture]
-public sealed class PageDocumentTests {
+public sealed class ShellDocumentFragmentTests {
 
     private static readonly string[] s_baseSheets = ["/site.css"];
 
     [Test]
     public void TheHeadMatchesWhatTheShellWrites() {
-        string head = PageDocument.Head("Title", ["/editor.css"], head: "<meta name=\"refresh\" content=\"5\">", bodyClass: "editor-page");
+        string head = ShellDocument.Head("Title", ["/editor.css"], head: "<meta name=\"refresh\" content=\"5\">", bodyClass: "editor-page");
 
-        MarkupReader document = MarkupReader.Parse(head + PageDocument.OpenMain() + PageDocument.CloseMain() + PageDocument.End());
+        MarkupReader document = MarkupReader.Parse(head + ShellDocument.OpenMain() + ShellDocument.CloseMain() + ShellDocument.End());
         Assert.That(document.Elements("html").Single().Attribute("lang"), Is.EqualTo("en"));
         Assert.That(document.Elements("head"), Has.Count.EqualTo(1));
         Assert.That(document.Elements("body").Single().Attribute("class"), Is.EqualTo("editor-page"));
@@ -29,31 +30,31 @@ public sealed class PageDocumentTests {
 
     [Test]
     public void TheSheetIsLinkedBeforeTheView() {
-        Assert.That(Sheets(PageDocument.Head("Title", ["/editor.css"])),
+        Assert.That(Sheets(ShellDocument.Head("Title", ["/editor.css"])),
             Is.EqualTo((string[])["/site.css", "/editor.css"]));
     }
 
     [Test]
     public void APageWithNoSheetsGetsTheBaseSheetAndNothingElse() {
-        Assert.That(Sheets(PageDocument.Head("Title")), Is.EqualTo(s_baseSheets));
+        Assert.That(Sheets(ShellDocument.Head("Title")), Is.EqualTo(s_baseSheets));
     }
 
     [Test]
     public void EverySheetThePageAsksForIsLinkedInTheOrderItAsked() {
-        Assert.That(Sheets(PageDocument.Head("Title", ["/blog.css", "/print.css"])),
+        Assert.That(Sheets(ShellDocument.Head("Title", ["/blog.css", "/print.css"])),
             Is.EqualTo((string[])["/site.css", "/blog.css", "/print.css"]));
     }
 
     [Test]
     public void OnePageMayLinkSeveralSheets() {
-        string[] sheets = Sheets(PageDocument.Head("Title", ["/one.css", "/two.css", "/three.css"]));
+        string[] sheets = Sheets(ShellDocument.Head("Title", ["/one.css", "/two.css", "/three.css"]));
 
         Assert.That(sheets, Has.Length.EqualTo(4));
     }
 
     [Test]
     public void AResolverVersionsTheBaseSheetsAndTheIcon() {
-        string head = PageDocument.Head(
+        string head = ShellDocument.Head(
             "Title",
             ["/editor.css"],
             resolveHref: href => href + "?v=token");
@@ -66,15 +67,15 @@ public sealed class PageDocumentTests {
 
     [Test]
     public void NoResolverWritesTheHeadExactlyAsBefore() {
-        string withNull = PageDocument.Head("Title", ["/editor.css"]);
-        string withResolver = PageDocument.Head("Title", ["/editor.css"], resolveHref: href => href);
+        string withNull = ShellDocument.Head("Title", ["/editor.css"]);
+        string withResolver = ShellDocument.Head("Title", ["/editor.css"], resolveHref: href => href);
 
         Assert.That(withResolver, Is.EqualTo(withNull));
     }
 
     [Test]
     public void TheSameSheetIsLinkedOnlyOnce() {
-        Assert.That(Sheets(PageDocument.Head("Title", ["/site.css", "/page.css", "/page.css"])),
+        Assert.That(Sheets(ShellDocument.Head("Title", ["/site.css", "/page.css", "/page.css"])),
             Is.EqualTo((string[])["/site.css", "/page.css"]));
     }
 
@@ -86,19 +87,19 @@ public sealed class PageDocumentTests {
     [TestCase("/a\nb.css")]
     [TestCase("")]
     public void ASheetThatIsNotSiteRelativeIsRefused(string href) {
-        Assert.Throws<ArgumentException>(() => PageDocument.Head("Title", [href]));
+        Assert.Throws<ArgumentException>(() => ShellDocument.Head("Title", [href]));
     }
 
     [Test]
     public void ASingleSlashIsSiteRelative() {
-        Assert.That(Sheets(PageDocument.Head("Title", ["/"])), Is.EqualTo((string[])["/site.css", "/"]));
+        Assert.That(Sheets(ShellDocument.Head("Title", ["/"])), Is.EqualTo((string[])["/site.css", "/"]));
     }
 
     [Test]
     public void TheBannerIsTheSkipLinkThenTheHeaderAroundTheNav() {
-        string nav = PageDocument.Nav("Site", [new("/", "Home")]);
+        string nav = ShellDocument.Nav("Site", [new("/", "Home")]);
 
-        MarkupReader document = MarkupReader.Parse(PageDocument.Banner(nav));
+        MarkupReader document = MarkupReader.Parse(ShellDocument.Banner(nav));
 
         Assert.That(document.Root.Children[0].Name, Is.EqualTo("a"));
         Assert.That(document.Root.Children[0].Attribute("href"), Is.EqualTo("#main"));
@@ -108,8 +109,8 @@ public sealed class PageDocumentTests {
 
     [Test]
     public void TheOpenBodyAndTheMainLandmarkAreSeparatedSoChromeCanGoBetween() {
-        string head = PageDocument.Head("Title");
-        string open = PageDocument.OpenMain();
+        string head = ShellDocument.Head("Title");
+        string open = ShellDocument.OpenMain();
 
         Assert.That(head.TrimEnd(), Does.EndWith("<body>"));
         Assert.That(open, Does.StartWith("<main"));
@@ -119,7 +120,7 @@ public sealed class PageDocumentTests {
     [Test]
     public void ClosingTheDocumentClosesTheLandmarkItOpened() {
         MarkupReader document = MarkupReader.Parse(
-            PageDocument.Head("Title") + PageDocument.OpenMain() + "<h1>Body</h1>" + PageDocument.CloseMain() + PageDocument.End());
+            ShellDocument.Head("Title") + ShellDocument.OpenMain() + "<h1>Body</h1>" + ShellDocument.CloseMain() + ShellDocument.End());
 
         MarkupElement main = document.Elements("main").Single();
         Assert.That(main.Attribute("id"), Is.EqualTo("main"));
@@ -129,8 +130,8 @@ public sealed class PageDocumentTests {
 
     [Test]
     public void TheBuilderEncodesTheTitleAndTheAttributes() {
-        string head = PageDocument.Head("<script>alert('t')</script>", ["/a.css?x=1&amp;y=2"], bodyClass: "\"quoted\"");
-        string nav = PageDocument.Nav("<Site>", [new("/a?b=<c>", "<Home>")], "<menu>");
+        string head = ShellDocument.Head("<script>alert('t')</script>", ["/a.css?x=1&amp;y=2"], bodyClass: "\"quoted\"");
+        string nav = ShellDocument.Nav("<Site>", [new("/a?b=<c>", "<Home>")], "<menu>");
 
         Assert.That(head, Does.Not.Contain("<script>alert"));
         Assert.That(head, Does.Contain("&lt;script&gt;"));
@@ -143,7 +144,7 @@ public sealed class PageDocumentTests {
 
     [Test]
     public void NavRendersLinksAndMarksTheCurrentItemAsText() {
-        MarkupReader document = MarkupReader.Parse(PageDocument.Nav("Site", [
+        MarkupReader document = MarkupReader.Parse(ShellDocument.Nav("Site", [
             new("/", "Home"),
             new("/pages", "Pages", IsCurrent: true),
         ]));
@@ -157,7 +158,7 @@ public sealed class PageDocumentTests {
 
     [Test]
     public void NavEncodesTheHrefAndTheText() {
-        string nav = PageDocument.Nav("Site", [new("/a?b=1&c=2", "A & B")]);
+        string nav = ShellDocument.Nav("Site", [new("/a?b=1&c=2", "A & B")]);
 
         Assert.That(nav, Does.Contain("href=\"/a?b=1&amp;c=2\""));
         Assert.That(nav, Does.Contain(">A &amp; B<"));
@@ -166,10 +167,10 @@ public sealed class PageDocumentTests {
     [TestCase("")]
     [TestCase("   ")]
     public void NavNamesTheLandmarkAndRefusesAnEmptyName(string label) {
-        string nav = PageDocument.Nav("Site", [new("/", "Home")]);
+        string nav = ShellDocument.Nav("Site", [new("/", "Home")]);
 
         Assert.That(nav, Does.Contain("aria-label=\"Site\""));
-        Assert.Throws<ArgumentException>(() => PageDocument.Nav(label, [new("/", "Home")]));
+        Assert.Throws<ArgumentException>(() => ShellDocument.Nav(label, [new("/", "Home")]));
     }
 
     [Test]
@@ -188,11 +189,11 @@ public sealed class PageDocumentTests {
     [Test]
     public void NothingInTheBuilderWritesAHeaderOrAStatus() {
         string markup = string.Concat(
-            PageDocument.Head("Title", ["/a.css"]),
-            PageDocument.Banner(PageDocument.Nav("Site", [new("/", "Home")])),
-            PageDocument.OpenMain(),
-            PageDocument.CloseMain(),
-            PageDocument.End());
+            ShellDocument.Head("Title", ["/a.css"]),
+            ShellDocument.Banner(ShellDocument.Nav("Site", [new("/", "Home")])),
+            ShellDocument.OpenMain(),
+            ShellDocument.CloseMain(),
+            ShellDocument.End());
 
         Assert.That(markup, Does.Not.Contain("Content-Security-Policy"));
         Assert.That(markup, Does.Not.Contain("Cache-Control"));

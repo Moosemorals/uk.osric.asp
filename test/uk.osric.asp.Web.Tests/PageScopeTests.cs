@@ -22,7 +22,7 @@ public sealed class PageScopeTests {
     [TestCase("<% uk.osric.asp.Runtime.PageCompiler compiler = null; %>")]
     [TestCase("<% uk.osric.asp.Core.PagePath path = null; %>")]
     public void ShellTypesAreNotReferenced(string template) {
-        CompileResult result = Compiler.Compile(TestTemplates.Generate(template));
+        CompileResult result = Compiler.Compile(TestTemplates.Generate(template), []);
 
         Assert.That(result.IsSuccess, Is.False);
         // CS0234 rather than CS0246: the assembly is absent, so its namespace is unknown too.
@@ -38,7 +38,7 @@ public sealed class PageScopeTests {
     [Test]
     public void RoslynIsNotReferenced() {
         CompileResult result = Compiler.Compile(
-            TestTemplates.Generate("<% Microsoft.CodeAnalysis.CSharp.CSharpCompilation compilation = null; %>"));
+            TestTemplates.Generate("<% Microsoft.CodeAnalysis.CSharp.CSharpCompilation compilation = null; %>"), []);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -52,7 +52,7 @@ public sealed class PageScopeTests {
     [Test]
     public void TheMarkdownParserIsDeniedByThePagePolicy() {
         CompileResult result = Compiler.Compile(
-            TestTemplates.Generate("<% Markdig.MarkdownPipeline pipeline = null; %>"));
+            TestTemplates.Generate("<% Markdig.MarkdownPipeline pipeline = null; %>"), []);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -64,7 +64,7 @@ public sealed class PageScopeTests {
     [Test]
     public void SdkTypesAreStillReferenced() {
         CompileResult result = Compiler.Compile(
-            TestTemplates.Generate("<% IContext page = ctx; page.Write(page.Path); %>"));
+            TestTemplates.Generate("<% IContext page = ctx; page.Write(page.Path); %>"), []);
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
@@ -112,7 +112,7 @@ public sealed class PageScopeTests {
             %>
             """;
 
-        CompileResult result = Compiler.Compile(TestTemplates.Generate(template));
+        CompileResult result = Compiler.Compile(TestTemplates.Generate(template), []);
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
@@ -125,7 +125,7 @@ public sealed class PageScopeTests {
             <form method="post"><%== ctx.AntiforgeryField %></form>
             """;
 
-        CompileResult result = Compiler.Compile(TestTemplates.Generate(template));
+        CompileResult result = Compiler.Compile(TestTemplates.Generate(template), []);
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
@@ -133,7 +133,7 @@ public sealed class PageScopeTests {
     [Test]
     public void TheFetchCapabilityCompilesWithoutAPolicyChange() {
         CompileResult result = Compiler.Compile(
-            TestTemplates.Generate("<% IHttpFetch fetch = ctx.Capabilities.Get<IHttpFetch>(); %>"));
+            TestTemplates.Generate("<% IHttpFetch fetch = ctx.Capabilities.Get<IHttpFetch>(); %>"), []);
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
@@ -141,7 +141,7 @@ public sealed class PageScopeTests {
     [Test]
     public void SystemTypeStaysDenied() {
         CompileResult result = Compiler.Compile(
-            TestTemplates.Generate("<% System.Type type = null; %>"));
+            TestTemplates.Generate("<% System.Type type = null; %>"), []);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -152,7 +152,7 @@ public sealed class PageScopeTests {
     [Test]
     public void ClaimsStayOutsideThePagePolicy() {
         CompileResult result = Compiler.Compile(
-            TestTemplates.Generate("<% System.Security.Claims.ClaimsPrincipal principal = null; %>"));
+            TestTemplates.Generate("<% System.Security.Claims.ClaimsPrincipal principal = null; %>"), []);
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(

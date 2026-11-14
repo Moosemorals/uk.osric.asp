@@ -9,11 +9,23 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {
         Assert.That(PageAssetSeeder.SeedPaths().Select(path => path.Key), Is.EquivalentTo(SeedPaths));
+    }
+
+    // A library has to be known as one the moment it is seeded, or the layout that names it cannot
+    // be compiled on a fresh installation.
+    [Test]
+    public async Task ASeededLibraryIsStoredAsALibraryAsync() {
+        FakePageStore storage = new();
+
+        await PageAssetSeeder.SeedAsync(storage);
+
+        Assert.That(storage["/_lib/document"]?.Kind, Is.EqualTo(PageKind.Library));
+        Assert.That(storage["/about"]?.Kind, Is.EqualTo(PageKind.Page));
     }
 
     [Test]
@@ -64,14 +76,16 @@ public sealed class PageAssetSeederTests {
     [TestCaseSource(nameof(SeedPaths))]
     public async Task EveryShippedSeedIsStoredWithoutDiagnosticsAsync(string path) {
         using PageHarness pages = new(new FakePageStore());
+        await pages.SeedAsync();
         string template = (await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path)))!;
+        IReadOnlyList<PageLibrary> libraries = await pages.Libraries.LiveAsync();
 
         PageImage image = pages.Images.Build(
-            PagePath.Normalize(path), template, PageMetrics.ReasonSave, CancellationToken.None);
+            PagePath.Normalize(path), template, PageMetrics.ReasonSave, libraries, CancellationToken.None);
 
         Assert.That(image.Diagnostics, Is.Empty,
             $"{path}: {string.Join("; ", image.Diagnostics.Select(diagnostic => diagnostic.Message))}");
-        Assert.That(image.Bytes, image.HasCode is true ? Is.Not.Null : Is.Null, path);
+        Assert.That(image.Bytes, image.Kind is PageKind.Page ? Is.Not.Null : Is.Null, path);
     }
 
     [Test]
@@ -168,7 +182,7 @@ public sealed class PageAssetSeederTests {
     public async Task TheLayoutSeedIsAPageTheOwnerCanEdit() {
         string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/_layout"));
 
-        Assert.That(template, Does.Contain("PageDocument.Head"));
+        Assert.That(template, Does.Contain("Document.Head"));
         Assert.That(template, Does.Contain("layout.Body"));
         Assert.That(new ReservedPaths(ReservedPaths.Default).IsReserved(PagePath.Normalize("/_layout")), Is.False);
     }
@@ -219,6 +233,56 @@ public sealed class PageAssetSeederTests {
         Assert.That(await storage.GetPageAsync(PagePath.Normalize(deletedPath)), Is.Null);
         Assert.That((await storage.GetHeadAsync(PagePath.Normalize(deletedPath)))?.IsDeleted, Is.True);
         Assert.That(storage.WriteCount, Is.EqualTo(writes + SeedPaths.Length - 1), "only the never-created assets are seeded");
+    }
+
+    // The document builder left the SDK for the shell, so a stored layout or editor seed written
+    // against it cannot compile: a broken layout leaves every page unwrapped and a broken editor
+    // leaves nothing to edit with.
+    [TestCase("/_layout")]
+    [TestCase("/pages")]
+    public async Task AStoredSeedThatNamesTheRemovedDocumentBuilderIsReplacedAsync(string path) {
+        FakePageStore storage = new();
+        PagePath key = PagePath.Normalize(path);
+        storage[path] = new PageTemplate(key, "<%== PageDocument.Old() %><%== layout.Body %>");
+
+        await PageAssetSeeder.SeedAsync(storage);
+
+        Assert.That(storage[path]?.Template, Is.EqualTo(ShippedSeed(path)));
+    }
+
+    [Test]
+    public async Task AnEditedSeedThatDoesNotNameItIsLeftAloneAsync() {
+        const string edited = "<% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><title><%= layout.Title %></title><%== layout.Body %>";
+        FakePageStore storage = new();
+        storage["/_layout"] = new PageTemplate(PagePath.Normalize("/_layout"), edited);
+
+        await PageAssetSeeder.SeedAsync(storage);
+
+        Assert.That(storage["/_layout"]?.Template, Is.EqualTo(edited));
+    }
+
+    [Test]
+    public async Task APageThatIsNotASeedIsNeverReplacedAsync() {
+        const string mine = "<%== PageDocument.Old() %>";
+        FakePageStore storage = new();
+        storage["/mine"] = new PageTemplate(PagePath.Normalize("/mine"), mine);
+
+        await PageAssetSeeder.SeedAsync(storage);
+
+        Assert.That(storage["/mine"]?.Template, Is.EqualTo(mine));
+    }
+
+    [Test]
+    public async Task ReplacingAStoredSeedKeepsTheRevisionItReplacedAsync() {
+        FakePageStore storage = new();
+        PagePath key = PagePath.Normalize("/_layout");
+        storage["/_layout"] = new PageTemplate(key, "<%== PageDocument.Old() %>");
+        string replaced = storage["/_layout"]!.Hash;
+
+        await PageAssetSeeder.SeedAsync(storage);
+
+        Assert.That(await storage.GetRevisionTemplateByHashAsync(replaced), Is.Not.Null,
+            "the owner's layout must stay restorable");
     }
 
     private static string ShippedSeed(string path) {

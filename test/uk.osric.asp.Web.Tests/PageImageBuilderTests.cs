@@ -23,7 +23,7 @@ public sealed class PageImageBuilderTests {
 
         Assert.That(compilation.Diagnostics, Is.Empty);
         Assert.That(compilation.Bytes, Is.Not.Null.And.Not.Empty);
-        Assert.That(compilation.HasCode, Is.True);
+        Assert.That(compilation.Kind, Is.EqualTo(PageKind.Page));
         Assert.That(compilation.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("<% ctx.Write(\"Hello.\"); %>")));
         Assert.That(compilation.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
     }
@@ -106,11 +106,60 @@ public sealed class PageImageBuilderTests {
 
         PageImage compilation = Build(pages, "/site.css", "body { color: red; }");
 
-        Assert.That(compilation.HasCode, Is.False);
+        Assert.That(compilation.Kind, Is.EqualTo(PageKind.Text));
         Assert.That(compilation.Bytes, Is.Null);
         Assert.That(compilation.Symbols, Is.Null);
         Assert.That(compilation.Diagnostics, Is.Empty);
         Assert.That(pages.Compiler.CompileCount, Is.Zero, "there was nothing to compile");
+    }
+
+    [Test]
+    public void ALibraryIsCheckedAndStoredWithoutAnImage() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageImage compilation = Build(pages, "/_lib/document", "<%! namespace Site { class Document { } } %>");
+
+        Assert.Multiple(() => {
+            Assert.That(compilation.Kind, Is.EqualTo(PageKind.Library));
+            Assert.That(compilation.Bytes, Is.Null, "a library is never run, so there is no assembly");
+            Assert.That(compilation.Symbols, Is.Null);
+            Assert.That(compilation.Diagnostics, Is.Empty);
+            Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1), "a library is checked once");
+        });
+    }
+
+    [Test]
+    public void APageThatNamesALibraryStoresTheFingerprintOfItsClosure() {
+        using PageHarness pages = new(new FakePageStore());
+        PageLibrary library = new(
+            PageHarness.Key("/_lib/document"), "hash-one",
+            "<%! namespace Site { public static class Document { public static string Head() => \"hi\"; } } %>");
+
+        PageImage compilation = pages.Images.Build(
+            PageHarness.Key("/uses"), "<%! using Site; %><% ctx.Write(Document.Head()); %>",
+            PageMetrics.ReasonSave, [library], CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(compilation.Diagnostics, Is.Empty);
+            Assert.That(compilation.Bytes, Is.Not.Null.And.Not.Empty);
+            Assert.That(compilation.Libraries, Is.EqualTo("/_lib/document@hash-one"));
+        });
+    }
+
+    [Test]
+    public void ALibraryWithABannedApiIsStoredWithItsDiagnostics() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageImage compilation = Build(pages, "/_lib/document",
+            "<%! namespace Site { class Helper { public static string Read() => System.IO.File.ReadAllText(\"x\"); } } %>");
+
+        Assert.Multiple(() => {
+            Assert.That(compilation.Kind, Is.EqualTo(PageKind.Library));
+            Assert.That(compilation.Bytes, Is.Null);
+            Assert.That(compilation.Diagnostics, Has.Some.Matches<PageDiagnostic>(diagnostic =>
+                diagnostic is not null
+                && diagnostic.Message.Contains("System.IO.File.ReadAllText", StringComparison.Ordinal)));
+        });
     }
 
     [Test]
@@ -135,7 +184,7 @@ public sealed class PageImageBuilderTests {
         PageImage compilation = Build(pages, "/stray", "100%> done");
 
         Assert.Multiple(() => {
-            Assert.That(compilation.HasCode, Is.False);
+            Assert.That(compilation.Kind, Is.EqualTo(PageKind.Text));
             Assert.That(compilation.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(diagnostic =>
                 diagnostic is not null
                 && diagnostic.Severity == PageDiagnosticSeverity.Warning
@@ -146,6 +195,6 @@ public sealed class PageImageBuilderTests {
     private static PageImage Build(PageHarness pages, string path, string template) {
         PagePath key = PageHarness.Key(path);
 
-        return pages.Images.Build(key, template, PageMetrics.ReasonSave, CancellationToken.None);
+        return pages.Images.Build(key, template, PageMetrics.ReasonSave, [], CancellationToken.None);
     }
 }

@@ -158,7 +158,7 @@ internal static class AssistantMemoryEndpoint {
                 <button type="submit">Forget this memory</button>
             </form>
             """);
-        await context.Response.WriteAsync(PageDocument.Nav("Memory navigation", [
+        await context.Response.WriteAsync(ShellDocument.Nav("Memory navigation", [
             new(Path, "Cancel"),
         ]));
         await ShellDocument.EndAsync(context);
@@ -208,7 +208,7 @@ internal static class AssistantMemoryEndpoint {
         await ShellDocument.BeginAsync(context, "Memory", SiteNavigation.For(context),
             statusCode: statusCode, stylesheets: ["/assistant.css"], bodyClass: "assistant-page");
         await context.Response.WriteAsync("<h1>Memory</h1>");
-        await context.Response.WriteAsync(PageDocument.Nav("Assistant navigation", [
+        await context.Response.WriteAsync(ShellDocument.Nav("Assistant navigation", [
             new("/assistant", "Conversations"),
             new(Path, "Memory", true),
             new(EditorPaths.Of(context.RequestServices), "Page list"),

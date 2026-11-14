@@ -55,12 +55,14 @@ internal sealed class PageHarness : IDisposable {
 
         Storage = storage;
         Images = new PageImageBuilder(Compiler, Budget, Metrics, NullLogger<PageImageBuilder>.Instance);
+        Libraries = new PageLibraries(ReadStore);
         Revisions = revisionStore ?? new FakePageRevisionStore(storage);
-        Saver = new PageSaver(Revisions, Images, Metrics, NullLogger<PageSaver>.Instance);
+        Saver = new PageSaver(Revisions, Images, Libraries, Metrics, NullLogger<PageSaver>.Instance);
         Renderer = new PageRenderer(
             storage,
             Compiler,
             Images,
+            Libraries,
             Metrics,
             Budget,
             Health,
@@ -69,6 +71,9 @@ internal sealed class PageHarness : IDisposable {
     }
 
     public RenderOptions Options { get; }
+
+    /// <summary>The libraries every compile in this harness may name, read from <see cref="ReadStore"/>.</summary>
+    public PageLibraries Libraries { get; }
 
     /// <summary>Where every save in this harness is written.</summary>
     public FakePageStore Storage { get; }
@@ -126,6 +131,31 @@ internal sealed class PageHarness : IDisposable {
 
     public static PagePath Key(string path) {
         return PagePath.Normalize(path);
+    }
+
+    /// <summary>Installs the shipped seeds the way the host does, on a store a test can read.</summary>
+    /// <remarks>
+    /// The harness holds two stores where the host holds one, so a seeded library is mirrored into
+    /// the read side as well: that is the copy every compile in this harness resolves a using from.
+    /// </remarks>
+    public async Task SeedAsync() {
+        await PageAssetSeeder.SeedAsync(Storage, CancellationToken.None);
+        await MirrorSeededLibrariesAsync();
+    }
+
+    /// <summary>Makes the shipped libraries resolvable, for a test that stores its own templates.</summary>
+    public async Task MirrorSeededLibrariesAsync() {
+        foreach (PagePath seed in PageAssetSeeder.SeedPaths()) {
+            string? template = await PageAssetSeeder.ReadSeedTemplateAsync(seed, CancellationToken.None);
+            if (template is null) {
+                continue;
+            }
+
+            PageKind kind = uk.osric.asp.Core.Compilation.TemplateSourceGenerator.Generate(template).Kind;
+            if (kind is PageKind.Library) {
+                ReadStore.Save(seed.Key, template, templateKind: PageKind.Library);
+            }
+        }
     }
 
     public static PageTemplate Stored(FakePageStore storage, string path) {

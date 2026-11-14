@@ -49,10 +49,11 @@ internal sealed record PageTemplate {
     public PageImage? Image { get; init; }
 
     /// <summary>
-    /// Whether the revision has anything to compile, or <see langword="null"/> when it has never
-    /// been generated. <see langword="false"/> is served from source and is never compiled.
+    /// What the revision is for — text, a page, or a library — or <see langword="null"/> when it has
+    /// never been generated. A text revision is served from source and never compiled; a library is
+    /// checked and never run.
     /// </summary>
-    public bool? TemplateHasCode { get; init; }
+    public PageKind? Kind { get; init; }
 
     public string RevisionId { get; init; }
 
@@ -74,7 +75,7 @@ internal sealed record PageTemplate {
     public static PageTemplate NewRevision(PagePath path, string source, PageImage? image, string runtimeId) {
         return new PageTemplate(
             path, source, image, Guid.NewGuid().ToString("N"), runtimeId, DateTimeOffset.UtcNow) {
-            TemplateHasCode = image?.HasCode,
+            Kind = image?.Kind,
         };
     }
 }

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Assistant;
+using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>The site menu the shell's own views carry.</summary>
@@ -57,7 +58,7 @@ internal static class SiteNavigation {
     /// <param name="query">The raw query, carried into the sign-in link.</param>
     /// <param name="editorPath">The editor's own key, which is configuration.</param>
     public static string Nav(bool authenticated, bool assistantEnabled, string path, string query, string editorPath) =>
-        PageDocument.Nav(Label, Links(authenticated, assistantEnabled, path, query, editorPath), Class);
+        ShellDocument.Nav(Label, Links(authenticated, assistantEnabled, path, query, editorPath), Class);
 
     /// <summary>The items, in reading order, with the one being shown marked as text.</summary>
     /// <param name="authenticated">Whether the visitor has signed in.</param>

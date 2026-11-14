@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using uk.osric.asp.Core.Pages;
+
 /// <summary>One immutable saved revision: a template, and the image built from it.</summary>
 internal sealed class PageRevision {
     public required string RevisionId { get; init; }
@@ -17,7 +19,9 @@ internal sealed class PageRevision {
 
     public required string CreationRuntimeId { get; init; }
 
-    public bool? TemplateHasCode { get; set; }
+    public PageKind? TemplateKind { get; set; }
+
+    public string? TemplateLibraries { get; set; }
 
     public string? TemplateHash { get; set; }
 

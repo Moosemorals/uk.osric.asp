@@ -559,12 +559,12 @@ public sealed class SqlitePageStoreTests {
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         PagePath path = Key("/site.css");
-        PageImage image = new(TemplateFingerprint.Of(Source), "1:build", null, null, [], HasCode: false);
+        PageImage image = new(TemplateFingerprint.Of(Source), "1:build", null, null, [], Kind: PageKind.Text);
 
         await storage.SavePageAsync(PageTemplate.NewRevision(path, Source, image, "1:build"));
 
         PageRevision row = await database.Set<PageRevision>().SingleAsync(revision => revision.Path == path.Key);
-        Assert.That(row.TemplateHasCode, Is.False);
+        Assert.That(row.TemplateKind, Is.EqualTo(PageKind.Text));
         Assert.That(row.Image, Is.Null);
         Assert.That(row.Symbols, Is.Null);
         Assert.That(row.Diagnostics, Is.EqualTo("[]"));
@@ -581,7 +581,7 @@ public sealed class SqlitePageStoreTests {
         await storage.SavePageAsync(PageTemplate.NewRevision(path, Source, image, "1:build"));
 
         PageRevision row = await database.Set<PageRevision>().SingleAsync(revision => revision.Path == path.Key);
-        Assert.That(row.TemplateHasCode, Is.True);
+        Assert.That(row.TemplateKind, Is.EqualTo(PageKind.Page));
         Assert.That(row.Image, Is.EqualTo(new byte[] { 1, 2, 3 }));
     }
 
@@ -593,13 +593,13 @@ public sealed class SqlitePageStoreTests {
         PagePath path = Key("/cold");
         await storage.SavePageAsync(new PageTemplate(path, Source));
         PageTemplate stored = (await storage.GetPageAsync(path))!;
-        Assert.That(stored.TemplateHasCode, Is.Null);
+        Assert.That(stored.Kind, Is.Null);
 
         PageImage image = new(TemplateFingerprint.Of(Source), "1:build", [1], [2], []);
         Assert.That(await storage.TrySetImageAsync(stored.RevisionId, Source, image), Is.True);
 
         PageTemplate reloaded = (await storage.GetPageAsync(path))!;
-        Assert.That(reloaded.TemplateHasCode, Is.True);
+        Assert.That(reloaded.Kind, Is.EqualTo(PageKind.Page));
         Assert.That(reloaded.Image?.Bytes, Is.EqualTo(new byte[] { 1 }));
     }
 
@@ -612,13 +612,13 @@ public sealed class SqlitePageStoreTests {
         await storage.SavePageAsync(new PageTemplate(path, Source));
         PageTemplate stored = (await storage.GetPageAsync(path))!;
 
-        PageImage image = new(TemplateFingerprint.Of(Source), "1:build", null, null, [], HasCode: false);
+        PageImage image = new(TemplateFingerprint.Of(Source), "1:build", null, null, [], Kind: PageKind.Text);
         Assert.That(await storage.TrySetImageAsync(stored.RevisionId, Source, image), Is.True);
 
         PageTemplate reloaded = (await storage.GetPageAsync(path))!;
-        Assert.That(reloaded.TemplateHasCode, Is.False);
+        Assert.That(reloaded.Kind, Is.EqualTo(PageKind.Text));
         Assert.That(reloaded.Image, Is.Not.Null);
         Assert.That(reloaded.Image?.Bytes, Is.Null);
-        Assert.That(reloaded.Image?.HasCode, Is.False);
+        Assert.That(reloaded.Image?.Kind, Is.EqualTo(PageKind.Text));
     }
 }

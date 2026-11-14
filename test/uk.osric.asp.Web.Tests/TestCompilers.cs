@@ -11,7 +11,11 @@ internal sealed class FaultingCompiler : IPageCompiler {
 
     public string RuntimeId => "faulting";
 
-    public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
+    public CompileResult Compile(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) {
+        throw new InvalidOperationException("The generated page source did not compile.");
+    }
+
+    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
         throw new InvalidOperationException("The generated page source did not compile.");
     }
 
@@ -28,10 +32,16 @@ internal sealed class SlowCompiler(IPageCompiler inner) : IPageCompiler {
 
     public string RuntimeId => inner.RuntimeId;
 
-    public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
+    public CompileResult Compile(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) {
         Thread.Sleep(TimeSpan.FromMilliseconds(500));
 
-        return inner.Compile(source, cancellationToken);
+        return inner.Compile(source, libraries, cancellationToken);
+    }
+
+    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+        Thread.Sleep(TimeSpan.FromMilliseconds(500));
+
+        return inner.CompileLibrary(source, cancellationToken);
     }
 
     public LoadedPage Load(byte[] image, byte[]? symbols = null) {
@@ -48,7 +58,12 @@ internal sealed class StallingCompiler : IPageCompiler {
 
     public string RuntimeId => "stalling";
 
-    public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
+    public CompileResult Compile(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) {
+        cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
+        throw new OperationCanceledException(cancellationToken);
+    }
+
+    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
         cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
         throw new OperationCanceledException(cancellationToken);
     }

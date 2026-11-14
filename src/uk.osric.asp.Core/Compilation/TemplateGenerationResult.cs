@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Core.Compilation;
 
+using uk.osric.asp.Core.Pages;
+
 /// <summary>The outcome of generating handler source from a page template.</summary>
 /// <param name="Source">The generated source, or <see langword="null"/> when the template did not parse.</param>
 /// <param name="Errors">
@@ -11,11 +13,19 @@ namespace uk.osric.asp.Core.Compilation;
 /// </param>
 public sealed record TemplateGenerationResult(GeneratedSource? Source, IReadOnlyList<PageDiagnostic> Errors) {
 
-    /// <summary>Whether the template contains anything the tokenizer reads as code.</summary>
+    /// <summary>What the template is for, judged from its tokens.</summary>
     /// <remarks>
-    /// True when any token other than a text token appears, and true for a template that could not
-    /// be tokenized at all: a template the tokenizer refuses must never be mistaken for one that has
-    /// nothing to compile.
+    /// <para>
+    /// A template with no code is <see cref="PageKind.Text"/>, one with only declaration blocks is a
+    /// <see cref="PageKind.Library"/>, and anything else renders as a <see cref="PageKind.Page"/>.
+    /// The verdict is required rather than defaulted, so a caller cannot forget it and leave a page
+    /// looking like an asset.
+    /// </para>
+    /// <para>
+    /// A template that could not be tokenized or generated is a page, whatever it started as: it has
+    /// code the tokenizer saw, and a failure must never be mistaken for something with nothing to
+    /// compile.
+    /// </para>
     /// </remarks>
-    public bool HasCode { get; init; }
+    public required PageKind Kind { get; init; }
 }

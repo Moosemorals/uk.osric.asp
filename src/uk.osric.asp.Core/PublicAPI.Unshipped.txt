@@ -577,13 +577,18 @@ uk.osric.asp.Core.Charting.ChartAxis.Divisor.init -> void
 *REMOVED*uk.osric.asp.Core.Charting.ValueUnit
 *REMOVED*~override uk.osric.asp.Core.Charting.ChartScale.Equals(object obj) -> bool
 *REMOVED*~override uk.osric.asp.Core.Charting.ChartScale.ToString() -> string
-uk.osric.asp.Core.Compilation.TemplateGenerationResult.HasCode.get -> bool
-uk.osric.asp.Core.Compilation.TemplateGenerationResult.HasCode.init -> void
+static uk.osric.asp.Core.Compilation.TemplateSourceGenerator.GenerateLibrary(string! template) -> uk.osric.asp.Core.Compilation.TemplateGenerationResult!
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.Kind.get -> uk.osric.asp.Core.Pages.PageKind
+uk.osric.asp.Core.Compilation.TemplateGenerationResult.Kind.init -> void
 const uk.osric.asp.Core.Pages.RevisionHash.Length = 64 -> int
 static uk.osric.asp.Core.Pages.RevisionHash.IsCanonical(string? hash) -> bool
 uk.osric.asp.Core.Pages.PageScriptPolicy
 uk.osric.asp.Core.Pages.PageScriptPolicy.None = 0 -> uk.osric.asp.Core.Pages.PageScriptPolicy
 uk.osric.asp.Core.Pages.PageScriptPolicy.Self = 1 -> uk.osric.asp.Core.Pages.PageScriptPolicy
+uk.osric.asp.Core.Pages.PageKind
+uk.osric.asp.Core.Pages.PageKind.Library = 2 -> uk.osric.asp.Core.Pages.PageKind
+uk.osric.asp.Core.Pages.PageKind.Page = 1 -> uk.osric.asp.Core.Pages.PageKind
+uk.osric.asp.Core.Pages.PageKind.Text = 0 -> uk.osric.asp.Core.Pages.PageKind
 uk.osric.asp.Core.Pages.PageContentTypeRule
 uk.osric.asp.Core.Pages.PageContentTypeRule.<Clone>$() -> uk.osric.asp.Core.Pages.PageContentTypeRule!
 uk.osric.asp.Core.Pages.PageContentTypeRule.Deconstruct(out string! MediaType, out uk.osric.asp.Core.Pages.PageScriptPolicy ScriptPolicy) -> void
@@ -687,3 +692,5 @@ static uk.osric.asp.Core.Pages.PageTree.IsBelow(uk.osric.asp.Core.Pages.PagePath
 static uk.osric.asp.Core.Pages.PageTree.IsDirectlyBelow(uk.osric.asp.Core.Pages.PagePath! key, uk.osric.asp.Core.Pages.PagePath! folder) -> bool
 static uk.osric.asp.Core.Pages.PageTree.FolderOf(string! key) -> string?
 static uk.osric.asp.Core.Pages.PageTree.FoldersAbove(string! key) -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Core.Compilation.PageDiagnostic.Source.get -> string?
+uk.osric.asp.Core.Compilation.PageDiagnostic.Source.init -> void

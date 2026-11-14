@@ -38,15 +38,18 @@ internal sealed class PageImageBuilder(
         PagePath path,
         string template,
         string reason,
+        IReadOnlyList<PageLibrary> libraries,
         CancellationToken cancellationToken,
         CancellationToken renderDeadline = default) {
+        ArgumentNullException.ThrowIfNull(libraries);
+
         long start = Stopwatch.GetTimestamp();
         TemplateGenerationResult generated = TemplateSourceGenerator.Generate(template);
         IReadOnlyList<PageDiagnostic> shape = TemplateShapeCheck.Check(template);
 
         // Nothing to compile, so no slot is waited for and Roslyn is never called. The revision keeps
         // the verdict beside its source, and every request writes the source out as it is.
-        if (!generated.HasCode && generated.Source is not null) {
+        if (generated.Kind is PageKind.Text && generated.Source is not null) {
             logger.LogDebug("Stored {Path} without compiling: the template has no code", path.Key);
 
             return new PageImage(
@@ -55,7 +58,7 @@ internal sealed class PageImageBuilder(
                 Bytes: null,
                 Symbols: null,
                 Diagnostics: shape,
-                HasCode: false);
+                Kind: PageKind.Text);
         }
 
         // A template that does not parse never reaches the compiler, but it fails exactly like a
@@ -63,6 +66,13 @@ internal sealed class PageImageBuilder(
         // recompiled on every request.
         CompileResult result;
         if (generated.Source is { } generatedSource) {
+            // A library contributes its declarations and no handler, so it is generated again in that
+            // shape: the page's unit carries a handler nothing can run, and the library's rule would
+            // rightly refuse it.
+            GeneratedSource source = generated.Kind is PageKind.Library
+                ? TemplateSourceGenerator.GenerateLibrary(template).Source!
+                : generatedSource;
+
             using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(budget.CompileOptions.Timeout);
 
@@ -92,7 +102,11 @@ internal sealed class PageImageBuilder(
             } else {
                 try {
                     try {
-                        result = compiler.Compile(generatedSource, deadline.Token);
+                        // A library is checked, never emitted: there is nothing to run, and the
+                        // answer the author needs is its diagnostics.
+                        result = generated.Kind is PageKind.Library
+                            ? compiler.CompileLibrary(source, deadline.Token)
+                            : compiler.Compile(source, Candidates(path, libraries), deadline.Token);
                     } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                         // Roslyn honours the token between operations, so this is a coarse bound: it is
                         // stored like any other page error so the editor shows it and the page is not
@@ -136,6 +150,46 @@ internal sealed class PageImageBuilder(
             result.Image,
             result.Symbols,
             PageDiagnostic.SortedForDisplay([.. shape, .. result.Diagnostics]),
-            generated.HasCode);
+            generated.Kind,
+            Fingerprint(result.Libraries, libraries));
+    }
+
+    // The closure is the compiler's answer, and the hashes are the caller's: together they say what
+    // this image was built against, which is what the next render compares with the live libraries.
+    private static string? Fingerprint(IReadOnlyList<string> used, IReadOnlyList<PageLibrary> libraries) {
+        if (used.Count == 0) {
+            return null;
+        }
+
+        Dictionary<string, string> hashes = libraries
+            .GroupBy(library => library.Key.Key, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First().Hash, StringComparer.Ordinal);
+
+        return PageLibraryFingerprint.Of(
+            used.Where(hashes.ContainsKey).Select(key => (Key: key, Hash: hashes[key])));
+    }
+
+    // A library is contributed in its own shape, without the handler a page's unit carries. A row
+    // that says library but no longer parses is left out: the page that names its namespace then
+    // fails with the compiler's own missing-type error, which is a diagnostic rather than a 500.
+    private IReadOnlyList<LibrarySource> Candidates(PagePath path, IReadOnlyList<PageLibrary> libraries) {
+        List<LibrarySource> candidates = [];
+
+        foreach (PageLibrary library in libraries) {
+            try {
+                TemplateGenerationResult generated = TemplateSourceGenerator.GenerateLibrary(library.Template);
+                if (generated.Source is { } source) {
+                    candidates.Add(new LibrarySource(library.Key.Key, source));
+                } else {
+                    logger.LogWarning("Library {Library} could not be generated, so it was left out of {Path}",
+                        library.Key.Key, path.Key);
+                }
+            } catch (ArgumentException ex) {
+                logger.LogWarning(ex, "Library {Library} is not declarations, so it was left out of {Path}",
+                    library.Key.Key, path.Key);
+            }
+        }
+
+        return candidates;
     }
 }

@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Core.Compilation;
 
 using System.Text;
+using uk.osric.asp.Core.Pages;
 
 /// <summary>Turns a page template into the generated C# source of its handler.</summary>
 public static class TemplateSourceGenerator {
@@ -34,17 +35,44 @@ public static class TemplateSourceGenerator {
     /// source is generated for a template that does not parse: Roslyn would then report a syntax error
     /// where the text was cut off on top of the real one, and the author would fix the wrong thing.
     /// </returns>
-    public static TemplateGenerationResult Generate(string template) {
+    public static TemplateGenerationResult Generate(string template) => Generate(template, asLibrary: false);
+
+    /// <summary>Generates the unit a library contributes: its declarations, and no handler.</summary>
+    /// <param name="template">The library template.</param>
+    /// <returns>The declarations, each mapped to the line and column the author wrote.</returns>
+    /// <exception cref="ArgumentException">
+    /// The template is not a library. A caller branches on <see cref="TemplateGenerationResult.Kind"/>
+    /// before it asks, so this is a fault in the caller rather than an author's mistake.
+    /// </exception>
+    public static TemplateGenerationResult GenerateLibrary(string template) => Generate(template, asLibrary: true);
+
+    private static TemplateGenerationResult Generate(string template, bool asLibrary) {
         ArgumentNullException.ThrowIfNull(template);
 
         TokenizeResult tokenized = TemplateTokenizer.Tokenize(template);
         if (!tokenized.IsSuccess) {
+            if (asLibrary) {
+                throw NotALibrary();
+            }
+
             // The tokenizer saw a '<%', so there is code here whatever it made of the rest. A parse
             // failure must not read as a template with nothing to compile.
-            return new TemplateGenerationResult(null, tokenized.Errors) { HasCode = true };
+            return new TemplateGenerationResult(null, tokenized.Errors) { Kind = PageKind.Page };
         }
 
         bool hasCode = tokenized.Tokens.Any(token => token.Type != TokenType.Text);
+
+        // A template made of declarations and nothing else is a library: there is nothing in it to
+        // render, so the pages that name it compile it and it is never served. One byte of markup,
+        // one code block, and it is a page again.
+        PageKind kind = PageKind.Text;
+        if (hasCode) {
+            kind = IsLibrary(tokenized.Tokens) ? PageKind.Library : PageKind.Page;
+        }
+
+        if (asLibrary && kind is not PageKind.Library) {
+            throw NotALibrary();
+        }
 
         foreach (Token token in tokenized.Tokens) {
             if (token.Type is TokenType.Write or TokenType.WriteRaw
@@ -56,10 +84,36 @@ public static class TemplateSourceGenerator {
                         PageDiagnosticSeverity.Error,
                         opener,
                         "TEMPLATE002: write expression is empty."),
-                ]) { HasCode = true };
+                ]) { Kind = PageKind.Page };
             }
         }
 
+        GeneratedSource source = asLibrary ? LibrarySource(tokenized) : PageSource(template, tokenized);
+
+        return new TemplateGenerationResult(source, []) { Kind = kind };
+    }
+
+    // A library contributes its declarations and nothing else: there is no handler, so nothing can
+    // run it, and the dependent's own unit carries the using it needs. Each block keeps its mapping,
+    // so a diagnostic lands on the line the author wrote.
+    private static GeneratedSource LibrarySource(TokenizeResult tokenized) {
+        StringBuilder result = new();
+
+        result.Append(NullableDisable);
+        result.Append(Environment.NewLine);
+        result.Append($"using {SdkNamespace};");
+        result.Append(Environment.NewLine);
+
+        foreach (Token token in tokenized.Tokens) {
+            if (token.Type == TokenType.Declaration) {
+                AppendMapped(result, token);
+            }
+        }
+
+        return new GeneratedSource(result.ToString());
+    }
+
+    private static GeneratedSource PageSource(string template, TokenizeResult tokenized) {
         StringBuilder result = new();
 
         // The scaffold is nullable-oblivious from its first line: the compilation enables nullable
@@ -119,7 +173,29 @@ public static class TemplateSourceGenerator {
         result.Append(Environment.NewLine);
         result.Append("#pragma warning restore CS1998");
 
-        return new TemplateGenerationResult(new GeneratedSource(result.ToString()), []) { HasCode = hasCode };
+        return new GeneratedSource(result.ToString());
+    }
+
+    private static ArgumentException NotALibrary() =>
+        new("The template is not a library: it has something to render.", "template");
+
+    // Declarations are compile-time only, so a template with nothing but declaration blocks has
+    // nothing to render. Whitespace between the blocks is layout for the author's eye, not markup.
+    private static bool IsLibrary(IReadOnlyList<Token> tokens) {
+        bool declares = false;
+
+        foreach (Token token in tokens) {
+            if (token.Type == TokenType.Declaration) {
+                declares = true;
+                continue;
+            }
+
+            if (token.Type != TokenType.Text || !string.IsNullOrWhiteSpace(token.Value)) {
+                return false;
+            }
+        }
+
+        return declares;
     }
 
     private static void AppendText(StringBuilder result, Token token) {

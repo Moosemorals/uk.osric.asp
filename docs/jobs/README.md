@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 # Jobs
 
 One file per distinct job — something the site gets wrong (`SEC-`, `BUG-`, `OPS-`, `ARCH-`) and
-something it could usefully become (`IDEA-`). Each file has a short ID (`SEC-03`, `IDEA-005`, ...)
+something it could usefully become (`IDEA-`). Each file has a short ID (`SEC-03`, `IDEA-001`, ...)
 to use in commits, branches and discussion. A whim is smaller than a job and shares one file,
 [WHIMS.md](WHIMS.md).
 
@@ -56,7 +56,6 @@ editor — is what is left.
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
-| [IDEA-005](IDEA-005.md) | — | L | Pages cannot share code: the layout half landed, a named declaration a second page can use is still deferred |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
 | [IDEA-024](IDEA-024.md) | — | L | `/admin/import` and `/admin/export` are shell code because an archive is not a form |
@@ -119,6 +118,7 @@ approval.
 | 7 | [ARCH-13](ARCH-13.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | — |
 | 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase | — |
 | 9 | [Page first](../plans/page-first.md) — re-scope against 5–8: DEC-210 and DEC-211 are recorded, but the audit and the memory page are not; build the page, or archive the plan behind IDEA-024 and IDEA-025 | L | 5–8 | the plan, then build-or-close | — |
+| 10 | [#closed](#closed) — page libraries: IDEA-005's shared-code half — a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | done |
 
 The [assistant edit-safety plan](../plans/archive/assistant-edit-safety.md) landed between steps 5 and
 6 and is not a numbered job: it gives the edit tool its diff and line assertions, numbers the reads,
@@ -145,10 +145,9 @@ the other.
 
 Not in this programme: [OPS-03](OPS-03.md) is the obvious next candidate once the list above is
 empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
-[IDEA-001](IDEA-001.md) wants a third-party editor; [IDEA-005](IDEA-005.md) is a compile-time
-question of its own; [IDEA-020](IDEA-020.md) records why a destructive reset is not built;
-[IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7 touches; and
-[IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page.
+[IDEA-001](IDEA-001.md) wants a third-party editor; [IDEA-020](IDEA-020.md) records why a
+destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7
+touches; and [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page.
 
 ## Closed
 
@@ -157,6 +156,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | ID | Fix |
 | --- | --- |
 | [ARCH-16](../plans/archive/page-store-reader.md) | The assistant's tools and its virtual shell read through one `PageStoreReader`: the tree with its facts, the sources in a scope, one key, a history and one revision. `PageTree` and `PageScope` moved to `Core`, and the loose lists, source walks and scope copies are gone. DEC-274–DEC-280 |
+| [IDEA-005](../plans/page-libraries.md) | Pages share code: a page is text, a page with code or a **library**, and a library is bound by an ordinary `using` — a page's own directives name the namespaces it declares, the closure is resolved to a fixed point and each library compiles as its own syntax tree in the page's compilation. A library is checked on save, never served, never wrapped and never an asset, and a dependent page goes stale when the library's head moves. The seeded `/_lib/document` writes the document the seeded `/_layout` uses, and `Sdk`'s `PageDocument` is `Web`'s `ShellDocument`. See [the plan](../plans/page-libraries.md) |
 | [IDEA-019](../decisions.md) | Every request value survives: `QueryValues` and `FormValues` keep each name's values in order, and the API policy admits encoding, SHA-2 hashing, HMAC signing, a random source and a constant-time compare. DEC-257 |
 | [IDEA-017](../plans/archive/page-editor.md) | The editor is a page: `IPageEditor`, the read state, the seeded `/pages` editor and its module, and `/edit` retired to an ordinary key with scrub moved to `/admin/scrub`. See [the plan](../plans/archive/page-editor.md) |
 | [IDEA-028](../decisions.md) | `/admin/restore` lists every seed's state, restores each changed, missing or tombstoned one in a single POST and reports every outcome; a matching seed and a page the owner made are untouched. DEC-256 |
@@ -208,7 +208,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | IDEA-012 | The page handler is asynchronous, and `Task`'s starting and blocking members are denied by name (DEC-123, DEC-124). See [the plan](../plans/archive/async-page-contract.md) |
 | IDEA-013 | The site's vocabulary is [the glossary](../glossary.md): one entry per term, with the term it is not and the code that owns it |
 | IDEA-016 | A page saves its own source through `ctx.Capabilities.GetRequired<IPageWriter>()`, bound to `ctx.Path` and answering with the revision hash and the compiler's diagnostics. **Authority is asymmetric**: the read is public (DEC-169) and the write requires a signed-in visitor, refused inside the capability before anything is compiled — IDEA-016 point 3 named that rule and put it in `SimpleContext`, which is where it is not. `PageSaver` and `IPageRevisionStore` move the shell's save rather than copy it, so there is still one writer (DEC-192), a started save finishes even when the render gives up (DEC-191), and a layout is offered the read and not the write (DEC-194). The seeded `/scratch` is a page that edits itself. See [the plan](../plans/archive/page-self-save.md) and DEC-189–DEC-196 |
-| IDEA-018 | `Sdk/PageDocument` owns the document and `ShellDocument` and the seeded layout are adapters over it (DEC-156) |
+| IDEA-018 | `Sdk/PageDocument` owns the document and `ShellDocument` and the seeded layout are adapters over it, later reversed: the type is `Web`'s `ShellDocument` again and a stored page writes its document with a seeded library (DEC-156, [page libraries](../plans/page-libraries.md)) |
 | IDEA-021 | The assistant can check the JavaScript it writes without running or storing it (DEC-145, DEC-146). See [the plan](../plans/archive/assistant-script-validation.md) |
 | OPS-01 | `UseForwardedHeaders` trusts `X-Forwarded-Proto`/`X-Forwarded-Host` from any peer, which the loopback-only publish makes safe; HSTS emits |
 | OPS-04 | `appsettings.json` raises `Microsoft.EntityFrameworkCore` to `Warning`, and Development puts SQL back at `Information` |

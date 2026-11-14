@@ -70,6 +70,23 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         Assert.That(page, Is.EqualTo(shell), "the seeded layout and the shell must not drift");
     }
 
+    // The shell writes its own document and the seeded layout writes the library's, so a change to
+    // one must not leave the other behind: the two are compared on everything a reader or a
+    // stylesheet sees, not on the words in them.
+    [Test]
+    public async Task TheShellAndTheLayoutDrawTheSameDocument() {
+        using HttpClient client = CreateClient();
+
+        string shell = await BodyAsync(client, "/login");
+        string layout = await BodyAsync(client, "/about");
+
+        Assert.Multiple(() => {
+            Assert.That(ShapeOf(layout), Is.EqualTo(ShapeOf(shell)), "the seeded document and the shell's have drifted");
+            Assert.That(ShapeOf(layout).Sheets, Is.Not.Empty, "a document with no sheet proves nothing");
+            Assert.That(ShapeOf(layout).Lang, Is.EqualTo("en"));
+        });
+    }
+
     [Test]
     public async Task TheAdminIndexIsAFragmentTheLayoutWraps() {
         using HttpClient client = await CreateSignedInClientAsync();
@@ -229,6 +246,54 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         Assert.That(response.Headers.TryGetValues("Set-Cookie", out IEnumerable<string>? cookies), Is.False,
             cookies is null ? "no cookie at all" : string.Join(", ", cookies));
     }
+
+    // What a document says about itself, with the words in it and the title left out.
+    // The lists are joined rather than held: a record compares a list by reference, not by value.
+    private sealed record DocumentShape(
+        string? Lang,
+        string Sheets,
+        string Icons,
+        string? SkipLink,
+        string? SkipText,
+        string Landmarks,
+        string? MainId);
+
+    private static DocumentShape ShapeOf(string body) {
+        Match skip = SkipLink().Match(body);
+
+        return new DocumentShape(
+            Lang().Match(body) is { Success: true } lang ? lang.Groups[1].Value : null,
+            string.Join(' ', Sheets().Matches(body).Select(match => match.Groups[1].Value)),
+            string.Join(' ', Icons().Matches(body).Select(match => match.Groups[1].Value)),
+            skip.Success ? skip.Groups[1].Value : null,
+            skip.Success ? skip.Groups[2].Value : null,
+            string.Join(' ', Landmark().Matches(body).Select(match => match.Groups[1].Value)),
+            Landmark().Matches(body)
+                .Where(match => match.Groups[1].Value == "main")
+                .Select(match => match.Groups[2].Value).SingleOrDefault());
+    }
+
+    private static async Task<string> BodyAsync(HttpClient client, string path) {
+        HttpResponseMessage response = await client.GetAsync(path);
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"{path} answered {(int)response.StatusCode}");
+
+        return await response.Content.ReadAsStringAsync();
+    }
+
+    [GeneratedRegex("<html lang=\"([^\"]*)\"")]
+    private static partial Regex Lang();
+
+    [GeneratedRegex("<link rel=\"stylesheet\" href=\"([^\"]*)\"")]
+    private static partial Regex Sheets();
+
+    [GeneratedRegex("<link rel=\"icon\" href=\"([^\"]*)\"")]
+    private static partial Regex Icons();
+
+    [GeneratedRegex("<body[^>]*>\\s*<a class=\"skip-link\" href=\"([^\"]*)\">([^<]*)</a>")]
+    private static partial Regex SkipLink();
+
+    [GeneratedRegex("<(header|nav|main)(?: id=\"([^\"]*)\")?")]
+    private static partial Regex Landmark();
 
     private static async Task<IReadOnlyList<string>> MenuAsync(HttpClient client, string path) {
         HttpResponseMessage response = await client.GetAsync(path);

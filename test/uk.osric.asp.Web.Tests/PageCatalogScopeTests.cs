@@ -83,8 +83,8 @@ public sealed class PageCatalogScopeTests {
     [Test]
     public async Task ANoCodePageIsMarkedAsAnAssetAsync() {
         FakePageReadStore store = new();
-        store.Save("/site.css", "body { color: red; }", templateHasCode: false);
-        store.Save("/index.html", "<!DOCTYPE html><html></html>", templateHasCode: false);
+        store.Save("/site.css", "body { color: red; }", templateKind: PageKind.Text);
+        store.Save("/index.html", "<!DOCTYPE html><html></html>", templateKind: PageKind.Text);
 
         PageEntry[] entries = [.. await Scope(store).ListAsync("")];
 
@@ -97,12 +97,25 @@ public sealed class PageCatalogScopeTests {
     [Test]
     public async Task ACodePageIsNotAnAssetAsync() {
         FakePageReadStore store = new();
-        store.Save("/blog", "<h1>Blog</h1>", templateHasCode: true);
+        store.Save("/blog", "<h1>Blog</h1>", templateKind: PageKind.Page);
 
         PageEntry entry = (await Scope(store).ListAsync("")).Single();
 
         Assert.That(entry.IsHtml, Is.True);
         Assert.That(entry.IsAsset, Is.False);
+    }
+
+    [Test]
+    public async Task ALibraryIsMarkedAsOneAndIsNotAnAssetAsync() {
+        FakePageReadStore store = new();
+        store.Save("/_lib/document", "<%! class Document { } %>",
+            templateKind: PageKind.Library, runtimeId: CurrentRuntimeId);
+
+        PageEntry entry = (await Scope(store).ListAsync("")).Single();
+
+        Assert.That(entry.IsLibrary, Is.True);
+        Assert.That(entry.IsAsset, Is.False);
+        Assert.That(entry.State, Is.EqualTo("Library"));
     }
 
     [Test]
@@ -296,7 +309,7 @@ public sealed class PageCatalogScopeTests {
         store.Save("/stale", "source", runtimeId: "build-0", hasImage: true);
         store.Save("/failed", "source", runtimeId: CurrentRuntimeId);
         store.Save("/never", "source");
-        store.Save("/sheet.css", "source", templateHasCode: false, runtimeId: CurrentRuntimeId, hasImage: true);
+        store.Save("/sheet.css", "source", templateKind: PageKind.Text, runtimeId: CurrentRuntimeId, hasImage: true);
 
         IReadOnlyList<PageEntry> entries = await Scope(store).ListAsync("/");
 

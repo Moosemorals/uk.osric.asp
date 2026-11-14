@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>The words and the classes a stored image's state is described with.</summary>
@@ -71,11 +72,34 @@ public sealed class PageImageStateTests {
     [Test]
     public void ARevisionWithNoCodeSaysStoredAsSource() {
         PageImageState state = PageImageStatus.Describe(
-            runtimeId: null, hasImage: false, hasDiagnostics: false, templateHasCode: false);
+            runtimeId: null, hasImage: false, hasDiagnostics: false, kind: PageKind.Text);
 
         Assert.Multiple(() => {
             Assert.That(state, Is.EqualTo(PageImageState.StoredAsSource));
             Assert.That(state.Describe(), Is.EqualTo("Stored as source"));
+        });
+    }
+
+    [Test]
+    public void ALibrarySaysItIsALibrary() {
+        PageImageState state = PageImageStatus.Describe(
+            runtimeId: "1:build", hasImage: false, hasDiagnostics: false, kind: PageKind.Library);
+
+        Assert.Multiple(() => {
+            Assert.That(state, Is.EqualTo(PageImageState.Library));
+            Assert.That(state.Describe(), Is.EqualTo("Library"));
+            Assert.That(state.Class(), Is.EqualTo("state-library"));
+        });
+    }
+
+    [Test]
+    public void ALibraryWhoseCheckReportedSomethingSaysSo() {
+        PageImageState state = PageImageStatus.Describe(
+            runtimeId: "1:build", hasImage: false, hasDiagnostics: true, kind: PageKind.Library);
+
+        Assert.Multiple(() => {
+            Assert.That(state, Is.EqualTo(PageImageState.LibraryWithIssues));
+            Assert.That(state.Describe(), Is.EqualTo("Library with issues"));
         });
     }
 

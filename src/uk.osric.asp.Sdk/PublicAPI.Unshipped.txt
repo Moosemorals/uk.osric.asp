@@ -31,6 +31,8 @@ uk.osric.asp.Sdk.PageEntry.IsHtml.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsAsset.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsAsset.init -> void
 uk.osric.asp.Sdk.PageEntry.IsHtml.init -> void
+uk.osric.asp.Sdk.PageEntry.IsLibrary.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsLibrary.init -> void
 uk.osric.asp.Sdk.PageEntry.IsReserved.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsReserved.init -> void
 uk.osric.asp.Sdk.PageEntry.Key.get -> string!
@@ -143,7 +145,6 @@ static uk.osric.asp.Sdk.PageSessionKey.operator !=(uk.osric.asp.Sdk.PageSessionK
 static uk.osric.asp.Sdk.PageSessionKey.operator ==(uk.osric.asp.Sdk.PageSessionKey left, uk.osric.asp.Sdk.PageSessionKey right) -> bool
 ~override uk.osric.asp.Sdk.PageSessionKey.Equals(object obj) -> bool
 uk.osric.asp.Sdk.IContext.AssetUrl(string! href) -> string!
-static uk.osric.asp.Sdk.PageDocument.Head(string! title, System.Collections.Generic.IReadOnlyList<string!>? stylesheets = null, string? head = null, string? bodyClass = null, System.Func<string!, string!>? resolveHref = null) -> string!
 *REMOVED*static uk.osric.asp.Sdk.PageDocument.Head(string! title, System.Collections.Generic.IReadOnlyList<string!>? stylesheets = null, string? head = null, string? bodyClass = null) -> string!
 *REMOVED*uk.osric.asp.Sdk.PageRequest.Deconstruct(out string! Method, out string! Path, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies) -> void
 *REMOVED*uk.osric.asp.Sdk.PageRequest.PageRequest(string! Method, string! Path, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies) -> void
@@ -217,3 +218,12 @@ uk.osric.asp.Sdk.PageKeyResolution.Key.get -> string?
 uk.osric.asp.Sdk.PageKeyResolution.Key.init -> void
 uk.osric.asp.Sdk.PageKeyResolution.PageKeyResolution(string? Key, bool IsReserved, string? Error) -> void
 uk.osric.asp.Sdk.IContext.EditorPath.get -> string!
+*REMOVED*const uk.osric.asp.Sdk.PageDocument.SkipLinkText = "Skip to content" -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.Banner(string! navigation) -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.BaseStylesheets.get -> System.Collections.Generic.IReadOnlyList<string!>!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.CloseMain() -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.End() -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.IsSiteRelative(string? href) -> bool
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.Nav(string! label, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.NavLink>! links, string? className = null) -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.OpenMain() -> string!
+*REMOVED*uk.osric.asp.Sdk.PageDocument

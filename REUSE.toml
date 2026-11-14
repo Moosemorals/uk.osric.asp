@@ -51,6 +51,7 @@ SPDX-License-Identifier = "MIT"
 [[annotations]]
 path = [
   "src/uk.osric.asp.Web/Pages/Seeds/_layout",
+  "src/uk.osric.asp.Web/Pages/Seeds/_lib/document",
   "src/uk.osric.asp.Web/Pages/Seeds/about",
   "src/uk.osric.asp.Web/Pages/Seeds/admin",
   "src/uk.osric.asp.Web/Pages/Seeds/help",

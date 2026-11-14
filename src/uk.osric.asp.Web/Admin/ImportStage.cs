@@ -25,6 +25,12 @@ internal enum ImportPageStatus {
 
     /// <summary>The compiler itself failed; the source is kept without an image.</summary>
     CompilerFault,
+
+    /// <summary>Checked as a library, with nothing to report.</summary>
+    Library,
+
+    /// <summary>Checked as a library, and its check reported something.</summary>
+    LibraryWithIssues,
 }
 
 /// <summary>Where the batch as a whole has got to.</summary>

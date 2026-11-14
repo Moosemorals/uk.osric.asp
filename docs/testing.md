@@ -153,10 +153,12 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   integration suite's `SiteChromeTests` proves the shipped `Pages:Layout` through the real host and
   compares the shell's menu with the layout's. `MarkupReader` is a hand-written reader rather than a parser dependency,
   which is sound only because this repository encodes every value at the boundary — and is why it has
-  to fail loudly when it meets something it does not expect. `PageDocumentTests` covers the document
-  itself — the language, the title, the encoding, the sheet order and deduplication, the refusal of
-  an off-site sheet, the skip link and the banner — and `ShellDocumentTests` covers the response
-  around it: the status, the cache header, the view's sheets, and the banner before the one `main`.
+  to fail loudly when it meets something it does not expect. `ShellDocumentFragmentTests` covers the
+  fragments the shell writes — the title, the encoding, the sheet order and deduplication, the
+  refusal of an off-site sheet, the skip link and the banner — and `ShellDocumentTests` covers the
+  response around them: the status, the cache header, the view's sheets, and the banner before the
+  one `main`. In the integration suite, `SiteChromeTests` compares the document shape the shell
+  writes with the one the seeded layout writes, so the two cannot drift apart silently.
   **What a string cannot show** — the accessibility tree, tab order, focus visibility, zoom and
   reflow, contrast, and how a chart is read aloud — is a written hand pass (DEC-110), with its
   findings recorded beside the plan.

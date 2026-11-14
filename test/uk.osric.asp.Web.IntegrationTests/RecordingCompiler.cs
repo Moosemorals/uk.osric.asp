@@ -15,9 +15,14 @@ internal sealed class RecordingCompiler(IPageCompiler inner) : IPageCompiler {
 
     public string RuntimeId => inner.RuntimeId;
 
-    public CompileResult Compile(GeneratedSource source, CancellationToken cancellationToken = default) {
+    public CompileResult Compile(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) {
         Interlocked.Increment(ref _compileCount);
-        return inner.Compile(source, cancellationToken);
+        return inner.Compile(source, libraries, cancellationToken);
+    }
+
+    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+        Interlocked.Increment(ref _compileCount);
+        return inner.CompileLibrary(source, cancellationToken);
     }
 
     public LoadedPage Load(byte[] image, byte[]? symbols = null) {
