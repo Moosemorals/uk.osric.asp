@@ -139,14 +139,15 @@ a response-shaped context it can never use.
 - **Porting the assistant in this plan.** The plan ends with what a port still lacks. The port is its
   own step, with its own plan, after the authority question in phase 5 is answered.
 - **A per-account store.** [IDEA-033](../jobs/IDEA-033.md) is the owner's rows, with SQL, quotas, a
-  schema lifecycle and a privacy sentence. Nothing here stores data for an account.
+  schema lifecycle and a privacy sentence. The job rows are the shell's transport, owner-scoped and
+  swept; they are not a store a page can put its data in.
 - **A general page-store writer.** A page still writes only its own key and a worker writes no
   page at all. The assistant's tools write every page the shell does not route; granting that to page
   or job code is a decision about authority, not a connection primitive, and phase 5 records it rather
   than smuggling it in.
-- **A durable job queue.** Jobs are in memory. A restart loses a live job; the starting page's storage
-  is what survives, and a page that finds its state says "running" with no job knows it was
-  interrupted. A durable scheduler is a different job with a different cost.
+- **A durable queue.** The job rows and events are stored, but a restart **interrupts** work rather than
+  re-running it: a job's side effects are not idempotent, and the page resumes with a new job. A
+  durable scheduler is a different job with a different cost.
 - **Scheduling, retries, cron, dependencies, priorities.** A job runs because a page asked, once.
 - **A standalone event bus or pub/sub capability.** Events belong to the job whose viewers read them;
   there is no free-floating channel between pages.
@@ -243,12 +244,12 @@ delegate; an assistant run type.
 `SendAsync`, `GetAsync`, `ListAsync`, `ReadEventsAsync`, `CancelAsync` — is offered to every page. The
 running job is handed an `IWorkerContext` — `Id`, `Path` (the starting page), `Worker` (the worker's
 key), `User`, `Input` (the first message), `Aborted`, `Capabilities`, three log members,
-`ReceiveAsync` and `Publish(type, dataJson)`. A message is a string (JSON or text) bounded by
+`ReceiveAsync` and `PublishAsync(type, dataJson)`. A message is a string (JSON or text) bounded by
 `Pages:Jobs:MaxMessageBytes`; the pending queue is bounded by `MaxPendingMessages`. `ReceiveAsync`
 takes an optional wait, capped by `MaxWaitSeconds`; it returns `null` when the wait elapses or the job
 can no longer receive, and `Aborted` tells the two apart. `ListAsync` answers the owner's jobs with `Id`,
 `Worker`, `Path`, `State`, `StartedAt`, `EndedAt` and `Failure`, where the state is `Queued`,
-`Running`, `Completed`, `Failed` or `Cancelled`, so a page that lost its id can find the job it
+`Running`, `Completed`, `Failed`, `Cancelled` or `Interrupted`, so a page that lost its id can find the job it
 started, and `ReadEventsAsync` replays from a sequence. `IPageJobs` is a **capability** in `Sdk`,
 registered by `PageChain` beside storage and fetch and reached as
 `ctx.Capabilities.GetRequired<IPageJobs>()`; `IContext` does not grow. A layout is not offered it at
@@ -259,18 +260,24 @@ read, send and cancel filters on the job's owner before it answers. Rejected: an
 `SendAsync` it has no reason to call); a typed message object (`JsonSerializer` is already the page's,
 and a worker that wants a shape can parse one).
 
-**D11 — the journal is in memory, bounded and replayable; the durable record is the page's.** A job's
-events are `(sequence, type, json)` in a ring bounded by `Pages:Jobs:MaxEvents`,
-`MaxEventBytes` and `RetentionMinutes`, with live subscribers and a replay window. A viewer that asks
-for a sequence the ring no longer holds gets a reset event. There is no `PageJobs` table. Rejected: a
-durable journal (events are for viewers, not history, and the starting page's storage is the record);
-an unbounded ring (a job that publishes in a loop would grow the process); a table for job status (a
-second source of truth the page's storage already answers).
+**D11 — the job and its events are SQLite rows; the live fan-out is in memory.** A `PageJobs` row holds
+the owner, the worker, the starting page, the state, the timestamps and the failure; a `PageJobEvents`
+row holds the job, the sequence, the type, the data and the time. `PublishAsync` writes the event and
+then wakes the subscribers; `ReadEventsAsync` reads from the store after a sequence and waits for the
+next. The store is the replay, and it survives a restart: a startup pass marks every `Queued` or
+`Running` row `Interrupted`, so `GetAsync` and `ListAsync` do not lie. `MaxEvents`, `MaxEventBytes` and
+`RetentionMinutes` bound the rows, and a sweep deletes past them; a viewer that asks for a deleted
+sequence gets a reset. There is no durable **queue**: a restart does not re-run work, because a job's
+side effects are not idempotent. Rejected: an in-memory journal (a restart loses the view, and
+`GetAsync`/`ListAsync` could not answer honestly); a durable queue (re-running work is a different
+feature); a durable message channel (a pending decision belongs in the page's storage).
 
 **D12 — a job has its own lifetime and its own slot.** A job takes a job slot
 (`Pages:Jobs:MaxConcurrent`), not a render slot, because it is not answering a visitor. Its deadline
-is `Pages:Jobs:SilenceSeconds` re-armed by every `Publish` and by every return from `ReceiveAsync`,
-plus `Pages:Jobs:MaxDurationSeconds` from the start. **A wait in `ReceiveAsync` pauses the silence
+is `Pages:Jobs:SilenceSeconds` re-armed by every `PublishAsync` and by every return from `ReceiveAsync`,
+plus `Pages:Jobs:MaxDurationSeconds` from the start. The shipped ceiling is nine hours (32,400 s), and
+the range may go to seven days: a worker that runs for a working day is the point, and the silence
+clock, not the ceiling, is what catches a stall. **A wait in `ReceiveAsync` pauses the silence
 clock**: a job waiting for its owner is not a job that has gone quiet, and the ceiling is what bounds
 the wait. A timed wait returns and the clock resumes, so a worker can do periodic work between
 messages without a sleep primitive. A job that keeps working but never publishes or receives is cut, so a wedged job cannot burn
@@ -289,14 +296,17 @@ Rejected: allowing `Task.Delay` (a general fairness hole, and the policy denies 
 
 **D14 — a job's capabilities split data from code.** `IWorkerContext` has no `Write`, `FlushAsync`,
 `SetStatus`, `SetContentType`, `SetHeader`, `Redirect`, `AntiforgeryField` or `IPageLayout`; its
-`Capabilities` offer `IPageStorage`, `IHttpFetch`, `IPageCatalog`, `IMarkdownRenderer` and
-`IPageJobs`, with **storage bound to the starting page** (the data) and **egress and catalog bound to
-the worker** (the code). A job and its view therefore share storage: the job writes the transcript and
-the view reads it, while the worker's credential stays the worker's. `IPageWriter` is not offered: a
-job keeps data, not code, and the authority to save a page is the port's question. Rejected: one key
-for all three (either the worker owns the page's data or the page owns the worker's credential); an
-`IContext` (a job looks like a visitor's request and is handed a response nobody receives); no
-capabilities at all.
+`Capabilities` offer `IPageStorage`, `IHttpFetch`, `IPageCatalog` and `IPageJobs`, with **storage bound
+to the starting page** (the data) and **egress and catalog bound to the worker** (the code). A job and
+its view therefore share storage: the job writes the transcript and the view reads it, while the
+worker's credential stays the worker's. A worker is not a view: it publishes text or JSON and the page
+renders it, so `IMarkdownRenderer` is the page's and not the worker's — a worker has no document to
+render into, and whether text is rendered with the author or the restricted profile is the view's
+decision. `IPageWriter` is not offered: a job keeps data, not code, and the authority to save a page is
+the port's question. Rejected: one key for all three (either the worker owns the page's data or the
+page owns the worker's credential); giving the worker a renderer (it would be formatting a document
+nobody receives); an `IContext` (a job looks like a visitor's request and is handed a response nobody
+receives); no capabilities at all.
 
 **D15 — a worker's image is a page's mechanics without a handler.** The worker's source and its
 `using` closure are policy-checked and emitted at save, and the image and symbols are stored on the
@@ -321,7 +331,7 @@ The shipped values, for the implementation to start from:
 | --- | --- |
 | `Pages:Stream` | `Slots` 8, `SilenceSeconds` 60, `MaxSeconds` 1800 |
 | `Pages:Fetch` (new) | `StreamSilenceSeconds` 30, `StreamMaxSeconds` 600, `MaxStreamBytes` 4 MiB |
-| `Pages:Jobs` | `QueueCapacity` 8, `MaxConcurrent` 2, `SilenceSeconds` 120, `MaxDurationSeconds` 1800, `MaxEvents` 512, `MaxEventBytes` 256 KiB, `RetentionMinutes` 30, `MaxWaitSeconds` 30, `MaxMessageBytes` 16 KiB, `MaxPendingMessages` 32 |
+| `Pages:Jobs` | `QueueCapacity` 8, `MaxConcurrent` 2, `SilenceSeconds` 120, `MaxDurationSeconds` 32400, `MaxEvents` 512, `MaxEventBytes` 256 KiB, `RetentionMinutes` 1440, `MaxWaitSeconds` 30, `MaxMessageBytes` 16 KiB, `MaxPendingMessages` 32 |
 
 ## Phases
 
@@ -413,18 +423,19 @@ when it is saved, stored with its image, never served, and invisible as a librar
 
 - `Sdk`: `IPageJobs` and its values (`PageJobStart`, `PageJobSendResult`, `PageJobInfo`, `PageJobState`,
   `PageJobEvent`, `PageJobEvents`); `IWorker` and `IWorkerContext` are already in place from phase 3.
-- `Web/Work`: the generic queue (the existing `BoundedWorkQueue`), a job registry, a bounded journal
-  with subscribers and a wait, and a `BackgroundService` runner. The assistant's `RunStream` shape is
-  the starting point, not a shared type: a job is not a run. The runner loads the worker's stored image
-  — rebuilding it lazily when its library moved — finds the single `IWorker`, invokes it, and releases
-  the assembly at the end.
+- `Web/Work`: the generic queue (the existing `BoundedWorkQueue`), the `PageJobs`/`PageJobEvents`
+  store with a live fan-out and a wait, a startup pass that marks live jobs `Interrupted`, a retention
+  sweep, a migration for the two tables, and a `BackgroundService` runner. The assistant's
+  `RunStream` shape is the starting point, not a shared type: a job is not a run. The runner loads the
+  worker's stored image — rebuilding it lazily when its library moved — finds the single `IWorker`,
+  invokes it, and releases the assembly at the end.
 - `PageChain` registers `IPageJobs` in the capability set — never on `IContext`, never for a layout,
   and read-only for a `HEAD`.
 - The job's context: the owner as `PageUser`, the starting page as `Path`, the worker key as
   `Worker`, the first message as `Input`, a timed or indefinite `ReceiveAsync` for later messages,
   storage bound to the starting page, fetch and catalog bound to the worker, and the job's own
   deadline. `SendAsync` writes a bounded pending queue; `ReceiveAsync` pauses the silence clock while
-  it waits.
+  it waits; `PublishAsync` writes the event before it wakes a viewer.
 - `Pages:Jobs` with `QueueCapacity`, `MaxConcurrent`, `SilenceSeconds`, `MaxDurationSeconds`,
   `MaxEvents`, `MaxEventBytes`, `RetentionMinutes`, `MaxWaitSeconds`, `MaxMessageBytes` and
   `MaxPendingMessages`.
@@ -436,8 +447,12 @@ when it is saved, stored with its image, never served, and invisible as a librar
   - an indefinite wait in `ReceiveAsync` outlives the silence clock but not the ceiling; a timed wait
     returns and the worker publishes afterwards;
   - a full pending queue and a message after the job ends are refused as values;
-  - a page lists its owner's jobs and reconnects to the running one; a viewer reads the journal and
+  - a page lists its owner's jobs and reconnects to the running one; a viewer reads the store and
     waits for the next event;
+  - a restart marks a `Queued`/`Running` job `Interrupted`, and its events still replay;
+  - the sweep deletes past `RetentionMinutes` and past the per-job caps; `users remove` deletes the
+    owner's jobs and events;
+  - a worker has no `IMarkdownRenderer`; the page renders the text it published;
   - cancel ends the job at its next await;
   - a missing key, a page, a library, a reserved key, an anonymous render and a full queue are refused
     as values;
@@ -502,6 +517,8 @@ client.
 | **Slot accounting double-releases or leaks.** The render slot is released at the commit and the stream slot at the end; an abandoned page keeps running. | One owner (`RenderLifetime`) with an idempotent release, and tests that assert the semaphore's count after each ending. |
 | **A page uses the long stream to burn CPU.** | The stream slot, the silence rule and the ceiling; the residual is the same in-process trust SEC-03 records. |
 | **The worker kind touches every `PageKind` switch.** A missed branch serves, wraps or closes a worker. | One predicate set on `PageAssetPolicy`/the endpoint, and a test for each of the four kinds at each branch. |
+| **The event store grows without bound.** | `MaxEvents`, `MaxEventBytes` and `RetentionMinutes` bound it and a sweep deletes past them; a lagging viewer gets a reset and reads the page's storage. |
+| **The event rows carry a worker's output.** | The rows are owner-scoped, swept, never logged and never in an archive; `users remove` deletes them. The page's storage is the domain record. |
 | **A worker stays in the job slot while it waits for a message.** | A wait pauses the silence clock but not the ceiling; `MaxConcurrent` bounds the number of waits; a worker that would rather free the slot ends the job at the question and a new job resumes. |
 | **A page floods a worker.** | `MaxPendingMessages` bounds the queue and `SendAsync` refuses rather than grows it. |
 | **A worker becomes a module by accident.** A page names a worker and compiles it in. | The closure includes libraries and excludes workers; the diagnostic is a missing namespace. Code shared by a view and a worker is a library. |
@@ -528,8 +545,9 @@ client.
 - **WebSockets.** HTTP streaming covers the shape, and the site already has `FlushAsync` and SSE.
 - **A free-standing event bus.** Events without a job have no owner, no lifetime and no reason; the
   journal is a part of the job.
-- **A durable job queue or a `PageJobs` table.** The starting page's storage is the record; a table would be a
-  second source of truth and a migration for nothing at this size.
+- **An in-memory journal.** A restart loses the view and `GetAsync`/`ListAsync` cannot answer honestly;
+  the two tables are the transport's record and the sweep bounds them. A durable **queue** is still
+  rejected: a restart interrupts rather than re-runs.
 - **A durable message channel.** A message is delivered to a live job; a restart loses the pending
   queue, and the page's storage is what a resumed job reads. A message bus is a different job.
 - **A job as a page render.** A page's handler writes a response; a job has none, and its context
@@ -542,6 +560,8 @@ client.
   out; a worker that wants to answer publishes an event, and a page that wants a reply reads it.
 - **A typed message object.** A message is a string; a worker that wants a shape parses it with
   `JsonSerializer`, which the page contract already offers.
+- **A renderer in the worker.** A worker publishes text or JSON; the page renders it. A worker has no
+  document, and the author/restricted profile choice belongs to the view.
 - **A worker a page may `using`.** A worker is a program; its types are its own. Shared code is a
   library both the page and the worker name.
 - **A general page writer now.** It is the largest authority in the port and is not a connection
@@ -564,10 +584,10 @@ client.
 | `PageKind`, `PageImage` and `PageAssetPolicy` | The fourth kind, its stored image and the never-served, never-wrapped, never-asset rules | `src/uk.osric.asp.Core/` and `src/uk.osric.asp.Web/Pages/` |
 | `Runtime` worker compile and load | A worker and its closure, policy-checked, emitted and loaded for the entry point | `src/uk.osric.asp.Runtime/` |
 | `IPageJobs` | The page-side capability: start, send, observe, find, wait and cancel | `src/uk.osric.asp.Sdk/` |
-| `IWorker` and `IWorkerContext` | The entry point a worker declares, and the work context a job is given: receive messages, publish events | `src/uk.osric.asp.Sdk/` |
-| `Web/Work` | The queue, the registry, the message channel, the journal and the runner | `src/uk.osric.asp.Web/Work/` |
+| `IWorker` and `IWorkerContext` | The entry point a worker declares, and the work context a job is given: receive messages, publish events (no renderer) | `src/uk.osric.asp.Sdk/` |
+| `Web/Work` | The queue, the `PageJobs`/`PageJobEvents` store, the message channel, the live fan-out, the recovery and sweep, and the runner | `src/uk.osric.asp.Web/Work/` |
 | The job runner | Loads the worker's image, finds the entry point, runs it under a job slot and releases it | `src/uk.osric.asp.Web/Work/` |
-| `/help` | The author manual: the lifetime, the stream, the worker kind, the message protocol and the job | `src/uk.osric.asp.Web/Pages/Seeds/help` |
+| `/help` | The author manual: the lifetime, the stream, the worker kind, the message protocol, what to publish and what to keep in storage | `src/uk.osric.asp.Web/Pages/Seeds/help` |
 
 ## Documentation and decisions
 
@@ -579,7 +599,9 @@ client.
   render histogram's top-bucket sentence.
 - `docs/logging.md` — a job's start, end and reason; a message is never logged; no prompt, transcript
   or memory in a log line.
-- `docs/storage.md` — the fourth `TemplateKind` value.
+- `docs/storage.md` — the fourth `TemplateKind` value, the `PageJobs` and `PageJobEvents` tables, the
+  startup recovery and the sweep, and that an archive never carries them while `users remove` deletes
+  them. The seeded `/privacy` gains the paragraph for rows that survive sign-out.
 - `docs/glossary.md` — **Worker** and **Job**, and why a worker is not a thread.
 - `docs/testing.md` — the suites and what belongs in the real host.
 - `src/uk.osric.asp.Web/Pages/Seeds/help` — the author manual, updated with each phase (DEC-173).
@@ -599,7 +621,8 @@ client.
   saved, stored with its image, answered `404`, never wrapped, never an asset and never a library a
   page may name.
 - A stored page can start a worker as a job, send it messages, find it again after a reload, follow
-  and cancel it, and the job's durable state is the starting page's storage.
+  and cancel it. The job's domain state is the starting page's storage; its rows and events survive a
+  restart, which marks it interrupted rather than re-running it.
 - `/help` teaches all of it, and the page contract's XML documentation matches.
 - `make check` passes after every phase, and each phase has merged on the owner's answer.
 - IDEA-025 says what a port still lacks, and the authority question is written down for the owner.
