@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed — awaiting the owner (DEC-281); nothing is built |
+| Status | Approved 2026-11-14; implementation in progress on `page-streaming` |
 | Size | Medium — one contract member, one response sink, a commit rule, a disconnect guard and their tests |
 | Spike | None. `SimpleContext` already buffers through one writer, the endpoint already shapes the whole response in one place, and the render already owns a deadline and an abandonment switch |
 | Decisions | Named in prose below; numbers are taken from `trunk` when the work merges (`DEC-09`, DEC-281) |
@@ -232,12 +232,14 @@ the buffer, so it is answered by the error page; a deadline before the first flu
 The buffering guarantee survives for every page that does not opt in, and for the part of a streaming
 page's life before its first flush.
 
-**The body cap.** `Pages:Render:MaxBodyChars` stays as it is for a buffered page: the whole body is
-charged once. For a streaming page the charge is per flush, not per response, because the point of
-streaming is that the body does not live in memory. The budget is discarded for the bytes a flush
-sends; the next writes are charged against the same limit again. So the cap still stops a page that
-writes in a loop without flushing, and a streamed body may be longer than the cap in total. The
-`RenderOptions.MaxBodyChars` documentation says so.
+**The body cap.** `Pages:Render:MaxBodyChars` stays exactly as it is for a buffered page: the whole
+body is charged once. Once a page has committed, the cap no longer applies to its writes. That is
+deliberate: the point of streaming is that the body does not live in memory, and a total cap would
+stop a streamed response at the buffered limit. The cost is that a page that writes in a loop after
+its first flush can still grow the buffer without bound; the render's deadline is the only bound left,
+and the container's memory limit is the backstop it already is. Before the first flush the cap still
+applies, so a page cannot buffer an unbounded body on its way to committing. The
+`RenderOptions.MaxBodyChars` documentation says which side of the commit it binds.
 
 ### 6. BUG-17's failed request
 
@@ -295,9 +297,13 @@ at Warning and aborts; neither attempts an error page or `504`. Rejected: buffer
 "just in case" (the feature would do nothing) and closing cleanly without aborting (a truncated HTML
 document would look complete to a reader).
 
-**D6 — the body cap is per flush for a streamed page.** The buffer between flushes is bounded; the
-whole response is not. Rejected: a total cap (a streamed page could never exceed the buffered limit,
-which defeats the point) and no cap at all (a loop that never flushes could still exhaust memory).
+**D6 — the body cap stops at the first flush.** Before the commit, `Pages:Render:MaxBodyChars` still
+caps the buffer, so a page cannot commit an unbounded body. After the commit, writes are not charged:
+the body is already on the wire and a total cap would defeat the feature. Rejected: a per-flush cap
+(tempting, but it would still turn a long stream into a failed stream at an arbitrary chunk size) and
+a total cap (a streamed page could never exceed the buffered limit). The owner accepted the residual
+risk: a post-commit loop can grow the buffer until the deadline or the container's memory limit stops
+it.
 
 **D7 — a first session write after the commit is refused; a write with an existing session cookie is
 allowed.** Rejected: minting a session whose cookie cannot be sent, and disabling the session for
@@ -346,9 +352,11 @@ status, headers, `Content-Length`, clean error page and clean `504`; `HEAD` reta
 
 - Catch a committed exception at the endpoint, log Error and abort.
 - Handle `RenderStatus.Timeout` after the commit as a Warning and an abort, not a `504`.
-- Make `BodyBudget` discard the bytes a flush sends and document the per-flush cap.
-- Prove `HEAD` sends no body and no `Content-Length`, and that a streamed body longer than
-  `MaxBodyChars` succeeds when each flush is under the limit.
+- Stop charging the body budget once the page has committed, and document the boundary in
+  `RenderOptions.MaxBodyChars`.
+- Prove the cap still refuses an oversized body before the first flush, and that a streamed body past
+  `MaxBodyChars` is accepted once the page has committed.
+- Prove `HEAD` sends no body and no `Content-Length`.
 
 ### Phase 4 — the disconnect guard
 
@@ -362,8 +370,8 @@ status, headers, `Content-Length`, clean error page and clean `504`; `HEAD` reta
 
 ### Phase 5 — documentation and the job
 
-- `docs/pages.md`: the page contract, the streaming rules, the deadline's truncation and the
-  per-flush cap.
+- `docs/pages.md`: the page contract, the streaming rules, the deadline's truncation and the body cap
+  stopping at the first flush.
 - `docs/shell.md`: the third response shape and the chain rule.
 - `docs/testing.md`: the new test files and what each suite owns.
 - `README.md`: one paragraph in the page-writing notes.
@@ -399,7 +407,7 @@ status, headers, `Content-Length`, clean error page and clean `504`; `HEAD` reta
 | Web | `ABufferedPageKeepsItsContentLength` | The ordinary path still sends one body with a length |
 | Web | `AStreamedPageHasNoContentLength` | The response is chunked/framed and does not claim a length |
 | Web | `AStreamedHeadWritesNoBodyAndNoLength` | `HEAD` commits but sends nothing and does not claim a length |
-| Web | `TheBodyCapAppliesToEachFlush` | A total body past `MaxBodyChars` succeeds when each flush is under it; one oversized buffer still fails |
+| Web | `TheBodyCapStopsAtTheFirstFlush` | An oversized body before the commit is still refused; a streamed body past `MaxBodyChars` is accepted once the page has committed |
 | Web | `DisconnectGuardTests.AClientDisconnectIsLoggedAtDebugAndNotRethrown` | The guard catches the disconnect-shaped write failure inside the exception handler's scope |
 | Web | `DisconnectGuardTests.ALiveExceptionStillReachesTheHandler` | The guard does not swallow a real failure |
 | Integration | `PageStreamingTests.AStreamedPageIsServedWithoutTheLayout` | The real host applies the commit and the chain rule together |
@@ -439,6 +447,10 @@ whose body throws, as `SecurityHeadersTests` builds its feature.
 - **A committed exception cannot be explained to the reader.** The client sees a truncated document,
   not the error page. The journal has the Error line with the page's key; the access log has the
   truncated request. That is the honest cost of the feature and the reason streaming is opt-in.
+- **A post-commit loop has no body cap.** The owner chose no cap once streaming begins, so a page that
+  writes without flushing after its first flush grows the buffer until the render deadline fires or
+  the container's memory limit does. The deadline and the container remain the backstop; there is no
+  per-flush limit to soften it.
 - **`NotSupportedException` after a commit is ambiguous.** A page that deliberately throws one on a
   started response will be treated as a disconnect (Debug, abort) rather than a page fault (Error,
   abort). The alternative is misclassifying the framework's client-disconnect signal. The guard
@@ -455,23 +467,21 @@ whose body throws, as `SecurityHeadersTests` builds its feature.
   `docs/shell.md` must say which is which. The code keeps one shaping helper so the shapes cannot
   drift in headers or cookies.
 
-## Questions for the owner
+## Settled at review
 
-The plan's recommendation is in the second column; the answer can change the plan before anything is
-built.
+The owner answered on 2026-11-14.
 
-| Question | Recommendation |
+| Question | Answer |
 | --- | --- |
-| Should a page that flushes while wrapped be refused, or should the first flush silently drop the layout and serve the page alone? | Refuse, and name the layout and the `Layout = null` remedy. A silent drop loses a title and head with no signal. |
+| Should a page that flushes while wrapped be refused, or should the first flush silently drop the layout and serve the page alone? | Refuse, and name the layout and the `Layout = null` remedy. |
 | Should a committed failure abort the connection, or end the response cleanly at the truncation point? | Abort. A cleanly ended HTML response looks complete; an aborted one tells the client it is not. |
-| Should the body cap be per flush or cover the whole streamed body? | Per flush. A total cap is the buffered behaviour the feature exists to escape; a loop that never flushes is still stopped. |
+| Should the body cap cover the whole streamed body? | No. The cap stops at the first flush; a streamed body is not charged. The residual risk is accepted (see Risks). |
 | Should a streamed page keep the render deadline and slot, leaving long-lived SSE to IDEA-025's plan? | Yes. Lifting either here would let one public page exhaust the site. |
 | Should a disconnect be handled by a pipeline guard as well as the page sink? | Yes; it is the same write path BUG-17 records, and it closes the failed-request line for the assistant too. |
-| Is `FlushAsync()` the right member name, or should it be `StreamAsync`/`StartResponseAsync`? | `FlushAsync` matches the write-then-flush model the page already has and the job's own name. |
+| Is `FlushAsync()` the right member name? | Yes. It matches the write-then-flush model and the job's own name. |
 
 ## Status
 
-**Proposed, not built.** This plan is committed on `arch-13` and waits for the owner's yes before the
-first test on `page-streaming` (DEC-281). When it is approved and the work merges, the decisions above
-take numbers from `trunk`, every citation in the branch is updated, `ARCH-13` leaves the job index,
-and step 7 of the programme is recorded as done.
+**Approved 2026-11-14; implementation on `page-streaming`.** The decisions above take numbers from
+`trunk` at merge, every citation in the branch is updated then, `ARCH-13` leaves the job index, and
+step 7 of the programme is recorded as done (DEC-281).
