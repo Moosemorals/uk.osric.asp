@@ -359,6 +359,10 @@ internal class Program {
             app.UseHsts();
         }
 
+        // Inside the exception handler, so a response that has already started is not reported as an
+        // unhandled exception when the client leaves mid-write (ARCH-13, BUG-17).
+        app.UseDisconnectGuard();
+
         // The guarantee that nobody gets a blank body: an endpoint, the framework, a routing 404/405
         // or the rate limiter can all answer with a status and nothing else, and this turns that into
         // a document a person can read or a problem document a program can parse. A response that
