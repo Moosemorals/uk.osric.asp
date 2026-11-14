@@ -26,21 +26,18 @@ public sealed class SiteNavigationTests {
 
     [Test]
     public void ASignedInVisitorIsOfferedEveryTool() {
-        Assert.That(Texts(anonymous: false, assistant: true),
+        Assert.That(Texts(anonymous: false),
             Is.EqualTo(["Home", "About", "Privacy", "Assistant", "Pages", "Admin", "Sign out"]));
     }
 
     [Test]
-    public void TheAssistantIsOfferedOnlyWhenItIsEnabled() {
-        Assert.That(Texts(anonymous: false, assistant: false),
-            Is.EqualTo(["Home", "About", "Privacy", "Pages", "Admin", "Sign out"]));
-        Assert.That(Texts(anonymous: true, assistant: true),
-            Is.EqualTo(["Home", "About", "Privacy", "Sign in"]));
+    public void AnAnonymousVisitorIsNeverOfferedTheAssistant() {
+        Assert.That(Texts(anonymous: true), Does.Not.Contain("Assistant"));
     }
 
     [Test]
     public void TheSignInLinkCarriesTheCanonicalPathAndRawQuery() {
-        NavLink signIn = SiteNavigation.Links(authenticated: false, assistantEnabled: false, "/blog", "?page=2", EditorPath)
+        NavLink signIn = SiteNavigation.Links(authenticated: false, "/blog", "?page=2", EditorPath)
             .Single(link => link.Text == "Sign in");
 
         string returnUrl = QueryHelpers.ParseQuery(new Uri("https://site.example" + signIn.Href).Query)["returnUrl"].ToString();
@@ -92,18 +89,18 @@ public sealed class SiteNavigationTests {
 
     [Test]
     public void TheMenuNamesItsLandmark() {
-        string nav = SiteNavigation.Nav(authenticated: true, assistantEnabled: true, "/", string.Empty, EditorPath);
+        string nav = SiteNavigation.Nav(authenticated: true, "/", string.Empty, EditorPath);
 
         MarkupReader document = MarkupReader.Parse(nav);
 
         Assert.That(document.Elements("nav").Single().Attribute("aria-label"), Is.EqualTo(SiteNavigation.Label));
     }
 
-    private static string[] Texts(bool anonymous, bool assistant = false) =>
-        [.. SiteNavigation.Links(!anonymous, assistant, "/", string.Empty, EditorPath).Select(link => link.Text)];
+    private static string[] Texts(bool anonymous) =>
+        [.. SiteNavigation.Links(!anonymous, "/", string.Empty, EditorPath).Select(link => link.Text)];
 
     private static bool Current(string path, string text) =>
-        SiteNavigation.Links(authenticated: true, assistantEnabled: true, path, string.Empty, EditorPath)
+        SiteNavigation.Links(authenticated: true, path, string.Empty, EditorPath)
             .Single(link => link.Text == text)
             .IsCurrent;
 }

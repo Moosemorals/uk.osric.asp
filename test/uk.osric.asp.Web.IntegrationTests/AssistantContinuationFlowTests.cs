@@ -18,7 +18,7 @@ public sealed class AssistantContinuationFlowTests : IntegrationTest {
     internal override AspApplication CreateApplication() =>
         // One step is the whole budget, so the run pauses after its tool call and the second script
         // is the answer the owner's continuation unlocks.
-        new(assistantEnabled: true, chatCompletionClient: _provider, assistantMaxSteps: 1);
+        new(chatCompletionClient: _provider, assistantMaxSteps: 1);
 
     [Test]
     public async Task AStepBudgetPausesTheRunAndContinueCarriesItOnAsync() {

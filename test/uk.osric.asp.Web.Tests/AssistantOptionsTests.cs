@@ -13,12 +13,8 @@ public sealed class AssistantOptionsTests {
     private readonly AssistantOptionsValidator _validator = new();
 
     [Test]
-    public void TheShippedConfigurationIsValidAndSwitchedOff() {
-        Assert.Multiple(() => {
-            Assert.That(TestOptions.Assistant.Enabled, Is.False);
-            Assert.That(TestOptions.Assistant.ApiKey, Is.Null);
-            Assert.That(Validate(TestOptions.Assistant).Failed, Is.False);
-        });
+    public void TheShippedConfigurationIsValid() {
+        Assert.That(Validate(TestOptions.Assistant).Failed, Is.False);
     }
 
     [Test]
@@ -27,7 +23,6 @@ public sealed class AssistantOptionsTests {
             ShippedConfiguration.WithoutSection("Assistant")))!;
 
         Assert.Multiple(() => {
-            Assert.That(error.Message, Does.Contain("Assistant:Enabled is not set."));
             Assert.That(error.Message, Does.Contain("Assistant:MaxSteps is not set."));
             Assert.That(error.Message, Does.Contain("Assistant:MaxSearchMatches is not set."));
         });
@@ -53,9 +48,9 @@ public sealed class AssistantOptionsTests {
     }
 
     [Test]
-    public void EnabledAssistantWithoutAKeyStopsTheSiteWithoutNamingTheKeyInTheError() {
+    public void AMissingKeyStopsTheSiteWithoutNamingItInTheError() {
         ConfigurationException error = Assert.Throws<ConfigurationException>(() => AssistantOptions.FromConfiguration(
-            ShippedConfiguration.Read(("Assistant:Enabled", "true"))))!;
+            ShippedConfiguration.Read()))!;
 
         Assert.Multiple(() => {
             Assert.That(error.Message, Does.Contain("Assistant:ApiKey is not set."));
@@ -66,7 +61,6 @@ public sealed class AssistantOptionsTests {
     [Test]
     public void AProviderThatNeedsNoKeyIsAllowedToHaveNone() {
         AssistantOptions options = AssistantOptions.FromConfiguration(ShippedConfiguration.Read(
-            ("Assistant:Enabled", "true"),
             ("Assistant:RequireApiKey", "false")));
 
         Assert.That(options.ApiKey, Is.Null);
@@ -75,7 +69,6 @@ public sealed class AssistantOptionsTests {
     [Test]
     public void LocalHttpProviderIsAllowedWithoutTheInsecureHttpSwitch() {
         AssistantOptions options = TestOptions.Assistant with {
-            Enabled = true,
             RequireApiKey = false,
             BaseUrl = "http://127.0.0.1:11434/v1",
         };
@@ -86,7 +79,6 @@ public sealed class AssistantOptionsTests {
     [Test]
     public void InsecureRemoteProviderIsRejected() {
         AssistantOptions options = TestOptions.Assistant with {
-            Enabled = true,
             ApiKey = "configured",
             BaseUrl = "http://provider.example",
         };
@@ -97,7 +89,6 @@ public sealed class AssistantOptionsTests {
     [Test]
     public void ACredentialBearingBaseUrlIsRejected() {
         AssistantOptions options = TestOptions.Assistant with {
-            Enabled = true,
             ApiKey = "configured",
             BaseUrl = "https://user:secret@provider.example/v1",
         };
@@ -108,7 +99,6 @@ public sealed class AssistantOptionsTests {
     [Test]
     public void ARelativeChatPathIsRejected() {
         AssistantOptions options = TestOptions.Assistant with {
-            Enabled = true,
             ApiKey = "configured",
             ChatCompletionsPath = "chat/completions",
         };
@@ -119,7 +109,6 @@ public sealed class AssistantOptionsTests {
     [Test]
     public void ABudgetAndOutputOverTheModelWindowAreRejected() {
         AssistantOptions options = TestOptions.Assistant with {
-            Enabled = true,
             ApiKey = "configured",
             MaxContextTokens = 1_000_000,
             MaxOutputTokens = 393_216,
@@ -135,23 +124,12 @@ public sealed class AssistantOptionsTests {
     [Test]
     public void AMemoryLongerThanOneRunsMemoryBlockIsRejected() {
         AssistantOptions options = TestOptions.Assistant with {
-            Enabled = true,
             ApiKey = "configured",
             MaxMemoryChars = 5_000,
             MaxMemoryCharsPerRun = 4_000,
         };
 
         Assert.That(Validate(options).FailureMessage, Does.Contain("MaxMemoryCharsPerRun"));
-    }
-
-    [Test]
-    public void ADisabledAssistantIsNotAskedAboutItsProvider() {
-        AssistantOptions options = TestOptions.Assistant with {
-            Enabled = false,
-            BaseUrl = "http://insecure.example",
-        };
-
-        AssertValid(options);
     }
 
     private void AssertValid(AssistantOptions options) => Assert.That(Validate(options).Failed, Is.False);

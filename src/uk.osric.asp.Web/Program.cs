@@ -102,7 +102,6 @@ internal class Program {
         string[] reservedKeys = [.. settings.At("Pages").List("ReservedPaths", "page keys", minimum: 1)];
         settings.Complete();
         ReservedPaths reserved = new(reservedKeys);
-        bool assistantEnabled = assistant.Enabled;
 
         // Configuration: the database, its options, and the proxy trust the host depends on.
         // The scoped context is what the stores on the request inject; the factory is what lets a
@@ -113,10 +112,6 @@ internal class Program {
             contextLifetime: ServiceLifetime.Scoped,
             optionsLifetime: ServiceLifetime.Singleton);
         builder.Services.AddDbContextFactory<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
-
-        // Registered whether or not the assistant is switched on: the memory store reads its caps from
-        // it, and an account removal sweeps memory even when the assistant is disabled.
-        builder.Services.AddSingleton(assistant);
 
         // The upload limits and the framework's form parser come from the same cap, so an oversized
         // body is refused rather than buffered, and a normal one never spills to a temporary file.
@@ -145,6 +140,8 @@ internal class Program {
         builder.Services.AddHostedService<PageStorageSampler>();
         builder.Services.AddHostedService<PageSessionCleanupService>();
         builder.Services.AddHostedService<ImportWorker>();
+        builder.Services.AddHostedService<RunJournalCleanupService>();
+        builder.Services.AddHostedService<RunWorker>();
 
         // Stuff with their own registration extensions
         builder.Services.AddEditorAuthentication(builder.Environment, authentication);
@@ -159,10 +156,17 @@ internal class Program {
                 AutomaticDecompression = DecompressionMethods.All,
                 PooledConnectionLifetime = TimeSpan.FromMinutes(2),
             });
+        builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        builder.Services.AddHttpClient<IAccountBalanceClient, AccountBalanceClient>(client => {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
         // Options types, sort alphabetically so the list is easy to scan.
         builder.Services.AddSingleton(admin);
         builder.Services.AddSingleton(archive);
+        builder.Services.AddSingleton(assistant);
         builder.Services.AddSingleton(authentication);
         builder.Services.AddSingleton(compile);
         builder.Services.AddSingleton(contentTypes);
@@ -201,9 +205,11 @@ internal class Program {
               services.GetRequiredService<PageSessionCookieOptions>()));
         builder.Services.AddSingleton(services => new PageHealth(services.GetRequiredService<RenderOptions>().AbandonedLimit));
 
+        builder.Services.AddSingleton<AssistantMetrics>();
         builder.Services.AddSingleton<ChartRenderer>();
         builder.Services.AddSingleton<Dashboard>();
         builder.Services.AddSingleton<DiffRenderer>();
+        builder.Services.AddSingleton<IAssistantFetcher, AssistantFetcher>();
         builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
         builder.Services.AddSingleton<IPageFetcher, PageFetcher>();
         builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
@@ -220,12 +226,18 @@ internal class Program {
         builder.Services.AddSingleton<PageImageBuilder>();
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();
+        builder.Services.AddSingleton<PagePathPolicy>();
         builder.Services.AddSingleton<PageSaver>();
         builder.Services.AddSingleton<PageStorageRefresh>();
+        builder.Services.AddSingleton<PageToolExecutor>();
+        builder.Services.AddSingleton<RunContinuationCoordinator>();
+        builder.Services.AddSingleton<RunQueue>();
+        builder.Services.AddSingleton<RunRegistry>();
+        builder.Services.AddSingleton<ToolApprovalCoordinator>();
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
-        // Registered whether or not the assistant is enabled: the tables are migrated either way, and
-        // `users remove` sweeps an account's memories even when the assistant is switched off.
+        // Registered as a scoped store so `users remove` can sweep an account's memories with the
+        // rest of its rows.
         builder.Services.AddScoped<IMemoryStore, SqliteMemoryStore>();
         // The listing judges an image's state against the running build, so the store is told which
         // one that is; a page whose image came from an earlier build says Stale until it is requested.
@@ -241,30 +253,7 @@ internal class Program {
         builder.Services.AddScoped<PageArchiveReader>();
         builder.Services.AddScoped<PageEditor>();
         builder.Services.AddScoped<PageRenderer>();
-
-        if (assistantEnabled) {
-            builder.Services.AddHostedService<RunWorker>();
-            builder.Services.AddHostedService<RunJournalCleanupService>();
-
-            builder.Services.AddSingleton<AssistantMetrics>();
-            builder.Services.AddSingleton<IAssistantFetcher, AssistantFetcher>();
-            builder.Services.AddSingleton<PageToolExecutor>();
-            builder.Services.AddSingleton<PagePathPolicy>();
-            builder.Services.AddSingleton<RunQueue>();
-            builder.Services.AddSingleton<RunRegistry>();
-            builder.Services.AddSingleton<ToolApprovalCoordinator>();
-            builder.Services.AddSingleton<RunContinuationCoordinator>();
-
-            builder.Services.AddScoped<RunProcessor>();
-
-            builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
-                client.Timeout = Timeout.InfiniteTimeSpan;
-            }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-
-            builder.Services.AddHttpClient<IAccountBalanceClient, AccountBalanceClient>(client => {
-                client.Timeout = Timeout.InfiniteTimeSpan;
-            }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-        }
+        builder.Services.AddScoped<RunProcessor>();
 
         builder.Services.AddSingleton<IMetricsSource>(services => {
             // The per-query deadline belongs to the source: one slow query must not hold the page.
@@ -310,10 +299,10 @@ internal class Program {
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
-            if (assistantEnabled) {
-                IConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IConversationStore>();
-                await assistantConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
-            }
+            // A restart interrupts a provider request rather than resuming it, so the runs that were
+            // in flight are closed out before anything can answer for them.
+            IConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+            await assistantConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
             IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
             IReadOnlyList<PagePath> replaced = await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
             foreach (PagePath key in replaced) {
@@ -452,54 +441,49 @@ internal class Program {
             ResponseWriter = ReportWriter.WriteAsync,
         });
 
-        if (assistantEnabled) {
-            app.MapGet("/assistant", AssistantEndpoint.ListAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant", AssistantEndpoint.ListAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapGet("/assistant/{id:long}", AssistantEndpoint.ConversationAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant/{id:long}/messages", AssistantEndpoint.MessagesAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapGet("/assistant/{id:long}/messages/{messageId:long}/content", AssistantEndpoint.MessageContentAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapGet("/assistant/{id:long}/events", AssistantEndpoint.EventsAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant/{id:long}/stop", AssistantEndpoint.StopAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapPost("/assistant/{id:long}/runs/{runId}/tool-calls/{toolCallId}/approval", AssistantEndpoint.ApprovalAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapPost("/assistant/{id:long}/runs/{runId}/continue", AssistantEndpoint.ContinueAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapPost("/assistant/{id:long}/options", AssistantEndpoint.OptionsAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapGet("/assistant/{id:long}/delete", AssistantEndpoint.DeleteConfirmationAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant/{id:long}/delete", AssistantEndpoint.DeleteAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            // The owner's memory: a page of its own beside the conversations. `{id:long}` binds digits,
-            // so `/assistant/memory` never competes with `/assistant/{id:long}`.
-            app.MapGet(AssistantMemoryEndpoint.Path, AssistantMemoryEndpoint.ListAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant/memory/{id:long}", AssistantMemoryEndpoint.SaveAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapGet("/assistant/memory/{id:long}/forget", AssistantMemoryEndpoint.ForgetConfirmationAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant/memory/{id:long}/forget", AssistantMemoryEndpoint.ForgetAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        } else {
-            app.MapMethods("/assistant", ["GET", "POST", "HEAD"], AssistantDisabled);
-            app.MapMethods("/assistant/{**path}", ["GET", "POST", "HEAD"], AssistantDisabled);
-        }
+        app.MapGet("/assistant", AssistantEndpoint.ListAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant", AssistantEndpoint.ListAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/assistant/{id:long}", AssistantEndpoint.ConversationAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant/{id:long}/messages", AssistantEndpoint.MessagesAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/assistant/{id:long}/messages/{messageId:long}/content", AssistantEndpoint.MessageContentAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapGet("/assistant/{id:long}/events", AssistantEndpoint.EventsAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant/{id:long}/stop", AssistantEndpoint.StopAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapPost("/assistant/{id:long}/runs/{runId}/tool-calls/{toolCallId}/approval", AssistantEndpoint.ApprovalAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapPost("/assistant/{id:long}/runs/{runId}/continue", AssistantEndpoint.ContinueAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapPost("/assistant/{id:long}/options", AssistantEndpoint.OptionsAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/assistant/{id:long}/delete", AssistantEndpoint.DeleteConfirmationAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant/{id:long}/delete", AssistantEndpoint.DeleteAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        // The owner's memory: a page of its own beside the conversations. `{id:long}` binds digits,
+        // so `/assistant/memory` never competes with `/assistant/{id:long}`.
+        app.MapGet(AssistantMemoryEndpoint.Path, AssistantMemoryEndpoint.ListAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant/memory/{id:long}", AssistantMemoryEndpoint.SaveAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/assistant/memory/{id:long}/forget", AssistantMemoryEndpoint.ForgetConfirmationAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant/memory/{id:long}/forget", AssistantMemoryEndpoint.ForgetAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         // The scrape target is Prometheus inside the podman network; /metrics is reserved so a page
         // cannot claim the key, and Caddy answers 404 for it on the public origin.
         app.MapPrometheusScrapingEndpoint("/metrics");
@@ -507,26 +491,11 @@ internal class Program {
         // by page code that never expected it.
         app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.HandleAsync);
 
-        // One line so a restart is visible without reading the framework's startup chatter, and so a
-        // host that came up with the assistant switched off says so.
+        // One line so a restart is visible without reading the framework's startup chatter.
         app.Services.GetRequiredService<ILoggerFactory>()
             .CreateLogger<Program>()
-            .LogInformation("uk.osric.asp starting in {EnvironmentName} with the assistant {AssistantState}",
-                app.Environment.EnvironmentName, assistantEnabled ? "enabled" : "disabled");
+            .LogInformation("uk.osric.asp starting in {EnvironmentName}", app.Environment.EnvironmentName);
 
         await app.RunAsync();
-    }
-
-    private static Task AssistantDisabled(HttpContext context) {
-        bool isAuthenticated = context.User.Identity?.IsAuthenticated == true;
-        ErrorMessage message = new(
-            "assistant.disabled",
-            "The assistant is not available",
-            isAuthenticated
-                ? "The assistant is turned off on this site. Turn it on with Assistant:Enabled in configuration, then restart."
-                : "The assistant is turned off on this site.",
-            ErrorMessage.DefaultRemedies(isAuthenticated, EditorPaths.Of(context.RequestServices)));
-
-        return ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, message);
     }
 }

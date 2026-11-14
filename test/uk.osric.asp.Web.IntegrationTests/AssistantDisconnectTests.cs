@@ -22,7 +22,6 @@ public sealed class AssistantDisconnectTests : IntegrationTest {
     private readonly StalledClient _provider = new();
 
     internal override AspApplication CreateApplication() => new(
-        assistantEnabled: true,
         chatCompletionClient: _provider,
         settings: new Dictionary<string, string?> {
             ["Assistant:HeartbeatSeconds"] = "1",

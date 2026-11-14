@@ -320,8 +320,7 @@ internal static class ShellViews {
 
     private static async Task<string> AssistantListAsync() {
         DefaultHttpContext context = AuthenticatedContext("/assistant");
-        await AssistantEndpoint.ListAsync(context, new ShellConversationStore(), new TestAntiforgery(),
-            TestOptions.Assistant with { Enabled = true });
+        await AssistantEndpoint.ListAsync(context, new ShellConversationStore(), new TestAntiforgery());
         return await TestHttp.ReadBodyAsync(context);
     }
 

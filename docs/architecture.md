@@ -301,6 +301,6 @@ stay a map:
 - [The shell](shell.md) — the document shell, layouts, error responses, and authentication.
 - [Storage](storage.md) — revisions, page state, and importing and exporting an archive.
 - [Metrics and the dashboard](metrics.md) — the instruments and `/status`.
-- [AI page assistant](assistant.md) — the optional `/assistant` subsystem.
+- [AI page assistant](assistant.md) — the `/assistant` subsystem.
 - [Deployment](../deploy/README.md) — quadlets, Caddy, the first release and rollback.
 - [Running it](../deploy/operations.md) — limits, storage, backups, metrics and proxy trust.

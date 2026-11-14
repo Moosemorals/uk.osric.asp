@@ -35,7 +35,7 @@ this review keeps the long name it saw.
 | 6 | Low | `AuthTickets` holds live bearer keys; database read access is session takeover, and restoring an old database plus the key-ring volume revives old sessions. | Accepted: inherent to server-side sessions. Mitigate operationally with file permissions, restricted backups and treating restore as session revival. |
 | 7 | Low | The hourly sweep had no exception handling, so a SQLite error stopped the host (`BackgroundServiceExceptionBehavior.StopHost`). | Fixed: the sweep logs and retries on the next tick. |
 | 8 | Low | A generated key collision fails the insert rather than retrying. | Accepted: about 2^-128 per insert, and it fails closed. |
-| 9 | Low | The assistant defaults to `AlwaysApprove`, so model-driven page writes execute unapproved when the agent is enabled. | Accepted: the agent is off by default and owner-scoped; changing the default is a product decision. |
+| 9 | Low | The assistant defaults to `AlwaysApprove`, so model-driven page writes execute unapproved. | Accepted: every account is an owner and the tools are owner-scoped, so the approval default does not widen who can write; changing it is a product decision. Since DEC-301 the assistant always runs, so this exposure no longer depends on a feature being switched off. |
 
 ## How an attacker would try to slip by
 

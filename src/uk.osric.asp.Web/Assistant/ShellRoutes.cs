@@ -34,7 +34,7 @@ internal static class ShellRoutes {
             "Uploads a page archive, shows what it would change and applies it all or nothing."),
         new("/admin/restore", "GET, POST", "the owner",
             "Restores every page the release ships with from its bundled source, showing what would change and then what it changed."),
-        new("/assistant", "GET, POST, HEAD", "the owner; only while Assistant:Enabled is true",
+        new("/assistant", "GET, POST, HEAD", "the owner",
             "The page assistant: conversations, transcript, run stream, tool approvals, the owner's memory list and the pause a run takes when it runs out of budget."),
         new("/admin/scrub", "GET, POST", "the owner",
             "Scrubs a deleted page and every revision it retained, once the page's key is typed to confirm."),

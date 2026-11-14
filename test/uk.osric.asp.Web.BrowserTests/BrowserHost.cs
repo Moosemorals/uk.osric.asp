@@ -161,7 +161,6 @@ internal sealed class BrowserHost : IAsyncDisposable {
         Dictionary<string, string?> environment = new() {
             ["ASPNETCORE_ENVIRONMENT"] = "Staging",
             ["ConnectionStrings__Storage"] = $"Data Source={Path.Combine(_directory, "storage.db")}",
-            ["Assistant__Enabled"] = "true",
             ["Assistant__ApiKey"] = settings.ApiKey ?? "browser-test-key",
             ["Assistant__BaseUrl"] = (settings.ProviderBaseUrl ?? new Uri(Provider!.BaseUrl)).ToString(),
             ["Assistant__Model"] = settings.Model,

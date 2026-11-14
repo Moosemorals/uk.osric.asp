@@ -24,12 +24,13 @@ PublishPort=127.0.0.1:8080:8080
 AddHost=moosemorals.com:host-gateway
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment="ConnectionStrings__Storage=Data Source=/data/storage.db"
-# The outbound page assistant's configuration, off until that file says otherwise; it holds
-# Assistant__Enabled=true and Assistant__ApiKey=..., never put the provider key in the image or appsettings.
+# The outbound page assistant's configuration; it must hold Assistant__ApiKey=..., and never put the
+# provider key in the image or appsettings.
 # %h is a systemd specifier, expanded when the generated unit runs, so this is the deploy user's own
 # file. There is no optional form: quadlet's EnvironmentFile= becomes `podman run --env-file`, which
 # rejects a missing path and does not understand systemd's `-` prefix. `make deploy` therefore
-# creates the file once, empty and mode 0600, so a host that never enables the assistant still starts.
+# creates the file once, empty and mode 0600, so the path exists; fill it in before the first start,
+# because the host refuses to start without a key.
 EnvironmentFile=%h/.config/uk.osric.asp/assistant.env
 # The host's own settings override: `Pages:ContentTypes` without a rebuild. It is mounted read-only
 # because the map is host configuration and no page, editor or assistant may write it; a file bind
