@@ -25,15 +25,13 @@ stylesheet or writes its own whole document, and a library is never one at all. 
 
 ## Bootstrap route
 A shell route that exists so the site can be repaired when a page is what is broken: `/login` and
-`/logout`, `/status` with its chart, `/admin/changes`, and the two recovery routes `/admin/restore`
-and `/admin/scrub`.
+`/logout`, `/status` with its chart, and the two recovery routes `/admin/restore` and `/admin/scrub`.
 
 **Not** a view that has not been ported yet. A route for a view a page could serve today is a page,
 and a route for one a page cannot serve yet has a job behind it (DEC-210); bootstrap is the reason
 that is never in the page column, because a page cannot answer when the page pipeline is what failed.
-**Owner:** shell — `LoginEndpoint`, `StatusEndpoint`, `ChartEndpoint`, `ChangesEndpoint`,
-`RestoreEndpoint` and `ScrubEndpoint`; the audit is in
-[architecture](architecture.md#where-a-view-lives).
+**Owner:** shell — `LoginEndpoint`, `StatusEndpoint`, `ChartEndpoint`, `RestoreEndpoint` and
+`ScrubEndpoint`; the audit is in [architecture](architecture.md#where-a-view-lives).
 
 ## Budget
 The process-wide limit on how long a render or compile may take and how many may run at once,
@@ -46,6 +44,14 @@ pairs (DEC-141, DEC-159).
 
 **Owner:** pages — `PageBudget`, `Pages:Render:TimeoutSeconds`, `Pages:Render:Slots`,
 `Pages:Render:MaxBodyChars`, `Pages:Compile:TimeoutSeconds` and `Pages:Compile:Slots`.
+
+## Build fact
+Something the image carries that describes the build serving it — the changelist and the XML
+documentation — served by a shell route (`/admin/changes`, `/admin/reference`) because a page cannot
+read a file beside the assembly.
+
+**Not** a page, a seed or an asset. **Owner:** shell — `ChangesEndpoint` and `ReferenceEndpoint`; the
+audit is in [architecture](architecture.md#where-a-view-lives).
 
 ## Capability
 An ability the host grants one render and withholds from the next: storage, the visitor's session,

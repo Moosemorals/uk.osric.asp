@@ -23,7 +23,7 @@ tool calls receive synthetic results rather than being replayed to the provider.
 
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
 endpoint. A run sends the system prompt, conversation transcript, and page source read
-by tools to that provider. No provider SDK is used. The tools are eighteen types under
+by tools to that provider. No provider SDK is used. The tools are nineteen types under
 `Assistant/Tools`, each carrying its name, its description, its argument schema, its approval flag,
 the verb its refusals use, whether it changes a page and its own run, beside the code that runs it;
 `ToolRegistry` is the only list, so the model's definitions, the dispatcher and the approval gate
@@ -78,14 +78,23 @@ and path-policy-checked, it refuses a hash whose source the live page already ho
 scrub. That supersedes the rule the assistant plan recorded, that restoring is the owner's alone:
 `write_page` already restored, by retyping a source read through a bounded argument, so refusing the
 hash-shaped form kept the lossy version and dropped the faithful one.
+The page contract's own XML documentation is the `reference` tool's corpus. `reference
+type="IPageStorage"` answers a type's summary, remarks and every member with its signature,
+parameters and returns; `reference query="cookie"` searches names and summaries when the model cannot
+name the type and answers the type that holds each match. It reads `uk.osric.asp.Sdk` only, because
+that is what a page may use, and refuses a type from another assembly by name. It is a read, needs no
+approval, and its matches are bounded by `Assistant:DefaultListLimit` and `MaxListLimit`; the whole
+result is still under the tool result cap. The prompt names both forms (`page-author-v28`), and the
+human page at `/admin/reference` covers all four assemblies.
+
 There is no process, filesystem, git, package, or other outbound-network tool. The per-conversation
 approval mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on
 each flagged call. Unresolved, stale, stopped, or restarted approvals never execute.
 
 The tools also see the shell's own files, which are the site's routes (DEC-198). Every key in
-`Pages:ReservedPaths` — `/admin/changes`, `/admin/export`, `/admin/import`, `/admin/restore`,
-`/admin/scrub`, `/assistant`, `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics` and
-`/status` — is listed, searched and readable: `cat` and `read_page` return a host-written record of the route's methods, access and
+`Pages:ReservedPaths` — `/admin/changes`, `/admin/export`, `/admin/import`, `/admin/reference`,
+`/admin/restore`, `/admin/scrub`, `/assistant`, `/favicon.ico`, `/heath`, `/login`, `/logout`,
+`/metrics` and `/status` — is listed, searched and readable: `cat` and `read_page` return a host-written record of the route's methods, access and
 purpose rather than source, because the running image carries the assembly and not the source
 tree, and `ShellRoutesTests` pins the records to `ReservedPaths.Default` in both directions.
 Every `list_pages` row and `ls -l` line carries the assistant's own permission in a long

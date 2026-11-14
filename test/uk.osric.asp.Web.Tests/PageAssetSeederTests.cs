@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/reference.css", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {

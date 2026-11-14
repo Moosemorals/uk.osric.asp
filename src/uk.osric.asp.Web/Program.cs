@@ -19,6 +19,7 @@ using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Configuration;
+using uk.osric.asp.Web.Documentation;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Health;
@@ -230,6 +231,10 @@ internal class Program {
         builder.Services.AddSingleton<PageSaver>();
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton<PageToolExecutor>();
+        // Reads the XML documentation this build carries, once, when a page or the tool first asks.
+        builder.Services.AddSingleton(services => new ReferenceLibrary(
+            AppContext.BaseDirectory,
+            services.GetRequiredService<ILogger<ReferenceLibrary>>()));
         builder.Services.AddSingleton<RunContinuationCoordinator>();
         builder.Services.AddSingleton<RunQueue>();
         builder.Services.AddSingleton<RunRegistry>();
@@ -404,6 +409,10 @@ internal class Program {
 
         app.MapGet("/admin/changes", ChangesEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
+        // Public despite the key: the reference describes the build serving the request, as /about
+        // does, and the repository is published to be read.
+        app.MapGet("/admin/reference", ReferenceEndpoint.IndexAsync);
+        app.MapGet("/admin/reference/{slug}", ReferenceEndpoint.AssemblyAsync);
         app.MapGet("/admin/restore", RestoreEndpoint.PreviewAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/admin/restore", RestoreEndpoint.RestoreAsync)

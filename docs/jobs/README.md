@@ -51,8 +51,9 @@ editor — is what is left. IDEA-033 came out of the
 [page-first re-scope](../plans/page-first.md) of 2026-11-14 (DEC-291): the memory page the plan first
 moved needs the assistant's own store, so the capability a page actually lacks is somewhere to keep
 something for a signed-in account. IDEA-034 came out of the owner's question of 2026-11-14: the
-analyzers work turned the XML documentation on and the image carries it, and nothing reads it.
-IDEA-035 came out of the same day's follow-up question about removing `Assistant:Enabled`: four
+analyzers work turned the XML documentation on and the image carries it, and nothing reads it; it
+closed the same day by [its plan](../plans/xml-reference.md) (DEC-302). IDEA-035 came out of the
+same day's follow-up question about removing `Assistant:Enabled`: four
 places read the flag, but the key rule is what the tests and the deployment actually depend on, and
 it closed the same day (DEC-301).
 
@@ -71,7 +72,6 @@ it closed the same day (DEC-301).
 | [IDEA-030](IDEA-030.md) | — | M | Every view writes its own navigation: the shell, the admin, the assistant and the seeds each assemble the same links |
 | [IDEA-031](IDEA-031.md) | — | S | Some policy is still a constant in code: password and user-name length, the security headers, the page API allow-list, and the internal retry and sweep periods |
 | [IDEA-033](IDEA-033.md) | — | L | A page has no persistent per-account store: `IPageStorage` is shared by every visitor, `IPageSession` goes when the visitor signs out, and nothing keeps anything for a signed-in account |
-| [IDEA-034](IDEA-034.md) | — | M | The XML documentation is built and packed, and nothing reads it: no reference page for the build that is serving the site, and the page assistant cannot read the page contract's own words |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -170,6 +170,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | [IDEA-035](../decisions.md) | The assistant always runs: `Assistant:Enabled`, the disabled note, the `404` fallback and the key exemption are gone, and `Assistant:ApiKey` is required at startup. DEC-301 |
 | [ARCH-16](../plans/archive/page-store-reader.md) | The assistant's tools and its virtual shell read through one `PageStoreReader`: the tree with its facts, the sources in a scope, one key, a history and one revision. `PageTree` and `PageScope` moved to `Core`, and the loose lists, source walks and scope copies are gone. DEC-274–DEC-280 |
 | [IDEA-005](../plans/page-libraries.md) | Pages share code: a page is text, a page with code or a **library**, and a library is bound by an ordinary `using` — a page's own directives name the namespaces it declares, the closure is resolved to a fixed point and each library compiles as its own syntax tree in the page's compilation. A library is checked on save, never served, never wrapped and never an asset, and a dependent page goes stale when the library's head moves. The seeded `/_lib/document` writes the document the seeded `/_layout` uses, and `Sdk`'s `PageDocument` is `Web`'s `ShellDocument`. See [the plan](../plans/page-libraries.md) |
+| [IDEA-034](../plans/xml-reference.md) | The reference: the XML documentation this build carries is served at `/admin/reference` for all four assemblies and read by the assistant through a `reference` tool over the page contract; the corpus is read once per process, anchors are stable slugs, `<inheritdoc/>` copies down when the source is ours, and the help page links the types and members it names. DEC-302 |
 | [IDEA-019](../decisions.md) | Every request value survives: `QueryValues` and `FormValues` keep each name's values in order, and the API policy admits encoding, SHA-2 hashing, HMAC signing, a random source and a constant-time compare. DEC-257 |
 | [IDEA-017](../plans/archive/page-editor.md) | The editor is a page: `IPageEditor`, the read state, the seeded `/pages` editor and its module, and `/edit` retired to an ordinary key with scrub moved to `/admin/scrub`. See [the plan](../plans/archive/page-editor.md) |
 | [IDEA-028](../decisions.md) | `/admin/restore` lists every seed's state, restores each changed, missing or tombstoned one in a single POST and reports every outcome; a matching seed and a page the owner made are untouched. DEC-256 |

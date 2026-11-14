@@ -52,7 +52,8 @@ internal sealed class ToolRegistry {
         new RememberTool(),
         new UpdateMemoryTool(),
         new ForgetMemoryTool(),
-        new SearchMemoriesTool());
+        new SearchMemoriesTool(),
+        new ReferenceTool());
 
     /// <summary>Every tool, in declaration order.</summary>
     public IReadOnlyList<AssistantTool> All { get; }

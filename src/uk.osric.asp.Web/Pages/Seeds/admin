@@ -4,5 +4,6 @@
 <ul class="pages" role="list">
 <li><a href="/admin/import">Import pages</a></li>
 <li><a href="/admin/export">Export pages</a></li>
+<li><a href="/admin/reference">Reference</a></li>
 <li><a href="/status">Status</a></li>
 </ul>

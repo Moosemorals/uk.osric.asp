@@ -120,6 +120,7 @@ clean compile does not hide them, and they never stop a page being served (DEC-2
 | The URL rule a restricted Markdown render applies | `Core.Markdown`, as `LinkPolicy` |
 | Markdown parsing and HTML generation | `Runtime`, as `MarkdownRenderer` and its renderers; the page capability is `Sdk/IMarkdownRenderer` |
 | The `/status` charts, including the palette and the presentation attributes that make one legible on its own | `Core.Charting`, as `LineChart`, `Heatmap`, `StackedAreaChart` and `ChartChrome` |
+| Reading the XML documentation the image carries | `Web`, in `Documentation/`: the reader, the normaliser, the copy-down of `inheritdoc` and the routes; the stylesheet is embedded, and a page cannot read a file beside the assembly |
 | Text whose case a key ignores — the page key and an account name | `Core.Text`, as `LowercaseText` |
 
 When something in the shell needs a decision from a pure rule, pass the data in and return a value;
@@ -134,13 +135,14 @@ is the worked example: it is the seeded `/pages`, which is offered `IPageEditor`
 
 ### Where a view lives
 
-> **Anything a page can serve is a page.** A route stays in the shell only for one of three reasons,
+> **Anything a page can serve is a page.** A route stays in the shell only for one of four reasons,
 > and "we have not got to it" is not one of them: it is a job.
 
 | Route | Why it is not a page | Where that is recorded |
 | --- | --- | --- |
 | `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | DEC-210 |
-| `/status`, `/status/chart`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load starts here, and the changelist is a file the image carries, which a page cannot read | DEC-210, DEC-255 |
+| `/status`, `/status/chart` | **Bootstrap.** Diagnosing why a page did not load starts here | DEC-210 |
+| `/admin/changes`, `/admin/reference` | **The build's own facts.** Both read a file the image carries — the changelist and the XML documentation — which a page cannot read | DEC-255, DEC-302 |
 | `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | DEC-210, DEC-256 |
 | `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | DEC-210 |
 | `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** A live run needs a stream and the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [ARCH-13](jobs/ARCH-13.md), [IDEA-025](jobs/IDEA-025.md) |

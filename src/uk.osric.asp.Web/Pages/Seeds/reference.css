@@ -1,0 +1,111 @@
+/* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
+/* SPDX-License-Identifier: MIT */
+
+/* The reference's own sheet. It styles a long document: the type index, the namespace labels, the
+   signature lines and the parameter lists. Nothing here is needed to read the page. */
+
+.reference-assemblies {
+    list-style: none;
+    margin: 0 0 1.5rem;
+    padding: 0;
+}
+
+.reference-assemblies li {
+    margin-block: 0.75rem;
+}
+
+.reference-count {
+    color: #555;
+}
+
+.type-index {
+    border-block: 1px solid #ccc;
+    margin-block: 1.5rem;
+    padding-block: 0.5rem 1rem;
+}
+
+.type-index .namespace-name {
+    font-weight: 600;
+    margin-block: 0.75rem 0.2rem;
+}
+
+.type-index ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.type-index li {
+    display: inline-block;
+    margin-inline: 0 1rem;
+}
+
+.namespace-name {
+    color: #333;
+    font-weight: 600;
+    margin-block: 2rem 0.25rem;
+    text-transform: uppercase;
+    font-size: 0.9em;
+    letter-spacing: 0.05em;
+}
+
+.type {
+    border-top: 1px solid #ddd;
+    padding-block-start: 0.5rem;
+    margin-block-start: 1.5rem;
+}
+
+.member {
+    margin-block: 1rem 1.5rem;
+    padding-inline-start: 1rem;
+    border-inline-start: 2px solid #eee;
+}
+
+.member h3 .kind {
+    color: #666;
+    font-size: 0.75em;
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.doc-remarks,
+.doc-returns,
+.doc-value {
+    color: #333;
+}
+
+.parameters dt,
+.type-parameters dt,
+.exceptions dt {
+    font-weight: 600;
+}
+
+.parameters dd,
+.type-parameters dd,
+.exceptions dd {
+    margin-inline-start: 1.5rem;
+    margin-block-end: 0.5rem;
+}
+
+.inherited {
+    color: #555;
+    font-style: italic;
+}
+
+/* A link that leaves the site. The empty alternative text keeps the glyph out of the link's name. */
+a[href^="http"]::after {
+    content: " ➸" / "";
+    white-space: nowrap;
+}
+
+.doc-table {
+    border-collapse: collapse;
+}
+
+.doc-table th,
+.doc-table td {
+    border: 1px solid #ccc;
+    padding: 0.25rem 0.5rem;
+    text-align: start;
+}
