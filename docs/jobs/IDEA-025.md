@@ -18,8 +18,9 @@ the conversation page is a transcript, a textarea and a button; the approval car
 that is page-shaped. Two things are not:
 
 1. **A live run is a stream.** The page subscribes to `GET /assistant/{id}/events` and renders deltas
-   as they arrive, so a long answer appears while it is being written. A page's body is buffered and
-   sent once, which is [ARCH-13](ARCH-13.md).
+   as they arrive, so a long answer appears while it is being written. A page can now stream its own
+   response ([the streaming plan](../plans/page-streaming.md)), so the response shape is no longer the
+   blocker; the run's journal, its live subscribers and its lifetime are.
 2. **Starting, stopping and approving are host actions.** A message queues a run (`RunQueue`), a stop
    signals the registry (`RunRegistry`), and an approval resolves a waiter in
    `ToolApprovalCoordinator` — three in-memory singletons a page cannot reach, and three state changes
@@ -38,7 +39,7 @@ movable **yet**. This job is what would move it.
 2. **A stream is not the only way to watch a run.** A page can already answer per request, and
    `/status` proves how far that goes without a script: a run view that reloads on its own — a
    `<meta http-equiv="refresh" content="2">`, or a `?run={id}` link the browser follows — would show
-   the transcript growing without any of ARCH-13's work. It is worse than a stream (a whole document
+   the transcript growing without a stream. It is worse than a stream (a whole document
    every two seconds, and the textarea's draft would need care), and it is the cheap version worth
    having before the expensive one, as the same site's "no JavaScript where markup will do" rule
    argues (DEC-81).
@@ -58,5 +59,5 @@ would be an ordinary page today. The live stream is the feature, so this job is 
 not about dropping it.
 
 **Origin:** [the page-first plan](../plans/page-first.md) and DEC-210, which named this route as one of
-the shell's three exceptions with a job behind it. ARCH-13 is the same constraint from the contract's
-side.
+the shell's three exceptions with a job behind it. The streaming plan closed ARCH-13; what is left is
+this job's.

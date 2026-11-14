@@ -9,6 +9,7 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
         <li><a href="#editor">The editor</a></li>
         <li><a href="#fragment">A page with code is a fragment</a></li>
         <li><a href="#layout">Layout and title</a></li>
+        <li><a href="#streaming">Streaming a response</a></li>
         <li><a href="#head-and-scripts">Stylesheets, head and scripts</a></li>
         <li><a href="#syntax">Template syntax</a></li>
         <li><a href="#context">Context and capabilities</a></li>
@@ -162,6 +163,37 @@ edit the document itself from the page list, and <code>/admin/restore</code> put
 <p>The seeded <code>/_layout</code> is the full version of that page, and you can edit or restore both
 from the page list.</p>
 
+<h2 id="streaming">Streaming a response</h2>
+<p>A page sends its body when its handler returns. To send part of it earlier, call
+<code>await ctx.FlushAsync()</code>. The first flush is the commit point: the status, content type and
+headers are final, the session and antiforgery cookies are written, and the response starts. Later
+writes are buffered until the next flush, and whatever is left is sent when the handler returns.</p>
+<p>A streaming page is served alone, so clear the layout and write your own document before the first
+flush:</p>
+<pre class="source" tabindex="0"><code>&lt;% var layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
+   layout.Layout = null; %&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;&lt;head&gt;&lt;title&gt;Progress&lt;/title&gt;&lt;/head&gt;&lt;body&gt;
+&lt;% await ctx.FlushAsync(); %&gt;
+&lt;p&gt;First&lt;/p&gt;
+&lt;% await ctx.FlushAsync(); %&gt;
+&lt;p&gt;Second&lt;/p&gt;
+&lt;/body&gt;&lt;/html&gt;</code></pre>
+<p>Once the response is committed, <code>ctx.SetStatus</code>, <code>ctx.SetContentType</code>,
+<code>ctx.SetHeader</code>, <code>ctx.AllowScripts</code>, <code>ctx.Redirect</code> and reading
+<code>ctx.AntiforgeryField</code> throw. Read the antiforgery field and write any new session state
+before the first flush: their cookies can no longer be sent afterwards.</p>
+<p>A failure after the commit cannot become an error page. An exception is logged and the response is
+truncated; the render deadline truncates it too instead of answering <code>504</code>. A
+<code>HEAD</code> request commits but sends no body, and a streamed response has no
+<code>Content-Length</code>.</p>
+<p><code>Pages:Render:MaxBodyChars</code> still caps what is buffered before the first flush. After the
+commit the body is not charged, because it is already on its way to the visitor. The render slot and
+deadline still apply, so a stream is short unless the host's budget says otherwise.</p>
+<p>A server-sent-events page sets <code>text/event-stream</code>, adds
+<code>X-Accel-Buffering: no</code> with <code>ctx.SetHeader</code>, writes one event at a time and
+flushes after each. The render deadline still ends it.</p>
+
 <h2 id="head-and-scripts">Stylesheets, head and scripts</h2>
 <p>The page's key chooses its initial content type from the host's extension map; an unmapped key is
 HTML. <code>ctx.SetContentType("text/css; charset=utf-8")</code> overrides it when a page needs to
@@ -252,7 +284,9 @@ response, and nothing else:</p>
     <li><code>ctx.Log</code>, <code>ctx.LogWarning</code> and <code>ctx.LogError</code> write to the
     page log, tagged with this page's key.</li>
     <li><code>ctx.SetStatus</code>, <code>ctx.SetContentType</code>, <code>ctx.SetHeader</code>,
-    <code>ctx.Redirect</code> and <code>ctx.RedirectToLogin</code> shape the response.</li>
+    <code>ctx.Redirect</code> and <code>ctx.RedirectToLogin</code> shape the response.
+    <code>ctx.FlushAsync()</code> commits the response and sends what has been written; see
+    <a href="#streaming">Streaming a response</a>.</li>
     <li><code>ctx.AllowScripts</code> permits same-origin external scripts;
     <code>ctx.AntiforgeryField</code> carries the hidden input a form must include.</li>
     <li><code>ctx.AssetUrl(href)</code> versions a bare site-relative link when its target is a live

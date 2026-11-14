@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Approved 2026-11-14; implementation in progress on `page-streaming` |
+| Status | Implemented 2026-11-14; `make check` is green. Awaiting the owner's merge |
 | Size | Medium — one contract member, one response sink, a commit rule, a disconnect guard and their tests |
 | Spike | None. `SimpleContext` already buffers through one writer, the endpoint already shapes the whole response in one place, and the render already owns a deadline and an abandonment switch |
 | Decisions | Named in prose below; numbers are taken from `trunk` when the work merges (`DEC-09`, DEC-281) |
-| Backlog | [ARCH-13](../jobs/ARCH-13.md) — a page cannot stream — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
+| Backlog | ARCH-13 — a page cannot stream (now [closed](../jobs/README.md#closed)) — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
 
 ## The short version
 
@@ -387,9 +387,9 @@ status, headers, `Content-Length`, clean error page and clean `504`; `HEAD` reta
 | Suite | Test | Proves |
 | --- | --- | --- |
 | Web | `AFlushingPageWritesBeforeTheHandlerReturns` | The first chunk is in the response body while the page is still awaiting, not only when it finishes |
-| Web | `TheFirstFlushAppliesTheDefaultStatusContentTypeAndHeaders` | A page that set nothing gets `200`, the key's content type, `no-store` and the shell's security headers |
+| Web | `TheFirstFlushAppliesTheDefaultResponse` | A page that set nothing gets `200`, the key's content type, `no-store` and the shell's security headers |
 | Web | `TheFirstFlushAppliesWhatThePageSet` | Status, content type, an `X-` header and `AllowScripts` are on the response before the handler returns |
-| Web | `AnEmptyFirstFlushCommitsTheHeaders` | A page can start a response before its first event |
+| Web | `AnEmptyFirstFlushStartsTheResponseWithoutWritingABody` | A page can start a response before its first event |
 | Web | `AFlushingPageIsRefusedWhileItIsWrapped` | The message names the page and the layout, and the error names the layout opt-out |
 | Web | `ANonHtmlPageMayStreamWithALayoutNameUntouched` | The wrapping check is HTML-and-layout, not layout alone |
 | Web | `APageThatClearsItsLayoutStreamsWithoutChrome` | The committed page is served alone and the chain is never entered |
@@ -399,11 +399,11 @@ status, headers, `Content-Length`, clean error page and clean `504`; `HEAD` reta
 | Web | `AntiforgeryFieldAfterTheFlushThrows` | The token cannot be minted after the headers are gone |
 | Web | `AFirstSessionWriteAfterTheFlushIsRefused` | No orphan row and no form that cannot be verified |
 | Web | `ASessionWriteWithAnExistingCookieAfterTheFlushIsAllowed` | The refusal is about the missing cookie, not about streaming |
-| Web | `AStreamedWriteIsStillHtmlEncoded` | `Write("<b>")` arrives as `&lt;b&gt;`; `WriteRaw` stays raw |
+| Web | `StreamingKeepsWriteEscapedAndWriteRawRaw` | `Write("<b>")` arrives as `&lt;b&gt;`; `WriteRaw` stays raw |
 | Web | `TheTailAfterTheLastFlushIsSentAtCompletion` | A page need not flush its final bytes |
 | Web | `AnExceptionAfterTheFlushTruncatesAndLogs` | The prefix is the body, the status is the committed one, the log is Error and the connection is aborted |
 | Web | `ATimeoutAfterTheFlushTruncatesInsteadOfAnswering504` | The status stays committed, the prefix is the body and no error page is written |
-| Web | `AnExceptionBeforeTheFlushIsAnErrorPage` | The buffered guarantee is unchanged for a streaming page that never committed |
+| Web | `AnExceptionBeforeTheFlushLeavesTheBufferedBodyUnsent` | The buffered guarantee is unchanged for a streaming page that never committed |
 | Web | `ABufferedPageKeepsItsContentLength` | The ordinary path still sends one body with a length |
 | Web | `AStreamedPageHasNoContentLength` | The response is chunked/framed and does not claim a length |
 | Web | `AStreamedHeadWritesNoBodyAndNoLength` | `HEAD` commits but sends nothing and does not claim a length |
@@ -482,6 +482,11 @@ The owner answered on 2026-11-14.
 
 ## Status
 
-**Approved 2026-11-14; implementation on `page-streaming`.** The decisions above take numbers from
-`trunk` at merge, every citation in the branch is updated then, `ARCH-13` leaves the job index, and
-step 7 of the programme is recorded as done (DEC-281).
+**Implemented 2026-11-14 on `page-streaming`, gate run.** `IContext.FlushAsync` is in the contract,
+`SimpleContext` commits through `PageBodySink`, the chain is skipped for a committed response, a
+committed failure truncates, the body cap stops at the first flush, and `DisconnectGuard` closes
+BUG-17's failed-request line. `make check` passes: formatting, licences, the package audit, the seeded
+pages, all four suites and a Release publish. `ARCH-13` left the job index and joined "Closed".
+
+The decisions above still take numbers from `trunk` at merge, and every citation in the branch is
+updated then (DEC-281). The owner merges; this branch waits.

@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a rule and its audit, two capabilities, a store registration change, a seeded page and its sheet, and the tests for each |
 | Spike | None. The page contract already carries everything a form needs, and `/scratch` is the worked example |
 | Decisions | DEC-210 (the rule) and DEC-211 (the capability), recorded with this plan; DEC-205 is superseded in phase 3 |
-| Backlog | [IDEA-024](../jobs/IDEA-024.md) (a page cannot take an upload or serve a file), [IDEA-025](../jobs/IDEA-025.md) (the assistant conversation as a page), [ARCH-13](../jobs/ARCH-13.md) (a page cannot stream) — the three reasons a shell route is not already a page |
+| Backlog | [IDEA-024](../jobs/IDEA-024.md) (a page cannot take an upload or serve a file), [IDEA-025](../jobs/IDEA-025.md) (the assistant conversation as a page) — the two remaining reasons a shell route is not already a page; streaming landed in [the streaming plan](page-streaming.md) |
 
 ## The short version
 
@@ -63,8 +63,8 @@ tool's delete.
 - **A page-side editor.** `/edit` was the tool that repairs a broken page, so it could not be one —
   until [IDEA-028](../jobs/README.md#closed) gave that job to `/admin/restore`, which is what let the
   editor become the seeded `/pages`.
-- **Streaming, uploads or script endpoints.** Those are what the *remaining* shell routes wait for,
-  and they are backlog (ARCH-13, IDEA-024, IDEA-025).
+- **Uploads or script endpoints.** Streaming is now a page capability; uploads and the assistant's
+  conversation are still backlog (IDEA-024, IDEA-025).
 - **Moving `/status`.** It stays shell: diagnosing why a page did not load starts there, which makes
   it bootstrap rather than a view.
 - **Team memory, sharing, or memory in page state.** One owner per row is unchanged (DEC-184).
@@ -80,7 +80,7 @@ tool's delete.
 | `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | DEC-210 |
 | `/status`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load — the counters, the storage, the build and the commits in it — starts here; the changelist is a file the image carries, which a page cannot read | DEC-210, DEC-255 |
 | `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | DEC-210 |
-| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop and delete | **A page cannot, yet.** A live run needs a stream (ARCH-13) and the conversation's actions need a capability (IDEA-025) | [ARCH-13](../jobs/ARCH-13.md), [IDEA-025](../jobs/IDEA-025.md) |
+| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop and delete | **A page cannot, yet.** The live stream is now something a page can do ([the streaming plan](page-streaming.md)); the conversation's actions need a capability (IDEA-025) | [IDEA-025](../jobs/IDEA-025.md) |
 | `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](../jobs/IDEA-024.md) |
 | `/assistant/memory` | **It can.** This plan moves it | this plan |
 
@@ -463,8 +463,8 @@ owner's write is reached from a page; [testing](../testing.md) names the suites;
   point at `/memory`, and `page-author-v15` is the prompt version.
 - `ShellViews` no longer renders a memory view, `AccessibilityTests` holds the page to the same twelve
   rules, and the browser round trip runs against `/memory`.
-- IDEA-024 and IDEA-025 are in the backlog with their origin, and ARCH-13 is named as the third
-  blocker.
+- IDEA-024 and IDEA-025 are in the backlog with their origin, and ARCH-13 is closed by the
+  streaming plan.
 - `docs/assistant.md`, `docs/storage.md`, `docs/testing.md` and `docs/glossary.md` describe what the
   code does; the memory page plan carries its superseded note; this plan's status row says landed.
 - `make check` passes.

@@ -126,8 +126,10 @@ type. [Logging](logging.md#scopes) has the category rule and why it cannot name 
 
 Two rules keep the response safe:
 
-- The body is buffered. Status, content type and headers are applied after `HandleAsync` completes,
-  so a page that throws sends the error page rather than half a document.
+- The body is buffered by default. Status, content type and headers are applied after `HandleAsync`
+  completes, so a page that throws sends the error page rather than half a document. A page can opt
+  into sending its body while it runs with `ctx.FlushAsync()`; the first flush is the commit point
+  (see [Streaming](#streaming)).
 - Headers are bounded by an allow-list in `SimpleContext`: `Content-Language` and any `X-` name.
   `Set-Cookie`, `Location`, `Content-Type`, the framing headers and the caching headers
   (`Cache-Control`, `ETag`, `Expires`, `Vary`) are refused, so a page cannot clobber the editor's
@@ -146,7 +148,38 @@ code can keep per-visitor state, so its body has no business in a shared cache a
 inviting a conditional request. `PageEndpoint` writes the header after the page's own and removes `ETag`, so a
 page cannot weaken it, and `If-None-Match` is ignored for an unversioned request. A page redirect is
 `no-store` too. The host still sets `Content-Length` from the encoded body for a response that may
-carry one, and `HEAD` retains the representation length.
+carry one, and a buffered `HEAD` retains the representation length; a streamed one has none.
+
+### Streaming
+
+A page can send its body while it runs by calling `await ctx.FlushAsync()`. The first flush is the
+commit point and the whole of the opt-in:
+
+- The status, content type, headers and script policy are applied, `no-store` and the session and
+  antiforgery cookies are written, and the response starts. From then on `SetStatus`,
+  `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect` and `RedirectToLogin` throw, and reading
+  `AntiforgeryField` throws.
+- Writes after a flush are buffered until the next flush; whatever is still buffered when the
+  handler returns is sent then. The response has no `Content-Length`, because its length is not known
+  when the headers go.
+- A flushing page is served alone. A layout needs the whole body before it can run, so a flush while
+  the page would be wrapped throws and names the remedy: clear `IPageLayout.Layout` and write the
+  page's own document before the first flush. A non-HTML page is never wrapped, so the layout value
+  does not matter to it. A layout itself cannot flush.
+- `Write` still HTML-encodes and `WriteRaw` still writes the caller's markup, before and after a
+  flush. Streaming is not a way past the encoder.
+- A failure after the commit truncates the response. An exception is logged at Error and the
+  connection is aborted; the render deadline is logged at Warning and aborts instead of attempting a
+  `504`, because the headers are already sent. Before the first flush the ordinary guarantees apply:
+  an exception is the error page and the deadline is a `504`.
+- `HEAD` commits the response but writes no body, and a streamed `HEAD` carries no length.
+- `AntiforgeryField` must be read before the first flush; after it, the field's cookie can no longer
+  be sent. A first session write after the commit is refused for the same reason; a write with a
+  session the visitor already has is ordinary, because it needs no header.
+- The render deadline and the render slot still apply. A stream that outlives the deadline is
+  truncated, and a long-lived stream holds its slot. This is the shape a page needs for progressive
+  HTML, long-poll and server-sent events; it does not make an unbounded stream safe, which is the
+  assistant page's own problem.
 
 ## Assets and versioned URLs
 
@@ -211,9 +244,10 @@ the host. A page that writes a document of its own resolves its base sheets and 
 and scripts the same way.
 
 Pages run for `GET`, `POST` and `HEAD`; any other verb is answered 405 by routing. A request body
-over 1 MiB is refused with 413 before it is read. A page that outruns its execution budget is answered
-`504` with the same document every other failure uses — see [error responses](shell.md#error-responses)
-and [the execution budget](#page-execution-budget) for the deadline itself. Keys the site's own routes
+over 1 MiB is refused with 413 before it is read. A buffered page that outruns its execution budget is
+answered `504` with the same document every other failure uses; a page that has already committed is
+truncated instead. See [error responses](shell.md#error-responses) and
+[the execution budget](#page-execution-budget) for the deadline itself. Keys the site's own routes
 answer for are listed in `Pages:ReservedPaths`, refused by the editor and never served.
 
 ## Compiled pages
@@ -353,6 +387,8 @@ waits for it against one deadline that covers both queueing and running:
   in milliseconds, and a value below `PageBudget.MinimumTimeoutSeconds` is refused at startup, so a
   zero cannot switch the limit off. When it expires the site answers `504`, calls
   `SimpleContext.Abandon` so the still-running page cannot write any more, and gives up on it. A
+  response that has already committed cannot become a `504`: the deadline truncates it and aborts
+  the connection instead (see [Streaming](#streaming)). A
   render that never returns cannot be reclaimed: it is counted, logged with the page's path and the
   elapsed time, and recorded on `page.render.abandoned`. A page that is *waiting* on an `await`
   returns its thread to the pool while it waits, so abandonment costs a task rather than a thread;
@@ -371,7 +407,9 @@ waits for it against one deadline that covers both queueing and running:
   unservable — every request would pay the same compile — so it finishes, stores its image, and the
   request answers `504` without starting the page. The next request is served from the store.
 - `Pages:Render:MaxBodyChars` caps the buffered body, so a page that writes in a loop fails quickly
-  instead of growing the process.
+  instead of growing the process. The cap stops at the first flush: a streamed body is already on the
+  wire and is not charged, so a post-commit loop is bounded by the deadline and the container rather
+  than by this setting.
 
 Every key in this section is required: a missing or out-of-range value stops the site at startup
 with a sentence naming the key, its range and the shipped value. See

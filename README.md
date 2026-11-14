@@ -52,6 +52,13 @@ surface.
 result with `<%== %>`. It passes raw HTML through, so it is the author's renderer rather than a
 sanitiser. The [help page](src/uk.osric.asp.Web/Pages/Seeds/help) has the detail.
 
+A page that wants to answer before it has finished can call `await ctx.FlushAsync()`. The first flush
+commits the status, content type and headers and sends the body written so far; later writes are sent
+at the next flush, and the last of them when the handler returns. A flushing page is served alone, so
+it clears `IPageLayout.Layout` and writes its own document. Once the response is committed an
+exception or the render deadline truncates it instead of showing an error page or a `504`. The
+[page contract](docs/pages.md#streaming) has the full rules.
+
 A page is compiled with nullable analysis on, so a reference that may be null says so: `ctx.User` is
 a `PageUser?`, and a guard binds it to a local (`ctx.User is not { } user`) before the page reads it.
 A page that compiles with warnings is served normally; it is listed as "Compiled with warnings" until

@@ -60,11 +60,12 @@ no layout ever meets it. A redirect, a `HEAD`'s empty body, a non-HTML content t
 and the layout itself are never wrapped (DEC-149). A code page that wants its own document clears
 `IPageLayout.Layout` itself.
 
-## The asset response
+## The response shapes
 
-There are two response shapes. The ordinary one is buffered, wrapped where the rules say, and
-written by `WritePageAsync` with `Cache-Control: no-store` and no validator. The second exists only
-for an asset: a revision whose kind is text. It is never rendered, loaded or compiled;
+There are three response shapes. The ordinary one is buffered, wrapped where the rules say, and
+written by `PageResponseWriter` and `WritePageAsync` with `Cache-Control: no-store` and no
+validator. The second exists only for an asset: a revision whose kind is text. It is never rendered,
+loaded or compiled;
 the stored source is the response, and `PageEndpoint.WriteSourceAsync` writes it on its own path with
 the extension's content type, `Content-Length`, the shell's security headers and no session cookie.
 
@@ -74,6 +75,15 @@ the one response that may promise `Cache-Control: public, max-age=31536000, immu
 on a versioned URL. The versioned response is separate from `WritePageAsync` so that function's
 unconditional `no-store` and `ETag` removal cannot reach it. [Pages](pages.md#assets-and-versioned-urls)
 has the selection rules and `docs/metrics.md` the `page.asset.requests` outcome counter.
+
+The third shape is a **streamed** page: a page with code that calls `ctx.FlushAsync()`. The first
+flush commits the response through `PageBodySink` and `PageResponseWriter`, and each later flush
+writes the buffer through the same sink. `PageEndpoint` skips `PageChain.WrapAsync` and
+`WritePageAsync` entirely once `SimpleContext.IsCommitted` is true, so a streamed page is never
+wrapped; if it names a layout after flushing, the endpoint logs a warning and serves alone. A
+committed failure is a truncation: the endpoint logs and aborts rather than attempting an error page
+or a `504`, and `DisconnectGuard` treats a client that left mid-write as a Debug-level end rather
+than an unhandled exception ([pages](pages.md#streaming)).
 
 The chain renders inside out, content first, because only then does the host know what the content
 produced:

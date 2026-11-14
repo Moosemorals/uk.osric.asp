@@ -52,7 +52,6 @@ editor — is what is left.
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
-| [ARCH-13](ARCH-13.md) | Low | M | A page cannot stream its response |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
@@ -115,7 +114,7 @@ approval.
 | 4 | [IDEA-019](#closed) — repeated request values, and `Encoding` and cryptography in the API policy; the cookie point is dropped because IDEA-014 gives a page per-visitor state | S | — | merge | done |
 | 5 | [Page editor](../plans/archive/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | done |
 | 6 | [ARCH-16](#closed) — one read seam for the assistant's tools and its applets | M | 5, edit safety | merge | done |
-| 7 | [ARCH-13](ARCH-13.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | — |
+| 7 | [Pages can stream](../plans/page-streaming.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | done |
 | 8 | [IDEA-025](IDEA-025.md) — the assistant as a page; it gets its own plan first | L | 6, 7 | the plan, then every phase | — |
 | 9 | [Page first](../plans/page-first.md) — re-scope against 5–8: DEC-210 and DEC-211 are recorded, but the audit and the memory page are not; build the page, or archive the plan behind IDEA-024 and IDEA-025 | L | 5–8 | the plan, then build-or-close | — |
 | 10 | [#closed](#closed) — page libraries: IDEA-005's shared-code half — a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | done |
@@ -134,8 +133,8 @@ rule is agreed, but [architecture](../architecture.md) has no audit table, `/mem
 route, and DEC-211 still names `ctx.Features` — the rename it has to follow is step 2's.
 
 Step 6 followed 5 rather than needing it: the editor's listing carries the compile state, and that is
-the state the assistant's one seam answers with too (DEC-276). Step 7 is also the home of
-BUG-17's one loose end — the failed-request log line a mid-run reload leaves behind.
+the state the assistant's one seam answers with too (DEC-276). Step 7 closed BUG-17's one loose end
+with the same write path: a client that leaves mid-write is no longer an unhandled exception.
 
 **IDEA-026 had no data gate.** Its sketch made the query the gate, and the decision was to remove
 the alias without running it. The cost of being wrong is a stored page that no longer compiles:
@@ -147,7 +146,7 @@ Not in this programme: [OPS-03](OPS-03.md) is the obvious next candidate once th
 empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
 [IDEA-001](IDEA-001.md) wants a third-party editor; [IDEA-020](IDEA-020.md) records why a
 destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7
-touches; and [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page.
+touched; and [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page.
 
 ## Closed
 
@@ -163,6 +162,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | [IDEA-026](../decisions.md) | The `Features` alias is gone: `IPageFeatures`, `IContext.Features`, the `PAGE005` diagnostic and the `[Obsolete]` attributes are removed, and a page that still says `ctx.Features` no longer compiles. DEC-254 |
 | [ARCH-15](../decisions.md) | The assistant's only read-only keys are the shell's own routes: `Assistant:ProtectedPaths`, its `IsProtected` branch, the empty configuration row and the prompt's sentence are gone, so every page the shell does not route is the assistant's to write. DEC-253 |
 | [ARCH-07](../plans/archive/revision-restore.md) | A page's history restores: the editor confirms a revision or a seed install with a diff and saves the chosen source as a new revision, refusing the one that would change nothing; the assistant gains `list_revisions`, `read_revision` and an approval-gated `restore_revision`, and both listings page with `limit` and a cursor. See [the plan](../plans/archive/revision-restore.md) |
+| [ARCH-13](../plans/page-streaming.md) | A page can stream: `IContext.FlushAsync` makes the first flush the commit point, a flushing page is served alone, a committed failure truncates, the body cap stops at the commit, and a client disconnect is no longer an unhandled exception. See [the plan](../plans/page-streaming.md); its decisions are numbered at merge |
 | [ARCH-02](../pages.md#page-contract) | Pages are a restricted runtime: a plain `PageRequest` snapshot, buffered output applied after the handler, allow-listed headers, `GET`/`POST`/`HEAD` only, and a 1 MiB form cap |
 | ARCH-03 | Renders and compiles each have a slot and a deadline, an abandoned render is logged and counted, and `/heath` reports it. See [the plan](../plans/archive/page-execution-budget.md). SEC-03 is deliberately still open |
 | ARCH-04 | `LoadedPage` unwraps the reflection wrapper with `ExceptionDispatchInfo`, so the shell sees the page's own exception |
@@ -190,7 +190,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-14 | A redirect keeps its query and fragment: `Redirects.To` encodes each part with the type that understands it. See [the plan](../plans/archive/site-navigation.md) |
 | BUG-15 | A page key containing `?` or `#` is refused by both the page and the editor rather than normalised onto another key |
 | BUG-16 | Every view is one document: `ShellDocument` writes the head, `<main id="main">` and the foot, and `AccessibilityTests` applies twelve rules to every view over rendered markup (DEC-110). See [the plan](../plans/archive/semantic-html-and-accessibility.md) |
-| BUG-17 | A long think is not cut off by its own duration: `Assistant:RequestTimeoutSeconds` is re-armed by every event the provider sends, a stall fails as `provider_timeout` with its own sentence, a message that stops at the output limit is stored `truncated`, and the transcript renders the run's own reason after the reload (DEC-119). The one thing left is the failed-request log line a mid-run reload leaves behind, which is [ARCH-13](ARCH-13.md)'s |
+| BUG-17 | A long think is not cut off by its own duration: `Assistant:RequestTimeoutSeconds` is re-armed by every event the provider sends, a stall fails as `provider_timeout` with its own sentence, a message that stops at the output limit is stored `truncated`, and the transcript renders the run's own reason after the reload (DEC-119). The failed-request log line a mid-run reload leaves behind is fixed by [the streaming plan](../plans/page-streaming.md): a disconnect during a write is a Debug-level end, not an unhandled exception |
 | BUG-18 | Save and view reads its command from the form for a POST and the query for a link, and a failed save stays on the editor with its diagnostics. Every human surface answers with a document: `Errors/ErrorResponses.cs` writes the shell or an RFC 9457 problem document by `Accept`, and `UseStatusCodePages` covers every status no endpoint described (DEC-131). See [the shell](../shell.md#error-responses) |
 | OPS-02 | The health endpoint and its monitoring: `/heath` pings storage and reports abandoned renders, the quadlet probes it and restarts after three failures, and `/status` draws what Prometheus scraped. The alerting it named was always [OPS-05](OPS-05.md)'s (DEC-45). See [deployment](../../deploy/operations.md#resource-limits-and-restarts) |
 | OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and DEC-180–DEC-185 |

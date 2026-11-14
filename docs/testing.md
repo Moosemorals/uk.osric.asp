@@ -81,7 +81,13 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   trimmed reference set cannot resolve them. `PageEndpointTests` proves the page authentication
   rules through the endpoint: a guarded anonymous visit is redirected with the canonical path and
   raw query, an authenticated `POST` without a valid antiforgery pair is refused before the page
-  runs, and an authenticated response is `no-store` with no validator. `LoginRedirectTests` pins the
+  runs, and an authenticated response is `no-store` with no validator. `PageStreamingTests` drives
+  the commit point: the first flush applies the response, a wrapped page cannot flush, a streamed
+  page is served alone, the tail is sent at completion, the body cap stops at the commit, `HEAD`
+  writes nothing and a committed exception or deadline truncates rather than answering an error page
+  or a `504`. `DisconnectGuardTests` pins the write after a client disconnect as a Debug-level end,
+  `Web.IntegrationTests/PageStreamingTests` and `AssistantDisconnectTests` drive the same shapes
+  through the real host. `LoginRedirectTests` pins the
   `returnUrl` it builds, and `SimpleContextTests` the guard's status per method, the one-token-per-
   render rule and the empty field an abandoned render gets. The logging is asserted rather than
   assumed: `RequestLogScopeTests` pins the request scope — the exchange, the account and the route's

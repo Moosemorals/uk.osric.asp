@@ -100,7 +100,7 @@ Checked against the code on 2026-11-08.
 | DEC-141 | Every budget that can stop a run is shown as a used/available pair with a `<meter>`, "so a run that stops on one names it before it stops" | Completes the intent: the figure moves while the run does, so the reader watches it approach the limit |
 | DEC-141 | The meter is a picture and the number beside it is the reading | Kept: the number text changes, the meter's `value` follows, and the meter stays `aria-hidden` |
 | DEC-123, [the assistant](../../assistant.md#ai-page-assistant) | The run deadline measures the provider going quiet, and is re-armed by real events | Unchanged, and not reused: the update is published when the loop learns something, never by a timer |
-| [ARCH-13](../../jobs/ARCH-13.md) | A page cannot stream its response | Unaffected — this is the assistant's host-owned stream, not a stored page's |
+| [ARCH-13](../page-streaming.md) | A page cannot stream its response | Unaffected — this is the assistant's host-owned stream, not a stored page's |
 | [assistant.js](../../../src/uk.osric.asp.Web/Pages/Seeds/assistant.js) | Native ES module, side-effect only, ends `export {};` | Gains one listener and one small lookup table; no globals, no bundler |
 | [assistant.css](../../../src/uk.osric.asp.Web/Pages/Seeds/assistant.css) | `.assistant-budget-exceeded` colours the count | Unchanged — the class is toggled, not added |
 
