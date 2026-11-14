@@ -155,10 +155,10 @@ carry one, and a buffered `HEAD` retains the representation length; a streamed o
 A page can send its body while it runs by calling `await ctx.FlushAsync()`. The first flush is the
 commit point and the whole of the opt-in:
 
-- The status, content type, headers and script policy are applied, `no-store` and the session and
-  antiforgery cookies are written, and the response starts. From then on `SetStatus`,
-  `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect` and `RedirectToLogin` throw, and reading
-  `AntiforgeryField` throws.
+- The status, content type, headers and script policy are applied, `no-store` and any session or
+  antiforgery cookie already minted for the response are written, and the response starts. From then
+  on `SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect` and `RedirectToLogin`
+  throw, and reading `AntiforgeryField` throws.
 - Writes after a flush are buffered until the next flush; whatever is still buffered when the
   handler returns is sent then. The response has no `Content-Length`, because its length is not known
   when the headers go.

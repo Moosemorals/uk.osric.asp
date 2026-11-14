@@ -166,7 +166,8 @@ from the page list.</p>
 <h2 id="streaming">Streaming a response</h2>
 <p>A page sends its body when its handler returns. To send part of it earlier, call
 <code>await ctx.FlushAsync()</code>. The first flush is the commit point: the status, content type and
-headers are final, the session and antiforgery cookies are written, and the response starts. Later
+headers are final, any session or antiforgery cookie already minted is written, and the response
+starts. Later
 writes are buffered until the next flush, and whatever is left is sent when the handler returns.</p>
 <p>A streaming page is served alone, so clear the layout and write your own document before the first
 flush:</p>
