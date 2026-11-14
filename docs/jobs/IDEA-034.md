@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Size | M — a shell route, one stylesheet, one normaliser, one assistant tool, a seeded sheet and the prose; no migration |
-| Plan | [The reference](../plans/xml-reference.md) — proposed 2026-11-14, waiting for the owner |
+| Plan | [The reference](../plans/xml-reference.md) — revised 2026-11-14 from the owner's answers, waiting for the go-ahead |
 | Area | Web (documentation, assistant), seeds, docs |
 | Location | `src/uk.osric.asp.Web/Documentation/`, `src/uk.osric.asp.Web/Assistant/Tools/`, `src/uk.osric.asp.Web/Pages/Seeds/`, `src/uk.osric.asp.Web/Program.cs`, `src/uk.osric.asp.Web/appsettings.json`, `docs/shell.md`, `docs/assistant.md` |
 
