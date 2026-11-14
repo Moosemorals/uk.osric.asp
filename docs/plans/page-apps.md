@@ -39,8 +39,10 @@ Each of the three is a generic capability, not a feature of the assistant:
 > write.
 
 The page-side surface is six calls — start, send, read events, get, list, cancel — and the worker side
-is two — receive and publish. Everything else (the queue, the slots, the ring, the sweeper) is the
-shell's. That is the whole of the management noise.
+is two — receive and publish. The page side is a **capability**, reached as
+`ctx.Capabilities.GetRequired<IPageJobs>()`; `IContext` gains no member and stays the request and the
+response. Everything else (the queue, the slots, the ring, the sweeper) is the shell's. That is the
+whole of the management noise.
 
 Nothing here is shaped like a conversation. There is no `IAssistantConversations`, no memory
 capability, no chat event bus and no specialist job type. The assistant is the worked example; the
@@ -128,7 +130,9 @@ a response-shaped context it can never use.
    never wrapped, never an asset, and never a library another page or library may `using`.
 10. `/help`, the page contract, configuration, [pages](../pages.md), [architecture](../architecture.md)
     and [the jobs](../jobs/README.md) say what a page author may rely on, in the same change.
-11. The assistant is never named in `Sdk`, and no new type exists only for it.
+11. The page side of a worker is a capability, not a new `IContext` member; a layout is not offered it
+    and a `HEAD` is offered the reads and never the writes.
+12. The assistant is never named in `Sdk`, and no new type exists only for it.
 
 ## Non-goals
 
@@ -245,12 +249,15 @@ takes an optional wait, capped by `MaxWaitSeconds`; it returns `null` when the w
 can no longer receive, and `Aborted` tells the two apart. `ListAsync` answers the owner's jobs with `Id`,
 `Worker`, `Path`, `State`, `StartedAt`, `EndedAt` and `Failure`, where the state is `Queued`,
 `Running`, `Completed`, `Failed` or `Cancelled`, so a page that lost its id can find the job it
-started, and `ReadEventsAsync` replays from a sequence. Neither surface takes an owner:
-`IPageJobs` is bound to `ctx.User`, an anonymous render is refused, and every read, send and cancel
-filters on the job's owner before it answers. Rejected: an owner argument (`DEC-190`); one interface for
-both sides (a viewer would meet `ReceiveAsync`, and a worker would meet `SendAsync` it has no reason to
-call); a typed message object (`JsonSerializer` is already the page's, and a worker that wants a shape
-can parse one).
+started, and `ReadEventsAsync` replays from a sequence. `IPageJobs` is a **capability** in `Sdk`,
+registered by `PageChain` beside storage and fetch and reached as
+`ctx.Capabilities.GetRequired<IPageJobs>()`; `IContext` does not grow. A layout is not offered it at
+all, and a `HEAD` is offered the reads and not `StartAsync`, `SendAsync` or `CancelAsync`. Neither
+surface takes an owner: `IPageJobs` is bound to `ctx.User`, an anonymous render is refused, and every
+read, send and cancel filters on the job's owner before it answers. Rejected: an owner argument
+(`DEC-190`); one interface for both sides (a viewer would meet `ReceiveAsync`, and a worker would meet
+`SendAsync` it has no reason to call); a typed message object (`JsonSerializer` is already the page's,
+and a worker that wants a shape can parse one).
 
 **D11 — the journal is in memory, bounded and replayable; the durable record is the page's.** A job's
 events are `(sequence, type, json)` in a ring bounded by `Pages:Jobs:MaxEvents`,
@@ -411,24 +418,37 @@ when it is saved, stored with its image, never served, and invisible as a librar
   the starting point, not a shared type: a job is not a run. The runner loads the worker's stored image
   — rebuilding it lazily when its library moved — finds the single `IWorker`, invokes it, and releases
   the assembly at the end.
-- The job's context: the owner as `PageUser`, the starting page as `Path`, the worker key as `Worker`,
-  the first message as `Input`, a timed or indefinite `ReceiveAsync` for later messages, storage bound to the starting page,
-  fetch and catalog bound to the worker, and the job's own deadline. `SendAsync` writes a bounded
-  pending queue; `ReceiveAsync` pauses the silence clock while it waits.
+- `PageChain` registers `IPageJobs` in the capability set — never on `IContext`, never for a layout,
+  and read-only for a `HEAD`.
+- The job's context: the owner as `PageUser`, the starting page as `Path`, the worker key as
+  `Worker`, the first message as `Input`, a timed or indefinite `ReceiveAsync` for later messages,
+  storage bound to the starting page, fetch and catalog bound to the worker, and the job's own
+  deadline. `SendAsync` writes a bounded pending queue; `ReceiveAsync` pauses the silence clock while
+  it waits.
 - `Pages:Jobs` with `QueueCapacity`, `MaxConcurrent`, `SilenceSeconds`, `MaxDurationSeconds`,
   `MaxEvents`, `MaxEventBytes`, `RetentionMinutes`, `MaxWaitSeconds`, `MaxMessageBytes` and
   `MaxPendingMessages`.
-- Tests: a worker starts and writes the starting page's storage, which the view reads; a page starts it
-  by key and sends it a message the worker receives; an indefinite wait in `ReceiveAsync` outlives the
-  silence clock but not the ceiling; a timed wait returns and the worker publishes afterwards; a full
-  pending queue is refused as a value; a message after the job ends is refused; a page lists its owner's jobs and reconnects to the running one; a viewer reads the
-  journal and waits for the next event; cancel ends the job at its next await; a missing key, a page, a
-  library, a reserved key, an anonymous render and a full queue are refused as values; a worker whose
-  image fails to load or compile is a failed job with its reason; a job that works without publishing
-  or receiving is cut; a job's context has no response members; the storage is the page's and the
-  credential is the worker's; another account cannot read, send to or cancel it; the render slot count
-  is unchanged while a job runs.
-- `/help`, [pages](../pages.md), [logging](../logging.md) for the job's lines.
+- Tests, one behaviour each:
+  - the capability: a page reaches it through `ctx.Capabilities.GetRequired<IPageJobs>()`, a layout has
+    none, and a `HEAD` refuses a start, send and cancel;
+  - a worker starts, writes the starting page's storage, and the view reads it;
+  - a page starts it by key, sends it a message, and the worker receives it;
+  - an indefinite wait in `ReceiveAsync` outlives the silence clock but not the ceiling; a timed wait
+    returns and the worker publishes afterwards;
+  - a full pending queue and a message after the job ends are refused as values;
+  - a page lists its owner's jobs and reconnects to the running one; a viewer reads the journal and
+    waits for the next event;
+  - cancel ends the job at its next await;
+  - a missing key, a page, a library, a reserved key, an anonymous render and a full queue are refused
+    as values;
+  - a worker whose image fails to load or compile is a failed job with its reason;
+  - a job that works without publishing or receiving is cut;
+  - a job's context has no response members; storage is the page's and the credential is the worker's;
+  - another account cannot read, send to or cancel it, and the render slot count is unchanged while a
+    job runs.
+- `/help` (with `ctx.Capabilities.GetRequired<IPageJobs>()` beside the other capabilities), [pages](../pages.md),
+  the assistant prompt's capability section with its `Version` bumped, and [logging](../logging.md) for
+  the job's lines.
 
 **Done when** a stored worker can be started as a job by a page, sent a message, found again by a
 second request, streamed, stopped and read, with no assistant type in `Sdk`.
@@ -543,7 +563,7 @@ client.
 | `OutboundFetcher` and `PageFetcher` | One implementation of the outbound rules for both paths | `src/uk.osric.asp.Web/Pages/` |
 | `PageKind`, `PageImage` and `PageAssetPolicy` | The fourth kind, its stored image and the never-served, never-wrapped, never-asset rules | `src/uk.osric.asp.Core/` and `src/uk.osric.asp.Web/Pages/` |
 | `Runtime` worker compile and load | A worker and its closure, policy-checked, emitted and loaded for the entry point | `src/uk.osric.asp.Runtime/` |
-| `IPageJobs` | Start, send, observe, find, wait and cancel, from a page | `src/uk.osric.asp.Sdk/` |
+| `IPageJobs` | The page-side capability: start, send, observe, find, wait and cancel | `src/uk.osric.asp.Sdk/` |
 | `IWorker` and `IWorkerContext` | The entry point a worker declares, and the work context a job is given: receive messages, publish events | `src/uk.osric.asp.Sdk/` |
 | `Web/Work` | The queue, the registry, the message channel, the journal and the runner | `src/uk.osric.asp.Web/Work/` |
 | The job runner | Loads the worker's image, finds the entry point, runs it under a job slot and releases it | `src/uk.osric.asp.Web/Work/` |
