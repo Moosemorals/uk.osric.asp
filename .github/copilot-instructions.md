@@ -64,9 +64,9 @@ the tests and the architecture notes.
 
 ## Configuration
 
-A **policy value** comes from configuration, never from a literal and never from a fallback in code.
-A policy value is a limit, timeout, quota, retry count, cache or sweep interval, feature switch, host
-or credential list, or a name that decides routing or authority.
+A **policy value** comes from configuration, never from a literal and never from a fallback in code
+(DEC-282). A policy value is a limit, timeout, quota, retry count, cache or sweep interval, feature
+switch, host or credential list, or a name that decides routing or authority.
 
 - The shape is an options record in `Web`, with a `FromConfiguration` factory that reads every value
   through `ConfigurationReader` (under `Web/Configuration`), and a test for the shipped value, an

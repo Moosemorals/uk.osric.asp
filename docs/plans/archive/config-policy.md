@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a configuration reader, every options record migrated, the shipped file, the startup path and the test harnesses |
 | Area | Web (configuration, pages, assistant, metrics, authentication, admin), tests, docs, deploy |
 | Backlog | [IDEA-031](../../jobs/IDEA-031.md) — the policy-shaped constants that deliberately stay |
-| Decisions | Proposed in prose: the number is taken on `trunk` when this work merges |
+| Decisions | DEC-282 |
 
 ## The short story
 

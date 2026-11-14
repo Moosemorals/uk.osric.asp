@@ -134,9 +134,9 @@ is the worked example: it is the seeded `/pages`, which is offered `IPageEditor`
 
 ## Configuration
 
-Configuration is the only source of a policy value. There is no fallback in code, so the value the
-site runs with is the one an operator can see and change in `appsettings.json`, an environment
-variable or a deployment's own settings file.
+Configuration is the only source of a policy value (DEC-282). There is no fallback in code, so the
+value the site runs with is the one an operator can see and change in `appsettings.json`, an
+environment variable or a deployment's own settings file.
 
 - **The shape.** An options record in `Web` and a `FromConfiguration` factory beside it, reading
   every value through `ConfigurationReader` (`Web/Configuration`). The record's properties are

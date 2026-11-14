@@ -13,8 +13,8 @@ SPDX-License-Identifier: MIT
 
 ## Idea
 
-[Configuration](../architecture.md#configuration) is now the only source of a policy value: a missing
-or unusable one stops the site at startup. What is left in code is deliberate, and listed here so the
+[Configuration](../architecture.md#configuration) is now the only source of a policy value (DEC-282): a
+missing or unusable one stops the site at startup. What is left in code is deliberate, and listed here so the
 exception does not become silent.
 
 | Value | Where | Why it stays |
