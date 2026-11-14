@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Planned, not started |
 | Size | Large — a kind in the compiler, a column and its migration, an index and a closure, a per-tree policy, a source on every diagnostic, and the end of `PageDocument` in `Sdk` |
 | Spike | None. The tokenizer already reports the declarations, `TemplateHasCode` already proves a verdict can come from generation, and Roslyn already compiles more than one tree |
-| Decisions | cited by name until this merges; DEC-240's rule is kept and its column replaced, DEC-156 is superseded in phase 4, DEC-151's comparison test is extended to the document |
+| Decisions | cited by name until this merges; DEC-240's rule is kept and its column replaced, DEC-156 is superseded in phase 4, DEC-151's comparison test is extended to the document; D12 costs a shared assembly and leaves it out |
 | Backlog | [IDEA-005](../jobs/IDEA-005.md) — the layout half landed; this is the shared-code half, and it is the last of it |
 
 ## The short version
@@ -196,8 +196,8 @@ no registry of loaded library assemblies, and no unload story to get wrong. The 
 dependent and a compile per dependent when a library changes; the benefit is that the runtime stays
 one collectible context per render, exactly as it is today.
 
-If a measurement later says the compile cost or the shared state matters, a shared assembly is a
-separate job. It is not this one.
+A shared library assembly — compile once, load once, share the code — is costed in D12 and not built.
+The numbers that would reopen it are in "What we will watch".
 
 ### D10 — `PageDocument` merges into `ShellDocument` in the last phase
 
@@ -225,6 +225,69 @@ The library writes through `IContext` — `Write` for every value, `WriteRaw` fo
 
 `/help` gains the library page kind (phase 2, when the kind exists), the `using` rule (phase 3) and
 the layout's new shape (phase 4), each in the change that makes it true.
+
+### D12 — a shared library assembly is costed, and not built
+
+"Shared" is three different designs, and only one of them shares anything:
+
+| | Compile | Runtime | Isolation |
+| --- | --- | --- | --- |
+| This plan | N page compiles, library text included | one assembly per render | one context per render |
+| Compile once, load per render | one library compile, N page compiles | two assemblies per render | one context per render |
+| Compile once, load once per revision | one library compile, N page compiles | one assembly per render, JIT once | **one copy for every page and visitor** |
+
+**The compile saving is smaller than it looks.** Every shape still recompiles each dependent when the
+library moves, because a page's image binds the library's types when it compiles. What the other two
+save is compiling the library's *text* N times and its *bytes* in N images — not the N page compiles.
+The only way to avoid those is to pin each page to the library revision it was compiled against, and
+then a library fix takes effect only as each page is recompiled later; that is a staleness rule of its
+own, and it is not what this plan does.
+
+**Versioned URLs are not at risk.** `?v=` on a revision with code renders it rather than promising a
+byte sequence — the `immutable` promise belongs to a no-code asset (DEC-239, DEC-241) — so a moved
+library makes that revision stale and it recompiles from its own source. Only a design that pins
+library revisions would need a retention rule, and nothing here pins them.
+
+**What loading once would cost**, on top of this plan:
+
+- a registry and a collectible context per library revision, refcounted against the page contexts using
+  it, with the render that outlives its deadline (`PageRenderer.Abandon`) extending its delayed
+  disposal to a second assembly;
+- an assembly identity per revision, because a page's metadata reference names exactly one, so the load
+  path can fail where today it cannot — and it must turn that failure into "recompile this page", not
+  a `500`;
+- a portable PDB retained per library revision, or a stack trace in library code has no lines;
+- and **shared statics**: one copy of the library's code makes a static field process-wide mutable
+  state, shared by every page and every visitor. Pages cannot do that today, one context per render is
+  why, and the API policy cannot see a field. That is a data boundary, not a performance trade.
+
+Loading per render keeps the isolation but gives up the only two things sharing is for — one JIT and
+one copy in memory — while still paying for the registry, the identity and the symbols.
+
+So it is not built. Reopen it only on the numbers below, and if the answer is "the library is large
+enough that N compiles hurt", cost the load-per-render shape properly rather than the shared one.
+
+## What we will watch
+
+No new instrument: every number is already recorded per `page.path` in `PageMetrics`.
+
+- `page.compile.duration` — Roslyn's time for one page, tagged with its reason (`save`, `lazy`,
+  `import`), so a dependent page's own code and its closure can be told apart by comparing before and
+  after it names the library.
+- `page.image.size` — bytes of the emitted assembly, the direct answer to "is the library dominating
+  the image?".
+- `page.load.duration` — loading a stored image into its context, which is where image size actually
+  costs a visitor.
+- `page.cache.staleness` — why an image was not reused; phase 3 adds the reason `library-changed`,
+  which is also the count of pages one library edit invalidates.
+
+Phase 3 and phase 4 each record the numbers in this plan's Status: the same page before and after it
+names the library, a page with a library against one without, `/_layout` before and after it calls the
+library document, and the staleness count after one library edit.
+
+The trigger to reopen D12 is a render that spends more time compiling than running
+(`page.compile.duration` against `page.invoke.duration`), or an image that is mostly library. Until
+then it is a number on a dashboard, not a design.
 
 ## Phases
 
@@ -269,7 +332,8 @@ phase 2 is the migration; phase 3 is the mechanism; phase 4 is the seed and the 
   library (D2, D3).
 - The policy's authored-tree set (D4).
 - `Source` on both diagnostics, the mapping, the editor and the assistant (D6).
-- `TemplateLibraries`, the fingerprint, `IsCurrent`, the staleness reason and metric (D7).
+- `TemplateLibraries`, the fingerprint, `IsCurrent`, the staleness reason and metric (D7), and the
+  `docs/metrics.md` row that lists the reasons.
 - The callers: `PageImageBuilder` takes the candidates and the closure, `PageRenderer` reads them for
   the lazy path, `PageSaver` for the save path, `ImportProcessor` compiles the libraries in a batch
   first so a dependent imported beside its library is not reported as broken.
@@ -277,6 +341,8 @@ phase 2 is the migration; phase 3 is the mechanism; phase 4 is the seed and the 
 - Tests: a page that uses a library compiles and runs; the closure is transitive; a library change
   makes exactly its dependents stale; a page with no library is untouched; a banned API in a library
   is reported at the library's key and line; a missing namespace is Roslyn's own error.
+- The first numbers: `page.compile.duration` and `page.image.size` for a page with and without a
+  library, and the `library-changed` staleness count after one edit, recorded in this plan's Status.
 
 ### Phase 4 — the seed, the manual, the document
 
@@ -286,6 +352,8 @@ phase 2 is the migration; phase 3 is the mechanism; phase 4 is the seed and the 
   what the policy still denies.
 - `PageDocument` merges into `ShellDocument` (D10), the seed calls the library (D11), the drift test
   lands, DEC-156 is superseded and IDEA-018 closes with it.
+- The second numbers: `/_layout`'s compile duration and image size before and after it calls the
+  library document, recorded beside phase 3's.
 - The documents: [pages](../pages.md) (three kinds, the closure), [shell](../shell.md) (the layout is
   a page and the document is not `Sdk`'s), [storage](../storage.md) (two columns), [glossary](../glossary.md)
   (library page), [testing](../testing.md) if the suite's description moves.
@@ -313,6 +381,9 @@ rows recompile on their next request (the runtime id moved), so nothing is backf
   editor's list; the diagnostic's source is what keeps them readable.
 - **Static state is per dependent.** A library's `static` fields are copied per page. `/help` must say
   so, because it is the one way a library behaves unlike a class in a normal project.
+- **Image size and compile time are watched, not pre-optimised.** A library is copied into each
+  dependent (D9). `page.image.size`, `page.compile.duration` and `page.load.duration` are the
+  evidence, and D12 records what a shared assembly would cost if they ever say so.
 - **Removing a public `Sdk` type recompiles the site.** The module version id changes, every image is
   stale, and a page that called `PageDocument` stores a compile error instead of serving. That is
   recoverable in the editor and from `/admin/restore`, and it is the accepted cost of D10.
@@ -331,6 +402,11 @@ rows recompile on their next request (the runtime id moved), so nothing is backf
 - a `GeneratedPage` or an assembly attribute in a library is refused at the library's position;
 - the seeded layout's document matches the shell's, item for item;
 - a library revision is never an asset, and never answers a versioned URL.
+
+## Status
+
+Nothing built. Phases 0–4 are unstarted, and the measurements phase 3 and phase 4 take are recorded
+here when they land, beside the decision they would reopen (D12).
 
 ## Open questions
 
