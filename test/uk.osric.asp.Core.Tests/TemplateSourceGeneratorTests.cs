@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Core.Tests;
 
 using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 
 [TestFixture]
 public sealed class TemplateSourceGeneratorTests {
@@ -339,45 +340,57 @@ public sealed class TemplateSourceGeneratorTests {
 }
 
 [TestFixture]
-public sealed class TemplateSourceGeneratorHasCodeTests {
+public sealed class TemplateSourceGeneratorKindTests {
 
     [TestCase("")]
     [TestCase("Hello")]
     [TestCase("<p>Just text.</p>")]
     [TestCase("a <!-- comment --> b")]
     [TestCase("\n\n\t ")]
-    public void ATextOnlyTemplateHasNoCode(string template) {
+    public void ATextOnlyTemplateIsText(string template) {
         TemplateGenerationResult result = TemplateSourceGenerator.Generate(template);
 
-        Assert.That(result.HasCode, Is.False);
+        Assert.That(result.Kind, Is.EqualTo(PageKind.Text));
         Assert.That(result.Source, Is.Not.Null);
     }
 
-    [TestCase("<% int value = 1; %>", "code")]
-    [TestCase("<%! using System.Text; %>", "declaration")]
-    [TestCase("<%= ctx.Path %>", "write")]
-    [TestCase("<%== ctx.Path %>", "raw write")]
-    public void AnyNonTextTokenIsCode(string template, string kind) {
-        Assert.That(
-            TemplateSourceGenerator.Generate(template).HasCode,
-            Is.True,
-            $"{kind} is code");
+    [TestCase("<% int value = 1; %>")]
+    [TestCase("<%= ctx.Path %>")]
+    [TestCase("<%== ctx.Path %>")]
+    [TestCase("<%! class Amount { } %><% ctx.Write(\"x\"); %>")]
+    [TestCase("<%! class Amount { } %>x")]
+    public void ACodeTemplateThatRendersIsAPage(string template) {
+        Assert.That(TemplateSourceGenerator.Generate(template).Kind, Is.EqualTo(PageKind.Page));
+    }
+
+    [TestCase("<%! class Amount { } %>")]
+    [TestCase("<%! using System.Text; %>")]
+    [TestCase("<%! using System.Text; %>\n  <%! class Amount { } %>\r\n")]
+    public void ADeclarationOnlyTemplateIsALibrary(string template) {
+        Assert.That(TemplateSourceGenerator.Generate(template).Kind, Is.EqualTo(PageKind.Library));
     }
 
     [Test]
-    public void AParseFailureIsNeverReportedAsNoCode() {
+    public void ACommentBesideADeclarationIsMarkupAndTheTemplateIsAPage() {
+        Assert.That(
+            TemplateSourceGenerator.Generate("<%! class Amount { } %><!-- note -->").Kind,
+            Is.EqualTo(PageKind.Page));
+    }
+
+    [Test]
+    public void AParseFailureIsAPage() {
         TemplateGenerationResult result = TemplateSourceGenerator.Generate("before<% if (true) {");
 
         Assert.That(result.Source, Is.Null);
         Assert.That(result.Errors, Is.Not.Empty);
-        Assert.That(result.HasCode, Is.True, "a template the tokenizer refused must not be served as an asset");
+        Assert.That(result.Kind, Is.EqualTo(PageKind.Page), "a template the tokenizer refused must not be served as an asset");
     }
 
     [Test]
-    public void AnEmptyWriteIsNeverReportedAsNoCode() {
+    public void AnEmptyWriteIsAPage() {
         TemplateGenerationResult result = TemplateSourceGenerator.Generate("<%= %>");
 
         Assert.That(result.Errors, Is.Not.Empty);
-        Assert.That(result.HasCode, Is.True);
+        Assert.That(result.Kind, Is.EqualTo(PageKind.Page));
     }
 }

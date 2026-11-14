@@ -46,7 +46,7 @@ internal sealed class PageImageBuilder(
 
         // Nothing to compile, so no slot is waited for and Roslyn is never called. The revision keeps
         // the verdict beside its source, and every request writes the source out as it is.
-        if (!generated.HasCode && generated.Source is not null) {
+        if (generated.Kind is PageKind.Text && generated.Source is not null) {
             logger.LogDebug("Stored {Path} without compiling: the template has no code", path.Key);
 
             return new PageImage(
@@ -136,6 +136,6 @@ internal sealed class PageImageBuilder(
             result.Image,
             result.Symbols,
             PageDiagnostic.SortedForDisplay([.. shape, .. result.Diagnostics]),
-            generated.HasCode);
+            generated.Kind is not PageKind.Text);
     }
 }

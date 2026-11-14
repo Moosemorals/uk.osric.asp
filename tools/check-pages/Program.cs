@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 
 // Compiles page templates with the product's own compiler and prints one line per diagnostic in the
@@ -17,7 +18,7 @@ bool failed = false;
 foreach (string file in Files(args)) {
     string template = File.ReadAllText(file);
     TemplateGenerationResult generated = TemplateSourceGenerator.Generate(template);
-    if (!generated.HasCode) {
+    if (generated.Kind is PageKind.Text) {
         continue;
     }
 

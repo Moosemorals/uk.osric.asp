@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Core.Compilation;
 
 using System.Text;
+using uk.osric.asp.Core.Pages;
 
 /// <summary>Turns a page template into the generated C# source of its handler.</summary>
 public static class TemplateSourceGenerator {
@@ -41,10 +42,18 @@ public static class TemplateSourceGenerator {
         if (!tokenized.IsSuccess) {
             // The tokenizer saw a '<%', so there is code here whatever it made of the rest. A parse
             // failure must not read as a template with nothing to compile.
-            return new TemplateGenerationResult(null, tokenized.Errors) { HasCode = true };
+            return new TemplateGenerationResult(null, tokenized.Errors) { Kind = PageKind.Page };
         }
 
         bool hasCode = tokenized.Tokens.Any(token => token.Type != TokenType.Text);
+
+        // A template made of declarations and nothing else is a library: there is nothing in it to
+        // render, so the pages that name it compile it and it is never served. One byte of markup,
+        // one code block, and it is a page again.
+        PageKind kind = PageKind.Text;
+        if (hasCode) {
+            kind = IsLibrary(tokenized.Tokens) ? PageKind.Library : PageKind.Page;
+        }
 
         foreach (Token token in tokenized.Tokens) {
             if (token.Type is TokenType.Write or TokenType.WriteRaw
@@ -56,7 +65,7 @@ public static class TemplateSourceGenerator {
                         PageDiagnosticSeverity.Error,
                         opener,
                         "TEMPLATE002: write expression is empty."),
-                ]) { HasCode = true };
+                ]) { Kind = PageKind.Page };
             }
         }
 
@@ -119,7 +128,26 @@ public static class TemplateSourceGenerator {
         result.Append(Environment.NewLine);
         result.Append("#pragma warning restore CS1998");
 
-        return new TemplateGenerationResult(new GeneratedSource(result.ToString()), []) { HasCode = hasCode };
+        return new TemplateGenerationResult(new GeneratedSource(result.ToString()), []) { Kind = kind };
+    }
+
+    // Declarations are compile-time only, so a template with nothing but declaration blocks has
+    // nothing to render. Whitespace between the blocks is layout for the author's eye, not markup.
+    private static bool IsLibrary(IReadOnlyList<Token> tokens) {
+        bool declares = false;
+
+        foreach (Token token in tokens) {
+            if (token.Type == TokenType.Declaration) {
+                declares = true;
+                continue;
+            }
+
+            if (token.Type != TokenType.Text || !string.IsNullOrWhiteSpace(token.Value)) {
+                return false;
+            }
+        }
+
+        return declares;
     }
 
     private static void AppendText(StringBuilder result, Token token) {
