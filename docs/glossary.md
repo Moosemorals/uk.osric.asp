@@ -144,6 +144,9 @@ its key answers `404`. It is checked when it is saved and keeps its diagnostics,
 page names one with the `using` directive for a namespace it declares; the library is compiled into
 the page, and the keys and hashes of that closure are recorded with the page's image.
 
+A library lives under `/_lib/` by convention, which is where the seeded document writer is and where
+a site's own helpers belong; the key is a name rather than a rule, and it is never served.
+
 **Not** an asset, even though both are never rendered: an asset *is* a representation and may be
 pinned with `?v=`, and a library is compiled into the pages that name it. **Owner:** pages —
 `PageKind`, `PageAssetPolicy.IsLibrary`, the library shape rule in `PageApiChecker`, and the closure

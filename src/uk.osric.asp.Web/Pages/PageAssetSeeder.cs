@@ -9,22 +9,36 @@ using uk.osric.asp.Core.Pages;
 /// <summary>Seeds the pages the shell ships with, and reads them back for a restore.</summary>
 internal static class PageAssetSeeder {
 
-    public static async Task SeedAsync(IPageStore pages, CancellationToken cancellationToken = default) {
+    /// <summary>Installs the seeds a store is missing, and replaces one written against a type the page contract no longer has.</summary>
+    /// <param name="pages">The store to seed.</param>
+    /// <param name="cancellationToken">Bounds the reads and the writes.</param>
+    /// <returns>The seeds it replaced, so the host can say which of them it rewrote.</returns>
+    public static async Task<IReadOnlyList<PagePath>> SeedAsync(IPageStore pages, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(pages);
 
+        List<PagePath> replaced = [];
         foreach (string seed in SeedFiles()) {
             PagePath key = KeyOf(seed);
-            if (await pages.GetHeadAsync(key, cancellationToken) is not null) {
+            string template = await File.ReadAllTextAsync(seed, cancellationToken);
+
+            if (await pages.GetHeadAsync(key, cancellationToken) is null) {
+                await pages.SavePageAsync(Stored(key, template), cancellationToken);
                 continue;
             }
 
-            string template = await File.ReadAllTextAsync(seed, cancellationToken);
-
-            // The kind is generated here rather than derived from a compile: a seeded library has to
-            // be known as one before any page that names it is compiled, and only the tokens say so.
-            TemplateGenerationResult generated = TemplateSourceGenerator.Generate(template);
-            await pages.SavePageAsync(new PageTemplate(key, template) { Kind = generated.Kind }, cancellationToken);
+            // The document builder left the page contract for the shell, so a stored layout or editor
+            // seed that names it can no longer compile: a broken layout leaves every page unwrapped
+            // and a broken editor leaves nothing to edit with. The shipped version replaces it once,
+            // and the revision it replaced stays in the page's history.
+            if (await pages.GetPageAsync(key, cancellationToken) is { } stored
+                && NamesRemovedType(stored.Template)
+                && !string.Equals(stored.Template, template, StringComparison.Ordinal)) {
+                await pages.SavePageAsync(Stored(key, template), cancellationToken);
+                replaced.Add(key);
+            }
         }
+
+        return replaced;
     }
 
     public static async Task<string?> ReadSeedTemplateAsync(PagePath path, CancellationToken cancellationToken = default) {
@@ -40,6 +54,15 @@ internal static class PageAssetSeeder {
     }
 
     private static string SeedsDirectory => Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds");
+
+    // The builder is `Web/Html/ShellDocument.cs` now; nothing a page can see is called `PageDocument`.
+    private static bool NamesRemovedType(string template) =>
+        template.Contains("PageDocument", StringComparison.Ordinal);
+
+    // The kind is generated here rather than derived from a compile: a seeded library has to be known
+    // as one before any page that names it is compiled, and only the tokens say so.
+    private static PageTemplate Stored(PagePath key, string template) =>
+        new(key, template) { Kind = TemplateSourceGenerator.Generate(template).Kind };
 
     // Every file under the seed folder, so a library can be seeded in a subtree of its own rather
     // than in the site's root key space.

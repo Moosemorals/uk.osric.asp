@@ -314,7 +314,12 @@ internal class Program {
                 await assistantConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
             }
             IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
-            await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
+            IReadOnlyList<PagePath> replaced = await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
+            foreach (PagePath key in replaced) {
+                app.Logger.LogWarning(
+                    "Replaced the stored {Key} seed: it named PageDocument, which the page contract no longer has. The revision it replaced is in the page's history",
+                    key.Key);
+            }
         }
 
         if (isUserCommand) {

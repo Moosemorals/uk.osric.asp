@@ -172,6 +172,13 @@ source, with no assembly — and a page API violation inside it is reported at t
 and key. A library declares at least one type in a namespace, which is how a page names it; a page
 may not declare a namespace.
 
+A library lives under **`/_lib/`** by convention: `/_lib/document` is the seeded document writer,
+and a site's own helpers belong beside it rather than in the keys a visitor might ask for. The
+convention is a name, not a rule — nothing refuses a library at another key, and its kind comes from
+its source — but it keeps code out of the site's page tree, gives a library a folder the page list
+groups, and lets `Pages/Seeds/_lib/document` seed the key it is served from. A library's key is never
+served, so nothing about it is public except the source an owner can read in the editor.
+
 A page is compiled with its **closure**: every library its own `using` directives name, and the
 libraries those name in turn, resolved to a fixed point from an index of the live libraries'
 namespaces. Only the closure is compiled and checked, so a broken library cannot reach a page that

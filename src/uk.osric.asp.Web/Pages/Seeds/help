@@ -79,6 +79,9 @@ nothing else &mdash; is a <strong>library</strong>: it has nothing to render, so
 its own URL answers &ldquo;not found&rdquo;. It is still checked when you save it, so code that will not
 compile is reported like any other page's. A library declares its types in a namespace, and the page
 API policy applies to it exactly as it does to code in a page.</p>
+<p>Libraries live under <code>/_lib/</code> by convention &mdash; the seeded document writer is
+<code>/_lib/document</code> &mdash; so code has a folder of its own in the page list instead of a key a
+visitor might ask for. Nothing refuses a library elsewhere, and its key is never served either way.</p>
 <p>A page uses a library by naming its namespace in a <code>using</code> directive, which is the whole
 of the binding:</p>
 <pre class="source" tabindex="0"><code>&lt;%!
