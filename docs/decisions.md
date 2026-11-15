@@ -5,6 +5,12 @@ SPDX-License-Identifier: MIT
 
 # Decisions
 
+> **Frozen on 2026-11-15, and not edited again.** The numbers here keep the meaning they had, so a
+> `DEC-` citation written before that date — in a plan, a commit, a doc comment or the manual — still
+> points at the entry it named. Decisions taken from then on are recorded in [decided.md](decided.md),
+> where each one has a name instead of a number. Nothing is added here and nothing is repaired: this
+> file is the archaeology, not the record.
+
 The choices that shape this site, in one place. Each entry is a decision, not a plan: the linked
 document is authoritative for the detail, and the entry exists so the *why* is findable without
 reading every plan. The words the entries use — page, revision, run, step and the rest — are defined

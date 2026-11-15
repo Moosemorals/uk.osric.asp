@@ -9,7 +9,7 @@ The site has a vocabulary of its own, and these are the words in it. Most of the
 vocabularies — the assistant, pages and observability — so each entry ends by naming the type, table,
 configuration key or metric prefix that owns it. The code is authoritative; this page only explains
 it. Where an entry would need to state a rule, it names the decision instead, and the record stays in
-[decisions](decisions.md).
+[decided](decided.md).
 
 The entries are alphabetical across all three vocabularies. A term is defined once here, and
 [architecture](architecture.md) explains how the words fit together. **Turn** is not one of them: it
