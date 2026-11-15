@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waits for the owner. Nothing below is built |
+| Status | Implemented 2026-11-15; `make check` is green. Awaiting the owner's merge |
 | Size | Small — six list entries, one grouping rule in `Check`, one sentence in the message, three descriptions that say what a page may name, and their tests |
 | Spike | None. Every claim was measured on `trunk` on 2026-11-15 by compiling templates through `PageCompiler`, and by counting the reference set's public types over `TRUSTED_PLATFORM_ASSEMBLIES` |
 | Decisions | Intends **pages-admit-what-adds-no-capability**; it refines `pages-the-api-policy` rather than replacing it. The merge writes the entry (`product-plan-before-building`, `product-steps-wait-for-the-owner`) |
@@ -160,8 +160,8 @@ One sentence today, one sentence plus a clause:
 | Case | Message |
 | --- | --- |
 | A member of an admitted type, denied by `s_deniedApis` | unchanged — `PAGE001: pages may not use System.Threading.Tasks.Task.Wait; it starts or blocks work the render cannot stop.` |
-| A member of a refused type | `PAGE001: pages may not use System.StringComparer.OrdinalIgnoreCase. The type System.StringComparer is not part of the page API.` |
-| A refused type, no member named | `PAGE001: pages may not use System.StringComparer.` |
+| A member of a refused type | `PAGE001: pages may not use System.IO.File.ReadAllText. The type System.IO.File is not part of the page API.` |
+| A refused type, no member named | `PAGE001: pages may not use System.IO.File.` |
 
 The clause is factual rather than an instruction, because the message is shown in the editor to
 whoever saved the page, and the list is a source file rather than a setting.
@@ -239,5 +239,15 @@ behaviour is added, so no new test.
 
 ## Status
 
-Proposed 2026-11-15. Nothing is built: this branch exists to put the rule and the batch in front of
-the owner. On approval, Phases 1–3 run here, `make check` is run, and the merge is the owner's.
+Implemented 2026-11-15 on this branch; `make check` is green (format, licence, audit, decisions,
+`check-pages`, 789 Core, 174 Runtime, 1801 Web, 232 integration, publish). The merge is the owner's,
+and the merge writes **pages-admit-what-adds-no-capability** into [the record](../decisions.md) and
+points this plan at it.
+
+Two things the build added that the phases did not name:
+
+- `PageCompilerTests.RuntimeIdStartsWithTheFormatAndPolicyVersions` pins the policy number, so D6's
+  bump is a one-line test change as well as a one-line constant.
+- `PageAuthorPrompt.Version` moves `page-author-v29` to `page-author-v30`, with the three assertions
+  that pin it. The policy paragraph is part of what a stored run records, so the version moves with
+  it.

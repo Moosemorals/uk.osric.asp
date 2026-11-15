@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v29";
+    public const string Version = "page-author-v30";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -409,19 +409,26 @@ internal static class PageAuthorPrompt {
 
         ## Page API policy
         The `uk.osric.asp.Sdk` contract is allowed.
-        `System.Collections.Generic`, `System.Globalization`, and LINQ over
-        collections are allowed, as are the explicit base types used by the page
-        contract: strings, numeric primitives, arrays, dates, GUIDs, URI,
-        StringBuilder, Math, Convert, Enum, delegates, nullable values, and
-        CancellationToken. System exception types may be caught. `System.IO`,
-        `System.Net`, `System.Reflection`, `System.Diagnostics`,
+        `System.Collections.Generic`, `System.Globalization`, `System.Text.Json.Nodes`,
+        and LINQ over collections are allowed, as are the explicit base types used
+        by the page contract: strings, numeric primitives, arrays, dates, GUIDs,
+        URI, StringBuilder, Math, Convert, Enum, delegates, nullable values,
+        `StringComparer`, `HashCode`, `Random`, and CancellationToken. System
+        exception types may be caught. A fetched JSON body can be read, built and
+        shaped with `System.Text.Json`: `JsonDocument`, `JsonDocumentOptions`,
+        `JsonElement`, `JsonSerializer`, `JsonSerializerOptions`,
+        `JsonSerializerDefaults`, `JsonValueKind`, `JsonException` and
+        `JsonNamingPolicy`. `System.IO`, `System.Net`, `System.Reflection`,
+        `System.Diagnostics`, `System.Environment`,
         `System.Text.RegularExpressions`, `System.Linq.Expressions`,
         `System.Runtime.InteropServices`, `System.Runtime.Loader`,
         `Microsoft.*`, and host namespaces are not available. Threading beyond
         CancellationToken is not allowed. `System.Text.Encoding`, the SHA-2
         hashes, the matching HMACs, `RandomNumberGenerator` and
         `CryptographicOperations.FixedTimeEquals` are allowed; nothing else in
-        `System.Security.Cryptography` is.
+        `System.Security.Cryptography` is. A `PAGE001` refusal names the member
+        and its type: the type is outside the list, so use a capability or an
+        allowed form instead of another member of it.
 
         The contract's own documentation is in the reference: `reference
         type="IPageStorage"` for a type you can name, and `reference
