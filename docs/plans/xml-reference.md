@@ -7,15 +7,15 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Done — DEC-302. The corpus, the copy-down, the two pages, the help links and the tool have landed |
+| Status | Done — `shell-the-reference`. The corpus, the copy-down, the two pages, the help links and the tool have landed |
 | Size | Large — one reader and normaliser, the `inheritdoc` bridge, one embedded stylesheet, two public routes under `/admin`, the admin menu, the `/help` link audit, one seeded sheet, one assistant tool, the prose and focused tests; no migration, no configuration key, no build change. Without the copy-down it is a Medium; that is the lever |
 | Spike | None. The facts below are measured on this branch: the publish carries the four XML files, their element set is known, a scratch project confirmed `XslCompiledTransform` transforms a document on .NET 11 with no package, and the Microsoft Learn URL shapes were checked against the live API browser |
-| Decisions | DEC-302: the documentation a build carries is served at `/admin/reference` for all four product assemblies and read by the assistant through one `reference` tool over the page contract only; the corpus is read once per process from the XML beside the assembly and rendered by one embedded stylesheet. The audit in [architecture](../architecture.md#where-a-view-lives) gains the fourth reason below |
+| Decisions | `shell-the-reference`: the documentation a build carries is served at `/admin/reference` for all four product assemblies and read by the assistant through one `reference` tool over the page contract only; the corpus is read once per process from the XML beside the assembly and rendered by one embedded stylesheet. The audit in [architecture](../architecture.md#where-a-view-lives) gains the fourth reason below |
 | Backlog | — |
 
 ## The short version
 
-[The analyzers work](analyzers.md) turned `GenerateDocumentationFile` on (DEC-290), so every product
+[The analyzers work](analyzers.md) turned `GenerateDocumentationFile` on (`code-analyzers-are-strict`), so every product
 assembly now emits its XML documentation, `dotnet publish` carries it, and the image packs it. Nothing
 reads it. This plan gives it two readers:
 
@@ -454,11 +454,11 @@ four names. The tool is unaffected: `Sdk` has no `<inheritdoc/>` entries.
 | [`Admin/AdminNavigation.cs`](../../src/uk.osric.asp.Web/Admin/AdminNavigation.cs) | A Reference item before Help, marked current on the two reference pages |
 | [`Assistant/ShellRoutes.cs`](../../src/uk.osric.asp.Web/Assistant/ShellRoutes.cs) | One record, one line, pointing the model at the tool |
 | `Pages/Seeds/reference.css` | New seeded sheet, including the external-link arrow |
-| [`Pages/Seeds/help`](../../src/uk.osric.asp.Web/Pages/Seeds/help) | The reference link beside the page API paragraph, and a link on the first mention of each type and member in a section (DEC-173) |
+| [`Pages/Seeds/help`](../../src/uk.osric.asp.Web/Pages/Seeds/help) | The reference link beside the page API paragraph, and a link on the first mention of each type and member in a section (`product-manual-is-a-page`) |
 | [`docs/shell.md`](../shell.md), [`docs/assistant.md`](../assistant.md) | The routes and the tool; the `/admin/**` sentence gains its `/admin/reference` exception |
 | [`docs/architecture.md`](../architecture.md#where-a-view-lives), [`docs/glossary.md`](../glossary.md) | The audit's fourth reason, the **Build fact** entry, bootstrap's list |
-| [`docs/jobs/README.md`](../jobs/README.md) | The job moves to Closed with the summary and DEC-302 |
-| [`docs/decisions.md`](../decisions.md) | One entry, numbered from `trunk` at the merge |
+| [`docs/jobs/README.md`](../jobs/README.md) | The job moves to Closed with the summary and `shell-the-reference` |
+| [`docs/decisions.md`](../decisions.md) | One entry, named at the merge |
 | `test/uk.osric.asp.Web.BrowserTests/` | One test: the external-link arrow, which no string proves |
 
 ## Phases
@@ -555,7 +555,7 @@ registry holds nineteen tools; the prompt names the tool, the `/admin/reference`
 ### 6 — Close-out
 
 Done: the job moved to Closed in [jobs](../jobs/README.md) with a summary, `docs/decisions.md` gained
-DEC-302, and every citation in the branch names it.
+`shell-the-reference`, and every citation in the branch names it.
 
 ## Verification
 
@@ -653,7 +653,7 @@ Three things follow from the answers that the questions did not ask:
 - **Putting the reader in `Core`**: the normaliser is pure, and the architecture's table says parsing
   lives in `Core`. But this parses one view's build artifact, both of its consumers are in `Web`, and
   the precedent is `Admin/ChangesEndpoint`, which parses `changes.txt` beside the view it serves.
-  Putting it in `Core` would make it public surface for one assembly, which DEC-11 does not want.
+  Putting it in `Core` would make it public surface for one assembly, which `code-nothing-public-without-a-caller` does not want.
 - **Raw ids as anchors**: `#` truncates the fragment and generic ids carry characters a URL fragment
   cannot hold. The readable slug costs one pure function and keeps the raw id as `title`.
 - **An ordinal `t3`/`m4` anchor**: stable only while nothing is added before it, and `/help` links to
@@ -674,7 +674,7 @@ Three things follow from the answers that the questions did not ask:
   changelist` chooses the file's name.
 
 **Origin:** the owner's question of 2026-11-14, recorded as IDEA-034 after
-[the analyzers plan](analyzers.md) turned the XML documentation on (DEC-290) and the image was found
+[the analyzers plan](analyzers.md) turned the XML documentation on (`code-analyzers-are-strict`) and the image was found
 to carry it. The plan was revised the same day from the owner's answers: the admin route and menu,
 the public access, stable anchors, the help audit, the `inheritdoc` copy-down, and the Microsoft
 Learn links and external-link arrow that the second review added.

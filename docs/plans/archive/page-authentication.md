@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 # Page authentication: one guard at the top of a page
 
 Implementation plan for [IDEA-011](../../jobs/README.md) — pages cannot opt into the sign-in that the
-editor already has. DEC-02 makes every page public, which is right for the shop window but leaves no
+editor already has. `pages-public-by-default` makes every page public, which is right for the shop window but leaves no
 place for a draft, a personal dashboard or anything else that is only for the owner.
 
 The driver is not "add authentication". It is that **a page should not have to implement its own**.
@@ -28,7 +28,7 @@ page is public. There is no flag, directive, column or policy to remember.
 Implemented 2026-11-07. Every phase shipped: `IContext` gained `User`, `RedirectToLogin` and
 `AntiforgeryField`; the shell supplies the identity, builds the login target, checks an authenticated
 `POST` and never caches an authenticated response; the assistant's prompt is `page-author-v4`. The
-decisions are DEC-132 to DEC-137 with DEC-02 amended, and IDEA-011 is in the closed table in
+decisions are `pages-public-by-default`, `pages-identity-is-a-plain-value`, `pages-redirect-to-login`, `auth-a-state-changing-form-carries-a-token` and `assistant-knows-the-guard`, and IDEA-011 is in the closed table in
 [the job index](../../jobs/README.md#closed).
 
 The sketch in [IDEA-011](../../jobs/README.md) recommended a template directive or a metadata
@@ -46,7 +46,7 @@ column; this plan deliberately chose neither, for the reasons in
 3. The guard is code: `if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }`. `return;`
    ends the generated handler, and the buffered body is discarded because the response is a redirect.
 4. **Pages stay public by default.** There is no "protected page" state the host enforces. A page
-   without the guard is public. DEC-02 becomes "pages are public unless the page's own code checks
+   without the guard is public. `pages-public-by-default` becomes "pages are public unless the page's own code checks
    `ctx.User`".
 5. The host validates antiforgery on any `POST` whose principal is authenticated, **before** page code
    runs. `IContext.AntiforgeryField` renders the hidden input every form on a private page needs.
@@ -151,7 +151,7 @@ The only identity a page sees is `ctx.User`; the only sign-in is `/login`; the o
 **Non-goals**
 
 - Roles, claims, groups, ownership per page, invitations, registration or a second identity provider.
-  Any local account is the same owner (DEC-03).
+  Any local account is the same owner (`product-one-owner`).
 - Per-user storage. `Storage` stays per page and shared; using `ctx.User.Name` inside a key is the
   page's own arrangement, not an isolation guarantee. Per-user storage is a later job with its own
   migration and decision.
@@ -161,7 +161,7 @@ The only identity a page sees is `ctx.User`; the only sign-in is `/login`; the o
   visitor; a page that prefers `404` can set the status and return instead.
 - API clients. This is the browser's sign-in with a cookie; there is no bearer token, JSON challenge
   or `401` contract for pages.
-- Making page code trustworthy. A page still runs in-process with the site's identity (DEC-40);
+- Making page code trustworthy. A page still runs in-process with the site's identity (`pages-there-is-no-sandbox`);
   authentication changes who may reach the guard, not what a page author can do.
 
 ## The contract
@@ -313,7 +313,7 @@ inside a call and makes the control flow harder to see; the explicit `if` is the
 `PageUser` is created only in `PageEndpoint`, from the validated `ClaimsPrincipal`. It is not part of
 `PageRequest`: that record is the raw request snapshot, and putting identity in it would invite a page
 to read a cookie or header as if it were the user. `PageUser` carries only `Name`, because roles and
-claims are exactly what the one-owner model avoids (DEC-03).
+claims are exactly what the one-owner model avoids (`product-one-owner`).
 
 An authenticated identity with no `NameIdentifier` maps to `null`. A malformed or half-built
 principal must fail closed for the page, even if the authentication handler considers it
@@ -372,7 +372,7 @@ keeps the anonymous variant cannot leak a private body; it can at worst show the
 the owner. `Vary: Cookie` is deliberately not added: it would fragment every public page on a value
 that changes with each sign-in and buys nothing the cache-safety rule does not already provide.
 
-### D6 — Pages remain public by default; DEC-02 is amended, not replaced
+### D6 — Pages remain public by default; `pages-public-by-default` is amended, not replaced
 
 The existing rule is right: the site is a shop window. The amendment is one sentence:
 
@@ -380,7 +380,7 @@ The existing rule is right: the site is a shop window. The amendment is one sent
 > `ctx.RedirectToLogin()`. Only the editor is behind a route policy. There are still no roles,
 > ownership or registration.
 
-DEC-03 (one owner, any account is the authorisation) and DEC-40 (no sandbox) are unchanged.
+`product-one-owner` (one owner, any account is the authorisation) and `pages-there-is-no-sandbox` (no sandbox) are unchanged.
 
 ### D7 — The assistant learns the guard, but is not made paranoid
 
@@ -422,7 +422,7 @@ the whole `Sdk` namespace already, and no denied API moves.
 - No roles, claims, ownership, invitation or registration.
 - No change to the editor's `Editor` policy or the assistant's route policy.
 - No per-user storage. `ctx.Storage` is still bound to the page key and shared by every visitor.
-- No promise that a page author is trustworthy: DEC-40 still applies.
+- No promise that a page author is trustworthy: `pages-there-is-no-sandbox` still applies.
 
 ## Implementation phases
 
@@ -514,9 +514,9 @@ Add `test/uk.osric.asp.Web.IntegrationTests/PageAuthenticationTests.cs` using th
 2. `docs/architecture.md`: update the page-contract member list; add a "Page authentication"
    subsection under "Authentication and the editor"; update the caching/`ETag` paragraph and the
    request-flow note about CSRF. Keep "pages are public" as the default and say how a page opts out.
-3. `docs/decisions.md`: amend DEC-02 to the text in [D6](#d6--pages-remain-public-by-default-dec-02-is-amended-not-replaced);
+3. `docs/decisions.md`: amend `pages-public-by-default` to the text in [D6](#d6--pages-remain-public-by-default-dec-02-is-amended-not-replaced);
    add the new decisions under "Page contract and threat model" (the next free numbers), linking this
-   plan. Update the DEC-125 open-policy note: the identity hook now exists; per-user storage is still
+   plan. Update the `pages-page-storage` open-policy note: the identity hook now exists; per-user storage is still
    a later job.
 4. `docs/testing.md`: add the new Web and integration coverage to the suite descriptions.
 5. `docs/security/auth-cookie-review.md`: re-check the existing rows against page responses; the new
@@ -568,7 +568,7 @@ Add `test/uk.osric.asp.Web.IntegrationTests/PageAuthenticationTests.cs` using th
   form field. The path already arrived in the request, so this adds only the encoding overhead; no cap
   is proposed unless a real page reaches a header limit.
 - **The auth cookie is visible in `ctx.Request.Cookies`.** A page can read its own session cookie.
-  Page code is trusted, in-process code (DEC-40), so hiding it would be theatre; the docs should not
+  Page code is trusted, in-process code (`pages-there-is-no-sandbox`), so hiding it would be theatre; the docs should not
   pretend otherwise.
 - **A page's own `Cache-Control` is overridden for authenticated responses.** That is the point, but
   it is a surprise worth stating in the architecture and the `SetHeader` documentation.
@@ -580,8 +580,8 @@ Add `test/uk.osric.asp.Web.IntegrationTests/PageAuthenticationTests.cs` using th
 
 - Architecture: page contract, the new authentication subsection, the cache paragraph and the
   request flow.
-- Decisions: DEC-02 amended; new entries for the code opt-in, the supplied identity, the redirect,
-  the CSRF rule, the cache rule and the assistant rule; DEC-125's open note updated.
+- Decisions: `pages-public-by-default` amended; new entries for the code opt-in, the supplied identity, the redirect,
+  the CSRF rule, the cache rule and the assistant rule; `pages-page-storage`'s open note updated.
 - Testing: the new unit and integration coverage.
 - IDEA-011 and the job index: link this plan now; close and delete the idea when the phases land,
   following the ARCH-10/IDEA-003 convention.

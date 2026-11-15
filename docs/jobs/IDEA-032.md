@@ -34,9 +34,9 @@ and one configuration value. [The plan](../plans/assistant-balance-metric.md) is
 ## Sketch
 
 - `assistant.balance`, a gauge on `uk.osric.asp.Assistant`, unit `{credit}`, tagged `currency`. One
-  line per currency, and a line chart because a gauge is a level (DEC-180, DEC-183).
+  line per currency, and a line chart because a gauge is a level (`metrics-one-panel-per-instrument`).
 - A background sampler reads it at `Assistant:BalanceSampleSeconds` — a cadence for an outbound call
-  is a policy value, so a key with no fallback (DEC-282) — and the gauge reports the last snapshot,
+  is a policy value, so a key with no fallback (`code-policy-values-are-configuration`) — and the gauge reports the last snapshot,
   the way `PageStorageSampler` reports the database's size. The gauge's callback does no I/O.
 - Failure stays a value. The sampler logs when the answer changes rather than once per interval, so a
   provider with no balance route costs one line and not one a minute.

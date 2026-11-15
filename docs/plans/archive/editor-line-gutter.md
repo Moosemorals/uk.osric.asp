@@ -262,7 +262,7 @@ the top.
 - **`field-sizing: content`** — sizes the box, still no per-line hook, and overrides the handle.
 - **CSS counters** — they would only remove `textContent` from spans the script already creates.
 - **A fingerprint guard before linking diagnostics** — a save always recompiles, so a mismatch can
-  only come from hand-edited storage. DEC-27.
+  only come from hand-edited storage. `code-no-speculative-code`.
 - **Auto-jumping to the first diagnostic after a save** — needs script or a fragment on the
   redirect; the block is already above the form on the redirected `GET`.
 - **Ace now** — a vendoring flow, a licence, a custom mode and a CSP decision for one feature. This

@@ -16,7 +16,7 @@ public enum HttpFetchFailure {
     /// <summary>The URL, method, body, a header or a redirect target was not acceptable. No connection was made to it.</summary>
     InvalidRequest = 1,
 
-    // 2 was NotAllowed. The host allow-list was removed on 2026-11-10 (DEC-216); the value is kept
+    // 2 was NotAllowed. The host allow-list was removed on 2026-11-10 (`pages-outbound-fetch`); the value is kept
     // out of the enum so page code cannot branch on a failure the host never reports.
 
     /// <summary>The per-fetch timeout or the render's deadline fired.</summary>

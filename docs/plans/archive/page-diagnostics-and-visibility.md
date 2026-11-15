@@ -139,7 +139,7 @@ Checked against the code on 2026-11-08.
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
 | ARCH-14 | This job | **Implements it**; the job is closed |
-| DEC-31, "Compiled pages" | A warning-only page stores its image and reports "Saved with warnings." | Makes that sentence true in practice by giving the compiler something to warn about, and makes it visible in the listing |
+| `pages-the-response-is-buffered-until-a-flush`, "Compiled pages" | A warning-only page stores its image and reports "Saved with warnings." | Makes that sentence true in practice by giving the compiler something to warn about, and makes it visible in the listing |
 | "Visibility" in [architecture.md](../../../docs/architecture.md) | Nothing is `public` unless another product assembly needs it | Turns the paragraph into a build failure, and narrows the surface it already describes |
 | [IDEA-001](../../jobs/IDEA-001.md) | The editor has a gutter and linked diagnostics | The listing gains the state column that makes the run of those links worth clicking |
 | [IDEA-015](../../jobs/README.md#closed) | The listing and history are shell views because a page cannot read the store | Unchanged: the listing stays a shell view, and this plan fixes its shape before a page takes it over |
@@ -519,23 +519,23 @@ review can see the surface change apart from the guards.
 
 ## Documentation and decisions
 
-- **DEC-177**: a compiled page is nullable-enabled and its generated scaffold is not. The generator
+- **`pages-a-page-is-nullable`**: a compiled page is nullable-enabled and its generated scaffold is not. The generator
   writes `#nullable enable` outside each mapped region and `#nullable disable` around every line it
   wrote itself, so a diagnostic the author sees is always about the author's code. `Core` and `Sdk`
   do not change; the promise is held by a compiler test rather than by runtime policy, because
   an unmapped warning is dropped and making one fatal would turn a Roslyn change into a `500`.
-- **DEC-178**: a warning never stops a page. A stored image with bytes carries warnings only; the
+- **`pages-a-warning-never-stops-a-page`**: a warning never stops a page. A stored image with bytes carries warnings only; the
   page is served, listed and hashed exactly as one that compiles cleanly. The editor, the history and
   the assistant all say "Compiled with warnings", and no path treats it as a failure.
-- **DEC-165**: a page has a state — `Not compiled`, `Stale`, `Compile failed`, `Compiled with
+- **`pages-a-page-has-a-state`**: a page has a state — `Not compiled`, `Stale`, `Compile failed`, `Compiled with
   warnings`, `Compiled` — and the `/edit` listing shows it in a State column. Staleness is judged on
   `RuntimeId` alone, because hashing every template to answer a listing is not worth it, and a
   retained revision is history rather than stale.
-- **DEC-166**: nothing is `public` unless another product assembly binds to it, and the build
+- **`code-nothing-public-without-a-caller`**: nothing is `public` unless another product assembly binds to it, and the build
   enforces it. The narrowing loop is "make it `internal`, build, and let the compiler name the
   hidden caller"; the guarantee is `Microsoft.CodeAnalysis.PublicApiAnalyzers` with an empty
   `PublicAPI.Shipped.txt` in `Web`. `Sdk` is the exception and is declared shipped in full.
-- **DEC-167**: an argument is validated where it enters the assembly — public members of public
+- **`code-validation-at-the-boundary`**: an argument is validated where it enters the assembly — public members of public
   types, the `Sdk` implementations, and the endpoint handlers — and trusted everywhere after that.
   `internal` and `private` members do not validate, and a DI-injected constructor does not either,
   because the container is the only caller and it does not pass null.

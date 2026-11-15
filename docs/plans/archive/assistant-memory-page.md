@@ -10,9 +10,9 @@ SPDX-License-Identifier: MIT
 | Status | Implemented 2026-11-09 |
 | Size | Medium — two store operations, four routes, a list-and-form view, one seed's styles and the tests for each |
 | Spike | None. [The memory spike](../../spikes/assistant-memory.md) already settled the store; this plan only reads and writes it |
-| Decisions | DEC-205–DEC-209, recorded when this lands |
+| Decisions | `assistant-memory-page`, recorded when this lands |
 | Backlog | [IDEA-023](../../jobs/README.md#closed), which this plan closed |
-| Superseded | D2–D6, the shell view, by the assistant page ([IDEA-025](../../jobs/IDEA-025.md)): the memory view becomes one of its routes and no page capability is added for it — [page first](../page-first.md) first proposed one and withdrew it (DEC-291). D1's store work stands |
+| Superseded | D2–D6, the shell view, by the assistant page ([IDEA-025](../../jobs/IDEA-025.md)): the memory view becomes one of its routes and no page capability is added for it — [page first](../page-first.md) first proposed one and withdrew it (`assistant-memory-belongs-to-the-assistant`). D1's store work stands |
 
 ## The short version
 
@@ -62,7 +62,7 @@ is in the next run's block and a memory forgotten on it is gone from the next ru
   turn, and a page that invented one could not say which.
 - **A bulk forget, or a reset.** IDEA-023 says a "forget everything" wants a typed confirmation and
   its own decision, like a page scrub; this plan leaves it out on purpose.
-- **Export and import.** The archive carries page source and page state and nothing else (DEC-139);
+- **Export and import.** The archive carries page source and page state and nothing else (`pages-an-archive-is-a-database`);
   memory is neither, and the backup story is still the SQLite file.
 - **Showing what the model is told.** The page shows memories, not the block. The block is a
   selection of them within a character budget, and drawing it would invite the owner to treat it as
@@ -70,7 +70,7 @@ is in the next run's block and a memory forgotten on it is gone from the next ru
 - **Team memory, sharing or scopes.** One owner per row is the security model; the page does not
   invent a second one.
 - **A JavaScript editor.** A memory is a sentence; a textarea and a save button are the whole
-  interaction, and the page must read without a script exactly as `/status` does (DEC-81).
+  interaction, and the page must read without a script exactly as `/status` does (`metrics-prometheus-only`).
 
 ## What exists today
 
@@ -118,7 +118,7 @@ re-render the row, because the textarea's content is the owner's work.
 | `docs/jobs/IDEA-023.md`, `docs/jobs/README.md` | The job closes |
 
 Nothing in `Sdk`, `Runtime` or the page contract changes: a stored page cannot reach memory, and the
-page is shell code (DEC-184).
+page is shell code (`assistant-memory-is-the-owners`).
 
 ## Design
 
@@ -151,7 +151,7 @@ sort here than to store as a sortable column.
 
 1. Normalise the content with `MemoryContent.Normalise` and refuse a secret with `MemorySecrets`,
    with the same sentences `RememberAsync` uses — the owner is as likely to paste a token as the
-   model is, and DEC-188 is about what the store holds, not about who typed it.
+   model is, and `assistant-memory-is-the-owners` is about what the store holds, not about who typed it.
 2. Open one transaction and read the row by id and owner. A row that is missing, or belongs to
    somebody else, is the same answer: `No memory with id {id}.`
 3. Refuse a version that is not `expectedVersion`, answering with the row's current content, exactly
@@ -167,7 +167,7 @@ sort here than to store as a sortable column.
 The assistant's `UpdateAsync` keeps its signature, which has no `pinned` argument at all: a model
 cannot pin a memory because there is no path through the executor that could say so, and a store
 test asserts that a tool write leaves `Pinned` alone. Pinning is the owner's, and this page is where
-they exercise it (DEC-206).
+they exercise it (`assistant-memory-page`).
 
 `MemoryCandidate` gains one field, `long? SourceConversationId`, and the store's projections add the
 column to the three selects that already build a candidate (`RecallAsync`, `StickyAsync`,
@@ -203,7 +203,7 @@ The last two are the interesting ones. A bare error page would throw away what t
 the textarea is the only place that text exists: so a failed save re-renders the list with the
 offending row in an editing state, carrying the submitted values and an error line, and answers
 `400` or `409`. That is the same choice the editor makes for a page that does not compile — the
-diagnostics come back with the source rather than instead of it (DEC-208).
+diagnostics come back with the source rather than instead of it (`assistant-memory-page`).
 
 ### D3 — The list
 
@@ -223,11 +223,11 @@ Page list. Then:
 A row's meta line says whether the memory is pinned, when it was written and how often it has been
 used, and where it came from — a link to the conversation while that conversation exists, and "from a
 deleted conversation" when `SourceConversationId` is null, which is what the conversation delete
-leaves behind (DEC-184). The note itself is the row's textarea, so the page shows it once: a second,
+leaves behind (`assistant-memory-is-the-owners`). The note itself is the row's textarea, so the page shows it once: a second,
 read-only copy above an editable one is the same text twice. The use count reads "never used" or "used 4
 times, last on 2026-11-06". The content is written as text, HTML-encoded by the view: a memory is
 data that goes into a prompt, and the page that shows it draws a `<script>` in it as characters, not
-as an element (DEC-205).
+as an element (`assistant-memory-page`).
 
 The grouping and the order inside a group are one pure rule, `MemoryListing.Group` in `Core`:
 
@@ -300,7 +300,7 @@ The `GET` never deletes and the `POST` never asks: the confirmation is a page, t
 button on it. A `POST` to an id that is not the owner's is the `404` page and changes nothing; a
 `POST` that succeeds answers `303`. The store call is the same `ForgetAsync` the `forget_memory` tool
 makes, so the page cannot delete something the tool could not: head, history and index row in one
-transaction, no tombstone (DEC-209).
+transaction, no tombstone (`assistant-memory-page`).
 
 ### D6 — Markup, styles and the seed
 
@@ -332,7 +332,7 @@ The page loads no script. `assistant.js` stays what the conversation needs and n
 record. That record's description gains the page: "The page assistant: conversations, transcript,
 run stream, tool approvals and the owner's memory list." The reserved keys themselves do not change,
 so `Pages:ReservedPaths`, `ReservedPaths.Default` and the test that pins the records to them are all
-untouched, and the assistant still cannot save the route (DEC-198).
+untouched, and the assistant still cannot save the route (`assistant-reads-the-shell-files`).
 
 The assistant navigation on `/assistant` and on a conversation gains a Memory link, so the page is
 one click from where a memory is written. Nothing is added to the site menu: the page is the
@@ -373,7 +373,7 @@ metric of its own rather than a second meaning for `assistant.memory.writes`.
 ## Considered and rejected
 
 - **A JSON endpoint and a script.** The conversation page needs one because it streams; a list and a
-  form do not. `/status` and the editor are server-rendered for the same reason, and DEC-81 keeps the
+  form do not. `/status` and the editor are server-rendered for the same reason, and `metrics-prometheus-only` keeps the
   shell free of JavaScript where markup will do.
 - **Editing a memory in the transcript.** The turn that wrote it is a tool call and its result, and a
   form there would be a second write path inside a page that reloads on every terminal event. The
@@ -456,7 +456,7 @@ The order is the repository's: the pure rule first, then the store, then the com
 
 **The gate.** `make check` (format, licence, audit, build, test, publish) and a relative-link and
 anchor check over `docs/` after the documentation changes. The browser suite is `make deploy`'s, as
-always (DEC-179).
+always (`code-browser-suite-is-opt-in`).
 
 ## Phases
 
@@ -464,7 +464,7 @@ Each phase ends with a green `make check` and its tests written first.
 
 ### Phase 0 — the rule and the store (half a day)
 
-- Record DEC-205–DEC-209.
+- Record `assistant-memory-page`.
 - `MemoryCandidate.SourceConversationId`, `MemoryListing` and `MemoryGroup`, with the tests failing.
 - `ListAsync` and `EditAsync` in `IMemoryStore` and `SqliteMemoryStore`, and the source conversation
   in every projection that builds a candidate.
@@ -514,19 +514,19 @@ trip edits, pins and forgets a memory.
 
 ## Documentation and decisions
 
-- **DEC-205** — The memory page is shell code under `/assistant/memory`, behind the `Editor` policy
+- **`assistant-memory-page`** — The memory page is shell code under `/assistant/memory`, behind the `Editor` policy
   and the owner filter, server-rendered with no JavaScript, and one document per response: the list,
   a row's form, a forget's confirmation. A memory is shown as encoded text and never rendered as
   Markdown or HTML, because it is data the prompt already declares to be data.
-- **DEC-206** — Pinning is the owner's, and only the owner's: `EditAsync` is the one write that can
+- **`assistant-memory-page`** — Pinning is the owner's, and only the owner's: `EditAsync` is the one write that can
   change `Pinned`, it is reached from the page and never from a tool, and a pinned memory is listed
   first inside its kind and honoured first by recall.
-- **DEC-207** — A save carries the version the row was rendered from and a stale one is refused with
+- **`assistant-memory-page`** — A save carries the version the row was rendered from and a stale one is refused with
   the stored content rather than merged, the same rule `edit_page` and `update_memory` already use.
-- **DEC-208** — A refused save re-renders the row with the submitted text and an error line above it,
+- **`assistant-memory-page`** — A refused save re-renders the row with the submitted text and an error line above it,
   because the textarea is the only copy of what the owner typed; the answer is a `400` or a `409`
   carrying the page, not a bare error page.
-- **DEC-209** — Forgetting from the page is the same delete `forget_memory` makes — head, history and
+- **`assistant-memory-page`** — Forgetting from the page is the same delete `forget_memory` makes — head, history and
   index row in one transaction, no tombstone — and it asks on a page of its own first, which also
   says what the delete cannot reach.
 
@@ -539,10 +539,10 @@ to [closed](../../jobs/README.md#closed); and the plan's status row says landed.
 
 | Risk | Mitigation |
 | --- | --- |
-| **The page becomes the injection foothold.** The owner or a pasted page talks the assistant into a memory, and the page makes it look authoritative. | The page shows exactly what the run will be given, as data; editing it is the owner's act; the prompt still declares a memory data rather than instructions (DEC-188). The list is the review surface the memory plan said was missing. |
+| **The page becomes the injection foothold.** The owner or a pasted page talks the assistant into a memory, and the page makes it look authoritative. | The page shows exactly what the run will be given, as data; editing it is the owner's act; the prompt still declares a memory data rather than instructions (`assistant-memory-is-the-owners`). The list is the review surface the memory plan said was missing. |
 | **A pin floods the block.** Every pinned memory is selected before anything else. | Pinned memories are still bounded by `MaxMemoriesPerRun` and `MaxMemoryCharsPerRun`, a pinned memory that does not fit is reported as left out, and the page shows the pin beside the content that earns it. |
 | **A stale form overwrites an assistant edit.** Two tabs, or a run that updated the row. | `expectedVersion` on every form, one transaction, a `409` carrying the stored content. |
-| **A failure loses the owner's text.** | Every refusal re-renders the row with the submitted values and the error line (DEC-208), and `maxlength` makes the cap the browser's first refusal. |
+| **A failure loses the owner's text.** | Every refusal re-renders the row with the submitted values and the error line (`assistant-memory-page`), and `maxlength` makes the cap the browser's first refusal. |
 | **The new styles never reach an existing site.** Seeding only fills a missing head. | The page is usable with `layout.css`'s `form.form` alone, and the docs say to restore `/assistant.css` from the page list after this lands. |
 | **A second write path to memory drifts from the tools'.** | One store operation, `EditAsync`, with the same normalisation, the same cap, the same secret rules, the same history and the same version check; the endpoint validates form shape only. |
 | **The page quietly grows into memory authoring.** A "new memory" box is the obvious next ask. | It is a non-goal with a reason: a memory should be attributable to a turn. Adding one is a decision, not a form. |
@@ -562,6 +562,6 @@ to [closed](../../jobs/README.md#closed); and the plan's status row says landed.
   still cannot save the route.
 - `ShellViews` and `AccessibilityTests` cover the page, and the browser suite walks the round trip.
 - `docs/assistant.md`, `docs/storage.md`, `docs/testing.md` and `docs/glossary.md` describe what the
-  code does; DEC-205–DEC-209 are in `docs/decisions.md`; IDEA-023 is closed; the plan's status row says
+  code does; `assistant-memory-page` are in `docs/decisions.md`; IDEA-023 is closed; the plan's status row says
   landed.
 - `make check` passes.

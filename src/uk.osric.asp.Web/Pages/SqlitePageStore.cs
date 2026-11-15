@@ -162,9 +162,9 @@ internal sealed class SqlitePageStore(
     /// <returns>The revision that was stored, which is a retry when another writer took the id.</returns>
     /// <remarks>
     /// The editor's save, an imported batch and a page saving its own source all end here, so the
-    /// transaction, the row shape and the retry cannot drift apart (DEC-192). The single save passes
+    /// transaction, the row shape and the retry cannot drift apart (`pages-a-page-may-save-itself`). The single save passes
     /// the request's context; a page's save opens one of its own, because its task can outlive the
-    /// request (DEC-172).
+    /// request (`pages-the-store-is-read-through-one-seam`).
     /// </remarks>
     internal static async Task<PageTemplate> StoreRevisionAsync(
         StorageDbContext database,

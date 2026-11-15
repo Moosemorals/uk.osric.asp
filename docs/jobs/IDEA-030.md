@@ -35,7 +35,7 @@ that needs a subset gets it as a slice, not as a hand-written copy.
 - The audience lists are shell knowledge — they name routes and keys the page store cannot — so a
   page reaches them the way it reaches the editor's key: through a capability or a context value,
   not by writing the list again.
-- The seeded `_layout` stays the document's chrome (DEC-148): what it should stop owning is the
+- The seeded `_layout` stays the document's chrome (`pages-a-layout-is-a-capability`): what it should stop owning is the
   *contents* of the menu, which is what `SiteNavigation` and the page disagree about today.
 - Two rules worth pinning while it moves: a landmark has one label and no view repeats it, and the
   item for the page being shown is text rather than a link, in both audiences.

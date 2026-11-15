@@ -13,7 +13,7 @@ It is an authenticated owner feature: the views are host code under the reserved
 and `/assistant.js` plus `/assistant.css` are seeded, protected assets. It is not switchable: the
 provider's key is the one value a deployment must supply, the host refuses to start without
 `Assistant:ApiKey` unless `Assistant:RequireApiKey` says the provider needs none, and a host that
-cannot answer for the assistant never comes up at all (DEC-301).
+cannot answer for the assistant never comes up at all (`assistant-always-on`).
 
 A submitted message and its queued run are committed together. A hosted worker owns the run after the
 request returns; the browser is only a viewer and can disconnect without cancelling work. SQLite is
@@ -27,25 +27,25 @@ by tools to that provider. No provider SDK is used. The tools are nineteen types
 `Assistant/Tools`, each carrying its name, its description, its argument schema, its approval flag,
 the verb its refusals use, whether it changes a page and its own run, beside the code that runs it;
 `ToolRegistry` is the only list, so the model's definitions, the dispatcher and the approval gate
-cannot drift from each other (DEC-231). Assistant tools reach the page store
+cannot drift from each other (`assistant-a-tool-is-one-type`). Assistant tools reach the page store
 through one read seam, `PageStoreReader` — list/read/search, bounded template-source line edits with an
 atomic revision-hash check, whole-page writes, tombstone deletes, a read-only virtual shell, and two
 read-only script checks that parse a stored page or a supplied complete template as an ES module and
 change nothing — while every write is still `PageEditor`'s. The seam also answers the applets, so the
 tree, the reserved keys, the tombstones, the key order and what a scope means are decided once
-(DEC-274–DEC-278). It carries facts rather than words: a node says whether a save would be accepted and
+(`pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree`). It carries facts rather than words: a node says whether a save would be accepted and
 what the page compiled to, and `PageMode` and `PageImageStatus` spell them, so `ls -l`, `stat`,
-`list_pages` and `read_page` agree (DEC-275, DEC-276). The tools also see a record of the site's own
+`list_pages` and `read_page` agree (`pages-a-listing-carries-facts`, `pages-a-page-has-a-state`). The tools also see a record of the site's own
 routes, which they can read and never write, and two tools outside the store: `fetch` and `diff_page`.
 `fetch` GETs an absolute `http` or `https` URL through the same bounded
 outbound HTTP a page uses and returns the status, content type and text body; every assistant
 request, the provider call included, carries `moosemorals.com (assistant)` as its `User-Agent`. It is approval-gated under
 `RequireApproval`, and like
-page fetch it has no host allow-list (DEC-216). A fetched body is a tool result, so it is stored in the
+page fetch it has no host allow-list (`pages-outbound-fetch`). A fetched body is a tool result, so it is stored in the
 transcript and sent to the provider on the next step: treat it as untrusted data, not instructions.
 `diff_page` compares two retained revisions of a page, defaulting to the newest two, and returns a
 unified diff, the two hashes and the editor link; it is a read, changes nothing and needs no
-approval (DEC-219).
+approval (`pages-diff`).
 
 The assistant also reads and restores history. `list_revisions` answers a page's retained revisions
 newest first — hash, save time, creation runtime, compile state, whether it is the head and its
@@ -60,15 +60,15 @@ file, a missing page and a non-canonical hash, and `read_revision` refuses a has
 path — the rules the editor's `cmd=revision` applies. Reading a revision sends its source to the
 provider exactly as `read_page` does. Every source line the two tools answer with is prefixed by
 its 1-based number and `| `, because counting lines in escaped JSON is guesswork; the prefix is not
-part of the stored source (DEC-271).
+part of the stored source (`assistant-edit-page-is-safe`).
 
 `edit_page` answers with what it changed: the added and removed line counts and the unified diff,
 so an edit that compiles but mangles a block is visible in the same turn. It takes either one line
 range — `endLine` defaults to `startLine` — or an `edits` array applied against the original line
 numbers in one conditional save, and optional `expectFirst`/`expectLast` exact-line assertions
 refuse a range whose boundary is not the text the model read. An edit that would leave the source
-byte-identical is not saved; it answers `changed: false` with a warning instead (DEC-269, DEC-270,
-DEC-272).
+byte-identical is not saved; it answers `changed: false` with a warning instead (`assistant-edit-page-is-safe`,
+`assistant-edit-page-is-safe`).
 
 `restore_revision` saves a revision's source as a new revision through the ordinary
 compile-and-save path: nothing is rewound, and a deleted page comes back with its history. It is the
@@ -91,7 +91,7 @@ There is no process, filesystem, git, package, or other outbound-network tool. T
 approval mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on
 each flagged call. Unresolved, stale, stopped, or restarted approvals never execute.
 
-The tools also see the shell's own files, which are the site's routes (DEC-198). Every key in
+The tools also see the shell's own files, which are the site's routes (`assistant-reads-the-shell-files`). Every key in
 `Pages:ReservedPaths` — `/admin/changes`, `/admin/export`, `/admin/import`, `/admin/reference`,
 `/admin/restore`, `/admin/scrub`, `/assistant`, `/favicon.ico`, `/heath`, `/login`, `/logout`,
 `/metrics` and `/status` — is listed, searched and readable: `cat` and `read_page` return a host-written record of the route's methods, access and
@@ -103,27 +103,27 @@ would not — and `list_pages` also marks the row `kind: shell` or `kind: page`.
 describes itself: `help` lists every command with its options and arguments, `help <command>`
 prints one, and a refused call names `help`, so the accepted form is one call away rather than
 in the prompt or here. `-n` numbers the lines `cat` prints, and `grep` accepts it and changes
-nothing, because a match already carries its line (DEC-221). The line is lexed before it is
-judged (DEC-222): a quoted or escaped character is data, so `grep '&mdash;'` searches for one
+nothing, because a match already carries its line (`assistant-the-shell-is-applets`). The line is lexed before it is
+judged (`assistant-the-shell-lexes-before-it-judges`): a quoted or escaped character is data, so `grep '&mdash;'` searches for one
 and an unquoted `&` is refused, and a first word that is not a command is refused as that word
 rather than as the punctuation inside its quotes. The store is a tree, and the shell reads it as
-one (DEC-223): `ls` lists what is at a path and `ls -R`/`find` list everything below it, `grep`
+one (`assistant-the-shell-is-posix`): `ls` lists what is at a path and `ls -R`/`find` list everything below it, `grep`
 reads one level and `grep -r` descends, and `grep`'s query is a basic regular expression whose
 `\|` is alternation while every other punctuation character is literal. A capped listing, a
 capped match, or a match that lies below the level a search read, is said in the answer rather
 than left to be misread. `diff` compares a pair of keys and writes POSIX `diff`'s own output
-(DEC-225), because where the shell implements a command it implements the POSIX one (DEC-224).
-The commands are applets and the kernel is one pipeline (DEC-226): a command is one type
+(`assistant-the-shell-is-posix`), because where the shell implements a command it implements the POSIX one (`assistant-the-shell-is-posix`).
+The commands are applets and the kernel is one pipeline (`assistant-the-shell-is-applets`): a command is one type
 carrying its usage, its syntax and its behaviour, help is rendered from them, and lexing,
 parsing and pattern expansion happen once. `find` is POSIX's, with `-name`, `-path` and `-type`
-(DEC-227), and operators are refused as not there yet rather than as forbidden. A save to a
+(`assistant-the-shell-is-posix`), and operators are refused as not there yet rather than as forbidden. A save to a
 shell file answers "Not permitted": only the owner changes the shell, in code. The seeded assets
 are ordinary pages the assistant may edit, like every page the shell does not answer.
 `RequireApproval` asks the path policy before it asks the owner, so a save it has already
 refused never becomes an approval nobody can grant. `check_script` stays a page-source check, so
 a shell file is refused there.
 
-The assistant has a small memory of its own, one owner's and nobody else's (DEC-184–DEC-188). A memory
+The assistant has a small memory of its own, one owner's and nobody else's (`assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`). A memory
 is a note — a preference, a fact about this site, a correction, a reference to where something lives —
 stored in SQLite beside the transcript and read back into the system prompt at the start of a run. Four
 tools reach it: `remember`, `update_memory` and `forget_memory` are approval-gated under
@@ -131,7 +131,7 @@ tools reach it: `remember`, `update_memory` and `forget_memory` are approval-gat
 read. The owner is taken from the signed-in conversation and never from the model's arguments, so
 there is no path by which a tool call names somebody else's memory.
 
-`/assistant/memory` is the owner's view of all of it (DEC-205–DEC-209): every memory the signed-in
+`/assistant/memory` is the owner's view of all of it (`assistant-memory-page`): every memory the signed-in
 account holds, grouped by kind with the pinned ones first inside a kind, each row a form that saves
 the content, the kind and the pin, and a count against `Assistant:MaxMemoriesPerOwner` so "the
 assistant is full" is visible before a run fails to remember something. The row carries the version it
@@ -139,10 +139,10 @@ was rendered from: a save from a stale page is refused with the content the assi
 rather than overwriting it, and an invalid, too long or secret note re-renders the row with the text
 the owner typed still in it. Forgetting asks on a page of its own first, and says what the delete
 cannot reach. The page is server-rendered and script-free, it is a shell file the assistant may read
-and never save (DEC-198), and it is the only place a memory can be pinned: no tool has an argument
-for that (DEC-206). It stays shell code until the assistant itself is a page
+and never save (`assistant-reads-the-shell-files`), and it is the only place a memory can be pinned: no tool has an argument
+for that (`assistant-memory-page`). It stays shell code until the assistant itself is a page
 ([IDEA-025](jobs/IDEA-025.md)): the memory view is one of that page's routes, and the page capability
-that would have replaced it was withdrawn (DEC-291).
+that would have replaced it was withdrawn (`assistant-memory-belongs-to-the-assistant`).
 
 Recall happens once per run, on the first step, and the block it builds is frozen for the rest of the
 run: a memory the model writes mid-run reaches the next run, not the turn that wrote it. The newest
@@ -169,7 +169,7 @@ in a log line and never a metric tag: a recall line has the run, the count and t
 write line has the operation, the kind and the outcome.
 
 An assistant reply is Markdown and the transcript renders it. The restricted profile is the second
-`MarkdownRenderer` profile (DEC-164): no raw HTML, images, autolinks or unsafe URL schemes;
+`MarkdownRenderer` profile (`pages-markdown`): no raw HTML, images, autolinks or unsafe URL schemes;
 site-relative or `http(s)` links with `rel="nofollow noopener noreferrer"`; pipe tables through the
 site's table renderer; and every heading flattened to `h3`, because the transcript's own heading is
 an `h2`. A step streams as plain text and becomes formatted when `message.completed` arrives: the
@@ -177,7 +177,7 @@ page asks `GET /assistant/{id}/messages/{messageId}/content`, which renders the 
 the same profile as the reload, so the live step and the page after the run cannot disagree. The
 route is behind the same `Editor` policy and owner filter as every other conversation operation.
 A `diff_page` result carries `editorUrl`, which opens the same rendered diff the editor's history
-shows, so a model can link the owner to the line changes it read (DEC-219).
+shows, so a model can link the owner to the line changes it read (`pages-diff`).
 
 The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
 results, context and event replay. The shipped caps are 160 steps and 128 tool calls per run, a

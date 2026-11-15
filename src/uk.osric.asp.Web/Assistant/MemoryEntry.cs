@@ -6,7 +6,7 @@ namespace uk.osric.asp.Web.Assistant;
 /// <summary>One memory: the head row, which is the current version and the only one recall reads.</summary>
 /// <remarks>
 /// The owner is the security boundary: every statement filters on it. Provenance is deliberately not a
-/// foreign key, because a memory outlives the conversation that produced it (DEC-184).
+/// foreign key, because a memory outlives the conversation that produced it (`assistant-memory-is-the-owners`).
 /// </remarks>
 internal sealed class MemoryEntry {
 

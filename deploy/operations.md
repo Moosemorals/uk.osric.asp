@@ -35,14 +35,14 @@ curl -sI https://moosemorals.com/site.css | grep -iE '^(content-type|cache-contr
 Every rendered page is `Cache-Control: no-cache` unless the page sets its own, and an authenticated
 response is `no-store` whatever the page set. The shipped map names `.js`, `.mjs`, `.css`, `.json`,
 `.svg` and `.txt`; an `.svg` page is the owner's own content, served with the shell's policy and
-refused script unless the page asks for it (DEC-197). The mount is read-only on purpose: no page,
+refused script unless the page asks for it (`pages-content-types`). The mount is read-only on purpose: no page,
 editor or assistant can change the map.
 
 ## Memory and swap
 
 The VM has 8 GB of RAM, which is enough for the app, Caddy, Prometheus, podman and the kernel to
 share, so the 4 GiB swap file at `/swapfile` is a cushion rather than part of the memory budget
-(DEC-87). The arrangement is still deliberately lopsided:
+(`deploy-caps-and-swap`). The arrangement is still deliberately lopsided:
 
 - **The app cannot use it.** The quadlet passes `--memory-swap=2g` beside `--memory=2g`, which sets
   that container's `memory.swap.max` to zero. A page that allocates without bound still meets the OOM
@@ -157,10 +157,10 @@ any form that was already open.
 
 ### One-off: the squashed migration
 
-**Done on the CAX21 on 2026-11-07.** This is kept as the record of what the DEC-122 deploy cost, and
+**Done on the CAX21 on 2026-11-07.** This is kept as the record of what the `code-names-say-what-they-are` deploy cost, and
 as the procedure if a second host ever holds a pre-squash volume; a fresh host needs none of it.
 
-The migration history was squashed into a single `InitialCreate` for DEC-122, which renamed the
+The migration history was squashed into a single `InitialCreate` for `code-names-say-what-they-are`, which renamed the
 assistant's EF entities. `__EFMigrationsHistory` in an existing `uk.osric.asp-storage` volume does not
 know about `InitialCreate`, so startup finds tables it did not create and the app fails. It costs two
 volumes and one account, and the order matters: when the release has already been deployed, the app is
@@ -187,7 +187,7 @@ a redeploy is unnecessary — starting the units recreates the schema from `Init
 
 `uk.osric.asp-storage` goes because the schema no longer replays from the old history, and it takes
 the owner account with it — hence the `remote-user-add` afterwards. `prometheus-data` goes because
-DEC-122 also renamed the page meter to `uk.osric.asp.Pages` and two instruments to
+`code-names-say-what-they-are` also renamed the page meter to `uk.osric.asp.Pages` and two instruments to
 `page.load.duration` and `page.invoke.duration`: with 30 days of retention, the old and new series
 would otherwise sit side by side for a month and any panel that sums without filtering by name would
 count both. Nothing in either volume is worth keeping.
@@ -215,7 +215,7 @@ whichever comes first; the container is capped at 512 MB of RAM so runaway cardi
 instead of the host. `/status` is owner-only and queries Prometheus by name, so neither service is
 reachable from the internet.
 
-- **Two gates on `/metrics`.** The app publishes on the loopback only (the control DEC-61 describes),
+- **Two gates on `/metrics`.** The app publishes on the loopback only (the control `deploy-loopback-and-caddy` describes),
   and Caddy answers `404` for the path on the public origin. Keep both.
 - **Prometheus is never proxied.** It has no authentication; reach it with
   `ssh -L 9090:127.0.0.1:9090 deploy@<server-ip>` and open `http://localhost:9090`.
@@ -226,7 +226,7 @@ reachable from the internet.
   not a public embed. `duration` is a window token (`1h`, `3h`, `8h`, `1d`, `7d`, `30d`) or a whole
   number of minutes. A malformed window is a `400`, an unknown panel a `404`, and a Prometheus that
   does not answer a `503` with the reason.
-- **Restore `/status.css` after deploying this page.** The sheet is a seeded page (DEC-174), so an
+- **Restore `/status.css` after deploying this page.** The sheet is a seeded page (`pages-delete-install-and-restore`), so an
   installation that already has one keeps the old rules until the owner restores it from `/edit`.
   Until then the charts render full width, one per row: usable, but not the intended grid. The
   assistant's own seeded `/assistant.css` and `/assistant.js` are the same: a deployment adds the

@@ -82,7 +82,7 @@ internal static class PageReferenceSet {
     // System.Private.CoreLib, and it cannot stop reflection by name - PageApiPolicy and the load
     // context do that. A post-emit scan of the image's type references would only catch what the
     // semantic walk already reports, at the cost of false rejections for compiler-emitted helpers such
-    // as DefaultInterpolatedStringHandler (DEC-38).
+    // as DefaultInterpolatedStringHandler (`pages-the-api-policy`).
     private static bool IsReachableFromPages(string assemblyName) {
         return !assemblyName.StartsWith("uk.osric.asp.", StringComparison.OrdinalIgnoreCase)
             && !assemblyName.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase);

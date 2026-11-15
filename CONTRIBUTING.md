@@ -34,9 +34,10 @@ The branch is named for the unit of work:
 
 Work lands as a merge commit (`git merge --no-ff`) rather than a fast-forward, so the branch and the
 work it carries stay one unit in the history. After the merge its worktree is removed and the branch
-deleted; nothing is pushed to `origin` until asked. Decision numbers are taken when the work merges
-([DEC-09](docs/decisions.md)), so a branch cites a decision by name until then and every citation is
-updated in the merge.
+deleted; nothing is pushed to `origin` until asked. A decision is named rather than numbered and its
+name is taken when the work merges
+([the record](docs/decisions.md)), so a branch states the name it intends until then and the merge
+writes the entry.
 
 **The owner merges, not the agent.** A branch is a proposal. When its work is done and its gate is
 run, the agent stops and says what changed, what proved it and what it is unsure of; the owner answers.

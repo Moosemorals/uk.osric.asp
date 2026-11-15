@@ -21,7 +21,7 @@ page compiler still compiles against a reference set that shrinks with every tri
 share the base image's framework, so the release moves 58 MB instead of the current 26.7 MiB layer.
 
 This matters beyond size: it is the first measurement of trimming on this codebase, and it replaces
-the one-line claim in [DEC-60](../decisions.md) and
+the one-line claim in `deploy-the-image` and
 [operations](../../deploy/operations.md#image-layout-and-size)
 ("dies at startup with `TypeLoadException`")
 with the actual chain, which is neither that exception nor one failure.
@@ -30,7 +30,7 @@ with the actual chain, which is neither that exception nor one failure.
 
 Would publishing trimmed — without going as far as NativeAOT — cut the image or the memory enough
 to be worth the work? The [AOT spike](aot-page-binary-spike.md) answered a different question (a
-process per render) and left this one inherited from DEC-60. Trimming is worth its own record
+process per render) and left this one inherited from `deploy-the-image`. Trimming is worth its own record
 because it is separable from AOT: a trimmed app still JITs, so the page compiler and the load
 context keep working, and only AOT takes those away.
 
@@ -187,7 +187,7 @@ closed type (a `JsonElement`, say) — a contract change, not a cleanup.
 - **Do not trim the host now.** It buys 92 MB of resident memory and costs EF roots, a migrations
   story that has to leave the startup path, reflection JSON back on, a corelib-sized hole in the
   trim, and 31 MB more per release.
-- **DEC-60's conclusion stands, its reason does not.** "Trimming dies at startup" is true, but the
+- **`deploy-the-image`'s conclusion stands, its reason does not.** "Trimming dies at startup" is true, but the
   first failure is EF's value comparer, and the page compiler is the last one, not the first.
 - **The AOT spike is unaffected.** Trimming still JITs; the page compiler, the collectible load
   context and the reflection invoke all work under a trimmed host once corelib is kept. AOT removes

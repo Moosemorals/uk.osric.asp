@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 
 > **Re-scoped 2026-11-14** by [the page-apps plan](../plans/page-apps.md). The sketch below first
 > proposed an `IAssistantConversations` capability; that is exactly the specialist capability the site
-> must not build (DEC-291). What a page actually lacks is three connection-shaped things — a stream
+> must not build (`assistant-memory-belongs-to-the-assistant`). What a page actually lacks is three connection-shaped things — a stream
 > that outlives the render budget, an outbound body read as it arrives, and work that outlives the
 > request — and the plan builds those generically first. A worker is a fourth kind: a program with one
 > entry point, compiled like a page and never served like a library. A job is one run of it, not a
@@ -41,26 +41,26 @@ that is page-shaped. Two things are not:
    `ToolApprovalCoordinator` — three in-memory singletons a page cannot reach, and three state changes
    that are not memory's simple row write.
 
-[DEC-210](../decisions.md#architecture-and-code-placement) puts `/assistant` in the third column: not
+`pages-page-first` puts `/assistant` in the third column: not
 movable **yet**. This job is what would move it.
 
 ## Sketch
 
 1. **The capability first, the stream second.** ~~A page needs
    `ctx.Capabilities.GetRequired<IAssistantConversations>()`, bound to `ctx.User` as `IPageWriter` is
-   (DEC-190): list conversations, read a transcript, start a run with a message, stop one, and
+   (`pages-a-page-may-save-itself`): list conversations, read a transcript, start a run with a message, stop one, and
    resolve a pending approval.~~ **Withdrawn.** A conversation capability encodes one app's shape.
    The generic pieces are the stream's lifetime, the outbound stream and a background job; the page
    owns the conversations, transcript and approval state over storage, and the run is a job. The
    owner still comes from the request and an anonymous render is still refused, but by the page's
    own guard and the job capability's structural owner filter, not by a conversation type.
 2. **The memory view is one of its routes.** `/assistant/memory` is a list and a form already
-   (DEC-205–DEC-209), and it becomes a route of this page rather than a capability of its own: the
+   (`assistant-memory-page`), and it becomes a route of this page rather than a capability of its own: the
    same page answers for memory as it does for conversations, over the starting page's storage and
-   the owner's rows, the pin stays the owner's alone (DEC-206), a stale version is still refused with
-   the stored content (DEC-207), a refusal still keeps the text (DEC-208) and a forget still asks
-   first (DEC-209). DEC-211, which proposed `IMemoryCatalog` and `IMemoryWriter` in `Sdk`, is
-   withdrawn (DEC-291). Memory's store, its FTS5 recall, its versions, pins and provenance are the
+   the owner's rows, the pin stays the owner's alone (`assistant-memory-page`), a stale version is still refused with
+   the stored content (`assistant-memory-page`), a refusal still keeps the text (`assistant-memory-page`) and a forget still asks
+   first (`assistant-memory-page`). `assistant-memory-belongs-to-the-assistant`, which proposed `IMemoryCatalog` and `IMemoryWriter` in `Sdk`, is
+   withdrawn (`assistant-memory-belongs-to-the-assistant`). Memory's store, its FTS5 recall, its versions, pins and provenance are the
    assistant's, written by its tools inside a run, and a page capability would either duplicate them
    or take ownership of the schema the tools depend on.
 3. **A stream is not the only way to watch a run.** A page can already answer per request, and
@@ -69,7 +69,7 @@ movable **yet**. This job is what would move it.
    the transcript growing without a stream. It is worse than a stream (a whole document every two
    seconds, and the textarea's draft would need care), and it is the fallback a page keeps when its
    script is not running, as the same site's "no JavaScript where markup will do" rule argues
-   (DEC-81). The long stream in [the page-apps plan](../plans/page-apps.md) makes the live version
+   (`metrics-prometheus-only`). The long stream in [the page-apps plan](../plans/page-apps.md) makes the live version
    possible; this job no longer has to choose.
 4. **The chat input and the seed.** The input posts and the page reloads on the run, so
    `/assistant.js` stops being necessary; the seeded page could carry a tiny module later, for
@@ -79,7 +79,7 @@ movable **yet**. This job is what would move it.
    running job — which pauses its silence clock while it waits, up to the job's ceiling — or a stored
    row that the next job reads. The page chooses; the assistant's port records which.
 6. **What stays shell whatever happens.** `/metrics` and `/heath` because they are the runtime, and
-   `/status` because it is bootstrap (DEC-210). The run loop is a worker under
+   `/status` because it is bootstrap (`pages-page-first`). The run loop is a worker under
    [the page-apps plan](../plans/page-apps.md), so it is page code too; the question is only which
    route serves the view.
 
@@ -114,7 +114,7 @@ message-and-event pair the run loop already speaks.
 This is [IDEA-033](IDEA-033.md) and it blocks both the conversation view and the memory view. A page's
 `IPageStorage` is shared by **every** visitor and `IPageSession` goes when the visitor signs out, so
 neither can hold one account's conversation. Memory is the assistant's own rows with FTS5 recall,
-versions, pins and provenance (DEC-291); a view of it needs the same account-scoped store, and a
+versions, pins and provenance (`assistant-memory-belongs-to-the-assistant`); a view of it needs the same account-scoped store, and a
 conversation needs it for its transcript. Until it exists, a ported page could show a transcript only
 to everyone; that is not the feature.
 
@@ -126,7 +126,7 @@ the account store, and that is IDEA-033 again.
 ### 4. A worker cannot save a page, and the tools do
 
 `IPageWriter` saves the calling page and nothing else, and `IPageEditor` is offered to one key. A
-worker is offered neither (DEC-317), so the assistant's page tools — which save, delete, restore and
+worker is offered neither (`pages-a-worker-gets-no-response`), so the assistant's page tools — which save, delete, restore and
 import pages the shell does not route — have no equivalent in page or job code. This is the authority
 question below.
 
@@ -149,7 +149,7 @@ serves, including the pages that describe the site.
 Today's authority is structural, not checked: `IPageWriter` is bound to `ctx.Path` and `IPageEditor` is
 registered for one key, so a page cannot name another page because the handle it is given is the only
 one it can use. The assistant's tools reach further because they are shell code holding a scoped
-`IPageStore`; DEC-198 removed the last allow-list and let them write every page the shell does not
+`IPageStore`; `assistant-reads-the-shell-files` removed the last allow-list and let them write every page the shell does not
 route.
 
 Three shapes, with what each costs:
@@ -162,7 +162,7 @@ Three shapes, with what each costs:
 
 The recommendation, if the owner wants one: **the first**. It is the only shape that keeps the
 authority structural — a handle that can only be obtained for the configured key — and it mirrors
-DEC-190's "no owner argument" rule rather than inventing a checked permission. It also means a worker
+`pages-a-page-may-save-itself`'s "no owner argument" rule rather than inventing a checked permission. It also means a worker
 that streams a reply and a worker that edits a page are different workers, which is a fair thing to
 make an operator say out loud.
 
@@ -175,6 +175,6 @@ If the transcript were readable only as a document — no live updates at all �
 would be an ordinary page today. The live stream is the feature, so this job is about keeping it,
 not about dropping it.
 
-**Origin:** [the page-first plan](../plans/page-first.md) and DEC-210, which named this route as one of
+**Origin:** [the page-first plan](../plans/page-first.md) and `pages-page-first`, which named this route as one of
 the shell's three exceptions with a job behind it. The streaming plan closed ARCH-13; what is left is
 this job's.

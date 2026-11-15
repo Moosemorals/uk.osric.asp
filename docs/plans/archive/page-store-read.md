@@ -15,23 +15,23 @@ suite.
 ## The short version
 
 - **IDEA-015 lands as one capability.** `ctx.Features.GetRequired<IPageCatalog>()` reads the page
-  store. **`IContext` gains nothing** (DEC-168).
+  store. **`IContext` gains nothing** (`pages-the-store-is-read-through-one-seam`).
 - **Four reads and no writes:** `ListAsync(prefix)`, `ReadAsync(key)`, `RevisionsAsync(key)` and
   `ReadRevisionAsync(key, hash)`. No image, no symbol, no `PagePath`, no write member.
 - **Public, like the page that calls it.** The capability is offered to every render and refuses
-  nothing for being anonymous: pages are public unless their own code guards them (DEC-02), and this
+  nothing for being anonymous: pages are public unless their own code guards them (`pages-public-by-default`), and this
   read is no exception. A page that wants its listing private puts the guard at the top of its own
-  source, exactly as any private page does (DEC-169).
+  source, exactly as any private page does (`pages-reading-the-store-is-public`).
 - **Everything, marked.** The listing returns every head the store holds — live, tombstoned, seeded,
   reserved — each carrying `IsDeleted`, `IsReserved` and `IsHtml`, so a view never re-derives the
-  shell's own rules (DEC-170). The prefix is a subtree, not a string prefix.
+  shell's own rules (`pages-a-listing-carries-facts`). The prefix is a subtree, not a string prefix.
 - **Two caps.** `Pages:Read:MaxRowsPerList` (500) is enforced in the statement and refuses one row
   past the cap; `Pages:Read:MaxSourceCharsPerRender` (512 KiB) is shared by every layer of the chain
-  and refuses rather than truncates (DEC-171).
+  and refuses rather than truncates (`pages-a-listing-carries-facts`).
 - **A new read seam** over `IDbContextFactory<StorageDbContext>`, because `IPageStore` is scoped to a
-  `StorageDbContext` and a page's task deliberately outlives the request (DEC-172).
+  `StorageDbContext` and a page's task deliberately outlives the request (`pages-the-store-is-read-through-one-seam`).
 - **The shell keeps its authority.** Saving, deleting, scrubbing, restoring seed and the import and
-  export routes stay where they are: a page gets a bounded read and no second writer (DEC-175).
+  export routes stay where they are: a page gets a bounded read and no second writer (`pages-page-first`).
 - **Two seeded demo pages.** A public `/recent` lists the store's keys, saved times and marks; a
   guarded `/pages` shows a page's source and history to the owner. The capability is used by the site
   as well as by the tests, and the difference between the two is one `ctx.User` guard.
@@ -47,7 +47,7 @@ suite.
   is one visible `ctx.User` check in the page's own source rather than an invisible rule that answers
   an error.
 - The values a page binds against are `Sdk` records, and nothing from `Core` or `Web` crosses into
-  the contract (DEC-88).
+  the contract (`pages-the-contract-is-the-seam`).
 - A save made in another tab is visible to the read on the next render, with no cache of its own.
 
 ## Non-goals
@@ -64,7 +64,7 @@ suite.
   plan deliberately does not read.
 - **Import, export and the archive.** Those keep their own routes behind the `Editor` policy.
 - **A content-type table for pages.** `IsHtml` reports what `Pages:ContentTypes` already decides
-  (DEC-144); a page that needs the media type names the key and lets the shell decide.
+  (`pages-content-types`); a page that needs the media type names the key and lets the shell decide.
 - **Streaming a listing.** ARCH-13 stays open; this is a buffered answer like every other.
 
 ## What exists today
@@ -75,17 +75,17 @@ Checked against the code on 2026-11-09.
   abandonment, logging, the body, status/content type/header/`AllowScripts`, the two redirects, the
   antiforgery field and `Features`; three capabilities are registered today — `IPageStorage`,
   `IHttpFetch` and `IPageLayout` ([IContext.cs](../../../src/uk.osric.asp.Sdk/IContext.cs),
-  [pages](../../pages.md#page-contract), DEC-142).
+  [pages](../../pages.md#page-contract), `pages-capabilities-are-one-seam`).
 - **A capability is offered or absent, never `null`,** and the host decides; the Sdk cannot reach
-  `Core` or `Web` (DEC-88, DEC-142).
+  `Core` or `Web` (`pages-the-contract-is-the-seam`, `pages-capabilities-are-one-seam`).
 - **A capability that does I/O is bound to the render.** `PageStorageScope` is the model: it is bound
   to the page's key, refuses a write on a `HEAD`, throws when the render was abandoned, and passes the
   deadline into the store call ([PageStorageScope.cs](../../../src/uk.osric.asp.Web/Pages/PageStorageScope.cs),
-  DEC-123, DEC-125).
+  `pages-page-io-is-async`, `pages-page-storage`).
 - **The store is scoped and its rows are shell types.** `IPageStore` reads through a `StorageDbContext`
   that belongs to the request scope, and it answers with `PageHeadSummary`, `PageRevisionSummary` and
   `PageRevisionTemplate`, all of which name `PagePath` and so cannot cross into `Sdk`
-  ([IPageStore.cs](../../../src/uk.osric.asp.Web/Pages/IPageStore.cs), DEC-88).
+  ([IPageStore.cs](../../../src/uk.osric.asp.Web/Pages/IPageStore.cs), `pages-the-contract-is-the-seam`).
 - **Every head is listed, and a prefix is not a filter.** `ListPagesAsync` returns every head in
   ordinal order, tombstones included; there is no prefix argument and no row limit.
 - **Live source only.** `GetSourceAsync` returns the template a live head points at and `null` for a
@@ -101,7 +101,7 @@ Checked against the code on 2026-11-09.
   ([PageEnvironment.cs](../../../src/uk.osric.asp.Web/Pages/PageEnvironment.cs),
   [PageChain.cs](../../../src/uk.osric.asp.Web/Pages/PageChain.cs)).
 - **The chain already shares a body budget and a fetch budget** across the content and its layouts, so
-  a layout cannot double an allowance (DEC-150).
+  a layout cannot double an allowance (`pages-one-request-one-chain`).
 - **The manual is `/help`, a seeded page,** and a change to what a page author can do updates it in
   the same change ([jobs/README.md](../../jobs/README.md#help-for-authors); the decision entry's ID
   collides, see "Documentation and decisions").
@@ -113,22 +113,22 @@ Checked against the code on 2026-11-09.
 
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
-| [IDEA-015](../../jobs/README.md) | A page cannot read the page store; list heads, read a template, list revisions, read a revision's source; **the gate belongs to the shell**; caps and the deadline apply; decide the competing road | **Implements it**, as a capability rather than "on `IContext`", with the shell gate removed by review (DEC-169) and the marks added |
+| [IDEA-015](../../jobs/README.md) | A page cannot read the page store; list heads, read a template, list revisions, read a revision's source; **the gate belongs to the shell**; caps and the deadline apply; decide the competing road | **Implements it**, as a capability rather than "on `IContext`", with the shell gate removed by review (`pages-reading-the-store-is-public`) and the marks added |
 | [IDEA-017](../../jobs/IDEA-017.md) | The cheap half is the listing, history and revision views; the full editor is later and the shell keeps the save | Unblocks the cheap half; the editor itself is untouched |
 | [IDEA-016](../../jobs/README.md#closed) | A page saves its own source; it needs an Sdk diagnostic value | Nothing here; the value shapes this plan adds are what a save's answer will sit beside |
 | IDEA-014 | A page cannot keep per-visitor state | Nothing here; a page that saves from a form and redirects still cannot say why |
-| [Import and export](page-import-export.md) (IDEA-009, closed) and [IDEA-020](../../jobs/IDEA-020.md) | Import and export read and write the same store from the shell behind `Editor`; a reset-to-archive is not part of that flow | The competing road is settled: the shell keeps the write, the page gets a bounded read (DEC-175) |
+| [Import and export](page-import-export.md) (IDEA-009, closed) and [IDEA-020](../../jobs/IDEA-020.md) | Import and export read and write the same store from the shell behind `Editor`; a reset-to-archive is not part of that flow | The competing road is settled: the shell keeps the write, the page gets a bounded read (`pages-page-first`) |
 | [IDEA-005](../../jobs/IDEA-005.md) | Shared *types* between pages are deferred until a concrete helper needs them | Untouched: this adds values a page may name, not a declaration a second page can use |
-| DEC-88 | `Sdk` is the only product assembly a page may name | The capability and its three values live in `Sdk`; the mapping from `Core`/`Web` rows happens in `PageCatalogScope`, the capability's implementation |
-| DEC-142, DEC-143 | A capability is registered or absent, never `null`; the host decides what a render offers | Extended: this one is always registered, and it never refuses (DEC-169) |
-| DEC-123 | I/O on a capability is a `Task`, takes no token, and is linked to the render's deadline | Followed: the scope holds the deadline and passes it to the store per call |
-| DEC-125, DEC-126 | `IPageStorage` is bound to the page's key; a `HEAD` reads but never writes | Followed in shape, not in scope: this handle is not bound to a key, and a read is allowed on `HEAD` |
-| DEC-02, DEC-133 | Pages are public unless their own code guards them; the shell supplies identity | Unchanged: the read is as public as the page that calls it, and a page's own `ctx.User` check is the only gate (DEC-169) |
-| DEC-144, DEC-149 | A key's extension decides the content type; an HTML page is wrapped in the layout | `IsHtml` is the same rule, reported rather than re-derived; both demo pages are fragments and are wrapped |
-| DEC-26 | `RuntimeId` includes the Sdk module version id | One deliberate bump: the interface and its values invalidate every stored image, which recompiles on its next request |
-| DEC-150 | One render slot, deadline, fetch budget and body budget for a chain | One more shared budget, on the same terms |
-| DEC-31 | A page owns its whole response and is buffered | Unchanged; the demo pages write fragments into the layout |
-| DEC-110 | Every shell view is asserted for accessibility | The demo pages are stored pages rather than shell views, so their markup is asserted in the integration suite instead |
+| `pages-the-contract-is-the-seam` | `Sdk` is the only product assembly a page may name | The capability and its three values live in `Sdk`; the mapping from `Core`/`Web` rows happens in `PageCatalogScope`, the capability's implementation |
+| `pages-capabilities-are-one-seam` | A capability is registered or absent, never `null`; the host decides what a render offers | Extended: this one is always registered, and it never refuses (`pages-reading-the-store-is-public`) |
+| `pages-page-io-is-async` | I/O on a capability is a `Task`, takes no token, and is linked to the render's deadline | Followed: the scope holds the deadline and passes it to the store per call |
+| `pages-page-storage` | `IPageStorage` is bound to the page's key; a `HEAD` reads but never writes | Followed in shape, not in scope: this handle is not bound to a key, and a read is allowed on `HEAD` |
+| `pages-public-by-default`, `pages-identity-is-a-plain-value` | Pages are public unless their own code guards them; the shell supplies identity | Unchanged: the read is as public as the page that calls it, and a page's own `ctx.User` check is the only gate (`pages-reading-the-store-is-public`) |
+| `pages-content-types`, `pages-one-request-one-chain` | A key's extension decides the content type; an HTML page is wrapped in the layout | `IsHtml` is the same rule, reported rather than re-derived; both demo pages are fragments and are wrapped |
+| `pages-compile-on-save` | `RuntimeId` includes the Sdk module version id | One deliberate bump: the interface and its values invalidate every stored image, which recompiles on its next request |
+| `pages-one-request-one-chain` | One render slot, deadline, fetch budget and body budget for a chain | One more shared budget, on the same terms |
+| `pages-the-response-is-buffered-until-a-flush` | A page owns its whole response and is buffered | Unchanged; the demo pages write fragments into the layout |
+| `shell-accessibility-is-asserted` | Every shell view is asserted for accessibility | The demo pages are stored pages rather than shell views, so their markup is asserted in the integration suite instead |
 
 ## Design
 
@@ -145,7 +145,7 @@ public interface IPageCatalog {
 }
 ```
 
-Three values, because a page may name neither `Core` nor `Web` (DEC-88):
+Three values, because a page may name neither `Core` nor `Web` (`pages-the-contract-is-the-seam`):
 
 ```csharp
 public readonly record struct PageEntry(
@@ -168,7 +168,7 @@ public readonly record struct PageRevisionInfo(string Hash, DateTimeOffset Saved
 - `ReadRevisionAsync` reads one revision's template, or `null` when that key has no revision with that
   hash. Both handles are required, so a hash remembered from one page cannot be spent on another.
 - Every member returns a `Task` and takes no `CancellationToken`, as `IPageStorage` and `IHttpFetch`
-  do: the render owns `Aborted` and the deadline, and the scope links them per call (DEC-123).
+  do: the render owns `Aborted` and the deadline, and the scope links them per call (`pages-page-io-is-async`).
 - Nothing is added to `IContext`. A page that never reads the store never meets the capability, which
   is the whole reason `Features` exists.
 
@@ -184,7 +184,7 @@ page may.
 
 **There is no gate.** The capability answers for whoever the calling page answers for: an anonymous
 visitor gets the same answers a signed-in one does, and privacy is the page's own business. That is
-DEC-02 applied without an exception — a page is public unless its own code checks `ctx.User` — and the
+`pages-public-by-default` applied without an exception — a page is public unless its own code checks `ctx.User` — and the
 alternative, a shell rule the page cannot see, is worse in three ways: it hides a second gate behind
 the visible one, its failure is a `500` where the page's own guard would be a redirect, and it makes
 the same page behave differently for two visitors with no line of its source to explain it.
@@ -217,7 +217,7 @@ page's business, and the marks are what make that possible without re-deriving s
 - `IsReserved` is `ReservedPaths.IsReserved` — the same prefix rule the shell refuses pages with, so a
   view cannot disagree with routing about what is reserved.
 - `IsHtml` is `PageContentTypes.ForPath(key)` starting with `text/html`, which is the rule that decides
-  whether a page is wrapped (DEC-144, DEC-149). A view can then offer "these are documents, these are
+  whether a page is wrapped (`pages-content-types`, `pages-one-request-one-chain`). A view can then offer "these are documents, these are
   assets" without owning the content-type table.
 
 **The prefix is a subtree, not a string prefix.** `ListAsync("/blog")` lists `/blog` and `/blog/…`
@@ -331,7 +331,7 @@ opening a second writer.
 
 **`ReadAsync` and friends on `IContext`.** IDEA-015's original sketch. Rejected by review: `IContext`
 is the contract every stored page compiles against, and a page that never reads the store should never
-meet it (DEC-142, DEC-168).
+meet it (`pages-capabilities-are-one-seam`, `pages-the-store-is-read-through-one-seam`).
 
 **A shell gate on the read** ([IDEA-015](../../jobs/README.md) point 3, "refused for an anonymous
 visitor whatever the page's own code does"). Rejected by review, in both of its shapes: an absent
@@ -349,7 +349,7 @@ nothing is worse than a refusal, and half a template compiles into nothing an au
 
 **Returning the store's own rows.** `PageHeadSummary` and `PageRevisionTemplate` name `PagePath`,
 which lives in `Core`, and `PageRevisionSummary` carries the image status the editor shows and a view
-has no use for; a page can name none of them (DEC-88).
+has no use for; a page can name none of them (`pages-the-contract-is-the-seam`).
 
 **Reusing `IPageStore` through `PageEnvironment`.** Rejected: it is scoped, and resolving a scope per
 render is a service locator that can still hand a page a disposed context (D5).
@@ -475,29 +475,29 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 
 ## Documentation and decisions
 
-- **DEC-168**: the page store read is a capability, `IPageCatalog` — `ListAsync`, `ReadAsync`,
+- **`pages-the-store-is-read-through-one-seam`**: the page store read is a capability, `IPageCatalog` — `ListAsync`, `ReadAsync`,
   `RevisionsAsync`, `ReadRevisionAsync` — reached through `IContext.Features`, with `PageEntry`,
   `PageSource` and `PageRevisionInfo` as the values a page may name. `IContext` and `PageResponse` are
   unchanged, and the capability reads and never writes.
-- **DEC-169**: the read is public by default. There is no shell gate: the capability answers an
+- **`pages-reading-the-store-is-public`**: the read is public by default. There is no shell gate: the capability answers an
   anonymous render exactly as it answers a signed-in one, and a page that wants its listing or its
-  source private puts the ordinary `ctx.User` guard at the top of its own source (DEC-02). This
+  source private puts the ordinary `ctx.User` guard at the top of its own source (`pages-public-by-default`). This
   overrules [IDEA-015](../../jobs/README.md) point 3, whose objection — a careless public page becomes a
   source dump of every other page — is answered by saying so in `/help`, in the plan's risks, and by
   the guarded demo page. A refusal inside a capability is rejected: it is an invisible second gate
   whose failure is a `500` rather than the redirect the page's own guard gives.
-- **DEC-170**: the listing returns every head the store holds, each marked `IsDeleted` (the head's
+- **`pages-a-listing-carries-facts`**: the listing returns every head the store holds, each marked `IsDeleted` (the head's
   flag), `IsReserved` (`ReservedPaths`) and `IsHtml` (`Pages:ContentTypes`), and a prefix selects a
   subtree — the key itself and keys beneath it — never a string prefix. Ordering is by key.
-- **DEC-171**: `Pages:Read:MaxRowsPerList` (500, clamped 1–10000) is selected for as a limit of one
+- **`pages-a-listing-carries-facts`**: `Pages:Read:MaxRowsPerList` (500, clamped 1–10000) is selected for as a limit of one
   more than the cap and refused when the extra row arrives; `Pages:Read:MaxSourceCharsPerRender`
   (512 KiB) is one `ReadBudget` per request, shared by every layer of the chain, charged by
   `ReadAsync` and `ReadRevisionAsync` and refused rather than clamped.
-- **DEC-172**: pages read the store through `IPageReadStore`, a read-only singleton over
+- **`pages-the-store-is-read-through-one-seam`**: pages read the store through `IPageReadStore`, a read-only singleton over
   `IDbContextFactory<StorageDbContext>`, because `IPageStore` is scoped and a page's task outlives the
   request; it answers with `Web` records and never with a `PagePath`, and the mapping to `Sdk` values
   happens in the capability.
-- **DEC-175**: the shell keeps every write of the page store — save, delete, scrub, restore, import
+- **`pages-page-first`**: the shell keeps every write of the page store — save, delete, scrub, restore, import
   and export, and the assistant's bounded tools — and a page gets a bounded read; there is no second
   writer, and IDEA-016 will reuse `PageEditor.SaveAsync` rather than open one.
 - `docs/pages.md`: "Page contract" lists four capabilities. `docs/storage.md`: a short paragraph
@@ -506,16 +506,16 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 - `docs/testing.md`: one sentence naming `PageCatalogScopeTests`, `SqlitePageReadStoreTests` and the
   integration suite.
 - `docs/jobs/IDEA-015.md`: deleted; its row leaves the table and it joins "Closed" with a pointer
-  here, and the Closed entry says point 3 (a shell gate) was overruled in favour of DEC-169, so the
+  here, and the Closed entry says point 3 (a shell gate) was overruled in favour of `pages-reading-the-store-is-public`, so the
   record does not read as though it was quietly dropped. `docs/jobs/README.md`: IDEA-017's note says
   the read exists and its cheap half is unblocked.
-- **Collisions already fixed.** `docs/decisions.md` used **DEC-160 twice** and **DEC-132 twice**.
-  The author-manual row is now **DEC-173** and the seed-restore row **DEC-174**; the budget row
-  keeps DEC-160, which `plans/archive/assistant-live-budgets.md` cites. The two rows this plan's
-  numbering collided with are now DEC-177 (nullable pages) and DEC-178 (a warning never stops a
-  page), so DEC-168–DEC-172 in this plan are free. DEC-167 went to argument validation and
-  DEC-173/DEC-174 to those two rows, so the sixth decision here — the shell keeps every write —
-  landed as **DEC-175**; this plan's decisions are DEC-168–DEC-172 and DEC-175.
+- **Collisions already fixed.** `docs/decisions.md` used **`assistant-budgets-are-one-snapshot` twice** and **`pages-public-by-default` twice**.
+  The author-manual row is now **`product-manual-is-a-page`** and the seed-restore row **`pages-delete-install-and-restore`**; the budget row
+  keeps `assistant-budgets-are-one-snapshot`, which `plans/archive/assistant-live-budgets.md` cites. The two rows this plan's
+  numbering collided with are now `pages-a-page-is-nullable` (nullable pages) and `pages-a-warning-never-stops-a-page` (a warning never stops a
+  page), so `pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts` in this plan are free. `code-validation-at-the-boundary` went to argument validation and
+  `product-manual-is-a-page`/`pages-delete-install-and-restore` to those two rows, so the sixth decision here — the shell keeps every write —
+  landed as **`pages-page-first`**; this plan's decisions are `pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts` and `pages-page-first`.
 - `docs/glossary.md`: no new term. The capability reads terms the glossary already defines — key,
   head, revision, tombstone, seed — and "catalog" would be a type name rather than vocabulary.
 - `deploy/README.md`: nothing to deploy; the demo pages are seeds and their settings have defaults.
@@ -526,7 +526,7 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
   that calls `ReadAsync` or `ReadRevisionAsync` publishes the source it reads to whoever can reach
   that page — including a template whose own `ctx.User` guard hides its output, and including the
   history of a deleted page until it is scrubbed. Pages already run with the site's identity
-  (DEC-40), so this is a new way to publish something by accident rather than a new boundary. The
+  (`pages-there-is-no-sandbox`), so this is a new way to publish something by accident rather than a new boundary. The
   mitigations are deliberate and documentary: `/help` says it in the capability's paragraph, the
   guarded `/pages` is the worked example, and the guard is one line in the page's own source. There
   is no "this template is secret" setting, and the plan does not invent one.
@@ -541,7 +541,7 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
   rather than raise them.
 - **Two readers of one store.** The shell reads through `IPageStore`/`PageEditor` and pages read
   through `IPageReadStore`. The read seam is read-only, its query rules live in one statement, and a
-  future write must go through `PageEditor` (DEC-175); the risk is drift in what a listing shows
+  future write must go through `PageEditor` (`pages-page-first`); the risk is drift in what a listing shows
   versus what the editor lists, which the integration tests compare through the same saves.
 - **A big store meets a small cap.** 500 rows is a wall in a site with more pages than that, and the
   refusal is the first thing the owner sees after a bulk import. The message says to use a prefix, and
@@ -554,7 +554,7 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
   template — the seed, not the row, because the owner is allowed to change the row and that is exactly
   what the guard is for.
 - **One more contract bump.** Adding an interface and three values changes the Sdk module version id,
-  so every stored image recompiles on its next request (DEC-26). Expected, and the same cost the
+  so every stored image recompiles on its next request (`pages-compile-on-save`). Expected, and the same cost the
   layout and the page features paid.
 - **A layout that reads the store.** Offered on purpose, bounded by the same chain budget, and worth
   watching: a layout that lists the store makes every page pay for it.
@@ -563,12 +563,12 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 
 | Question | Answer |
 | --- | --- |
-| A capability or more `IContext` | A capability, `IPageCatalog`, through `ctx.Features`; `IContext` unchanged (DEC-168) |
-| Is the read gated | No. It answers an anonymous render exactly as a signed-in one, and a page that wants privacy guards itself (DEC-169); IDEA-015 point 3 is overruled |
-| What a listing returns | Every head, marked deleted, reserved and HTML (DEC-170) |
-| Row and source caps | `Pages:Read`, 500 rows and 512 KiB per render, both refusing (DEC-171) |
-| Where the read runs | A read-only singleton over the context factory (DEC-172) |
-| The competing road | The shell keeps every write; pages get a bounded read (DEC-175) |
+| A capability or more `IContext` | A capability, `IPageCatalog`, through `ctx.Features`; `IContext` unchanged (`pages-the-store-is-read-through-one-seam`) |
+| Is the read gated | No. It answers an anonymous render exactly as a signed-in one, and a page that wants privacy guards itself (`pages-reading-the-store-is-public`); IDEA-015 point 3 is overruled |
+| What a listing returns | Every head, marked deleted, reserved and HTML (`pages-a-listing-carries-facts`) |
+| Row and source caps | `Pages:Read`, 500 rows and 512 KiB per render, both refusing (`pages-a-listing-carries-facts`) |
+| Where the read runs | A read-only singleton over the context factory (`pages-the-store-is-read-through-one-seam`) |
+| The competing road | The shell keeps every write; pages get a bounded read (`pages-page-first`) |
 | How far this job goes | The capability and two seeded demo pages; moving the editor's views is IDEA-017's cheap half |
 | Demo pages or tests only | Both, and two: a public `/recent` listing and a guarded `/pages` that shows source, so the capability is proven through the real host and the gate question is answered in two files |
 

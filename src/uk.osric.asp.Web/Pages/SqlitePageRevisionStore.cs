@@ -11,7 +11,7 @@ using uk.osric.asp.Web.Storage;
 /// <remarks>
 /// One context per save, created and disposed here. It calls the same
 /// <see cref="SqlitePageStore.StoreRevisionAsync"/> the editor's save and an imported batch call, so
-/// a page's save is one more caller of the one insert rather than a second writer (DEC-192).
+/// a page's save is one more caller of the one insert rather than a second writer (`pages-a-page-may-save-itself`).
 /// </remarks>
 internal sealed class SqlitePageRevisionStore(
     IDbContextFactory<StorageDbContext> factory,

@@ -7,7 +7,7 @@ namespace uk.osric.asp.Web.Assistant;
 /// <remarks>
 /// Memory is the first tool family that belongs to a person rather than to the site, so the executor
 /// is told who is calling instead of reading it from the model's arguments. The owner comes from the
-/// signed-in conversation and there is no path by which a model-supplied string becomes one (DEC-184).
+/// signed-in conversation and there is no path by which a model-supplied string becomes one (`assistant-memory-is-the-owners`).
 /// </remarks>
 /// <param name="Owner">The account the run belongs to.</param>
 /// <param name="ConversationId">The conversation the run is in.</param>

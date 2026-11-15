@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Landed — closes ARCH-16; the decisions are numbered as DEC-274–DEC-280 |
+| Status | Landed — closes ARCH-16; the decisions are numbered as `pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree` |
 | Size | Medium — one Core tree and scope value, one read seam in `Web`, the eight applets and four tool types rewired, and the tests and documents for each |
 | Area | Core (Pages), Web (assistant tools and virtual shell) |
-| Backlog | None. The edit-safety work has landed (DEC-269–DEC-273); this is the seam that work showed was missing |
-| Decisions | D1–D7 below, recorded as DEC-274–DEC-280 |
+| Backlog | None. The edit-safety work has landed (`assistant-edit-page-is-safe`, `pages-the-shape-check`); this is the seam that work showed was missing |
+| Decisions | D1–D7 below, recorded as `pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree` |
 
 ## The short version
 
@@ -96,7 +96,7 @@ seam (see the non-goals).
 `PageRead(Node, Text, Page)` replaces `ShellFile` and `ShellSource`. `Mode` and `Status` strings leave
 the seam: `ls -l` and `stat` format with `PageMode.Describe`/`DescribeFolder`, and the tools format
 with `PageMode.Describe` and `PageImageStatus.Describe`. `PageImageStatus` stays the only spelling of
-the words (DEC-258).
+the words (`pages-a-page-has-a-state`).
 
 ### D3 — One state for a page, whichever read reports it
 
@@ -105,7 +105,7 @@ pass the revision's `TemplateHasCode`; the listing does, so a page with no code 
 from `read_page` and "Stored as source" from `list_pages`. The seam carries the listing's judgement —
 `PageListing.State`, decided by `PageImageStatus` against the running build — and `read_page` reports
 it. The answer for a no-code page therefore changes from "Not compiled" to "Stored as source", which
-is what DEC-258 already says the state means.
+is what `pages-a-page-has-a-state` already says the state means.
 
 ### D4 — Scope is one value in `Core`
 
@@ -209,4 +209,4 @@ write.
 | A tombstone appears in `ls` or `find` | `TreeAsync` defaults to live keys; the only caller that asks for tombstones is `list_pages`. |
 | The shell grows a dependency on a tool-shaped type | The seam's types are named for the store, not for either front-end; `ShellContext` still hands an applet only nodes, reads and the registry. |
 | Reading a page per source is expensive | It is what both walks do today, and the store is small; a batch read is a separate idea. |
-| The `read_page` state change surprises a page author | It is the state the page list and the editor already show, and it says what DEC-258 says. |
+| The `read_page` state change surprises a page author | It is the state the page list and the editor already show, and it says what `pages-a-page-has-a-state` says. |

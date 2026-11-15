@@ -121,7 +121,7 @@ public sealed class SqlitePageRevisionStoreTests {
         PageTemplate template = new(Key("/blog"), "Hello.");
 
         // A request's own context, disposed before the save: the seam opens its own, so a page's task
-        // cannot touch a disposed one (DEC-192).
+        // cannot touch a disposed one (`pages-a-page-may-save-itself`).
         StorageDbContext request = new(_options);
         await request.Database.OpenConnectionAsync();
         await request.DisposeAsync();

@@ -15,7 +15,7 @@ real pages.
 
 Done, 2026-11-04. `make check` is green: 716 tests — 189 Core, 65 Runtime, 386 web, 76 integration —
 of which 37 are new for this phase (20 in Core, 17 in Runtime). No storage, schema, migration or
-`RuntimeId` change, and no allow-listed type or namespace added. Recorded as DEC-92.
+`RuntimeId` change, and no allow-listed type or namespace added. Recorded as `pages-a-page-may-declare-types`.
 
 ## Goal and constraints
 
@@ -261,7 +261,7 @@ In `Runtime`, the handler lookup change in `CompiledPage`, then the cases in `Pa
 - `docs/architecture.md`: the template description, the diagnostics table (`TEMPLATE001` wording,
   `PAGE002` meaning), and the "Page API policy" shape-rule paragraph.
 - `docs/decisions.md`: add a decision for "declarations are `<%! %>`, hoisted in template order" and
-  move `DEC-36` to **Superseded**, as that file's own rule requires.
+  move `pages-a-page-may-declare-types` to **Superseded**, as that file's own rule requires.
 - `docs/jobs/IDEA-005.md`: a `## Status` section recording that phase 1 is done and phase 2 is open,
   in the style of [SEC-03](../../jobs/SEC-03.md).
 - Fill this plan's status with the test counts after `make check`.

@@ -28,7 +28,7 @@ A shell route that exists so the site can be repaired when a page is what is bro
 `/logout`, `/status` with its chart, and the two recovery routes `/admin/restore` and `/admin/scrub`.
 
 **Not** a view that has not been ported yet. A route for a view a page could serve today is a page,
-and a route for one a page cannot serve yet has a job behind it (DEC-210); bootstrap is the reason
+and a route for one a page cannot serve yet has a job behind it (`pages-page-first`); bootstrap is the reason
 that is never in the page column, because a page cannot answer when the page pipeline is what failed.
 **Owner:** shell — `LoginEndpoint`, `StatusEndpoint`, `ChartEndpoint`, `RestoreEndpoint` and
 `ScrubEndpoint`; the audit is in [architecture](architecture.md#where-a-view-lives).
@@ -38,9 +38,9 @@ The process-wide limit on how long a render or compile may take and how many may
 shared by every request.
 
 **Not** a per-page quota, and not a promise that running page code stops: it bounds the response and
-releases the slot, while the abandoned render continues (DEC-42). Nor are the assistant's budgets
+releases the slot, while the abandoned render continues (`pages-the-execution-budget`). Nor are the assistant's budgets
 this: those are the `Assistant:Max*` limits on one run or conversation, drawn as used/available
-pairs (DEC-141, DEC-159).
+pairs (`assistant-budgets-are-one-snapshot`).
 
 **Owner:** pages — `PageBudget`, `Pages:Render:TimeoutSeconds`, `Pages:Render:Slots`,
 `Pages:Render:MaxBodyChars`, `Pages:Compile:TimeoutSeconds` and `Pages:Compile:Slots`; a committed
@@ -63,10 +63,10 @@ the render offers, and a capability is registered or absent, never `null`.
 **Not** a feature or an extension. A feature is something the product has — the assistant is one, and
 ASP.NET Core's `HttpContext.Features` are another mechanism altogether — and an extension is
 something a third party adds; a capability is something one render offers a page, and it may be
-absent from the next. The accessor was called `ctx.Features` until DEC-228, and the old name went with the alias in DEC-254.
+absent from the next. The accessor was called `ctx.Features` until the capability seam took its name, and the old name went with the alias.
 
 **Owner:** pages — `IPageCapabilities`, `IContext.Capabilities` and the nine `Sdk` interfaces a page
-may ask for; `PageCapabilities` is the shell's registry (DEC-142, DEC-228).
+may ask for; `PageCapabilities` is the shell's registry (`pages-capabilities-are-one-seam`).
 
 ## Conversation
 One chat thread owned by one account, with a title, an approval mode and a message counter of its own.
@@ -199,7 +199,7 @@ to `IMarkdownRenderer`, and the assistant's reply is Markdown only in the transc
 
 **Owner:** pages and assistant — `IMarkdownRenderer` and `MarkdownRenderer`; the restricted
 assistant profile, `LinkPolicy` and `AccessibleTableRenderer` are the rules that differ from the
-page profile (DEC-163, DEC-164).
+page profile (`pages-markdown`).
 
 ## Masking
 Replacing old observations in a provider request with deterministic placeholders while the stored
@@ -209,7 +209,7 @@ transcript keeps the whole value.
 whole old turns. **Not** summarisation: a placeholder only says how much was there, and costs no model
 call.
 
-**Owner:** assistant — `ObservationMasker` and `ContextPlanner` (DEC-201, DEC-202).
+**Owner:** assistant — `ObservationMasker` and `ContextPlanner` (`assistant-old-tool-results-are-masked`).
 
 ## Memory
 One owner's note to the assistant: a preference, a fact about this site, a correction or a reference
@@ -218,7 +218,7 @@ to where something lives, stored in SQLite and read back into the system prompt 
 **Not** page state and not a page. Page state is one key/value store per page path, shared by every
 visitor; a memory belongs to one account, and the page store stays the authority on anything a page can
 answer. It is written only by a `remember` call the transcript shows, never by a background pass
-(DEC-185).
+(`assistant-memory-is-the-owners`).
 
 **Owner:** assistant — `MemoryEntry`, `MemoryCandidate`, the `AssistantMemories` table, the
 `AssistantMemoryEdits` history, `SqliteMemoryStore` and `Assistant:MaxMemoriesPerOwner`.
@@ -230,9 +230,9 @@ kind, corrected, pinned or forgotten.
 **Not** a stored page, and not a capability of its own. It is shell code under the reserved
 `/assistant` prefix, server-rendered like the editor and `/status`, so a page cannot claim the key and
 the assistant reads it as a shell file it may not save. The view moves with the assistant page
-(IDEA-025) rather than becoming a capability of its own; DEC-211, which proposed one, was withdrawn.
+(IDEA-025) rather than becoming a capability of its own; `assistant-memory-belongs-to-the-assistant`, which proposed one, was withdrawn.
 
-**Owner:** assistant — `AssistantMemoryEndpoint`, `/assistant.css` and DEC-205–DEC-209.
+**Owner:** assistant — `AssistantMemoryEndpoint`, `/assistant.css` and `assistant-memory-page`.
 
 ## Message
 One row of a conversation's transcript, with role `user`, `assistant` or `tool`, a per-conversation
@@ -266,7 +266,7 @@ Prometheus sees; a series is one metric at one set of label values. A histogram 
 The HTTP resource served at a key: the current revision's image run against a request.
 
 **Not** a revision, a template, an image or a seed. The page is the addressable thing; the others are
-the stored forms it is served from or restored from (DEC-114).
+the stored forms it is served from or restored from (`pages-names-follow-the-pipeline`).
 
 **Owner:** pages — `PageEndpoint`, `IPageStore` and the `PageHeads` table.
 
@@ -295,7 +295,7 @@ and already-used memories are mixed with the ranked matches by a pure rule, and 
 appended to the system prompt inside the character budget.
 
 **Not** a search the model makes. `search_memories` is the model asking; recall is the run deciding
-before the first step, once per run, with the block frozen for the rest of it (DEC-186).
+before the first step, once per run, with the block frozen for the rest of it (`assistant-memory-recall-is-fts5`).
 
 **Owner:** assistant — `MemoryRecall`, `MemoryQuery`, `MemorySelection`, `IMemoryStore.RecallAsync`,
 `Assistant:MaxMemoriesPerRun` and `Assistant:MaxMemoryCharsPerRun`.
@@ -305,7 +305,7 @@ The owner's "always use this": a flag on a memory that puts it first in recall, 
 happens to be about.
 
 **Not** something the assistant can set. No tool has an argument for it; only `EditAsync`, reached
-from the memory page, changes it (DEC-206).
+from the memory page, changes it (`assistant-memory-page`).
 
 **Owner:** assistant — `MemoryCandidate.Pinned`, the `AssistantMemories.Pinned` column,
 `IMemoryStore.PinnedAsync` and `MemoryRecall.Select`.
@@ -346,7 +346,7 @@ The compatibility stamp on a stored image: the compile format version, the page-
 the SDK and Core module version ids.
 
 **Not** a build number or a content hash. It says which contract produced the image, not which source
-went in; `TemplateHash` carries the source identity (DEC-26).
+went in; `TemplateHash` carries the source identity (`pages-compile-on-save`).
 
 **Owner:** pages — `PageImage.RuntimeId` and `PageCompiler`.
 
@@ -386,10 +386,10 @@ from the model, system prompt, tool definitions, messages and envelope.
 
 **Not** the budget any more, and not a character count. Characters undercount the JSON envelope and
 escaping, so bytes are the honest measure of the wire body; `TokenEstimator` converts that count to
-estimated tokens, which is what `Assistant:MaxContextTokens` bounds (DEC-204).
+estimated tokens, which is what `Assistant:MaxContextTokens` bounds (`assistant-the-request-budget-is-tokens`).
 
 **Owner:** assistant — `ChatRequestJson.MeasureBytes` and `ContextPlan.RequestBytes`; the token
-estimate is `TokenEstimator` and `ContextPlan.EstimatedTokens` (DEC-204).
+estimate is `TokenEstimator` and `ContextPlan.EstimatedTokens` (`assistant-the-request-budget-is-tokens`).
 
 ## Session
 One visitor's key/value store, which a page reaches through `IPageSession`: JSON values under short
@@ -462,14 +462,14 @@ reasoning tokens the provider reported; the request row is an estimate, and the 
 is the backstop.
 
 **Owner:** assistant — `TokenEstimator`, `ContextPlan.EstimatedTokens` and
-`BudgetSnapshot.ContextTokens`; `Assistant:MaxContextTokens` (DEC-204).
+`BudgetSnapshot.ContextTokens`; `Assistant:MaxContextTokens` (`assistant-the-request-budget-is-tokens`).
 
 ## Template
 The text an author edits and saves: markup plus C# in `<% %>` blocks and declarations in `<%! %>`
 blocks.
 
 **Not** generated source or an image. The template is what the revision stores; the generator turns
-it into C# and the compiler turns that into an image (DEC-114).
+it into C# and the compiler turns that into an image (`pages-names-follow-the-pipeline`).
 
 **Owner:** pages — `PageTemplate.Template`, `PageRevision.Template` and `Pages/Seeds`.
 
@@ -519,7 +519,7 @@ accumulated by `RunUsage` and stored on the run.
 shown separately. Cached is part of prompt and reasoning part of completion, so the figures overlap.
 
 **Owner:** assistant — `TokenUsage`, `RunUsage`, the `AssistantRuns` totals and
-`AssistantMetrics.RecordUsage` (DEC-203).
+`AssistantMetrics.RecordUsage` (`assistant-usage-is-accumulated`).
 
 ## Versioned URL
 A page URL with `?v=<hash>`, where the value is one retained revision's 64-character lowercase

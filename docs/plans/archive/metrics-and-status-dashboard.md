@@ -135,7 +135,7 @@ catch-all, and reserved in both lists that name the site's own routes: `Pages:Re
 The consequence to own: the app publishes on the host's loopback only and Caddy is the only thing
 that can reach it, so `/metrics` is not directly public — but one `reverse_proxy` is all that stands
 between it and the public origin, and that is the very route Prometheus scrapes. The loopback publish
-stays the load-bearing control (DEC-61); Caddy gets an explicit rule as a second, independent gate:
+stays the load-bearing control (`deploy-loopback-and-caddy`); Caddy gets an explicit rule as a second, independent gate:
 
 ```caddyfile
 	# Prometheus scrapes inside the podman network. The public origin must not serve metrics.
@@ -267,7 +267,7 @@ That costs a deployment change, verified on 2026-11-01 against the images themse
 
 So the base moves to `:10.0-alpine-extra`, pinned by that tag's manifest-list digest in both places
 it is pinned today — `CONTAINER_BASE_IMAGE` in the `Makefile` and the `ARG BASE_IMAGE` default in
-`deploy/Containerfile` — in its own commit (DEC-59), and `-extra` joins "do not trim" as a
+`deploy/Containerfile` — in its own commit (`deploy-the-image`), and `-extra` joins "do not trim" as a
 deliberate base-image choice. The alternative — generating UK local time from the DST rule in `Core`
 so no tzdata is needed — was rejected: it is a second, silent copy of a rule that legislation can
 change, and it would only be right for the years it was written for.
@@ -362,9 +362,9 @@ a stub, so they never see another fixture's recordings.
   `PodmanArgs=--memory=256m`, and the retention flags on `Exec=` (they are arguments to the Prometheus
   binary, not to podman): `--storage.tsdb.retention.time=30d --storage.tsdb.retention.size=2GB`. The
   cap trades against a disk whose size nothing in the
-  repository records (the VM was a `cpx02` at the time, and is now a `cax21`, DEC-84) and which also
+  repository records (the VM was a `cpx02` at the time, and is now a `cax21`, `deploy-one-small-host`) and which also
   holds images, page assemblies and the SQLite database: check `df -h /` on the host before calling
-  2 GB any particular fraction of it. The cap and retention are now 512 MB and 4 GB (DEC-86).
+  2 GB any particular fraction of it. The cap and retention are now 512 MB and 4 GB (`deploy-caps-and-swap`).
 - `deploy/prometheus.yml`: one static target, `app:8080`, `metrics_path: /metrics`, 15 s interval.
 - `make deploy` installs the network unit first, then the app unit (so it restarts onto the network),
   then the config and Prometheus unit; `deploy/README.md` describes the new unit and the
@@ -443,7 +443,7 @@ beside `PageMetricsTests` and the budget tests, never in parallel with them.
 - **Prometheus at boot.** After a host reboot the two containers start concurrently and Prometheus may
   record a failed scrape before the app is listening; the target recovers on the next interval with
   no intervention.
-- **Retention.** 30 days and 2 GB (now 4 GB, with a 512 MB container cap, DEC-86); the container is
+- **Retention.** 30 days and 2 GB (now 4 GB, with a 512 MB container cap, `deploy-caps-and-swap`); the container is
   separately capped, so runaway cardinality fails a scrape rather than the host. Nothing in the repository records the VM's disk
   size, and images, page assemblies and the SQLite database share it — measure before assuming the cap
   is small. Metrics are the cheapest data in the system and the easiest to let grow silently.

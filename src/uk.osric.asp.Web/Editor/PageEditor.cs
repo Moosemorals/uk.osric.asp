@@ -12,7 +12,7 @@ using uk.osric.asp.Web.Pages;
 /// A save compiles before it stores, so the page never sits in the database without the result of
 /// compiling it. That is <see cref="PageSaver"/>'s job, and it is shared with a page that saves its
 /// own source; this class is the editor's view of it, plus the conditional save the editor alone
-/// needs (DEC-192).
+/// needs (`pages-a-page-may-save-itself`).
 /// </para>
 /// <para>
 /// The unconditional save records <c>page.save.duration</c> through the saver; the conditional one

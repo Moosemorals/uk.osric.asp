@@ -25,21 +25,21 @@ editor uses it rather than naming the key.
 The request is a value rather than a live ASP.NET object. `Query`, `Form` and `Headers` hold one
 value per name — a repeated name keeps its first value — and `QueryValues` and `FormValues` hold
 every value in the order the request sent them, so a multi-select or `?tag=a&tag=b` loses nothing
-(DEC-257). `Path` is always the canonical key.
+(`pages-the-api-policy`). `Path` is always the canonical key.
 
 The handler is asynchronous: `IHandler.HandleAsync` returns a `Task`, the generator always emits an
 `async` method, and `await` is therefore an ordinary expression in a code block and inside a write
 expression. Any member that does I/O — on `IContext` or on a capability — returns a `Task` and takes
 no cancellation token: the context owns `Aborted` and the render's deadline, and an implementation
-links them per call (DEC-123).
+links them per call (`pages-page-io-is-async`).
 
 `IContext.Capabilities` is how a page asks for a capability this render may or may not offer.
 `TryGet<T>` reports whether one is there, `Get<T>` returns it or `null`, and `GetRequired<T>`
 returns it or throws naming the interface, so the page decides whether absence is fatal. The host
 decides what is registered — a page cannot add or replace a capability — and a capability is either
-registered or absent, never `null` (DEC-142). The type that declares them is `IPageCapabilities`;
+registered or absent, never `null` (`pages-capabilities-are-one-seam`). The type that declares them is `IPageCapabilities`;
 the old `Features` spelling was removed once its release was over, so a page that still says
-`ctx.Features` no longer compiles (DEC-228, DEC-254).
+`ctx.Features` no longer compiles (`pages-capabilities-are-one-seam`).
 
 Eleven capabilities are registered today — seven that do I/O or work and are bounded by the render,
 one that is the page's slots in its document, two that are pure renderers, and one that is a fact about
@@ -51,7 +51,7 @@ the build:
 - `IPageStorage` is the page's own key/value store. It is bound to the page's key, so a page cannot
   name another page's state; the handle is the isolation. Values are JSON round-tripped by the
   host, keys are ordinal, and writes are last-write-wins. A `HEAD` render may read but never write
-  (DEC-125, DEC-126, DEC-127).
+  (`pages-page-storage`).
 - `IPageSession` is one visitor's key/value store, separate from `IPageStorage`: a page session
   value belongs to the browser that wrote it, is bounded per visitor, and goes when the visitor
   signs out. `TryGetValueAsync<T>(key)` reads the caller's own key and
@@ -63,19 +63,19 @@ the build:
   anonymously, 32 keys and 64 KiB signed in). A session is minted on the first write, lives in an
   `HttpOnly` cookie the shell owns, slides for 30 minutes (8 hours signed in) and is cleared on
   sign-out. A `HEAD` render and a layout may read and not write. The identity, the ownership rule
-  and the caps are DEC-233–DEC-235; see [storage](storage.md#page-sessions).
+  and the caps are `pages-the-session`; see [storage](storage.md#page-sessions).
 - `IHttpFetch` makes one outbound HTTP request from the host, not the browser, to any `http` or
-  `https` host the URL names: there is no host allow-list (DEC-216). Every request carries
+  `https` host the URL names: there is no host allow-list (`pages-outbound-fetch`). Every request carries
   `moosemorals.com (page)` as its `User-Agent`, set by the host after the page's own headers, so a
   page cannot claim to be another client. `GetAsync` and `PostAsync` sit over
   `SendAsync(HttpFetchRequest)`; `StreamAsync` opens the same request rules and returns an
   `HttpFetchStream` that reads decoded text lines with `ReadLineAsync()`, exposes response metadata
   and failure values, and can be closed explicitly. Open streams close when the render ends or is
   abandoned. The render's shared request count, the deadline and abandonment bound the request
-  (DEC-216, DEC-129, DEC-143). A request may name an operator-configured credential with
+  (`pages-outbound-fetch`, `pages-capabilities-are-one-seam`). A request may name an operator-configured credential with
   `Credential`: the host supplies the header, only to that credential's host and only from the page
   the credential is bound to, and the page never reads the value. An unknown name is an
-  `InvalidRequest` (DEC-230). Response headers use `Pages:Fetch:TimeoutSeconds`; a stream's body
+  `InvalidRequest` (`pages-fetch-credentials`). Response headers use `Pages:Fetch:TimeoutSeconds`; a stream's body
   also has independent `StreamSilenceSeconds`, `StreamMaxSeconds` and `MaxStreamBytes` limits.
 - `IPageJobs` starts a **worker** as a **job**, talks to it, reads what it published and stops it.
   A job outlives the request that started it, so it has no response and no visitor waiting on it: it
@@ -83,7 +83,7 @@ the build:
   `PageJobStart` whose `Refusal` says why a key that is not a worker, a reserved key, an anonymous
   render or a full queue was refused; `SendAsync`, `GetAsync`, `ListAsync`, `ReadEventsAsync` and
   `CancelAsync` are the rest. Every call is filtered to the signed-in visitor the render was bound to,
-  so another account's job is an unknown one rather than a refusal that says it exists (DEC-190). A
+  so another account's job is an unknown one rather than a refusal that says it exists (`pages-a-page-may-save-itself`). A
   `HEAD` is offered the reads and not the start, send or cancel, and a layout is offered nothing.
   See [jobs](#jobs).
 - `IPageCatalog` reads the page store: `ListAsync(prefix)` lists the heads under a subtree,
@@ -92,11 +92,11 @@ the build:
   `IsDeleted`, `IsReserved`, `IsHtml` and `IsAsset`, so a view filters rather than re-deriving the
   host's rules, and carries the head's image state in `State` — the host's own words, judged against
   the running build — so a page's listing says what the editor's says without reading source
-  (DEC-258). The class the shell's own list marks it with stays in the shell: how a view presents a
+  (`pages-a-page-has-a-state`). The class the shell's own list marks it with stays in the shell: how a view presents a
   state is the view's business. It reads and never writes. The read is
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets
-  bound it (DEC-168–DEC-175). See [source storage](storage.md#source-storage).
+  bound it (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`). See [source storage](storage.md#source-storage).
 - `IPageWriter` saves the calling page's own source: `SaveAsync(template)` answers with a
   `PageSaveResult` — the new revision's hash and the compiler's diagnostics as `PageDiagnostic`
   values — and the handle is bound to `ctx.Path`, so a page writes itself and nothing else. It
@@ -104,26 +104,26 @@ the build:
   write requires a signed-in visitor**: unlike the read, it refuses an anonymous render before it
   stores anything, and a `HEAD`, an ended render or a second save in one render is a page bug. A
   save belongs to the next request, and a save that has started finishes even if the render times
-  out. A layout is offered the read and not the write (DEC-189–DEC-196). See
+  out. A layout is offered the read and not the write (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`). See
   [source storage](storage.md#source-storage).
 - `IPageEditor` is the editor's authority, and it is offered to one render only: the page stored at
   `Pages:Editor:Key` (`/pages` as shipped). No other key gets it and a layout never does, so the
-  registration is the authority rather than a check inside the handle (DEC-260, DEC-261). It answers with
+  registration is the authority rather than a check inside the handle (`pages-the-editor-capability`). It answers with
   values the compiler produced — `PageEditResult` carries the outcome, the new hash and
   `PageDiagnostic`s — and it refuses an anonymous render, a `HEAD` write and a second action in one
   render. `Resolve` says whether a key is usable, `SaveAsync(key, template, expectedHash)` is the
   conditional save whose `null` expectation creates a page, `DeleteAsync` tombstones,
   `RestoreRevisionAsync` and `InstallSeedAsync` answer with the revision they stored, and
   `SeedSourceAsync` reads the bundled source so the install confirmation can show a diff. Like the
-  page's own write, a save belongs to the next request and a started save finishes (DEC-262, DEC-263, DEC-267).
+  page's own write, a save belongs to the next request and a started save finishes (`pages-the-editor-capability`, `pages-delete-install-and-restore`).
 - `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
   `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
-  layout never meets one (DEC-148). See [layouts](shell.md#layouts).
+  layout never meets one (`pages-a-layout-is-a-capability`). See [layouts](shell.md#layouts).
 - `IMarkdownRenderer` renders Markdown to HTML with `ToHtml`. It is pure and needs no `await`; its
   result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus pipe
   tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
-  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (DEC-163). A table's header
+  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (`pages-markdown`). A table's header
   cells carry `scope="col"` and no inline style.
 - `IDiffRenderer` renders the line changes between two documents with `ToHtml(before, after)`. It
   is pure and needs no `await`, and its result is written with `<%== %>`. Every source line is
@@ -131,7 +131,7 @@ the build:
   input is data, not markup. The result is a `table.diff` with line numbers, change markers and a
   sideways scroll container; an unchanged pair says so, and a comparison too different to align
   says why. A page compares two revisions by reading both with `IPageCatalog.ReadRevisionAsync`
-  (DEC-218, DEC-219).
+  (`pages-diff`).
 
 A page's log entries are filed under the single `uk.osric.asp.Pages` category with the page's key on
 a `Path` scope, and `SimpleContext` is where that enters the shell, so `Core` never names a logging
@@ -150,8 +150,8 @@ Two rules keep the response safe:
   Redirects go through `Redirect`; content type through `SetContentType`, and the script permission
   through `AllowScripts` — the `Content-Security-Policy` header itself stays shell-owned. The
   extension is only a default: a key's last segment selects the initial content type through
-  `Pages:ContentTypes` (DEC-144), which ships `.html`, `.js`, `.mjs`, `.css`, `.json`, `.svg` and
-  `.txt` (DEC-197), and `SetContentType` always wins. Each row also carries a `ScriptPolicy`
+  `Pages:ContentTypes` (`pages-content-types`), which ships `.html`, `.js`, `.mjs`, `.css`, `.json`, `.svg` and
+  `.txt` (`pages-content-types`), and `SetContentType` always wins. Each row also carries a `ScriptPolicy`
   (`none` or `self`); it follows the extension, not the changed response type, and the shell writes
   it before the page runs. A page with code may widen `none` with `AllowScripts`, but never narrows
   `self`. The shipped `.html` row is `none`.
@@ -287,7 +287,7 @@ running while `GetAsync` returns `null` knows the host restarted.
 
 ## Assets and versioned URLs
 
-Every stored revision is one of four kinds, judged from its source and stored beside it
+Every stored revision has a kind, judged from its source and stored beside it
 (`PageKind`): **text** (no C#), **page** (C# that renders), **library** (only declaration blocks, for
 other sources to name) and **worker** (only declaration blocks, declaring one entry point a page
 starts). A kind is a property of the source rather than of the key, so editing a page can change what
@@ -301,7 +301,7 @@ A page with no code is never compiled. Generation reads the tokens it already pr
 template made only of text has nothing to compile: the revision is stored with no image, its kind is
 text, and every request writes the stored source out byte for byte.
 Such a page has only the template-shape warnings `TemplateShapeCheck` can find without compiling
-(DEC-273); a clean text page has none.
+(`pages-the-shape-check`); a clean text page has none.
 
 A no-code page is a complete representation: it is never wrapped, so its stored source is the
 response even for an HTML key. It gets no banner, no skip link, no base sheet and no title
@@ -438,17 +438,17 @@ Stored pages are C#, so the surface they may touch is constrained twice.
   `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`
   and `Yield` — because each starts work the render deadline cannot stop or turns an `await` back
   into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`,
-  `Parallel` and `ValueTask` are `PAGE001` without being named (DEC-124).
+  `Parallel` and `ValueTask` are `PAGE001` without being named (`pages-the-api-policy`).
 - A narrow set of `System.Text.Json` types is allowed, so a fetched JSON body can be parsed:
   `JsonDocument`, `JsonElement`, `JsonSerializer`, `JsonSerializerOptions`,
   `JsonSerializerDefaults`, `JsonValueKind` and `JsonException`. The
   `System.Text.Json.Serialization` attributes are not, and `System.Net` stays denied — `IHttpFetch`
-  is the page's only egress (DEC-130).
+  is the page's only egress (`pages-the-api-policy`).
 - Cryptography is admitted by type: `System.Text.Encoding` to turn text into bytes, `SHA256`,
   `SHA384` and `SHA512` to hash, `HMACSHA256`, `HMACSHA384` and `HMACSHA512` to sign,
   `RandomNumberGenerator` for a nonce and `CryptographicOperations.FixedTimeEquals` to compare a
   signature. Nothing else in `System.Security.Cryptography` is, so a page cannot name `MD5`, an
-  asymmetric primitive or a certificate (DEC-257).
+  asymmetric primitive or a certificate (`pages-the-api-policy`).
 - `PageApiChecker` in `Runtime` walks the generated syntax tree, projects Roslyn symbols onto
   `ApiReference` values, rejects `stackalloc`, `dynamic`, pointers, function pointers and `unsafe`,
   and enforces the shape rule: the generated `GeneratedPage`, last, plus the page's own type

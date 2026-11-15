@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Location | `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` |
 | Spike | [Ace evaluated as the editor](../spikes/ace-editor.md) |
 
-> **Partly done.** The page list is a table with a **State** column (DEC-165), so a page that
+> **Partly done.** The page list is a table with a **State** column (`pages-a-page-has-a-state`), so a page that
 > compiles with warnings is visible without opening it. What is left here is the editor itself.
 
 ## Idea

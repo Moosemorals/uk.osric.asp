@@ -9,7 +9,7 @@ using uk.osric.asp.Core.Assistant;
 /// <remarks>
 /// Every method takes the owner and every statement filters on it, so a wrong owner and a missing
 /// memory answer the same way and a probe cannot tell them apart. The owner never comes from the model
-/// (DEC-184).
+/// (`assistant-memory-is-the-owners`).
 /// </remarks>
 internal interface IMemoryStore {
 
@@ -53,7 +53,7 @@ internal interface IMemoryStore {
     /// <remarks>
     /// This is the only write that can set <see cref="MemoryCandidate.Pinned"/>. The assistant's
     /// <see cref="UpdateAsync"/> has no such argument, so a model cannot pin a memory by any path
-    /// (DEC-206).
+    /// (`assistant-memory-page`).
     /// </remarks>
     /// <param name="owner">The account the memory belongs to.</param>
     /// <param name="id">The memory to change.</param>

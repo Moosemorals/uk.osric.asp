@@ -288,7 +288,7 @@ Mechanical, behaviour-free, and first so the split is reviewed against a stable 
 8. Fix every reference: `PageService`, `Program.cs`, the recording compilers in both test projects,
    `PageScopeTests`, `MainEndpointTests`, `TemplateCompilerTests` → `PageCompilerTests`, and any XML
    `<see cref>` or prose that names the old types.
-9. Update prose that names the old types in `docs/architecture.md`, `docs/decisions.md` (DEC-26),
+9. Update prose that names the old types in `docs/architecture.md`, `docs/decisions.md` (`pages-compile-on-save`),
    `README.md`, and the job files in `docs/jobs/` that point at them.
 
 Verify: `make check`. The test count must not change.
@@ -413,8 +413,8 @@ new `IsCurrent` cases.
   `Core`, the new `RuntimeId`, and the note that a page-compiled-before-the-split is recompiled.
 - `docs/testing.md`: the project table (SDK has no suite — say why), the reference graph, and the
   `PageScopeTests` sentence about naming shell types.
-- `docs/decisions.md`: update DEC-10 (dependency direction), DEC-26 (`RuntimeId`), DEC-35 (policy
-  namespace), DEC-39 (load context), and add decisions for the SDK boundary, the
+- `docs/decisions.md`: update `code-functional-core-imperative-shell` (dependency direction), `pages-compile-on-save` (`RuntimeId`), `pages-the-api-policy` (policy
+  namespace), `pages-load-isolation` (load context), and add decisions for the SDK boundary, the
   Template/Page vocabulary and the folder-is-namespace rule.
 - `README.md` and `deploy/README.md`: the project sentence and the recompile-on-release sentence.
 - `docs/jobs/IDEA-004.md`: delete it and drop its row from `docs/jobs/README.md`, as closed jobs have

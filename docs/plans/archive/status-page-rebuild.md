@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # The status page, rebuilt a panel at a time
 
-**Status:** implemented (DEC-180–DEC-183, DEC-319 and DEC-320). The last two were written as
+**Status:** implemented (`metrics-one-panel-per-instrument`, `metrics-a-series-is-identified-without-colour` and `metrics-a-chart-stands-alone`). The last two were written as
 DEC-184 and DEC-185, and were renumbered when the assistant's memory decisions were found to hold the
 same pair.
 
@@ -33,7 +33,7 @@ Two things it also settles:
   the `main` landmark and the close, and through `Sdk/PageDocument`, which owns the markup. `/status`
   therefore cannot drift from the rest of the site, and the plan adds the test that proves the view
   writes body content and nothing else. It stays a shell view rather than a stored page, because the
-  error, health and status routes must answer when the page pipeline is broken (DEC-151).
+  error, health and status routes must answer when the page pipeline is broken (`shell-the-menu-is-written-twice`).
 - **A chart is only a drawing.** The renderer that embeds a chart in the page can serve it alone, so
   a chart can be linked directly, with the start time and duration it was drawn for. The page keeps
   embedding its SVGs; the chart endpoint is an addon, not the page's assembly line.
@@ -220,7 +220,7 @@ The plan makes that true rather than assumed:
   quietly diverging.
 - The stylesheet list is declared once, in the `stylesheets:` argument: `/status.css` after the base
   sheets. A change to the base sheets reaches `/status` without touching it.
-- It stays a shell view, not a stored page in `/_layout`: DEC-151 keeps the error, health, sign-in,
+- It stays a shell view, not a stored page in `/_layout`: `shell-the-menu-is-written-twice` keeps the error, health, sign-in,
   editor and status routes answering when the page pipeline is broken, which is exactly when
   `/status` is opened.
 
@@ -388,7 +388,7 @@ presentation attributes (see "Identifying a series without colour"), so the shee
 `--series-1`..`--series-7` or the heat shades, and a hotlinked chart does not depend on it.
 
 `/status.css` is a seeded page, so an existing installation keeps the old sheet until the owner
-restores it from `/edit` (DEC-174). The release note in
+restores it from `/edit` (`pages-delete-install-and-restore`). The release note in
 [operations](../../../deploy/operations.md#metrics-and-the-status-page) says so, and the new markup
 degrades to one full-width chart per row under the old sheet rather than failing — ugly for one
 deploy, never broken.
@@ -525,30 +525,30 @@ what is actually created, because a list can be published without being used.
 
 ## Documentation and decisions
 
-Six decisions landed with this work (DEC-179 was taken by the browser-tests branch, so the six run
-from DEC-180):
+Six decisions landed with this work (`code-browser-suite-is-opt-in` was taken by the browser-tests branch, so the six run
+from `metrics-one-panel-per-instrument`):
 
-- **[DEC-180](../../decisions.md#metrics-and-the-status-page)** — one panel per instrument, and the
+- **`metrics-one-panel-per-instrument`** — one panel per instrument, and the
   type decides the chart: histogram → heatmap, counter → line chart, gauge → line chart, and a
   counter whose labels partition one total → stacked area. `Dashboard` holds no queries; the
   catalogue is the only source of panels.
-- **[DEC-181](../../decisions.md#metrics-and-the-status-page)** — the page is a dense grid of
+- **`metrics-a-series-is-identified-without-colour`** — the page is a dense grid of
   `<figure>`s under three group headings, and a chart carries its own title and legend inside its
   SVG, so a panel adds no heading, no legend list and no prose beyond its one caption link.
-- **[DEC-182](../../decisions.md#metrics-and-the-status-page)** — identification without colour:
+- **`metrics-a-series-is-identified-without-colour`** — identification without colour:
   Okabe–Ito palette, a dash pattern, a direct end-of-line label, a hover dim and a click that pins by
-  fragment target, all in CSS because DEC-81 keeps `/status` JavaScript-free. The at-rest cues are
+  fragment target, all in CSS because `metrics-prometheus-only` keeps `/status` JavaScript-free. The at-rest cues are
   the accessible ones, and the series anchors are pointer-only.
-- **[DEC-183](../../decisions.md#metrics-and-the-status-page)** — the inventory is the catalogue: the
+- **`metrics-one-panel-per-instrument`** — the inventory is the catalogue: the
   meters publish their instruments and the catalogue maps them one-to-one; a test fails when either
   side gains an entry the other lacks, when a type disagrees with the chart, or when a query names a
   family that is neither an instrument nor a known runtime one. The family names are proved against
   the live `/metrics` body.
-- **[DEC-319](../../decisions.md#metrics-and-the-status-page)** — a drawing is self-contained: colour,
+- **`metrics-a-series-is-identified-without-colour`** — a drawing is self-contained: colour,
   dash, fill and type size are presentation attributes from a palette in `Core.Charting`, not rules
   in `/status.css`, so the same SVG is legible with no stylesheet. The page's sheet keeps only the
   grid, the caption and the hover and pinned states.
-- **[DEC-320](../../decisions.md#metrics-and-the-status-page)** — a chart can be served on its own:
+- **`metrics-a-chart-stands-alone`** — a chart can be served on its own:
   `GET /status/chart?panel=&start=&duration=` returns one panel's SVG under the owner policy, with
   `no-store` and the global security headers, addressing panels by catalogue id. The window is an
   explicit start plus a length, snapped to the step, so a link reproduces the chart it showed; a
@@ -622,7 +622,7 @@ No schema, no migration, no configuration and no new package. `/status` is owner
 fifteen seconds; the first view of a window runs twenty-eight range queries instead of twenty, which
 is the only load change. The new `/status/chart` route sits behind the same owner policy, so it is
 reachable only from a signed-in browser — a hotlink is for the owner's own notes and bookmarks, not a
-public embed. `/status.css` is seeded (DEC-174): on an existing installation the owner restores it
+public embed. `/status.css` is seeded (`pages-delete-install-and-restore`): on an existing installation the owner restores it
 from `/edit`, and the release note says so. Until then the charts render full width, one per row.
 
 ## Risks
@@ -661,7 +661,7 @@ from `/edit`, and the release note says so. Until then the charts render full wi
   model.
 - **Sizing, theming and format parameters on the chart endpoint.** The SVG scales to whatever it is
   put in, and it is SVG only: a PNG renderer would be a second drawing pipeline.
-- **Any JavaScript.** DEC-81 keeps `/status` server-rendered and script-free; the interactions here
+- **Any JavaScript.** `metrics-prometheus-only` keeps `/status` server-rendered and script-free; the interactions here
   are CSS or nothing.
 - **More colours.** Seven is the palette; beyond that, dash and label do the work rather than an
   eighth shade nobody can tell from the seventh.

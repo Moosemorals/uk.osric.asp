@@ -22,7 +22,7 @@ The consequence today is that no deploy can say what it would change:
 
 - **The start install** creates a seed only when the key has no head row, and reports it nowhere.
 - **`/admin/restore`** lists every seed and its state, and writes each changed, missing or tombstoned
-  one in a single POST (DEC-256) — but "changed" means "the bytes differ", so it cannot tell a page the
+  one in a single POST (`shell-the-admin-tools`) — but "changed" means "the bytes differ", so it cannot tell a page the
   release moved from a page the owner edited, and it offers the same button for both.
 - **The page list** decides whether to offer *Install from seed* by comparing the live source with the
   seed source as strings. Two inputs, one bit of output, and it costs two reads per seeded row per

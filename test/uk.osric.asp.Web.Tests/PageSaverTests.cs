@@ -305,7 +305,7 @@ public sealed class PageSaverTests {
         using PageHarness pages = new(storage, new DeadlineCompiler(new PageCompiler(), deadline.Cancel));
 
         // The render gives up while the page is compiling. The compile keeps its own bound and the
-        // revision is stored, because losing the author's edit is the worse failure (DEC-191).
+        // revision is stored, because losing the author's edit is the worse failure (`pages-a-page-may-save-itself`).
         SavedRevision saved = await pages.Saver.SaveAsync(
             PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None, deadline.Token);
 

@@ -8,7 +8,7 @@ namespace uk.osric.asp.Core.Pages;
 /// <para>
 /// A restore, a seed install and an edit all end in the same comparison, and all three refuse the
 /// write that would leave the live source exactly as it is: a revision whose text matches is noise in
-/// a history whose job is to record changes (DEC-192).
+/// a history whose job is to record changes (`pages-a-page-may-save-itself`).
 /// </para>
 /// <para>
 /// A page that is missing or tombstoned has no live source, so bringing it back is a change whatever

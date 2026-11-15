@@ -33,15 +33,22 @@ New files need their SPDX tags or `make license-check` fails; files that cannot 
 
 ## Plans and decisions
 
-A plan is written before a large change (DEC-09), but the decision it records is numbered when the
-work merges, not when it is planned: refer to it in prose until then, take the next `DEC-` number
-from `docs/decisions.md` on trunk when the work lands, and update every citation in the branch in
-that merge. See [decisions](../docs/decisions.md).
+A plan is written before a large change (`product-plan-before-building`), and it proposes the decision
+it records by the name that decision will carry. A decision has a name rather than a number —
+`area-subject`, from the fixed list of areas — and the name is taken when the work merges, not when it
+is planned: until then the plan states the name it intends, and the merge writes the entry in
+`docs/decisions.md` and points the plan at it. A name is permanent once merged, is cited in backticks
+with no number, and is never disambiguated with a suffix: if two branches land one name, the merge
+folds them into one entry or narrows one of the names, and updates every citation in that branch.
+`docs/archive/decisions.md` is frozen — a `DEC-` number written before 2026-11-15 means what it meant then.
+`make decisions` is the gate's check on the record: a name outside the area list, a name used twice, an
+entry with no "Recorded in" line, a retired name taken again and a citation of a decision that is not
+there all fail it. See [decisions](../docs/decisions.md).
 
 Every step of the programme is proposed and waits for the owner: the plan, before anything is built,
-and the merge, for every step, once its gate is run (DEC-281). Working on a branch in its own
-worktree, a green `make check`, a finished plan and an obvious next step are not permission to
-merge, to push, or to start the next step — ask, and stop.
+and the merge, for every step, once its gate is run (`product-steps-wait-for-the-owner`). Working on a
+branch in its own worktree, a green `make check`, a finished plan and an obvious next step are not
+permission to merge, to push, or to start the next step — ask, and stop.
 
 ## Core and shell
 
@@ -65,7 +72,7 @@ the tests and the architecture notes.
 ## Configuration
 
 A **policy value** comes from configuration, never from a literal and never from a fallback in code
-(DEC-282). A policy value is a limit, timeout, quota, retry count, cache or sweep interval, feature
+(`code-policy-values-are-configuration`). A policy value is a limit, timeout, quota, retry count, cache or sweep interval, feature
 switch, host or credential list, or a name that decides routing or authority.
 
 - The shape is an options record in `Web`, with a `FromConfiguration` factory that reads every value

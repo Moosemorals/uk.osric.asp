@@ -38,7 +38,7 @@ workflows at all. As a result:
 ## What the gate is now
 
 There are no pull requests here (see `CONTRIBUTING.md`), so a hosted runner would gate nothing. A
-pre-push hook was tried and removed (DEC-72): it only ever delayed a push. The pipeline is therefore
+pre-push hook was tried and removed (`code-one-gate`): it only ever delayed a push. The pipeline is therefore
 a set of Makefile targets, and nothing else — no workflow file, no account, no secret, no runner
 image to keep in step. Whatever eventually runs it, locally or on a rented machine, runs one command.
 

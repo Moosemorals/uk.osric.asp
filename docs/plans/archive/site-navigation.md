@@ -49,9 +49,9 @@ design and an implementation plan; the phases below are what was built.
 ## Non-goals
 
 - **Wrapping non-HTML responses or redirects.** A page that answers a stylesheet, a script, an image,
-  a `302` or a non-HTML content type (DEC-144) is never wrapped.
+  a `302` or a non-HTML content type (`pages-content-types`) is never wrapped.
 - **Wrapping the shell's own views in the stored layout.** Recovery, error, health, sign-in and the
-  editor must answer when the page pipeline is broken (IDEA-017's bootstrap trap, DEC-131).
+  editor must answer when the page pipeline is broken (IDEA-017's bootstrap trap, `shell-nobody-is-handed-a-blank-failure`).
 - **A content menu.** The menu lists the site's *tools*, not its pages; a "pages by title" menu
   needs the store read of [IDEA-015](../../jobs/README.md#closed).
 - **A nav editor.** The items are written where the document is written: the shell's composition for
@@ -67,14 +67,14 @@ Checked against the code on 2026-11-08.
 
 - **Nothing wraps a page.** `PageEndpoint` builds one `SimpleContext` over a `StringWriter`, calls
   `PageRenderer.RenderAsync` once and writes the buffer. A page owns its whole response
-  ([PageEndpoint.cs](../../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs), DEC-31).
+  ([PageEndpoint.cs](../../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs), `pages-the-response-is-buffered-until-a-flush`).
 - **The contract has no document.** `IContext` carries `Request`, `Path`, `User`, `Aborted`, the
   logging and write members, status/content type/header/`AllowScripts`/`Redirect`/
   `RedirectToLogin`/`AntiforgeryField`, and `Features` — no title, no head, no body, no layout
   ([IContext.cs](../../../src/uk.osric.asp.Sdk/IContext.cs)).
 - **Capabilities are a settled seam.** `IPageFeatures` with `TryGet`/`Get`/`GetRequired`; the host
   registers, a capability is present or absent, never null; storage and fetch are the two today
-  (DEC-142, DEC-143).
+  (`pages-capabilities-are-one-seam`).
 - **The response value** is status, content type, headers, location and `AllowsScripts`
   ([PageResponse.cs](../../../src/uk.osric.asp.Sdk/PageResponse.cs)).
 - **A render takes a slot and a deadline per call.** `PageRenderer.RenderAsync` waits on
@@ -86,7 +86,7 @@ Checked against the code on 2026-11-08.
 - **The document shell** writes the head, the sheet order and `<main id="main">`, and takes at most
   **one** sheet of the view's own, so a view that wants two has nowhere to say so; `main` is the
   body's only element, so there is no skip link
-  ([ShellDocument.cs](../../../src/uk.osric.asp.Web/Html/ShellDocument.cs), DEC-107, DEC-116, DEC-121).
+  ([ShellDocument.cs](../../../src/uk.osric.asp.Web/Html/ShellDocument.cs), `pages-the-document-is-the-shells`, `pages-one-base-sheet`).
 - **Seven named local navs** exist for the shell's own views; nothing is shared.
 - **Two pages nobody can navigate to.** Nothing links to `/` except an error remedy, and nothing
   links to `/status`. The dev database holds one page that writes a document (`/`), one deliberately
@@ -95,7 +95,7 @@ Checked against the code on 2026-11-08.
   writes a document is the owner's to migrate.
 - **`/admin` has no view.** It is reserved as a prefix; only the import and export routes answer
   beneath it. The only sign-out control is the form at the bottom of the editor.
-- **The accessibility suite** renders every shell view once and applies eleven rules (DEC-110).
+- **The accessibility suite** renders every shell view once and applies eleven rules (`shell-accessibility-is-asserted`).
 
 ## What this touches
 
@@ -108,15 +108,15 @@ Checked against the code on 2026-11-08.
 | [IDEA-001](../../jobs/IDEA-001.md) | The editor is mostly markup | The editor loses its ad-hoc sign-out form; its page menu stays |
 | [IDEA-022](../../jobs/IDEA-022.md) | `SimpleContext` does five jobs | Gains a constructor argument (the layout state), not a contract member |
 | [the shell](../../shell.md#error-responses) | Every failure is a document a person can read | Error documents gain the menu above the recovery nav |
-| DEC-121 | No skip link until chrome precedes `main` | Superseded: the chrome arrives |
-| DEC-107, DEC-116 | One writer owns the head and the landmark; sheet order is fixed | Extended to the banner and the skip link, for both the shell and the layout, and to layers: a page's sheets are last |
-| DEC-174 | Seed restore is a per-page action on `/edit`; `/admin` is not a page surface | `/admin` returns as an *index of tools*, so the objection that retired it (a duplicate page list) does not apply |
-| DEC-02, DEC-132, DEC-133, DEC-135, DEC-136 | Pages are public unless they guard themselves; identity is shell-supplied; authenticated POSTs need a field; authenticated responses are `no-store` | Unchanged: the layout is not a guard, and the menu's links are content, not authority |
-| DEC-26 | `RuntimeId` includes the Sdk module version id | One deliberate bump from the builder and the capability; every stored image recompiles on its next request |
-| DEC-142, DEC-143 | Capabilities are for what a render may or may not offer; always-present things stay on `IContext` | Extended: the layout is a capability because it is a set of *slots a render offers*, which is what the page-features review already expected |
-| DEC-144 | A page's content type comes from its key's extension | Becomes the rule that decides whether a page is wrapped |
-| DEC-31, DEC-123 | The body is buffered; the render owns the deadline | The chain renders inside the same budget rather than beside it |
-| DEC-93, DEC-138 | CSP is shell-owned; a page opts into `script-src 'self'` | Unchanged, and `AllowScripts` is the union across layers |
+| `pages-the-document-is-the-shells` | No skip link until chrome precedes `main` | Superseded: the chrome arrives |
+| `pages-the-document-is-the-shells`, `pages-one-base-sheet` | One writer owns the head and the landmark; sheet order is fixed | Extended to the banner and the skip link, for both the shell and the layout, and to layers: a page's sheets are last |
+| `pages-delete-install-and-restore` | Seed restore is a per-page action on `/edit`; `/admin` is not a page surface | `/admin` returns as an *index of tools*, so the objection that retired it (a duplicate page list) does not apply |
+| `pages-public-by-default`, `pages-identity-is-a-plain-value`, `auth-a-state-changing-form-carries-a-token`, `pages-a-stored-page-is-never-cached` | Pages are public unless they guard themselves; identity is shell-supplied; authenticated POSTs need a field; authenticated responses are `no-store` | Unchanged: the layout is not a guard, and the menu's links are content, not authority |
+| `pages-compile-on-save` | `RuntimeId` includes the Sdk module version id | One deliberate bump from the builder and the capability; every stored image recompiles on its next request |
+| `pages-capabilities-are-one-seam` | Capabilities are for what a render may or may not offer; always-present things stay on `IContext` | Extended: the layout is a capability because it is a set of *slots a render offers*, which is what the page-features review already expected |
+| `pages-content-types` | A page's content type comes from its key's extension | Becomes the rule that decides whether a page is wrapped |
+| `pages-the-response-is-buffered-until-a-flush`, `pages-page-io-is-async` | The body is buffered; the render owns the deadline | The chain renders inside the same budget rather than beside it |
+| `shell-security-headers-are-one-set` | CSP is shell-owned; a page opts into `script-src 'self'` | Unchanged, and `AllowScripts` is the union across layers |
 
 ## Design
 
@@ -125,12 +125,12 @@ Checked against the code on 2026-11-08.
 `Sdk/PageDocument.cs` returns markup: the head and open body, `Banner`, `OpenMain`/`CloseMain`, the
 close, and `Nav`; `Sdk/NavLink.cs` moves from `Web/Html`. `ShellDocument` and `PageLayout.Nav`
 become adapters over it, so the shell and the stored layout cannot drift about encoding, the
-landmark, the sheet order or the skip link (DEC-107).
+landmark, the sheet order or the skip link (`pages-the-document-is-the-shells`).
 
 **The builder owns the document's policy.** That is the whole point of it being the one writer:
 
 - `Head` writes the language, the charset, the viewport, the title, the base sheets
-  (`/layout.css` then `/site.css`, DEC-116), the sheets it is given in order, the icon, then any
+  (`/layout.css` then `/site.css`, `pages-one-base-sheet`), the sheets it is given in order, the icon, then any
   extra head markup. It refuses a blank title, so a document without one cannot be written.
 - `Banner(navMarkup)` writes the skip link and the `<header>` around a nav, so "the skip link is the
   first focusable element and points at `#main`" is a property of the builder rather than a habit of
@@ -145,7 +145,7 @@ fixed (IDEA-018 point 7), and that worry is about the response, not the markup.
 
 **Scope.** In: `PageDocument`, `Nav`, `NavLink`. Out: `Gutter` and `Diagnostics` — they are the
 editor's, and their value wraps `PageDiagnostic`, a `Core.Compilation` type the `Sdk` may not
-reference (DEC-88); moving them needs an Sdk diagnostics value and severity, a decision of its own.
+reference (`pages-the-contract-is-the-seam`); moving them needs an Sdk diagnostics value and severity, a decision of its own.
 
 ### D2 — The layout is a capability, not more `IContext`
 
@@ -178,13 +178,13 @@ public interface IPageLayout {
   `<link rel="stylesheet">` the document carries; the href is escaped by the builder and the order is
   the order of the calls. It is separate from `AddHead` because three things need to be true that a
   raw string cannot promise: the page's sheets come **after** the site's and any layout's, so a page
-  is still the last word (DEC-116); the same href is never linked twice; and a path that is not a
+  is still the last word (`pages-one-base-sheet`); the same href is never linked twice; and a path that is not a
   site-relative URL — the shape `LocalRedirect.IsSafe` already accepts, query and fragment included —
-  is refused rather than silently blocked by `style-src 'self'` (DEC-93).
+  is refused rather than silently blocked by `style-src 'self'` (`shell-security-headers-are-one-set`).
 - **`Stylesheets` is what the layout writes**, already merged and ordered by the host, so the layout
   never has to know which layer asked for what.
 - **It is not a guard.** The content has already run by the time the layout starts, so a layout
-  hides chrome; it cannot prevent a side effect (IDEA-005 point 6, DEC-02).
+  hides chrome; it cannot prevent a side effect (IDEA-005 point 6, `pages-public-by-default`).
 
 ### D3 — Default, opt-out, and what is never wrapped
 
@@ -227,7 +227,7 @@ write buffer 2 with the merged head and title
 - **The document is assembled from the outside in.** The head markup and the stylesheets are
   collected per layer and written outermost first, which is the reverse of the order the layers
   rendered — the content runs first but sits last in the document. Within one layer, calls keep
-  their order. So the sheets on the wire are always `/layout.css`, `/site.css` (DEC-116), then any
+  their order. So the sheets on the wire are always `/layout.css`, `/site.css` (`pages-one-base-sheet`), then any
   sheet a layout added (outermost layout first), then the page's own, in the order the page asked
   for them. A page with none adds none, and the site's two are still there.
 - **Each layer has its own `ctx.Path`** — and therefore its own storage handle — but the same
@@ -312,8 +312,8 @@ goes.
 
 ### D8 — What the layout is not
 
-- **Not a guard.** Authorization stays in the page (DEC-02, DEC-132).
-- **Not a data boundary.** A layout reads its own storage and nothing of the page's (DEC-125).
+- **Not a guard.** Authorization stays in the page (`pages-public-by-default`).
+- **Not a data boundary.** A layout reads its own storage and nothing of the page's (`pages-page-storage`).
 - **Not the recovery path.** If the compiler or the page store is broken, `ShellDocument` still
   answers the error, health, sign-in and editor routes.
 
@@ -494,46 +494,46 @@ landing on its own.
 
 ## Documentation and decisions
 
-- **DEC-148**: the layout is a capability, `IPageLayout` — `Layout`, `Title`, `Head`, `Stylesheets`,
+- **`pages-a-layout-is-a-capability`**: the layout is a capability, `IPageLayout` — `Layout`, `Title`, `Head`, `Stylesheets`,
   `AddHead`, `AddStylesheet`, `Body` — reached through `IContext.Features`, because it is a set of
   slots a render offers rather than something every page always has. `IContext` and `PageResponse`
   are unchanged; the content owns the response, `AllowsScripts` is the union, head markup and sheets
   accumulate outermost-first, and `Body` is a value the layout writes rather than a method that
   writes for it.
-- **DEC-157**: a wrapped page must set a title, and the outermost layer writes it. Reading `Title`
+- **`pages-one-request-one-chain`**: a wrapped page must set a title, and the outermost layer writes it. Reading `Title`
   when it was never set throws, and the host refuses the chain after the content has run and before
   the layout starts, so the error names the page that forgot rather than the layout that noticed. A
   page that clears `Layout` is exempt, because it writes its own head. Additive titles need no
   contract: a layout composes `$"moosemorals.com — {layout.Title}"` and renders last. A
   contract-level version is deferred until a layout needs something interpolation cannot say.
-- **DEC-158**: a layout is pure markup. It may not set the status, the content type or a response
+- **`pages-layouts-are-markup`**: a layout is pure markup. It may not set the status, the content type or a response
   header; an attempt is ignored and logged, and `AllowScripts` is the only response setting it
   shares, as a union with the content's, because its script is part of its chrome.
-- **DEC-149**: `Pages:Layout` names the default. Every `text/html` page is wrapped unless it clears
+- **`pages-one-request-one-chain`**: `Pages:Layout` names the default. Every `text/html` page is wrapped unless it clears
   `Layout`; a redirect or a non-HTML response never is; the layout itself is reached by the
   seen-set. A missing or uncompilable *default* degrades to unwrapped with a warning and a metric; a
   missing *named* layout is an error naming the key.
-- **DEC-150**: one request renders the chain under one render slot, one deadline, one fetch budget,
+- **`pages-one-request-one-chain`**: one request renders the chain under one render slot, one deadline, one fetch budget,
   one body budget and one antiforgery token, with a seen-set and `Pages:Render:MaxLayoutDepth`
   (four by default, clamped to 1–16). Each layer keeps its own `ctx.Path` (and storage) and shares
   `ctx.Request`.
-- **DEC-151**: the site menu is written twice on purpose — composed by the host for shell views,
+- **`shell-the-menu-is-written-twice`**: the site menu is written twice on purpose — composed by the host for shell views,
   written in the seeded `/_layout` for pages — and rendered by one `PageDocument.Nav`. The shell's
   document is not the stored layout, because the recovery routes must not depend on page code.
-- **DEC-152**: `/admin` is a seeded fragment page linking import, export and `/status`; `/_layout` is
+- **`shell-admin-is-a-page`**: `/admin` is a seeded fragment page linking import, export and `/status`; `/_layout` is
   an ordinary page (editable, restorable, not reserved), and only `/admin/import` and `/admin/export`
-  stay reserved beneath `/admin`. This is a partial reversal of DEC-174, which retired a *duplicate
+  stay reserved beneath `/admin`. This is a partial reversal of `pages-delete-install-and-restore`, which retired a *duplicate
   page list*, not an index of tools.
-- **DEC-153**: sign-out is a `POST` from a confirmation view reached by a `GET`.
-- **DEC-154**: the skip link and the banner return, superseding DEC-121 and extending DEC-107.
-- **DEC-155**: a page controls its own stylesheets — none, one or many — with `AddStylesheet`, and
+- **`shell-sign-out-is-a-post`**: sign-out is a `POST` from a confirmation view reached by a `GET`.
+- **`pages-the-document-is-the-shells`**: the skip link and the banner return, superseding the earlier no-skip-link rule and extending the document entry.
+- **`pages-one-base-sheet`**: a page controls its own stylesheets — none, one or many — with `AddStylesheet`, and
   the order is `PageDocument.Head`'s: the document's base sheets (`/layout.css`, `/site.css`), then
   each layout's from outermost to innermost, then the page's in the order it asked. An exact
   duplicate href is linked once, and an href that is not site-relative is refused with an exception
-  rather than left to be silently blocked by `style-src 'self'` (DEC-93). The builder, not the
+  rather than left to be silently blocked by `style-src 'self'` (`shell-security-headers-are-one-set`). The builder, not the
   caller, writes the base sheets and the icon, so the shell and the layout cannot disagree about
   them.
-- **DEC-156**: the document builder owns the document's policy — the language, charset, viewport,
+- **`pages-the-document-is-the-shells`**: the document builder owns the document's policy — the language, charset, viewport,
   title, base sheets and their order, the icon, the skip link, the banner, the `main` landmark and
   the close — because that is what makes "one writer" worth having and what stops a seeded layout
   and a shell view disagreeing. It owns no *response* policy: status, content type, security
@@ -577,11 +577,11 @@ landing on its own.
 
 | Question | Answer |
 | --- | --- |
-| `Body` as a value or a writer | The value: `<%== layout.Body %>` (DEC-148) |
-| Who owns the title | A wrapped page must set one, and the outermost layer writes it; reading it unset throws, and the host refuses the chain naming the page that forgot (DEC-157). Additive titles are an interpolation in the layout; a contract-level version is deferred |
+| `Body` as a value or a writer | The value: `<%== layout.Body %>` (`pages-a-layout-is-a-capability`) |
+| Who owns the title | A wrapped page must set one, and the outermost layer writes it; reading it unset throws, and the host refuses the chain naming the page that forgot (`pages-one-request-one-chain`). Additive titles are an interpolation in the layout; a contract-level version is deferred |
 | Is the default on out of the box | Yes, `Pages:Layout = "/_layout"`. The bundled seeds are non-HTML and need no migration; the owner's own pages are the owner's to migrate |
-| How deep may a chain go | Four, from `Pages:Render:MaxLayoutDepth`, clamped to 1–16 (DEC-150) |
-| May a layout set the response | No — status, content type and headers are the content's, and a layout is pure markup (DEC-158) |
+| How deep may a chain go | Four, from `Pages:Render:MaxLayoutDepth`, clamped to 1–16 (`pages-one-request-one-chain`) |
+| May a layout set the response | No — status, content type and headers are the content's, and a layout is pure markup (`pages-layouts-are-markup`) |
 | Should the shell compare its menu with the layout's | Yes, an integration test over the two item lists |
 | `media` or `nonce` on a sheet | Not yet; `AddStylesheet(href)` covers what was asked |
 

@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a Core flag, a storage column, a second response shape on the page endpoint, a script-policy column for extensions, an Sdk seam, three tagging call sites and the tests for each |
 | Area | Core, Sdk, Web |
 | Backlog | IDEA-010, closed by this plan |
-| Decisions | DEC-238–DEC-248, recorded with this plan |
+| Decisions | `pages-a-versioned-url-promises-immutable`, `pages-an-asset-is-a-page-with-no-code`, `shell-security-headers-are-one-set`, recorded with this plan |
 
 ## The short version
 
@@ -406,7 +406,7 @@ that page is a no-code asset; and a layout that passes no resolver emits exactly
 
 - [x] `make build`, `make test`, `make format`, `make license-check`.
 - [x] Take the decisions above, give them the next `DEC-` numbers from `docs/decisions.md` on
-  trunk, and update every citation in the branch in the merge commit: DEC-238 to DEC-248.
+  trunk, and update every citation in the branch in the merge commit: `pages-a-versioned-url-promises-immutable` to `shell-security-headers-are-one-set`.
 
 ## Considered and rejected
 

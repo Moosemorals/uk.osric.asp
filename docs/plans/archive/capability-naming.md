@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Implemented 2026-11-10; phase 4 is [IDEA-026](../../jobs/IDEA-026.md) |
 | Size | Medium — two `Sdk` renames behind an obsolete alias, a mechanical rename through `Web` and its suites, seven seeded pages (`/help` among them), and the documents that teach the name |
 | Spike | None. The split is already in the code, and the obsolete behaviour is settled: a warning where a page uses the old name, and no warning where the host implements it |
-| Decisions | DEC-228 (the word, the alias, and the release that removes it), recorded with this plan |
+| Decisions | `pages-capabilities-are-one-seam` (the word, the alias, and the release that removes it), recorded with this plan |
 | Backlog | Nothing waits on this. Phase 3 opens IDEA-026, the removal of the alias, and phase 4 is that release |
 
 ## The short version
@@ -40,14 +40,14 @@ reached through a differently named property.
 The three candidates were weighed against what the seam actually is: an ability the host grants one
 render and withholds from the next, carrying exactly the authority it was given — `IPageWriter` bound
 to `ctx.Path`, `IPageStorage` bound to the page's key, `IPageCatalog` read-only, the write requiring
-sign-in (DEC-189, DEC-190). That is a capability in the ordinary security sense, and the word says
+sign-in (`pages-a-page-may-save-itself`). That is a capability in the ordinary security sense, and the word says
 so without a footnote.
 
 | Word | Verdict |
 | --- | --- |
 | **capability** | The noun already used by every human-facing surface. Names the grant-and-withhold relation, and the authority a handle carries. Adopt. |
 | **feature** | Collides with the assistant as "the feature" (`docs/assistant.md`, "Enabling the feature", `AssistantOptions`'s master switch) and with ASP.NET Core's `HttpContext.Features`, which `Web` already uses a few lines away from `PageFeatures`. Suggests permanence where the contract is per render. Retire from the page vocabulary. |
-| **extension** | Two established meanings here already — a key's file extension (`Pages:ContentTypes:Extensions`, DEC-144) and an extension method or `Microsoft.Extensions.*` (about 115 uses). A third would imply third-party extensibility, which `PageApiPolicy`'s default-deny and host-only registration exist to prevent. Reject. |
+| **extension** | Two established meanings here already — a key's file extension (`Pages:ContentTypes:Extensions`, `pages-content-types`) and an extension method or `Microsoft.Extensions.*` (about 115 uses). A third would imply third-party extensibility, which `PageApiPolicy`'s default-deny and host-only registration exist to prevent. Reject. |
 
 The repo counts agree with the vocabulary: about 380 occurrences of *capability*, about 550 of
 *feature* (most of them the identifier `Features`), about 260 of *extension*, none of which describe
@@ -69,7 +69,7 @@ this seam.
 - **Changing what a page can do.** No capability is added, split, merged or re-scoped. The eight stay
   eight and their members do not move.
 - **Rewriting history.** `docs/decisions.md` rows, `docs/plans/archive/` and `docs/spikes/` keep the
-  words they were written with. DEC-228 records the change; older rows are what the code said then.
+  words they were written with. `pages-capabilities-are-one-seam` records the change; older rows are what the code said then.
 - **Renaming anything else called a feature.** The assistant is still a feature in the product sense,
   and `Microsoft.Extensions.*`, `HttpContext.Features`, `Pages:ContentTypes:Extensions` and podman's
   `DropCapability=` are not this.
@@ -83,7 +83,7 @@ this seam.
 | `Sdk` | feature | `IContext.Features` returns `IPageFeatures`; the type's own summary calls them "the optional capabilities this render offers" |
 | `Web` | feature | `PageFeatures`, `IRenderBoundFeature`, `RenderBoundFeature`, `SimpleContext._features`, the `features` parameter through `PageChain` and `PageHarness` |
 | `Web` (ASP.NET) | feature, unrelated | `Program.cs` imports `Microsoft.AspNetCore.Http.Features`; test helpers call `context.Features.Set<…>` |
-| Prose, decisions, `/help` | capability | `/help`'s "Context and capabilities"; DEC-142, DEC-143, DEC-148, DEC-168, DEC-189, DEC-190, DEC-211, DEC-219 |
+| Prose, decisions, `/help` | capability | `/help`'s "Context and capabilities"; `pages-capabilities-are-one-seam`, `pages-a-layout-is-a-capability`, `pages-the-store-is-read-through-one-seam`, `pages-a-page-may-save-itself`, `assistant-memory-belongs-to-the-assistant`, `pages-diff` |
 | Tests | capability | every method in `PageFeaturesTests` — `GetRequiredReturnsARegisteredCapability`, `AttachDeadlineReachesABoundCapability`, … |
 | Seeded pages and the prompt | feature, at the call site | 24 uses of `ctx.Features` across seven seeds; 17 in `PageAuthorPrompt` |
 
@@ -188,7 +188,7 @@ the author's template.
 
 `DiagnosticId = "PAGE005"` puts the deprecation in the same space as the contract's other codes —
 `PAGE001` API denials, `PAGE002` structure, and `PAGE003`/`PAGE004` for the compile-slot and compile
-timeouts. This plan first named `PAGE003`, which is the compile-slot timeout already, and DEC-21 says
+timeouts. This plan first named `PAGE003`, which is the compile-slot timeout already, and `pages-what-a-diagnostic-is` says
 a code is never reused, so the first free one is the one it carries. A page author sees `PAGE005` at
 the position of use, with a message that names `ctx.Capabilities`; the assistant sees the same string
 in the diagnostics its save returns, so it can fix the page it is working on without being told
@@ -253,7 +253,7 @@ it is, what it is not, and what owns it.
 
 > **Not** a feature or an extension. A feature is something the product has and an extension is
 > something a third party adds; a capability is something one render offers a page, and it may be
-> absent from the next. The accessor was called `ctx.Features` until DEC-228.
+> absent from the next. The accessor was called `ctx.Features` until `pages-capabilities-are-one-seam`.
 
 That entry is the rule the glossary already states — "the code is authoritative" — made true again,
 and it is where the Deprecated constant's sentence comes from.
@@ -282,7 +282,7 @@ and it is where the Deprecated constant's sentence comes from.
 | `test/**` (render, scope, integration, browser suites) | `ctx.Features` → `ctx.Capabilities` in test templates, about 100 uses over 19 files |
 | `docs/pages.md` | The contract paragraph and the capability list |
 | `docs/architecture.md`, `docs/storage.md`, `docs/glossary.md` | The `Sdk` surface line, two call sites, the new entry |
-| `docs/decisions.md` | DEC-228 |
+| `docs/decisions.md` | `pages-capabilities-are-one-seam` |
 | `README.md` | Three `ctx.Features` examples and the editor-manual sentence |
 | `docs/jobs/IDEA-022.md`, `IDEA-024.md`, `IDEA-025.md`, `docs/jobs/README.md` | Current-state prose only; archive plans untouched |
 
@@ -336,7 +336,7 @@ message in `PageChain`. A fresh site and a restored seed both teach the new name
 ### Phase 3 — the documents (half a day)
 
 `docs/pages.md`, `docs/architecture.md`, `docs/storage.md`, the glossary entry, `README.md`, the live
-job files, DEC-228 and **IDEA-026** in the backlog, so the alias's removal is a job rather than a
+job files, `pages-capabilities-are-one-seam` and **IDEA-026** in the backlog, so the alias's removal is a job rather than a
 sentence.
 
 ### Phase 4 — the release that removes the alias (a later release, not this plan)
@@ -380,7 +380,7 @@ the suppression. Gated on a query of the page store for heads whose source still
 
 ## Documentation and decisions
 
-- **DEC-228** — The seam that offers a page storage, fetch, the page store, a layout and the pure
+- **`pages-capabilities-are-one-seam`** — The seam that offers a page storage, fetch, the page store, a layout and the pure
   renderers is called a **capability**: `IPageCapabilities`, reached through `IContext.Capabilities`.
   `IPageFeatures` and `IContext.Features` remain for one release as `[Obsolete]` warnings, because
   stored pages are compiled source and a change to `Sdk` invalidates every image; the host renames
@@ -392,7 +392,7 @@ the suppression. Gated on a query of the page store for heads whose source still
 - [architecture](../../architecture.md) names the `Sdk` surface correctly in the layer table.
 - [storage](../../storage.md) shows the page-store read and the self-save through the new accessor.
 - [glossary](../../glossary.md) defines **Capability**, with the "not a feature, not an extension" clause
-  and the note that the accessor was `Features` until DEC-228.
+  and the note that the accessor was `Features` until `pages-capabilities-are-one-seam`.
 - [testing](../../testing.md) needs no suite name change; it does not list `PageFeaturesTests`.
 - [the jobs](../../jobs/README.md) and IDEA-022/024/025 use the current spelling, and IDEA-026 is added
   as the alias's removal; archive plans and decision rows written before this change keep theirs.
@@ -407,6 +407,6 @@ the suppression. Gated on a query of the page store for heads whose source still
   is the renamed suite.
 - The seven seeds, `/help` and `page-author-v18` teach the new name; a fresh site and a restored seed
   are clean, with no deprecation warning.
-- DEC-228 and the glossary's **Capability** entry exist, and IDEA-026 is in the backlog with the
+- `pages-capabilities-are-one-seam` and the glossary's **Capability** entry exist, and IDEA-026 is in the backlog with the
   query that gates it.
 - `make check` passes.

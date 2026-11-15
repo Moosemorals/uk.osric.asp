@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — an SDK capability, two tables and a store, the shell's cookie and rotation, the loss of `context.Session`, a caching change with a known regression, a cookie rename, and a seeded page |
 | Job | IDEA-014 — a page cannot keep per-visitor state, so a form cannot redirect and say why; closed, see [jobs](../../jobs/README.md#closed) |
 | Spike | None. The shape is settled; the uncertain part is cost, not behaviour |
-| Decisions | DEC-233–DEC-237, recorded with this plan: the identity, the ownership model, the caps, pages become uncacheable, and the cookie names |
+| Decisions | `pages-the-session`, `pages-a-stored-page-is-never-cached`, `shell-the-cookie-names`, recorded with this plan: the identity, the ownership model, the caps, pages become uncacheable, and the cookie names |
 
 ## The short version
 
@@ -364,9 +364,9 @@ IDEA-017 cross-reference.
 - `docs/pages.md`: the capability list, and the response rules without a validator.
 - `docs/shell.md`: the cookie, the rotation, the sign-out, the shell's own keys and their paths.
 - `docs/storage.md`: the two tables, their caps and the sweep.
-- Decisions recorded: the identity (DEC-233, a shell-minted cookie, lazy), the ownership model
-  (DEC-234, host-composed path, open reads, own-path writes), the caps and their configuration
-  (DEC-235), pages are uncacheable (DEC-236), and single-character cookie names (DEC-237).
+- Decisions recorded: the identity (`pages-the-session`, a shell-minted cookie, lazy), the ownership model
+  (`pages-the-session`, host-composed path, open reads, own-path writes), the caps and their configuration
+  (`pages-the-session`), pages are uncacheable (`pages-a-stored-page-is-never-cached`), and single-character cookie names (`shell-the-cookie-names`).
 
 ## Risks
 

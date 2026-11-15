@@ -16,13 +16,13 @@ using IMarkdownRenderer = uk.osric.asp.Sdk.IMarkdownRenderer;
 /// <remarks>
 /// <para>
 /// The page profile is CommonMark with pipe tables and auto-links, and raw HTML passes through:
-/// <see cref="IMarkdownRenderer"/> says what that means for a page author (DEC-163).
+/// <see cref="IMarkdownRenderer"/> says what that means for a page author (`pages-markdown`).
 /// </para>
 /// <para>
 /// The restricted profile is for model output. Raw HTML is rendered as text, there are no autolinks
 /// or images, links pass <see cref="Core.Markdown.LinkPolicy"/>, and every heading is written as
 /// <c>h3</c> so a model-chosen level cannot skip one in the transcript. Both profiles use the
-/// site's table renderer, which writes <c>scope="col"</c> and no inline style (DEC-164).
+/// site's table renderer, which writes <c>scope="col"</c> and no inline style (`pages-markdown`).
 /// </para>
 /// <para>
 /// The parser pipelines are built once and are safe to share. Markdig's <see cref="HtmlRenderer"/>

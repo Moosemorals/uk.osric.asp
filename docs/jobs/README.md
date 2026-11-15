@@ -28,19 +28,19 @@ is not part of that flow. IDEA-022 came out of the [page-features
 planning](../plans/archive/page-features.md) of 2026-11-08, and is worth doing now that storage and
 fetch have left `SimpleContext`. ARCH-14 came out of the nullable-pages discussion of 2026-11-08 and
 carried a [plan of its own](../plans/archive/page-diagnostics-and-visibility.md). ARCH-15 came
-out of the assistant shell-file work of 2026-11-09 (DEC-198). IDEA-023 came out of the
+out of the assistant shell-file work of 2026-11-09 (`assistant-reads-the-shell-files`). IDEA-023 came out of the
 [assistant-memory planning](../plans/archive/assistant-memory.md) of 2026-11-09: that plan gave the assistant
 a memory and left the page that shows it to its owner behind, and [its own plan](../plans/archive/assistant-memory-page.md)
 has now built it. IDEA-024 and IDEA-025 came out of [the page-first plan](../plans/page-first.md) of
-2026-11-09 (DEC-210): the rule that anything a page can serve is a page, and the two things the shell
+2026-11-09 (`pages-page-first`): the rule that anything a page can serve is a page, and the two things the shell
 still does because a page cannot (an archive, and a live run). IDEA-026 came out of the
-[capability-naming plan](../plans/archive/capability-naming.md) of 2026-11-10 (DEC-228): it is the
+[capability-naming plan](../plans/archive/capability-naming.md) of 2026-11-10 (`pages-capabilities-are-one-seam`): it is the
 release that removes the deprecated `Features` alias once the page store has no page that needs it.
 ARCH-16 came out of the [tool-types work](../plans/archive/assistant-tool-types.md) of 2026-11-11
-(DEC-231): making a tool one type showed that the page tools and the shell answer the same questions
-about the page store through two implementations; the edit-safety work (DEC-269–DEC-273) widened the
+(`assistant-a-tool-is-one-type`): making a tool one type showed that the page tools and the shell answer the same questions
+about the page store through two implementations; the edit-safety work (`assistant-edit-page-is-safe`, `pages-the-shape-check`) widened the
 tools' read surface, so the job was reworked on 2026-11-13 and closed by
-[its plan](../plans/archive/page-store-reader.md) (DEC-274–DEC-280). IDEA-028 came out of the [page-editor
+[its plan](../plans/archive/page-store-reader.md) (`pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree`). IDEA-028 came out of the [page-editor
 planning](../plans/archive/page-editor.md) of 2026-11-13: the editor can become a page only if a
 broken editor has a way back, and one button that restores every seed is that way. IDEA-030 came out
 of that plan's fourth phase: retiring `/edit` and moving the editor's key into configuration showed
@@ -50,14 +50,14 @@ template-language spike](../spikes/vscode-template-language.md) of the same day:
 editor — is what is left. IDEA-032 came out of the balance work of 2026-11-14: the conversation page
 already reads the provider's credit, which makes it the one figure the site spends and the one thing
 it measures without an instrument. IDEA-033 came out of the [page-first re-scope](../plans/page-first.md)
-of 2026-11-14 (DEC-291): the memory page the plan first
+of 2026-11-14 (`assistant-memory-belongs-to-the-assistant`): the memory page the plan first
 moved needs the assistant's own store, so the capability a page actually lacks is somewhere to keep
 something for a signed-in account. IDEA-034 came out of the owner's question of 2026-11-14: the
 analyzers work turned the XML documentation on and the image carries it, and nothing reads it; it
-closed the same day by [its plan](../plans/xml-reference.md) (DEC-302). IDEA-035 came out of the
+closed the same day by [its plan](../plans/xml-reference.md) (`shell-the-reference`). IDEA-035 came out of the
 same day's follow-up question about removing `Assistant:Enabled`: four
 places read the flag, but the key rule is what the tests and the deployment actually depend on, and
-it closed the same day (DEC-301). BUG-19 came out of the owner's note of 2026-11-15: a chart counts
+it closed the same day (`assistant-always-on`). BUG-19 came out of the owner's note of 2026-11-15: a chart counts
 its samples from the first one while its axis counts from the window's start, so a window wider than
 the data leaves the line at the left edge. IDEA-036 came out of the owner's seed-provenance note of
 the same day: a seed is identified by nothing, so a deploy cannot tell a page the release moved from a
@@ -141,7 +141,7 @@ approval.
 The [assistant edit-safety plan](../plans/archive/assistant-edit-safety.md) landed between steps 5 and
 6 and is not a numbered job: it gives the edit tool its diff and line assertions, numbers the reads,
 saves several hunks as one revision and adds the template-shape warnings. Its decisions are
-DEC-269–DEC-273.
+`assistant-edit-page-is-safe`, `pages-the-shape-check`.
 
 Steps 1 and 2 are independent and may run together, as may 6 and 7. Everything else touches the same
 files — the editor, `/pages`, `SimpleContext`, the assistant prompt — and is sequential. A long plan
@@ -149,18 +149,18 @@ merges phase by phase so a regression is bisectable, and its branch goes when it
 
 Step 9 landed smaller than it was planned. The rule and its audit are in
 [architecture](../architecture.md#where-a-view-lives), the memory capability the first version proposed
-is withdrawn (DEC-291), and the view that would have used it is the assistant's — step 8. What a page
+is withdrawn (`assistant-memory-belongs-to-the-assistant`), and the view that would have used it is the assistant's — step 8. What a page
 actually lacks is somewhere to keep something for a signed-in account, and that is
 [IDEA-033](IDEA-033.md): a job with the shape, the cost and the open questions in it, waiting for a
 plan and a named first customer. `/assistant/memory` stays a shell route until step 8 replaces it.
 
 Step 6 followed 5 rather than needing it: the editor's listing carries the compile state, and that is
-the state the assistant's one seam answers with too (DEC-276). Step 7 closed BUG-17's one loose end
+the state the assistant's one seam answers with too (`pages-a-page-has-a-state`). Step 7 closed BUG-17's one loose end
 with the same write path: a client that leaves mid-write is no longer an unhandled exception.
 
 Step 8 was re-scoped on 2026-11-14. Its first sketch proposed an `IAssistantConversations`
 capability, which is the specialist capability the memory work had just taught the site to avoid
-(DEC-291). [The page-apps plan](../plans/page-apps.md) builds what a page actually lacks — a stream
+(`assistant-memory-belongs-to-the-assistant`). [The page-apps plan](../plans/page-apps.md) builds what a page actually lacks — a stream
 that outlives the render budget, an outbound body read as it arrives, and work that outlives the
 request as a fourth kind, the worker, and a job — and leaves the assistant in the shell until the port
 has its own plan and the authority question in that plan is answered.
@@ -187,17 +187,17 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
-| [IDEA-035](../decisions.md) | The assistant always runs: `Assistant:Enabled`, the disabled note, the `404` fallback and the key exemption are gone, and `Assistant:ApiKey` is required at startup. DEC-301 |
-| [ARCH-16](../plans/archive/page-store-reader.md) | The assistant's tools and its virtual shell read through one `PageStoreReader`: the tree with its facts, the sources in a scope, one key, a history and one revision. `PageTree` and `PageScope` moved to `Core`, and the loose lists, source walks and scope copies are gone. DEC-274–DEC-280 |
+| [IDEA-035](../decisions.md) | The assistant always runs: `Assistant:Enabled`, the disabled note, the `404` fallback and the key exemption are gone, and `Assistant:ApiKey` is required at startup. `assistant-always-on` |
+| [ARCH-16](../plans/archive/page-store-reader.md) | The assistant's tools and its virtual shell read through one `PageStoreReader`: the tree with its facts, the sources in a scope, one key, a history and one revision. `PageTree` and `PageScope` moved to `Core`, and the loose lists, source walks and scope copies are gone. `pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree` |
 | [IDEA-005](../plans/page-libraries.md) | Pages share code: a page is text, a page with code or a **library**, and a library is bound by an ordinary `using` — a page's own directives name the namespaces it declares, the closure is resolved to a fixed point and each library compiles as its own syntax tree in the page's compilation. A library is checked on save, never served, never wrapped and never an asset, and a dependent page goes stale when the library's head moves. The seeded `/_lib/document` writes the document the seeded `/_layout` uses, and `Sdk`'s `PageDocument` is `Web`'s `ShellDocument`. See [the plan](../plans/page-libraries.md) |
-| [IDEA-034](../plans/xml-reference.md) | The reference: the XML documentation this build carries is served at `/admin/reference` for all four assemblies and read by the assistant through a `reference` tool over the page contract; the corpus is read once per process, anchors are stable slugs, `<inheritdoc/>` copies down when the source is ours, and the help page links the types and members it names. DEC-302 |
-| [IDEA-019](../decisions.md) | Every request value survives: `QueryValues` and `FormValues` keep each name's values in order, and the API policy admits encoding, SHA-2 hashing, HMAC signing, a random source and a constant-time compare. DEC-257 |
+| [IDEA-034](../plans/xml-reference.md) | The reference: the XML documentation this build carries is served at `/admin/reference` for all four assemblies and read by the assistant through a `reference` tool over the page contract; the corpus is read once per process, anchors are stable slugs, `<inheritdoc/>` copies down when the source is ours, and the help page links the types and members it names. `shell-the-reference` |
+| [IDEA-019](../decisions.md) | Every request value survives: `QueryValues` and `FormValues` keep each name's values in order, and the API policy admits encoding, SHA-2 hashing, HMAC signing, a random source and a constant-time compare. `pages-the-api-policy` |
 | [IDEA-017](../plans/archive/page-editor.md) | The editor is a page: `IPageEditor`, the read state, the seeded `/pages` editor and its module, and `/edit` retired to an ordinary key with scrub moved to `/admin/scrub`. See [the plan](../plans/archive/page-editor.md) |
-| [IDEA-028](../decisions.md) | `/admin/restore` lists every seed's state, restores each changed, missing or tombstoned one in a single POST and reports every outcome; a matching seed and a page the owner made are untouched. DEC-256 |
-| [IDEA-026](../decisions.md) | The `Features` alias is gone: `IPageFeatures`, `IContext.Features`, the `PAGE005` diagnostic and the `[Obsolete]` attributes are removed, and a page that still says `ctx.Features` no longer compiles. DEC-254 |
-| [ARCH-15](../decisions.md) | The assistant's only read-only keys are the shell's own routes: `Assistant:ProtectedPaths`, its `IsProtected` branch, the empty configuration row and the prompt's sentence are gone, so every page the shell does not route is the assistant's to write. DEC-253 |
+| [IDEA-028](../decisions.md) | `/admin/restore` lists every seed's state, restores each changed, missing or tombstoned one in a single POST and reports every outcome; a matching seed and a page the owner made are untouched. `shell-the-admin-tools` |
+| [IDEA-026](../decisions.md) | The `Features` alias is gone: `IPageFeatures`, `IContext.Features`, the `PAGE005` diagnostic and the `[Obsolete]` attributes are removed, and a page that still says `ctx.Features` no longer compiles. `pages-capabilities-are-one-seam` |
+| [ARCH-15](../decisions.md) | The assistant's only read-only keys are the shell's own routes: `Assistant:ProtectedPaths`, its `IsProtected` branch, the empty configuration row and the prompt's sentence are gone, so every page the shell does not route is the assistant's to write. `assistant-reads-the-shell-files` |
 | [ARCH-07](../plans/archive/revision-restore.md) | A page's history restores: the editor confirms a revision or a seed install with a diff and saves the chosen source as a new revision, refusing the one that would change nothing; the assistant gains `list_revisions`, `read_revision` and an approval-gated `restore_revision`, and both listings page with `limit` and a cursor. See [the plan](../plans/archive/revision-restore.md) |
-| [ARCH-13](../plans/page-streaming.md) | A page can stream: `IContext.FlushAsync` makes the first flush the commit point, a flushing page is served alone, a committed failure truncates, the body cap stops at the commit, and a client disconnect is no longer an unhandled exception. DEC-292–DEC-300. See [the plan](../plans/page-streaming.md) |
+| [ARCH-13](../plans/page-streaming.md) | A page can stream: `IContext.FlushAsync` makes the first flush the commit point, a flushing page is served alone, a committed failure truncates, the body cap stops at the commit, and a client disconnect is no longer an unhandled exception. `pages-page-io-is-async`, `pages-the-response-is-buffered-until-a-flush`, `pages-the-first-flush-commits`, `pages-a-stream-reports-its-own-end`. See [the plan](../plans/page-streaming.md) |
 | [ARCH-02](../pages.md#page-contract) | Pages are a restricted runtime: a plain `PageRequest` snapshot, buffered output applied after the handler, allow-listed headers, `GET`/`POST`/`HEAD` only, and a 1 MiB form cap |
 | ARCH-03 | Renders and compiles each have a slot and a deadline, an abandoned render is logged and counted, and `/heath` reports it. See [the plan](../plans/archive/page-execution-budget.md). SEC-03 is deliberately still open |
 | ARCH-04 | `LoadedPage` unwraps the reflection wrapper with `ExceptionDispatchInfo`, so the shell sees the page's own exception |
@@ -206,7 +206,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | ARCH-08 | `Web.IntegrationTests` drives the real host against a throwaway database: routing, middleware, the error branch, startup migrations and the editor round-trip |
 | ARCH-09 | The `Specs` suite only restated compiler unit tests, so it and Reqnroll were deleted |
 | ARCH-10 | Delete tombstones a page and keeps its revisions; scrub removes them with bounded SQLite cleanup. See [the plan](../plans/archive/editor-tools-and-immutable-assets.md) and [deployment storage](../../deploy/operations.md#storage-and-migrations) |
-| ARCH-11 | The authenticated editor generated C# from a saved template without compiling it; the generated-source viewer was later retired with DEC-174 |
+| ARCH-11 | The authenticated editor generated C# from a saved template without compiling it; the generated-source viewer was later retired with `pages-delete-install-and-restore` |
 | ARCH-12 | `<%= %>` writes an escaped value and `<%== %>` a raw one, and an empty expression is `TEMPLATE002`. See [the plan](../plans/archive/template-value-output.md) |
 | ARCH-14 | Pages compile nullable-enabled with an oblivious scaffold, a warning never stops a page, a page has one of five states, and the assembly surface is enforced by `Microsoft.CodeAnalysis.PublicApiAnalyzers`. See [the plan](../plans/archive/page-diagnostics-and-visibility.md) |
 | BUG-01 | `UseExceptionHandler` uses an inline branch, so a throwing `POST` returns 500 |
@@ -217,34 +217,34 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-06 | A template that does not parse is a value, not an exception: a `TEMPLATE001` diagnostic is stored as a compile failure, so the editor shows it and the page answers "Handler failed to compile." |
 | BUG-07 | `SavePageAsync` is one `INSERT … ON CONFLICT`, so concurrent saves for a new key leave one row |
 | BUG-08 | The reference set is built from `TRUSTED_PLATFORM_ASSEMBLIES` at startup, so a missing value stops the host instead of compiling every page against nothing |
-| BUG-09 | A page's log entries are filed under `uk.osric.asp.Pages` with the page's key on a `Path` scope (DEC-24) |
+| BUG-09 | A page's log entries are filed under `uk.osric.asp.Pages` with the page's key on a `Path` scope (`pages-one-log-category`) |
 | BUG-10 | `make format-check` passes |
 | BUG-11 | Stale `*.feature.cs` files were deleted; Reqnroll 3 generates in memory |
 | BUG-12 | `Web` no longer references the Roslyn Workspaces packages; central transitive pinning fixes the Design-time conflict |
 | BUG-13 | `PageDiagnostic` carries severity and a warning-only page stores an image, renders, and reports "Saved with warnings." |
 | BUG-14 | A redirect keeps its query and fragment: `Redirects.To` encodes each part with the type that understands it. See [the plan](../plans/archive/site-navigation.md) |
 | BUG-15 | A page key containing `?` or `#` is refused by both the page and the editor rather than normalised onto another key |
-| BUG-16 | Every view is one document: `ShellDocument` writes the head, `<main id="main">` and the foot, and `AccessibilityTests` applies twelve rules to every view over rendered markup (DEC-110). See [the plan](../plans/archive/semantic-html-and-accessibility.md) |
-| BUG-17 | A long think is not cut off by its own duration: `Assistant:RequestTimeoutSeconds` is re-armed by every event the provider sends, a stall fails as `provider_timeout` with its own sentence, a message that stops at the output limit is stored `truncated`, and the transcript renders the run's own reason after the reload (DEC-119). The failed-request log line a mid-run reload leaves behind is fixed by [the streaming plan](../plans/page-streaming.md): a disconnect during a write is a Debug-level end, not an unhandled exception |
-| BUG-18 | Save and view reads its command from the form for a POST and the query for a link, and a failed save stays on the editor with its diagnostics. Every human surface answers with a document: `Errors/ErrorResponses.cs` writes the shell or an RFC 9457 problem document by `Accept`, and `UseStatusCodePages` covers every status no endpoint described (DEC-131). See [the shell](../shell.md#error-responses) |
-| OPS-02 | The health endpoint and its monitoring: `/heath` pings storage and reports abandoned renders, the quadlet probes it and restarts after three failures, and `/status` draws what Prometheus scraped. The alerting it named was always [OPS-05](OPS-05.md)'s (DEC-45). See [deployment](../../deploy/operations.md#resource-limits-and-restarts) |
-| OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and DEC-180–DEC-183, DEC-319, DEC-320 |
+| BUG-16 | Every view is one document: `ShellDocument` writes the head, `<main id="main">` and the foot, and `AccessibilityTests` applies twelve rules to every view over rendered markup (`shell-accessibility-is-asserted`). See [the plan](../plans/archive/semantic-html-and-accessibility.md) |
+| BUG-17 | A long think is not cut off by its own duration: `Assistant:RequestTimeoutSeconds` is re-armed by every event the provider sends, a stall fails as `provider_timeout` with its own sentence, a message that stops at the output limit is stored `truncated`, and the transcript renders the run's own reason after the reload (`assistant-deadlines-bound-silence`). The failed-request log line a mid-run reload leaves behind is fixed by [the streaming plan](../plans/page-streaming.md): a disconnect during a write is a Debug-level end, not an unhandled exception |
+| BUG-18 | Save and view reads its command from the form for a POST and the query for a link, and a failed save stays on the editor with its diagnostics. Every human surface answers with a document: `Errors/ErrorResponses.cs` writes the shell or an RFC 9457 problem document by `Accept`, and `UseStatusCodePages` covers every status no endpoint described (`shell-nobody-is-handed-a-blank-failure`). See [the shell](../shell.md#error-responses) |
+| OPS-02 | The health endpoint and its monitoring: `/heath` pings storage and reports abandoned renders, the quadlet probes it and restarts after three failures, and `/status` draws what Prometheus scraped. The alerting it named was always [OPS-05](OPS-05.md)'s (`pages-health-and-restarts`). See [deployment](../../deploy/operations.md#resource-limits-and-restarts) |
+| OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and `metrics-one-panel-per-instrument`, `metrics-a-series-is-identified-without-colour`, `metrics-a-chart-stands-alone` |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
-| IDEA-002 | A page reaches any `http` or `https` host through `ctx.Capabilities.GetRequired<IHttpFetch>()`; every failure is a value (DEC-216, DEC-129, DEC-143). See [the plan](../plans/archive/page-fetch-and-storage.md) |
-| IDEA-023 | `/assistant/memory` lists every memory the owner holds, grouped by kind with the pinned ones first, each row a form that saves content, kind and pin under the version it was rendered from, with a count against the cap and a forget that asks on its own page first (DEC-205–DEC-209). See [the plan](../plans/archive/assistant-memory-page.md) |
-| IDEA-003 | A page keeps state through `ctx.Capabilities.GetRequired<IPageStorage>()` in a `PageState` table with per-page caps (DEC-125, DEC-126, DEC-127, DEC-142). See [the plan](../plans/archive/page-fetch-and-storage.md) |
+| IDEA-002 | A page reaches any `http` or `https` host through `ctx.Capabilities.GetRequired<IHttpFetch>()`; every failure is a value (`pages-outbound-fetch`, `pages-capabilities-are-one-seam`). See [the plan](../plans/archive/page-fetch-and-storage.md) |
+| IDEA-023 | `/assistant/memory` lists every memory the owner holds, grouped by kind with the pinned ones first, each row a form that saves content, kind and pin under the version it was rendered from, with a count against the cap and a forget that asks on its own page first (`assistant-memory-page`). See [the plan](../plans/archive/assistant-memory-page.md) |
+| IDEA-003 | A page keeps state through `ctx.Capabilities.GetRequired<IPageStorage>()` in a `PageState` table with per-page caps (`pages-page-storage`, `pages-capabilities-are-one-seam`). See [the plan](../plans/archive/page-fetch-and-storage.md) |
 | IDEA-004 | The page contract is its own reference-free assembly, `uk.osric.asp.Sdk`. See [the plan](../plans/archive/page-sdk-split.md) |
 | IDEA-006 | `/site.css` is a seeded page rather than a static file, so the site's look is edited like any other page. See [the plan](../plans/archive/non-html-pages.md) |
 | IDEA-007 | `/rocket.svg` is a seeded page served as `image/svg+xml`. See [the plan](../plans/archive/non-html-pages.md) |
-| IDEA-008 | Implemented as the authenticated page-author assistant with bounded page-store tools (DEC-111, always on since DEC-301). See [the plan](../plans/archive/ai-page-assistant.md) |
-| IDEA-009 | Pages leave and return as a SQLite archive through `/admin/export` and `/admin/import` (DEC-139). See [the plan](../plans/archive/page-import-export.md) |
-| IDEA-010 | A retained revision is an **asset**: `?v=<hash>` on a page's own URL selects it, a page with no C# is never compiled and is served from source, a versioned asset promises `immutable` with the hash as a strong `ETag`, an unversioned response stays `no-store`, and the shell tags its own links (DEC-238–DEC-248). Runtime-change cleanup of obsolete images and symbols is deferred, not part of this job. See [the plan](../plans/archive/immutable-page-assets.md) |
-| IDEA-011 | Pages opt into the existing sign-in with `ctx.User`, `ctx.RedirectToLogin()` and `ctx.AntiforgeryField` (DEC-132–DEC-137). See [the plan](../plans/archive/page-authentication.md) |
-| IDEA-012 | The page handler is asynchronous, and `Task`'s starting and blocking members are denied by name (DEC-123, DEC-124). See [the plan](../plans/archive/async-page-contract.md) |
+| IDEA-008 | Implemented as the authenticated page-author assistant with bounded page-store tools (`assistant-writes-are-revisions`, always on since `assistant-always-on`). See [the plan](../plans/archive/ai-page-assistant.md) |
+| IDEA-009 | Pages leave and return as a SQLite archive through `/admin/export` and `/admin/import` (`pages-an-archive-is-a-database`). See [the plan](../plans/archive/page-import-export.md) |
+| IDEA-010 | A retained revision is an **asset**: `?v=<hash>` on a page's own URL selects it, a page with no C# is never compiled and is served from source, a versioned asset promises `immutable` with the hash as a strong `ETag`, an unversioned response stays `no-store`, and the shell tags its own links (`pages-a-versioned-url-promises-immutable`, `pages-an-asset-is-a-page-with-no-code`, `shell-security-headers-are-one-set`). Runtime-change cleanup of obsolete images and symbols is deferred, not part of this job. See [the plan](../plans/archive/immutable-page-assets.md) |
+| IDEA-011 | Pages opt into the existing sign-in with `ctx.User`, `ctx.RedirectToLogin()` and `ctx.AntiforgeryField` (`pages-public-by-default`, `pages-identity-is-a-plain-value`, `pages-redirect-to-login`, `auth-a-state-changing-form-carries-a-token`, `pages-a-stored-page-is-never-cached`, `assistant-knows-the-guard`). See [the plan](../plans/archive/page-authentication.md) |
+| IDEA-012 | The page handler is asynchronous, and `Task`'s starting and blocking members are denied by name (`pages-page-io-is-async`, `pages-the-api-policy`). See [the plan](../plans/archive/async-page-contract.md) |
 | IDEA-013 | The site's vocabulary is [the glossary](../glossary.md): one entry per term, with the term it is not and the code that owns it |
-| IDEA-016 | A page saves its own source through `ctx.Capabilities.GetRequired<IPageWriter>()`, bound to `ctx.Path` and answering with the revision hash and the compiler's diagnostics. **Authority is asymmetric**: the read is public (DEC-169) and the write requires a signed-in visitor, refused inside the capability before anything is compiled — IDEA-016 point 3 named that rule and put it in `SimpleContext`, which is where it is not. `PageSaver` and `IPageRevisionStore` move the shell's save rather than copy it, so there is still one writer (DEC-192), a started save finishes even when the render gives up (DEC-191), and a layout is offered the read and not the write (DEC-194). The seeded `/scratch` is a page that edits itself. See [the plan](../plans/archive/page-self-save.md) and DEC-189–DEC-196 |
-| IDEA-018 | `Sdk/PageDocument` owns the document and `ShellDocument` and the seeded layout are adapters over it, later reversed: the type is `Web`'s `ShellDocument` again and a stored page writes its document with a seeded library (DEC-156, [page libraries](../plans/page-libraries.md)) |
-| IDEA-021 | The assistant can check the JavaScript it writes without running or storing it (DEC-145, DEC-146). See [the plan](../plans/archive/assistant-script-validation.md) |
+| IDEA-016 | A page saves its own source through `ctx.Capabilities.GetRequired<IPageWriter>()`, bound to `ctx.Path` and answering with the revision hash and the compiler's diagnostics. **Authority is asymmetric**: the read is public (`pages-reading-the-store-is-public`) and the write requires a signed-in visitor, refused inside the capability before anything is compiled — IDEA-016 point 3 named that rule and put it in `SimpleContext`, which is where it is not. `PageSaver` and `IPageRevisionStore` move the shell's save rather than copy it, so there is still one writer, and a started save finishes even when the render gives up (`pages-a-page-may-save-itself`), and a layout is offered the read and not the write (`pages-layouts-are-markup`). The seeded `/scratch` is a page that edits itself. See [the plan](../plans/archive/page-self-save.md) and `pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself` |
+| IDEA-018 | `Sdk/PageDocument` owns the document and `ShellDocument` and the seeded layout are adapters over it, later reversed: the type is `Web`'s `ShellDocument` again and a stored page writes its document with a seeded library (`pages-the-document-is-the-shells`, [page libraries](../plans/page-libraries.md)) |
+| IDEA-021 | The assistant can check the JavaScript it writes without running or storing it (`assistant-script-checks`). See [the plan](../plans/archive/assistant-script-validation.md) |
 | OPS-01 | `UseForwardedHeaders` trusts `X-Forwarded-Proto`/`X-Forwarded-Host` from any peer, which the loopback-only publish makes safe; HSTS emits |
 | OPS-04 | `appsettings.json` raises `Microsoft.EntityFrameworkCore` to `Warning`, and Development puts SQL back at `Information` |
 | PERF-01 | A page is compiled when it is saved, the image is stored beside the source, and `TemplateHash` and `RuntimeId` decide whether it is still usable. A page with no usable image is compiled on its next request |
@@ -255,4 +255,4 @@ Resolved jobs; the files were deleted and their history is in git.
 | STYLE-03 | `Token` and `TokenType` have their own files; `Token` is a `readonly record struct` carrying a `TemplatePosition` |
 | STYLE-04 | Exception tests assert with `await Assert.ThrowsAsync`/`Assert.CatchAsync`; the convention is in [testing](../testing.md) |
 | IDEA-014 | A page keeps per-visitor state through `ctx.Capabilities.GetRequired<IPageSession>()`: `TryGetValueAsync` on its own path and on another page's, `SetAsync`, `DeleteAsync`, `KeysAsync` and `AllKeysAsync`, with the write bound to the caller's path and the read open. The session is minted on the first write, travels in the shell's `s` cookie, is bounded per visitor (`Pages:Session`), slides, sweeps on a timer and clears on sign-out; pages are `no-store` because a body can be per-visitor, and `context.Session` is gone. See [the plan](../plans/archive/page-session.md) and [storage](../storage.md#page-sessions) |
-| IDEA-015 | A page reads the page store through `ctx.Capabilities.GetRequired<IPageCatalog>()`: `ListAsync(prefix)`, `ReadAsync(key)`, `RevisionsAsync(key)` and `ReadRevisionAsync(key, hash)`, with `PageEntry`, `PageSource` and `PageRevisionInfo` as the values it may name. The listing returns every head marked deleted, reserved, HTML and no-code asset; a prefix is a subtree; `Pages:Read` bounds the rows and one render's source, and both refuse rather than truncate. The read is as public as the page that calls it — **point 3 of the job, which put the gate in the shell, was overruled** in favour of the ordinary `ctx.User` guard in the page's own source (DEC-169) — and the shell keeps every write (DEC-175). The seeded `/recent` is a public listing and `/pages` a guarded source view. See [the plan](../plans/archive/page-store-read.md) and DEC-168–DEC-172, DEC-175 |
+| IDEA-015 | A page reads the page store through `ctx.Capabilities.GetRequired<IPageCatalog>()`: `ListAsync(prefix)`, `ReadAsync(key)`, `RevisionsAsync(key)` and `ReadRevisionAsync(key, hash)`, with `PageEntry`, `PageSource` and `PageRevisionInfo` as the values it may name. The listing returns every head marked deleted, reserved, HTML and no-code asset; a prefix is a subtree; `Pages:Read` bounds the rows and one render's source, and both refuse rather than truncate. The read is as public as the page that calls it — **point 3 of the job, which put the gate in the shell, was overruled** in favour of the ordinary `ctx.User` guard in the page's own source (`pages-reading-the-store-is-public`) — and the shell keeps every write (`pages-page-first`). The seeded `/recent` is a public listing and `/pages` a guarded source view. See [the plan](../plans/archive/page-store-read.md) and `pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `pages-page-first` |

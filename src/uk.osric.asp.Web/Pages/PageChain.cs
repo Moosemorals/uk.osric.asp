@@ -153,7 +153,7 @@ internal sealed class PageChain {
             .Add<IDiffRenderer>(_environment.Diff);
 
         // A layout is markup, so it is offered the read and not the write: one that saved itself
-        // would append a revision on every render it wraps (DEC-194).
+        // would append a revision on every render it wraps (`pages-layouts-are-markup`).
         if (!isLayout) {
             // A job is started by the page that can read its events, and never by a layout: a layout
             // that started one would start it once per page it wraps.

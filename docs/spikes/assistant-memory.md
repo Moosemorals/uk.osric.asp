@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Answered | 2026-11-09 |
 | Evidence | The memory literature and vendor documentation of 2023–2026 (linked below), and an FTS5 trial on `Microsoft.Data.Sqlite` 10.0.14 (SQLite 3.53.3) with 5,000 synthetic memories |
 | Verdict | Yes, in SQLite and nothing else: one owner-scoped table plus its edit history, an FTS5 index with porter stemming, and recall by BM25 mixed with pinned and already-used memories into a fixed character budget. Writes happen only through explicit tools the transcript shows. No embeddings, no vector store, no extraction pass, no graph. |
-| Recorded | Planned. [The plan](../plans/archive/assistant-memory.md) carries DEC-184–DEC-188, the phases and the tests; the owner's page is [IDEA-023](../plans/archive/assistant-memory-page.md), deliberately outside it |
+| Recorded | Planned. [The plan](../plans/archive/assistant-memory.md) carries `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, the phases and the tests; the owner's page is [IDEA-023](../plans/archive/assistant-memory-page.md), deliberately outside it |
 
 ## The answer
 
@@ -525,19 +525,19 @@ nothing else, and a memory is neither.
 
 ### The decisions
 
-They are DEC-184–DEC-188 in [decisions](../decisions.md#architecture-and-code-placement), and
+They are `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5` in [decided](../decisions.md), and
 [the plan](../plans/archive/assistant-memory.md#documentation-and-decisions) carries them in full. In one
 line each:
 
-1. **DEC-184** — a memory is owner-scoped and outlives its conversation; provenance is nullable, not
+1. **`assistant-memory-is-the-owners`** — a memory is owner-scoped and outlives its conversation; provenance is nullable, not
    a foreign key.
-2. **DEC-185** — memory is written only by an explicit tool call, and the writes are approval-gated
+2. **`assistant-memory-is-the-owners`** — memory is written only by an explicit tool call, and the writes are approval-gated
    under `RequireApproval`; there is no extraction pass and no derived profile.
-3. **DEC-186** — recall is FTS5 with porter stemming, BM25 plus already-used memories selected by a
+3. **`assistant-memory-recall-is-fts5`** — recall is FTS5 with porter stemming, BM25 plus already-used memories selected by a
    pure rule; no embeddings, no vector store, once per run.
-4. **DEC-187** — a memory has an id and a version; an update keeps the history; a forget deletes the
+4. **`assistant-memory-is-the-owners`** — a memory has an id and a version; an update keeps the history; a forget deletes the
    memory and its history in one transaction.
-5. **DEC-188** — memory content is data inside a labelled, escaped block: capped, never logged, and
+5. **`assistant-memory-is-the-owners`** — memory content is data inside a labelled, escaped block: capped, never logged, and
    refused when it looks like a secret.
 
 ## What this deliberately does not build

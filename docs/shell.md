@@ -26,8 +26,8 @@ view to the next.
 
 - The body opens with the skip link, then the banner, then the one `main`. `BeginAsync` requires a
   navigation argument, so no view can be written without a menu: the shell composes its own with
-  `SiteNavigation`, and the seeded layout writes the same items for stored pages (DEC-151, DEC-154).
-- `/site.css` is a seeded page and the only base sheet (DEC-217). It holds the document's shape —
+  `SiteNavigation`, and the seeded layout writes the same items for stored pages (`shell-the-menu-is-written-twice`, `pages-the-document-is-the-shells`).
+- `/site.css` is a seeded page and the only base sheet (`pages-one-base-sheet`). It holds the document's shape —
   the visually hidden utility, the listing and the form grid — and the site's look, with the shape
   rules first. The view's own sheet is linked last, so it can override a structural rule without a
   more specific selector. The owner restores a stale seeded sheet from the page list.
@@ -35,9 +35,9 @@ view to the next.
   is the builder's, like every other view's. A chart it draws can also be requested on its own at
   `/status/chart`, which is a drawing rather than a document and so does not go through this builder.
 - `PageLayout` keeps the fragments a shell view writes: `Gutter` and `Diagnostics` (a `ul` with `role="list"`,
-  DEC-108). Everything the shell's own document needs — the head with its base sheets and icon, the
+  `shell-the-markup-is-semantic`). Everything the shell's own document needs — the head with its base sheets and icon, the
   banner with the skip link, `Nav`, `OpenMain`/`CloseMain` and the close — is
-  `Html/ShellDocument.cs`, and only the shell writes it (DEC-156, DEC-288). A stored page does
+  `Html/ShellDocument.cs`, and only the shell writes it (`pages-the-document-is-the-shells`). A stored page does
   not call it: the seeded layout writes its own document with the seeded
   [`/_lib/document`](../src/uk.osric.asp.Web/Pages/Seeds/_lib/document) library, so the owner can
   edit and restore what a stored page is served in. `Html/` keeps `DiagnosticLine`,
@@ -48,7 +48,7 @@ view to the next.
 
 Every one of these views is rendered once by `ShellViews` and checked against the shared accessibility
 rules — see [testing](testing.md#the-five-suites) — with what a string cannot
-prove left to a recorded hand pass (DEC-110).
+prove left to a recorded hand pass (`shell-accessibility-is-asserted`).
 
 ## Layouts
 
@@ -57,7 +57,7 @@ by `Pages:Layout` (`/_layout` as seeded), unless the page clears `IPageLayout.La
 code is a complete representation and is never wrapped: its stored source is the response, whether
 the key is HTML or not. A library is neither: it has nothing to render, so its key answers `404` and
 no layout ever meets it. A redirect, a `HEAD`'s empty body, a non-HTML content type, a no-code page
-and the layout itself are never wrapped (DEC-149). A code page that wants its own document clears
+and the layout itself are never wrapped (`pages-one-request-one-chain`). A code page that wants its own document clears
 `IPageLayout.Layout` itself.
 
 ## The response shapes
@@ -97,17 +97,17 @@ write buffer 2
 - **One budget for the chain.** `PageRenderer.OpenSessionAsync` takes one render slot and one
   deadline; each layer renders under them with its own key on the metric. The fetch allowance, the
   body allowance and the antiforgery pair are shared the same way, so a layout cannot spend them
-  twice (DEC-150).
+  twice (`pages-one-request-one-chain`).
 - **The content owns the response.** Status, content type, headers and the redirect come from the
   layer the visitor asked for; a layout that tries to set one is ignored and logged. `AllowScripts`
-  is the union, because the layout's script is part of its chrome (DEC-158).
+  is the union, because the layout's script is part of its chrome (`pages-layouts-are-markup`).
 - **A wrapped page must set a title.** Reading `Title` before it is set throws, and the host refuses
   the chain before the layout starts, so the error names the page that forgot. A layout may read the
-  title so far and compose its own; the outermost layer is the one written (DEC-157).
+  title so far and compose its own; the outermost layer is the one written (`pages-one-request-one-chain`).
 - **A page controls its own sheets.** `AddStylesheet` once per link, from none to many. The order on
   the wire is the document's base sheets, then each layout's from outermost in, then the page's in
   the order it asked; an exact duplicate is linked once and an href that is not site-relative is
-  refused rather than blocked silently by `style-src 'self'` (DEC-155).
+  refused rather than blocked silently by `style-src 'self'` (`pages-one-base-sheet`).
 - **Depth and cycles.** `Pages:Render:MaxLayoutDepth` (four shipped, accepted 1–16) bounds the
   chain and a seen-set stops at the first repeat — which is why the seeded `/_layout`, pre-filled
   with the default like every layer, needs no special case.
@@ -117,7 +117,7 @@ write buffer 2
 - **The menu is written twice, on purpose.** `SiteNavigation` composes it from the principal for the
   shell's own views; the seeded `/_layout` writes it from `ctx.User` for stored pages. The shell's
   document must not depend on a stored page, because the error, health and sign-in routes have to
-  answer when the page pipeline is broken (DEC-151). The shell's copy comes from
+  answer when the page pipeline is broken (`shell-the-menu-is-written-twice`). The shell's copy comes from
   `ShellDocument.Nav`, the layout's from the seeded library, and an integration test compares the
   document shape the two write as well as the items in it. The editor is a stored page, so its menu
   is written by the page rather than by `SiteNavigation`.
@@ -132,7 +132,7 @@ do updates it in the same change.
 ## The reference
 
 `/admin/reference` reads the XML documentation the build carries. The four product assemblies emit it
-(`GenerateDocumentationFile`, DEC-290), `dotnet publish` copies each file beside its assembly, and the
+(`GenerateDocumentationFile`, `code-analyzers-are-strict`), `dotnet publish` copies each file beside its assembly, and the
 container carries them at `/app`; `/admin/reference` is the index and `/admin/reference/{slug}` is one
 assembly.
 
@@ -230,13 +230,13 @@ page has to be deleted before it can be scrubbed.
   every one of them is a reserved page key. The reserved keys are also what the assistant calls the
   shell files: it lists and reads a record of each one and can never write one, and `ShellRoutes`
   is pinned to `ReservedPaths.Default` by a test, so a new route adds its record in the same change
-  (DEC-198).
+  (`assistant-reads-the-shell-files`).
 - Sign-in is throttled by a fixed window of `Authentication:Login:PermitLimit` attempts
   (ten shipped) every `Authentication:Login:WindowSeconds` (sixty shipped), and a request over the
   limit is answered `429` before any password is hashed. The window is per client
   address, taken from the `X-Forwarded-For` Caddy writes, so one address spending its attempts
   cannot deny sign-in to anyone else. The address is folded into one of 1024 buckets, because the
-  limiter never releases a partition and the address is otherwise unbounded (DEC-118).
+  limiter never releases a partition and the address is otherwise unbounded (`auth-sign-in-is-rate-limited-per-client`).
 - Login, logout and every administration POST validate an antiforgery token. A rejected request is
   answered `400` before it reads the form or touches storage. Pages are not endpoints with metadata,
   so `PageEndpoint` checks an authenticated page `POST` itself, before the page runs — which is what
@@ -261,7 +261,7 @@ live in one place, `ShellCookies`. `a` is `SameSite=Lax` so a link from elsewher
 signed in; `f` and `s` are `Strict`. All three follow the same `SecurePolicy`, which is `Always` in
 production. The names are short rather than long on purpose — the session cookie's value changed
 meaning with the [page session](plans/archive/page-session.md), and this was the cheapest moment
-to rename the other two (DEC-237).
+to rename the other two (`shell-the-cookie-names`).
 
 ### Page sessions
 
@@ -292,9 +292,9 @@ The shell keeps no flash message of its own. The editor page's notices are writt
 that produced them: it answers a save in place, so a message that a redirect would have to carry is
 not needed. `/admin/restore` and `/admin/scrub` answer with their own documents for the same reason.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
-  starts (DEC-93). The assistant and admin views widen the policy to `script-src 'self'` for their
+  starts (`shell-security-headers-are-one-set`). The assistant and admin views widen the policy to `script-src 'self'` for their
   own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` — which is how
-  the editor page loads `/editor.js` (DEC-138).
+  the editor page loads `/editor.js` (`shell-security-headers-are-one-set`).
   A stored page's starting policy comes from its extension row's `ScriptPolicy`, before the page
   runs; a page with code may widen `none` with `AllowScripts`, while a no-code page has no code to
   do so and depends on the configured row. The header stays shell-owned, so a page cannot set
@@ -330,4 +330,4 @@ directive, a metadata column or a route policy. A page is public unless it guard
   body lock, and returns an empty string after the render is abandoned, which fails closed.
 
 A page's guard is not a security boundary against its author: page code still runs in-process with
-the site's identity (DEC-40). Authentication decides who may reach the guard, not what a page may do.
+the site's identity (`pages-there-is-no-sandbox`). Authentication decides who may reach the guard, not what a page may do.
