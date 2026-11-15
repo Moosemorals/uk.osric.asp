@@ -303,11 +303,12 @@ text, and every request writes the stored source out byte for byte, less any com
 Such a page has only the template-shape warnings `TemplateShapeCheck` can find without compiling
 (`pages-the-shape-check`); a clean text page has none.
 
-A **comment**, `<%# … %>`, counts as neither code nor text: it writes no output, it is emitted into
-no generated source, it makes no page a page and no library a page, and it never reaches a visitor —
-a text page's body is its source with every comment construct removed (`TemplateComments`), and a
-page's body never contained it. Its braces are not the page's braces, so a note that mentions `{` is
-not an unbalanced one.
+A **comment**, `<%# … %>`, counts as neither code nor text (`pages-a-comment-is-not-code`): it
+writes no output, it is emitted into no generated source, it makes no page a page and no library a
+page, and it never reaches a visitor — a text page's body is its source with every comment construct
+removed (`TemplateComments`), and a page's body never contained it. Its braces are not the page's
+braces, so a note that mentions `{` is not an unbalanced one, and `<%#if DEBUG %>` is a note rather
+than a directive.
 
 A no-code page is a complete representation: it is never wrapped, so its stored source is the
 response even for an HTML key. It gets no banner, no skip link, no base sheet and no title
