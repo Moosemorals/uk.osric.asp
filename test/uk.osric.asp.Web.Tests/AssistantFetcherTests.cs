@@ -135,10 +135,12 @@ public sealed class AssistantFetcherTests {
         string url,
         HttpMessageHandler handler,
         PageFetchOptions? options = null) {
-        AssistantFetcher fetcher = new(new OutboundFetcher(
-            new StubHttpClientFactory(handler),
-            options ?? TestOptions.Fetch,
-            NullLogger<OutboundFetcher>.Instance));
+        AssistantFetcher fetcher = new(
+            TestOptions.Site,
+            new OutboundFetcher(
+                new StubHttpClientFactory(handler),
+                options ?? TestOptions.Fetch,
+                NullLogger<OutboundFetcher>.Instance));
 
         return await fetcher.FetchAsync(url, CancellationToken.None);
     }

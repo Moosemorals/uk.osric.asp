@@ -60,9 +60,11 @@ places read the flag, but the key rule is what the tests and the deployment actu
 it closed the same day (`assistant-always-on`). BUG-19 came out of the owner's note of 2026-11-15: a
 chart counted its samples from the first one while its axis counted from the window's start, so a
 window wider than the data left the line at the left edge; it is closed
-(`metrics-a-chart-counts-from-its-window`). IDEA-036 came out of the owner's seed-provenance note of
-the same day: a seed is identified by nothing, so a deploy cannot tell a page the release moved from a
-page the author edited, and nothing brings an edited seed back from the running site to the
+(`metrics-a-chart-counts-from-its-window`). BUG-20 came out of the owner's note of the same day: a
+rendered Markdown heading had no anchor, and a page could not switch the renderer's features; it is
+closed (`pages-markdown-options-are-per-call`). IDEA-036 came out of the owner's seed-provenance note
+of the same day: a seed is identified by nothing, so a deploy cannot tell a page the release moved
+from a page the author edited, and nothing brings an edited seed back from the running site to the
 repository. Its plan is [seed provenance](../plans/seed-provenance.md). IDEA-037 to IDEA-043 came out of the
 owner's note of 2026-11-15 comparing the site's IDE plan (`/ide-plan`, a stored page that is not in this
 repository) with this list: of its twelve wishes, two were already here (IDEA-033 and IDEA-001), one was
@@ -71,7 +73,8 @@ builds the IDE itself — and [their plan](../plans/ide-host.md) orders them, re
 were in the way, and scopes each one to its wider class of caller rather than to the editor. IDEA-044 and IDEA-045 came out
 of the owner's follow-up of the same day: the assistant does not ask for a browser in so many words,
 but keeps reaching for a way to see what it wrote, and the parts worth seeing are behind the sign-in
-guard — so a browser and an identity are two jobs, and neither is part of the IDE plan. IDEA-046 came
+guard — so a browser and an identity are two jobs, and neither is part of the IDE plan; the identity
+landed the same day as a token minted per run, so IDEA-044 is the one left. IDEA-046 came
 out of the same day's note that the assistant keeps writing `<%# %>` as a comment and the page then
 fails to compile: the template language has an opener for everything except a note to nobody.
 
@@ -100,7 +103,6 @@ fails to compile: the template language has an opener for everything except a no
 | [IDEA-042](IDEA-042.md) | — | M | A page cannot move a page, so a rename is two histories, an orphaned seed anchor and every inbound link broken silently |
 | [IDEA-043](IDEA-043.md) | — | L | The authority to edit the store belongs to one page and to one save: any page may write, and a render may write a batch under a policy |
 | [IDEA-044](IDEA-044.md) | — | L | A page cannot render a page in a browser: the assistant's own scripts are never run, though the server's HTML is already one `fetch` away, and a screenshot has nowhere to be read, served or kept |
-| [IDEA-045](IDEA-045.md) | — | M | A page, a fetch and the assistant only ever see the anonymous view, so every guarded page renders as a sign-in redirect, and the carrier for a token already exists |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -205,6 +207,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [IDEA-045](../plans/assistant-view.md) | A run sees the site it is serving: `view` GETs a path on `Site:Origin` as the owner the run belongs to, and answers the response as the server produced it — every header, the body's own bytes read as UTF-8, the redirects it followed — where `fetch` stays anonymous and keeps its text projection. The token is minted per run, held in memory and dead when the run ends; it reads and never writes, and a page cannot name it. `auth-a-view-token-names-its-run`, `auth-a-view-token-reads-only`, `auth-a-view-that-does-not-verify-is-refused`, `shell-the-site-knows-its-own-origin`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`. See [the plan](../plans/assistant-view.md) |
 | [IDEA-046](../decisions.md) | The template has a comment: `<%# %>` is a token of its own that is neither code nor text — it writes nothing, is emitted into no generated source, leaves a no-code page a text page and a library a library, its braces are not the page's, the script skeleton blanks it, and a text page is served with every comment removed. `pages-a-comment-is-not-code` |
 | [IDEA-035](../decisions.md) | The assistant always runs: `Assistant:Enabled`, the disabled note, the `404` fallback and the key exemption are gone, and `Assistant:ApiKey` is required at startup. `assistant-always-on` |
 | [ARCH-16](../plans/archive/page-store-reader.md) | The assistant's tools and its virtual shell read through one `PageStoreReader`: the tree with its facts, the sources in a scope, one key, a history and one revision. `PageTree` and `PageScope` moved to `Core`, and the loose lists, source walks and scope copies are gone. `pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree` |
@@ -247,6 +250,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-17 | A long think is not cut off by its own duration: `Assistant:RequestTimeoutSeconds` is re-armed by every event the provider sends, a stall fails as `provider_timeout` with its own sentence, a message that stops at the output limit is stored `truncated`, and the transcript renders the run's own reason after the reload (`assistant-deadlines-bound-silence`). The failed-request log line a mid-run reload leaves behind is fixed by [the streaming plan](../plans/page-streaming.md): a disconnect during a write is a Debug-level end, not an unhandled exception |
 | BUG-18 | Save and view reads its command from the form for a POST and the query for a link, and a failed save stays on the editor with its diagnostics. Every human surface answers with a document: `Errors/ErrorResponses.cs` writes the shell or an RFC 9457 problem document by `Accept`, and `UseStatusCodePages` covers every status no endpoint described (`shell-nobody-is-handed-a-blank-failure`). See [the shell](../shell.md#error-responses) |
 | [BUG-19](../decisions.md) | A chart counts from its window, not from its first sample: `ChartTimeAxis` carries the window beside the ticks, `ChartSamples` no longer widens a span to hide the difference, a sample outside the window is cut at the edge rather than pinned to it, and a heatmap cell is placed at its bucket's instant and as wide as the step between buckets (`metrics-a-chart-counts-from-its-window`) |
+| [BUG-20](../decisions.md) | A Markdown heading carries an `id` derived from its text, with a numbered suffix for a repeat, and a page chooses heading anchors, auto-links and pipe tables per call with `MarkdownOptions`; raw HTML stays on (`pages-markdown-options-are-per-call`) |
 | OPS-02 | The health endpoint and its monitoring: `/heath` pings storage and reports abandoned renders, the quadlet probes it and restarts after three failures, and `/status` draws what Prometheus scraped. The alerting it named was always [OPS-05](OPS-05.md)'s (`pages-health-and-restarts`). See [deployment](../../deploy/operations.md#resource-limits-and-restarts) |
 | OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and `metrics-one-panel-per-instrument`, `metrics-a-series-is-identified-without-colour`, `metrics-a-chart-stands-alone` |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |

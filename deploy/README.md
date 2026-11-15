@@ -159,6 +159,15 @@ and applies them.
   podman writing the host's hostname into `/etc/hosts` as `127.0.1.1`, which would otherwise point a
   page's fetch at the container's own loopback and refuse it. The entry sends the name to Caddy over
   its podman host-gateway address, so the certificate still matches the name.
+- **The assistant's view:** the quadlet sets `Site__Origin=https://moosemorals.com`, which is where
+  the assistant reaches this site over HTTP while a run is working. It is the public origin rather
+  than the loopback publish on purpose: a view of a page that mints an antiforgery token — the editor
+  is the page — needs an HTTPS request, because the antiforgery cookie is `Secure`-always in
+  production. The name resolves through `AddHost` to the host gateway, so the request goes out
+  through Caddy and back, with the certificate and the forwarded headers a visitor's request has.
+  The token that authenticates it is minted per run, held in memory and dead when the run ends, so
+  there is nothing to add to the environment file and nothing to rotate; a production host left on a
+  plaintext origin logs one warning at startup.
   A page can name an operator-configured credential instead of carrying a token itself; put it in
   the same environment file and restart:
   `Pages__Fetch__Credentials__assistant__Host=api.deepseek.com`,

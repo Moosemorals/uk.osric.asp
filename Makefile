@@ -157,11 +157,7 @@ help:
 		'remote-user-passwd Same as user-passwd, in the container on HOST=...' \
 		'remote-user-list   Same as user-list, in the container on HOST=...' \
 		'remote-user-remove Same as user-remove, in the container on HOST=...' \
-		'seeds-list         List every seed, and what the store holds for it.' \
-		'seeds-pull         Write the stored source of every changed seed into Pages/Seeds (ALL=1, MISSING=1).' \
-		'remote-seeds-list  Same as seeds-list, in the container on HOST=deploy@server.' \
-		'remote-seeds-pull  Same as seeds-pull, from the container on HOST=...' \
-		'run                Run the web app on the default URLs.' \
+		'run                Run the web app on the site origin, http://127.0.0.1:8080.' \
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image with the SDK; the base is pinned in the Makefile.' \
 		'image-check        Build it twice and fail if the two builds are not the same image.' \
@@ -402,8 +398,12 @@ remote-seeds-pull: | $(SSH_CONTROL_DIR)
 		$(SSH) $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) seeds pull $(if $(strip $(ALL)),--all) $(if $(strip $(MISSING)),--missing) > "$$archive" && \
 		tar -x -C $(SEED_DIRECTORY) -f "$$archive"
 
+# The port is not a preference: Site:Origin in appsettings.json names it, and the assistant's view
+# fetches that origin, so a developer host on any other port is a host whose own view cannot connect.
+# Override ASPNETCORE_URLS and Site__Origin together, or not at all.
 run:
-	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) $(DOTNET) run --project $(WEB_PROJECT)
+	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) ASPNETCORE_URLS=$(or $(ASPNETCORE_URLS),http://127.0.0.1:8080) \
+		$(DOTNET) run --project $(WEB_PROJECT)
 
 publish: changelist
 	$(DOTNET) publish $(WEB_PROJECT) -c Release -p:ChangelistFile=$(abspath $(CHANGELIST))

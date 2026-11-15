@@ -124,10 +124,14 @@ the build:
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
   layout never meets one (`pages-a-layout-is-a-capability`). See [layouts](shell.md#layouts).
 - `IMarkdownRenderer` renders Markdown to HTML with `ToHtml`. It is pure and needs no `await`; its
-  result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus pipe
-  tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
-  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (`pages-markdown`). A table's header
-  cells carry `scope="col"` and no inline style.
+  result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus heading
+  anchors, pipe tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
+  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (`pages-markdown`). A heading
+  carries an `id` derived from its text, with a numbered suffix when two headings share one, so a page
+  can link to a section. `MarkdownOptions` switches the three features per call — an option belongs to
+  the render, not to the shared capability — and `MarkdownOptions.Default` is the page profile
+  (`pages-markdown-options-are-per-call`). A table's header cells carry `scope="col"` and no inline
+  style.
 - `IDiffRenderer` renders the line changes between two documents with `ToHtml(before, after)`. It
   is pure and needs no `await`, and its result is written with `<%== %>`. Every source line is
   escaped, so unlike Markdown it is safe for a visitor's text, a fetched body or page state: the
@@ -445,16 +449,31 @@ Stored pages are C#, so the surface they may touch is constrained twice.
   should not need an entry of its own. Each entry is checked against the symbol the page actually
   resolved. It is data plus a pure function, so the list is readable and the diagnostic names the
   API to add. `System.Object` is deliberately absent: allowing it would allow `GetType()`.
+- Membership is decided by capability, not by which feature last needed an entry. A type is admitted
+  when its only effect is to compute over a value the page already holds or to shape a value the page
+  already returns; it is refused when it adds a way to reach a resource — a file, the network, a
+  process, the environment, an assembly, reflection or process-wide state. A type that bundles a way
+  to reach with a useful helper is admitted with the reaching members denied by name, which is how
+  `Task` is admitted and `Task.Run` is not (`pages-admit-what-adds-no-capability`). That rule admits
+  `StringComparer`, `HashCode` and `Random`, and refuses `System.Environment`, whose `NewLine` would
+  arrive attached to `Exit` and `GetEnvironmentVariable`.
+- A refusal is one diagnostic per type. The checker reports the symbol a node resolves to and the
+  type it resolves to, so a member of a refused type would otherwise arrive twice; the member is the
+  one reported, because it is what the author wrote. A refusal of a member also names its type —
+  `PAGE001: pages may not use System.IO.File.ReadAllText. The type System.IO.File is not part of the
+  page API.` — because the type is what an entry would change
+  (`pages-admit-what-adds-no-capability`).
 - `System.Threading.Tasks.Task` is admitted by *type*, and ten of its members are denied by name —
   `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`
   and `Yield` — because each starts work the render deadline cannot stop or turns an `await` back
   into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`,
   `Parallel` and `ValueTask` are `PAGE001` without being named (`pages-the-api-policy`).
-- A narrow set of `System.Text.Json` types is allowed, so a fetched JSON body can be parsed:
-  `JsonDocument`, `JsonElement`, `JsonSerializer`, `JsonSerializerOptions`,
-  `JsonSerializerDefaults`, `JsonValueKind` and `JsonException`. The
-  `System.Text.Json.Serialization` attributes are not, and `System.Net` stays denied — `IHttpFetch`
-  is the page's only egress (`pages-the-api-policy`).
+- A narrow set of `System.Text.Json` types is allowed, so a fetched JSON body can be read, built and
+  shaped: `JsonDocument`, `JsonDocumentOptions`, `JsonElement`, `JsonSerializer`,
+  `JsonSerializerOptions`, `JsonSerializerDefaults`, `JsonValueKind`, `JsonException`,
+  `JsonNamingPolicy`, and the `System.Text.Json.Nodes` namespace, which holds `JsonNode`,
+  `JsonObject`, `JsonArray` and `JsonValue`. The `System.Text.Json.Serialization` attributes are not,
+  and `System.Net` stays denied — `IHttpFetch` is the page's only egress (`pages-the-api-policy`).
 - Cryptography is admitted by type: `System.Text.Encoding` to turn text into bytes, `SHA256`,
   `SHA384` and `SHA512` to hash, `HMACSHA256`, `HMACSHA384` and `HMACSHA512` to sign,
   `RandomNumberGenerator` for a nonce and `CryptographicOperations.FixedTimeEquals` to compare a

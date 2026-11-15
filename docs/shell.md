@@ -314,6 +314,38 @@ not needed. `/admin/restore`, `/admin/seed-apply` and `/admin/scrub` answer with
   `/admin.js`, `/editor.js` and `/assistant.js` are seeded pages like `/site.css`, so they stay
   editable; each is a native ES module loaded with `<script type="module">`.
 
+### A run's view
+
+The assistant's `view` tool is the one caller that reads the site over HTTP as somebody. The shell
+gives it a second authentication scheme, `View`, and a token that is not a sign-in:
+
+- **Minted per run, in memory.** `ViewTokenStore` holds one 256-bit secret per executing run, at most
+  `Assistant:MaxActiveRuns` of them, and nothing else anywhere: no table, no file, no key ring, no
+  configuration. `RunProcessor` mints it when the run starts and forgets it in the run's `finally`, so
+  a finish, a failure, a cancel and an unexpected exception all revoke it. A restart ends every run
+  and therefore every token.
+- **Presented as `Authorization: Bearer`.** The default scheme is a policy scheme that forwards a
+  request carrying that header to `View` and everything else to the cookie, and the cookie stays the
+  challenge scheme, so a browser's sign-in redirect is unchanged. The handler compares the secret in
+  fixed time, then validates the account the way the cookie does on every request — it exists, and its
+  `SecurityStamp` has not moved (`auth-sign-in-is-long-lived-and-revocable`). The principal is the
+  run's owner, with `uk.osric.asp.view` set to the run id.
+- **Two refusals, in one middleware.** `ViewGuard` runs after the identity is known and before
+  anything is authorised: a bearer header that did not authenticate is a `401` with
+  `WWW-Authenticate: Bearer`, never a silent anonymous view; and a view may use `GET` and `HEAD` only,
+  refused `405` with `Allow: GET, HEAD` before authorisation and long before the antiforgery check.
+  It sits in one place because the page endpoint covers pages only — the editor, the admin tools, the
+  assistant and the memory page are all shell routes with their own `POST`s.
+- **Only one origin.** `Site:Origin` is where the host reaches the site it serves;
+  `ViewCredential` offers the token to that scheme, host and port and to nothing else, hop by hop, so
+  a redirect off the origin drops it (`pages-outbound-fetch`). A page cannot name the token: it is not
+  in `Pages:Fetch:Credentials` and has no configuration key.
+- **The origin has to be the visitor's.** A view of a page that mints an antiforgery token — the
+  editor is the one that does — needs an HTTPS request, because the antiforgery cookie is
+  `Secure`-always in production. The shipped `Site:Origin` is the container's own loopback, which a
+  development host can use; the deployment names the public origin, and a production host left on
+  plaintext logs one warning at startup rather than failing a run later.
+
 ### Page authentication
 
 The sign-in the editor page uses is available to any page, as ordinary page code rather than a

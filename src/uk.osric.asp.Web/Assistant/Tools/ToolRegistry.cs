@@ -48,6 +48,7 @@ internal sealed class ToolRegistry {
         new CheckScriptTool(),
         new CheckScriptTextTool(),
         new FetchTool(),
+        new ViewTool(),
         new ShellTool(),
         new RememberTool(),
         new UpdateMemoryTool(),

@@ -516,9 +516,31 @@ are not and `System.Net` stays denied. `System.Text.Encoding`, the SHA-2 hashes,
 `RandomNumberGenerator` and `CryptographicOperations` are admitted and nothing else in
 `System.Security.Cryptography` is: a page may encode, hash and sign, but not manage a key or a
 certificate. Widening the list moves the policy version, so every stored image recompiles on its next
-request.
+request. How a type gets in, and what a refusal looks like, is `pages-admit-what-adds-no-capability`.
 
 *Recorded in [pages](pages.md#page-api-policy), [PageApiPolicy](../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs).*
+
+### pages-admit-what-adds-no-capability
+
+The list is read by one test rather than by whichever feature needed an entry last. A type is admitted
+when its only effect is to compute over a value the page already holds or to shape a value the page
+already returns; it is refused when it adds a way to reach a resource — a file, the network, a process,
+the environment, an assembly, reflection or process-wide state. A type that bundles a reach with a
+useful helper is admitted with the reaching members denied by name in `s_deniedApis`, which is what
+`Task` does with `Run`, `Wait` and the rest. Additions are decided by that test, not by taste.
+
+That admits `StringComparer`, `HashCode`, `Random`, `JsonNamingPolicy`, `JsonDocumentOptions` and the
+`System.Text.Json.Nodes` namespace, and refuses `System.Environment`, whose `NewLine` would arrive
+attached to `Exit`, `FailFast` and `GetEnvironmentVariable`. It refines the list rather than loosening
+it: default deny stands, because the alternative was priced and rejected — a deny list over the 4,277
+public types the page compiler's references expose fails open, and cannot state a rule the dangerous
+type does not look like, since a page reading another page's state does it with `File`.
+
+A refusal is one diagnostic per type. The checker reports a node's symbol and its container type, so a
+member of a refused type was once refused twice; the member is kept, and it names the type beside it,
+because the entry that would change the answer is the container and not the member.
+
+*Recorded in [pages](pages.md#page-api-policy), [page api gaps](plans/page-api-gaps.md), [PageApiPolicy](../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs).*
 
 ### pages-load-isolation
 
@@ -868,6 +890,18 @@ as plain text and becomes formatted when `message.completed` arrives, through an
 route that renders the stored message with the same profile as the reload.
 
 *Recorded in [markdown](plans/archive/markdown.md), [LinkPolicy](../src/uk.osric.asp.Core/Markdown/LinkPolicy.cs).*
+
+### pages-markdown-options-are-per-call
+
+A page chooses the renderer's features for one call: heading anchors, auto-links and pipe tables are
+each a boolean on `MarkdownOptions`, and `ToHtml(markdown, options)` renders that document with them
+while the shared capability stays immutable. Heading anchors are on by default, because a heading
+without an `id` cannot be linked to, and a repeated heading gets a numbered suffix so both anchors
+resolve. Markdig's auto-link option stays off, so `[Heading]` is not silently turned into a link. Raw
+HTML has no switch: the template can already write it, and an option that looked like it removed HTML
+would invite a page to trust the renderer with a visitor's text.
+
+*Recorded in [pages](pages.md#page-contract), [MarkdownOptions](../src/uk.osric.asp.Sdk/MarkdownOptions.cs), [MarkdownRenderer](../src/uk.osric.asp.Runtime/MarkdownRenderer.cs).*
 
 ### pages-diff
 
@@ -1433,6 +1467,18 @@ facts, and `/admin/changes` moves under it.
 
 *Recorded in [the shell](shell.md#the-reference), [xml reference](plans/xml-reference.md).*
 
+### shell-the-site-knows-its-own-origin
+
+`Site:Origin` is where the host reaches the site it serves, and it is the one place any credential is
+offered: a required policy value, an origin with no path, query, fragment or user info, and plaintext
+only to loopback. It is the assistant's view that needs it — a process that cannot say which URL is
+*this* one cannot tell a token for itself from a token for somebody else — and the shipped value is the
+container's own loopback, which is what a development host uses. A deployment names the public origin
+instead, because a view of a page that mints an antiforgery token needs an HTTPS request, and a
+production host left on a plaintext origin logs one warning at startup rather than failing a run later.
+
+*Recorded in [the shell](shell.md#a-runs-view), [SiteOptions](../src/uk.osric.asp.Web/SiteOptions.cs).*
+
 ## Auth
 
 ### auth-cookie-not-identity
@@ -1494,6 +1540,42 @@ the client chooses is unbounded memory. A fixed number of buckets bounds it, and
 two clients share a counter.
 
 *Recorded in [LoginRateLimitPolicy](../src/uk.osric.asp.Web/Authentication/LoginRateLimitPolicy.cs).*
+
+### auth-a-view-token-names-its-run
+
+A run's view of the site is carried by a token minted for that run, for the owner the run already acts
+as, and dead when the run ends: 256 random bits held in `ViewTokenStore` and nowhere else — no table, no
+file, no key ring, no configuration key — minted when the processor starts the run and forgotten in its
+`finally`, so a finish, a failure, a cancel and an unexpected exception all revoke it. A configured
+secret would need generating, placing and rotating, and an account of the assistant's own would be the
+same authority under another name while any account is an owner (`product-one-owner`). Nothing stored
+means nothing to leak, and the token is not a sign-in: it cannot become a session and no browser can
+present one.
+
+*Recorded in [the shell](shell.md#a-runs-view), [ViewTokenStore](../src/uk.osric.asp.Web/Authentication/ViewTokenStore.cs).*
+
+### auth-a-view-token-reads-only
+
+A view may use `GET` and `HEAD` and nothing else, and anything else is a `405` with `Allow: GET, HEAD`,
+refused in one middleware after authentication and before authorisation and antiforgery. One middleware
+rather than the page endpoint, because the editor, the admin tools, the assistant and the memory page
+are shell routes with their own `POST`s, and a rule the next endpoint has to repeat is a rule one of
+them will forget. The scope belongs to the credential rather than to the destination, so a `POST` to a
+public page with a view token is refused too.
+
+*Recorded in [the shell](shell.md#a-runs-view), [ViewGuard](../src/uk.osric.asp.Web/Authentication/ViewGuard.cs).*
+
+### auth-a-view-that-does-not-verify-is-refused
+
+A request carrying `Authorization: Bearer` either authenticates or is answered `401` with
+`WWW-Authenticate: Bearer`; it never becomes an anonymous view. Silently downgrading turns "why is my
+page showing the sign-in form" into a debugging session, because a stale or wrong token is
+indistinguishable from no token at all. The scheme compares in fixed time and validates the account the
+way the cookie does on every request — it exists and its `SecurityStamp` has not moved — so `users
+passwd` in the middle of a run takes the view away. The cookie stays the challenge scheme, so a browser's
+sign-in redirect is unchanged.
+
+*Recorded in [the shell](shell.md#a-runs-view), [ViewAuthenticationHandler](../src/uk.osric.asp.Web/Authentication/ViewAuthenticationHandler.cs).*
 
 ## Assistant
 
@@ -1844,6 +1926,29 @@ Operators come out as tokens and are refused for now — that refusal says "yet"
 and redirections will go, with the applets already writing to an output and the shape of an input waiting.
 
 *Recorded in [the assistant](assistant.md#ai-page-assistant), [ShellApplet](../src/uk.osric.asp.Web/Assistant/Shell/ShellApplet.cs), [ShellSyntax](../src/uk.osric.asp.Core/Shell/ShellSyntax.cs).*
+
+### assistant-a-view-is-a-read
+
+`view` names a path on this site — never a URL — and is fetched as the owner the run belongs to, so the
+editor, the conversation, the memory page and the status page render instead of answering a sign-in
+redirect. It needs no approval: it reaches nothing but `Site:Origin`, writes nothing, and answers a
+question about the run's own work, which is the standing `read_page` has, where `fetch` stops for the
+owner because it can carry what the model just read to somebody else's server. A page cannot name the
+token, because it is not in `Pages:Fetch:Credentials` and has no configuration key.
+
+*Recorded in [assistant](assistant.md#ai-page-assistant), [ViewTool](../src/uk.osric.asp.Web/Assistant/Tools/ViewTool.cs).*
+
+### assistant-a-view-is-the-response
+
+A view answers what the server produced: the status, **every** response header including `Set-Cookie`
+and the security policy, the body's own bytes read as UTF-8 (base64 when the body is not UTF-8, never
+replacement characters), the redirects it followed, and the byte length of what came back when a cap cut
+it. A redirect chain is what makes a guard visible: `302 → /login?returnUrl=…` then 200 cannot be
+mistaken for a page that renders a sign-in form. `fetch` keeps its own flattening — nine allow-listed
+headers, and text decoded by the charset the response declares — because that is what a *page* wants, so
+the two answers are one transport with two projections rather than one shape with a flag.
+
+*Recorded in [assistant](assistant.md#ai-page-assistant), [OutboundResponse](../src/uk.osric.asp.Web/Pages/OutboundResponse.cs).*
 
 ## Deploy
 

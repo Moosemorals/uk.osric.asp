@@ -431,7 +431,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void RuntimeIdStartsWithTheFormatAndPolicyVersions() {
-        Assert.That(PageCompiler.RuntimeId, Does.StartWith("7:4:"));
+        Assert.That(PageCompiler.RuntimeId, Does.StartWith("7:5:"));
     }
 
     [Test]

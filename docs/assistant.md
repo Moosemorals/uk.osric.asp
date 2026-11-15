@@ -36,7 +36,8 @@ tree, the reserved keys, the tombstones, the key order and what a scope means ar
 (`pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree`). It carries facts rather than words: a node says whether a save would be accepted and
 what the page compiled to, and `PageMode` and `PageImageStatus` spell them, so `ls -l`, `stat`,
 `list_pages` and `read_page` agree (`pages-a-listing-carries-facts`, `pages-a-page-has-a-state`). The tools also see a record of the site's own
-routes, which they can read and never write, and two tools outside the store: `fetch` and `diff_page`.
+routes, which they can read and never write, and three tools outside the store: `fetch`, `view` and
+`diff_page`.
 `fetch` GETs an absolute `http` or `https` URL through the same bounded
 outbound HTTP a page uses and returns the status, content type and text body; every assistant
 request, the provider call included, carries `moosemorals.com (assistant)` as its `User-Agent`. It is approval-gated under
@@ -46,6 +47,18 @@ transcript and sent to the provider on the next step: treat it as untrusted data
 `diff_page` compares two retained revisions of a page, defaulting to the newest two, and returns a
 unified diff, the two hashes and the editor link; it is a read, changes nothing and needs no
 approval (`pages-diff`).
+
+`view` is the run's own view of the site: it GETs a path on `Site:Origin` as the owner the run
+belongs to, so the editor, the conversation, the memory page and the status page render rather than
+answering a sign-in redirect. It answers the response as the server produced it — status, **every**
+response header, the body's own bytes read as UTF-8 (base64 when the body is not UTF-8), the
+redirects it followed, and the true byte length when the body is cut — because a view that
+summarised the response would be a second guess at what the page did. `fetch` keeps its own
+flattening: nine allow-listed headers and text decoded by the declared charset, which is what a page
+wants. A view needs no approval: it reaches nothing but this site and writes nothing, the standing
+`read_page` has. It has no cookie jar, so page state starts empty on every call, and it costs a
+render slot and a fetch budget, so a page that has to compile first, or a path that streams, can time
+out ([the shell](shell.md#a-runs-view)).
 
 The assistant also reads and restores history. `list_revisions` answers a page's retained revisions
 newest first — hash, save time, creation runtime, compile state, whether it is the head and its
