@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+#
+# Tokens that are shaped like a decision name — an area, a hyphen, more words — and are not one. The
+# check fails on a token in this file that nothing cites any more, so the list cannot quietly grow a
+# name that was real all along. One token per line, with what it is beside it.
+
+deploy-guard                      # a make target
+pages-authentication              # the counter-example in the policy: what a topic name would look like
+pages-diagnostics                 # the counter-example in the policy
+pages-api-policy-2                # the counter-example in the policy: a name disambiguated with a number
+assistant-budget-message          # a DOM id
+assistant-budget-message-meter    # a DOM id
+assistant-budget-exceeded         # a CSS class
+assistant-memory                  # a shell view name
+assistant-memory-forget           # a shell view name

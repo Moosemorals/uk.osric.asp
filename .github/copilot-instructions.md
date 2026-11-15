@@ -41,7 +41,9 @@ is planned: until then the plan states the name it intends, and the merge writes
 with no number, and is never disambiguated with a suffix: if two branches land one name, the merge
 folds them into one entry or narrows one of the names, and updates every citation in that branch.
 `docs/archive/decisions.md` is frozen — a `DEC-` number written before 2026-11-15 means what it meant then.
-See [decided](../docs/decisions.md).
+`make decisions` is the gate's check on the record: a name outside the area list, a name used twice, an
+entry with no "Recorded in" line, a retired name taken again and a citation of a decision that is not
+there all fail it. See [decisions](../docs/decisions.md).
 
 Every step of the programme is proposed and waits for the owner: the plan, before anything is built,
 and the merge, for every step, once its gate is run (`product-steps-wait-for-the-owner`). Working on a

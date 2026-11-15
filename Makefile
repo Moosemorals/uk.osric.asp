@@ -123,7 +123,7 @@ BUILD_INPUTS := $(shell find src test tools -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit check-pages test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
+.PHONY: help build restore check ci drift-check audit check-pages decisions test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -136,10 +136,11 @@ help:
 	@printf '%s\n' \
 		'build              Build the solution when anything changed (default target).' \
 		'restore            Force a NuGet restore (build restores only when inputs change).' \
-		'check              The gate: formatting, licences, package audit, the seeded pages, every suite, Release publish.' \
+		'check              The gate: formatting, licences, package audit, the record, the seeded pages, every suite, Release publish.' \
 		'ci                 Clean tree, the gate, and two image builds that must agree.' \
 		'audit              Fail if any NuGet package is vulnerable or deprecated.' \
 		'check-pages        Compile the seeded pages and print compiler diagnostics.' \
+		'decisions          Check the decision record: names, areas, duplicates, citations.' \
 		'test               Run every suite: core, runtime, web and integration (no browser required).' \
 		'test-core          Run the NUnit core tests only.' \
 		'test-runtime       Run the NUnit runtime tests only.' \
@@ -231,7 +232,7 @@ TEST_BROWSER_ARGS := --results-directory $(TEST_RESULTS) -- RunConfiguration.Tes
 # Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no
 # second definition of "green" to drift from this one. `publish` is here because Release is what
 # actually ships — a Release-only break should not wait for a deploy to be discovered.
-check: format-check license-check audit check-pages test publish
+check: format-check license-check audit decisions check-pages test publish
 
 # A clean tree in, a clean tree out. The stamps in artifacts/ make repeat runs cheap, which is also
 # how an input that was never committed can hide; this is the one target that starts from nothing.
@@ -370,6 +371,16 @@ run:
 
 publish: changelist
 	$(DOTNET) publish $(WEB_PROJECT) -c Release -p:ChangelistFile=$(abspath $(CHANGELIST))
+
+# ---- Decision checks ------------------------------------------------------------------------------
+
+# docs/decisions.md is the record, so its shape is a thing to prove rather than to remember: every
+# entry a name in one of the areas the file lists, no name used twice, a "Recorded in" line under each,
+# a retired name not taken again, and no document citing a decision that is not there.
+CHECK_DECISIONS_PROJECT := tools/check-decisions/check-decisions.csproj
+
+decisions: $(BUILD_STAMP)
+	$(DOTNET) run --project $(CHECK_DECISIONS_PROJECT) -c $(CONFIGURATION) --no-build -- .
 
 # ---- Page checks ----------------------------------------------------------------------------------
 
