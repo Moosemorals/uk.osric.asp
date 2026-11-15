@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a migration with two columns and a one-off repair, one write-path fact, one pure comparison and its words, one field on the page contract and one member removed, one shell route, an archive format version, a `seeds` command with four make targets, two seeded pages, and the prose and tests for each. Slices 0 and 1 are small and independent; 2–4 are the bulk |
 | Spike | None. Every number and claim below was measured on `trunk` at `f369bcc`; the first version of this plan was measured at `1badddd`, and the pack has grown by 7,972 bytes since. The two places the design could fail are the revision hash (settled: it is an identity, D1) and the archive reader (settled by the format's own version column, D9) |
 | Decisions | **pages-a-seed-write-records-its-hash**, **pages-a-seed-verdict-is-the-hosts**, **shell-the-pack-comes-home**, **shell-the-seed-apply-is-a-route**, **pages-an-archive-carries-provenance**. Named at the merge (`product-plan-before-building`); this branch states the names it intends |
-| Backlog | [IDEA-036](../jobs/IDEA-036.md). Relates to [IDEA-024](../jobs/IDEA-024.md) (an archive is not a form), [IDEA-030](../jobs/IDEA-030.md) (every view writes its own navigation), and [IDEA-043](../jobs/IDEA-043.md) (the widened write authority; the batch split out of it is IDEA-046, on that branch — see *Risks*) |
+| Backlog | [IDEA-036](../jobs/IDEA-036.md). Relates to [IDEA-024](../jobs/IDEA-024.md) (an archive is not a form), [IDEA-030](../jobs/IDEA-030.md) (every view writes its own navigation), and [IDEA-043](../jobs/IDEA-043.md) (the widened write authority; the batch is split out of it, unnumbered for now — see *Risks*) |
 
 ## The short version
 
@@ -54,7 +54,7 @@ sections below are written to them.
 | A manual install on an `edited` or `conflict` row | No. The row offers the diff, not a button. `/admin/restore` stays the deliberate overwrite-everything path |
 | Headings in `/pages` | Live and seeded are one list, as the production page already has them; a `retired` page is an ordinary live page. Two tables: *Pages* and *Deleted pages* |
 | The routine apply route | A new `/admin/seed-apply`, beside `/admin/restore`; two routes say "routine" and "emergency" in the URL |
-| Ordering against IDEA-043/046 | Plan and build against today's `trunk`; if either lands first, this branch rebases (see *Risks*) |
+| Ordering against IDEA-043 | Plan and build against today's `trunk`; if it lands first, this branch rebases (see *Risks*) |
 | Backfilling the existing rows | Content only. H is repaired from the head revision; R is not invented, so nothing legacy becomes automatic |
 
 ## What the store can say today
@@ -328,7 +328,7 @@ The page needs three things, and it has all three: the verdict per row (D3), the
 diff, and the verdict's action. **Bulk apply cannot be a page**, and this time for the right reason: not
 key ownership — `/pages` *is* the editor and writes any key — but one action per render, so a
 changeset of nineteen rows is nineteen submissions. The shell walks the pack; the page applies one row
-per POST and `303`s back. (IDEA-046's batch will remove that limit; the route stays anyway, because an
+per POST and `303`s back. (The batch split out of IDEA-043 will remove that limit; the route stays anyway, because an
 apply runs when no browser is signed in.)
 
 ### D9 — The archive carries R, and the format says so
@@ -587,10 +587,10 @@ same change, as the author-manual rule asks.
 - **A harvested pack can ship a broken page.** The pack is compiled by `make check-pages` in the same
   gate as everything else, so a page harvested from a broken store fails the build — which is the
   second reason the harvest belongs in the repository and not in a template.
-- **IDEA-043 and IDEA-046 are in flight.** 043 renames `IPageEditor` to `IPageWrites`; if it lands
-  first, the `SeedPaths()` removal and the `PageEditorScope` edits rebase onto the new name and this
-  plan's `IPageEditor` references become `IPageWrites`. 046 adds the batch and removes the
-  one-action-per-render rule D8 leans on; the apply route stays regardless, because an apply is run
+- **IDEA-043 is in flight.** It renames `IPageEditor` to `IPageWrites`; if it lands first, the
+  `SeedPaths()` removal and the `PageEditorScope` edits rebase onto the new name and this plan's
+  `IPageEditor` references become `IPageWrites`. The batch split out of it adds the batch and removes
+  the one-action-per-render rule D8 leans on; the apply route stays regardless, because an apply is run
   when no browser is signed in, but the page's one-row POST may become a batch caller later. Neither
   changes the row, the verdict or the gate.
 - **The harvest races slices 2–3.** Production `/pages` and `/help` are already ahead of the pack. If
