@@ -114,6 +114,29 @@ public sealed class PageImageBuilderTests {
     }
 
     [Test]
+    public void ACommentDoesNotGiveANoCodeTemplateAnythingToCompile() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageImage compilation = Build(pages, "/site.css", "body { color: red; }\n<%# the brand colour %>");
+
+        Assert.That(compilation.Kind, Is.EqualTo(PageKind.Text));
+        Assert.That(compilation.Bytes, Is.Null);
+        Assert.That(compilation.Diagnostics, Is.Empty);
+        Assert.That(pages.Compiler.CompileCount, Is.Zero, "a comment is neither code nor text");
+    }
+
+    [Test]
+    public void APageWithACommentCompilesClean() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageImage compilation = Build(pages, "/hello", "<%# greeting %><% ctx.Write(\"Hello.\"); %>");
+
+        Assert.That(compilation.Diagnostics, Is.Empty);
+        Assert.That(compilation.Kind, Is.EqualTo(PageKind.Page));
+        Assert.That(compilation.Bytes, Is.Not.Null.And.Not.Empty);
+    }
+
+    [Test]
     public void ALibraryIsCheckedAndStoredWithoutAnImage() {
         using PageHarness pages = new(new FakePageStore());
 

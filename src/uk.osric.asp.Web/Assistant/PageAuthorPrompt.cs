@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v29";
+    public const string Version = "page-author-v30";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -104,6 +104,13 @@ internal static class PageAuthorPrompt {
         buffered, so `await` is an ordinary expression in a code block and
         inside <%= %>: `ctx.Write(await SomethingAsync())` works. The variable
         `ctx` implements `IContext`.
+
+        A note for yourself is <%# a note %>: it writes no output and is never
+        served, and it counts as neither code nor text, so a page that is only
+        text and comments still has no code and a library that carries one is
+        still a library. It ends at the first `%>` like every other block, and
+        `<% /* … */ %>` is a C# comment that makes the template code — the two
+        are not interchangeable.
 
         A page may use a shared library by naming a namespace it declares in a
         `<%! using Some.Namespace; %>` directive; the page is compiled with the

@@ -39,6 +39,20 @@ public sealed class TemplateScriptSkeletonTests {
     }
 
     [Test]
+    public void ACommentIsBlankedWithoutMovingTheLinesBelow() {
+        const string template = "<%# a note %>\nconst answer = 1;";
+
+        ScriptSkeletonResult result = TemplateScriptSkeleton.Create(template);
+        string[] lines = Lines(result.Source);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(lines, Is.EqualTo<string[]>([new string(' ', "<%# a note %>".Length), "const answer = 1;"]));
+            Assert.That(result.Source, Has.Length.EqualTo(template.Length));
+        });
+    }
+
+    [Test]
     public void AWriteBlockBecomesAnExpressionInPlace() {
         const string template = "const label = \"<%= ctx.Path %>\";";
 

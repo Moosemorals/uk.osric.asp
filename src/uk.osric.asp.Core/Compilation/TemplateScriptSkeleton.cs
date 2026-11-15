@@ -7,10 +7,10 @@ namespace uk.osric.asp.Core.Compilation;
 /// <remarks>
 /// A script page is still a template: the JavaScript is the text a browser would have received if no
 /// template construct had produced any output. The skeleton keeps that text exactly where the author
-/// typed it, so a parser's line and column are page positions. Code, declaration and write constructs
-/// are replaced by spaces — and every line break is kept — rather than removed, so tokens either side
-/// of a construct stay separated; a write becomes <c>0</c> and spaces so an expression position stays
-/// valid.
+/// typed it, so a parser's line and column are page positions. Code, comment, declaration and write
+/// constructs are replaced by spaces — and every line break is kept — rather than removed, so tokens
+/// either side of a construct stay separated; a write becomes <c>0</c> and spaces so an expression
+/// position stays valid.
 /// </remarks>
 public static class TemplateScriptSkeleton {
 
@@ -47,6 +47,7 @@ public static class TemplateScriptSkeleton {
 
     private static int OpenerLength(TokenType type) => type switch {
         TokenType.Code => 2,
+        TokenType.Comment => 3,
         TokenType.Declaration => 3,
         TokenType.Write => 3,
         TokenType.WriteRaw => 4,

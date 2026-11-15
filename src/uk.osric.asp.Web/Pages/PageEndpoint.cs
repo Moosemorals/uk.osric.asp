@@ -330,13 +330,16 @@ internal sealed class PageEndpoint() {
     // revision. The hash is the validator, so a browser that revalidates anyway gets a cheap 304.
     private const string ImmutableCacheControl = "public, max-age=31536000, immutable";
 
+    // A text page's body is its source less its comments: a comment is neither code nor text, so it
+    // reaches the visitor no more than it changes the kind. This is the one place a stored source
+    // becomes a response, so the rule cannot be missed by a second path that writes one.
     private static async Task WriteSourceAsync(
         HttpContext context,
         PagePath path,
         string source,
         string? versionHash,
         PageEnvironment environment) {
-        byte[] body = Encoding.UTF8.GetBytes(source);
+        byte[] body = Encoding.UTF8.GetBytes(TemplateComments.Remove(source));
         context.Response.ContentType = environment.ContentTypes.ForPath(path.Key);
 
         if (versionHash is not null) {

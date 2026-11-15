@@ -740,12 +740,13 @@ condition that makes its source its whole representation. A no-code page is neve
 skip link, base sheet or title requirement, whatever the extension — so a no-code `.html` key is a
 complete document its author wrote, and a page that wants the site's chrome adds a code block and
 becomes a fragment. The verdict comes from generation, which already knows: `HasCode` is true when any
-token other than `Text` appears, a token check rather than a text scan, and the builder stops after
-generation when it is false, taking no compile slot and storing no image. The verdict lands in the
-revision from every path that generates one and is a property of the source, so a recompiled revision
-answers as it did before. A no-code revision is the body byte for byte on every request: nothing is
-compiled, nothing is loaded and no render slot is taken, and a test pins that the handler generated for
-a no-code template writes exactly its source, so the shortcut and the long path cannot drift apart.
+token other than `Text` or `Comment` appears, a token check rather than a text scan, and the builder
+stops after generation when it is false, taking no compile slot and storing no image. The verdict lands
+in the revision from every path that generates one and is a property of the source, so a recompiled
+revision answers as it did before. A no-code revision's body is its source, less any comment it holds
+(`pages-a-comment-is-not-code`), on every request: nothing is compiled, nothing is loaded and no render
+slot is taken, and a test pins that the handler generated for a no-code template writes exactly its
+source, so the shortcut and the long path cannot drift apart.
 There is no backfill: `NULL` means *not an asset* until the revision is next saved, so an existing asset
 becomes pinnable when the owner restores the seed or edits it.
 
@@ -1289,6 +1290,22 @@ the stream while the upstream body stays bounded by the fetch's own values, and 
 order with the relay example.
 
 *Recorded in [metrics](metrics.md), [PageMetrics](../src/uk.osric.asp.Web/Pages/PageMetrics.cs).*
+
+### pages-a-comment-is-not-code
+
+A comment is `<%# … %>`, and it is neither code nor text: it writes no output, is emitted into no
+generated source, makes no no-code page a page and no library a page, and never reaches a visitor —
+a text page's body is its source with every comment construct removed, and a page's body never held
+it. Its braces are not the page's braces, so a note that mentions `{` is not an unbalanced one, and
+the script skeleton blanks the whole construct so a JavaScript parser's positions hold. It ends at the
+first `%>` like every other block, which is why `%>` cannot appear inside one, and `<% /* … */ %>` is a
+different thing: C# inside a code block, which makes the template code.
+
+A block that starts with `#` is a comment whether the author meant a directive or not, so
+`<%#if DEBUG %>` is a note rather than a preprocessor line; a directive is written `<% #if DEBUG %>`,
+with the space that keeps it a code block.
+
+*Recorded in [architecture](architecture.md#functional-core-imperative-shell), [pages](pages.md#assets-and-versioned-urls), [TemplateComments](../src/uk.osric.asp.Core/Compilation/TemplateComments.cs), [TemplateTokenizer](../src/uk.osric.asp.Core/Compilation/TemplateTokenizer.cs).*
 
 ## Shell
 

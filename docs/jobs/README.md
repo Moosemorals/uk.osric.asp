@@ -71,7 +71,9 @@ builds the IDE itself — and [their plan](../plans/ide-host.md) orders them, re
 were in the way, and scopes each one to its wider class of caller rather than to the editor. IDEA-044 and IDEA-045 came out
 of the owner's follow-up of the same day: the assistant does not ask for a browser in so many words,
 but keeps reaching for a way to see what it wrote, and the parts worth seeing are behind the sign-in
-guard — so a browser and an identity are two jobs, and neither is part of the IDE plan.
+guard — so a browser and an identity are two jobs, and neither is part of the IDE plan. IDEA-046 came
+out of the same day's note that the assistant keeps writing `<%# %>` as a comment and the page then
+fails to compile: the template language has an opener for everything except a note to nobody.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -203,6 +205,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [IDEA-046](../decisions.md) | The template has a comment: `<%# %>` is a token of its own that is neither code nor text — it writes nothing, is emitted into no generated source, leaves a no-code page a text page and a library a library, its braces are not the page's, the script skeleton blanks it, and a text page is served with every comment removed. `pages-a-comment-is-not-code` |
 | [IDEA-035](../decisions.md) | The assistant always runs: `Assistant:Enabled`, the disabled note, the `404` fallback and the key exemption are gone, and `Assistant:ApiKey` is required at startup. `assistant-always-on` |
 | [ARCH-16](../plans/archive/page-store-reader.md) | The assistant's tools and its virtual shell read through one `PageStoreReader`: the tree with its facts, the sources in a scope, one key, a history and one revision. `PageTree` and `PageScope` moved to `Core`, and the loose lists, source walks and scope copies are gone. `pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree` |
 | [IDEA-005](../plans/page-libraries.md) | Pages share code: a page is text, a page with code or a **library**, and a library is bound by an ordinary `using` — a page's own directives name the namespaces it declares, the closure is resolved to a fixed point and each library compiles as its own syntax tree in the page's compilation. A library is checked on save, never served, never wrapped and never an asset, and a dependent page goes stale when the library's head moves. The seeded `/_lib/document` writes the document the seeded `/_layout` uses, and `Sdk`'s `PageDocument` is `Web`'s `ShellDocument`. See [the plan](../plans/page-libraries.md) |

@@ -61,7 +61,7 @@ public static class TemplateSourceGenerator {
             return new TemplateGenerationResult(null, tokenized.Errors) { Kind = PageKind.Page };
         }
 
-        bool hasCode = tokenized.Tokens.Any(token => token.Type != TokenType.Text);
+        bool hasCode = tokenized.Tokens.Any(token => token.Type is not (TokenType.Text or TokenType.Comment));
 
         // A template made of declarations and nothing else is a library: there is nothing in it to
         // render, so the pages that name it compile it and it is never served. One byte of markup,
@@ -159,6 +159,9 @@ public static class TemplateSourceGenerator {
                 case TokenType.WriteRaw:
                     AppendWrite(result, token);
                     break;
+                case TokenType.Comment:
+                    // A comment is neither code nor text: it is emitted nowhere and writes no output.
+                    break;
                 case TokenType.Declaration:
                     // Emitted above the handler; a declaration block writes no output.
                     break;
@@ -181,13 +184,18 @@ public static class TemplateSourceGenerator {
         new("The template is not a library: it has something to render.", "template");
 
     // Declarations are compile-time only, so a template with nothing but declaration blocks has
-    // nothing to render. Whitespace between the blocks is layout for the author's eye, not markup.
+    // nothing to render. Whitespace between the blocks is layout for the author's eye, and a comment
+    // is neither code nor text, so neither one makes a library a page.
     private static bool IsLibrary(IReadOnlyList<Token> tokens) {
         bool declares = false;
 
         foreach (Token token in tokens) {
             if (token.Type == TokenType.Declaration) {
                 declares = true;
+                continue;
+            }
+
+            if (token.Type == TokenType.Comment) {
                 continue;
             }
 
