@@ -356,8 +356,36 @@ to start; fill `collector.env` before that deploy, as the assistant's key alread
 before the site's first start. The deploy's health wait then proves the token was read, rather than
 failing later at the first push.
 
-The collector's image is a framework-dependent app on the same pinned base; its layer is a few
-hundred kilobytes. The one extra publish is cheap; the one extra push is a few seconds.
+The collector's image is a framework-dependent app on the same pinned base; its own layer is small.
+The one extra publish is cheap; the one extra push is a few seconds.
+
+### Why not native AOT
+
+AOT is possible. The collector's own code is already friendly — `JsonDocument` rather than
+reflection serialization, an endpoint over `HttpContext` and services, a configuration reader rather
+than a binder, no dynamic registration — and the OpenTelemetry packages declare `IsAotCompatible` for
+net8.0 and later, so the exporter is not the blocker it might have been. Check the pinned version's
+annotations before relying on that. It is still not worth it here:
+
+- **Startup is not the bottleneck.** The unit restarts rarely, and `RestartSec=5` plus the health
+  period dwarfs the few hundred milliseconds AOT saves.
+- **Memory is not the bottleneck.** The collector is capped at 128 MB on an 8 GB host and uses far
+  less; AOT's saving is tens of megabytes nobody is short of.
+- **The image would probably get bigger.** The framework-dependent layer sits on the ASP.NET base the
+  site already pulls. A native binary is 10–30 MB of its own layer, and a `runtime-deps` base is
+  another pin and another pull.
+- **The build gets harder.** `linux-musl-arm64` from an x64 builder needs a cross toolchain and
+  sysroot the SDK does not carry, and `image-check` would have to prove the AOT image reproducible
+  before the second build in a deploy is trustworthy.
+- **The attack surface is already small.** One token-checked JSON route, no page pipeline, and no
+  JIT of anything a visitor wrote.
+
+If startup ever matters, ReadyToRun is the cheaper middle ground: no cross toolchain, the shared
+base, and a bigger layer for a faster start. If AOT is wanted anyway, the choices above are what keep
+it easy — `JsonDocument` or a source-generated JSON context, the `HttpContext` endpoint, the reader
+instead of `IOptions` binding, `InvariantGlobalization`, `PublishAot` with `StripSymbols` and
+`OptimizationPreference=Size`, a pinned `runtime-deps` base, the target toolchain, and trim/AOT
+warnings as errors. The plan keeps the framework-dependent collector.
 
 ## The build wrapper
 
@@ -582,7 +610,7 @@ deploy` brings both units up with the collector first.
 | A leaked token pollutes the chart | A 256-bit token, fixed-time comparison, a closed target list, a body cap and a duration cap. The only thing a holder can do is set a duration on a chart the owner could already see; rotation is a restart |
 | The exporter's family changes on a package upgrade | The collector's live `/metrics` test fails; the panel is never silently empty. If the change is wanted, the panel's query moves with it |
 | The collector's DNS or certificate is not ready | The build's push warns once at the end and spools; the app and its own metrics are unaffected. The deploy's Caddyfile is installed as one file, so the block is inert until the name resolves |
-| The release now builds and pushes two images | The collector layer is a few hundred kilobytes; `image-check` adds two tiny builds. The site image is unchanged |
+| The release now builds and pushes two images | The collector layer is small; `image-check` adds two tiny builds. The site image is unchanged |
 | `deploy` dominates the shared axis | The panel's sentence and hover names each value; the trend of each line is the question. A log axis, if wanted, is a change to every chart |
 | The site's panel is empty until the first push | It is one "No data" panel on an owner-only page, the same as any instrument before its first sample |
 | The collector's small config reader drifts from the site's | The same three tests hold both; the copy is deliberately small, and a shared project is a later decision if a third service needs it |
