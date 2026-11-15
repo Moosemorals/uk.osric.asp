@@ -74,7 +74,8 @@ internal sealed class ImportProcessor(
                     return;
                 }
 
-                batch.Add(new PageBatchSave(PageTemplate.NewRevision(path, entry.Source, image, images.RuntimeId), entry.State));
+                batch.Add(new PageBatchSave(
+                    PageTemplate.NewRevision(path, entry.Source, image, images.RuntimeId, entry.SeedHash), entry.State));
             }
 
             stage.BeginSaving();

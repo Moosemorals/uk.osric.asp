@@ -345,8 +345,15 @@ internal class Program {
             // in flight are closed out before anything can answer for them.
             IConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IConversationStore>();
             await assistantConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
+            int repaired = await PageContentHashRepair.RunAsync(database, app.Lifetime.ApplicationStopping);
+            if (repaired > 0) {
+                app.Logger.LogInformation(
+                    "Repaired the content hash of {Pages} page(s) written before seed provenance", repaired);
+            }
+
             IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
-            await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
+            await PageAssetSeeder.SeedAsync(
+                pages, scope.ServiceProvider.GetRequiredService<PageSeeds>(), app.Lifetime.ApplicationStopping);
         }
 
         if (isCommand) {

@@ -42,6 +42,24 @@ internal static class TestArchive {
         });
     }
 
+    /// <summary>Builds a version 1 archive: the two tables, source only, no provenance.</summary>
+    public static byte[] BuildVersion1(IEnumerable<(string Path, string Source)> pages) {
+        return Archive(connection => {
+            Execute(connection, PageArchiveFormat.CreatePagesV1);
+            Execute(connection, PageArchiveFormat.CreatePageState);
+
+            using SqliteCommand insertPage = connection.CreateCommand();
+            insertPage.CommandText = """INSERT INTO "Pages" ("Path", "Source") VALUES ($path, $source)""";
+            SqliteParameter path = insertPage.Parameters.Add("$path", SqliteType.Text);
+            SqliteParameter source = insertPage.Parameters.Add("$source", SqliteType.Text);
+            foreach ((string page, string text) in pages) {
+                path.Value = page;
+                source.Value = text;
+                insertPage.ExecuteNonQuery();
+            }
+        }, version: 1);
+    }
+
     /// <summary>Runs arbitrary SQL against a fresh in-memory database and serializes the result.</summary>
     /// <param name="fill">The SQL the fixture wants to run.</param>
     /// <param name="applicationId">The <c>application_id</c> to set first.</param>

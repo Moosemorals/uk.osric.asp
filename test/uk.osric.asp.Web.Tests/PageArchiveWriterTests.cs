@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Pages;
@@ -48,6 +49,17 @@ public sealed class PageArchiveWriterTests {
             Is.EqualTo((long)PageArchiveFormat.ApplicationId));
         Assert.That(TestArchive.Scalar(archive.Connection, "PRAGMA user_version"),
             Is.EqualTo((long)PageArchiveFormat.Version));
+    }
+
+    [Test]
+    public void ASeedAnchorSurvivesTheRoundTrip() {
+        string seed = TemplateFingerprint.Of("About");
+        byte[] bytes = PageArchiveWriter.Write([new PageArchiveEntry(Key("/about"), "About", [], seed)]);
+
+        PageArchiveReadResult result = Reader().Read(bytes);
+
+        Assert.That(result.Problems, Is.Empty);
+        Assert.That(result.Pages[0].SeedHash, Is.EqualTo(seed));
     }
 
     [Test]

@@ -11,6 +11,8 @@ public sealed class PageAssetSeederTests {
 
     private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/reference.css", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
 
+    private static readonly PageSeeds Pack = new(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
+
     [Test]
     public void SeedPathsAreTheShippedFiles() {
         Assert.That(PageAssetSeeder.SeedPaths().Select(path => path.Key), Is.EquivalentTo(SeedPaths));
@@ -22,17 +24,36 @@ public sealed class PageAssetSeederTests {
     public async Task ASeededLibraryIsStoredAsALibraryAsync() {
         FakePageStore storage = new();
 
-        await PageAssetSeeder.SeedAsync(storage);
+        await PageAssetSeeder.SeedAsync(storage, Pack);
 
         Assert.That(storage["/_lib/document"]?.Kind, Is.EqualTo(PageKind.Library));
         Assert.That(storage["/about"]?.Kind, Is.EqualTo(PageKind.Page));
     }
 
     [Test]
+    public async Task ASeededCreateRecordsTheSeedItInstalledAsync() {
+        FakePageStore storage = new();
+
+        await PageAssetSeeder.SeedAsync(storage, Pack);
+
+        Assert.That(storage["/about"]?.SeedHash, Is.EqualTo(Pack.Find(PagePath.Normalize("/about"))?.Hash));
+    }
+
+    [Test]
+    public async Task AKeyTheStoreAlreadyHasKeepsItsAnchorAsync() {
+        FakePageStore storage = new();
+        storage["/about"] = new PageTemplate(PagePath.Normalize("/about"), "mine");
+
+        await PageAssetSeeder.SeedAsync(storage, Pack);
+
+        Assert.That(storage["/about"]?.SeedHash, Is.Null);
+    }
+
+    [Test]
     public async Task MissingAssetsAreSeededWithoutCompiledImagesAsync() {
         FakePageStore storage = new();
 
-        await PageAssetSeeder.SeedAsync(storage);
+        await PageAssetSeeder.SeedAsync(storage, Pack);
 
         foreach (string path in SeedPaths) {
             Assert.That(storage[path]?.Template, Is.EqualTo(ShippedSeed(path)), path);
@@ -210,9 +231,9 @@ public sealed class PageAssetSeederTests {
         FakePageStore storage = new();
         storage[editedPath] = new PageTemplate(PagePath.Normalize(editedPath), editedTemplate);
 
-        await PageAssetSeeder.SeedAsync(storage);
+        await PageAssetSeeder.SeedAsync(storage, Pack);
         int writes = storage.WriteCount;
-        await PageAssetSeeder.SeedAsync(storage);
+        await PageAssetSeeder.SeedAsync(storage, Pack);
 
         Assert.That(storage[editedPath]?.Template, Is.EqualTo(editedTemplate));
         foreach (string path in SeedPaths.Where(path => path != editedPath)) {
@@ -228,7 +249,7 @@ public sealed class PageAssetSeederTests {
         await storage.DeletePageAsync(PagePath.Normalize(deletedPath));
 
         int writes = storage.WriteCount;
-        await PageAssetSeeder.SeedAsync(storage);
+        await PageAssetSeeder.SeedAsync(storage, Pack);
 
         Assert.That(await storage.GetPageAsync(PagePath.Normalize(deletedPath)), Is.Null);
         Assert.That((await storage.GetHeadAsync(PagePath.Normalize(deletedPath)))?.IsDeleted, Is.True);

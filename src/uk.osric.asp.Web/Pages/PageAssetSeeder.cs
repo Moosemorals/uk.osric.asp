@@ -11,20 +11,20 @@ internal static class PageAssetSeeder {
 
     /// <summary>Installs the seeds a store is missing.</summary>
     /// <param name="pages">The store to seed.</param>
+    /// <param name="seeds">The pack this release ships.</param>
     /// <param name="cancellationToken">Bounds the reads and the writes.</param>
     /// <remarks>
     /// A key the store already has is left alone, whatever its source says: an edit survives a
-    /// restart, and a tombstone stays a tombstone.
+    /// restart, and a tombstone stays a tombstone. A create is the one automatic seed write, so it
+    /// records the seed's hash as the page's anchor.
     /// </remarks>
-    public static async Task SeedAsync(IPageStore pages, CancellationToken cancellationToken = default) {
+    public static async Task SeedAsync(IPageStore pages, PageSeeds seeds, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(pages);
+        ArgumentNullException.ThrowIfNull(seeds);
 
-        foreach (string seed in SeedFiles()) {
-            PagePath key = KeyOf(seed);
-            string template = await File.ReadAllTextAsync(seed, cancellationToken);
-
-            if (await pages.GetHeadAsync(key, cancellationToken) is null) {
-                await pages.SavePageAsync(Stored(key, template), cancellationToken);
+        foreach (SeedFile seed in seeds.Files) {
+            if (await pages.GetHeadAsync(seed.Path, cancellationToken) is null) {
+                await pages.SavePageAsync(Stored(seed), cancellationToken);
             }
         }
     }
@@ -45,8 +45,11 @@ internal static class PageAssetSeeder {
 
     // The kind is generated here rather than derived from a compile: a seeded library has to be known
     // as one before any page that names it is compiled, and only the tokens say so.
-    private static PageTemplate Stored(PagePath key, string template) =>
-        new(key, template) { Kind = TemplateSourceGenerator.Generate(template).Kind };
+    private static PageTemplate Stored(SeedFile seed) =>
+        new(seed.Path, seed.Source) {
+            Kind = TemplateSourceGenerator.Generate(seed.Source).Kind,
+            SeedHash = seed.Hash,
+        };
 
     // Every file under the seed folder, so a library can be seeded in a subtree of its own rather
     // than in the site's root key space.

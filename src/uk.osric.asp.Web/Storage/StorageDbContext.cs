@@ -39,6 +39,8 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             head.HasKey(row => row.Path);
             head.Property(row => row.Path).UseCollation("BINARY");
             head.Property(row => row.RevisionId).UseCollation("BINARY");
+            head.Property(row => row.SeedHash).UseCollation("BINARY");
+            head.Property(row => row.ContentHash).UseCollation("BINARY");
             head.HasOne<PageRevision>()
                 .WithMany()
                 .HasForeignKey(row => new { row.RevisionId, row.Path })

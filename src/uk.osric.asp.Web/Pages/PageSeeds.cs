@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 
 /// <summary>The pages this release ships, read from the seed folder once per process.</summary>
@@ -36,7 +37,8 @@ internal sealed class PageSeeds {
         foreach (string file in files) {
             string name = Path.GetRelativePath(directory, file).Replace('\\', '/');
             PagePath key = PagePath.Normalize("/" + name);
-            SeedFile seed = new(key, name, File.ReadAllText(file));
+            string source = File.ReadAllText(file);
+            SeedFile seed = new(key, name, source, TemplateFingerprint.Of(source));
             seeds.Add(seed);
             _byKey[key.Key] = seed;
         }
@@ -72,8 +74,9 @@ internal sealed class PageSeeds {
     public string? Source(PagePath path) => Find(path)?.Source;
 }
 
-/// <summary>One seed: its key, its path under the seed folder, and its exact source.</summary>
+/// <summary>One seed: its key, its path under the seed folder, its exact source and its hash.</summary>
 /// <param name="Path">The canonical page key the seed installs.</param>
 /// <param name="Name">The file's path under the seed folder, with <c>/</c> separators.</param>
 /// <param name="Source">The file's text, exactly as it will be stored.</param>
-internal sealed record SeedFile(PagePath Path, string Name, string Source);
+/// <param name="Hash">The content hash of <paramref name="Source"/>, which is what a seed write records.</param>
+internal sealed record SeedFile(PagePath Path, string Name, string Source, string Hash);

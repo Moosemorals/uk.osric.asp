@@ -195,7 +195,8 @@ internal sealed class ExportEndpoint {
             }
 
             IReadOnlyList<PageStateValue> values = await state.GetValuesAsync(path, context.RequestAborted);
-            entries.Add(new PageArchiveEntry(path, source, values));
+            PageHeadSummary? head = await pages.GetHeadAsync(path, context.RequestAborted);
+            entries.Add(new PageArchiveEntry(path, source, values, head?.SeedHash));
         }
 
         byte[] archive = PageArchiveWriter.Write(entries);

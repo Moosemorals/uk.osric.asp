@@ -64,19 +64,35 @@ internal sealed record PageTemplate {
 
     public DateTimeOffset SavedAt { get; init; }
 
+    /// <summary>
+    /// The seed this write is installing, or <see langword="null"/> when the write is not a seed
+    /// write. The store records it as the page's anchor and leaves the recorded one alone otherwise.
+    /// </summary>
+    public string? SeedHash { get; init; }
+
     /// <summary>Builds a revision around a template and the image compiled from it.</summary>
     /// <param name="path">The canonical key the page is saved under.</param>
     /// <param name="source">The template text.</param>
     /// <param name="image">The compiled image, or <see langword="null"/> when there is none.</param>
     /// <param name="runtimeId">The build that compiled the image.</param>
+    /// <param name="seedHash">
+    /// The seed this write is installing, or <see langword="null"/> when it is not a seed write. Only
+    /// this value is recorded as the page's anchor; every other write leaves the recorded one alone.
+    /// </param>
     /// <returns>
     /// A revision with a fresh id, timestamp and hash. An editor save and an import both build
     /// revisions here, so the two paths cannot produce a row shaped differently.
     /// </returns>
-    public static PageTemplate NewRevision(PagePath path, string source, PageImage? image, string runtimeId) {
+    public static PageTemplate NewRevision(
+        PagePath path,
+        string source,
+        PageImage? image,
+        string runtimeId,
+        string? seedHash = null) {
         return new PageTemplate(
             path, source, image, Guid.NewGuid().ToString("N"), runtimeId, DateTimeOffset.UtcNow) {
             Kind = image?.Kind,
+            SeedHash = seedHash,
         };
     }
 }

@@ -39,7 +39,8 @@ internal sealed class PageHarness : IDisposable {
         DiffRenderer? diff = null,
         PageJobOptions? jobOptions = null,
         IWorkerStore? workerStore = null,
-        TimeProvider? clock = null) {
+        TimeProvider? clock = null,
+        PageSeeds? seeds = null) {
         State = state ?? new FakePageStateStore();
         Sessions = sessionStore ?? new FakePageSessionStore();
         Session = new PageSessionRequest(uk.osric.asp.Web.Authentication.PageSessionCookie.Mint(), null, presented: false, exists: false);
@@ -56,6 +57,7 @@ internal sealed class PageHarness : IDisposable {
         Health = health ?? new PageHealth(Options.AbandonedLimit);
         Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
         Metrics = new PageMetrics();
+        Seeds = seeds ?? new PageSeeds(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
 
         Storage = storage;
         Images = new PageImageBuilder(Compiler, Budget, Metrics, NullLogger<PageImageBuilder>.Instance);
@@ -95,6 +97,9 @@ internal sealed class PageHarness : IDisposable {
     public PageLibraries Libraries { get; }
 
     /// <summary>Where every save in this harness is written.</summary>
+    /// <summary>The pack this release ships, read the way the host reads it.</summary>
+    public PageSeeds Seeds { get; }
+
     public FakePageStore Storage { get; }
 
     /// <summary>The page state every render in this harness shares.</summary>
@@ -182,7 +187,7 @@ internal sealed class PageHarness : IDisposable {
     /// the read side as well: that is the copy every compile in this harness resolves a using from.
     /// </remarks>
     public async Task SeedAsync() {
-        await PageAssetSeeder.SeedAsync(Storage, CancellationToken.None);
+        await PageAssetSeeder.SeedAsync(Storage, Seeds, CancellationToken.None);
         await MirrorSeededLibrariesAsync();
     }
 
