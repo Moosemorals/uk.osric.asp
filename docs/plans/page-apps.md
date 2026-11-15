@@ -164,24 +164,24 @@ a response-shaped context it can never use.
 - **New assistant metrics.** The assistant's own instruments stay as they are; jobs are logged, not
   folded into its panels.
 
-## Decisions this plan proposes
+## Decisions this plan records
 
-**D1 — the budget splits at the commit.** Before the first flush, `Pages:Render:TimeoutSeconds` is the
-whole budget, queueing included, exactly as it is today. From the first flush, the deadline is
-re-armed by every flush to `Pages:Stream:SilenceSeconds`, with an absolute `Pages:Stream:MaxSeconds`
-measured from the commit. A page that flushes and then goes quiet is truncated by the silence rule; a
+**DEC-303 (D1) — the budget splits at the commit.** Before the first flush,
+`Pages:Render:TimeoutSeconds` is the whole budget, queueing included, exactly as it is today. From
+the first flush, the deadline is re-armed by every flush to `Pages:Stream:SilenceSeconds`, with an
+absolute `Pages:Stream:MaxSeconds` measured from the commit. A page that flushes and then goes quiet is truncated by the silence rule; a
 page that keeps flushing is stopped by the ceiling. Rejected: raising `Pages:Render:TimeoutSeconds`
 and letting every page — including a hung one — run for minutes; a rule keyed on content type (a page
 that merely answers `text/event-stream` is not necessarily live); trusting the page to bound itself.
 
-**D2 — a live stream moves from a render slot to a stream slot.** The stream slot is taken before the
-response is committed; on success the render slot is released. `Pages:Stream:Slots` is a separate,
+**DEC-304 (D2) — a live stream moves from a render slot to a stream slot.** The stream slot is taken
+before the response is committed; on success the render slot is released. `Pages:Stream:Slots` is a separate,
 larger pool (default 8) because a stream is mostly waiting, while a render is mostly CPU. Rejected:
 keeping the render slot (two viewers would stop the site); no bound (a public page could hold
 connections until the process dies); one pool sized for the worst case (it would over-commit either
 CPU or connections).
 
-**D3 — a refused stream is a distinct exception, thrown before the commit.** When every stream slot is
+**DEC-305 (D3) — a refused stream is a distinct exception, thrown before the commit.** When every stream slot is
 taken, the first flush throws `PageStreamRefusedException` (in `Sdk`, deriving from
 `InvalidOperationException`), the response is still uncommitted, and the endpoint answers `503` with a
 sentence that says the site is at its live-stream limit. A page may catch it and render its own
@@ -190,7 +190,7 @@ falls back to a buffered response, which is a worse failure than an exception); 
 (a request parked behind a stream is the starvation the pool exists to stop); a `500` (capacity is not
 a page bug).
 
-**D4 — a stream reports its own end.** A streamed render records `page.render.duration` at the commit,
+**DEC-306 (D4) — a stream reports its own end.** A streamed render records `page.render.duration` at the commit,
 with the outcome the page had when it committed. The lifetime after the commit is
 `page.stream.duration`, tagged with `page.path` and `outcome` (`completed`, `silence`, `ceiling`,
 `client-left`, `error`). The render histogram's comment says its top bucket is past the longest
@@ -198,7 +198,7 @@ deadline; a ten-minute stream would make that false. Rejected: letting the strea
 histogram's `+Inf` bucket (the slow-pages panel would become meaningless); no instrument at all (an
 operator cannot see live streams, and the assistant's existing panels are not about pages).
 
-**D5 — `IHttpFetch` grows one method, and the stream is line-oriented text.** `StreamAsync(
+**DEC-307 (D5) — `IHttpFetch` grows one method, and the stream is line-oriented text.** `StreamAsync(
 HttpFetchRequest)` returns an `HttpFetchStream` with `Status`, `Headers`, `Failure`, `Truncated`,
 `Task<string?> ReadLineAsync()` and `Task CloseAsync()`. A null line is the end; `Failure` and
 `Truncated` say why. The buffered `SendAsync` is unchanged and remains the right call for a small
@@ -206,7 +206,7 @@ body. Rejected: `IAsyncEnumerable` (the page policy denies `ValueTask` and its d
 forget); `Stream` or `byte[]` (the page contract is text); a second capability (`IHttpFetch` is
 already the page's only egress, and its credential and header rules must not be duplicated).
 
-**D6 — the outbound stream has its own silence and ceiling.** The request's headers are bounded by
+**DEC-308 (D6) — the outbound stream has its own silence and ceiling.** The request's headers are bounded by
 `Pages:Fetch:TimeoutSeconds` as today. The body is then bounded by
 `Pages:Fetch:StreamSilenceSeconds` between lines, `Pages:Fetch:StreamMaxSeconds` in total, and
 `Pages:Fetch:MaxStreamBytes`; a stream that hits the byte cap ends with `Truncated`. Rejected: one
@@ -214,12 +214,12 @@ total timeout (an answer that thinks for two minutes is healthy); no ceiling (a 
 forever); reusing `MaxResponseBytes` silently (a stream's cap and a fetch's cap answer different
 questions).
 
-**D7 — flush before the slow read.** The render deadline covers everything before the first flush,
+**DEC-309 (D7) — flush before the slow read.** The render deadline covers everything before the first flush,
 including a fetch. A page that wants a long upstream read writes and commits its document first; the
 commit is what moves it onto the stream and outbound-stream clocks. This is a consequence, not a
 mechanism, and `/help` says it beside the streaming example.
 
-**D8 — a worker is a fourth kind.** A stored source is **Text**, **Page**, **Library** or **Worker**. A
+**DEC-310 (D8) — a worker is a fourth kind.** A stored source is **Text**, **Page**, **Library** or **Worker**. A
 Worker is declaration-only like a library, but it declares exactly one public type with a parameterless
 constructor implementing `IWorker`, and it is compiled to an entry-point assembly when it is saved. It
 is never served, never wrapped, never an asset and never a library: the closure includes libraries and
@@ -232,7 +232,7 @@ antiforgery members would be dead weight); a `Func<IContext, Task>` (it closes o
 hands the shell an opaque lifetime); an assistant run type (the specialist capability this plan exists
 to avoid).
 
-**D9 — a job is one run of a worker, started by a page and owned by the visitor.** `IPageJobs.StartAsync(
+**DEC-312 (D9) — a job is one run of a worker, started by a page and owned by the visitor.** `IPageJobs.StartAsync(
 workerKey, firstMessage)` starts it; the job runs as the signed-in owner. A missing key, a page, an
 asset, a library, a reserved key, an anonymous render and a full queue are refused as values, because
 the kind is known at save and the start needs no compile to say no. The job works **for the starting
@@ -240,7 +240,7 @@ page**: the page is the principal and the worker is the code. Rejected: a job th
 (a page can already link to one; widening the authority is a later decision); a job as a `Func` or a
 delegate; an assistant run type.
 
-**D10 — six page calls, two worker calls, and the owner is structural.** `IPageJobs` — `StartAsync`,
+**DEC-313 (D10) — six page calls, two worker calls, and the owner is structural.** `IPageJobs` — `StartAsync`,
 `SendAsync`, `GetAsync`, `ListAsync`, `ReadEventsAsync`, `CancelAsync` — is offered to every page. The
 running job is handed an `IWorkerContext` — `Id`, `Path` (the starting page), `Worker` (the worker's
 key), `User`, `Input` (the first message), `Aborted`, `Capabilities`, three log members,
@@ -260,7 +260,7 @@ read, send and cancel filters on the job's owner before it answers. Rejected: an
 `SendAsync` it has no reason to call); a typed message object (`JsonSerializer` is already the page's,
 and a worker that wants a shape can parse one).
 
-**D11 — the journal is in memory, bounded and replayable; the durable record is the page's.** A job's
+**DEC-314 (D11) — the journal is in memory, bounded and replayable; the durable record is the page's.** A job's
 events are `(sequence, type, json)` in a ring bounded by `Pages:Jobs:MaxEvents`, `MaxEventBytes` and
 `RetentionMinutes`, with live subscribers and a replay window. A viewer that asks for a sequence the
 ring no longer holds gets a reset event. There is no `PageJobs` table. A worker does not survive a
@@ -270,7 +270,7 @@ the host restarted; the interrupted state is the page's, not the shell's. Reject
 or job table; a durable queue (re-running work with non-idempotent side effects is a different
 feature); a durable message channel (a pending decision belongs in the page's storage).
 
-**D12 — a job has its own lifetime and its own slot.** A job takes a job slot
+**DEC-315 (D12) — a job has its own lifetime and its own slot.** A job takes a job slot
 (`Pages:Jobs:MaxConcurrent`), not a render slot, because it is not answering a visitor. Its deadline
 is `Pages:Jobs:SilenceSeconds` re-armed by every `Publish` and by every return from `ReceiveAsync`,
 plus `Pages:Jobs:MaxDurationSeconds` from the start. The shipped ceiling is nine hours (32,400 s), and
@@ -285,14 +285,14 @@ legitimately outlives a request); an absolute deadline only (a page that hits a 
 run for the ceiling); sharing the render slots (a background job would pay for a visitor's slot);
 cutting a job that is waiting on its owner (the approval case).
 
-**D13 — a viewer waits, it does not sleep.** `ReadEventsAsync(jobId, after, wait)` returns when there
+**DEC-316 (D13) — a viewer waits, it does not sleep.** `ReadEventsAsync(jobId, after, wait)` returns when there
 are events, when the job ends, or when the wait elapses — whichever is first — with `Events`, `Next`,
 `Reset`, `State` and `Failure`. The wait is capped by `Pages:Jobs:MaxWaitSeconds` and by the
 render's stream budget. A viewer streams the batches as SSE and writes a comment when one is empty.
 Rejected: allowing `Task.Delay` (a general fairness hole, and the policy denies it); a poll per reload
 (a whole document per event); a second pub/sub capability (the wait belongs to the journal).
 
-**D14 — a job's capabilities split data from code.** `IWorkerContext` has no `Write`, `FlushAsync`,
+**DEC-317 (D14) — a job's capabilities split data from code.** `IWorkerContext` has no `Write`, `FlushAsync`,
 `SetStatus`, `SetContentType`, `SetHeader`, `Redirect`, `AntiforgeryField` or `IPageLayout`; its
 `Capabilities` offer `IPageStorage`, `IHttpFetch`, `IPageCatalog` and `IPageJobs`, with **storage bound
 to the starting page** (the data) and **egress and catalog bound to the worker** (the code). A job and
@@ -312,7 +312,7 @@ and no refusal to report. It would also raise a question the collectible load co
 what lifetime an injected instance has, when the assembly is unloaded at the end of the job. A worker
 that wants an object graph constructs one, because it is ordinary C#).
 
-**D15 — a worker's image is a page's mechanics without a handler.** The worker's source and its
+**DEC-318 (D15) — a worker's image is a page's mechanics without a handler.** The worker's source and its
 `using` closure are policy-checked and emitted at save, and the image and symbols are stored on the
 revision with the Worker kind, the `TemplateFingerprint`, the `RuntimeId` and the closure fingerprint.
 A worker whose library moved is rebuilt lazily on its next start, the way a page is rebuilt on its next
@@ -631,11 +631,13 @@ client.
 - `docs/testing.md` — the suites and what belongs in the real host.
 - `src/uk.osric.asp.Web/Pages/Seeds/help` — the author manual, updated with each phase (DEC-173).
 - `docs/jobs/IDEA-025.md` and `docs/jobs/README.md` — the re-scope and the programme.
-- Decisions proposed, numbered at merge: the split budget, the stream slot and its refusal, the stream
-  instrument, the line-shaped outbound stream, the worker kind, the job as a run of it, the job surface
-  (`IPageJobs`) and the worker contract (`IWorker`, `IWorkerContext`), the message channel, the worker
-  image and staleness, the data/code capability split, the closure exclusion, the in-memory journal,
-  the job's own lifetime and slot, the bounded wait, and the configuration sections.
+- Decisions recorded at merge as DEC-303–DEC-318: the split budget (303), the stream slot (304) and
+  its refusal (305), the stream instrument (306), the line-shaped outbound stream (307) with its own
+  clocks (308) and the flush-before-read consequence (309), the worker kind (310) and its closure
+  exclusion (311), the job as a run of a worker (312), the job surface and its structural owner
+  (313), the in-memory journal (314), the job's own lifetime and slot (315), the bounded wait (316),
+  the data/code capability split (317), and the worker image and staleness (318). `Pages:Stream`,
+  `Pages:Fetch`'s stream values and `Pages:Jobs` are the sections those decisions bound.
 
 ## Delivered when
 
@@ -657,12 +659,13 @@ client.
 1. **The page-store write authority.** The assistant's tools save other pages. A page cannot, and a
    job can only keep data. The port cannot happen without an answer. Does a worker get a page writer
    for another key, bound to one configured worker, or does `IPageWriter` grow a key for any caller?
-   Phase 5 records the choice.
-2. **The names.** `Worker` and `Job` are the working names for the kind and one run of it;
-   `IPageJobs`, `IWorker`, `IWorkerContext`, `StreamAsync`, `HttpFetchStream` and
-   `PageStreamRefusedException` are the surfaces. The implementation phase settles them beside the
-   existing vocabulary in [the glossary](../glossary.md), and the glossary says why a worker is not a
-   `System.Threading.Thread`.
+   Phase 5 records the choice, and it is written out with its three shapes and their costs in
+   [IDEA-025](../jobs/IDEA-025.md#the-authority-question-for-the-owner). It is still open: it is the
+   owner's to make, and it is also listed in [the open policy questions](../decisions.md#open-policy-questions).
+2. **The names.** Settled. `Worker` and `Job` are the kind and one run of it; `IPageJobs`, `IWorker`,
+   `IWorkerContext`, `StreamAsync`, `HttpFetchStream` and `PageStreamRefusedException` are the
+   surfaces, and [the glossary](../glossary.md#worker) says why a worker is not a
+   `System.Threading.Thread` nor a page with a hidden response.
 3. **How long a viewer may replay.** The ring's `RetentionMinutes` is a policy value; the first
    customer should say what "long enough to reconnect" means.
 4. **Whether an approval wait holds a job slot.** `ReceiveAsync` pauses the silence clock but not the

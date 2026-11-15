@@ -186,6 +186,11 @@ closure a page is compiled with is the live libraries alone, so naming a worker'
 compile error. A page starts one and it runs with no response of its own. **Owner:** pages —
 `PageKind.Worker`, the refinement in `PageCompiler`, and `PageAssetPolicy.IsWorker`.
 
+It is not a `System.Threading.Thread` and not a task: it is a stored program the host compiles,
+loads into a collectible context and invokes once per job, so the host owns its lifetime, its slot
+and its clocks. Nor is it a *page* with a hidden response — a job has no document, which is why
+`IWorkerContext` is not an `IContext`.
+
 ## Markdown
 The source format a page may render to HTML, and the format an assistant reply is written in.
 

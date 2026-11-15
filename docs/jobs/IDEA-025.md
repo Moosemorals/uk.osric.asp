@@ -126,7 +126,7 @@ the account store, and that is IDEA-033 again.
 ### 4. A worker cannot save a page, and the tools do
 
 `IPageWriter` saves the calling page and nothing else, and `IPageEditor` is offered to one key. A
-worker is offered neither (D14), so the assistant's page tools — which save, delete, restore and
+worker is offered neither (DEC-317), so the assistant's page tools — which save, delete, restore and
 import pages the shell does not route — have no equivalent in page or job code. This is the authority
 question below.
 
