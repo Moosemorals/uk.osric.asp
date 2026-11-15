@@ -57,7 +57,10 @@ same day's follow-up question about removing `Assistant:Enabled`: four
 places read the flag, but the key rule is what the tests and the deployment actually depend on, and
 it closed the same day (DEC-301). BUG-19 came out of the owner's note of 2026-11-15: a chart counts
 its samples from the first one while its axis counts from the window's start, so a window wider than
-the data leaves the line at the left edge.
+the data leaves the line at the left edge. IDEA-036 came out of the owner's seed-provenance note of
+the same day: a seed is identified by nothing, so a deploy cannot tell a page the release moved from a
+page the author edited, and nothing brings an edited seed back from the running site to the
+repository. Its plan is [seed provenance](../plans/seed-provenance.md).
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -75,6 +78,7 @@ the data leaves the line at the left edge.
 | [IDEA-030](IDEA-030.md) | — | M | Every view writes its own navigation: the shell, the admin, the assistant and the seeds each assemble the same links |
 | [IDEA-031](IDEA-031.md) | — | S | Some policy is still a constant in code: password and user-name length, the security headers, the page API allow-list, and the internal retry and sweep periods |
 | [IDEA-033](IDEA-033.md) | — | L | A page has no persistent per-account store: `IPageStorage` is shared by every visitor, `IPageSession` goes when the visitor signs out, and nothing keeps anything for a signed-in account |
+| [IDEA-036](IDEA-036.md) | — | L | A seed keeps no record of where it came from, so a deploy cannot say what it would change, the page list compares two strings to answer one bit, and nothing brings an edited seed back to the repository |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
