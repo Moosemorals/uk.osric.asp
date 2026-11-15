@@ -286,8 +286,11 @@ is the only entry point — no parallel scripts and no second definition of "gre
 pre-push hook and there are no workflow files, no service and no secret: a machine with the
 repository, the SDK, `reuse` and podman can reproduce the gate. Warnings are errors and code style is
 enforced in the build rather than only in the gate, so what `make build` proves is what `make check`
-proves and a cached stamp can never mean a looser build. `ContinuousIntegrationBuild` is on, so a PDB
-does not record where the checkout happened to live.
+proves and a cached stamp can never mean a looser build. That is why `make format-check` asks
+`dotnet format` for layout and nothing else — the whitespace rules and the `IMPORTS` fixer that orders
+using directives, which raises no diagnostic the compiler owns — instead of running the whole analyzer
+pass a second time to hear what the build has already failed on.
+`ContinuousIntegrationBuild` is on, so a PDB does not record where the checkout happened to live.
 
 *Recorded in [Makefile](../Makefile), [Directory.Build.props](../Directory.Build.props).*
 
@@ -302,6 +305,19 @@ noise to be muted.
 
 *Recorded in [analyzers](plans/analyzers.md), [testing](testing.md#the-gate).*
 
+### code-fixtures-hold-no-deadline
+
+A fixture's host and harness run with the widest budgets the configuration accepts, and a test that is
+about a deadline passes its own value; the shipped one is never the one a fixture can lose. A fixture
+that reaches the editor compiles a 31 KB page, and eight of them compile it at once, so on a loaded
+machine that compile outlasts the five seconds the site ships: the fixture answered `PAGE004` and
+failed for a budget nothing in it was asserting. The deadlines keep their own tests — a quarter of a
+second for the compile budget, one second for the render — so a fixture's value is not a claim about
+the site.
+
+*Recorded in [testing](testing.md#nondeterminism-and-the-two-causes-it-had),
+[AspApplication](../test/uk.osric.asp.Web.IntegrationTests/AspApplication.cs).*
+
 ### code-tests-are-written-first
 
 Tests are NUnit: one behaviour per test, named for the behaviour, and written first. Anything a unit
@@ -314,10 +330,12 @@ middleware order, exception handling and startup migrations against the real hos
 
 A suite that wedges fails the gate rather than sitting in it: every suite runs under a whole-run
 ceiling (`RunConfiguration.TestSessionTimeout`) and one that reaches it aborts the run instead of
-passing what it managed. The ceiling is several times a healthy run — a minute for the unit suites, five
-for the integration suite, ten for the browser suite — because a ceiling that close aborts a deploy for
-being slow. It is not `--blame-hang`, whose collector warns on every normal run that it wrote no
-sequence file.
+passing what it managed. The ceiling is several times a healthy run — three minutes for the unit
+suites, five for the integration suite, ten for the browser suite — because a ceiling that close aborts
+a deploy for being slow. The unit ceiling was a minute until `Web.Tests` grew past it: a healthy run
+beside a `dotnet format` took half as long again, was aborted for being slow, and reported the tests it
+had run as passed before saying the run was aborted. It is not `--blame-hang`, whose collector warns on
+every normal run that it wrote no sequence file.
 
 *Recorded in [Makefile](../Makefile).*
 

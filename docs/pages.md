@@ -509,10 +509,12 @@ waits for it against one deadline that covers both queueing and running:
   render that never returns cannot be reclaimed: it is counted, logged with the page's path and the
   elapsed time, and recorded on `page.render.abandoned`. A page that is *waiting* on an `await`
   returns its thread to the pool while it waits, so abandonment costs a task rather than a thread;
-  when the deadline fires its next `await` throws and it unwinds. A page that blocks synchronously is
-  unchanged, and is escaped only by abandonment and the container's restart. A request that spends the budget before the page
-  starts — waiting on storage, or waiting for a compile slot — answers `504` the same way, but
-  nothing is abandoned because nothing ran.
+  when the deadline fires its next `await` throws and it unwinds, in the same instant the deadline
+  itself does — so which of the two the renderer sees first is a race, and the answer is `504`
+  either way. A page that blocks synchronously is unchanged, and is escaped only by abandonment and
+  the container's restart. A request that spends the budget before the page starts — waiting on
+  storage, or waiting for a compile slot — answers `504` the same way, but nothing is abandoned
+  because nothing ran.
 - Compiling has its own slot and deadline (`Pages:Compile:Slots`, `Pages:Compile:TimeoutSeconds`).
   Waiting for a slot is bounded by that deadline, because an unbounded wait would park a request
   thread — and the render slot it already holds — behind the compiler. In a render the wait also ends

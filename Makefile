@@ -204,11 +204,15 @@ test: test-core test-runtime test-web test-integration
 # sequence file, which is the good outcome — and a warning nobody can act on is one everybody learns
 # to skip.
 #
-# The three unit suites are supposed to be fast — core under a second, runtime a couple, web about
-# fifteen — so a minute is several times a full run and a suite that reaches it is wedged, not slow.
-# Waiting a minute for a suite that should answer in seconds is cheaper than waiting ten for one that
-# will never answer. The integration and browser suites drive a real host and a browser, so their
-# ceiling stays generous; both can be overridden, as can the fast one on a machine slower than this.
+# The three unit suites are supposed to be fast — core under a second, runtime a couple of seconds,
+# web half a minute — but "fast" is not a fixed number and web grew past the minute: with the machine
+# to itself it takes thirty-five seconds, and beside a `dotnet format` and its own eight parallel
+# fixtures it takes fifty-five to seventy-five. A minute therefore aborted healthy runs, and did it
+# by reporting the tests it had run as "Passed!" and then "Test Run Aborted" — a suite that failed for
+# being slow looked, in the log, like a suite that passed. Three minutes is two and a half times the
+# worst measured run and still fails a wedged suite long before anyone would give up on it. The
+# integration and browser suites drive a real host and a browser, so their ceiling stays generous;
+# both can be overridden, as can the fast one on a machine slower than this.
 #
 # The browser suite has a ceiling of its own because it is the slowest thing here and the least
 # predictable: fifty tests that each open a page in Firefox and wait on a streamed answer take a
@@ -217,7 +221,7 @@ test: test-core test-runtime test-web test-integration
 # half times that, so a healthy run under a deploy's load reached the ceiling and was aborted for
 # being slow rather than for being wedged. Ten is five times the measured run, which still fails a
 # wedged suite long before anyone would give up on it.
-TEST_FAST_TIMEOUT ?= 60000
+TEST_FAST_TIMEOUT ?= 180000
 TEST_HANG_TIMEOUT ?= 300000
 TEST_BROWSER_TIMEOUT ?= 600000
 # Test results belong with everything else the build produces. Left to itself the runner creates a
@@ -539,8 +543,21 @@ audit:
 format:
 	$(DOTNET) format $(SOLUTION)
 
+# What the build cannot see is layout, so layout is what this asks for: every whitespace rule, and
+# the `IMPORTS` fixer that orders using directives, which raises no diagnostic the compiler owns.
+# Everything else `dotnet format` would check is already an error in the build — `AnalysisMode=All`
+# turns the CA rules on and `EnforceCodeStyleInBuild` turns the IDE ones on, and a warning is an
+# error (Directory.Build.props) — so asking for it here would run the whole analysis a second time
+# for no answer the build has not already given.
+#
+# It is not a small second time. Measured on this tree, the analyzer phase is 419 of the 503
+# CPU-seconds the whole of `dotnet format` spends — seven minutes of cores for a minute and a half of
+# wall clock, the busiest thing the gate does — and the style phase is another 70 for the one
+# diagnostic the build does not raise. Narrowed to layout and using order the check spends about 25
+# CPU-seconds instead, and the cores go to the suites.
 format-check:
-	$(DOTNET) format $(SOLUTION) --verify-no-changes
+	$(DOTNET) format whitespace $(SOLUTION) --verify-no-changes
+	$(DOTNET) format style $(SOLUTION) --verify-no-changes --diagnostics IMPORTS
 
 # Needs the `reuse` tool (apt install reuse, or pipx install reuse).
 license-check:

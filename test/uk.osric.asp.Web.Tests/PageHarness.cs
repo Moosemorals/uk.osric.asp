@@ -51,8 +51,8 @@ internal sealed class PageHarness : IDisposable {
         StorageOptions = storageOptions ?? TestOptions.Storage;
         FetchOptions = fetchOptions ?? TestOptions.Fetch;
         ReadOptions = TestOptions.Read;
-        Options = options ?? TestOptions.Render;
-        Budget = budget ?? new PageBudget(Options, TestOptions.Compile, TestOptions.Stream);
+        Options = options ?? TestOptions.FixtureRender;
+        Budget = budget ?? new PageBudget(Options, TestOptions.FixtureCompile, TestOptions.Stream);
         Health = health ?? new PageHealth(Options.AbandonedLimit);
         Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
         Metrics = new PageMetrics();

@@ -31,6 +31,23 @@ internal static class TestOptions {
     /// <summary>The stream limits the site ships with.</summary>
     public static StreamOptions Stream { get; } = StreamOptions.FromConfiguration(Configuration);
 
+    /// <summary>The render budget a fixture that is not about the deadline renders under.</summary>
+    /// <remarks>
+    /// A fixture is not about a deadline it did not ask for. The render and compile budgets are
+    /// nested, and a fixture that renders a seeded page compiles it inside both, beside every other
+    /// fixture doing the same: the editor page is 31 KB and takes about two seconds to compile beside
+    /// four fixtures and many more beside eight, so the five seconds the site ships is a budget a test
+    /// can lose without being wrong. The deadlines keep their own tests, which pass their own value —
+    /// <c>PageImageBuilderTests</c> and <c>PageRendererTests</c> use a quarter of a second,
+    /// <c>RenderBudgetTests</c> one second — so nothing here asserts these two numbers. Both sit at
+    /// the top of the range the configuration accepts, which is what a fixture wants and a deployment
+    /// should not need.
+    /// </remarks>
+    public static RenderOptions FixtureRender { get; } = Render with { TimeoutSeconds = 60 };
+
+    /// <inheritdoc cref="FixtureRender"/>
+    public static CompileOptions FixtureCompile { get; } = Compile with { TimeoutSeconds = 30 };
+
     /// <summary>The job bounds the site ships with.</summary>
     public static PageJobOptions Jobs { get; } = PageJobOptions.FromConfiguration(Configuration);
 

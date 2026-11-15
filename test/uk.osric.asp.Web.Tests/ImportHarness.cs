@@ -23,7 +23,7 @@ internal sealed class ImportHarness : IDisposable {
 
         Images = new PageImageBuilder(
             Compiler,
-            new PageBudget(TestOptions.Render, TestOptions.Compile, TestOptions.Stream),
+            new PageBudget(TestOptions.FixtureRender, TestOptions.FixtureCompile, TestOptions.Stream),
             Metrics,
             NullLogger<PageImageBuilder>.Instance);
         Processor = new ImportProcessor(

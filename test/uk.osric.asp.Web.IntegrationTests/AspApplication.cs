@@ -20,9 +20,8 @@ using uk.osric.asp.Web.Users;
 /// <summary>Runs the real web host against a throwaway SQLite database.</summary>
 /// <param name="loginPermitLimit">Sign-in attempts allowed per window.</param>
 /// <param name="renderTimeoutSeconds">
-/// The budget for one render. Generous, because a fixture's first page render compiles it under a
-/// debugger-hosted compiler while the other fixtures compile theirs; the suites that prove the
-/// budget pass their own value.
+/// Overrides the fixture's render budget, which is otherwise the widest the configuration accepts.
+/// Only the suite that proves the deadline passes one, and it passes its own value.
 /// </param>
 /// <param name="realPasswordHasher">
 /// Keeps the production password hasher instead of <see cref="FastPasswordService"/>. A fixture that
@@ -42,7 +41,7 @@ using uk.osric.asp.Web.Users;
 /// <param name="settings">Extra keys applied last, for a fixture that proves a configuration failure.</param>
 internal sealed class AspApplication(
     int loginPermitLimit = 100,
-    int renderTimeoutSeconds = 15,
+    int? renderTimeoutSeconds = null,
     bool realPasswordHasher = false,
     IMetricsSource? metricsSource = null,
     IChatCompletionClient? chatCompletionClient = null,
@@ -55,6 +54,22 @@ internal sealed class AspApplication(
     string? pageLayout = null,
     string? changelist = null,
     IReadOnlyDictionary<string, string?>? settings = null) : WebApplicationFactory<Program> {
+
+    // A fixture is not about a deadline it did not ask for. Every page here is compiled and rendered
+    // under the site's budgets, the two are nested, and eight fixtures run at once beside whatever
+    // else the machine is doing, so a page that is merely slow to compile loses a budget no test in
+    // this suite is asserting. Measured on this tree: the seeded `/pages` editor page (31 KB) compiles
+    // in about 200 ms once Roslyn is warm, 1.6-2 s beside four other fixtures compiling, and 5.5-11 s
+    // when eight start at once on a machine also running `dotnet format` — the shipped five seconds
+    // is inside that, and the fixture answers `PAGE004` instead of the page it was testing.
+    //
+    // So the fixture gets the most headroom the configuration accepts — a minute to render, half of
+    // that to compile, which is inside the range `RenderOptions` and `CompileOptions` enforce — and
+    // the deadlines themselves keep their own tests (`PageImageBuilderTests` proves `PAGE003` and
+    // `PAGE004` with a quarter of a second, `RenderBudgetTests` the render deadline with one).
+    private const int FixtureRenderTimeoutSeconds = 60;
+
+    private const int FixtureCompileTimeoutSeconds = 30;
 
     /// <summary>The database this host migrates and serves; it is deleted with the factory.</summary>
     public string DatabasePath { get; } =
@@ -73,7 +88,9 @@ internal sealed class AspApplication(
         builder.UseSetting("ConnectionStrings:Storage", $"Data Source={DatabasePath}");
         // Applied when the host is built, which is after Program cleared the default providers.
         builder.ConfigureLogging(logging => logging.AddProvider(Logs));
-        builder.UseSetting("Pages:Render:TimeoutSeconds", renderTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
+        int renderSeconds = renderTimeoutSeconds ?? FixtureRenderTimeoutSeconds;
+        builder.UseSetting("Pages:Render:TimeoutSeconds", renderSeconds.ToString(CultureInfo.InvariantCulture));
+        builder.UseSetting("Pages:Compile:TimeoutSeconds", FixtureCompileTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
         builder.UseSetting("Pages:Layout", pageLayout ?? string.Empty);
         // The shipped file carries no key, and the host refuses to start without one.
         builder.UseSetting("Assistant:ApiKey", "integration-test-key");

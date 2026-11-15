@@ -360,41 +360,63 @@ than taste (an unused member, an unnecessary assignment or parameter, a redundan
 that suppresses nothing) are warnings for the same reason. Each product assembly also emits its XML
 documentation, so CS1591 holds "the public surface of `Core` is documented". Beyond that,
 `make audit` fails on a vulnerable or deprecated NuGet package, and every suite runs under a session
-timeout so a wedged run fails instead of sitting there. The three unit suites get a minute
-(`TEST_FAST_TIMEOUT`, in milliseconds): they answer in seconds, and a run that reaches a minute is
-wedged rather than slow. The integration suite gets five (`TEST_HANG_TIMEOUT`), because it drives a
-real host and the budget tests burn a wall clock deliberately; the browser suite gets ten
-(`TEST_BROWSER_TIMEOUT`), because fifty tests that each open a page in Firefox take a little over two
-minutes with the machine to themselves and a deploy runs them right after a full gate, so five was
-close enough to a healthy run to abort one. Each can be overridden on a machine slower than this one.
+timeout so a wedged run fails instead of sitting there. The three unit suites get three minutes
+(`TEST_FAST_TIMEOUT`, in milliseconds) — core answers in under a second and runtime in a couple of
+seconds, but `Web.Tests` takes thirty-five seconds with the machine to itself and fifty-five to
+seventy-five beside a `dotnet format` and its own eight parallel fixtures, so the minute it used to
+get aborted healthy runs. A run that reaches three minutes is wedged rather than slow. The
+integration suite gets five (`TEST_HANG_TIMEOUT`), because it drives a real host and the budget tests
+burn a wall clock deliberately; the browser suite gets ten (`TEST_BROWSER_TIMEOUT`), because fifty
+tests that each open a page in Firefox take a little over two minutes with the machine to themselves
+and a deploy runs them right after a full gate, so five was close enough to a healthy run to abort
+one. Each can be overridden on a machine slower than this one.
 The ceiling is VSTest's `RunConfiguration.TestSessionTimeout` rather than `--blame-hang`, because the
 blame collector warns on every run that ends normally that it wrote no sequence file: that is the
 good outcome said as a problem, and a warning nobody can act on is one everybody learns to skip.
 
-## Known nondeterminism follow-up
+That a warning is an error is also why `make format-check` asks `dotnet format` for layout and
+nothing else — every whitespace rule, and the `IMPORTS` fixer that orders using directives — while
+`make format` still fixes the lot. Every `CA` and `IDE` diagnostic the analyzer and style phases would
+report is a warning the build has already failed on, so asking for them a second time costs a full
+analysis for no answer the build has not given: measured here, the analyzer phase was 419 of the 503
+CPU-seconds the whole of `dotnet format` spent, and it is the busiest thing the gate does. `IMPORTS`
+is the one exception, because it is the one fixable thing the compiler raises no diagnostic for.
 
-On 2026-11-14, `AccessibilityTests.TheEditorsFieldIsLabelledAsync` and
-`PageRendererTests.AnAbandonedPageWaitingOnStorageIsCancelledAndReleasedAsync` failed in full
-`Web.Tests` runs while this machine was under heavy Roslyn load. Both passed when run alone and in
-repeated focused fixture runs; a later full `make check` also passed. Treat these as unresolved
-flakiness, not fixed tests. Follow up by finding and removing the scheduling or shared-state
-dependency; do not hide it by adding retries or widening timeouts.
+## Nondeterminism, and the two causes it had
 
-The phase-2 gate again failed in `Web.Tests`, despite raising the outer test-session ceiling:
-`AnImportOverTheCompiledCapWritesNothing`, `PromptExamplesCompileThroughTheRealPageCompiler`,
-`AKeyThatIsNotASeedHasNothingToInstallAsync`, `EveryListingActionNamesItsPageAsync`,
-`EveryListingStateCellSaysWhichStateItIsAsync`, `TheEditorsFieldIsLabelledAsync`,
-`AnAnonymousVisitorIsSentToSignInAsync` and `ANeverSavedKeyOpensAnEmptyEditorAsync`. The rerun of
-those eight tests passed five; the editor-key test and two listing assertions failed again, and the
-editor-key test also timed out when run by itself. The failures are not explained yet: several return
-the render timeout page, while the listing tests see no table or state cells. Keep this follow-up
-open; do not attribute every failure to parallel load or mask it with wider page budgets.
-
-The integration run also had three 500 responses in `ArchiveEndpointTests.AdminPathsAreNotPageKeys`,
+Two families of failure were recorded here on 2026-11-14 and left open, on the rule that they had to
+be explained rather than masked: `Web.Tests` fixtures that answered with the render timeout or the
+compile-failure page where a listing or an editor belonged, and integration fixtures that answered
+`500` — `ArchiveEndpointTests.AdminPathsAreNotPageKeys`,
 `AssistantDisabledTests.EditorDoesNotLinkToDisabledAssistantAsync` and
-`ArchiveEndpointTests.ExportThenImportRoundTripsThroughTheRealHost`; the last included a `PAGE004`
-compile timeout. The outbound-fetch integration fixture passed in its focused run. Record these
-failures for the same follow-up rather than widening the page or compile budgets.
+`ArchiveEndpointTests.ExportThenImportRoundTripsThroughTheRealHost`, the last with `PAGE004: the page
+took longer than 5 s to compile`.
+
+Both are now explained, and neither was a test being wrong about the site.
+
+**A fixture was losing a deadline it was not asserting.** Every fixture that reaches the editor
+compiles the seeded `/pages` page, which is 31 KB against the couple of kilobytes of most pages. On
+this tree it compiles in about 200 ms with Roslyn warm, 1.6–2 s beside four other fixtures compiling,
+and 5.5–11 s when eight start at once on a machine also running `dotnet format`: the shipped
+five-second compile budget is inside that, so the fixture answered `PAGE004` — and a `PAGE004` body is
+where the missing table and the missing label came from. A fixture holds the widest budget the
+configuration accepts now (a minute to render, half that to compile, set in `AspApplication` and in
+`TestOptions.FixtureRender`/`FixtureCompile`), and the deadlines keep their own tests, which pass
+their own value: `PageImageBuilderTests` proves `PAGE003` and `PAGE004` with a quarter of a second and
+`RenderBudgetTests` the render deadline with one second. A fixture's value is not a claim about the
+site; the test that is about the deadline is (`code-fixtures-hold-no-deadline`).
+
+**A page cancelled by its own deadline could answer as a fault.** `PageRenderer.RunAsync` races the
+page against the deadline and abandons the loser. The token that ends the wait is also the token that
+cancels the page's own awaits, so the page can reach the cancelled state in the same instant and win
+the race — and `await page` then rethrew the cancellation at whoever asked for the render, which is
+`AnAbandonedPageWaitingOnStorageIsCancelledAndReleasedAsync` failing one run in six under load and
+passing the rest. The cancellation is now read before the race is, so both orders answer
+`RenderStatus.Timeout`; the fixture passed ten consecutive runs under the same load that failed it
+before.
+
+The rule that came out of it: a fixture may only lose a deadline it is asserting, and a test may only
+be flaky about something the site is deciding.
 
 ## Parallelism
 
@@ -424,7 +446,10 @@ its `TestAssembly.cs`:
 
 Parallelism is worth less here than it looks: Roslyn already uses every core inside a single compile,
 so fixtures that compile at the same time contend rather than scale, and the non-parallel fixtures run
-one at a time beside nothing else.
+one at a time beside nothing else. That contention is why a fixture holds a budget no test can lose
+(`TestOptions.FixtureRender` and `FixtureCompile`, and the constants in `AspApplication`) rather than
+the shipped one: what it measures is a page, and the machine it measures it on is running eight
+fixtures and a `dotnet format`.
 
 What the budget tests cost is the budget itself, so they run a quarter of a second rather than the
 five a visitor gets: the behaviour under test is the deadline, not its length. `TimeoutSeconds` is a
