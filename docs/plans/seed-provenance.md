@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed — awaiting the owner's review. Nothing below is built |
+| Status | Approved 2026-11-15 — the owner accepted the plan and asked for it on `trunk`. Nothing below is built; the four questions at the end are still open |
 | Size | Large — a migration with two columns, one save-path fact, one pure verdict function and its words, one field on the page contract and one member removed, one shell action, an archive format version, a `seeds` command with two make targets, and the prose and tests for each. Slices 0 and 1 are small and independent; slice 2 is the bulk |
 | Spike | None. Every number and every claim below was measured on `trunk` at `1badddd`; the two places the design could fail are the revision hash (settled: it is an identity, see D1) and the archive reader (settled by the format's own version column) |
 | Decisions | None recorded yet. They are numbered from `trunk` at the merge (DEC-09); this branch refers to them by name |
