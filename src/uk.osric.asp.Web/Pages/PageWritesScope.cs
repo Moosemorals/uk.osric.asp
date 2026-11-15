@@ -12,7 +12,7 @@ using uk.osric.asp.Web.Editor;
 /// <para>
 /// The host offers this to every content layer and never to a layout. Which page asked is not part of
 /// the check: the authority is the signed-in visitor, and the reserved keys are the only pages the
-/// shell keeps out of reach. A layout is markup and is offered neither the read's write nor this.
+/// shell keeps out of reach.
 /// </para>
 /// <para>
 /// Authority is asymmetric with the catalog. An anonymous render is refused with a
