@@ -891,6 +891,18 @@ route that renders the stored message with the same profile as the reload.
 
 *Recorded in [markdown](plans/archive/markdown.md), [LinkPolicy](../src/uk.osric.asp.Core/Markdown/LinkPolicy.cs).*
 
+### pages-markdown-options-are-per-call
+
+A page chooses the renderer's features for one call: heading anchors, auto-links and pipe tables are
+each a boolean on `MarkdownOptions`, and `ToHtml(markdown, options)` renders that document with them
+while the shared capability stays immutable. Heading anchors are on by default, because a heading
+without an `id` cannot be linked to, and a repeated heading gets a numbered suffix so both anchors
+resolve. Markdig's auto-link option stays off, so `[Heading]` is not silently turned into a link. Raw
+HTML has no switch: the template can already write it, and an option that looked like it removed HTML
+would invite a page to trust the renderer with a visitor's text.
+
+*Recorded in [pages](pages.md#page-contract), [MarkdownOptions](../src/uk.osric.asp.Sdk/MarkdownOptions.cs), [MarkdownRenderer](../src/uk.osric.asp.Runtime/MarkdownRenderer.cs).*
+
 ### pages-diff
 
 The diff is the site's own line-based implementation: `LineDiff.Compare` trims the common prefix and

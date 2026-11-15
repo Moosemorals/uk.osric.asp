@@ -61,10 +61,10 @@ it closed the same day (`assistant-always-on`). BUG-19 came out of the owner's n
 chart counted its samples from the first one while its axis counted from the window's start, so a
 window wider than the data left the line at the left edge; it is closed
 (`metrics-a-chart-counts-from-its-window`). BUG-20 came out of the owner's note of the same day: a
-rendered Markdown heading had no anchor, and a page could not switch the renderer's features.
-IDEA-036 came out of the owner's seed-provenance note of the same day: a seed is identified by
-nothing, so a deploy cannot tell a page the release moved from a
-page the author edited, and nothing brings an edited seed back from the running site to the
+rendered Markdown heading had no anchor, and a page could not switch the renderer's features; it is
+closed (`pages-markdown-options-are-per-call`). IDEA-036 came out of the owner's seed-provenance note
+of the same day: a seed is identified by nothing, so a deploy cannot tell a page the release moved
+from a page the author edited, and nothing brings an edited seed back from the running site to the
 repository. Its plan is [seed provenance](../plans/seed-provenance.md). IDEA-037 to IDEA-043 came out of the
 owner's note of 2026-11-15 comparing the site's IDE plan (`/ide-plan`, a stored page that is not in this
 repository) with this list: of its twelve wishes, two were already here (IDEA-033 and IDEA-001), one was
@@ -79,7 +79,6 @@ fails to compile: the template language has an opener for everything except a no
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
-| [BUG-20](BUG-20.md) | Medium | S | A rendered heading has no anchor, and a page cannot choose the Markdown renderer's features |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
@@ -250,6 +249,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-17 | A long think is not cut off by its own duration: `Assistant:RequestTimeoutSeconds` is re-armed by every event the provider sends, a stall fails as `provider_timeout` with its own sentence, a message that stops at the output limit is stored `truncated`, and the transcript renders the run's own reason after the reload (`assistant-deadlines-bound-silence`). The failed-request log line a mid-run reload leaves behind is fixed by [the streaming plan](../plans/page-streaming.md): a disconnect during a write is a Debug-level end, not an unhandled exception |
 | BUG-18 | Save and view reads its command from the form for a POST and the query for a link, and a failed save stays on the editor with its diagnostics. Every human surface answers with a document: `Errors/ErrorResponses.cs` writes the shell or an RFC 9457 problem document by `Accept`, and `UseStatusCodePages` covers every status no endpoint described (`shell-nobody-is-handed-a-blank-failure`). See [the shell](../shell.md#error-responses) |
 | [BUG-19](../decisions.md) | A chart counts from its window, not from its first sample: `ChartTimeAxis` carries the window beside the ticks, `ChartSamples` no longer widens a span to hide the difference, a sample outside the window is cut at the edge rather than pinned to it, and a heatmap cell is placed at its bucket's instant and as wide as the step between buckets (`metrics-a-chart-counts-from-its-window`) |
+| [BUG-20](../decisions.md) | A Markdown heading carries an `id` derived from its text, with a numbered suffix for a repeat, and a page chooses heading anchors, auto-links and pipe tables per call with `MarkdownOptions`; raw HTML stays on (`pages-markdown-options-are-per-call`) |
 | OPS-02 | The health endpoint and its monitoring: `/heath` pings storage and reports abandoned renders, the quadlet probes it and restarts after three failures, and `/status` draws what Prometheus scraped. The alerting it named was always [OPS-05](OPS-05.md)'s (`pages-health-and-restarts`). See [deployment](../../deploy/operations.md#resource-limits-and-restarts) |
 | OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and `metrics-one-panel-per-instrument`, `metrics-a-series-is-identified-without-colour`, `metrics-a-chart-stands-alone` |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |

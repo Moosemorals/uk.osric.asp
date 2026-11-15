@@ -126,8 +126,9 @@ the build:
   sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (`pages-markdown`). A heading
   carries an `id` derived from its text, with a numbered suffix when two headings share one, so a page
   can link to a section. `MarkdownOptions` switches the three features per call — an option belongs to
-  the render, not to the shared capability — and `MarkdownOptions.Default` is the page profile. A
-  table's header cells carry `scope="col"` and no inline style.
+  the render, not to the shared capability — and `MarkdownOptions.Default` is the page profile
+  (`pages-markdown-options-are-per-call`). A table's header cells carry `scope="col"` and no inline
+  style.
 - `IDiffRenderer` renders the line changes between two documents with `ToHtml(before, after)`. It
   is pure and needs no `await`, and its result is written with `<%== %>`. Every source line is
   escaped, so unlike Markdown it is safe for a visitor's text, a fetched body or page state: the
