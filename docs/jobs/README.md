@@ -163,6 +163,7 @@ approval.
 | 9 | [Page first](../plans/page-first.md) — the rule and its audit; the memory capability it first proposed is withdrawn, and the gap a page actually has is IDEA-033 | S | — | merge | done |
 | 10 | [#closed](#closed) — page libraries: IDEA-005's shared-code half — a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | done |
 | 11 | [Seed provenance](../plans/archive/seed-provenance.md) — IDEA-036: a seed write records its hash, the host answers the verdict, `seeds` brings the pack home and `/admin/seed-apply` moves a release's seeds | L | 5 | the plan, then every slice | done |
+| 12 | [IDEA-043](IDEA-043.md) ([the plan](../plans/page-writes.md)) — the store's write offered to every page: `IPageEditor` and `IPageWriter` become `IPageWrites`, the authority is the visitor, and `Pages:Editor:Key` only says where the editor is served | M | 5 | the plan, then merge | in flight |
 
 The [assistant edit-safety plan](../plans/archive/assistant-edit-safety.md) landed between steps 5 and
 6 and is not a numbered job: it gives the edit tool its diff and line assertions, numbers the reads,
