@@ -19,6 +19,12 @@ SPDX-License-Identifier: MIT
 > entry point, compiled like a page and never served like a library. A job is one run of it, not a
 > page render: it has no document to write. The sketch is kept as the record of what the port still
 > has to answer, not as the shape of the work.
+>
+> **Built 2026-11-15.** The three connection primitives and the two kinds are in: a page can hold a
+> live response, relay an outbound line stream, and start, message, follow and cancel a worker job.
+> What is left is a port with its own plan and three gaps nothing in the page contract fills — see
+> [what the port still lacks](#what-the-port-still-lacks). None of them is a connection primitive, and
+> the largest is a question of authority rather than of capability.
 
 ## Idea
 
@@ -76,6 +82,92 @@ movable **yet**. This job is what would move it.
    `/status` because it is bootstrap (DEC-210). The run loop is a worker under
    [the page-apps plan](../plans/page-apps.md), so it is page code too; the question is only which
    route serves the view.
+
+## What the port still lacks
+
+Every item below is a fact about the page contract as it stands, not a preference. The first two
+record what the page-apps plan closed, so a reader can see the port's shape without reading the plan;
+the last three are what is still missing, and the fourth is the one that blocks the port.
+
+### 1. A view is not the problem any more
+
+The conversation list is a list and a form; the conversation page is a transcript, a textarea and a
+button; the approval card is a form. A page can already write all of it, and the two things it could
+not are now capabilities: `ctx.FlushAsync()` holds a response open past the render budget
+(`Pages:Stream` bounds it), and `IPageJobs` starts a worker, sends it a message, reads its events by
+sequence and cancels it. A run's progress is published events, which the view streams; a visitor who
+reloads finds the job again with `ListAsync`.
+
+### 2. A run is a job of a worker, and the worker is page code
+
+`RunWorker`, `RunProcessor`, `RunQueue` and `RunRegistry` are one worker: a stored source whose only
+blocks are declarations, declaring one public type implementing `IWorker`. The run's provider call is
+`IHttpFetch` — `StreamAsync` reads the response as decoded text lines, which is exactly what an SSE
+provider sends — and its credential is an operator-configured credential bound to the worker's key,
+so the provider token stops being an `Assistant:ApiKey` the shell holds and becomes a
+`Pages:Fetch:Credentials` entry the worker names. A job has no document, no layout and no session, so
+`IWorkerContext` is deliberately not an `IContext`; it has `ReceiveAsync` and `Publish`, which is the
+message-and-event pair the run loop already speaks.
+
+### 3. The transcript and memory need a store that belongs to an account
+
+This is [IDEA-033](IDEA-033.md) and it blocks both the conversation view and the memory view. A page's
+`IPageStorage` is shared by **every** visitor and `IPageSession` goes when the visitor signs out, so
+neither can hold one account's conversation. Memory is the assistant's own rows with FTS5 recall,
+versions, pins and provenance (DEC-291); a view of it needs the same account-scoped store, and a
+conversation needs it for its transcript. Until it exists, a ported page could show a transcript only
+to everyone; that is not the feature.
+
+The approval does **not** need it. A decision is a message to the running job, and a wait in
+`ReceiveAsync` pauses the job's silence clock while the ceiling still bounds it — which is the shape
+an approval needs, and it is available today. A decision that must survive a restart becomes a row in
+the account store, and that is IDEA-033 again.
+
+### 4. A worker cannot save a page, and the tools do
+
+`IPageWriter` saves the calling page and nothing else, and `IPageEditor` is offered to one key. A
+worker is offered neither (D14), so the assistant's page tools — which save, delete, restore and
+import pages the shell does not route — have no equivalent in page or job code. This is the authority
+question below.
+
+### 5. The restricted Markdown profile is shell-only
+
+`IMarkdownRenderer.ToHtml` is the **author** profile: CommonMark plus pipe tables and auto-links, with
+raw HTML passing through, because it renders the owner's own source. The assistant renders a model's
+reply with `MarkdownRenderer.ToRestrictedHtml`, a static on the concrete renderer that no capability
+exposes. A ported page that renders a reply through `IMarkdownRenderer` would pass a model's raw HTML
+into the document. That is the one piece of the port that is a renderer decision rather than a
+connection one, and it needs a decision of its own: a second capability, a profile argument on the
+existing one, or a seeded library the page opts into.
+
+## The authority question, for the owner
+
+**Not decided here.** This is the choice a port cannot be planned around until the owner makes it, and
+it is the largest authority in the port: a page writer at another key can rewrite any page the site
+serves, including the pages that describe the site.
+
+Today's authority is structural, not checked: `IPageWriter` is bound to `ctx.Path` and `IPageEditor` is
+registered for one key, so a page cannot name another page because the handle it is given is the only
+one it can use. The assistant's tools reach further because they are shell code holding a scoped
+`IPageStore`; DEC-198 removed the last allow-list and let them write every page the shell does not
+route.
+
+Three shapes, with what each costs:
+
+| Shape | What it means | What it costs |
+| --- | --- | --- |
+| **A worker writer, bound to one worker** | The capability is granted to the worker key named in configuration, and it may write the keys the assistant's tools may write. One configured worker has the authority and nothing else does. | The authority becomes a configuration value, so an operator can grant it — which is also its risk. The capability is a second writer shape beside `IPageWriter`, and its key set has to be decided (`Pages:Reserved` is the list it would subtract from). |
+| **`IPageWriter` grows a key** | Any page or worker may save any key the shell does not route. | Every page has the authority the assistant has, so the assistant page is no longer special and a mistake in any page is a site-wide rewrite. This is the shape the structural rule exists to prevent. |
+| **Keep the tools in the shell** | The port stops at the view and the run: the assistant keeps its endpoint for the edits, or the tools stay shell-only and a page calls a route. | The port is partial, and the page contract keeps a hole that is now visible — the run is page code and the edits are not. |
+
+The recommendation, if the owner wants one: **the first**. It is the only shape that keeps the
+authority structural — a handle that can only be obtained for the configured key — and it mirrors
+DEC-190's "no owner argument" rule rather than inventing a checked permission. It also means a worker
+that streams a reply and a worker that edits a page are different workers, which is a fair thing to
+make an operator say out loud.
+
+Whichever shape is chosen, the decision is written down before the port is planned, because the port's
+plan cannot be phased without knowing whether a job may write.
 
 ## What would make it unnecessary
 

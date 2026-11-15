@@ -121,7 +121,7 @@ approval.
 | 5 | [Page editor](../plans/archive/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | done |
 | 6 | [ARCH-16](#closed) — one read seam for the assistant's tools and its applets | M | 5, edit safety | merge | done |
 | 7 | [Pages can stream](../plans/page-streaming.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | done |
-| 8 | [IDEA-025](IDEA-025.md) — the shell an app needs ([the plan](../plans/page-apps.md)): a long stream, an outbound stream, a worker kind and jobs; the assistant port is later | L | 6, 7 | the plan, then every phase | in flight |
+| 8 | [IDEA-025](IDEA-025.md) — the shell an app needs ([the plan](../plans/page-apps.md)): a long stream, an outbound stream, a worker kind and jobs. The assistant port is later, and it still needs the authority question in that job answered | L | 6, 7 | the plan, then every phase | phases 0–5 built, awaiting merge |
 | 9 | [Page first](../plans/page-first.md) — the rule and its audit; the memory capability it first proposed is withdrawn, and the gap a page actually has is IDEA-033 | S | — | merge | done |
 | 10 | [#closed](#closed) — page libraries: IDEA-005's shared-code half — a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | done |
 
@@ -151,6 +151,14 @@ capability, which is the specialist capability the memory work had just taught t
 that outlives the render budget, an outbound body read as it arrives, and work that outlives the
 request as a fourth kind, the worker, and a job — and leaves the assistant in the shell until the port
 has its own plan and the authority question in that plan is answered.
+
+All six phases of that plan are built. A page can hold a live response past the render budget, relay
+an outbound text stream, and start a worker as a job it can message, follow and cancel; a worker is
+the fourth page kind, compiled when it is saved and never served. The port is now a step of its own,
+and [IDEA-025](IDEA-025.md) names what it still lacks: an account-scoped store for the transcript and
+memory ([IDEA-033](IDEA-033.md)), a restricted Markdown profile a page can reach, and the page-store
+write authority the tools need — which is a decision for the owner, written down there with its
+options rather than taken by this programme.
 
 **IDEA-026 had no data gate.** Its sketch made the query the gate, and the decision was to remove
 the alias without running it. The cost of being wrong is a stored page that no longer compiles:

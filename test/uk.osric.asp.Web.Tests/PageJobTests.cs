@@ -322,6 +322,58 @@ public sealed class PageJobTests {
     }
 
     [Test]
+    public async Task AWorkerWhoseLibraryMovedIsRebuiltBeforeItRunsAsync() {
+        const string Library = """
+            <%!
+            namespace Site.Thing {
+                public static class Greeting {
+                    public static string Value() => "one";
+                }
+            }
+            %>
+            """;
+        const string Worker = """
+            <%!
+            using System.Threading.Tasks;
+            using Site.Thing;
+
+            namespace Site.Work {
+                public sealed class Uses : IWorker {
+                    public Task RunAsync(IWorkerContext context) {
+                        context.Publish("value", Greeting.Value());
+                        return Task.CompletedTask;
+                    }
+                }
+            }
+            %>
+            """;
+        using PageHarness pages = new(new FakePageStore());
+        _ = await SaveAsync(pages, "/_lib/thing", Library);
+        _ = await SaveAsync(pages, WorkerPath, Worker);
+        await pages.StartJobsAsync();
+
+        PageJobStart first = await StartAsync(pages, "/starter", WorkerPath, null);
+        _ = await WaitForEndAsync(pages, first.Id!);
+        PageJobEvents before = await pages.Jobs.ReadEventsAsync(
+            first.Id!, 0, TimeSpan.Zero, Owner, CancellationToken.None);
+
+        // The library moves after the worker was compiled, so the stored image is stale by closure.
+        _ = await SaveAsync(pages, "/_lib/thing", Library.Replace("\"one\"", "\"two\"", StringComparison.Ordinal));
+
+        PageJobStart second = await StartAsync(pages, "/starter", WorkerPath, null);
+        PageJobInfo info = await WaitForEndAsync(pages, second.Id!);
+        PageJobEvents after = await pages.Jobs.ReadEventsAsync(
+            second.Id!, 0, TimeSpan.Zero, Owner, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(before.Events.Single().Data, Is.EqualTo("one"));
+            Assert.That(info.State, Is.EqualTo(PageJobState.Completed));
+            Assert.That(after.Events.Single().Data, Is.EqualTo("two"),
+                "a worker whose library moved is compiled again before it runs");
+        });
+    }
+
+    [Test]
     public async Task AWorkerIsOfferedNoRendererAsync() {
         using PageHarness pages = new(new FakePageStore());
         await StoreAsync(pages, RendererCheck);

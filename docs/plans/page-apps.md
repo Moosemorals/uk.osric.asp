@@ -513,18 +513,24 @@ The suites follow the phases; every behaviour is a NUnit test, named for the beh
 - `Web.IntegrationTests/PageStreamingTests` — the real host: a page that burns past the render timeout
   *after* a flush is served; one that burns past it *before* a flush answers `504`; a stream that goes
   quiet is truncated; `HEAD` still commits with no body; a client that leaves stops the page.
-- `Web.Tests/PageFetchTests` (or a new `PageFetchStreamTests`) — the line reader, the caps, the
-  credential and redirect rules.
+- `Web.Tests/PageFetcherTests` — the line reader, the caps, the credential and redirect rules, and the
+  byte cap's two endings: a body cut short is `Truncated`, and one that ends exactly at the cap is not.
 - `Web.IntegrationTests/PageFetchTests` — a scripted `IPageFetcher` answers a stream, and a page relays
   it through a real flush.
-- `Web.IntegrationTests/PageWorkerTests` — a worker is compiled at save, answers `404`, is never an
-  asset and is not a closure candidate for a page; a worker whose library moved is rebuilt.
-- `Runtime.Tests/PageCompilerTests` — a worker compiles with its closure, exactly one entry point, and
-  its policy violations are its own lines.
-- `Web.IntegrationTests/PageJobTests` — a worker starts, is sent a message, is found after a reload,
-  observes, waits, cancels, refuses, isolates, writes the starting page's storage and has no response
-  at all.
-- `Web.Tests/PageApiPolicyTests` — a page that names the new Sdk types compiles; `Task.Delay`,
+- `Web.Tests/PageSaverTests`, `PageEndpointTests`, `PageCatalogScopeTests` and `PageImageStateTests` —
+  the worker kind where each decides something: stored with its image and its library fingerprint, a
+  page or library naming one, `404` with and without `?v=`, the `IsWorker` mark and the state words.
+- `Runtime.Tests/PageWorkerTests` — a declaration-only source that stays a library, one entry point
+  that is emitted and loaded, two, a non-public one, one with no parameterless constructor, and a
+  worker compiled with the library it names. `PageApiPolicyTests` proves a worker declaration compiles
+  under the policy.
+- `Web.Tests/PageJobTests` — a worker starts, is sent a message, waits past the silence clock but not
+  past the ceiling, is cut for never publishing, is cancelled at its next await, throws, fails to
+  compile, is rebuilt when its library moved, writes the starting page's storage, and is offered no
+  renderer; the refusals, another visitor's job being unknown, a full queue, and the journal's reset.
+  `PageJobRenderTests` proves what a render is offered of the capability, and
+  `Web.IntegrationTests/PageJobTests` the whole path through the real host.
+- `Runtime.Tests/PageApiPolicyTests` — a page that names the new Sdk types compiles; `Task.Delay`,
   `ValueTask` and `IAsyncEnumerable` stay denied until a decision says otherwise.
 
 The browser suite gains nothing: every behaviour here is provable through the real host with an HTTP
@@ -615,8 +621,9 @@ client.
   section, and a new section each for the outbound stream and jobs.
 - `docs/architecture.md` — configuration's new sections, and the audit if a route changes (it should
   not: this plan adds capabilities and a kind, not views).
-- `docs/metrics.md` — `page.stream.duration`, the `worker` compile reason, and the correction to the
-  render histogram's top-bucket sentence.
+- `docs/metrics.md` — `page.stream.duration`, and the reason list `page.compile.duration` carries
+  (`save`, `lazy`, `import`). There is no `worker` reason: the tag answers *why* a compile happened,
+  and a worker's rebuild happens because its image was stale, which is `lazy`.
 - `docs/logging.md` — a job's start, end and reason; a message is never logged; no prompt, transcript
   or memory in a log line.
 - `docs/storage.md` — the fourth `TemplateKind` value, and that jobs and their events are not stored.

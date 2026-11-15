@@ -18,7 +18,7 @@ the other half of the same question and live in [logging](logging.md).
 | `page.render.wait` | histogram | s | — time spent waiting for a render slot; site-wide, not per page |
 | `page.stream.duration` | histogram | s | `page.path`, `outcome` (`completed`, `silence`, `ceiling`, `client-left`, `error`) — the committed life of a streamed response |
 | `page.render.abandoned` | counter | — | `page.path` — renders given up on at the deadline |
-| `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`) |
+| `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`, `import`) |
 | `page.load.duration` | histogram | s | `page.path` |
 | `page.invoke.duration` | histogram | s | `page.path`, `outcome` |
 | `page.save.duration` | histogram | s | `page.path`, `outcome` |
@@ -60,7 +60,9 @@ add a request-duration metric of our own. A streamed render is measured twice on
 nested. A run's duration is wall-clock, so it includes the time an
 approval or a continuation waited for its owner, as `assistant.run.duration` always has. On a cache
 miss `page.compile.duration` is a subset of
-`page.render.duration`; never add the two together. `page.path` is bounded by the number of stored
+`page.render.duration`; never add the two together. The `reason` tag says why the compile happened,
+not what was compiled: a worker is compiled on save like a page, and rebuilt on its next job because
+its library moved, which is `lazy`. There is no `worker` reason, and a compile is not split by kind. `page.path` is bounded by the number of stored
 pages, which is small — if that ever stops being true, drop the tag and keep the path in logs.
 Recording costs nothing until an exporter listens, so the instruments are always on. For a quick
 look while the site runs: `dotnet-counters monitor --counters uk.osric.asp.Pages <pid>`.
