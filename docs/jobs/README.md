@@ -55,13 +55,16 @@ analyzers work turned the XML documentation on and the image carries it, and not
 closed the same day by [its plan](../plans/xml-reference.md) (DEC-302). IDEA-035 came out of the
 same day's follow-up question about removing `Assistant:Enabled`: four
 places read the flag, but the key rule is what the tests and the deployment actually depend on, and
-it closed the same day (DEC-301).
+it closed the same day (DEC-301). BUG-19 came out of the owner's note of 2026-11-15: a chart counts
+its samples from the first one while its axis counts from the window's start, so a window wider than
+the data leaves the line at the left edge.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
+| [BUG-19](BUG-19.md) | Medium | S | A chart wider than its data draws the line from the left edge rather than at the samples' instants |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
@@ -158,7 +161,8 @@ Not in this programme: [OPS-03](OPS-03.md) is the obvious next candidate once th
 empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
 [IDEA-001](IDEA-001.md) wants a third-party editor; [IDEA-020](IDEA-020.md) records why a
 destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7
-touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page; and
+touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page; [BUG-19](BUG-19.md) is a
+chart that misplaces its samples when its window is wider than its data; and
 [IDEA-033](IDEA-033.md) wants a plan and a named first customer before it is a step.
 
 ## Closed
