@@ -15,6 +15,23 @@ public sealed class PageMarkdownRenderTests {
         """;
 
     [Test]
+    public async Task APageChoosesTheMarkdownFeaturesItWantsAsync() {
+        using PageHarness pages = new(new FakePageStore());
+        await pages.StoreCompiledAsync("/markdown", """
+            <% IMarkdownRenderer markdown = ctx.Capabilities.GetRequired<IMarkdownRenderer>(); %>
+            <%== markdown.ToHtml("## Heading", MarkdownOptions.Default with { HeadingAnchors = false }) %>
+            """);
+
+        (RenderResult result, string output) = await pages.RenderAsync("/markdown");
+
+        Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
+        Assert.Multiple(() => {
+            Assert.That(output, Does.Contain("<h2>Heading</h2>"));
+            Assert.That(output, Does.Not.Contain("id="));
+        });
+    }
+
+    [Test]
     public async Task APageRendersMarkdownThroughTheCapabilityAsync() {
         using PageHarness pages = new(new FakePageStore());
         await pages.StoreCompiledAsync("/markdown", MarkdownPage);
@@ -23,7 +40,7 @@ public sealed class PageMarkdownRenderTests {
 
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.Multiple(() => {
-            Assert.That(output, Does.Contain("<h2>Heading</h2>"));
+            Assert.That(output, Does.Contain("<h2 id=\"heading\">Heading</h2>"));
             Assert.That(output, Does.Contain("<strong>bold</strong>"));
             Assert.That(output, Does.Contain("<a href=\"/about\">about</a>"));
             Assert.That(output, Does.Contain("<th scope=\"col\">Name</th>"));

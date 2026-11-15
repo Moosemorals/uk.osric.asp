@@ -370,3 +370,20 @@ uk.osric.asp.Sdk.PageJobState.Running = 1 -> uk.osric.asp.Sdk.PageJobState
 ~override uk.osric.asp.Sdk.PageJobSendResult.ToString() -> string
 ~override uk.osric.asp.Sdk.PageJobStart.Equals(object obj) -> bool
 ~override uk.osric.asp.Sdk.PageJobStart.ToString() -> string
+override uk.osric.asp.Sdk.MarkdownOptions.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.MarkdownOptions.GetHashCode() -> int
+override uk.osric.asp.Sdk.MarkdownOptions.ToString() -> string!
+static uk.osric.asp.Sdk.MarkdownOptions.operator !=(uk.osric.asp.Sdk.MarkdownOptions? left, uk.osric.asp.Sdk.MarkdownOptions? right) -> bool
+static uk.osric.asp.Sdk.MarkdownOptions.operator ==(uk.osric.asp.Sdk.MarkdownOptions? left, uk.osric.asp.Sdk.MarkdownOptions? right) -> bool
+uk.osric.asp.Sdk.IMarkdownRenderer.ToHtml(string! markdown, uk.osric.asp.Sdk.MarkdownOptions! options) -> string!
+uk.osric.asp.Sdk.MarkdownOptions
+uk.osric.asp.Sdk.MarkdownOptions.<Clone>$() -> uk.osric.asp.Sdk.MarkdownOptions!
+uk.osric.asp.Sdk.MarkdownOptions.AutoLinks.get -> bool
+uk.osric.asp.Sdk.MarkdownOptions.AutoLinks.init -> void
+static uk.osric.asp.Sdk.MarkdownOptions.Default.get -> uk.osric.asp.Sdk.MarkdownOptions!
+uk.osric.asp.Sdk.MarkdownOptions.Equals(uk.osric.asp.Sdk.MarkdownOptions? other) -> bool
+uk.osric.asp.Sdk.MarkdownOptions.HeadingAnchors.get -> bool
+uk.osric.asp.Sdk.MarkdownOptions.HeadingAnchors.init -> void
+uk.osric.asp.Sdk.MarkdownOptions.MarkdownOptions() -> void
+uk.osric.asp.Sdk.MarkdownOptions.PipeTables.get -> bool
+uk.osric.asp.Sdk.MarkdownOptions.PipeTables.init -> void
