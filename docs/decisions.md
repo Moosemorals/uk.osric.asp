@@ -57,6 +57,13 @@ landed, and nothing is added for a change that decided nothing.
 cited from code, commits, plans and the manual, and a reader has to be able to find it. A poor name is
 cheaper than a broken id.
 
+**The check is mechanical.** `make decisions` reads this file and fails on a name that is not lowercase
+and hyphenated, a name that does not begin with one of the areas above, a name used twice, an entry with
+no "Recorded in" line, a retired name that is also an entry, and any document that cites a decision this
+file does not have. `make check` runs it, so the names cannot drift from the record. A token that is
+shaped like a name and is not one — a make target, a DOM id, the counter-examples below — is listed in
+`tools/check-decisions/ignore.txt`, and a line there that nothing cites fails the check too.
+
 **A clash is a signal, not a mistake.** Numbers collide because two people counted in private; names
 collide because two decisions claimed one subject. The area bounds the space and the subject narrows
 it, so a repeated heading means one of two things, and the merge decides which:
@@ -1092,13 +1099,22 @@ failed write leaves nothing applied.
 
 *Recorded in [import and export](plans/archive/page-import-export.md).*
 
-### pages-a-page-is-one-of-three-kinds
+### pages-have-kinds
 
-A source is one of three kinds — **text**, **page**, **library** — judged from its tokens by generation
-and stored on the revision as `PageKind`. A kind is a property of the source rather than of the key, so
-editing a page can change what it is and there is no configuration for it. A library is the shape rule's
-subject: declaration blocks only, at least one type in a namespace, no handler, no assembly attributes and
-no statements.
+Every stored source has a kind, judged from its tokens by generation and stored on the revision as
+`PageKind`, with the compiler refining the verdict where only compiling can tell a library from a
+worker. The kind belongs to the source rather than to the key, so editing a page can change what it is
+and there is no configuration for it.
+
+- **text** is literal text: served as written, never compiled.
+- **page** is a template with something to render: compiled to an image and served.
+- **library** is declaration blocks only — at least one type in a namespace, no handler, no assembly
+  attributes and no statements — compiled into whatever names it and never served.
+- **worker** is declaration blocks that declare one `IWorker`, compiled to an entry point and run by a
+  job.
+
+This entry is the set. What each kind is and may do is the entry named for it, so a new kind adds an
+entry beside them rather than a count changed here.
 
 *Recorded in [page libraries](plans/page-libraries.md#d1--the-verdict-is-one-kind-not-a-second-flag), [PageKind](../src/uk.osric.asp.Core/Pages/PageKind.cs).*
 
@@ -1130,9 +1146,9 @@ spends more time compiling than running, or an image that is mostly library.
 
 ### pages-a-worker-is-a-kind
 
-A worker is a fourth page kind. A stored source is **text**, **page**, **library** or **worker**: a worker
-is declaration-only like a library, but it declares exactly one public type implementing `IWorker` with a
-parameterless constructor and is compiled to an entry-point image when it is saved. Generation can only
+A worker is a kind of its own. It is declaration-only like a library, but it declares exactly one public
+type implementing `IWorker` with a parameterless constructor and is compiled to an entry-point image when
+it is saved. Generation can only
 see that a source has declarations and nothing to render, so it still answers library; the compiler
 refines the verdict from the compiled types and reports two entry points, a non-public one or an
 unconstructible one as `PAGE006`. A worker is never served, never wrapped and never an asset: one

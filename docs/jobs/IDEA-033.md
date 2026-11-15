@@ -65,7 +65,7 @@ Why one namespace per account:
    the split between one type and a read/write pair is one of the questions below.
 
 2. **The schema is declared by the page.** The starting point is a declaration that generation already
-   sees, like a library's shape rule (`pages-a-page-is-one-of-three-kinds`): a table is a type the page declares, with its columns as
+   sees, like a library's shape rule (`pages-have-kinds`): a table is a type the page declares, with its columns as
    properties, so the schema comes from the source and a restore restores it.
 
    ```csharp

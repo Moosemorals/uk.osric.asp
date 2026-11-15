@@ -287,7 +287,7 @@ running while `GetAsync` returns `null` knows the host restarted.
 
 ## Assets and versioned URLs
 
-Every stored revision is one of four kinds, judged from its source and stored beside it
+Every stored revision has a kind, judged from its source and stored beside it
 (`PageKind`): **text** (no C#), **page** (C# that renders), **library** (only declaration blocks, for
 other sources to name) and **worker** (only declaration blocks, declaring one entry point a page
 starts). A kind is a property of the source rather than of the key, so editing a page can change what

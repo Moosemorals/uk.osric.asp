@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waiting for the owner. The record, the policy, the second pass, the rewritten citations and the archive move are on the branch; nothing is merged |
+| Status | Proposed 2026-11-15 — waiting for the owner. The areas and the density are accepted and the check is built: the record, the policy, the rewritten citations, the archive move and `make decisions` are on the branch; nothing is merged |
 | Size | Large as a reading task, mechanical as a change: one new document of 144 entries, the old record archived under `docs/archive/` with its links rewritten, the policy restated in three places, and 1,135 citations rewritten to names across 111 files. No code |
 | Spike | None. The numbers below were counted on `trunk`: 297 body entries and 31 superseded rows in the old `docs/decisions.md`, now `docs/archive/decisions.md`, 24,362 words, and 1,135 citations of a `DEC-` id in 111 files once the frozen file and this map are set aside |
 | Decisions | The policy itself is the decision this plan records, and it is not numbered: it is `product-decisions-have-names` in the new record, and it replaces the numbering rule it was written under |
-| Backlog | A `make decisions` check — unique names, names inside the area list, citations that name an entry — is the obvious next step and is not in this one |
+| Backlog | None. The `make decisions` check that was this plan's next step is in this one |
 
 ## The short version
 
@@ -211,7 +211,7 @@ replaced them: **36** to `pages-a-page-may-declare-types`; **89** and **113** to
 | pages-build-info | DEC-199 |
 | pages-page-first | DEC-175, DEC-210 |
 | pages-an-archive-is-a-database | DEC-139 |
-| pages-a-page-is-one-of-three-kinds | DEC-283 |
+| pages-have-kinds | DEC-283 |
 | pages-a-library-is-named-by-a-using | DEC-284, DEC-285, DEC-286, DEC-287, DEC-289 |
 | pages-a-worker-is-a-kind | DEC-310, DEC-311, DEC-318 |
 | pages-jobs-run-a-worker-for-the-page | DEC-312, DEC-313, DEC-316 |
@@ -331,7 +331,7 @@ commit message, an old plan or a doc comment are still a reader's way in.
 
 The map is the table above. A name replaces each id, a range expands to the names of the ids inside it,
 and a link to a decision's row becomes the name in backticks — so `DEC-269–DEC-273` becomes
-`assistant-edit-page-is-safe`, `pages-template-shape-check`, and `(DEC-257)` becomes
+`assistant-edit-page-is-safe`, `pages-the-shape-check`, and `(DEC-257)` becomes
 `(`pages-the-api-policy`)`. 1,135 citations in 111 files were rewritten that way, archived plans
 included: a plan that names the decision it recorded is more useful with a name that still points at a
 rule than with a number that only points at a frozen file.
@@ -350,21 +350,35 @@ Three things were not mechanical, and were done by hand:
 What is left saying `DEC-` is deliberate: the frozen file, this plan's map, the collision paragraph, and
 the paragraph in `decisions.md` that explains what it replaced.
 
+## The check
+
+`make decisions` runs `tools/check-decisions`, which reads `docs/decisions.md` as a record rather than as
+prose. The area list comes out of the file's own "What a name is" bullets, so an area is added in one
+place and the check follows it without being told. It fails on:
+
+- a heading that is not a lowercase hyphenated name,
+- a name whose first word is not one of the areas, or an entry sitting under a section that is neither,
+- a name used twice,
+- an entry with no "Recorded in" line,
+- a retired name that is also an entry,
+- a document citing a decision that is not in the record.
+
+A token shaped like a name and not one — a make target, a DOM id, a shell view name, the policy's own
+counter-examples — is declared in `tools/check-decisions/ignore.txt`, and an entry there that nothing
+cites any more fails the check, so the list cannot grow a name that was real. It found a defect before it
+was wired into anything: this prose named the shape check with one word too many, and the record's entry
+is `pages-the-shape-check`.
+
+`make decisions` sits in `make check` after `audit` and before `check-pages`. Each thing it checks was
+broken on purpose in a copy of the record and each was reported, which is the only evidence a check can
+offer.
+
 ## What this step does not do
 
-- **No check.** A `make decisions` target or a small tool that fails on a duplicate name, a name outside
-  the area list, or a citation that names no entry would make the clash rule mechanical instead of
-  remembered. It is the next step, and this one is the record to check.
 - **No deletion of the old record.** It is archived at `docs/archive/decisions.md`, not removed.
 
-## Open questions for the owner
+## Settled
 
-1. **The area list.** Nine areas: `product`, `code`, `pages`, `shell`, `auth`, `assistant`, `deploy`,
-   `metrics` — and no `storage`, whose decisions are all a page's or the assistant's. Is that the right
-   grain, or is `pages` (69 of the 144) doing too much work?
-2. **The condensation.** 297 entries to 144, and 24,362 words to 18,989. Every entry is now a heading
-   with a rule under it rather than a row with a paragraph in a cell. If that is not far enough, the
-   next pass is to drop the entries whose rule is stated in full by the linked document and pinned by a
-   test; say so and it is a different, shorter record.
-3. **The check, now or later.** The policy is a convention until something enforces it. I would land
-   the record first and the check next, so the check is written against a file that is already right.
+The owner answered the three questions this plan carried on 2026-11-15: the areas are the eight as
+written, the density is enough, and the check should exist now rather than next. Nothing is open here;
+the branch waits for the merge.
