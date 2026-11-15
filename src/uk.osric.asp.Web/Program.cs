@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using System.Net;
@@ -47,8 +48,10 @@ internal class Program {
 
     private static async Task RunAsync(string[] args) {
         bool isUserCommand = UserCommands.IsCommand(args);
+        bool isSeedsCommand = SeedCommands.IsCommand(args);
+        bool isCommand = isUserCommand || isSeedsCommand;
         WebApplicationBuilder builder = WebApplication.CreateBuilder(
-            isUserCommand ? [] : args);
+            isCommand ? [] : args);
 
         // The site is behind Caddy; nothing on this hop needs to advertise the server that ran it.
         builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
@@ -67,7 +70,14 @@ internal class Program {
             options.JsonWriterOptions = new JsonWriterOptions { Indented = false };
         });
 
-        if (isUserCommand) {
+        if (isSeedsCommand) {
+            // A pull's result is a tar and stdout is where it goes. One log line landing there would
+            // corrupt the archive, so every entry is written to standard error instead.
+            builder.Services.Configure<ConsoleLoggerOptions>(
+                options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+        }
+
+        if (isCommand) {
             // The command's output is its result; migration chatter belongs in the log, not on stdout.
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
             builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
@@ -203,6 +213,7 @@ internal class Program {
               services.GetRequiredService<PageReadOptions>(),
               services.GetRequiredService<IPageStateStore>(),
               services.GetRequiredService<IPageReadStore>(),
+              services.GetRequiredService<PageSeeds>(),
               services.GetRequiredService<PageSaver>(),
               services.GetRequiredService<IPageFetcher>(),
               services.GetRequiredService<PageMetrics>(),
@@ -245,6 +256,7 @@ internal class Program {
             services.GetRequiredService<IPageFetcher>(),
             services.GetRequiredService<PageFetchOptions>(),
             services.GetRequiredService<IPageReadStore>(),
+            services.GetRequiredService<PageSeeds>(),
             services.GetRequiredService<PageReadOptions>(),
             services.GetRequiredService<ReservedPaths>(),
             services.GetRequiredService<PageContentTypes>(),
@@ -255,6 +267,7 @@ internal class Program {
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PagePathPolicy>();
+        builder.Services.AddSingleton(new PageSeeds(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds")));
         builder.Services.AddSingleton<PageSaver>();
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton<PageToolExecutor>();
@@ -337,19 +350,28 @@ internal class Program {
             // in flight are closed out before anything can answer for them.
             IConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IConversationStore>();
             await assistantConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
-            IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
-            IReadOnlyList<PagePath> replaced = await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
-            foreach (PagePath key in replaced) {
-                app.Logger.LogWarning(
-                    "Replaced the stored {Key} seed: it named PageDocument, which the page contract no longer has. The revision it replaced is in the page's history",
-                    key.Key);
+            int repaired = await PageContentHashRepair.RunAsync(database, app.Lifetime.ApplicationStopping);
+            if (repaired > 0) {
+                app.Logger.LogInformation(
+                    "Repaired the content hash of {Pages} page(s) written before seed provenance", repaired);
             }
+
+            IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
+            await PageAssetSeeder.SeedAsync(
+                pages, scope.ServiceProvider.GetRequiredService<PageSeeds>(), app.Lifetime.ApplicationStopping);
         }
 
-        if (isUserCommand) {
+        if (isCommand) {
             await using (app) {
-                Environment.ExitCode = await UserCommands.RunAsync(
-                    args[1..], app.Services, app.Lifetime.ApplicationStopping);
+                if (isSeedsCommand) {
+                    using Stream output = Console.OpenStandardOutput();
+                    Environment.ExitCode = await SeedCommands.RunAsync(
+                        args[1..], app.Services, output, Console.Error, app.Lifetime.ApplicationStopping);
+                } else {
+                    Environment.ExitCode = await UserCommands.RunAsync(
+                        args[1..], app.Services, app.Lifetime.ApplicationStopping);
+                }
+
                 return;
             }
         }
@@ -447,6 +469,11 @@ internal class Program {
         app.MapGet("/admin/restore", RestoreEndpoint.PreviewAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/admin/restore", RestoreEndpoint.RestoreAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/admin/seed-apply", ApplySeedsEndpoint.PreviewAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/admin/seed-apply", ApplySeedsEndpoint.ApplyAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         app.MapGet("/admin/export", ExportEndpoint.ListAsync)

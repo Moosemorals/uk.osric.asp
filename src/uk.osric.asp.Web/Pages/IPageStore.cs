@@ -46,6 +46,16 @@ internal interface IPageStore {
     /// <param name="cancellationToken">Cancels the write.</param>
     Task SavePageAsync(PageTemplate template, CancellationToken cancellationToken = default);
 
+    /// <summary>Records the shipped seed as installed, without storing a revision.</summary>
+    /// <param name="path">The canonical key.</param>
+    /// <param name="seedHash">The hash of the seed the page's content already equals.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <returns>
+    /// True when the row recorded the seed; false when the page is missing, deleted or its content
+    /// is no longer exactly the seed, so the caller must read it again.
+    /// </returns>
+    Task<bool> AdoptSeedAsync(PagePath path, string seedHash, CancellationToken cancellationToken = default);
+
     /// <summary>Saves a revision only when the current live head still has the expected hash.</summary>
     /// <param name="template">The new template and the image built from it.</param>
     /// <param name="expectedHash">The current head hash the caller read.</param>

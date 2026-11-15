@@ -1,0 +1,38 @@
+/* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
+/* SPDX-License-Identifier: MIT */
+
+/* The sheet /sortable.js needs, and nothing a table's own page should be deciding: that
+   a header is clickable, where the focus ring goes, and which way the arrow points. No
+   colours, borders or padding, so it sits over whatever a page already gives its tables.
+   The arrow is decoration - the direction is in the header's aria-sort for a reader who
+   never sees the glyph. */
+
+table.sortable th[scope="col"]:not([data-sort="off"]) {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Drawn inside the cell so it cannot be clipped by a heading that fills its column. */
+table.sortable th[scope="col"]:not([data-sort="off"]):focus-visible {
+    outline: 2px solid #005fa3;
+    outline-offset: -2px;
+}
+
+/* The same vocabulary aria-sort uses: nothing sorted, ascending, descending. The gap
+   keeps the glyph off the last letter of a long heading. A column that says
+   data-sort="off" has neither arrow nor pointer, because nothing will sort it. */
+table.sortable th[scope="col"]:not([data-sort="off"])::after {
+    content: "⇅";
+    padding-inline-start: 0.4em;
+    opacity: 0.55;
+}
+
+table.sortable th[scope="col"].sorted::after {
+    content: "↑";
+    opacity: 1;
+}
+
+table.sortable th[scope="col"].sorted.reverse::after {
+    content: "↓";
+    opacity: 1;
+}

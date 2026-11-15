@@ -14,6 +14,8 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class ExportEndpointTests {
 
+
+
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
 
     private FakePageStateStore _state = new();
@@ -153,7 +155,7 @@ public sealed class ExportEndpointTests {
     private static async Task<string> ListAsync(FakePageStore store) {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/export");
 
-        await ExportEndpoint.ListAsync(context, store, Reserved, new TestAntiforgery());
+        await ExportEndpoint.ListAsync(context, store, Reserved, TestOptions.Seeds, new TestAntiforgery());
 
         return await TestHttp.ReadBodyAsync(context);
     }

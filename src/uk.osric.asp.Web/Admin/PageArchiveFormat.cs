@@ -22,8 +22,13 @@ internal static class PageArchiveFormat {
     /// <summary>The <c>application_id</c> every archive carries: the bytes <c>uoas</c>.</summary>
     public const uint ApplicationId = 0x756F6173;
 
-    /// <summary>The format version this build writes and accepts.</summary>
-    public const int Version = 1;
+    /// <summary>The format version this build writes.</summary>
+    /// <remarks>
+    /// Version 2 adds <c>SeedHash</c>; a version 1 archive is still read, with no provenance on any
+    /// key. A version 2 archive cannot be read by a build that knows only version 1, which is the
+    /// right way round: the older build refuses the file instead of silently dropping the anchor.
+    /// </remarks>
+    public const int Version = 2;
 
     /// <summary>The table holding one row per page.</summary>
     public const string PagesTable = "Pages";
@@ -37,6 +42,15 @@ internal static class PageArchiveFormat {
     /// exactly as stored. <c>WITHOUT ROWID</c> because the key is the whole row identity.
     /// </remarks>
     public const string CreatePages = """
+        CREATE TABLE "Pages" (
+            "Path"     TEXT NOT NULL PRIMARY KEY,
+            "Source"   TEXT NOT NULL,
+            "SeedHash" TEXT
+        ) WITHOUT ROWID
+        """;
+
+    /// <summary>The version 1 table, which carries source and nothing else.</summary>
+    public const string CreatePagesV1 = """
         CREATE TABLE "Pages" (
             "Path"   TEXT NOT NULL PRIMARY KEY,
             "Source" TEXT NOT NULL
@@ -57,11 +71,20 @@ internal static class PageArchiveFormat {
         ) WITHOUT ROWID
         """;
 
-    /// <summary>The columns <see cref="PagesTable"/> must have, in order.</summary>
-    public static IReadOnlyList<ArchiveColumn> PagesColumns { get; } = [
-        new("Path", NotNull: true, PrimaryKey: 1),
-        new("Source", NotNull: true, PrimaryKey: 0),
-    ];
+    /// <summary>The columns <see cref="PagesTable"/> must have for a format version, in order.</summary>
+    /// <param name="version">The archive's <c>user_version</c>, which must be 1 or 2.</param>
+    public static IReadOnlyList<ArchiveColumn> PagesColumns(int version) => version switch {
+        1 => [
+            new("Path", NotNull: true, PrimaryKey: 1),
+            new("Source", NotNull: true, PrimaryKey: 0),
+        ],
+        2 => [
+            new("Path", NotNull: true, PrimaryKey: 1),
+            new("Source", NotNull: true, PrimaryKey: 0),
+            new("SeedHash", NotNull: false, PrimaryKey: 0),
+        ],
+        _ => [],
+    };
 
     /// <summary>The columns <see cref="PageStateTable"/> must have, in order.</summary>
     public static IReadOnlyList<ArchiveColumn> PageStateColumns { get; } = [

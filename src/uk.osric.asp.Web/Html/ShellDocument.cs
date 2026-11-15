@@ -143,8 +143,13 @@ internal static class ShellDocument {
     /// <summary>Closes the landmark <see cref="OpenMain"/> opened.</summary>
     public static string CloseMain() => "</main>";
 
+    /// <summary>The footer every document carries, matching the seeded layout's.</summary>
+    public static string Footer() =>
+        $"<footer>{Nav("Footer", SiteNavigation.FooterLinks(), "site-footer")}</footer>";
+
     /// <summary>Closes the document.</summary>
-    public static string End() => """
+    public static string End() => $"""
+        {Footer()}
         </body>
         </html>
         """;

@@ -140,6 +140,7 @@ internal sealed class PageChain {
             _readBudget,
             _environment.Reserved,
             _environment.ContentTypes,
+            _environment.Seeds,
             _environment.Saver.RuntimeId);
 
         PageCapabilities capabilities = new PageCapabilities()
@@ -168,7 +169,7 @@ internal sealed class PageChain {
             // and a layout never is.
             if (_editor is { } editor && string.Equals(key.Key, _environment.Editor.Key, StringComparison.Ordinal)) {
                 capabilities.Add<IPageEditor>(new PageEditorScope(
-                    key, editor, _environment.Editor.Key, _user, writable: !_isHead, _environment.Reserved));
+                    key, editor, _environment.Editor.Key, _user, writable: !_isHead, _environment.Reserved, _environment.Seeds));
             }
         }
 

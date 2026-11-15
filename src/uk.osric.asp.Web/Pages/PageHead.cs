@@ -10,4 +10,10 @@ internal sealed class PageHead {
     public required string RevisionId { get; set; }
 
     public bool IsDeleted { get; set; }
+
+    /// <summary>The content hash of the seed this page's content is anchored to, or null when unknown.</summary>
+    public string? SeedHash { get; set; }
+
+    /// <summary>The content hash of the head's stored source.</summary>
+    public string? ContentHash { get; set; }
 }

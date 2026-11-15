@@ -52,13 +52,16 @@ SPDX-License-Identifier = "MIT"
 path = [
   "src/uk.osric.asp.Web/Pages/Seeds/_layout",
   "src/uk.osric.asp.Web/Pages/Seeds/_lib/document",
+  "src/uk.osric.asp.Web/Pages/Seeds/_lib/editor",
   "src/uk.osric.asp.Web/Pages/Seeds/about",
   "src/uk.osric.asp.Web/Pages/Seeds/admin",
+  "src/uk.osric.asp.Web/Pages/Seeds/editor-mode",
   "src/uk.osric.asp.Web/Pages/Seeds/help",
   "src/uk.osric.asp.Web/Pages/Seeds/pages",
   "src/uk.osric.asp.Web/Pages/Seeds/privacy",
   "src/uk.osric.asp.Web/Pages/Seeds/recent",
   "src/uk.osric.asp.Web/Pages/Seeds/scratch",
+  "src/uk.osric.asp.Web/Pages/Seeds/vim-help",
 ]
 SPDX-FileCopyrightText = "Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>"
 SPDX-License-Identifier = "MIT"

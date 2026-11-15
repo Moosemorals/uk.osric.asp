@@ -14,7 +14,7 @@ public sealed class HelpReferenceLinksTests {
 
     [Test]
     public async Task EveryAnchorTheHelpPageLinksToExists() {
-        string source = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/help"))
+        string source = TestOptions.SeedSource(PagePath.Normalize("/help"))
             ?? throw new InvalidOperationException("The help seed is missing.");
         ReferenceLibrary library = new(AppContext.BaseDirectory, NullLogger<ReferenceLibrary>.Instance);
         List<string> missing = [];
@@ -31,7 +31,7 @@ public sealed class HelpReferenceLinksTests {
 
     [Test]
     public async Task TheHelpPageLinksTheReferenceAndTheContract() {
-        string source = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/help"))
+        string source = TestOptions.SeedSource(PagePath.Normalize("/help"))
             ?? throw new InvalidOperationException("The help seed is missing.");
 
         Assert.Multiple(() => {

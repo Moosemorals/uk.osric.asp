@@ -114,7 +114,10 @@ the build:
   render. `Resolve` says whether a key is usable, `SaveAsync(key, template, expectedHash)` is the
   conditional save whose `null` expectation creates a page, `DeleteAsync` tombstones,
   `RestoreRevisionAsync` and `InstallSeedAsync` answer with the revision they stored, and
-  `SeedSourceAsync` reads the bundled source so the install confirmation can show a diff. Like the
+  `SeedSourceAsync` reads the bundled source so the install confirmation can show a diff.
+  `AdoptSeedAsync` records the shipped seed as installed without storing a revision, and
+  `InstallSeedAsync` refuses a row the gate does not allow — an `edited`, `conflict`, `unknown` or
+  `deleted` page — so the rule is in the capability, not only in the page's markup. Like the
   page's own write, a save belongs to the next request and a started save finishes (`pages-the-editor-capability`, `pages-delete-install-and-restore`).
 - `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
   `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more

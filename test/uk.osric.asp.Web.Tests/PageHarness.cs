@@ -39,7 +39,8 @@ internal sealed class PageHarness : IDisposable {
         DiffRenderer? diff = null,
         PageJobOptions? jobOptions = null,
         IWorkerStore? workerStore = null,
-        TimeProvider? clock = null) {
+        TimeProvider? clock = null,
+        PageSeeds? seeds = null) {
         State = state ?? new FakePageStateStore();
         Sessions = sessionStore ?? new FakePageSessionStore();
         Session = new PageSessionRequest(uk.osric.asp.Web.Authentication.PageSessionCookie.Mint(), null, presented: false, exists: false);
@@ -56,6 +57,7 @@ internal sealed class PageHarness : IDisposable {
         Health = health ?? new PageHealth(Options.AbandonedLimit);
         Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
         Metrics = new PageMetrics();
+        Seeds = seeds ?? new PageSeeds(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
 
         Storage = storage;
         Images = new PageImageBuilder(Compiler, Budget, Metrics, NullLogger<PageImageBuilder>.Instance);
@@ -83,7 +85,7 @@ internal sealed class PageHarness : IDisposable {
             JobQueue,
             Jobs,
             new PageJobEnvironment(
-                JobOptions, WorkerStore, State, StorageOptions, Fetch, FetchOptions, ReadStore, ReadOptions,
+                JobOptions, WorkerStore, State, StorageOptions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
                 Reserved, ContentTypes, Images, Libraries, Compiler, Metrics),
             NullLoggerFactory.Instance,
             NullLogger<PageJobRunner>.Instance);
@@ -95,6 +97,9 @@ internal sealed class PageHarness : IDisposable {
     public PageLibraries Libraries { get; }
 
     /// <summary>Where every save in this harness is written.</summary>
+    /// <summary>The pack this release ships, read the way the host reads it.</summary>
+    public PageSeeds Seeds { get; }
+
     public FakePageStore Storage { get; }
 
     /// <summary>The page state every render in this harness shares.</summary>
@@ -182,21 +187,18 @@ internal sealed class PageHarness : IDisposable {
     /// the read side as well: that is the copy every compile in this harness resolves a using from.
     /// </remarks>
     public async Task SeedAsync() {
-        await PageAssetSeeder.SeedAsync(Storage, CancellationToken.None);
+        await PageAssetSeeder.SeedAsync(Storage, Seeds, CancellationToken.None);
         await MirrorSeededLibrariesAsync();
     }
 
     /// <summary>Makes the shipped libraries resolvable, for a test that stores its own templates.</summary>
     public async Task MirrorSeededLibrariesAsync() {
-        foreach (PagePath seed in PageAssetSeeder.SeedPaths()) {
-            string? template = await PageAssetSeeder.ReadSeedTemplateAsync(seed, CancellationToken.None);
-            if (template is null) {
-                continue;
-            }
+        foreach (SeedFile seed in Seeds.Files) {
+            string template = seed.Source;
 
             PageKind kind = uk.osric.asp.Core.Compilation.TemplateSourceGenerator.Generate(template).Kind;
             if (kind is PageKind.Library) {
-                ReadStore.Save(seed.Key, template, templateKind: PageKind.Library);
+                ReadStore.Save(seed.Path.Key, template, templateKind: PageKind.Library);
             }
         }
     }
@@ -277,6 +279,7 @@ internal sealed class PageHarness : IDisposable {
                 readBudget ?? new ReadBudget(ReadOptions.MaxSourceCharsPerRender),
                 new ReservedPaths(ReservedPaths.Default),
                 ContentTypes,
+                Seeds,
                 Images.RuntimeId);
             capabilities.Add<IPageCatalog>(catalog);
         }
@@ -320,6 +323,7 @@ internal sealed class PageHarness : IDisposable {
             ReadOptions,
             State,
             ReadStore,
+            Seeds,
             Saver,
             Fetch,
             Metrics,

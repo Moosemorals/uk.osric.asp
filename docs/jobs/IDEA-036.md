@@ -7,9 +7,9 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Size | L — it wants a plan of its own: a migration, two values on the page row, a change to the page contract, a new shell action, and an archive format version |
+| Size | L — it wants a plan of its own: a migration and a one-off repair, two values on the page row, a change to the page contract, a new shell route, an archive format version, and a `seeds` command that harvests a running store back into the pack |
 | Area | Core, Sdk, Web (storage, pages, admin, seeds), docs |
-| Location | `src/uk.osric.asp.Core/Pages/`, `src/uk.osric.asp.Sdk/PageEntry.cs`, `src/uk.osric.asp.Sdk/IPageEditor.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageStore.cs`, `src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs`, `src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs`, `src/uk.osric.asp.Web/Admin/PageArchiveFormat.cs`, `src/uk.osric.asp.Web/Pages/Seeds/pages`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
+| Location | `src/uk.osric.asp.Core/Pages/`, `src/uk.osric.asp.Sdk/PageEntry.cs`, `src/uk.osric.asp.Sdk/IPageEditor.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageStore.cs`, `src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs`, `src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs`, `src/uk.osric.asp.Web/Pages/PageSeeds.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Pages/SeedCommands.cs`, `src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs`, `src/uk.osric.asp.Web/Admin/ApplySeedsEndpoint.cs`, `src/uk.osric.asp.Web/Admin/PageArchiveFormat.cs`, `src/uk.osric.asp.Web/Pages/Seeds/pages`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `Makefile` |
 
 ## Idea
 

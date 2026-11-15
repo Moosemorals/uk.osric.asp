@@ -49,6 +49,7 @@ public sealed class PageEndpointTests {
             TestOptions.Read,
             new FakePageStateStore(),
             new FakePageReadStore(),
+            TestOptions.Seeds,
             Saver(render ?? Options),
             new FakePageFetcher(),
             _metrics,

@@ -32,6 +32,8 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                 revision => new { revision.RevisionId, revision.Path },
                 (head, revision) => new {
                     head.Path,
+                    head.SeedHash,
+                    head.ContentHash,
                     revision.SavedAt,
                     revision.Hash,
                     revision.TemplateKind,
@@ -45,7 +47,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
 
         return [.. rows.Select(row => new PageReadHead(
             row.Path, row.SavedAt, row.Hash, IsDeleted: false, row.TemplateKind,
-            row.RuntimeId, row.HasImage, row.HasDiagnostics))];
+            row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash))];
     }
 
     /// <inheritdoc/>
@@ -69,6 +71,8 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                 (head, revision) => new {
                     head.Path,
                     head.IsDeleted,
+                    head.SeedHash,
+                    head.ContentHash,
                     revision.SavedAt,
                     revision.Hash,
                     revision.TemplateKind,
@@ -82,7 +86,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
 
         return [.. rows.Select(row => new PageReadHead(
             row.Path, row.SavedAt, row.Hash, row.IsDeleted, row.TemplateKind,
-            row.RuntimeId, row.HasImage, row.HasDiagnostics))];
+            row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash))];
     }
 
     /// <inheritdoc/>
@@ -99,6 +103,8 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                 (head, revision) => new {
                     head.Path,
                     head.IsDeleted,
+                    head.SeedHash,
+                    head.ContentHash,
                     revision.SavedAt,
                     revision.Hash,
                     revision.TemplateKind,
@@ -112,7 +118,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
             ? null
             : new PageReadHead(
                 row.Path, row.SavedAt, row.Hash, row.IsDeleted, row.TemplateKind,
-                row.RuntimeId, row.HasImage, row.HasDiagnostics);
+                row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash);
     }
 
     /// <inheritdoc/>

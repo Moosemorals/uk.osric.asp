@@ -22,6 +22,7 @@ internal static class AdminNavigation {
             new("/admin/export", "Export pages", string.Equals(current, "export", StringComparison.Ordinal)),
             new("/admin/changes", "Changelist", string.Equals(current, "changes", StringComparison.Ordinal)),
             new("/admin/restore", "Restore seeds", string.Equals(current, "restore", StringComparison.Ordinal)),
+            new("/admin/seed-apply", "Apply seed updates", string.Equals(current, "seed-apply", StringComparison.Ordinal)),
             new("/admin/reference", "Reference", string.Equals(current, "reference", StringComparison.Ordinal)),
             new(editorPath, "Page list"),
             new("/help", "Help"),
