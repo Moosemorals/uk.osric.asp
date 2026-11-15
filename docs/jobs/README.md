@@ -71,7 +71,9 @@ builds the IDE itself — and [their plan](../plans/ide-host.md) orders them, re
 were in the way, and scopes each one to its wider class of caller rather than to the editor. IDEA-044 and IDEA-045 came out
 of the owner's follow-up of the same day: the assistant does not ask for a browser in so many words,
 but keeps reaching for a way to see what it wrote, and the parts worth seeing are behind the sign-in
-guard — so a browser and an identity are two jobs, and neither is part of the IDE plan.
+guard — so a browser and an identity are two jobs, and neither is part of the IDE plan. IDEA-043 was
+split on 2026-11-15: the widened write authority and the merged write capability are one step, and the
+batch that lets a render write several pages is IDEA-046, a little further down this list.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -96,9 +98,10 @@ guard — so a browser and an identity are two jobs, and neither is part of the 
 | [IDEA-040](IDEA-040.md) | — | S | Nothing says which pages a library edit will recompile, though the closure is written with every image |
 | [IDEA-041](IDEA-041.md) | — | S | A diagnostic is a point in an unnamed source: the extent is thrown away and a library's key does not reach the page |
 | [IDEA-042](IDEA-042.md) | — | M | A page cannot move a page, so a rename is two histories, an orphaned seed anchor and every inbound link broken silently |
-| [IDEA-043](IDEA-043.md) | — | L | The authority to edit the store belongs to one page and to one save: any page may write, and a render may write a batch under a policy |
+| [IDEA-043](IDEA-043.md) | — | M | The authority to write the store belongs to one page: any page may save any page, and the two write capabilities become one |
 | [IDEA-044](IDEA-044.md) | — | L | A page cannot render a page in a browser: the assistant's own scripts are never run, though the server's HTML is already one `fetch` away, and a screenshot has nowhere to be read, served or kept |
 | [IDEA-045](IDEA-045.md) | — | M | A page, a fetch and the assistant only ever see the anonymous view, so every guarded page renders as a sign-in redirect, and the carrier for a token already exists |
+| [IDEA-046](IDEA-046.md) | — | L | A render may write one page and no more, so Save all cannot be atomic and a multi-file edit is N requests: a batch with a named policy |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
