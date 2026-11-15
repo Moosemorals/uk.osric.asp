@@ -119,3 +119,8 @@ to see the site would mean giving it something to sign in with, because the part
 guarded. The observation that the assistant already holds the owner's authority through its tools — and
 so needs a view rather than a permission — is this job's; so is the note that the carrier
 (`PageCredential`) already allows loopback plaintext.
+
+The plan that places it is [the assistant's view](../plans/assistant-view.md): a token minted for one
+run, held in memory, dead when the run ends, read-only and pinned to the site's own origin — so the
+six questions above are answered without a configured secret, without an account of the assistant's own,
+and without a second way to run a page.
