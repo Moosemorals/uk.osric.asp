@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waiting for the owner. The areas and the density are accepted and the check is built: the record, the policy, the rewritten citations, the archive move and `make decisions` are on the branch; nothing is merged |
+| Status | Merged 2026-11-15, and this plan is frozen with the work: the record, the policy, the rewritten citations, the archive move and `make decisions` are on `trunk`. A statement here that the code has since overtaken is expected rather than a defect |
 | Size | Large as a reading task, mechanical as a change: one new document of 144 entries, the old record archived under `docs/archive/` with its links rewritten, the policy restated in three places, and 1,135 citations rewritten to names across 111 files. No code |
 | Spike | None. The numbers below were counted on `trunk`: 297 body entries and 31 superseded rows in the old `docs/decisions.md`, now `docs/archive/decisions.md`, 24,362 words, and 1,135 citations of a `DEC-` id in 111 files once the frozen file and this map are set aside |
 | Decisions | The policy itself is the decision this plan records, and it is not numbered: it is `product-decisions-have-names` in the new record, and it replaces the numbering rule it was written under |
@@ -61,7 +61,7 @@ preference: a topic name reaches for a second decision's territory, and the seco
 discovers it. It also gives the clash rule something to work with.
 
 The heading is the anchor, so the name is both an id and a link target:
-`[pages-public-by-default](../decisions.md#pages-public-by-default)`. A citation is the name in backticks,
+`[pages-public-by-default](../../decisions.md#pages-public-by-default)`. A citation is the name in backticks,
 with no prefix: `pages-public-by-default`.
 
 ### Taking a name, and the clash
