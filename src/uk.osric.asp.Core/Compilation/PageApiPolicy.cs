@@ -14,6 +14,14 @@ using System.Collections.Frozen;
 /// exact API to add.
 /// </para>
 /// <para>
+/// A type is admitted when its only effect is to compute over a value the page already holds or to
+/// shape a value the page already returns. It is refused when it adds a way to reach a resource — a
+/// file, the network, a process, the environment, an assembly, reflection, or process-wide state.
+/// A type that bundles a way to reach with a useful helper is admitted with the reaching members
+/// denied by name in <c>s_deniedApis</c>, which is what <c>Task</c> does. The list grows by that
+/// test, not by whichever feature needed an entry last.
+/// </para>
+/// <para>
 /// Deliberately absent, and why: <c>System.Object</c> (its <c>GetType</c> would hand a page
 /// reflection), <c>System.Type</c>, <c>System.IO</c>, <c>System.Net</c>, <c>System.Diagnostics</c>,
 /// <c>System.Reflection</c>, <c>System.Linq.Expressions</c>, <c>System.Threading</c> beyond the
@@ -43,6 +51,7 @@ public static class PageApiPolicy {
     private static readonly FrozenSet<string> s_allowedNamespaces = new[] {
         "System.Collections.Generic",
         "System.Globalization",
+        "System.Text.Json.Nodes",
     }.ToFrozenSet(StringComparer.Ordinal);
 
     private static readonly FrozenSet<string> s_allowedTypes = new[] {
@@ -60,6 +69,7 @@ public static class PageApiPolicy {
         "System.Enum",
         "System.Func",
         "System.Guid",
+        "System.HashCode",
         "System.Int16",
         "System.Int32",
         "System.Int64",
@@ -67,6 +77,7 @@ public static class PageApiPolicy {
         "System.Math",
         "System.Nullable",
         "System.Predicate",
+        "System.Random",
         "System.SByte",
         "System.Security.Cryptography.CryptographicOperations",
         "System.Security.Cryptography.HMACSHA256",
@@ -78,12 +89,15 @@ public static class PageApiPolicy {
         "System.Security.Cryptography.SHA512",
         "System.Single",
         "System.String",
+        "System.StringComparer",
         "System.StringComparison",
         "System.StringSplitOptions",
         "System.Text.Encoding",
         "System.Text.Json.JsonDocument",
+        "System.Text.Json.JsonDocumentOptions",
         "System.Text.Json.JsonElement",
         "System.Text.Json.JsonException",
+        "System.Text.Json.JsonNamingPolicy",
         "System.Text.Json.JsonSerializer",
         "System.Text.Json.JsonSerializerDefaults",
         "System.Text.Json.JsonSerializerOptions",
@@ -116,17 +130,30 @@ public static class PageApiPolicy {
     /// <summary>Reports every reference the policy does not allow.</summary>
     /// <param name="used">The APIs the page referenced, in the order they appear.</param>
     /// <returns>
-    /// One diagnostic per distinct API, naming the API and its template position; empty when the
-    /// page is within the policy.
+    /// One diagnostic per refused type, naming the member or the type the page referenced and its
+    /// template position; empty when the page is within the policy.
     /// </returns>
     public static IReadOnlyList<PageDiagnostic> Check(IEnumerable<ApiReference> used) {
         ArgumentNullException.ThrowIfNull(used);
 
+        List<ApiReference> references = [.. used];
+
+        // The checker reports the symbol a node resolves to and the type it resolves to, so a member
+        // of a refused type arrives twice. One refusal per type: keep the member, because it is what
+        // the author wrote and it carries the type the message names.
+        HashSet<string> namedByMember = [.. references
+            .Where(reference => !string.IsNullOrEmpty(reference.Member))
+            .Select(Key)];
+
         List<PageDiagnostic> diagnostics = [];
         HashSet<string> reported = [];
 
-        foreach (ApiReference reference in used) {
+        foreach (ApiReference reference in references) {
             if (IsAllowed(reference)) {
+                continue;
+            }
+
+            if (string.IsNullOrEmpty(reference.Member) && namedByMember.Contains(Key(reference))) {
                 continue;
             }
 
@@ -138,24 +165,32 @@ public static class PageApiPolicy {
             diagnostics.Add(new PageDiagnostic(
                 PageDiagnosticSeverity.Error,
                 reference.Position,
-                Message(name)));
+                Message(reference, name)));
         }
 
         return diagnostics;
     }
 
+    private static string Key(ApiReference reference) => $"{reference.Namespace}.{reference.Type}";
+
     private static string Describe(ApiReference reference) {
         return string.IsNullOrEmpty(reference.Member)
-            ? $"{reference.Namespace}.{reference.Type}"
-            : $"{reference.Namespace}.{reference.Type}.{reference.Member}";
+            ? Key(reference)
+            : $"{Key(reference)}.{reference.Member}";
     }
 
-    private static string Message(string name) {
+    private static string Message(ApiReference reference, string name) {
         // Two reasons, one sentence, because both come to the same thing: the render's deadline is the
         // site's only bound, and every denied member is a way round it.
-        return s_deniedApis.Contains(name)
-            ? $"PAGE001: pages may not use {name}; it starts or blocks work the render cannot stop."
-            : $"PAGE001: pages may not use {name}.";
+        if (s_deniedApis.Contains(name)) {
+            return $"PAGE001: pages may not use {name}; it starts or blocks work the render cannot stop.";
+        }
+
+        // A member is named as the author wrote it, and the type beside it because the type is what a
+        // refusal is about: the entry that would change the answer is the container, not the member.
+        return string.IsNullOrEmpty(reference.Member)
+            ? $"PAGE001: pages may not use {name}."
+            : $"PAGE001: pages may not use {name}. The type {Key(reference)} is not part of the page API.";
     }
 
     private static bool IsAllowed(ApiReference reference) {

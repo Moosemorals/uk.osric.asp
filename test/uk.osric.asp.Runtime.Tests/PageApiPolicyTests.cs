@@ -405,6 +405,76 @@ public sealed class PageApiPolicyTests {
     }
 
     [Test]
+    public void AJsonBodyCanBeBuiltAndItsNamesShaped() {
+        string template = """
+            <%!
+            using System.Text.Json;
+            using System.Text.Json.Nodes;
+            %>
+            <%
+                JsonDocumentOptions documentOptions = new() { MaxDepth = 8 };
+                JsonDocument document = JsonDocument.Parse("{\"a\": 1}", documentOptions);
+                JsonNode? node = JsonNode.Parse("{\"b\": 2}");
+                JsonSerializerOptions options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+                ctx.Write(document.RootElement.GetProperty("a").GetInt32().ToString());
+                ctx.Write(node is null ? "none" : node.ToJsonString());
+                ctx.Write(options.PropertyNamingPolicy?.ConvertName("TwoWords") ?? "");
+            %>
+            """;
+
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public void APageMayUseTheOrdinaryBaseTypes() {
+        string template = """
+            <%!
+            using System;
+            using System.Collections.Generic;
+            %>
+            <%
+                Dictionary<string, int> counts = new(StringComparer.OrdinalIgnoreCase);
+                counts["a"] = 1;
+                int hash = HashCode.Combine(1, 2);
+                Random random = new(1);
+                ctx.Write(counts["A"].ToString());
+                ctx.Write(hash.ToString());
+                ctx.Write(random.Next(3).ToString());
+            %>
+            """;
+
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public void ADeniedTypeIsReportedOnce() {
+        CompileResult result = Compile("<% ctx.Write(System.IO.File.ReadAllText(\"page.txt\")); %>");
+
+        Assert.That(result.IsSuccess, Is.False);
+        PageDiagnostic[] refusals = [.. result.Diagnostics
+            .Where(diagnostic => diagnostic.Message.StartsWith("PAGE001:", StringComparison.Ordinal))];
+        Assert.That(refusals, Has.Length.EqualTo(1));
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message
+                    == "PAGE001: pages may not use System.IO.File.ReadAllText. The type System.IO.File is not part of the page API."));
+    }
+
+    [Test]
+    public void EnvironmentIsStillRejected() {
+        CompileResult result = Compile("<% ctx.Write(System.Environment.NewLine); %>");
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("System.Environment", StringComparison.Ordinal)));
+    }
+
+    [Test]
     public void AJsonSerializerAttributeIsStillRejected() {
         CompileResult result = Compile("<% [System.Text.Json.Serialization.JsonPropertyName(\"value\")] string text; ctx.Write(text); %>");
 

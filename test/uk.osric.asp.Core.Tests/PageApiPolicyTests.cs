@@ -15,8 +15,17 @@ public sealed class PageApiPolicyTests {
     [TestCase("System", "Func", "", true)]
     [TestCase("System", "InvalidOperationException", "", true)]
     [TestCase("System", "ArgumentOutOfRangeException", "", true)]
+    [TestCase("System", "StringComparer", "OrdinalIgnoreCase", true)]
+    [TestCase("System", "HashCode", "Combine", true)]
+    [TestCase("System", "Random", "", true)]
+    [TestCase("System.Text.Json", "JsonNamingPolicy", "CamelCase", true)]
+    [TestCase("System.Text.Json", "JsonDocumentOptions", "", true)]
+    [TestCase("System.Text.Json.Nodes", "JsonNode", "Parse", true)]
+    [TestCase("System.Text.Json.Nodes", "JsonObject", "", true)]
     [TestCase("System.IO", "File", "ReadAllText", false)]
     [TestCase("System", "Environment", "Exit", false)]
+    [TestCase("System", "Environment", "NewLine", false)]
+    [TestCase("System", "TimeZoneInfo", "FindSystemTimeZoneById", false)]
     [TestCase("System", "Type", "", false)]
     [TestCase("System", "Object", "GetType", false)]
     [TestCase("System.Reflection", "Assembly", "Load", false)]
@@ -66,8 +75,30 @@ public sealed class PageApiPolicyTests {
 
         Assert.That(diagnostics, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, new TemplatePosition(12, 5),
-                "PAGE001: pages may not use System.IO.File.ReadAllText."),
+                "PAGE001: pages may not use System.IO.File.ReadAllText. The type System.IO.File is not part of the page API."),
         }));
+    }
+
+    [Test]
+    public void ANamingMemberIsRefusedOnce() {
+        IReadOnlyList<PageDiagnostic> diagnostics = PageApiPolicy.Check([
+            new ApiReference("System.IO", "File", "ReadAllText", new TemplatePosition(4, 9)),
+            new ApiReference("System.IO", "File", string.Empty, new TemplatePosition(4, 9)),
+        ]);
+
+        Assert.That(diagnostics, Has.Count.EqualTo(1));
+        Assert.That(diagnostics[0].Message, Is.EqualTo(
+            "PAGE001: pages may not use System.IO.File.ReadAllText. The type System.IO.File is not part of the page API."));
+    }
+
+    [Test]
+    public void TwoMembersOfOneRefusedTypeAreReportedSeparately() {
+        IReadOnlyList<PageDiagnostic> diagnostics = PageApiPolicy.Check([
+            new ApiReference("System.IO", "File", "ReadAllText", new TemplatePosition(2, 1)),
+            new ApiReference("System.IO", "File", "Exists", new TemplatePosition(3, 1)),
+        ]);
+
+        Assert.That(diagnostics, Has.Count.EqualTo(2));
     }
 
     [Test]
@@ -89,7 +120,8 @@ public sealed class PageApiPolicyTests {
         ]);
 
         Assert.That(diagnostics, Is.EqualTo(new PageDiagnostic[] {
-            new(PageDiagnosticSeverity.Error, null, "PAGE001: pages may not use System.IO.File.Exists."),
+            new(PageDiagnosticSeverity.Error, null,
+                "PAGE001: pages may not use System.IO.File.Exists. The type System.IO.File is not part of the page API."),
         }));
     }
 

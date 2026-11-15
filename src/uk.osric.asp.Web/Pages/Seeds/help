@@ -12,6 +12,7 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
         <li><a href="#streaming">Streaming a response</a></li>
         <li><a href="#head-and-scripts">Stylesheets, head and scripts</a></li>
         <li><a href="#syntax">Template syntax</a></li>
+        <li><a href="#api">What a page may use</a></li>
         <li><a href="#context">Context and capabilities</a></li>
         <li><a href="#catalog">Reading the page store</a></li>
         <li><a href="#writing">Saving the page you are</a></li>
@@ -380,6 +381,30 @@ sealed class Amount {
 <p>Forms use <code>&lt;form class="form"&gt;</code> with one <code>&lt;dl&gt;</code>; a label is a
 <code>&lt;dt&gt;</code> and its control is the matching <code>&lt;dd&gt;</code>. A textarea goes in a
 <code>&lt;fieldset&gt;</code> whose <code>&lt;legend&gt;</code> contains its label.</p>
+
+<h2 id="api">What a page may use</h2>
+<p>A page is C#, and the base class library is wider than a page needs. What a page may name is a
+fixed list: the <a href="/admin/reference/sdk">page contract</a>, a short set of base types,
+everything in <code>System.Collections.Generic</code>, <code>System.Globalization</code> and
+<code>System.Text.Json.Nodes</code>, and any <code>System.*</code> exception. Naming anything else is
+the compile error <code>PAGE001</code>, and a refusal names the member you wrote and the type it
+belongs to, because the type is what the list holds.</p>
+<p>What is left out is deliberate: no file, network, process, assembly or reflection access, and no
+reading the host's environment. A page reaches those through a capability instead &mdash; its own
+storage, the visitor's session, <code>IHttpFetch</code>, a job &mdash; so a page can do the work
+without being handed the machine.</p>
+<p>Three that a page often wants are in the list, and each has one job:</p>
+<dl>
+    <dt>Text without regard to case</dt>
+    <dd><code>StringComparer.OrdinalIgnoreCase</code> for a dictionary or set, and
+    <code>string.Equals(a, b, StringComparison.OrdinalIgnoreCase)</code> to compare two values.</dd>
+    <dt>Hashing</dt>
+    <dd><code>HashCode.Combine(a, b)</code> to build a key of your own, and
+    <code>SHA256.HashData(bytes)</code> for anything a visitor can see through.</dd>
+    <dt>Randomness</dt>
+    <dd><code>Random</code> for variety on the page, and <code>RandomNumberGenerator</code> for
+    anything security-shaped, such as a nonce.</dd>
+</dl>
 
 <h2 id="context">Context and capabilities</h2>
 <p>The variable <code>ctx</code> implements <a href="/admin/reference/sdk#t-IContext"><code>IContext</code></a>. It carries the request and the
