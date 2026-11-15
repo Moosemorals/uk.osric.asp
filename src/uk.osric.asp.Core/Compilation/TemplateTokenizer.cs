@@ -4,11 +4,12 @@
 namespace uk.osric.asp.Core.Compilation;
 
 /// <summary>
-/// The template language: text, C# blocks, declaration blocks, and escaped or raw value writes.
+/// The template language: text, C# blocks, comments, declaration blocks, and escaped or raw value
+/// writes.
 /// </summary>
 internal static class TemplateTokenizer {
 
-    /// <summary>Splits a page template into text, code, declaration and write tokens.</summary>
+    /// <summary>Splits a page template into text, code, comment, declaration and write tokens.</summary>
     /// <param name="input">The template as its author wrote it.</param>
     /// <returns>The tokens, and one error naming the opener of an unterminated block.</returns>
     internal static TokenizeResult Tokenize(string input) {
@@ -36,6 +37,9 @@ internal static class TemplateTokenizer {
             } else if (codeStart + 2 < input.Length && input[codeStart + 2] == '!') {
                 type = TokenType.Declaration;
                 openerLength = 3;
+            } else if (codeStart + 2 < input.Length && input[codeStart + 2] == '#') {
+                type = TokenType.Comment;
+                openerLength = 3;
             }
 
             int contentStart = codeStart + openerLength;
@@ -62,6 +66,7 @@ internal static class TemplateTokenizer {
     private static PageDiagnostic UnterminatedBlock(string input, int codeStart, TokenType type) {
         (string kind, string opener) = type switch {
             TokenType.Declaration => ("declaration", "<%!"),
+            TokenType.Comment => ("comment", "<%#"),
             TokenType.Write => ("write", "<%="),
             TokenType.WriteRaw => ("raw-write", "<%=="),
             _ => ("code", "<%"),

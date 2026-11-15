@@ -965,6 +965,18 @@ public sealed class PageEndpointTests {
     }
 
     [Test]
+    public async Task ANoCodePageIsServedWithoutItsCommentsAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("mine.html", "GET", "/mine.html");
+        FakePageStore storage = StoreAsset("/mine.html", "<p>One</p><%# a note %><p>Two</p>");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("<p>One</p><p>Two</p>"),
+            "a comment is neither code nor text, so it reaches the visitor no more than it changes the page");
+    }
+
+    [Test]
     public async Task TheScriptPolicyFollowsTheExtensionAsync() {
         const string Source = "<p>Own body</p>";
         PageContentTypes withSelf = PageContentTypes.Create(
