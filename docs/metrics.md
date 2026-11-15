@@ -145,7 +145,8 @@ not stretched to fill the plot, and an empty answer keeps the axis the window as
 inferred from nothing. A sample outside the window is cut at the edge rather than pinned to it, so an
 overshoot stops where it leaves the picture instead of drawing a flat line down the border the value
 never had. A heatmap cell is placed at its bucket's instant and is as wide as the step between
-buckets, which is how its columns and the time labels under it are measured the same way.
+buckets, which is how its columns and the time labels under it are measured the same way
+(`metrics-a-chart-counts-from-its-window`).
 
 **The inventory is the catalogue.** Each meter publishes its instruments, every instrument has
 exactly one owning panel, and tests fail when either side gains an entry the other lacks, when a type

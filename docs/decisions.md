@@ -1970,6 +1970,19 @@ route directly treats an element without one as XML it does not recognise and sh
 
 *Recorded in [metrics](metrics.md#one-chart-on-its-own), [ChartChrome](../src/uk.osric.asp.Core/Charting/ChartChrome.cs).*
 
+### metrics-a-chart-counts-from-its-window
+
+A chart's time axis carries the window it covers, and every sample, grid line and label is placed at its
+fraction of that window rather than measured from the first sample. A metric that started late is drawn
+where it started, a quiet panel is not stretched across the plot, and an empty answer keeps the axis the
+query asked for rather than one inferred from nothing. A sample outside the window is cut at the edge,
+interpolated from its neighbours, instead of being pinned to it, so an overshoot ends where it leaves the
+picture. A heatmap cell is drawn at its bucket's instant and as wide as the step between buckets, so its
+columns and the time labels under it agree. The renderer supplies the window it queried; nothing infers a
+window from the samples.
+
+*Recorded in [metrics](metrics.md#the-panels), [ChartTimeAxis](../src/uk.osric.asp.Core/Charting/ChartTimeAxis.cs), [ChartClip](../src/uk.osric.asp.Core/Charting/ChartClip.cs).*
+
 ## Retired
 
 A name that was used and then removed is listed here with what replaced it, so it is not taken again by

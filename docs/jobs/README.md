@@ -57,9 +57,10 @@ analyzers work turned the XML documentation on and the image carries it, and not
 closed the same day by [its plan](../plans/xml-reference.md) (`shell-the-reference`). IDEA-035 came out of the
 same day's follow-up question about removing `Assistant:Enabled`: four
 places read the flag, but the key rule is what the tests and the deployment actually depend on, and
-it closed the same day (`assistant-always-on`). BUG-19 came out of the owner's note of 2026-11-15: a chart counts
-its samples from the first one while its axis counts from the window's start, so a window wider than
-the data leaves the line at the left edge. IDEA-036 came out of the owner's seed-provenance note of
+it closed the same day (`assistant-always-on`). BUG-19 came out of the owner's note of 2026-11-15: a
+chart counted its samples from the first one while its axis counted from the window's start, so a
+window wider than the data left the line at the left edge; it is closed
+(`metrics-a-chart-counts-from-its-window`). IDEA-036 came out of the owner's seed-provenance note of
 the same day: a seed is identified by nothing, so a deploy cannot tell a page the release moved from a
 page the author edited, and nothing brings an edited seed back from the running site to the
 repository. Its plan is [seed provenance](../plans/seed-provenance.md).
@@ -69,7 +70,6 @@ repository. Its plan is [seed provenance](../plans/seed-provenance.md).
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |
-| [BUG-19](BUG-19.md) | Medium | S | A chart wider than its data draws the line from the left edge rather than at the samples' instants |
 | [IDEA-001](IDEA-001.md) | — | L | The editor is a plain textarea, though it now has a line gutter, linked diagnostics and a state on every row of the page list |
 | [IDEA-020](IDEA-020.md) | — | M | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-022](IDEA-022.md) | — | S | `SimpleContext` is one class doing five jobs |
@@ -177,8 +177,7 @@ empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
 destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7
 touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page;
 [IDEA-032](IDEA-032.md) is a sitting's work whenever a cost line is wanted, and does not touch the
-files the programme is working through; [BUG-19](BUG-19.md) is a
-chart that misplaces its samples when its window is wider than its data; and
+files the programme is working through; and
 [IDEA-033](IDEA-033.md) wants a plan and a named first customer before it is a step.
 
 ## Closed
@@ -227,6 +226,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-16 | Every view is one document: `ShellDocument` writes the head, `<main id="main">` and the foot, and `AccessibilityTests` applies twelve rules to every view over rendered markup (`shell-accessibility-is-asserted`). See [the plan](../plans/archive/semantic-html-and-accessibility.md) |
 | BUG-17 | A long think is not cut off by its own duration: `Assistant:RequestTimeoutSeconds` is re-armed by every event the provider sends, a stall fails as `provider_timeout` with its own sentence, a message that stops at the output limit is stored `truncated`, and the transcript renders the run's own reason after the reload (`assistant-deadlines-bound-silence`). The failed-request log line a mid-run reload leaves behind is fixed by [the streaming plan](../plans/page-streaming.md): a disconnect during a write is a Debug-level end, not an unhandled exception |
 | BUG-18 | Save and view reads its command from the form for a POST and the query for a link, and a failed save stays on the editor with its diagnostics. Every human surface answers with a document: `Errors/ErrorResponses.cs` writes the shell or an RFC 9457 problem document by `Accept`, and `UseStatusCodePages` covers every status no endpoint described (`shell-nobody-is-handed-a-blank-failure`). See [the shell](../shell.md#error-responses) |
+| [BUG-19](../decisions.md) | A chart counts from its window, not from its first sample: `ChartTimeAxis` carries the window beside the ticks, `ChartSamples` no longer widens a span to hide the difference, a sample outside the window is cut at the edge rather than pinned to it, and a heatmap cell is placed at its bucket's instant and as wide as the step between buckets (`metrics-a-chart-counts-from-its-window`) |
 | OPS-02 | The health endpoint and its monitoring: `/heath` pings storage and reports abandoned renders, the quadlet probes it and restarts after three failures, and `/status` draws what Prometheus scraped. The alerting it named was always [OPS-05](OPS-05.md)'s (`pages-health-and-restarts`). See [deployment](../../deploy/operations.md#resource-limits-and-restarts) |
 | OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and `metrics-one-panel-per-instrument`, `metrics-a-series-is-identified-without-colour`, `metrics-a-chart-stands-alone` |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
