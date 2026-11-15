@@ -156,7 +156,7 @@ are routes the shell answers, not views inside a route.
 
 `assistant-memory-belongs-to-the-assistant` was recorded with the first version and never built, so it is not a decision that drifted — it
 is a decision that stopped being right before its code existed. It is in
-[Retired](../decided.md#retired) with the date, the words "never built", and where the question
+[Retired](../decisions.md#retired) with the date, the words "never built", and where the question
 went: IDEA-025 for the view, IDEA-033 for the capability a page actually lacks.
 
 It is not deleted and it is not silently edited. A reader who finds `IMemoryCatalog` in a branch or a
@@ -249,8 +249,8 @@ it.
 | --- | --- | --- |
 | The rule and its audit | Where a view lives, and why each shell route is where it is | `docs/architecture.md` |
 | This plan | The re-scope, the rejected options and the destination of the withdrawn capability | `docs/plans/page-first.md` |
-| The withdrawn memory capability | Why there is no memory capability in `Sdk` | `docs/decisions.md#superseded` |
-| `assistant-memory-belongs-to-the-assistant` | Memory is the assistant's; the gap is per-account storage | `docs/decided.md` |
+| The withdrawn memory capability | Why there is no memory capability in `Sdk` | `docs/archive/decisions.md#superseded` |
+| `assistant-memory-belongs-to-the-assistant` | Memory is the assistant's; the gap is per-account storage | `docs/decisions.md` |
 | IDEA-033 | The per-account store: shape, questions, cost, trigger | `docs/jobs/IDEA-033.md` |
 | IDEA-025 | The assistant page, memory view included | `docs/jobs/IDEA-025.md` |
 | The programme's step 9 | What this step is, and what it is not | `docs/jobs/README.md` |
@@ -318,7 +318,7 @@ document that mentioned the withdrawn capability points at where the question we
 
 - **`pages-page-first`** stands: the rule and its three reasons. Its list of examples loses `/edit`, which became
   a page when the editor did, and names the recovery routes the audit covers.
-- **The withdrawn memory capability** is in [Superseded](../decisions.md#superseded) — never built; the view is IDEA-025's and
+- **The withdrawn memory capability** is in [Superseded](../archive/decisions.md#superseded) — never built; the view is IDEA-025's and
   the capability is IDEA-033's.
 - **`assistant-memory-belongs-to-the-assistant`** records the re-scope: memory is the assistant's and its view arrives with the assistant
   page; the page contract's missing capability is per-account storage.

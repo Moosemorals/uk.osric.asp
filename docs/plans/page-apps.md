@@ -661,7 +661,7 @@ client.
    for another key, bound to one configured worker, or does `IPageWriter` grow a key for any caller?
    Phase 5 records the choice, and it is written out with its three shapes and their costs in
    [IDEA-025](../jobs/IDEA-025.md#the-authority-question-for-the-owner). It is still open: it is the
-   owner's to make, and it is also listed in [the open questions](../decided.md#open-questions).
+   owner's to make, and it is also listed in [the open questions](../decisions.md#open-questions).
 2. **The names.** Settled. `Worker` and `Job` are the kind and one run of it; `IPageJobs`, `IWorker`,
    `IWorkerContext`, `StreamAsync`, `HttpFetchStream` and `PageStreamRefusedException` are the
    surfaces, and [the glossary](../glossary.md#worker) says why a worker is not a

@@ -525,7 +525,7 @@ nothing else, and a memory is neither.
 
 ### The decisions
 
-They are `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5` in [decided](../decided.md), and
+They are `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5` in [decided](../decisions.md), and
 [the plan](../plans/archive/assistant-memory.md#documentation-and-decisions) carries them in full. In one
 line each:
 

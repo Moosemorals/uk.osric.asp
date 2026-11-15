@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Area | Core (assistant), Web (assistant, metrics, configuration) |
 | Spike | None. `/user/balance` is already read on every conversation page view, its JSON is already parsed, and the observability shape is the one `PageStorageSampler` already uses |
 | Backlog | [IDEA-032](../jobs/IDEA-032.md) |
-| Decisions | D1–D6 below; named from [decided](../decided.md) when the work merges |
+| Decisions | D1–D6 below; named from [decided](../decisions.md) when the work merges |
 
 ## The short version
 

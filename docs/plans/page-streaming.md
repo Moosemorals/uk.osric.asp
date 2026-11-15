@@ -96,7 +96,7 @@ Checked against the code on 2026-11-14.
   layout with the previous layer's body as `IPageLayout.Body`. A redirect, a non-HTML response, a
   cleared layout or a page with no code is served alone
   ([PageChain.cs](../../src/uk.osric.asp.Web/Pages/PageChain.cs),
-  [shell.md](../shell.md#the-asset-response)).
+  [shell.md](../shell.md#the-response-shapes)).
 - **One budget.** `PageRenderer.OpenSessionAsync` takes one slot and one deadline per request and every
   layer renders under it. A page that outruns the deadline is abandoned: `SimpleContext.Abandon` stops
   its writes, the renderer logs and counts it, and the endpoint answers `504`
@@ -379,7 +379,7 @@ status, headers, `Content-Length`, clean error page and clean `504`; `HEAD` reta
   session/antiforgery caveat.
 - `docs/jobs/ARCH-13.md`: deleted; its row leaves the index, joins "Closed" with a pointer here, and
   the programme marks step 7 done. BUG-17's closed row loses its "one thing left" sentence.
-- `docs/decided.md`: the D1–D9 entries, named at the merge.
+- `docs/decisions.md`: the D1–D9 entries, named at the merge.
 
 ## Tests
 

@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Implemented 2026-11-09 |
 | Size | Large — a migration, a store, four tools, recall in the run, and the tests for each |
 | Spike | [Memory for the page assistant](../../spikes/assistant-memory.md), which measures the store and surveys what other systems do |
-| Decisions | `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, recorded in [decisions](../../decisions.md#architecture-and-code-placement) |
+| Decisions | `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, recorded in [decisions](../../decisions.md#assistant-memory-is-the-owners) |
 | Backlog | [IDEA-023](../../jobs/README.md#closed) — the page that shows, edits and pins memory, now built by [its own plan](assistant-memory-page.md) |
 
 ## The short version

@@ -7,15 +7,15 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waiting for the owner. The record, the policy, the second pass and the rewritten citations are on the branch; nothing is merged |
-| Size | Large as a reading task, mechanical as a change: one new document of 144 entries, a banner on the old one, the policy restated in three places, and 1,135 citations rewritten to names across 111 files. No code |
-| Spike | None. The numbers below were counted on `trunk`: 297 body entries and 31 superseded rows in `docs/decisions.md`, 24,362 words, and 1,135 citations of a `DEC-` id in 111 files once the frozen file and this map are set aside |
+| Status | Proposed 2026-11-15 — waiting for the owner. The record, the policy, the second pass, the rewritten citations and the archive move are on the branch; nothing is merged |
+| Size | Large as a reading task, mechanical as a change: one new document of 144 entries, the old record archived under `docs/archive/` with its links rewritten, the policy restated in three places, and 1,135 citations rewritten to names across 111 files. No code |
+| Spike | None. The numbers below were counted on `trunk`: 297 body entries and 31 superseded rows in the old `docs/decisions.md`, now `docs/archive/decisions.md`, 24,362 words, and 1,135 citations of a `DEC-` id in 111 files once the frozen file and this map are set aside |
 | Decisions | The policy itself is the decision this plan records, and it is not numbered: it is `product-decisions-have-names` in the new record, and it replaces the numbering rule it was written under |
 | Backlog | A `make decisions` check — unique names, names inside the area list, citations that name an entry — is the obvious next step and is not in this one |
 
 ## The short version
 
-`docs/decisions.md` is a list of 297 numbered rows in ten tables, with a 31-row supersession table
+The record was a list of 297 numbered rows in ten tables, with a 31-row supersession table
 under it and a fifth of its citations pointing at numbers whose rows are gone. The numbers are the
 problem: they are allocated by counting in private, and the file shows what that costs — two decisions
 took 184 on the same day, one of them had to be renumbered with four documents of citations, and
@@ -31,9 +31,11 @@ rename is free.
 
 While the list is being rewritten, it is also being condensed: entries describing one mechanism become
 one entry, 31 superseded rows are dropped rather than carried, and the arguments that were repeated in
-each row now sit once. 297 entries become 144, and 24,362 words become 18,989. The old file stays, with
-a banner saying it is frozen — its numbers keep their meaning, so no citation written before today
-breaks.
+each row now sit once. 297 entries become 144, and 24,362 words become 18,989.
+
+The old record is not deleted: it moves to `docs/archive/decisions.md`, frozen, with its own links
+rewritten for the new depth, and the new record takes its name. A `DEC-` citation written before today
+still lands on the entry it named, and `docs/decisions.md` now means what a decision record should.
 
 ## What a number cost
 
@@ -59,7 +61,7 @@ preference: a topic name reaches for a second decision's territory, and the seco
 discovers it. It also gives the clash rule something to work with.
 
 The heading is the anchor, so the name is both an id and a link target:
-`[pages-public-by-default](../decided.md#pages-public-by-default)`. A citation is the name in backticks,
+`[pages-public-by-default](../decisions.md#pages-public-by-default)`. A citation is the name in backticks,
 with no prefix: `pages-public-by-default`.
 
 ### Taking a name, and the clash
@@ -309,11 +311,21 @@ replaced them: **36** to `pages-a-page-may-declare-types`; **89** and **113** to
   delete and the two "put it back" actions. 151 entries became 144, and the words that survived the
   merge are the rules, not a second telling of them.
 
-## The old file
+## The old record
 
-`docs/decisions.md` gets one edit: a banner under its heading saying it is frozen, that its numbers keep
-their meaning, and that new decisions are recorded in `decided.md`. Nothing else changes, so every
-`#anchor` link into it still resolves and its history stays readable as it was written.
+Two moves, no rewrite of history:
+
+- `docs/decisions.md` becomes `docs/archive/decisions.md`. Its heading gains a banner saying it is
+  frozen, its numbers keep their meaning, and new decisions are recorded in the file that took its
+  name. Its 494 relative links are rewritten one level deeper — `pages.md` becomes `../pages.md`,
+  `../deploy/` becomes `../../deploy/` — so nothing in it points at a file that is no longer beside it.
+- The new record becomes `docs/decisions.md`, which is the name a reader looks for. Every reference to
+  `decided.md` moved with it, and the four links that named an old section by anchor now name the entry
+  that replaced it: `#page-contract-and-threat-model` is `#pages-fetch-credentials` or `#pages-diff`,
+  and `#architecture-and-code-placement` is `#assistant-memory-is-the-owners`.
+
+The archive keeps its history under one directory rather than being deleted, because the numbers in a
+commit message, an old plan or a doc comment are still a reader's way in.
 
 ## The citations
 
@@ -336,25 +348,23 @@ Three things were not mechanical, and were done by hand:
   instead.
 
 What is left saying `DEC-` is deliberate: the frozen file, this plan's map, the collision paragraph, and
-the paragraph in `decided.md` that explains what it replaced.
+the paragraph in `decisions.md` that explains what it replaced.
 
 ## What this step does not do
 
 - **No check.** A `make decisions` target or a small tool that fails on a duplicate name, a name outside
   the area list, or a citation that names no entry would make the clash rule mechanical instead of
   remembered. It is the next step, and this one is the record to check.
-- **No deletion of the old file.** It is frozen, not removed.
+- **No deletion of the old record.** It is archived at `docs/archive/decisions.md`, not removed.
 
 ## Open questions for the owner
 
-1. **The file's name.** `docs/decided.md` is the proposal — short, and it reads as a record rather than
-   a rule book. It is permanent once merged, so this is the one decision that is worth a minute.
-2. **The area list.** Nine areas: `product`, `code`, `pages`, `shell`, `auth`, `assistant`, `deploy`,
+1. **The area list.** Nine areas: `product`, `code`, `pages`, `shell`, `auth`, `assistant`, `deploy`,
    `metrics` — and no `storage`, whose decisions are all a page's or the assistant's. Is that the right
    grain, or is `pages` (69 of the 144) doing too much work?
-3. **The condensation.** 297 entries to 144, and 24,362 words to 18,989. Every entry is now a heading
+2. **The condensation.** 297 entries to 144, and 24,362 words to 18,989. Every entry is now a heading
    with a rule under it rather than a row with a paragraph in a cell. If that is not far enough, the
    next pass is to drop the entries whose rule is stated in full by the linked document and pinned by a
    test; say so and it is a different, shorter record.
-4. **The check, now or later.** The policy is a convention until something enforces it. I would land
+3. **The check, now or later.** The policy is a convention until something enforces it. I would land
    the record first and the check next, so the check is written against a file that is already right.

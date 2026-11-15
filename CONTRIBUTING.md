@@ -36,7 +36,7 @@ Work lands as a merge commit (`git merge --no-ff`) rather than a fast-forward, s
 work it carries stay one unit in the history. After the merge its worktree is removed and the branch
 deleted; nothing is pushed to `origin` until asked. A decision is named rather than numbered and its
 name is taken when the work merges
-([the record](docs/decided.md)), so a branch states the name it intends until then and the merge
+([the record](docs/decisions.md)), so a branch states the name it intends until then and the merge
 writes the entry.
 
 **The owner merges, not the agent.** A branch is a proposal. When its work is done and its gate is

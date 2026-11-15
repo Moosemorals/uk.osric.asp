@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Status | Implemented 2026-11-11 |
 | Size | Small — one SDK property, one options parser, one injection path, and their tests |
-| Decisions | `pages-fetch-credentials`, recorded in [decisions](../../decisions.md#page-contract-and-threat-model) |
+| Decisions | `pages-fetch-credentials`, recorded in [decisions](../../decisions.md#pages-fetch-credentials) |
 
 Implementation notes, where the code differs from the plan: the proposed `metrics-one-panel-per-instrument` number had already
 been used by the bucket-scale decision, so this is `pages-fetch-credentials`. The prompt moved from `page-author-v18`

@@ -37,11 +37,11 @@ A plan is written before a large change (`product-plan-before-building`), and it
 it records by the name that decision will carry. A decision has a name rather than a number —
 `area-subject`, from the fixed list of areas — and the name is taken when the work merges, not when it
 is planned: until then the plan states the name it intends, and the merge writes the entry in
-`docs/decided.md` and points the plan at it. A name is permanent once merged, is cited in backticks
+`docs/decisions.md` and points the plan at it. A name is permanent once merged, is cited in backticks
 with no number, and is never disambiguated with a suffix: if two branches land one name, the merge
 folds them into one entry or narrows one of the names, and updates every citation in that branch.
-`docs/decisions.md` is frozen — a `DEC-` number written before 2026-11-15 means what it meant then.
-See [decided](../docs/decided.md).
+`docs/archive/decisions.md` is frozen — a `DEC-` number written before 2026-11-15 means what it meant then.
+See [decided](../docs/decisions.md).
 
 Every step of the programme is proposed and waits for the owner: the plan, before anything is built,
 and the merge, for every step, once its gate is run (`product-steps-wait-for-the-owner`). Working on a
