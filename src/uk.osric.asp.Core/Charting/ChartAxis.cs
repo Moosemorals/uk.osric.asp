@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Core.Charting;
 
-/// <summary>One axis of a chart: a title and the ticks drawn along it.</summary>
+/// <summary>A chart's value axis: a title and the ticks drawn along it.</summary>
 /// <param name="Title">What the axis measures, for the chart's description.</param>
 /// <param name="Ticks">The ticks, in any order; the chart sorts them by position.</param>
 /// <param name="Divisor">

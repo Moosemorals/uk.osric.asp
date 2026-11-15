@@ -26,6 +26,9 @@ override uk.osric.asp.Core.Assistant.MemorySelection.ToString() -> string!
 override uk.osric.asp.Core.Charting.ChartFrame.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Charting.ChartFrame.GetHashCode() -> int
 override uk.osric.asp.Core.Charting.ChartFrame.ToString() -> string!
+override uk.osric.asp.Core.Charting.ChartTimeAxis.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Charting.ChartTimeAxis.GetHashCode() -> int
+override uk.osric.asp.Core.Charting.ChartTimeAxis.ToString() -> string!
 override uk.osric.asp.Core.Diff.DiffDocument.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Diff.DiffDocument.GetHashCode() -> int
 override uk.osric.asp.Core.Diff.DiffDocument.ToString() -> string!
@@ -90,11 +93,16 @@ static uk.osric.asp.Core.Assistant.MemorySelection.operator !=(uk.osric.asp.Core
 static uk.osric.asp.Core.Assistant.MemorySelection.operator ==(uk.osric.asp.Core.Assistant.MemorySelection? left, uk.osric.asp.Core.Assistant.MemorySelection? right) -> bool
 static uk.osric.asp.Core.Charting.ChartFrame.operator !=(uk.osric.asp.Core.Charting.ChartFrame? left, uk.osric.asp.Core.Charting.ChartFrame? right) -> bool
 static uk.osric.asp.Core.Charting.ChartFrame.operator ==(uk.osric.asp.Core.Charting.ChartFrame? left, uk.osric.asp.Core.Charting.ChartFrame? right) -> bool
+static uk.osric.asp.Core.Charting.ChartTimeAxis.operator !=(uk.osric.asp.Core.Charting.ChartTimeAxis? left, uk.osric.asp.Core.Charting.ChartTimeAxis? right) -> bool
+static uk.osric.asp.Core.Charting.ChartTimeAxis.operator ==(uk.osric.asp.Core.Charting.ChartTimeAxis? left, uk.osric.asp.Core.Charting.ChartTimeAxis? right) -> bool
 *REMOVED*static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartSize size, string! title, string! yTitle, string! valueUnit) -> string!
-static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame, string! valueUnit) -> string!
+*REMOVED*static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame, string! valueUnit) -> string!
+static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartTimeAxis! x, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame, string! valueUnit) -> string!
 *REMOVED*static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size) -> string!
-static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
-static uk.osric.asp.Core.Charting.StackedAreaChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
+*REMOVED*static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
+static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartTimeAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
+*REMOVED*static uk.osric.asp.Core.Charting.StackedAreaChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
+static uk.osric.asp.Core.Charting.StackedAreaChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartTimeAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
 static uk.osric.asp.Core.Diff.DiffDocument.operator !=(uk.osric.asp.Core.Diff.DiffDocument? left, uk.osric.asp.Core.Diff.DiffDocument? right) -> bool
 static uk.osric.asp.Core.Diff.DiffDocument.operator ==(uk.osric.asp.Core.Diff.DiffDocument? left, uk.osric.asp.Core.Diff.DiffDocument? right) -> bool
 static uk.osric.asp.Core.Diff.DiffHunk.operator !=(uk.osric.asp.Core.Diff.DiffHunk left, uk.osric.asp.Core.Diff.DiffHunk right) -> bool
@@ -226,6 +234,19 @@ uk.osric.asp.Core.Charting.ChartFrame.YTitle.get -> string!
 uk.osric.asp.Core.Charting.ChartFrame.YTitle.init -> void
 uk.osric.asp.Core.Charting.ChartFrame.Zone.get -> System.TimeZoneInfo!
 uk.osric.asp.Core.Charting.ChartFrame.Zone.init -> void
+uk.osric.asp.Core.Charting.ChartTimeAxis
+uk.osric.asp.Core.Charting.ChartTimeAxis.<Clone>$() -> uk.osric.asp.Core.Charting.ChartTimeAxis!
+uk.osric.asp.Core.Charting.ChartTimeAxis.ChartTimeAxis(string! Title, System.DateTimeOffset From, System.DateTimeOffset To, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>! Ticks) -> void
+uk.osric.asp.Core.Charting.ChartTimeAxis.Deconstruct(out string! Title, out System.DateTimeOffset From, out System.DateTimeOffset To, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>! Ticks) -> void
+uk.osric.asp.Core.Charting.ChartTimeAxis.Equals(uk.osric.asp.Core.Charting.ChartTimeAxis? other) -> bool
+uk.osric.asp.Core.Charting.ChartTimeAxis.From.get -> System.DateTimeOffset
+uk.osric.asp.Core.Charting.ChartTimeAxis.From.init -> void
+uk.osric.asp.Core.Charting.ChartTimeAxis.Ticks.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>!
+uk.osric.asp.Core.Charting.ChartTimeAxis.Ticks.init -> void
+uk.osric.asp.Core.Charting.ChartTimeAxis.Title.get -> string!
+uk.osric.asp.Core.Charting.ChartTimeAxis.Title.init -> void
+uk.osric.asp.Core.Charting.ChartTimeAxis.To.get -> System.DateTimeOffset
+uk.osric.asp.Core.Charting.ChartTimeAxis.To.init -> void
 uk.osric.asp.Core.Charting.StackedAreaChart
 uk.osric.asp.Core.Diff.DiffDocument
 uk.osric.asp.Core.Diff.DiffDocument.<Clone>$() -> uk.osric.asp.Core.Diff.DiffDocument!

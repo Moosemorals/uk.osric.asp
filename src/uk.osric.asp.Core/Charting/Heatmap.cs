@@ -71,7 +71,8 @@ public static class Heatmap {
 
     /// <summary>Renders the heatmap as SVG.</summary>
     /// <param name="rows">The per-bucket rows, already differenced.</param>
-    /// <param name="x">The time axis; tick positions are seconds after the first sample.</param>
+    /// <param name="x">The time axis: the window the plot covers and its ticks, positioned in seconds
+    /// after the window's start.</param>
     /// <param name="size">The full drawing area, labels included.</param>
     /// <param name="frame">The drawing's title, bucket unit and words for no data.</param>
     /// <param name="valueUnit">The unit of the cell values, for the legend and the hover text.</param>
@@ -80,7 +81,7 @@ public static class Heatmap {
     /// <exception cref="ArgumentOutOfRangeException">The size leaves no room to draw in.</exception>
     public static string Render(
         IReadOnlyList<HeatmapRow> rows,
-        ChartAxis x,
+        ChartTimeAxis x,
         ChartSize size,
         ChartFrame frame,
         string valueUnit) {
@@ -95,9 +96,6 @@ public static class Heatmap {
         ChartPlot plot = ChartChrome.Plot(size, band + LegendHeight);
 
         IReadOnlyList<HeatmapRow> folded = Fold(rows, MaxColumns);
-        (DateTimeOffset earliest, DateTimeOffset latest) = ChartSamples.Instants(folded.SelectMany(row => row.Points));
-        double span = ChartSamples.TimeSpan((latest - earliest).TotalSeconds, x.Ticks);
-        int columns = folded.Count == 0 ? 0 : folded.Max(row => row.Points.Count);
         double max = Maximum(folded);
 
         ChartChrome.WriteAxisTitle(svg, frame.YTitle, plot);
@@ -105,15 +103,14 @@ public static class Heatmap {
         // The shade legend sits under the title, where the line charts put theirs, so it never lands on
         // the time axis.
         WriteLegend(svg, band, max, valueUnit);
-        ChartChrome.WriteTimeLabels(svg, x.Ticks, size, tick => plot.Time(tick, span));
+        ChartChrome.WriteTimeLabels(svg, x, plot, size);
         ChartChrome.Border(svg, plot);
 
-        double cellWidth = columns == 0 ? plot.Width : plot.Width / columns;
         double cellHeight = folded.Count == 0 ? plot.Height : plot.Height / folded.Count;
 
         // A bucket map with no observations keeps its rows as lines, so the buckets and their order are
         // still readable rather than an empty rectangle.
-        WriteRows(svg, folded, frame, valueUnit, plot, cellHeight, cellWidth, max, latest - earliest);
+        WriteRows(svg, folded, frame, valueUnit, x, plot, cellHeight, max);
 
         if (max <= 0) {
             ChartChrome.Empty(svg, plot, frame.EmptyText);
@@ -127,6 +124,7 @@ public static class Heatmap {
     /// <summary>Folds an answer into at most <paramref name="cap"/> columns, summing each block.</summary>
     /// <param name="rows">The differenced rows.</param>
     /// <param name="cap">The most columns to draw.</param>
+    /// <remarks>A folded column keeps the instant its block starts at, so it is drawn where the block was.</remarks>
     internal static IReadOnlyList<HeatmapRow> Fold(IReadOnlyList<HeatmapRow> rows, int cap) {
         ArgumentNullException.ThrowIfNull(rows);
 
@@ -145,7 +143,7 @@ public static class Heatmap {
                 double? sum = slice.Any(point => point.Value is not null)
                     ? slice.Sum(point => point.Value ?? 0)
                     : null;
-                points.Add(new ChartPoint(slice[^1].At, sum));
+                points.Add(new ChartPoint(slice[0].At, sum));
             }
 
             folded.Add(new HeatmapRow(row.Label, points));
@@ -159,11 +157,10 @@ public static class Heatmap {
         IReadOnlyList<HeatmapRow> rows,
         ChartFrame frame,
         string valueUnit,
+        ChartTimeAxis x,
         ChartPlot plot,
         double cellHeight,
-        double cellWidth,
-        double max,
-        TimeSpan span) {
+        double max) {
 
         for (int row = 0; row < rows.Count; row++) {
             HeatmapRow line = rows[row];
@@ -190,7 +187,7 @@ public static class Heatmap {
                 .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BucketLabel(line.Label)))
                 .Append("</text>\n");
 
-            WriteRuns(svg, line, frame, valueUnit, span, plot, y, cellHeight, cellWidth, max);
+            WriteRuns(svg, line, frame, valueUnit, x, plot, y, cellHeight, max);
             svg.Append("</a>\n");
         }
     }
@@ -200,14 +197,14 @@ public static class Heatmap {
         HeatmapRow line,
         ChartFrame frame,
         string valueUnit,
-        TimeSpan span,
+        ChartTimeAxis x,
         ChartPlot plot,
         double y,
         double cellHeight,
-        double cellWidth,
         double max) {
 
-        int start = -1;
+        TimeSpan bucket = Bucket(line.Points, x);
+        bool open = false;
         int level = 0;
         double total = 0;
         DateTimeOffset from = default;
@@ -219,56 +216,65 @@ public static class Heatmap {
                 ? Level(value, max)
                 : 0;
 
-            if (start >= 0 && cellLevel == level) {
+            if (open && cellLevel == level) {
                 total += Math.Max(0, point.Value ?? 0);
                 to = point.At;
                 continue;
             }
 
-            if (start >= 0) {
-                WriteRun(svg, line.Label, frame, valueUnit, span, plot, y, cellHeight, cellWidth,
-                    start, column - 1, level, total, from, to);
+            if (open) {
+                WriteRun(svg, line.Label, frame, valueUnit, x, plot, y, cellHeight,
+                    level, total, from, to, bucket);
             }
 
             if (cellLevel > 0) {
-                start = column;
+                open = true;
                 level = cellLevel;
                 total = Math.Max(0, point.Value ?? 0);
                 from = point.At;
                 to = point.At;
             } else {
-                start = -1;
+                open = false;
             }
         }
     }
+
+    // A sample says when a bucket was read, not how long it lasted, so a cell is as wide as the gap
+    // that follows it; the last one repeats the gap before it, and a row with a single sample has no
+    // gap to read and fills the window.
+    private static TimeSpan Bucket(IReadOnlyList<ChartPoint> points, ChartTimeAxis axis) =>
+        points.Count < 2 ? axis.Duration : points[^1].At - points[^2].At;
 
     private static void WriteRun(
         StringBuilder svg,
         string label,
         ChartFrame frame,
         string valueUnit,
-        TimeSpan span,
+        ChartTimeAxis x,
         ChartPlot plot,
         double y,
         double cellHeight,
-        double cellWidth,
-        int start,
-        int end,
         int level,
         double total,
         DateTimeOffset from,
-        DateTimeOffset to) {
+        DateTimeOffset to,
+        TimeSpan bucket) {
 
-        // No gap: a histogram is contiguous, and its blocks should touch.
-        double left = plot.Left + (start * cellWidth);
-        double width = (end - start + 1) * cellWidth;
-        string when = start == end
-            ? ChartChrome.Instant(from, frame.Zone, span)
-            : ChartChrome.Instant(from, frame.Zone, span) + "–" + ChartChrome.Instant(to, frame.Zone, span);
+        // No gap: a histogram is contiguous, and its blocks should touch. Cutting the run at the plot's
+        // edges keeps a sample outside the window out of the drawing rather than stretched onto it.
+        double left = Math.Max(plot.Left, plot.Time(x, x.Offset(from)));
+        double right = Math.Min(plot.Right, plot.Time(x, x.Offset(to) + bucket.TotalSeconds));
+        if (right <= left) {
+            return;
+        }
+
+        string when = from == to
+            ? ChartChrome.Instant(from, frame.Zone, x.Duration)
+            : ChartChrome.Instant(from, frame.Zone, x.Duration) + "–" + ChartChrome.Instant(to, frame.Zone, x.Duration);
 
         svg.Append("<rect x=\"").Append(SvgText.Number(left))
             .Append("\" y=\"").Append(SvgText.Number(y))
-            .Append("\" width=\"").Append(SvgText.Number(width))
+            .Append("\" width=\"").Append(SvgText.Number(right - left))
             .Append("\" height=\"").Append(SvgText.Number(cellHeight))
             .Append("\" fill=\"").Append(SvgText.HeatFill(level))
             .Append("\"><title>").Append(SvgText.Escape($"{BucketLabel(label)}: {Format(total)} {valueUnit} ({when})"))

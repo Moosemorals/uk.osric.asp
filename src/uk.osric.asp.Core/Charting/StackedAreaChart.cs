@@ -25,7 +25,8 @@ public static class StackedAreaChart {
 
     /// <summary>Renders one stacked area chart.</summary>
     /// <param name="series">The parts; they are stacked in label order, not in the order given.</param>
-    /// <param name="x">The time axis; tick positions are seconds after the first sample.</param>
+    /// <param name="x">The time axis: the window the plot covers and its ticks, positioned in seconds
+    /// after the window's start.</param>
     /// <param name="y">The value axis; its title is drawn and its ticks are ignored, because the range
     /// is the sum of the bands and is chosen here.</param>
     /// <param name="size">The full drawing area, labels included.</param>
@@ -36,7 +37,7 @@ public static class StackedAreaChart {
     /// <exception cref="ArgumentException">A value is negative, which a stack cannot draw.</exception>
     public static string Render(
         IReadOnlyList<ChartSeries> series,
-        ChartAxis x,
+        ChartTimeAxis x,
         ChartAxis y,
         ChartSize size,
         ChartFrame frame) {
@@ -60,12 +61,10 @@ public static class StackedAreaChart {
         // An empty stack still gets a scale, which is what keeps its grid on the page.
         IReadOnlyList<ChartTick> ticks = NiceTicks.ForValue(0, max > 0 ? max : 1);
         double axisMax = Math.Max(max > 0 ? max : 1, ticks.Count == 0 ? 1 : ticks.Max(tick => tick.Position));
-        double sampleSpan = timeline.Count < 2 ? 0 : (timeline[^1].At - timeline[0].At).TotalSeconds;
-        double span = ChartSamples.TimeSpan(sampleSpan, x.Ticks);
 
         ChartChrome.WriteAxisTitle(svg, y.Title, plot);
         ChartChrome.WriteValueGrid(svg, ticks, plot, tick => plot.Value(tick, 0, axisMax));
-        ChartChrome.WriteTimeGrid(svg, x.Ticks, plot, size, tick => plot.Time(tick, span));
+        ChartChrome.WriteTimeGrid(svg, x, plot, size);
         ChartChrome.Border(svg, plot);
 
         if (max <= 0) {
@@ -89,18 +88,23 @@ public static class StackedAreaChart {
                 tops[column] = below[column] + values[index][column];
             }
 
+            List<(double X, double Below, double Top)> band = Visible(timeline, below, tops, x, plot, axisMax);
+
             ChartChrome.BeginSeries(svg, frame, index, line.Label, legend[index]);
-            svg.Append("<path class=\"series area ").Append(SvgText.SeriesColour(index))
-                .Append("\" d=\"").Append(Area(timeline, below, tops, span, plot, axisMax))
-                .Append("\" fill=\"").Append(colour).Append("\" fill-opacity=\"")
-                .Append(SvgText.Number(FillOpacity)).Append("\" stroke=\"none\"/>\n");
-            svg.Append("<polyline class=\"series ").Append(SvgText.SeriesColour(index))
-                .Append("\" points=\"").Append(Top(timeline, tops, span, plot, axisMax))
-                .Append("\" fill=\"none\" stroke=\"").Append(colour)
-                .Append("\" stroke-width=\"2\"").Append(dash).Append("/>\n");
+            if (band.Count > 0) {
+                svg.Append("<path class=\"series area ").Append(SvgText.SeriesColour(index))
+                    .Append("\" d=\"").Append(Area(band))
+                    .Append("\" fill=\"").Append(colour).Append("\" fill-opacity=\"")
+                    .Append(SvgText.Number(FillOpacity)).Append("\" stroke=\"none\"/>\n");
+                svg.Append("<polyline class=\"series ").Append(SvgText.SeriesColour(index))
+                    .Append("\" points=\"").Append(Top(band))
+                    .Append("\" fill=\"none\" stroke=\"").Append(colour)
+                    .Append("\" stroke-width=\"2\"").Append(dash).Append("/>\n");
+            }
+
             ChartChrome.EndSeries(svg);
 
-            WriteEndLabel(svg, line.Label, colour, timeline, below, tops, span, plot, axisMax);
+            WriteEndLabel(svg, line.Label, colour, band);
             below = tops;
         }
 
@@ -112,25 +116,17 @@ public static class StackedAreaChart {
         StringBuilder svg,
         string label,
         string colour,
-        IReadOnlyList<ChartPoint> timeline,
-        double[] below,
-        double[] tops,
-        double span,
-        ChartPlot plot,
-        double axisMax) {
+        IReadOnlyList<(double X, double Below, double Top)> band) {
 
-        if (string.IsNullOrWhiteSpace(label) || timeline.Count == 0) {
+        if (string.IsNullOrWhiteSpace(label) || band.Count == 0) {
             return;
         }
 
-        int last = timeline.Count - 1;
-        double bottom = plot.Value(below[last], 0, axisMax);
-        double upper = plot.Value(tops[last], 0, axisMax);
+        (double x, double bottom, double upper) = band[^1];
         if (bottom - upper < LabelHeight) {
             return;
         }
 
-        double x = plot.Time((timeline[last].At - timeline[0].At).TotalSeconds, span);
         double y = (bottom + upper) / 2;
 
         svg.Append("<text class=\"series-label\" x=\"").Append(SvgText.Number(x - (4 * SvgText.TypeScale)))
@@ -140,41 +136,44 @@ public static class StackedAreaChart {
             .Append(SvgText.Escape(label)).Append("</text>\n");
     }
 
-    private static string Area(
+    // Where each column of the band sits in the plot, cut to the window so an overshoot ends at the
+    // edge rather than running along it.
+    private static List<(double X, double Below, double Top)> Visible(
         IReadOnlyList<ChartPoint> timeline,
         double[] below,
         double[] tops,
-        double span,
+        ChartTimeAxis axis,
         ChartPlot plot,
         double axisMax) {
 
-        StringBuilder path = new();
+        List<(double X, double Below, double Top)> columns = [];
         for (int column = 0; column < timeline.Count; column++) {
-            double x = plot.Time((timeline[column].At - timeline[0].At).TotalSeconds, span);
-            double y = plot.Value(tops[column], 0, axisMax);
-            path.Append(column == 0 ? "M" : "L").Append(SvgText.Number(x)).Append(' ').Append(SvgText.Number(y)).Append(' ');
+            columns.Add((
+                plot.Time(axis, axis.Offset(timeline[column].At)),
+                plot.Value(below[column], 0, axisMax),
+                plot.Value(tops[column], 0, axisMax)));
         }
 
-        for (int column = timeline.Count - 1; column >= 0; column--) {
-            double x = plot.Time((timeline[column].At - timeline[0].At).TotalSeconds, span);
-            double y = plot.Value(below[column], 0, axisMax);
-            path.Append('L').Append(SvgText.Number(x)).Append(' ').Append(SvgText.Number(y)).Append(' ');
+        return ChartClip.Stack(columns, plot);
+    }
+
+    private static string Area(IReadOnlyList<(double X, double Below, double Top)> band) {
+        StringBuilder path = new();
+        for (int column = 0; column < band.Count; column++) {
+            path.Append(column == 0 ? "M" : "L").Append(SvgText.Number(band[column].X)).Append(' ')
+                .Append(SvgText.Number(band[column].Top)).Append(' ');
+        }
+
+        for (int column = band.Count - 1; column >= 0; column--) {
+            path.Append('L').Append(SvgText.Number(band[column].X)).Append(' ')
+                .Append(SvgText.Number(band[column].Below)).Append(' ');
         }
 
         return path.Append('Z').ToString();
     }
 
-    private static string Top(
-        IReadOnlyList<ChartPoint> timeline,
-        double[] tops,
-        double span,
-        ChartPlot plot,
-        double axisMax) {
-
-        return string.Join(' ', timeline.Select((point, column) =>
-            SvgText.Number(plot.Time((point.At - timeline[0].At).TotalSeconds, span)) + "," +
-            SvgText.Number(plot.Value(tops[column], 0, axisMax))));
-    }
+    private static string Top(IReadOnlyList<(double X, double Below, double Top)> band) =>
+        string.Join(' ', band.Select(column => SvgText.Number(column.X) + "," + SvgText.Number(column.Top)));
 
     private static IReadOnlyList<ChartPoint> Timeline(IReadOnlyList<ChartSeries> series) {
         // The queries return aligned samples, so the first series' instants are the grid and every other
