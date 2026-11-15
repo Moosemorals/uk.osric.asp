@@ -521,6 +521,17 @@ shown separately. Cached is part of prompt and reasoning part of completion, so 
 **Owner:** assistant — `TokenUsage`, `RunUsage`, the `AssistantRuns` totals and
 `AssistantMetrics.RecordUsage` (`assistant-usage-is-accumulated`).
 
+## View
+The site as a signed-in owner sees it, which one assistant run may read over HTTP while it works. The
+run presents a token minted for it — 256 bits, in memory, dead when the run ends — to `Site:Origin`
+and to nothing else, and the answer is the response as the server produced it: every header, the
+body's own bytes read as UTF-8, and the redirects it took. A view reads and never writes.
+
+**Not** a sign-in, a session or an account: nothing is stored, nothing survives the run, and a
+browser cannot present one. **Not** `fetch`, which is anonymous, reaches any host, keeps nine headers
+and decodes text by the charset the response declares. **Owner:** shell — `ViewTokenStore`, the `View`
+scheme, `ViewGuard`, `SiteOptions` and `ViewCredential`.
+
 ## Versioned URL
 A page URL with `?v=<hash>`, where the value is one retained revision's 64-character lowercase
 hexadecimal hash. It selects that exact revision — never the head — and an unknown, repeated,

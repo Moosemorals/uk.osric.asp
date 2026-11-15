@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waits for the owner. Nothing below is built |
+| Status | Proposed 2026-11-15; approved and built the same day. Waits for the owner's merge |
 | Size | M — four files in `Authentication`, one options record, one tool, a credential rule stated once, and the tests, the prompt and the docs for each. The idea's `L` was for an account of the assistant's own; this design needs no account, no secret and no schema, so it stays an `M` |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `AuthenticationExtensions`, `PageCredential`, `PageFetchOptions`, `OutboundFetcher`, `AssistantFetcher`, `FetchTool`, `PageEndpoint`, `RunProcessor`, `PageAuthorPrompt` |
 | Decisions | None recorded yet. They are named at the merge (`product-plan-before-building`); this branch states the names it intends |
@@ -139,16 +139,23 @@ policy value (`code-policy-values-are-configuration`), so it is a required key:
 "Site": { "Origin": "http://127.0.0.1:8080" }
 ```
 
-- Shipped as `http://127.0.0.1:8080`, which is true in the container: the quadlet publishes
-  `127.0.0.1:8080:8080` and health-checks `127.0.0.1:8080`. `make run` gains
-  `ASPNETCORE_URLS=http://127.0.0.1:8080` so the same value is true on the dev box, and no
-  `appsettings.Development.json` override is needed. (A running container holds that port; stopping it
-  or overriding both keys is the developer's choice, and the plan names it rather than hiding it.)
+- Shipped as `http://127.0.0.1:8080`, which is true for a development host: the quadlet publishes
+  `127.0.0.1:8080:8080` and health-checks it, and `make run` gains
+  `ASPNETCORE_URLS=http://127.0.0.1:8080` so the same value holds there and no
+  `appsettings.Development.json` override is needed.
+- **The deployment names the public origin instead** — `Site__Origin=https://moosemorals.com` in the
+  quadlet — and that is the one thing building this changed about the plan. A view of a page that
+  mints an antiforgery token, which the editor is, throws over plaintext in production, because the
+  antiforgery cookie is `Secure`-always: the first view of `/pages` came back `500` with exactly that
+  message. The public origin is also the honest one, since a view is meant to be the response a
+  visitor gets: it arrives through Caddy with the certificate and the forwarded headers, and the
+  token crosses the bridge network under TLS. `AddHost=moosemorals.com:host-gateway` is already in
+  the quadlet for a page's own fetch, so nothing new is needed to reach it. A production host left on
+  a plaintext origin logs one warning at startup rather than leaving a run to find out.
 - `SiteOptions.FromConfiguration` refuses anything that is not an origin: a blank or missing value, a
   path, a query, a fragment, user info, a non-`http`/`https` scheme, and plaintext to a host that is not
   loopback. Plaintext loopback is allowed for the same reason `PageCredential.AppliesTo` allows it — the
-  packets never leave the container's own network namespace — and an operator who wants the true public
-  origin may set `https://moosemorals.com` (see [the fidelity gap](#what-is-not-proved-and-what-is-not-true)).
+  packets never leave the machine — which is what makes the development value usable.
 - There is no enable switch, on `assistant-always-on`'s reasoning: the scheme exists unconditionally,
   and until a run mints a token there is nothing it could accept.
 
@@ -183,10 +190,11 @@ code and wrong for this tool (`pages-outbound-fetch`):
 | Decodes the body using the charset the response **declares** | a page showing JSON wants text, and an unknown charset falls back to UTF-8 | reads the **bytes** and hands their exact UTF-8 reading, because every body the host serves a `GET` with is UTF-8 (`SimpleContext`, the shell's own writers) — a page that declares `charset=iso-8859-1` and writes UTF-8 is then *visible* as a lie rather than silently mangled. A body that is not valid UTF-8 comes back as base64 with a flag, never as replacement characters |
 | Returns nine allow-listed response headers | a page must not see a cookie or a framing header it has no business with | returns **every** response header, `Set-Cookie` included — with the tool's description saying there is no cookie jar, so a cookie here is part of the answer, not a session the next view keeps |
 | Follows redirects and returns only the last response | a page fetching an API wants the answer, not the hops | reports the **chain**: each hop's status and `Location`, then the final response. This is what makes a guard visible: `302 → /login?returnUrl=/pages`, then 200, is unmistakably the anonymous answer, where 200 alone looks like a page that happens to render a sign-in form |
-| Reports a body cut at the byte cap with `truncated: true` and no idea how much is missing | a page branches on a value | also reports the **true byte length**, so a cut is a fact the model can act on rather than a body that looks finished |
+| Reports a body cut at the byte cap with `truncated: true` and no idea how much is missing | a page branches on a value | also reports the **length of the bytes it is returning**, so the body the model reads is a measurable part of a whole rather than a body that looks finished; when the transport's own cap cut it, `Content-Length` in the headers is the real size |
 
 So the value is `{ path, status, headers, contentType, content, base64, validUtf8, length, truncated,
-redirects }`, where `length` is bytes and `content` is present only when `validUtf8`. The *size* caps are
+redirects }`, where `length` is the body's byte length as returned and `content` is present only when
+`validUtf8`. The *size* caps are
 not fidelity and stay: the transport reads under `Pages:Fetch:MaxResponseBytes`, and the tool hands over
 at most `Assistant:ToolResultBudget` characters, reporting `truncated` and `length` when it cuts. A view
 of a page larger than the budget is therefore partial **and says so** — the honest limit, not a silent
@@ -261,7 +269,7 @@ change to that pipeline is tested by it for free.
 | `src/uk.osric.asp.Web/Authentication/ViewGuard.cs` | **New.** After authentication: `401` for a bearer that did not verify, `405 Allow: GET, HEAD` for a view that tries to write |
 | `src/uk.osric.asp.Web/Authentication/AuthenticationExtensions.cs` | Register `View`, the policy scheme that forwards by header, and the guard |
 | `src/uk.osric.asp.Web/SiteOptions.cs` | **New.** `Site:Origin` with `FromConfiguration`, a `Resolve(path)` that joins a path onto the origin and refuses `//host` and anything with a scheme |
-| `src/uk.osric.asp.Web/Program.cs` | Read `Site:Origin`, register `SiteOptions` and `ViewTokenStore`, add the guard after `UseAuthentication` |
+| `src/uk.osric.asp.Web/Program.cs` | Read `Site:Origin`, register `SiteOptions` and `ViewTokenStore`, add the guard after `UseAuthentication`, and log the origin at startup — with a warning when a production host names a plaintext one |
 | `src/uk.osric.asp.Web/Pages/OutboundCredential.cs` | **New.** The one thing `OutboundFetcher` asks: this hop's header, or none |
 | `src/uk.osric.asp.Web/Pages/PageCredential.cs` | Becomes the page-bound credential; its rule is unchanged, its `AppliesTo`/`HeaderValue` move behind the new shape |
 | `src/uk.osric.asp.Web/Pages/OutboundResponse.cs` | **New.** What the transport actually produced: status, every header, the body's bytes, the redirect hops and the true length. `HttpFetchResponse` becomes the page's text projection of it, so there is one read loop and two answers |
@@ -272,8 +280,9 @@ change to that pipeline is tested by it for free.
 | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs` | Register it beside `FetchTool` |
 | `src/uk.osric.asp.Web/Assistant/Tools/ToolServices.cs` | `Views` (the store, asked by run id) and `Site` (the origin), beside `Memories` |
 | `src/uk.osric.asp.Web/Assistant/RunProcessor.cs` | Mint at the start of `ExecuteAsync`, forget in its `finally` |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The `view` section, the rule that a path is *this site as you* and an absolute URL is not, the session caveat, and `Version` → `page-author-v31` |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The `view` section, the rule that a path is *this site as you* and an absolute URL is not, the session caveat, and `Version` → `page-author-v33`, the next free one after the two that landed first |
 | `src/uk.osric.asp.Web/appsettings.json` | `Site:Origin` |
+| `deploy/uk.osric.asp.container` | `Environment=Site__Origin=https://moosemorals.com`, because a view of the editor has to be an HTTPS request (see rule 4) |
 | `Makefile` | `run` passes `ASPNETCORE_URLS=http://127.0.0.1:8080` unless the caller sets one, so the shipped origin is true in development; its `make help` line stops promising "the default URLs" |
 
 ## Tests
@@ -303,7 +312,7 @@ change to that pipeline is tested by it for free.
   text, no hops.
 - `AssistantFetcherTests` — extended: the view credential is attached to the origin and to no other
   host, and no other port on the same host.
-- `PageAuthorPromptTests` — the assertions that pin the version move from `page-author-v30` to `v31`,
+- `PageAuthorPromptTests` — the assertions that pin the version move from `page-author-v32` to `v33`,
   and the prompt is
   asserted to name `view` and to say a path is this site as the run's owner.
 
@@ -349,9 +358,11 @@ jar — is the one thing this design does not use.
 
 ## Deployment
 
-Nothing to add to `deploy/`: no secret, no volume, no key, no unit change. The quadlet's
-`AddHost=moosemorals.com:host-gateway` stays for the public origin a *page* may fetch; the assistant's
-view does not use it.
+One line, and no secret: `Environment=Site__Origin=https://moosemorals.com` in
+`deploy/uk.osric.asp.container`, because a view of the editor has to be an HTTPS request. The token
+itself needs nothing — no environment entry, no volume, no key-ring entry, no rotation — and
+`AddHost=moosemorals.com:host-gateway` is already there, now serving a page's fetch and the view
+alike.
 
 ## What is not proved, and what is not true
 
@@ -374,6 +385,11 @@ view does not use it.
   out where a browser would not.
 - **A streaming path never ends.** `view /assistant/1/events` reads until the fetch budget expires and
   answers `Timeout`; the tool's description says so.
+- **A page that has to compile first can outlive the fetch.** The editor is 31 KB of template and takes
+  about two seconds to compile beside other work; the view's fetch budget is 4 s
+  (`Pages:Fetch:TimeoutSeconds`), so the first view after a restart can answer `Timeout` and the next
+  one works. The fixture warms the editor for that reason, and a run that hits it is told exactly what
+  happened.
 - **The token is instance-local.** A loopback request reaches the instance that minted it, so the design
   stays correct if the site ever runs as more than one container — but a *shared* `Site:Origin` pointing
   at a load balancer would not be. One container is the deployment.
@@ -413,9 +429,11 @@ Three the plan puts back, each with a recommendation it will follow unless the o
    will want that word for the real thing.
 2. **No approval on `view`.** Recommended: a read of this site as the run's owner is `read_page`'s
    standing, not `fetch`'s.
-3. **Loopback plaintext, or the public origin.** Recommended: `http://127.0.0.1:8080`, as the idea
-   asked, with `https://moosemorals.com` available as one configuration edit for an operator who wants
-   the scheme and headers a visitor sees.
+3. ~~**Loopback plaintext, or the public origin.**~~ **Answered by building it.** The plan recommended
+   loopback; the first view of the editor answered `500`, because the antiforgery cookie is
+   `Secure`-always in production and the editor mints a token. The public origin was already allowed
+   by the validation rule, so the deployment sets it and the shipped loopback value stays for
+   development.
 
 ## The names this plan intends
 

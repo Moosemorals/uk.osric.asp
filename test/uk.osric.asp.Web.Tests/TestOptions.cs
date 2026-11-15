@@ -22,6 +22,9 @@ internal static class TestOptions {
 
     private static IConfiguration Configuration => ShippedConfiguration.Read();
 
+    /// <summary>The site origin the repository ships.</summary>
+    public static SiteOptions Site { get; } = SiteOptions.FromConfiguration(Configuration);
+
     /// <summary>The render budget the site ships with.</summary>
     public static RenderOptions Render { get; } = RenderOptions.FromConfiguration(Configuration);
 

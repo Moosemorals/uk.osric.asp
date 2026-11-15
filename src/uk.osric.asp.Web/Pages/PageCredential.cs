@@ -23,7 +23,7 @@ internal sealed class PageCredential(
     string header,
     string? scheme,
     string value,
-    PagePath page) {
+    PagePath page) : IOutboundCredential {
 
     /// <summary>The name a page uses to ask for this credential.</summary>
     public string Name { get; } = name;

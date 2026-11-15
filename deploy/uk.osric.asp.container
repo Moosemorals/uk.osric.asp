@@ -23,6 +23,11 @@ PublishPort=127.0.0.1:8080:8080
 # written before podman's own, so this one wins. See the outbound fetch notes in deploy/README.md.
 AddHost=moosemorals.com:host-gateway
 Environment=ASPNETCORE_ENVIRONMENT=Production
+# Where the assistant reaches this site from inside the container. It is the public origin, not the
+# loopback publish: a view of a page that mints an antiforgery token (the editor) needs the request to
+# be HTTPS, and the anti-forgery cookie is Secure-always in Production. The name resolves through the
+# AddHost entry above to the host gateway, where Caddy holds the certificate.
+Environment=Site__Origin=https://moosemorals.com
 Environment="ConnectionStrings__Storage=Data Source=/data/storage.db"
 # The outbound page assistant's configuration; it must hold Assistant__ApiKey=..., and never put the
 # provider key in the image or appsettings.

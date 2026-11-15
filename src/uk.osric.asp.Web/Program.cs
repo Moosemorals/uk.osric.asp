@@ -101,6 +101,7 @@ internal class Program {
         PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
         PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
         RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
+        SiteOptions site = SiteOptions.FromConfiguration(settings.At("Site"));
         StreamOptions stream = StreamOptions.FromConfiguration(settings.At("Pages:Stream"));
 
         string[] reservedKeys = [.. settings.At("Pages").List("ReservedPaths", "page keys", minimum: 1)];
@@ -183,6 +184,7 @@ internal class Program {
         builder.Services.AddSingleton(render);
         builder.Services.AddSingleton(reserved);
         builder.Services.AddSingleton(session);
+        builder.Services.AddSingleton(site);
         builder.Services.AddSingleton(storage);
         builder.Services.AddSingleton(stream);
         builder.Services.AddSingleton(fetch);
@@ -264,6 +266,7 @@ internal class Program {
         builder.Services.AddSingleton<RunQueue>();
         builder.Services.AddSingleton<RunRegistry>();
         builder.Services.AddSingleton<ToolApprovalCoordinator>();
+        builder.Services.AddSingleton<ViewTokenStore>();
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         // Registered as a scoped store so `users remove` can sweep an account's memories with the
@@ -419,6 +422,8 @@ internal class Program {
         // After authentication and routing: the account and the route's ids are the two facts the
         // scope could not carry when it opened.
         app.UseRequestLogSubject();
+        // A view token reads and never writes, and a bearer header that did not authenticate is a 401.
+        app.Use(ViewGuard.ApplyAsync);
         app.UseAuthorization();
         app.UseAntiforgery();
 
@@ -527,9 +532,24 @@ internal class Program {
         app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.HandleAsync);
 
         // One line so a restart is visible without reading the framework's startup chatter.
-        app.Services.GetRequiredService<ILoggerFactory>()
-            .CreateLogger<Program>()
-            .LogInformation("uk.osric.asp starting in {EnvironmentName}", app.Environment.EnvironmentName);
+        ILogger startup = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger<Program>();
+        startup.LogInformation("uk.osric.asp starting in {EnvironmentName}, viewing the site at {Origin}",
+            app.Environment.EnvironmentName, site.Origin);
+
+        // The assistant's own view fetches this origin from inside the process. A host bound anywhere
+        // else (make run's ASPNETCORE_URLS, a changed Site:Origin) answers the tool a network failure
+        // rather than a page, so the mismatch is worth one line at startup rather than a mystery later.
+        if (app.Environment.IsProduction()
+            && !string.Equals(site.Origin.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal)) {
+            // Found by the first view of the editor: in Production the antiforgery cookie is
+            // Secure-always, so a page that mints a token throws when the request is plaintext. The
+            // view still reads every page that does not, which is why this is a warning rather than a
+            // refusal: the value is usable, and the site's https origin is the one that shows the
+            // pages a visitor actually gets.
+            startup.LogWarning(
+                "Site:Origin is {Origin}, which is plaintext, so a view of a page that mints an antiforgery token (the editor) will fail. Name the site's https origin instead.",
+                site.Origin);
+        }
 
         await app.RunAsync();
     }
