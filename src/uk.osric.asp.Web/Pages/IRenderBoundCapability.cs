@@ -18,3 +18,11 @@ internal interface IRenderBoundCapability {
     /// <summary>Stops accepting work, because the render was given up on.</summary>
     void Abandon();
 }
+
+/// <summary>A capability that owns resources until its render lifetime ends.</summary>
+internal interface IRenderLifetimeAware {
+
+    /// <summary>Attaches the render lifetime and its asynchronous cleanup boundary.</summary>
+    /// <param name="lifetime">The render lifetime that owns this capability.</param>
+    void AttachLifetime(RenderLifetime lifetime);
+}

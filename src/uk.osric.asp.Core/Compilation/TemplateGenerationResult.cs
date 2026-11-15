@@ -22,6 +22,11 @@ public sealed record TemplateGenerationResult(GeneratedSource? Source, IReadOnly
     /// looking like an asset.
     /// </para>
     /// <para>
+    /// A declaration-only source is a library here even when it is really a worker: telling them
+    /// apart needs the compiled types, so the compiler refines that verdict when the source is
+    /// compiled (<see cref="PageKind.Worker"/>).
+    /// </para>
+    /// <para>
     /// A template that could not be tokenized or generated is a page, whatever it started as: it has
     /// code the tokenizer saw, and a failure must never be mistaken for something with nothing to
     /// compile.

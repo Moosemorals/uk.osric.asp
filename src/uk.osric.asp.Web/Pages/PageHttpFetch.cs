@@ -27,8 +27,12 @@ internal sealed class PageHttpFetch(
     PageFetchOptions options,
     RenderFetchBudget budget,
     PageMetrics metrics,
-    ILogger logger) : RenderBoundCapability, IHttpFetch {
+    ILogger logger) : RenderBoundCapability, IHttpFetch, IRenderLifetimeAware {
 #pragma warning restore CA1068 // CancellationToken parameters must come last
+
+    private readonly Lock _streamLock = new();
+    private readonly List<HttpFetchStream> _streams = [];
+    private bool _lifetimeEnded;
 
     /// <inheritdoc/>
     public async Task<HttpFetchResponse> SendAsync(HttpFetchRequest request) {
@@ -50,6 +54,45 @@ internal sealed class PageHttpFetch(
         return await fetcher.FetchAsync(request, path.Key, aborted, Deadline);
     }
 
+    /// <inheritdoc/>
+    public async Task<HttpFetchStream> StreamAsync(HttpFetchRequest request) {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (IsAbandoned) {
+            throw new InvalidOperationException($"The render of {path.Key} was abandoned; it cannot fetch.");
+        }
+
+        if (request.Method == HttpFetchMethod.Post && isHead) {
+            return RefuseStream(PageMetrics.FetchInvalid, "a POST during a HEAD request");
+        }
+
+        if (!budget.TryTake()) {
+            return RefuseStream(PageMetrics.FetchLimit, $"more than {options.MaxRequestsPerRender} requests");
+        }
+
+        HttpFetchStream stream = await fetcher.StreamAsync(request, path.Key, aborted, Deadline);
+        bool closeImmediately;
+        lock (_streamLock) {
+            closeImmediately = _lifetimeEnded || IsAbandoned;
+            if (!closeImmediately) {
+                _streams.Add(stream);
+            }
+        }
+
+        if (closeImmediately) {
+            await stream.CloseAsync();
+        }
+
+        return stream;
+    }
+
+    /// <inheritdoc/>
+    public void AttachLifetime(RenderLifetime lifetime) {
+        ArgumentNullException.ThrowIfNull(lifetime);
+
+        lifetime.RegisterCleanup(CloseStreamsAsync);
+    }
+
     private HttpFetchResponse Refuse(string outcome, string why) {
         metrics.RecordFetch(path, outcome, TimeSpan.Zero);
         logger.LogWarning("Page {Path} was refused a fetch for {Reason}", path.Key, why);
@@ -60,5 +103,20 @@ internal sealed class PageHttpFetch(
             string.Empty,
             outcome == PageMetrics.FetchLimit ? HttpFetchFailure.TooManyRequests : HttpFetchFailure.InvalidRequest,
             false);
+    }
+
+    private HttpFetchStream RefuseStream(string outcome, string why) {
+        return new EmptyHttpFetchStream(Refuse(outcome, why).Failure);
+    }
+
+    private async Task CloseStreamsAsync() {
+        HttpFetchStream[] streams;
+        lock (_streamLock) {
+            _lifetimeEnded = true;
+            streams = [.. _streams];
+            _streams.Clear();
+        }
+
+        await Task.WhenAll(streams.Select(stream => stream.CloseAsync()));
     }
 }

@@ -68,11 +68,15 @@ build:
   `https` host the URL names: there is no host allow-list (DEC-216). Every request carries
   `moosemorals.com (page)` as its `User-Agent`, set by the host after the page's own headers, so a
   page cannot claim to be another client. `GetAsync` and `PostAsync` sit over
-  `SendAsync(HttpFetchRequest)`; every failure is a value rather than an exception, and the
-  render's shared request count, the deadline and abandonment all bound it (DEC-216, DEC-129,
-  DEC-143). A request may name an operator-configured credential with `Credential`: the host
-  supplies the header, only to that credential's host and only from the page the credential is
-  bound to, and the page never reads the value. An unknown name is an `InvalidRequest` (DEC-230).
+  `SendAsync(HttpFetchRequest)`; `StreamAsync` opens the same request rules and returns an
+  `HttpFetchStream` that reads decoded text lines with `ReadLineAsync()`, exposes response metadata
+  and failure values, and can be closed explicitly. Open streams close when the render ends or is
+  abandoned. The render's shared request count, the deadline and abandonment bound the request
+  (DEC-216, DEC-129, DEC-143). A request may name an operator-configured credential with
+  `Credential`: the host supplies the header, only to that credential's host and only from the page
+  the credential is bound to, and the page never reads the value. An unknown name is an
+  `InvalidRequest` (DEC-230). Response headers use `Pages:Fetch:TimeoutSeconds`; a stream's body
+  also has independent `StreamSilenceSeconds`, `StreamMaxSeconds` and `MaxStreamBytes` limits.
 - `IPageCatalog` reads the page store: `ListAsync(prefix)` lists the heads under a subtree,
   `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a page's history and
   `ReadRevisionAsync(key, hash)` reads one retained revision. Each `PageEntry` marks the head
@@ -184,12 +188,61 @@ commit point and the whole of the opt-in:
   answers `503`. This is the shape a page needs for progressive HTML, long-poll and server-sent
   events; it does not make an unbounded stream safe, which is the app's own problem.
 
+#### Relaying an upstream stream
+
+When an upstream may be slow, write and flush the response before opening it or waiting for a line.
+That commits the client response, so `Pages:Stream` bounds the client connection while
+`Pages:Fetch:StreamSilenceSeconds`, `StreamMaxSeconds` and `MaxStreamBytes` independently bound the
+upstream body. A failure after the flush cannot change the response status; report it in the stream
+instead:
+
+```html
+<%
+IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
+ctx.SetContentType("text/event-stream; charset=utf-8");
+ctx.SetHeader("X-Accel-Buffering", "no");
+ctx.WriteRaw(": connected\n\n");
+await ctx.FlushAsync();
+
+HttpFetchStream upstream = await fetch.StreamAsync(
+    new HttpFetchRequest("https://api.example.com/events"));
+try {
+    string? line;
+    while ((line = await upstream.ReadLineAsync()) is not null) {
+        ctx.WriteRaw($"data: {line}\n\n");
+        await ctx.FlushAsync();
+    }
+
+    string? failure = upstream.Truncated
+        ? "truncated"
+        : upstream.Failure == HttpFetchFailure.None ? null : upstream.Failure.ToString();
+    if (failure is not null) {
+        ctx.WriteRaw($"event: error\ndata: {failure}\n\n");
+        await ctx.FlushAsync();
+    }
+} finally {
+    await upstream.CloseAsync();
+}
+%>
+```
+
+`ReadLineAsync()` returns `null` at end of body or when the stream fails; inspect `Failure` and
+`Truncated` after the read loop. The host closes any stream a page leaves open when the render ends
+or is abandoned. The example uses `WriteRaw` because this response is SSE, not HTML; each upstream
+line is framed as an SSE `data` field.
+
 ## Assets and versioned URLs
 
-Every stored revision is one of three kinds, judged from its tokens by generation and stored beside
-the source (`PageKind`): **text** (no C#), **page** (C# that renders) and **library** (only
-declaration blocks). A kind is a property of the source rather than of the key, so editing a page can
-change what it is; there is no configuration for it.
+Every stored revision is one of four kinds, judged from its source and stored beside it
+(`PageKind`): **text** (no C#), **page** (C# that renders), **library** (only declaration blocks, for
+other sources to name) and **worker** (only declaration blocks, declaring one entry point a page
+starts). A kind is a property of the source rather than of the key, so editing a page can change what
+it is; there is no configuration for it. Generation answers for all but the last: whether declarations
+are a worker is a question about types, so the compiler refines a declaration-only source to worker
+when it declares exactly one public type implementing `IWorker` with a parameterless constructor. Two
+entry points, or an entry point that is not public or cannot be constructed, is a `PAGE006` error and
+no image.
 
 A page with no code is never compiled. Generation reads the tokens it already produced, and a
 template made only of text has nothing to compile: the revision is stored with no image, its kind is
@@ -207,6 +260,14 @@ wrapped. It is checked when it is saved — Roslyn analyses it and the diagnosti
 source, with no assembly — and a page API violation inside it is reported at the library's own line
 and key. A library declares at least one type in a namespace, which is how a page names it; a page
 may not declare a namespace.
+
+A **worker** is a library that declares one entry point: a public type implementing `IWorker` with a
+parameterless constructor. It is compiled to an assembly when it is saved, so its image is stored
+beside its source, and its diagnostics are the compiler's as any page's are. It is never served, never
+wrapped and never an asset, and it is not a library: the closure a page or a library is compiled with
+is the live libraries alone, so a source that names a worker's namespace fails with the compiler's
+missing-namespace diagnostic. A worker's own closure is recorded like a page's, so a worker whose
+library moved is compiled again before it is run.
 
 A library lives under **`/_lib/`** by convention: `/_lib/document` is the seeded document writer,
 and a site's own helpers belong beside it rather than in the keys a visitor might ask for. The

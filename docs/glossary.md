@@ -165,6 +165,14 @@ pinned with `?v=`, and a library is compiled into the pages that name it. **Owne
 `PageKind`, `PageAssetPolicy.IsLibrary`, the library shape rule in `PageApiChecker`, and the closure
 in `PageCompiler`.
 
+## Worker
+A stored source whose only blocks are declarations and which declares exactly one entry point: a
+public type implementing `IWorker` with a parameterless constructor. It is compiled to an assembly
+when it is saved and keeps its diagnostics, it is never served, and it is **not** a library — the
+closure a page is compiled with is the live libraries alone, so naming a worker's namespace is a
+compile error. A page starts one and it runs with no response of its own. **Owner:** pages —
+`PageKind.Worker`, the refinement in `PageCompiler`, and `PageAssetPolicy.IsWorker`.
+
 ## Markdown
 The source format a page may render to HTML, and the format an assistant reply is written in.
 

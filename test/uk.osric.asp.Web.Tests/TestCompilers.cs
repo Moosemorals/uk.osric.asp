@@ -15,11 +15,15 @@ internal sealed class FaultingCompiler : IPageCompiler {
         throw new InvalidOperationException("The generated page source did not compile.");
     }
 
-    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+    public CompileResult CompileWorker(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) {
         throw new InvalidOperationException("The generated page source did not compile.");
     }
 
     public LoadedPage Load(byte[] image, byte[]? symbols = null) {
+        throw new NotSupportedException("A faulting compiler never produces an image.");
+    }
+
+    public LoadedWorker LoadWorker(byte[] image, byte[]? symbols = null) {
         throw new NotSupportedException("A faulting compiler never produces an image.");
     }
 }
@@ -38,14 +42,18 @@ internal sealed class SlowCompiler(IPageCompiler inner) : IPageCompiler {
         return inner.Compile(source, libraries, cancellationToken);
     }
 
-    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+    public CompileResult CompileWorker(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) {
         Thread.Sleep(TimeSpan.FromMilliseconds(500));
 
-        return inner.CompileLibrary(source, cancellationToken);
+        return inner.CompileWorker(source, libraries, cancellationToken);
     }
 
     public LoadedPage Load(byte[] image, byte[]? symbols = null) {
         return inner.Load(image, symbols);
+    }
+
+    public LoadedWorker LoadWorker(byte[] image, byte[]? symbols = null) {
+        return inner.LoadWorker(image, symbols);
     }
 }
 
@@ -63,12 +71,16 @@ internal sealed class StallingCompiler : IPageCompiler {
         throw new OperationCanceledException(cancellationToken);
     }
 
-    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+    public CompileResult CompileWorker(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) {
         cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
         throw new OperationCanceledException(cancellationToken);
     }
 
     public LoadedPage Load(byte[] image, byte[]? symbols = null) {
+        throw new NotSupportedException("A stalling compiler never produces an image.");
+    }
+
+    public LoadedWorker LoadWorker(byte[] image, byte[]? symbols = null) {
         throw new NotSupportedException("A stalling compiler never produces an image.");
     }
 }

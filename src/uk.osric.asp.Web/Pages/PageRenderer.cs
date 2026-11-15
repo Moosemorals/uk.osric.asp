@@ -134,7 +134,9 @@ internal sealed class PageRenderer(
 
         metrics.RecordWait(Stopwatch.GetElapsedTime(queueStart));
 
+#pragma warning disable CA2000 // RenderSession owns and asynchronously disposes the lifetime.
         return new RenderSession(this, new RenderLifetime(budget, path, metrics, deadline), cancellationToken);
+#pragma warning restore CA2000
     }
 
     private async Task<RenderResult> RenderLayerAsync(
@@ -178,9 +180,9 @@ internal sealed class PageRenderer(
 
             cache = loaded.Cache;
 
-            if (loaded.IsLibrary) {
-                // A library has no representation to serve; its URL is answered by the endpoint, so
-                // this is a layout or a chain asking for one.
+            if (loaded.NotServed) {
+                // A library or a worker has no representation to serve; its URL is answered by the
+                // endpoint, so this is a layout or a chain asking for one.
                 outcome = PageMetrics.RenderNotFound;
                 return RenderResult.NotFound;
             }
@@ -299,12 +301,13 @@ internal sealed class PageRenderer(
     // A text template is served from source on every request and is never generated or compiled
     // again; an unjudged one is generated once by LoadHeadAsync, because it has never been judged.
     private CachedPage? FromStored(PagePath path, PageTemplate page, string? closure) {
-        // A library is not a representation: nothing renders it, and its own URL answers 404 before
-        // this runs. A layout that named one is not found rather than compiled as if it were a page.
-        if (page.Kind is PageKind.Library) {
+        // A library or a worker is not a representation: nothing renders it, and its own URL answers
+        // 404 before this runs. A layout that named one is not found rather than compiled as if it
+        // were a page.
+        if (!PageAssetPolicy.IsServed(page.Kind)) {
             metrics.RecordCacheLookup(PageMetrics.LookupHit);
 
-            return new CachedPage(null, null, PageMetrics.CacheHit, IsLibrary: true);
+            return new CachedPage(null, null, PageMetrics.CacheHit, NotServed: true);
         }
 
         if (page.Kind is PageKind.Text) {
@@ -329,8 +332,8 @@ internal sealed class PageRenderer(
     }
 
     private static CachedPage FromBuilt(PageTemplate page, PageImage image) => image.Kind switch {
-        PageKind.Library => new CachedPage(null, null, PageMetrics.CacheMiss, IsLibrary: true),
         PageKind.Text => new CachedPage(null, page.Template, PageMetrics.CacheMiss),
+        _ when !PageAssetPolicy.IsServed(image.Kind) => new CachedPage(null, null, PageMetrics.CacheMiss, NotServed: true),
         _ => new CachedPage(image, null, PageMetrics.CacheMiss),
     };
 
@@ -471,7 +474,7 @@ internal sealed class PageRenderer(
         }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
 
-    private sealed record CachedPage(PageImage? Image, string? Source, string Cache, bool IsLibrary = false);
+    private sealed record CachedPage(PageImage? Image, string? Source, string Cache, bool NotServed = false);
 
     private sealed class CommitRecorder {
         private int _recorded;
@@ -533,10 +536,10 @@ internal sealed class PageRenderer(
         }
 
         /// <inheritdoc/>
-        public ValueTask DisposeAsync() {
-            _lifetime?.Dispose();
-
-            return ValueTask.CompletedTask;
+        public async ValueTask DisposeAsync() {
+            if (_lifetime is { } lifetime) {
+                await lifetime.DisposeAsync();
+            }
         }
     }
 }

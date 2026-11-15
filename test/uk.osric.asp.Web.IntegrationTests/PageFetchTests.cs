@@ -95,5 +95,34 @@ public sealed class PageFetchTests : IntegrationTest {
 
             return Task.FromResult(response);
         }
+
+        public Task<HttpFetchStream> StreamAsync(
+            HttpFetchRequest request,
+            string pagePath,
+            CancellationToken aborted,
+            CancellationToken deadline) {
+            Requests.Add(request);
+            LastPagePath = pagePath;
+
+            return Task.FromResult<HttpFetchStream>(new TextFetchStream("up"));
+        }
+
+        private sealed class TextFetchStream(params string[] lines) : HttpFetchStream {
+            private readonly Queue<string> _lines = new(lines);
+
+            public override int Status => 200;
+
+            public override IReadOnlyDictionary<string, string> Headers { get; } = new Dictionary<string, string>();
+
+            public override HttpFetchFailure Failure => HttpFetchFailure.None;
+
+            public override bool Truncated => false;
+
+            public override Task<string?> ReadLineAsync() {
+                return Task.FromResult(_lines.TryDequeue(out string? line) ? line : null);
+            }
+
+            public override Task CloseAsync() => Task.CompletedTask;
+        }
     }
 }

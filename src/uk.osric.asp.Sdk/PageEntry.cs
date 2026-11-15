@@ -40,6 +40,11 @@ public readonly record struct PageEntry(
     /// </summary>
     public bool IsLibrary { get; init; }
 
+    /// <summary>
+    /// Whether the head is a worker: declarations that program a job a page starts, and never served.
+    /// </summary>
+    public bool IsWorker { get; init; }
+
     /// <summary>What the head's image compiled to, in the host's words.</summary>
     public string State { get; init; } = string.Empty;
 }

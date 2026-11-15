@@ -80,6 +80,22 @@ public sealed class PageCatalogScopeTests {
     }
 
     [Test]
+    public async Task AWorkerIsMarkedAsOneAndIsNotAnAssetAsync() {
+        FakePageReadStore store = new();
+        store.Save("/_work/echo", "<%! public sealed class Echo : IWorker { } %>",
+            templateKind: PageKind.Worker, runtimeId: CurrentRuntimeId, hasImage: true);
+
+        PageEntry entry = (await Scope(store).ListAsync("")).Single();
+
+        Assert.Multiple(() => {
+            Assert.That(entry.IsWorker, Is.True);
+            Assert.That(entry.IsLibrary, Is.False);
+            Assert.That(entry.IsAsset, Is.False);
+            Assert.That(entry.State, Is.EqualTo("Worker"));
+        });
+    }
+
+    [Test]
     public async Task ANoCodePageIsMarkedAsAnAssetAsync() {
         FakePageReadStore store = new();
         store.Save("/site.css", "body { color: red; }", templateKind: PageKind.Text);

@@ -18,6 +18,10 @@ internal sealed class FakePageFetcher(Func<HttpFetchRequest, HttpFetchResponse>?
 
     public List<HttpFetchRequest> Requests { get; } = [];
 
+    public List<HttpFetchRequest> StreamRequests { get; } = [];
+
+    public Func<HttpFetchRequest, HttpFetchStream>? StreamAnswer { get; set; }
+
     public string? LastPagePath { get; private set; }
 
     public CancellationToken LastAborted { get; private set; }
@@ -35,5 +39,46 @@ internal sealed class FakePageFetcher(Func<HttpFetchRequest, HttpFetchResponse>?
         LastDeadline = deadline;
 
         return Task.FromResult(_answer(request));
+    }
+
+    public Task<HttpFetchStream> StreamAsync(
+        HttpFetchRequest request,
+        string pagePath,
+        CancellationToken aborted,
+        CancellationToken deadline) {
+        StreamRequests.Add(request);
+        LastPagePath = pagePath;
+        LastAborted = aborted;
+        LastDeadline = deadline;
+
+        return Task.FromResult(StreamAnswer?.Invoke(request) ?? new FakeHttpFetchStream());
+    }
+}
+
+internal sealed class FakeHttpFetchStream(params string?[] lines) : HttpFetchStream {
+    private readonly Queue<string?> _lines = new(lines);
+
+    public bool IsClosed { get; private set; }
+
+    public override int Status => 200;
+
+    public override IReadOnlyDictionary<string, string> Headers { get; } = new Dictionary<string, string>();
+
+    public override HttpFetchFailure Failure => HttpFetchFailure.None;
+
+    public override bool Truncated => false;
+
+    public override Task<string?> ReadLineAsync() {
+        if (IsClosed || !_lines.TryDequeue(out string? line)) {
+            return Task.FromResult<string?>(null);
+        }
+
+        return Task.FromResult(line);
+    }
+
+    public override Task CloseAsync() {
+        IsClosed = true;
+
+        return Task.CompletedTask;
     }
 }

@@ -30,6 +30,135 @@ public sealed class PageFetcherTests {
     }
 
     [Test]
+    public async Task AStreamSplitsLinesAcrossChunksAndMultibyteCharactersAsync() {
+        byte[] body = Encoding.UTF8.GetBytes("first\r\ncaf\u00e9\nlast");
+        StubHttpMessageHandler handler = new(_ => StreamResponse(
+            new ChunkedReadStream([body[..9], body[9..10], body[10..]])));
+
+        HttpFetchStream stream = await FetchStreamAsync(Request("https://api.example.com/events"), handler);
+        try {
+            Assert.Multiple(() => {
+                Assert.That(stream.Status, Is.EqualTo(200));
+                Assert.That(stream.Failure, Is.EqualTo(HttpFetchFailure.None));
+                Assert.That(stream.Headers, Does.ContainKey("Content-Type"));
+            });
+            Assert.That(await stream.ReadLineAsync(), Is.EqualTo("first"));
+            Assert.That(await stream.ReadLineAsync(), Is.EqualTo("caf\u00e9"));
+            Assert.That(await stream.ReadLineAsync(), Is.EqualTo("last"));
+            Assert.That(await stream.ReadLineAsync(), Is.Null);
+        } finally {
+            await stream.CloseAsync();
+        }
+    }
+
+    [Test]
+    public async Task AStreamReadFailureIsReportedAsAValueAsync() {
+        StubHttpMessageHandler handler = new(_ => StreamResponse(
+            new ChunkedReadStream([Encoding.UTF8.GetBytes("first\n")], failAfterChunks: 1)));
+
+        HttpFetchStream stream = await FetchStreamAsync(Request("https://api.example.com/events"), handler);
+        try {
+            Assert.That(await stream.ReadLineAsync(), Is.EqualTo("first"));
+            Assert.That(await stream.ReadLineAsync(), Is.Null);
+
+            Assert.Multiple(() => {
+                Assert.That(stream.Failure, Is.EqualTo(HttpFetchFailure.Network));
+                Assert.That(stream.Truncated, Is.True);
+            });
+        } finally {
+            await stream.CloseAsync();
+        }
+    }
+
+    [Test]
+    public async Task AQuietStreamEndsAsATimeoutValueAsync() {
+        HttpFetchStream stream = await FetchStreamAsync(
+            Request("https://api.example.com/events"),
+            new StubHttpMessageHandler(_ => StreamResponse(new DelayedReadStream())),
+            TestOptions.Fetch with { StreamSilenceSeconds = 0.1, StreamMaxSeconds = 5 });
+        try {
+            Assert.That(await stream.ReadLineAsync(), Is.Null);
+            Assert.That(stream.Failure, Is.EqualTo(HttpFetchFailure.Timeout));
+            Assert.That(stream.Truncated, Is.True);
+        } finally {
+            await stream.CloseAsync();
+        }
+    }
+
+    [Test]
+    public async Task AStreamIsBoundedByItsAbsoluteCeilingAsync() {
+        HttpFetchStream stream = await FetchStreamAsync(
+            Request("https://api.example.com/events"),
+            new StubHttpMessageHandler(_ => StreamResponse(new DelayedReadStream())),
+            TestOptions.Fetch with { StreamSilenceSeconds = 5, StreamMaxSeconds = 0.1 });
+        try {
+            Assert.That(await stream.ReadLineAsync(), Is.Null);
+            Assert.That(stream.Failure, Is.EqualTo(HttpFetchFailure.Timeout));
+            Assert.That(stream.Truncated, Is.True);
+        } finally {
+            await stream.CloseAsync();
+        }
+    }
+
+    [Test]
+    public async Task AStreamStopsAtItsDecodedByteLimitAsync() {
+        HttpFetchStream stream = await FetchStreamAsync(
+            Request("https://api.example.com/events"),
+            new StubHttpMessageHandler(_ => StreamResponse(
+                new ChunkedReadStream([Encoding.UTF8.GetBytes("one\ntwo\n")]))),
+            TestOptions.Fetch with { MaxStreamBytes = 4 });
+        try {
+            Assert.That(await stream.ReadLineAsync(), Is.EqualTo("one"));
+            Assert.That(await stream.ReadLineAsync(), Is.Null);
+            Assert.That(stream.Truncated, Is.True);
+            Assert.That(stream.Failure, Is.EqualTo(HttpFetchFailure.None));
+        } finally {
+            await stream.CloseAsync();
+        }
+    }
+
+    [Test]
+    public async Task AStreamThatEndsAtItsByteLimitIsNotMarkedTruncatedAsync() {
+        HttpFetchStream stream = await FetchStreamAsync(
+            Request("https://api.example.com/events"),
+            new StubHttpMessageHandler(_ => StreamResponse(
+                new ChunkedReadStream([Encoding.UTF8.GetBytes("one\n")]))),
+            TestOptions.Fetch with { MaxStreamBytes = 4 });
+        try {
+            Assert.That(await stream.ReadLineAsync(), Is.EqualTo("one"));
+            Assert.That(await stream.ReadLineAsync(), Is.Null);
+            Assert.That(stream.Truncated, Is.False);
+            Assert.That(stream.Failure, Is.EqualTo(HttpFetchFailure.None));
+        } finally {
+            await stream.CloseAsync();
+        }
+    }
+
+    [Test]
+    public async Task AStreamingRedirectDropsACrossHostCredentialAsync() {
+        bool dropped = false;
+        StubHttpMessageHandler handler = new(request => {
+            if (string.Equals(request.RequestUri!.IdnHost, "elsewhere.example", StringComparison.Ordinal)) {
+                dropped = request.Headers.Authorization is null;
+                return StreamResponse(new ChunkedReadStream([Encoding.UTF8.GetBytes("arrived")]));
+            }
+
+            return Redirect("https://elsewhere.example/next");
+        });
+
+        HttpFetchStream stream = await FetchStreamAsync(
+            new HttpFetchRequest("https://api.example.com/start") { Credential = "assistant" },
+            handler,
+            CredentialOptions());
+        try {
+            Assert.That(await stream.ReadLineAsync(), Is.EqualTo("arrived"));
+            Assert.That(dropped, Is.True);
+        } finally {
+            await stream.CloseAsync();
+        }
+    }
+
+    [Test]
     public async Task ThePageUserAgentIsSentAsync() {
         StubHttpMessageHandler handler = new(request => {
             Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (page)"));
@@ -628,12 +757,18 @@ public sealed class PageFetcherTests {
         PageFetchOptions options = PageFetchOptions.FromConfiguration(ShippedConfiguration.Read(
             ("Pages:Fetch:TimeoutSeconds", "2.5"),
             ("Pages:Fetch:MaxResponseBytes", "2048"),
-            ("Pages:Fetch:MaxRedirects", "0")));
+            ("Pages:Fetch:MaxRedirects", "0"),
+            ("Pages:Fetch:StreamSilenceSeconds", "12"),
+            ("Pages:Fetch:StreamMaxSeconds", "300"),
+            ("Pages:Fetch:MaxStreamBytes", "2097152")));
 
         Assert.Multiple(() => {
             Assert.That(options.TimeoutSeconds, Is.EqualTo(2.5));
             Assert.That(options.MaxResponseBytes, Is.EqualTo(2048));
             Assert.That(options.MaxRedirects, Is.Zero);
+            Assert.That(options.StreamSilenceSeconds, Is.EqualTo(12));
+            Assert.That(options.StreamMaxSeconds, Is.EqualTo(300));
+            Assert.That(options.MaxStreamBytes, Is.EqualTo(2097152));
         });
     }
 
@@ -673,6 +808,28 @@ public sealed class PageFetcherTests {
         PageFetcher fetcher = Fetcher(handler, options ?? TestOptions.Fetch);
 
         return await fetcher.FetchAsync(request, "/page", aborted, deadline);
+    }
+
+    private static async Task<HttpFetchStream> FetchStreamAsync(
+        HttpFetchRequest request,
+        HttpMessageHandler handler,
+        PageFetchOptions? options = null,
+        CancellationToken aborted = default,
+        CancellationToken deadline = default) {
+        PageFetcher fetcher = Fetcher(handler, options ?? TestOptions.Fetch);
+
+        return await fetcher.StreamAsync(request, "/page", aborted, deadline);
+    }
+
+    private static HttpResponseMessage StreamResponse(Stream stream) {
+        HttpResponseMessage message = new(HttpStatusCode.OK) {
+            Content = new StreamContent(stream),
+        };
+        message.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain") {
+            CharSet = "utf-8",
+        };
+
+        return message;
     }
 
     private static PageFetcher Fetcher(HttpMessageHandler handler, PageFetchOptions options, PageMetrics? metrics = null) {
@@ -728,5 +885,94 @@ public sealed class PageFetcherTests {
 
             return new HttpResponseMessage(HttpStatusCode.OK);
         }
+    }
+
+    private sealed class ChunkedReadStream(byte[][] chunks, int? failAfterChunks = null) : Stream {
+        private int _chunk;
+        private int _offset;
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            Read(buffer.AsSpan(offset, count));
+
+        public override int Read(Span<byte> buffer) {
+            if (failAfterChunks == _chunk) {
+                throw new IOException("The upstream connection closed.");
+            }
+
+            if (_chunk == chunks.Length) {
+                return 0;
+            }
+
+            byte[] chunk = chunks[_chunk];
+            int count = Math.Min(buffer.Length, chunk.Length - _offset);
+            chunk.AsSpan(_offset, count).CopyTo(buffer);
+            _offset += count;
+            if (_offset == chunk.Length) {
+                _chunk++;
+                _offset = 0;
+            }
+
+            return count;
+        }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return ValueTask.FromResult(Read(buffer.Span));
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    private sealed class DelayedReadStream : Stream {
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override int Read(Span<byte> buffer) => throw new NotSupportedException();
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+
+            return 0;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }

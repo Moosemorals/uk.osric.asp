@@ -399,12 +399,19 @@ with every failure a value and the socket closed on every path.
   column is a nullable int and an existing source keeps its kind until it is saved again.
 - `Sdk`: `IWorker` and `IWorkerContext` in `PublicAPI.Unshipped.txt`. `IWorker` is the one entry point a
   worker declares; `IWorkerContext` is its parameter, so the contract exists when the worker compiles.
-  The runner that supplies the context arrives in phase 4.
+  The runner that supplies the context arrives in phase 4, so this phase's `IWorkerContext` holds only
+  the two members that are true without it — `Worker` and `User`. It is a contract that grows: phase 4
+  adds `Id`, `Path`, `Input`, `Aborted`, the log members, `ReceiveAsync`, `Publish` and
+  `Capabilities`.
 - `Runtime`: compile a worker — its source and its `using` closure, policy-checked, emitted to an
   assembly — and load it so the entry point can be found. The entry point is exactly one public type
-  with a parameterless constructor implementing `IWorker`. `IPageCompiler` and the `Runtime` public
-  surface grow the compile and load of a worker, recorded as `page.compile.duration` with reason
-  `worker`.
+  with a parameterless constructor implementing `IWorker`, and anything else is the new `PAGE006`
+  (`PAGE005` is retired, DEC-254). The declaration-only compile is the one entry point for both
+  verdicts, so `CompileLibrary` becomes `CompileWorker`: it checks a library and emits a worker, and
+  `CompileResult.Kind` carries the refined answer. `IPageCompiler` and the `Runtime` public surface
+  grow the compile and load of a worker. The compile is recorded as `page.compile.duration` under the
+  reason that caused it — `save`, `lazy` or `import` — because that is what the tag answers; the
+  phase-4 runner's lazy rebuild is where a worker-specific reason would belong.
 - `Web`: `PageImage` stores a worker's bytes and symbols; `PageImageBuilder` chooses the worker compile
   when the source declares the entry point; `PageAssetPolicy`, the endpoint, the renderer's
   `FromStored` and the versioned-asset path treat a worker as never served, never wrapped and never an
@@ -425,7 +432,11 @@ when it is saved, stored with its image, never served, and invisible as a librar
 ### Phase 4 — jobs that outlive the request
 
 - `Sdk`: `IPageJobs` and its values (`PageJobStart`, `PageJobSendResult`, `PageJobInfo`, `PageJobState`,
-  `PageJobEvent`, `PageJobEvents`); `IWorker` and `IWorkerContext` are already in place from phase 3.
+  `PageJobEvent`, `PageJobEvents`). `IWorker` and `IWorkerContext` exist from phase 3, and this phase
+  **grows** `IWorkerContext` to what D10 and D14 describe: `Id`, `Path`, the first `Input`, `Aborted`,
+  `ReceiveAsync`, `Publish`, the log members and `Capabilities` — the same `IPageCapabilities` seam a
+  page reaches through `ctx.Capabilities`, so a worker asks for a capability exactly as a page does and
+  the host decides which are there.
 - `Web/Work`: the generic queue (the existing `BoundedWorkQueue`), an in-memory registry, a bounded
   journal with live subscribers and a wait, and a `BackgroundService` runner. The assistant's
   `RunStream` shape is the starting point, not a shared type: a job is not a run. The runner loads the
@@ -435,8 +446,9 @@ when it is saved, stored with its image, never served, and invisible as a librar
   and read-only for a `HEAD`.
 - The job's context: the owner as `PageUser`, the starting page as `Path`, the worker key as
   `Worker`, the first message as `Input`, a timed or indefinite `ReceiveAsync` for later messages,
-  storage bound to the starting page, fetch and catalog bound to the worker, and the job's own
-  deadline. `SendAsync` writes a bounded pending queue; `ReceiveAsync` pauses the silence clock while
+  and the job's own deadline. Its `Capabilities` carry `IPageStorage` bound to the starting page and
+  `IHttpFetch`, `IPageCatalog` and `IPageJobs` bound to the worker, with no renderer, no writer and no
+  layout. `SendAsync` writes a bounded pending queue; `ReceiveAsync` pauses the silence clock while
   it waits; `Publish` writes the event and wakes a viewer.
 - `Pages:Jobs` with `QueueCapacity`, `MaxConcurrent`, `SilenceSeconds`, `MaxDurationSeconds`,
   `MaxEvents`, `MaxEventBytes`, `RetentionMinutes`, `MaxWaitSeconds`, `MaxMessageBytes` and

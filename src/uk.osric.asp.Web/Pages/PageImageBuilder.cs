@@ -100,13 +100,15 @@ internal sealed class PageImageBuilder(
                         $"PAGE003: the page waited longer than {PageBudget.DescribeSeconds(budget.CompileOptions.Timeout)} s for a compile slot."),
                 ]);
             } else {
+                IReadOnlyList<LibrarySource> candidates = Candidates(path, libraries);
                 try {
                     try {
-                        // A library is checked, never emitted: there is nothing to run, and the
-                        // answer the author needs is its diagnostics.
+                        // A declaration-only source is compiled by the worker path, which decides
+                        // whether it is a library to check or a worker to emit; the answer carries
+                        // the refined kind, so a worker is stored with its image.
                         result = generated.Kind is PageKind.Library
-                            ? compiler.CompileLibrary(source, deadline.Token)
-                            : compiler.Compile(source, Candidates(path, libraries), deadline.Token);
+                            ? compiler.CompileWorker(source, candidates, deadline.Token)
+                            : compiler.Compile(source, candidates, deadline.Token);
                     } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                         // Roslyn honours the token between operations, so this is a coarse bound: it is
                         // stored like any other page error so the editor shows it and the page is not
@@ -150,7 +152,7 @@ internal sealed class PageImageBuilder(
             result.Image,
             result.Symbols,
             PageDiagnostic.SortedForDisplay([.. shape, .. result.Diagnostics]),
-            generated.Kind,
+            result.Kind ?? generated.Kind,
             Fingerprint(result.Libraries, libraries));
     }
 

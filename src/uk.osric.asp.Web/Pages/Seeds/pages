@@ -444,7 +444,7 @@ run.</p>
     <tbody><%
                 foreach (PageEntry entry in rows) {
                     %><tr><%
-                    if (groupDeleted || entry.IsLibrary) {
+                    if (groupDeleted || entry.IsLibrary || entry.IsWorker) {
                         %><th scope="row"><%= entry.Key %></th><%
                     } else {
                         %><th scope="row"><a href="<%= entry.Key %>" aria-label="View <%= entry.Key %>"><%= entry.Key %></a></th><%

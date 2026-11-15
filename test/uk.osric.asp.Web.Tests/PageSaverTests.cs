@@ -19,6 +19,18 @@ using uk.osric.asp.Web.Pages;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public sealed class PageSaverTests {
 
+    private const string WorkerTemplate = """
+        <%!
+        using System.Threading.Tasks;
+
+        namespace Site.Work {
+            public sealed class Echo : IWorker {
+                public Task RunAsync(IWorkerContext context) => Task.CompletedTask;
+            }
+        }
+        %>
+        """;
+
     [Test]
     public async Task ACleanTemplateIsStoredWithItsImageAsync() {
         FakePageStore storage = new();
@@ -109,6 +121,128 @@ public sealed class PageSaverTests {
     }
 
     [Test]
+    public async Task AWorkerIsStoredWithItsImageAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+
+        SavedRevision saved = await pages.Saver.SaveAsync(
+            PageHarness.Key("/_work/echo"), WorkerTemplate, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(saved.Diagnostics, Is.Empty);
+            Assert.That(saved.Revision.Kind, Is.EqualTo(PageKind.Worker));
+            Assert.That(saved.Revision.Image?.Bytes, Is.Not.Null.And.Not.Empty);
+        });
+    }
+
+    [Test]
+    public async Task TwoWorkerEntryPointsAreStoredWithTheirDiagnosticAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+
+        SavedRevision saved = await pages.Saver.SaveAsync(
+            PageHarness.Key("/_work/two"), """
+            <%!
+            using System.Threading.Tasks;
+
+            namespace Site.Work {
+                public sealed class One : IWorker {
+                    public Task RunAsync(IWorkerContext context) => Task.CompletedTask;
+                }
+
+                public sealed class Two : IWorker {
+                    public Task RunAsync(IWorkerContext context) => Task.CompletedTask;
+                }
+            }
+            %>
+            """, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(saved.Revision.Kind, Is.EqualTo(PageKind.Worker));
+            Assert.That(saved.Revision.Image?.Bytes, Is.Null);
+            Assert.That(saved.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+                diagnostic => diagnostic is not null
+                    && diagnostic.Message.StartsWith("PAGE006:", StringComparison.Ordinal)));
+        });
+    }
+
+    [Test]
+    public async Task APageThatNamesAWorkerGetsAMissingNamespaceAsync() {
+        FakePageReadStore read = new();
+        read.Save("/_work/echo", WorkerTemplate, templateKind: PageKind.Worker, runtimeId: "test:runtime", hasImage: true);
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage, readStore: read);
+
+        SavedRevision saved = await pages.Saver.SaveAsync(
+            PageHarness.Key("/uses-worker"),
+            "<%! using Site.Work; %><p>Hello.</p>",
+            CancellationToken.None);
+
+        Assert.That(saved.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.StartsWith("CS0246:", StringComparison.Ordinal)),
+            "a worker is a program, not a library a page may compile against");
+    }
+
+    [Test]
+    public async Task AWorkerRecordsTheLibraryItWasCompiledAgainstAsync() {
+        const string Document = "<%! namespace Site.Document { public static class Chrome { public static string Title() => \"Site\"; } } %>";
+        const string Source = """
+            <%!
+            using System.Threading.Tasks;
+            using Site.Document;
+
+            namespace Site.Work {
+                public sealed class Echo : IWorker {
+                    public string Title { get; private set; } = string.Empty;
+
+                    public Task RunAsync(IWorkerContext context) {
+                        Title = Chrome.Title();
+
+                        return Task.CompletedTask;
+                    }
+                }
+            }
+            %>
+            """;
+        FakePageReadStore read = new();
+        string hash = read.Save("/_lib/document", Document, templateKind: PageKind.Library, runtimeId: "test:runtime");
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage, readStore: read);
+
+        SavedRevision saved = await pages.Saver.SaveAsync(
+            PageHarness.Key("/_work/echo"), Source, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(saved.Diagnostics, Is.Empty);
+            Assert.That(saved.Revision.Image!.IsCurrent(
+                TemplateFingerprint.Of(Source), pages.Compiler.RuntimeId, $"/_lib/document@{hash}"), Is.True);
+            Assert.That(saved.Revision.Image!.IsCurrent(
+                TemplateFingerprint.Of(Source), pages.Compiler.RuntimeId, "/_lib/document@moved"), Is.False,
+                "a worker whose library moved is compiled again before it is run");
+        });
+    }
+
+    [Test]
+    public async Task ALibraryThatNamesAWorkerGetsAMissingNamespaceAsync() {
+        FakePageReadStore read = new();
+        read.Save("/_work/echo", WorkerTemplate, templateKind: PageKind.Worker, runtimeId: "test:runtime", hasImage: true);
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage, readStore: read);
+
+        SavedRevision saved = await pages.Saver.SaveAsync(
+            PageHarness.Key("/_lib/uses-worker"),
+            "<%! using Site.Work; namespace Site.Helpers { public static class Help { } } %>",
+            CancellationToken.None);
+
+        Assert.That(saved.Diagnostics, Has.Some.Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Error
+                && diagnostic.Message.StartsWith("CS0234:", StringComparison.Ordinal)),
+            "a worker's namespace is not offered as a library: 'Work' does not exist in 'Site'");
+    }
+
+    [Test]
     public async Task ACompilerFaultStoresTheSourceAndRethrowsAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage, new FaultingCompiler());
@@ -192,14 +326,18 @@ public sealed class PageSaverTests {
             return inner.Compile(source, libraries, cancellationToken);
         }
 
-        public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+        public CompileResult CompileWorker(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) {
             onCompile();
 
-            return inner.CompileLibrary(source, cancellationToken);
+            return inner.CompileWorker(source, libraries, cancellationToken);
         }
 
         public LoadedPage Load(byte[] image, byte[]? symbols = null) {
             return inner.Load(image, symbols);
+        }
+
+        public LoadedWorker LoadWorker(byte[] image, byte[]? symbols = null) {
+            return inner.LoadWorker(image, symbols);
         }
     }
 }

@@ -32,15 +32,15 @@ public sealed class RenderLifetimeTests {
                 Assert.That(budget.StreamSlots.CurrentCount, Is.EqualTo(0), "the stream takes a stream slot");
             });
 
-            lifetime.Dispose();
+            await lifetime.DisposeAsync();
 
-            // Dispose is also in the finally, so a failed assertion here still releases the slots.
+            // DisposeAsync is also in the finally, so a failed assertion still releases the slots.
             Assert.Multiple(() => {
                 Assert.That(budget.RenderSlots.CurrentCount, Is.EqualTo(1));
                 Assert.That(budget.StreamSlots.CurrentCount, Is.EqualTo(1), "ending the stream releases its slot");
             });
         } finally {
-            lifetime.Dispose();
+            await lifetime.DisposeAsync();
             budget.Dispose();
         }
     }
@@ -56,8 +56,8 @@ public sealed class RenderLifetimeTests {
 
             await Assert.ThrowsAsync<PageStreamRefusedException>(() => refused.BeginStreamAsync());
         } finally {
-            holder.Dispose();
-            refused.Dispose();
+            await holder.DisposeAsync();
+            await refused.DisposeAsync();
             budget.Dispose();
         }
     }
@@ -80,7 +80,7 @@ public sealed class RenderLifetimeTests {
             Assert.That(lifetime.Token.IsCancellationRequested, Is.True,
                 "the re-armed clock still ends a stream that flushes nothing more");
         } finally {
-            lifetime.Dispose();
+            await lifetime.DisposeAsync();
             budget.Dispose();
         }
     }
@@ -97,9 +97,9 @@ public sealed class RenderLifetimeTests {
 
             Assert.That(lifetime.Outcome, Is.EqualTo(PageMetrics.StreamSilence));
         } finally {
-            // Dispose leaves an abandoned lifetime's source alone, so the test stands in for the
+            // DisposeAsync leaves an abandoned lifetime's source alone, so the test stands in for the
             // continuation that disposes it once the page has stopped.
-            lifetime.Dispose();
+            await lifetime.DisposeAsync();
             lifetime.DisposeDeadline();
             budget.Dispose();
         }
@@ -117,7 +117,7 @@ public sealed class RenderLifetimeTests {
 
             Assert.That(lifetime.Outcome, Is.EqualTo(PageMetrics.StreamCeiling));
         } finally {
-            lifetime.Dispose();
+            await lifetime.DisposeAsync();
             lifetime.DisposeDeadline();
             budget.Dispose();
         }

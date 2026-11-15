@@ -59,8 +59,8 @@ anonymous visitors from pushing the owner's own session out.
 runtime id, optional compilation result and a nullable `TemplateKind` verdict. The verdict is
 written by the generation that judged the source: `0` is a template with no code, so there is no
 image and every request serves the stored source; `1` is a page, and the image fields are whatever
-the compile reached; `2` is a library, which is checked and stores no assembly; `NULL` means the
-revision has never been judged.
+the compile reached; `2` is a library, which is checked and stores no assembly; `3` is a worker, which
+is emitted like a page; `NULL` means the revision has never been judged.
 
 `TemplateLibraries` is the fingerprint of the libraries an image was compiled against: one
 `key@revisionHash` per library, sorted and joined, and `NULL` or empty when the page named none. It is

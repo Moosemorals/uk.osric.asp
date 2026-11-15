@@ -27,4 +27,16 @@ internal interface IPageFetcher {
         string pagePath,
         CancellationToken aborted,
         CancellationToken deadline);
+
+    /// <summary>Opens one bounded outbound response stream.</summary>
+    /// <param name="request">The page's request.</param>
+    /// <param name="pagePath">The page's key, for the metric and log tags.</param>
+    /// <param name="aborted">Cancelled when the visitor went away.</param>
+    /// <param name="deadline">Cancelled when the render or stream budget ran out.</param>
+    /// <returns>The stream; failures are reported through its values.</returns>
+    Task<HttpFetchStream> StreamAsync(
+        HttpFetchRequest request,
+        string pagePath,
+        CancellationToken aborted,
+        CancellationToken deadline);
 }

@@ -14,7 +14,8 @@ using uk.osric.asp.Core.Pages;
 /// <para>
 /// A library is checked rather than emitted, so it never has an assembly and its diagnostics are its
 /// only signal. The listing can therefore say that a library's check reported something, but not
-/// whether it was a warning or an error; the editor shows the diagnostics themselves.
+/// whether it was a warning or an error; the editor shows the diagnostics themselves. A worker is
+/// emitted like a page, so its image says which of the two it reached.
 /// </para>
 /// </remarks>
 internal enum PageImageState {
@@ -42,6 +43,12 @@ internal enum PageImageState {
 
     /// <summary>A library whose check reported a warning or an error.</summary>
     LibraryWithIssues,
+
+    /// <summary>A worker whose image is current and carries nothing to report.</summary>
+    Worker,
+
+    /// <summary>A worker whose image compiled with warnings.</summary>
+    WorkerWithWarnings,
 }
 
 /// <summary>Decides an image's state, and the words and classes it is shown with.</summary>
@@ -89,6 +96,14 @@ internal static class PageImageStatus {
             return hasDiagnostics ? PageImageState.LibraryWithIssues : PageImageState.Library;
         }
 
+        // A worker is emitted, so its image is what the check produced: no image means emit failed,
+        // and an image with diagnostics can only carry warnings.
+        if (kind is PageKind.Worker) {
+            return !hasImage
+                ? PageImageState.CompileFailed
+                : hasDiagnostics ? PageImageState.WorkerWithWarnings : PageImageState.Worker;
+        }
+
         if (!hasImage) {
             return PageImageState.CompileFailed;
         }
@@ -107,6 +122,8 @@ internal static class PageImageStatus {
         PageImageState.CompiledWithWarnings => "Compiled with warnings",
         PageImageState.Library => "Library",
         PageImageState.LibraryWithIssues => "Library with issues",
+        PageImageState.Worker => "Worker",
+        PageImageState.WorkerWithWarnings => "Worker with warnings",
         _ => "Compiled",
     };
 
@@ -121,6 +138,8 @@ internal static class PageImageStatus {
         PageImageState.CompiledWithWarnings => "state-compiled-with-warnings",
         PageImageState.Library => "state-library",
         PageImageState.LibraryWithIssues => "state-library-with-issues",
+        PageImageState.Worker => "state-worker",
+        PageImageState.WorkerWithWarnings => "state-worker-with-warnings",
         _ => "state-compiled",
     };
 }

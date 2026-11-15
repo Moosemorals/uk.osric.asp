@@ -694,3 +694,4 @@ static uk.osric.asp.Core.Pages.PageTree.FolderOf(string! key) -> string?
 static uk.osric.asp.Core.Pages.PageTree.FoldersAbove(string! key) -> System.Collections.Generic.IReadOnlyList<string!>!
 uk.osric.asp.Core.Compilation.PageDiagnostic.Source.get -> string?
 uk.osric.asp.Core.Compilation.PageDiagnostic.Source.init -> void
+uk.osric.asp.Core.Pages.PageKind.Worker = 3 -> uk.osric.asp.Core.Pages.PageKind

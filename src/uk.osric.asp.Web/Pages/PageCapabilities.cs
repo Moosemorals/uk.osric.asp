@@ -54,6 +54,19 @@ internal sealed class PageCapabilities : IPageCapabilities {
         return false;
     }
 
+    /// <summary>Gives every bound capability the render's deadline and resource lifetime.</summary>
+    /// <param name="lifetime">The render lifetime to attach.</param>
+    public void AttachLifetime(RenderLifetime lifetime) {
+        ArgumentNullException.ThrowIfNull(lifetime);
+
+        AttachDeadline(lifetime.Token);
+        foreach (object capability in _capabilities.Values) {
+            if (capability is IRenderLifetimeAware lifetimeAware) {
+                lifetimeAware.AttachLifetime(lifetime);
+            }
+        }
+    }
+
     /// <summary>Gives every bound capability the render's deadline.</summary>
     /// <param name="deadline">The deadline's token.</param>
     public void AttachDeadline(CancellationToken deadline) {

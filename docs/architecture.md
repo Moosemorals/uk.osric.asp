@@ -88,6 +88,7 @@ and the logs quote them:
 | `PAGE002` | `PageApiChecker` | page code escaped its method, or a declaration block declared something other than a type |
 | `PAGE003` | `PageImageBuilder` | the page waited too long for a compile slot |
 | `PAGE004` | `PageImageBuilder` | the page took too long to compile |
+| `PAGE006` | `PageCompiler` | a worker does not declare exactly one constructible public entry point |
 | `SCRIPT001` | `JavaScriptValidator` | the assistant's script check found a syntax error |
 | `SCRIPT002` | `JavaScriptValidator` | the assistant's script check found an opener the failed parse never closed |
 
@@ -112,7 +113,7 @@ clean compile does not hide them, and they never stop a page being served (DEC-2
 | The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
-| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageCapabilities`, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure` | `Sdk`, as plain values a compiled page binds against |
+| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageCapabilities`, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure`, `IWorker`/`IWorkerContext` | `Sdk`, as plain values a compiled page binds against |
 | The page policy: `PageApiPolicy`, `ApiReference` | `Core.Compilation`, as a pure rule over strings |
 | Which media type a page's key names, and what an unmapped key falls back to | `Core.Pages`, as `PageContentTypes` beside `PagePath`; `Web` reads the section |
 | The Roslyn walk that applies the page policy | `Runtime` |

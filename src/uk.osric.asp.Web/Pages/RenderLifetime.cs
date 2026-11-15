@@ -22,13 +22,14 @@ using uk.osric.asp.Sdk;
 /// under a running page would pull the token out from under it.
 /// </para>
 /// </remarks>
-internal sealed class RenderLifetime : IDisposable {
+internal sealed class RenderLifetime : IAsyncDisposable {
 
     private readonly PageBudget _budget;
     private readonly PageMetrics _metrics;
     private readonly PagePath _path;
     private readonly CancellationTokenSource _deadline;
     private readonly StreamOptions _stream;
+    private readonly List<Func<Task>> _cleanup = [];
     private Action? _onCommit;
     private bool _armedForCeiling;
     private bool _abandoned;
@@ -72,6 +73,14 @@ internal sealed class RenderLifetime : IDisposable {
         ArgumentNullException.ThrowIfNull(onCommit);
 
         _onCommit = onCommit;
+    }
+
+    /// <summary>Registers asynchronous resource cleanup at the end of the render.</summary>
+    /// <param name="cleanup">The cleanup operation to await when the render ends.</param>
+    public void RegisterCleanup(Func<Task> cleanup) {
+        ArgumentNullException.ThrowIfNull(cleanup);
+
+        _cleanup.Add(cleanup);
     }
 
     /// <summary>Moves the render from its budget to the stream's clocks.</summary>
@@ -137,25 +146,29 @@ internal sealed class RenderLifetime : IDisposable {
     }
 
     /// <summary>Releases the slots and records the stream's lifetime.</summary>
-    public void Dispose() {
-        if (_renderSlotHeld) {
-            _budget.RenderSlots.Release();
-            _renderSlotHeld = false;
-        }
+    public async ValueTask DisposeAsync() {
+        try {
+            await Task.WhenAll(_cleanup.Select(cleanup => cleanup()));
+        } finally {
+            if (_renderSlotHeld) {
+                _budget.RenderSlots.Release();
+                _renderSlotHeld = false;
+            }
 
-        if (_streamSlotHeld) {
-            _budget.StreamSlots.Release();
-            _streamSlotHeld = false;
-        }
+            if (_streamSlotHeld) {
+                _budget.StreamSlots.Release();
+                _streamSlotHeld = false;
+            }
 
-        if (_streaming && !_streamRecorded) {
-            _metrics.RecordStream(_path, _outcome, Stopwatch.GetElapsedTime(_streamStarted));
-            _streamRecorded = true;
-        }
+            if (_streaming && !_streamRecorded) {
+                _metrics.RecordStream(_path, _outcome, Stopwatch.GetElapsedTime(_streamStarted));
+                _streamRecorded = true;
+            }
 
-        // An abandoned page may still be running; its continuation disposes the source when it stops.
-        if (!_abandoned) {
-            _deadline.Dispose();
+            // An abandoned page may still be running; its continuation disposes the source when it stops.
+            if (!_abandoned) {
+                _deadline.Dispose();
+            }
         }
     }
 

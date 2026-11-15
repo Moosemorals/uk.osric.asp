@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
@@ -47,7 +48,7 @@ public sealed class PageStreamingTests {
         (Task run, DefaultHttpContext context) = Start("/stream");
 
         await _state.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
-        string first = await TestHttp.ReadBodyAsync(context);
+        string first = await WaitForBodyAsync(context);
         Assert.Multiple(() => {
             Assert.That(first, Is.EqualTo("first"),
                 "the first flush must reach the response before the page finishes");
@@ -58,6 +59,67 @@ public sealed class PageStreamingTests {
         await run.WaitAsync(TimeSpan.FromSeconds(5), TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
 
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("firstsecond"));
+    }
+
+    [Test]
+    public async Task APageCanRelayAnOutboundStreamToTheClientAsync() {
+        GatedHttpFetchStream upstream = new();
+        _fetcher.StreamAnswer = _ => upstream;
+        Store("/relay", """
+            <% ctx.Write("ready"); await ctx.FlushAsync();
+               IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+               HttpFetchStream upstream = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/events"));
+               string? line;
+               while ((line = await upstream.ReadLineAsync()) is not null) {
+                   ctx.Write(line);
+                   await ctx.FlushAsync();
+               } %>
+            """);
+
+        (Task run, DefaultHttpContext context) = Start("/relay");
+
+        string first = await WaitForBodyContainingAsync(context, "first");
+        Assert.Multiple(() => {
+            Assert.That(first, Is.EqualTo("readyfirst"));
+            Assert.That(run.IsCompleted, Is.False);
+            Assert.That(upstream.IsClosed, Is.False);
+        });
+
+        upstream.ReleaseSecondLine();
+        await run.WaitAsync(TimeSpan.FromSeconds(5), TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("readyfirstsecond"));
+    }
+
+    [Test]
+    [NonParallelizable]
+    public async Task AnAbandonedRenderClosesItsOutboundStreamAsync() {
+        GatedHttpFetchStream upstream = new();
+        _fetcher.StreamAnswer = _ => upstream;
+        Store("/relay", """
+            <% ctx.Write("ready"); await ctx.FlushAsync();
+               IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+               HttpFetchStream upstream = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/events"));
+               string? line;
+               while ((line = await upstream.ReadLineAsync()) is not null) {
+                   ctx.Write(line);
+                   await ctx.FlushAsync();
+               } %>
+            """);
+
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = 30 };
+        StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 2, MaxSeconds = 10 };
+        (Task run, DefaultHttpContext context) = Start("/relay", options: options, stream: stream);
+
+        string body = await WaitForBodyContainingAsync(context, "first");
+        await run.WaitAsync(TimeSpan.FromSeconds(5), TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+        string finalBody = await TestHttp.ReadBodyAsync(context);
+
+        Assert.Multiple(() => {
+            Assert.That(body, Is.EqualTo("readyfirst"));
+            Assert.That(upstream.IsClosed, Is.True);
+            Assert.That(finalBody, Is.EqualTo("readyfirst"));
+        });
     }
 
     [Test]
@@ -418,5 +480,68 @@ public sealed class PageStreamingTests {
             budget,
             new PageHealth(options.AbandonedLimit),
             logs?.CreateLogger<PageRenderer>() ?? NullLogger<PageRenderer>.Instance);
+    }
+
+    private static async Task<string> WaitForBodyAsync(DefaultHttpContext context) {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+        while (context.Response.Body.Length == 0) {
+            await Task.Delay(1, timeout.Token);
+        }
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> WaitForBodyContainingAsync(DefaultHttpContext context, string expected) {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+        while (true) {
+            string body = await TestHttp.ReadBodyAsync(context);
+            if (body.Contains(expected, StringComparison.Ordinal)) {
+                return body;
+            }
+
+            await Task.Delay(1, timeout.Token);
+        }
+    }
+
+    private sealed class GatedHttpFetchStream : HttpFetchStream {
+        private readonly TaskCompletionSource _secondLine = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _line;
+
+        public bool IsClosed { get; private set; }
+
+        public override int Status => 200;
+
+        public override IReadOnlyDictionary<string, string> Headers { get; } = new Dictionary<string, string>();
+
+        public override HttpFetchFailure Failure => HttpFetchFailure.None;
+
+        public override bool Truncated => false;
+
+        public void ReleaseSecondLine() => _secondLine.TrySetResult();
+
+        public override Task<string?> ReadLineAsync() {
+            if (IsClosed) {
+                return Task.FromResult<string?>(null);
+            }
+
+            return _line++ switch {
+                0 => Task.FromResult<string?>("first"),
+                1 => ReadSecondLineAsync(),
+                _ => Task.FromResult<string?>(null),
+            };
+        }
+
+        public override Task CloseAsync() {
+            IsClosed = true;
+            ReleaseSecondLine();
+
+            return Task.CompletedTask;
+        }
+
+        private async Task<string?> ReadSecondLineAsync() {
+            await _secondLine.Task;
+
+            return IsClosed ? null : "second";
+        }
     }
 }

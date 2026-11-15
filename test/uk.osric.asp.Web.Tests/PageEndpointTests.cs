@@ -849,6 +849,29 @@ public sealed class PageEndpointTests {
     }
 
     [Test]
+    public async Task AWorkerKeyIsNotFoundAsync() {
+        FakePageStore storage = StoreWorker("/_work/echo");
+        DefaultHttpContext context = TestHttp.CreateContext("_work/echo", "GET", "/_work/echo");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound),
+            "a worker is started by a page; it has no representation to serve");
+    }
+
+    [Test]
+    public async Task AVersionedWorkerRevisionIsNotFoundAsync() {
+        FakePageStore storage = StoreWorker("/_work/echo");
+        string hash = PageHarness.Stored(storage, "/_work/echo").Hash;
+        DefaultHttpContext context = TestHttp.CreateContext("_work/echo", "GET", "/_work/echo");
+        context.Request.QueryString = new QueryString($"?v={hash}");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
+    }
+
+    [Test]
     public async Task AnOldRevisionStillServesItsBytesAfterANewerSaveAsync() {
         FakePageStore storage = StoreAsset("/site.css", "body { color: red; }");
         string oldHash = PageHarness.Stored(storage, "/site.css").Hash;
@@ -1022,6 +1045,18 @@ public sealed class PageEndpointTests {
             source,
             new PageImage(TemplateFingerprint.Of(source), "test:runtime", null, null, [], Kind: PageKind.Text),
             "test:runtime");
+    }
+
+    private static FakePageStore StoreWorker(string path) {
+        const string Source = "<%! namespace Site.Work { public sealed class Echo : IWorker { } } %>";
+        FakePageStore storage = new();
+        storage[path] = PageTemplate.NewRevision(
+            PageHarness.Key(path),
+            Source,
+            new PageImage(TemplateFingerprint.Of(Source), "test:runtime", null, null, [], PageKind.Worker),
+            "test:runtime");
+
+        return storage;
     }
 
     private static FakePageStore StoreLibrary(string path) {

@@ -588,6 +588,23 @@ public sealed class SqlitePageStoreTests {
     }
 
     [Test]
+    public async Task AWorkerSaveStoresItsVerdictAndItsImageAsync() {
+        const string Source = "<%! namespace Site.Work { public sealed class Echo : IWorker { } } %>";
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath path = Key("/_work/echo");
+        PageImage image = new(TemplateFingerprint.Of(Source), "1:build", [7, 8], [9], [], Kind: PageKind.Worker);
+        await storage.SavePageAsync(PageTemplate.NewRevision(path, Source, image, "1:build"));
+
+        PageRevision row = await database.Set<PageRevision>().SingleAsync(revision => revision.Path == path.Key);
+
+        Assert.Multiple(() => {
+            Assert.That(row.TemplateKind, Is.EqualTo(PageKind.Worker));
+            Assert.That(row.Image, Is.EqualTo(new byte[] { 7, 8 }));
+        });
+    }
+
+    [Test]
     public async Task ALazyCompileFillsANullVerdictAsync() {
         const string Source = "<% ctx.Write(\"hi\"); %>";
         await using StorageDbContext database = new(_options);

@@ -30,6 +30,15 @@ internal sealed record PageFetchOptions {
     /// <summary>The most decompressed bytes one response may return.</summary>
     public required int MaxResponseBytes { get; init; }
 
+    /// <summary>How long a streamed response may go without producing a line.</summary>
+    public required double StreamSilenceSeconds { get; init; }
+
+    /// <summary>The longest a streamed response may stay open.</summary>
+    public required double StreamMaxSeconds { get; init; }
+
+    /// <summary>The most bytes a streamed response may return.</summary>
+    public required int MaxStreamBytes { get; init; }
+
     /// <summary>The most requests one render may make.</summary>
     public required int MaxRequestsPerRender { get; init; }
 
@@ -41,6 +50,12 @@ internal sealed record PageFetchOptions {
 
     /// <summary>The per-fetch budget as a time span.</summary>
     public TimeSpan Timeout => TimeSpan.FromSeconds(TimeoutSeconds);
+
+    /// <summary>The stream's silence budget as a time span.</summary>
+    public TimeSpan StreamSilence => TimeSpan.FromSeconds(StreamSilenceSeconds);
+
+    /// <summary>The stream's absolute budget as a time span.</summary>
+    public TimeSpan StreamMax => TimeSpan.FromSeconds(StreamMaxSeconds);
 
     /// <summary>Reads <c>Pages:Fetch</c>.</summary>
     /// <param name="configuration">The application configuration.</param>
@@ -63,6 +78,12 @@ internal sealed record PageFetchOptions {
             TimeoutSeconds = reader.Decimal("TimeoutSeconds", recommended: 4,
                 minimum: PageBudget.MinimumTimeoutSeconds, maximum: 60),
             MaxResponseBytes = reader.Number("MaxResponseBytes", recommended: 1024 * 1024,
+                minimum: 1024, maximum: 64 * 1024 * 1024),
+            StreamSilenceSeconds = reader.Decimal("StreamSilenceSeconds", recommended: 30,
+                minimum: PageBudget.MinimumTimeoutSeconds, maximum: 3_600),
+            StreamMaxSeconds = reader.Decimal("StreamMaxSeconds", recommended: 600,
+                minimum: PageBudget.MinimumTimeoutSeconds, maximum: 86_400),
+            MaxStreamBytes = reader.Number("MaxStreamBytes", recommended: 4 * 1024 * 1024,
                 minimum: 1024, maximum: 64 * 1024 * 1024),
             MaxRequestsPerRender = reader.Number("MaxRequestsPerRender", recommended: 10,
                 minimum: 1, maximum: 100),

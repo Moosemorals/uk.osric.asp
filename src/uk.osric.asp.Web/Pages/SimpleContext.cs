@@ -203,7 +203,7 @@ internal sealed class SimpleContext : IContext {
 
         _lifetime = lifetime;
         _deadline = lifetime.Token;
-        _capabilities.AttachDeadline(lifetime.Token);
+        _capabilities.AttachLifetime(lifetime);
     }
 
     /// <summary>Stops the page writing, once its render has been given up on.</summary>

@@ -51,6 +51,33 @@ public sealed class PageImageStateTests {
     }
 
     [Test]
+    public void AWorkerWithAnImageSaysWorker() {
+        PageImageState state = PageImageStatus.Describe(
+            "1:build", hasImage: true, hasDiagnostics: false, kind: PageKind.Worker);
+
+        Assert.Multiple(() => {
+            Assert.That(state, Is.EqualTo(PageImageState.Worker));
+            Assert.That(state.Describe(), Is.EqualTo("Worker"));
+        });
+    }
+
+    [Test]
+    public void AWorkerWithWarningsSaysSo() {
+        PageImageState state = PageImageStatus.Describe(
+            "1:build", hasImage: true, hasDiagnostics: true, kind: PageKind.Worker);
+
+        Assert.That(state.Describe(), Is.EqualTo("Worker with warnings"));
+    }
+
+    [Test]
+    public void AWorkerWithNoImageSaysCompileFailed() {
+        PageImageState state = PageImageStatus.Describe(
+            "1:build", hasImage: false, hasDiagnostics: true, kind: PageKind.Worker);
+
+        Assert.That(state.Describe(), Is.EqualTo("Compile failed"));
+    }
+
+    [Test]
     public void AnImageFromAnotherBuildSaysStale() {
         PageImageState state = PageImageStatus.Describe(
             "1:build", hasImage: true, hasDiagnostics: true, currentRuntimeId: "2:build");

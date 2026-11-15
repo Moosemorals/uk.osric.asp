@@ -103,9 +103,9 @@ internal sealed class PageEndpoint() {
                 return;
             }
 
-            // A library is not a representation, so a URL naming one is answered like an unknown key:
-            // there is nothing to send and nothing to promise.
-            if (PageAssetPolicy.IsLibrary(selected.Kind)) {
+            // A library or a worker is not a representation, so a URL naming one is answered like an
+            // unknown key: there is nothing to send and nothing to promise.
+            if (!PageAssetPolicy.IsServed(selected.Kind)) {
                 environment.Metrics.RecordAsset(PageMetrics.AssetUnknown);
                 await NotFound.WriteAsync(context, path);
                 return;
@@ -168,8 +168,9 @@ internal sealed class PageEndpoint() {
                     return;
                 }
 
-                if (PageAssetPolicy.IsLibrary(head.Kind)) {
-                    // A library has no representation: the editor opens it, a visitor cannot.
+                if (!PageAssetPolicy.IsServed(head.Kind)) {
+                    // A library or a worker has no representation: the editor opens it, a visitor
+                    // cannot.
                     await NotFound.WriteAsync(context, path);
                     return;
                 }

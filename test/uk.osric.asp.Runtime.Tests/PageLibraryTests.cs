@@ -191,6 +191,6 @@ public sealed class PageLibraryTests {
     private static CompileResult Check(string template) {
         TemplateGenerationResult generated = TemplateSourceGenerator.GenerateLibrary(template);
 
-        return Compiler.CompileLibrary(generated.Source!);
+        return Compiler.CompileWorker(generated.Source!, []);
     }
 }

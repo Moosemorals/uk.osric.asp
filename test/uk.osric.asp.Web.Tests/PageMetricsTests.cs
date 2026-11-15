@@ -177,7 +177,7 @@ public sealed class PageMetricsTests {
         // hand has to hold it too.
         Assert.That(await budget.RenderSlots.WaitAsync(0), Is.True);
 
-        using (RenderLifetime lifetime = new(budget, Key("/stream"), metrics, new CancellationTokenSource())) {
+        await using (RenderLifetime lifetime = new(budget, Key("/stream"), metrics, new CancellationTokenSource())) {
             await lifetime.BeginStreamAsync();
             await Task.Delay(50);
             lifetime.Complete(clientLeft: false);

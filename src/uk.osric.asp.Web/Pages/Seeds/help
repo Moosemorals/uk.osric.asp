@@ -80,6 +80,12 @@ nothing else &mdash; is a <strong>library</strong>: it has nothing to render, so
 its own URL answers &ldquo;not found&rdquo;. It is still checked when you save it, so code that will not
 compile is reported like any other page's. A library declares its types in a namespace, and the page
 API policy applies to it exactly as it does to code in a page.</p>
+<p>A declaration-only source that declares exactly one public type implementing
+<code>IWorker</code> &mdash; a type with a parameterless constructor and a
+<code>RunAsync(IWorkerContext)</code> method &mdash; is a <strong>worker</strong> rather than a library.
+It is compiled and checked when you save it, is never served, and is not a library: a page that names
+its namespace does not compile. A worker is a program a page starts, and the capability that starts one
+arrives with the job runner.</p>
 <p>Libraries live under <code>/_lib/</code> by convention &mdash; the seeded document writer is
 <code>/_lib/document</code> &mdash; so code has a folder of its own in the page list instead of a key a
 visitor might ask for. Nothing refuses a library elsewhere, and its key is never served either way.</p>
@@ -204,6 +210,42 @@ throws <code>PageStreamRefusedException</code> before anything is committed, and
 <code>X-Accel-Buffering: no</code> with <code>ctx.SetHeader</code>, writes one event at a time and
 flushes after each. Each flush is what keeps it inside the silence allowance, and the ceiling is what
 ends a conversation that would otherwise never finish.</p>
+<p>For a slow upstream, write and flush a first event before opening the fetch or waiting for a line.
+The commit starts the client's <code>Pages:Stream</code> lifetime; the upstream body has its own
+<code>Pages:Fetch:StreamSilenceSeconds</code>, <code>StreamMaxSeconds</code> and
+<code>MaxStreamBytes</code> limits. A failure after the flush cannot change the response status, so
+send an error event instead:</p>
+<pre class="source" tabindex="0"><code>&lt;%
+IHttpFetch fetch = ctx.Capabilities.GetRequired&lt;IHttpFetch&gt;();
+ctx.Capabilities.GetRequired&lt;IPageLayout&gt;().Layout = null;
+ctx.SetContentType("text/event-stream; charset=utf-8");
+ctx.SetHeader("X-Accel-Buffering", "no");
+ctx.WriteRaw(": connected\n\n");
+await ctx.FlushAsync();
+
+HttpFetchStream upstream = await fetch.StreamAsync(
+    new HttpFetchRequest("https://api.example.com/events"));
+try {
+    string? line;
+    while ((line = await upstream.ReadLineAsync()) is not null) {
+        ctx.WriteRaw($"data: {line}\n\n");
+        await ctx.FlushAsync();
+    }
+
+    string? failure = upstream.Truncated
+        ? "truncated"
+        : upstream.Failure == HttpFetchFailure.None ? null : upstream.Failure.ToString();
+    if (failure is not null) {
+        ctx.WriteRaw($"event: error\ndata: {failure}\n\n");
+        await ctx.FlushAsync();
+    }
+} finally {
+    await upstream.CloseAsync();
+}
+%&gt;</code></pre>
+<p><code>ReadLineAsync()</code> returns <code>null</code> at end of body or after a failure; inspect
+<code>Failure</code> and <code>Truncated</code> after the loop. The host closes streams a page
+leaves open when the render ends or is abandoned.</p>
 
 <h2 id="head-and-scripts">Stylesheets, head and scripts</h2>
 <p>The page's key chooses its initial content type from the host's extension map; an unmapped key is
@@ -331,6 +373,14 @@ exceptions:</p>
 &lt;% } else { %&gt;
 &lt;p&gt;Unavailable (&lt;%= response.Failure.ToString() %&gt;).&lt;/p&gt;
 &lt;% } %&gt;</code></pre>
+<p><code>StreamAsync</code> follows the same URL, header, redirect and credential rules and counts
+against the same per-render request cap. It returns an <code>HttpFetchStream</code> with the response
+status and headers, a <code>Failure</code> value, and a <code>ReadLineAsync()</code> method that
+returns decoded text lines or <code>null</code>. Close it with <code>CloseAsync()</code>; the host
+also closes it when the render ends or is abandoned. Response headers use
+<code>Pages:Fetch:TimeoutSeconds</code> (4 seconds by default); body reads have a 30-second silence
+limit, a 600-second total limit and a 4 MiB byte limit. Check <code>Failure</code> and
+<code>Truncated</code> after the read loop.</p>
 <p>A request may name an operator-configured credential with
 <code>Credential = "name"</code> on <code>HttpFetchRequest</code>. The host adds the header; the
 page never sees the value. Use the name the operator gives you, not a token. An unknown name is an
