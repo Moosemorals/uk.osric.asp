@@ -55,11 +55,12 @@ its whole body. Declarations are compile-time only: they write no output and are
 even inside an `if` in the template. Template order is also the using order, so a `using` written
 after a type is `CS1529` on the line that wrote it.
 
-A comment is a note to nobody, and it is the one construct that is neither code nor text: it writes
-no output, it does not make a no-code page a page or a library a page, and it is removed from the
-body a no-code page serves, because that body is its source (`TemplateComments`). `<%#` is the only
-comment form; `<% /* … */ %>` is C# inside a code block and makes the template code. A block ends at
-the first `%>` whatever it holds, so a comment cannot mention one.
+A comment is a note to nobody, and it is the one construct that is neither code nor text
+(`pages-a-comment-is-not-code`): it writes no output, it does not make a no-code page a page or a
+library a page, and it is removed from the body a no-code page serves, because that body is its
+source (`TemplateComments`). `<%#` is the only comment form; `<% /* … */ %>` is C# inside a code block
+and makes the template code. A block ends at the first `%>` whatever it holds, so a comment cannot
+mention one, and `<%#if DEBUG %>` is a note rather than a directive — `<% #if DEBUG %>` is the code.
 
 Diagnostics live in template space: `PageDiagnostic.Position` is a 1-based `TemplatePosition` in the
 page the author typed, or `null` when there is no position. The generator wraps each code block in

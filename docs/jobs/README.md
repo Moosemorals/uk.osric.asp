@@ -101,7 +101,6 @@ fails to compile: the template language has an opener for everything except a no
 | [IDEA-043](IDEA-043.md) | — | L | The authority to edit the store belongs to one page and to one save: any page may write, and a render may write a batch under a policy |
 | [IDEA-044](IDEA-044.md) | — | L | A page cannot render a page in a browser: the assistant's own scripts are never run, though the server's HTML is already one `fetch` away, and a screenshot has nowhere to be read, served or kept |
 | [IDEA-045](IDEA-045.md) | — | M | A page, a fetch and the assistant only ever see the anonymous view, so every guarded page renders as a sign-in redirect, and the carrier for a token already exists |
-| [IDEA-046](IDEA-046.md) | — | S | The template has no comment, so `<%# %>` — the form an author reaches for — is a compile error, and the workaround that compiles costs a no-code page its kind |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -197,8 +196,7 @@ empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
 destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7
 touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page;
 [IDEA-032](IDEA-032.md) is a sitting's work whenever a cost line is wanted, and does not touch the
-files the programme is working through; [IDEA-046](IDEA-046.md) is the same kind of sitting — the
-template's comment — and touches `Core/Compilation`, the text page's body and no page contract; and
+files the programme is working through; and
 [IDEA-033](IDEA-033.md) wants a plan and a named first customer before it is a step.
 
 ## Closed
@@ -207,6 +205,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [IDEA-046](../decisions.md) | The template has a comment: `<%# %>` is a token of its own that is neither code nor text — it writes nothing, is emitted into no generated source, leaves a no-code page a text page and a library a library, its braces are not the page's, the script skeleton blanks it, and a text page is served with every comment removed. `pages-a-comment-is-not-code` |
 | [IDEA-035](../decisions.md) | The assistant always runs: `Assistant:Enabled`, the disabled note, the `404` fallback and the key exemption are gone, and `Assistant:ApiKey` is required at startup. `assistant-always-on` |
 | [ARCH-16](../plans/archive/page-store-reader.md) | The assistant's tools and its virtual shell read through one `PageStoreReader`: the tree with its facts, the sources in a scope, one key, a history and one revision. `PageTree` and `PageScope` moved to `Core`, and the loose lists, source walks and scope copies are gone. `pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree` |
 | [IDEA-005](../plans/page-libraries.md) | Pages share code: a page is text, a page with code or a **library**, and a library is bound by an ordinary `using` — a page's own directives name the namespaces it declares, the closure is resolved to a fixed point and each library compiles as its own syntax tree in the page's compilation. A library is checked on save, never served, never wrapped and never an asset, and a dependent page goes stale when the library's head moves. The seeded `/_lib/document` writes the document the seeded `/_layout` uses, and `Sdk`'s `PageDocument` is `Web`'s `ShellDocument`. See [the plan](../plans/page-libraries.md) |
