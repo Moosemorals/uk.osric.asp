@@ -239,7 +239,7 @@ internal sealed class PageHarness : IDisposable {
         bool withFetch = true,
         bool withStorage = true,
         bool withCatalog = true,
-        bool withWriter = true,
+        bool withWrites = true,
         bool withSession = true,
         string method = "GET") {
         PageCapabilities capabilities = new();
@@ -284,9 +284,9 @@ internal sealed class PageHarness : IDisposable {
             capabilities.Add<IPageCatalog>(catalog);
         }
 
-        if (withWriter) {
-            PageWriterScope writer = new(path, Saver, user, writable: !isHead);
-            capabilities.Add<IPageWriter>(writer);
+        if (withWrites) {
+            PageWritesScope writes = new(path, Editor, user, writable: !isHead, Reserved, Seeds);
+            capabilities.Add<IPageWrites>(writes);
         }
 
         return new SimpleContext(

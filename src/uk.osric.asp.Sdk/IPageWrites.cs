@@ -1,0 +1,121 @@
+// SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+// SPDX-License-Identifier: MIT
+
+namespace uk.osric.asp.Sdk;
+
+/// <summary>Writes the site's page store: this page's own source, and any page the visitor may edit.</summary>
+/// <remarks>
+/// <para>
+/// The host offers this to every content layer and never to a layout, because a layout is markup and
+/// one that saved itself would append a revision on every page it wraps
+/// (`pages-layouts-are-markup`). <strong>The authority is the signed-in visitor's, not the page's.</strong>
+/// An anonymous render is refused with a <see cref="UserFacingException"/> before anything is compiled
+/// or stored; which page asked is not part of the check.
+/// </para>
+/// <para>
+/// There are two saves. <see cref="SaveAsync(string)"/> stores this page's own source, bound to
+/// <see cref="IContext.Path"/>, and answers <see cref="PageSaveResult"/>; it is a page repairing itself.
+/// <see cref="SaveAsync(string, string, string?)"/> stores any key the site's own routes do not answer,
+/// conditional on the head hash the form was rendered from, and answers <see cref="PageEditResult"/>.
+/// Both end in the same compile-then-store, so neither can answer differently about the same template.
+/// A restore, a seed install and a seed adopt are saves too: nothing is rewound, a tombstone comes back
+/// with its history, and one that would change nothing answers <see cref="PageEditOutcome.Unchanged"/>.
+/// </para>
+/// <para>
+/// A <c>HEAD</c>, an ended or timed-out render, a second write in one render, an unaddressable key and a
+/// reserved key are page bugs and throw <see cref="InvalidOperationException"/>; a key that names
+/// nothing is the page's own answer through <see cref="Resolve"/>, not an exception. The read members —
+/// <see cref="Resolve"/> and <see cref="SeedSourceAsync"/> — need no visitor and spend no action.
+/// </para>
+/// <para>
+/// A write belongs to the next request: the running image is already loaded, so the response in hand is
+/// still the page as it was. A write that has begun is never abandoned — the render's deadline bounds
+/// the wait for a compile slot, not the author's edit — and one render makes one write, whichever member
+/// it uses (`pages-a-page-may-save-itself`).
+/// </para>
+/// </remarks>
+public interface IPageWrites {
+
+    /// <summary>Normalises a key and reports whether the site's own routes answer for it.</summary>
+    /// <param name="key">The text the page was given.</param>
+    /// <returns>The canonical key, or why the text names no page.</returns>
+    PageKeyResolution Resolve(string key);
+
+    /// <summary>Reads the source this release ships for a seed.</summary>
+    /// <param name="key">The page's key; normalised before it is read.</param>
+    /// <returns>The bundled source, or <see langword="null"/> when the release ships no seed for that key.</returns>
+    /// <remarks>
+    /// A read, so it needs no signed-in visitor and is not the render's one action: a confirmation shows
+    /// the diff between this and the live source, which is the one thing a page cannot read for itself.
+    /// Reading it never grants a write — <see cref="InstallSeedAsync"/> decides that.
+    /// </remarks>
+    /// <exception cref="ArgumentException">The key cannot name a page.</exception>
+    Task<string?> SeedSourceAsync(string key);
+
+    /// <summary>Saves this page's own source as a new revision.</summary>
+    /// <param name="template">The template text. It may be empty; an empty page is a page.</param>
+    /// <returns>The new revision's hash and the compiler's author-facing diagnostics.</returns>
+    /// <remarks>
+    /// The bound save, for the page that repairs itself: one call, no key to get wrong, and the answer
+    /// a page shows about itself. It is unconditional, so a page that wants the stale check names its own
+    /// key through the other overload and passes its head hash.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">The template is <see langword="null"/>.</exception>
+    /// <exception cref="UserFacingException">This render has no signed-in visitor, so nothing was saved.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The request is a <c>HEAD</c>, the render was abandoned or its deadline passed before the save
+    /// started, or this render has already written.
+    /// </exception>
+    Task<PageSaveResult> SaveAsync(string template);
+
+    /// <summary>Saves a page, only while its head still has the expected revision.</summary>
+    /// <param name="key">The page's key; normalised and checked.</param>
+    /// <param name="template">The template text.</param>
+    /// <param name="expectedHash">
+    /// The head hash the form was rendered from, or <see langword="null"/> when the page had no live
+    /// source: a new page, or a tombstone. A null expectation is refused as
+    /// <see cref="PageEditOutcome.Stale"/> if the page exists by the time the save runs, so a create
+    /// cannot quietly overwrite one.
+    /// </param>
+    /// <exception cref="UserFacingException">This render has no signed-in visitor, so nothing was saved.</exception>
+    /// <exception cref="InvalidOperationException">A reserved key, a <c>HEAD</c>, an ended render or a second write.</exception>
+    Task<PageEditResult> SaveAsync(string key, string template, string? expectedHash);
+
+    /// <summary>Records a seed as installed without storing a revision.</summary>
+    /// <param name="key">The page's key; normalised and checked.</param>
+    /// <returns>
+    /// Null when the key is not a seed; the outcome is <see cref="PageEditOutcome.Unchanged"/> when
+    /// the record already names the shipped seed.
+    /// </returns>
+    /// <remarks>
+    /// The answer to <see cref="PageSeedSummary.CanAdopt"/>: the page already holds the bytes this
+    /// release ships, so recording it as installed changes the record and nothing else. A page whose
+    /// content no longer matches the seed is a page bug, and throws.
+    /// </remarks>
+    /// <exception cref="UserFacingException">This render has no signed-in visitor.</exception>
+    /// <exception cref="InvalidOperationException">A reserved key, a <c>HEAD</c>, an ended render, a second write, or content that is not the seed.</exception>
+    Task<PageEditResult?> AdoptSeedAsync(string key);
+
+    /// <summary>Tombstones a page, keeping its history.</summary>
+    /// <param name="key">The page's key; normalised and checked.</param>
+    /// <exception cref="UserFacingException">This render has no signed-in visitor.</exception>
+    /// <exception cref="InvalidOperationException">A reserved key, a <c>HEAD</c>, an ended render or a second write.</exception>
+    Task<PageDeleteResult> DeleteAsync(string key);
+
+    /// <summary>Saves a retained revision's source as a new revision.</summary>
+    /// <param name="key">The page's key; normalised and checked.</param>
+    /// <param name="hash">The retained revision's hash, as the catalog reported it.</param>
+    /// <param name="expectedHash">The live head the form was rendered from, or null for a tombstone.</param>
+    /// <returns>Null when that page has no revision with that hash.</returns>
+    /// <exception cref="UserFacingException">This render has no signed-in visitor.</exception>
+    /// <exception cref="InvalidOperationException">A reserved key, a <c>HEAD</c>, an ended render or a second write.</exception>
+    Task<PageEditResult?> RestoreRevisionAsync(string key, string hash, string? expectedHash);
+
+    /// <summary>Saves a page the release ships with from its bundled source.</summary>
+    /// <param name="key">The page's key; normalised and checked.</param>
+    /// <param name="expectedHash">The live head the form was rendered from, or null for a tombstone.</param>
+    /// <returns>Null when the key is not a seed.</returns>
+    /// <exception cref="UserFacingException">This render has no signed-in visitor.</exception>
+    /// <exception cref="InvalidOperationException">A reserved key, a <c>HEAD</c>, an ended render or a second write.</exception>
+    Task<PageEditResult?> InstallSeedAsync(string key, string? expectedHash);
+}

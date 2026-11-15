@@ -7,35 +7,34 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Editor;
 
-/// <summary>The editor page's <see cref="IPageEditor"/>, bound to one render.</summary>
+/// <summary>The store's write capability, bound to one render.</summary>
 /// <remarks>
 /// <para>
-/// The host offers this to the content layer whose key is the configured editor key and to nothing
-/// else: not to a layout, not to another page, and not while the editor is served at any other key.
-/// The handle names a key on every call because it must — an editor edits whatever the owner opens —
-/// so the isolation is the registration, not the handle.
+/// The host offers this to every content layer and never to a layout. Which page asked is not part of
+/// the check: the authority is the signed-in visitor, and the reserved keys are the only pages the
+/// shell keeps out of reach. A layout is markup and is offered neither the read's write nor this.
 /// </para>
 /// <para>
 /// Authority is asymmetric with the catalog. An anonymous render is refused with a
 /// <see cref="UserFacingException"/> before anything is compiled or stored; a <c>HEAD</c>, an ended
-/// render, a second action and a reserved key are page bugs and throw
+/// render, a second write and a reserved key are page bugs and throw
 /// <see cref="InvalidOperationException"/>. The key itself is the page's answer through
 /// <see cref="Resolve"/>, so a typo in a query value is a message the page renders.
 /// </para>
 /// <para>
-/// A save is conditional on the head hash the form carried, and a save that has begun is not
-/// abandoned: the render's deadline bounds the wait for a compile slot, not the author's edit
-/// (`pages-a-page-may-save-itself`).
+/// The two saves share one action: a page that saved itself cannot then edit another page in the same
+/// render. A save is conditional on the head hash the form carried when it names a key, and a save that
+/// has begun is not abandoned: the render's deadline bounds the wait for a compile slot, not the
+/// author's edit (`pages-a-page-may-save-itself`).
 /// </para>
 /// </remarks>
-internal sealed class PageEditorScope(
+internal sealed class PageWritesScope(
     PagePath path,
     PageEditor pages,
-    string editorKey,
     PageUser? user,
     bool writable,
     ReservedPaths reserved,
-    PageSeeds seeds) : RenderBoundCapability, IPageEditor {
+    PageSeeds seeds) : RenderBoundCapability, IPageWrites {
 
     private int _acted;
 
@@ -66,6 +65,19 @@ internal sealed class PageEditorScope(
     }
 
     /// <inheritdoc/>
+    public async Task<PageSaveResult> SaveAsync(string template) {
+        ArgumentNullException.ThrowIfNull(template);
+        ThrowIfCannotWrite();
+
+        // The render's token is deliberately not passed as the save's token: the deadline bounds the
+        // queue for a compile slot, not the author's edit (`pages-a-page-may-save-itself`).
+        SavedRevision saved = await pages.SaveAsync(path, template, CancellationToken.None, Deadline);
+        Acted();
+
+        return new PageSaveResult(saved.Revision.Hash, PageDiagnostics.ToSdk(saved.Diagnostics));
+    }
+
+    /// <inheritdoc/>
     public async Task<PageEditResult> SaveAsync(string key, string template, string? expectedHash) {
         ArgumentNullException.ThrowIfNull(template);
 
@@ -81,9 +93,6 @@ internal sealed class PageEditorScope(
     /// <inheritdoc/>
     public async Task<PageDeleteResult> DeleteAsync(string key) {
         PagePath target = ResolveForWrite(key);
-        if (string.Equals(target.Key, editorKey, StringComparison.Ordinal)) {
-            throw new InvalidOperationException("The editor page cannot delete itself.");
-        }
 
         PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
         bool wasLive = head is { IsDeleted: false };
@@ -243,10 +252,7 @@ internal sealed class PageEditorScope(
     private static PageEditResult Unchanged(string? hash) => new(PageEditOutcome.Unchanged, hash, []);
 
     private PagePath ResolveForWrite(string key) {
-        ThrowIfAnonymous();
-        ThrowIfReadOnly();
-        ThrowIfEnded();
-        ThrowIfActed();
+        ThrowIfCannotWrite();
 
         if (string.IsNullOrWhiteSpace(key)) {
             throw new ArgumentException("A page key is required.", nameof(key));
@@ -262,6 +268,15 @@ internal sealed class PageEditorScope(
         }
 
         return target;
+    }
+
+    // The bound save names no key, so it skips the key checks and keeps the four that every write
+    // makes. The order is the writer's: a visitor state, then the two render bugs, then the action.
+    private void ThrowIfCannotWrite() {
+        ThrowIfAnonymous();
+        ThrowIfReadOnly();
+        ThrowIfEnded();
+        ThrowIfActed();
     }
 
     private void ThrowIfAnonymous() {

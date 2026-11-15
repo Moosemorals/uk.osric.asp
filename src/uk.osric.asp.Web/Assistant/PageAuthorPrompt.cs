@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v33";
+    public const string Version = "page-author-v34";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -71,7 +71,7 @@ internal static class PageAuthorPrompt {
                PageSaveResult? saved = null;
                if (ctx.Request.Method == "POST" && ctx.Request.Form.TryGetValue("template", out string? submitted) && submitted is not null) {
                    draft = submitted;
-                   saved = await ctx.Capabilities.GetRequired<IPageWriter>().SaveAsync(submitted);
+                   saved = await ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync(submitted);
                } %>
             <h1>Draft</h1>
             <% if (saved is not null) { %><p>Saved revision <%= saved.Hash %>. Reload to see it.</p><% } %>
@@ -291,28 +291,48 @@ internal static class PageAuthorPrompt {
         limit. The seeded `/recent` is a public listing and the seeded `/pages`
         guards the same read.
 
-        ## Saving the page itself
-        `ctx.Capabilities.GetRequired<IPageWriter>().SaveAsync(template)` saves the
-        source of the page that calls it, and nothing else: the handle is bound
-        to `ctx.Path` and takes no key. It answers with a `PageSaveResult` —
-        `Hash` for the new revision and `Diagnostics`, which are
-        `PageDiagnostic` values with `Severity`, `Line`, `Column`, `Code` and
-        `Message`. `HasErrors` means the page cannot be served until the errors
-        are fixed; `HasWarnings` does not stop it. A save compiles before it
-        stores, so a template with an error is saved and reported.
+        ## Writing the page store
+        `ctx.Capabilities.GetRequired<IPageWrites>()` is the store's write
+        capability, offered to every page that is not a layout. It has two
+        saves.
 
-        The write needs a signed-in visitor. An anonymous render is refused
-        before anything is stored, so a page with a save form must also guard
-        its own view with the ordinary `ctx.User` check, and must carry
-        `<%== ctx.AntiforgeryField %>` in the form. Save on a `POST`, never on a
-        `GET`, and never during a `HEAD`. The save belongs to the next request:
-        the response in hand is still the page as it was, so show the result the
-        save returned and let a reload serve the new source. One render saves
-        once. A page that shows its own source reads it with
-        `IPageCatalog.ReadAsync(ctx.Path)`, and compares that hash with the one
-        the form carried when it wants to refuse a stale form. The seeded
-        `/scratch` is the worked example. A layout is offered the read and not
-        the write.
+        `SaveAsync(template)` saves the source of the page that calls it and
+        nothing else: the handle is bound to `ctx.Path` and takes no key. It
+        answers with a `PageSaveResult` — `Hash` for the new revision and
+        `Diagnostics`, which are `PageDiagnostic` values with `Severity`,
+        `Line`, `Column`, `Code` and `Message`. `HasErrors` means the page
+        cannot be served until the errors are fixed; `HasWarnings` does not stop
+        it.
+
+        `SaveAsync(key, template, expectedHash)` saves any key the shell does
+        not route, only while that page still has the hash the form was drawn
+        from, and answers with a `PageEditResult`: `Outcome` is `Saved`,
+        `Stale` or `Unchanged`, with `Hash` and `Diagnostics`. A stale answer
+        wrote nothing. `expectedHash` is `null` when the form was drawn from a
+        page with no live source, which still refuses to overwrite a page that
+        appeared in the meantime.
+
+        Both compile before they store, so a template with an error is saved
+        and reported. The write needs a signed-in visitor: an anonymous render
+        is refused before anything is stored, so a page with a save form must
+        also guard its own view with the ordinary `ctx.User` check, and must
+        carry `<%== ctx.AntiforgeryField %>` in the form. The signed-in visitor
+        is the authority, not the page: any page may save any key the shell
+        does not route, and `Pages:Editor:Key` only says where the editor is
+        served (`ctx.EditorPath`). Reserved keys are refused. The editor's own
+        page is ordinary too, and `/admin/restore` puts the seeded editor back
+        if it is deleted or broken.
+
+        Save on a `POST`, never on a `GET`, and never during a `HEAD`. The save
+        belongs to the next request: the response in hand is still the page as
+        it was, so show the result the save returned and let a reload serve the
+        new source. One render writes once: a save, a delete, a restore or an
+        install spends the one action. A page that shows its own source reads
+        it with `IPageCatalog.ReadAsync(ctx.Path)`, and compares that hash with
+        the one the form carried when it wants to refuse a stale form. The
+        seeded `/scratch` is the worked example of the bound save and the
+        seeded `/pages` of the rest. A layout is offered the read and not the
+        write.
 
         ## Markdown
         A page renders Markdown through `ctx.Capabilities.GetRequired<IMarkdownRenderer>()`

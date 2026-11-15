@@ -86,8 +86,6 @@ static uk.osric.asp.Sdk.PageDiagnostic.operator !=(uk.osric.asp.Sdk.PageDiagnost
 static uk.osric.asp.Sdk.PageDiagnostic.operator ==(uk.osric.asp.Sdk.PageDiagnostic left, uk.osric.asp.Sdk.PageDiagnostic right) -> bool
 static uk.osric.asp.Sdk.PageSaveResult.operator !=(uk.osric.asp.Sdk.PageSaveResult? left, uk.osric.asp.Sdk.PageSaveResult? right) -> bool
 static uk.osric.asp.Sdk.PageSaveResult.operator ==(uk.osric.asp.Sdk.PageSaveResult? left, uk.osric.asp.Sdk.PageSaveResult? right) -> bool
-uk.osric.asp.Sdk.IPageWriter
-uk.osric.asp.Sdk.IPageWriter.SaveAsync(string! template) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSaveResult!>!
 uk.osric.asp.Sdk.PageDiagnostic
 uk.osric.asp.Sdk.PageDiagnostic.Code.get -> string!
 uk.osric.asp.Sdk.PageDiagnostic.Code.init -> void
@@ -181,13 +179,6 @@ static uk.osric.asp.Sdk.PageEditResult.operator !=(uk.osric.asp.Sdk.PageEditResu
 static uk.osric.asp.Sdk.PageEditResult.operator ==(uk.osric.asp.Sdk.PageEditResult? left, uk.osric.asp.Sdk.PageEditResult? right) -> bool
 static uk.osric.asp.Sdk.PageKeyResolution.operator !=(uk.osric.asp.Sdk.PageKeyResolution? left, uk.osric.asp.Sdk.PageKeyResolution? right) -> bool
 static uk.osric.asp.Sdk.PageKeyResolution.operator ==(uk.osric.asp.Sdk.PageKeyResolution? left, uk.osric.asp.Sdk.PageKeyResolution? right) -> bool
-uk.osric.asp.Sdk.IPageEditor
-uk.osric.asp.Sdk.IPageEditor.DeleteAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageDeleteResult!>!
-uk.osric.asp.Sdk.IPageEditor.InstallSeedAsync(string! key, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
-uk.osric.asp.Sdk.IPageEditor.Resolve(string! key) -> uk.osric.asp.Sdk.PageKeyResolution!
-uk.osric.asp.Sdk.IPageEditor.RestoreRevisionAsync(string! key, string! hash, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
-uk.osric.asp.Sdk.IPageEditor.SaveAsync(string! key, string! template, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult!>!
-uk.osric.asp.Sdk.IPageEditor.SeedSourceAsync(string! key) -> System.Threading.Tasks.Task<string?>!
 uk.osric.asp.Sdk.PageDeleteResult
 uk.osric.asp.Sdk.PageDeleteResult.<Clone>$() -> uk.osric.asp.Sdk.PageDeleteResult!
 uk.osric.asp.Sdk.PageDeleteResult.Deconstruct(out bool Deleted, out bool WasLive) -> void
@@ -266,6 +257,15 @@ static uk.osric.asp.Sdk.PageJobSendResult.operator !=(uk.osric.asp.Sdk.PageJobSe
 static uk.osric.asp.Sdk.PageJobSendResult.operator ==(uk.osric.asp.Sdk.PageJobSendResult left, uk.osric.asp.Sdk.PageJobSendResult right) -> bool
 static uk.osric.asp.Sdk.PageJobStart.operator !=(uk.osric.asp.Sdk.PageJobStart left, uk.osric.asp.Sdk.PageJobStart right) -> bool
 static uk.osric.asp.Sdk.PageJobStart.operator ==(uk.osric.asp.Sdk.PageJobStart left, uk.osric.asp.Sdk.PageJobStart right) -> bool
+uk.osric.asp.Sdk.IPageWrites
+uk.osric.asp.Sdk.IPageWrites.AdoptSeedAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
+uk.osric.asp.Sdk.IPageWrites.DeleteAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageDeleteResult!>!
+uk.osric.asp.Sdk.IPageWrites.InstallSeedAsync(string! key, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
+uk.osric.asp.Sdk.IPageWrites.Resolve(string! key) -> uk.osric.asp.Sdk.PageKeyResolution!
+uk.osric.asp.Sdk.IPageWrites.RestoreRevisionAsync(string! key, string! hash, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
+uk.osric.asp.Sdk.IPageWrites.SaveAsync(string! key, string! template, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult!>!
+uk.osric.asp.Sdk.IPageWrites.SaveAsync(string! template) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSaveResult!>!
+uk.osric.asp.Sdk.IPageWrites.SeedSourceAsync(string! key) -> System.Threading.Tasks.Task<string?>!
 uk.osric.asp.Sdk.IPageJobs
 uk.osric.asp.Sdk.IPageJobs.CancelAsync(string! jobId) -> System.Threading.Tasks.Task<bool>!
 uk.osric.asp.Sdk.IPageJobs.GetAsync(string! jobId) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobInfo?>!
@@ -389,7 +389,6 @@ static uk.osric.asp.Sdk.PageSeedSummary.operator !=(uk.osric.asp.Sdk.PageSeedSum
 static uk.osric.asp.Sdk.PageSeedSummary.operator ==(uk.osric.asp.Sdk.PageSeedSummary? left, uk.osric.asp.Sdk.PageSeedSummary? right) -> bool
 override uk.osric.asp.Sdk.PageSeedSummary.GetHashCode() -> int
 uk.osric.asp.Sdk.PageSeedSummary.<Clone>$() -> uk.osric.asp.Sdk.PageSeedSummary!
-uk.osric.asp.Sdk.IPageEditor.AdoptSeedAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
 override uk.osric.asp.Sdk.MarkdownOptions.Equals(object? obj) -> bool
 override uk.osric.asp.Sdk.MarkdownOptions.GetHashCode() -> int
 override uk.osric.asp.Sdk.MarkdownOptions.ToString() -> string!

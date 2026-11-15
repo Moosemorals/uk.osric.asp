@@ -179,7 +179,7 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
         Assert.That(template, Does.Contain("<h1>Pages</h1>"));
         Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }"));
-        Assert.That(template, Does.Contain("IPageEditor").And.Contain("IPageCatalog").And.Contain("IDiffRenderer"));
+        Assert.That(template, Does.Contain("IPageWrites").And.Contain("IPageCatalog").And.Contain("IDiffRenderer"));
         Assert.That(template, Does.Contain("ctx.AllowScripts()"));
         Assert.That(template, Does.Contain("ctx.AntiforgeryField"), "every form is checked by the host");
     }
@@ -193,7 +193,7 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("<h1>Scratch</h1>"));
         Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }"),
             "the draft guards its own view, so an anonymous visitor is sent to sign in");
-        Assert.That(template, Does.Contain("IPageCatalog").And.Contain("IPageWriter"));
+        Assert.That(template, Does.Contain("IPageCatalog").And.Contain("IPageWrites"));
         Assert.That(template, Does.Contain("name=\"template\""));
         Assert.That(template, Does.Contain("ctx.AntiforgeryField"));
         Assert.That(template, Does.Contain("href=\"/help#writing\""));

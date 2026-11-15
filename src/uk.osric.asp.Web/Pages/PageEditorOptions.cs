@@ -6,15 +6,16 @@ namespace uk.osric.asp.Web.Pages;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Configuration;
 
-/// <summary>Which page the host offers the editor capability to.</summary>
+/// <summary>Where the editor is served, and the key every link to it is built from.</summary>
 /// <remarks>
-/// The capability is a handle on the whole store, so the key that holds it is policy and comes from
-/// <c>Pages:Editor:Key</c>. A key no request could reach is refused at startup rather than left to
+/// The capability is offered to every page now, so this key decides nothing about authority: it says
+/// where the editor lives, which is what <c>ctx.EditorPath</c>, the shell's remedy links and every
+/// <c>?edit=</c> URL read. A key no request could reach is still refused at startup rather than left to
 /// become a site with no editor.
 /// </remarks>
 internal sealed record PageEditorOptions {
 
-    /// <summary>The one content key that is offered <c>IPageEditor</c>.</summary>
+    /// <summary>The page key where the editor is served.</summary>
     public required string Key { get; init; }
 
     /// <summary>Reads <c>Pages:Editor</c>.</summary>
