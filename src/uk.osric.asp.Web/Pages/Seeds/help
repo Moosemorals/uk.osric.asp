@@ -12,6 +12,7 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
         <li><a href="#streaming">Streaming a response</a></li>
         <li><a href="#head-and-scripts">Stylesheets, head and scripts</a></li>
         <li><a href="#syntax">Template syntax</a></li>
+        <li><a href="#api">What a page may use</a></li>
         <li><a href="#context">Context and capabilities</a></li>
         <li><a href="#catalog">Reading the page store</a></li>
         <li><a href="#writing">Saving the page you are</a></li>
@@ -53,14 +54,20 @@ confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a se
     the site's own route rather than an action here, because it cannot be undone: the page's row
     links to <code>/admin/scrub</code>, which asks you to type the page's key to confirm, and refuses
     a page that has not been deleted first.</li>
-    <li><strong>Install from seed</strong> is offered for the pages the site ships with, such as
-    <code>/_layout</code>, <code>/help</code> and the stylesheets, and only while the page differs
-    from its seed. It opens the same kind of confirmation as a restore and saves the bundled source
-    as a new revision. A seed is installed; a saved revision is restored.</li>
-    <li><strong>Restore every seed</strong> on <a href="/admin/restore">/admin/restore</a> is the
-    emergency way back when the editor itself will not load: it saves the bundled source of every
-    page the site ships with, never touches a page you made, and skips a seed that already matches.</li>
-    <li>The assistant is available from the editor to a signed-in owner.</li>
+    <li><strong>Install from seed</strong> is offered only when the release has moved a seed and the
+    page still holds the seed it was installed from — the row says <em>release newer</em>. It opens
+    the same kind of confirmation as a restore and saves the bundled source as a new revision. A page
+    you have changed since its seed set it, or one whose seed the release moved as well, is shown
+    with the diff and no install: the row says why. A seed is installed; a saved revision is
+    restored.</li>
+    <li><strong>Apply seed updates</strong> on <a href="/admin/seed-apply">/admin/seed-apply</a> is the
+    routine way a release moves a page: it writes what the release moved, records what already
+    matches and stops at the first page that has drifted. <strong>Restore every seed</strong> on
+    <a href="/admin/restore">/admin/restore</a> is the emergency way back when the editor itself will
+    not load: it saves the bundled source of every page the site ships with, never touches a page you
+    made, and skips a seed that already matches.</li>
+    <li>The assistant is available from the editor to a signed-in owner, and it can view the site
+    as you while it works: it sees the pages a signed-in visitor sees, read-only.</li>
 </ul>
 <p>Paths are canonical: <code>/About</code>, <code>/about/</code> and <code>/about</code> are the
 same page. A path the site's own routes already answer for, such as <code>/admin/import</code> or
@@ -343,6 +350,12 @@ in a page's own markup. Rewriting rendered HTML is not something the host does.<
     <dt><code>&lt;%! %&gt;</code></dt>
     <dd>Declarations, such as <code>using</code> directives and types of the page's own. They are
     hoisted above the handler and keep their template order.</dd>
+    <dt><code>&lt;%# %&gt;</code></dt>
+    <dd>A comment: a note to yourself that writes no output and never reaches the visitor. It counts
+    as neither code nor text, so a page of text and comments has no code and is served with the
+    comments removed, and a library that carries one is still a library. <code>&lt;% /* … */ %&gt;</code>
+    is a C# comment inside a code block instead, which makes the template code — the two are not
+    interchangeable.</dd>
 </dl>
 <pre class="source" tabindex="0"><code>&lt;h1&gt;Hello&lt;/h1&gt;
 &lt;p&gt;You asked for &lt;%= ctx.Path %&gt;.&lt;/p&gt;
@@ -374,6 +387,30 @@ sealed class Amount {
 <p>Forms use <code>&lt;form class="form"&gt;</code> with one <code>&lt;dl&gt;</code>; a label is a
 <code>&lt;dt&gt;</code> and its control is the matching <code>&lt;dd&gt;</code>. A textarea goes in a
 <code>&lt;fieldset&gt;</code> whose <code>&lt;legend&gt;</code> contains its label.</p>
+
+<h2 id="api">What a page may use</h2>
+<p>A page is C#, and the base class library is wider than a page needs. What a page may name is a
+fixed list: the <a href="/admin/reference/sdk">page contract</a>, a short set of base types,
+everything in <code>System.Collections.Generic</code>, <code>System.Globalization</code> and
+<code>System.Text.Json.Nodes</code>, and any <code>System.*</code> exception. Naming anything else is
+the compile error <code>PAGE001</code>, and a refusal names the member you wrote and the type it
+belongs to, because the type is what the list holds.</p>
+<p>What is left out is deliberate: no file, network, process, assembly or reflection access, and no
+reading the host's environment. A page reaches those through a capability instead &mdash; its own
+storage, the visitor's session, <code>IHttpFetch</code>, a job &mdash; so a page can do the work
+without being handed the machine.</p>
+<p>Three that a page often wants are in the list, and each has one job:</p>
+<dl>
+    <dt>Text without regard to case</dt>
+    <dd><code>StringComparer.OrdinalIgnoreCase</code> for a dictionary or set, and
+    <code>string.Equals(a, b, StringComparison.OrdinalIgnoreCase)</code> to compare two values.</dd>
+    <dt>Hashing</dt>
+    <dd><code>HashCode.Combine(a, b)</code> to build a key of your own, and
+    <code>SHA256.HashData(bytes)</code> for anything a visitor can see through.</dd>
+    <dt>Randomness</dt>
+    <dd><code>Random</code> for variety on the page, and <code>RandomNumberGenerator</code> for
+    anything security-shaped, such as a nonce.</dd>
+</dl>
 
 <h2 id="context">Context and capabilities</h2>
 <p>The variable <code>ctx</code> implements <a href="/admin/reference/sdk#t-IContext"><code>IContext</code></a>. It carries the request and the
@@ -533,12 +570,20 @@ something your own page may ask for.</p>
 <p><a href="/admin/reference/sdk#t-IMarkdownRenderer"><code>IMarkdownRenderer</code></a> renders Markdown to HTML. Write its result raw:</p>
 <pre class="source" tabindex="0"><code>&lt;% IMarkdownRenderer markdown = ctx.Capabilities.GetRequired&lt;IMarkdownRenderer&gt;(); %&gt;
 &lt;%== markdown.ToHtml("## Today\n\n- one\n- two") %&gt;</code></pre>
-<p>It understands CommonMark, pipe tables, auto-links, links and images. Raw HTML in the
-Markdown passes through, exactly like <code>&lt;%== %&gt;</code>: the renderer is not a
+<p>It understands CommonMark, heading anchors, pipe tables, auto-links, links and images. Raw HTML
+in the Markdown passes through, exactly like <code>&lt;%== %&gt;</code>: the renderer is not a
 sanitiser, so escape a visitor's or a fetched value with <code>ctx.Write</code> rather than
 rendering it. An image must be served by this site, because the response's policy allows images
 only from the same origin. A table's header cells are written with <code>scope="col"</code>, and
 column alignment markers are ignored because the site's policy forbids inline styles.</p>
+<p>A heading is written with an <code>id</code> made from its text, so you can link to a section with
+<code>#the-heading</code>; a second heading with the same text gets <code>-1</code>. Heading anchors,
+pipe tables and auto-links can be switched for one call with <code>MarkdownOptions</code>, which
+belongs to the call rather than to the shared renderer:</p>
+<pre class="source" tabindex="0"><code>&lt;%== markdown.ToHtml("## Today", MarkdownOptions.Default with { HeadingAnchors = false }) %&gt;</code></pre>
+<p><code>MarkdownOptions.Default</code> has all three on. Raw HTML has no switch, because the
+template can already write it and a renderer that looked like it removed HTML would invite you to
+trust it with a visitor's text.</p>
 
 <h2 id="diff">Diff</h2>
 <p><a href="/admin/reference/sdk#t-IDiffRenderer"><code>IDiffRenderer</code></a> renders the line changes between two strings as HTML. Write its
@@ -645,12 +690,19 @@ and the seeded layout. A static page's own <code>src</code> cannot be versioned 
 an unversioned asset, or write the hash by hand once.</p>
 <p>The pages the site ships with are called seeds. They live under <code>Pages/Seeds</code> and are
 created only when the page does not already exist, so editing a seed changes the site without being
-overwritten on the next start. The page list offers <strong>Install from seed</strong> on a seeded
-row, which saves the bundled source as a new revision; that is how you recover
-<code>/_layout</code>, <code>/site.css</code> or this page after a bad edit. To go back to an earlier
-save of the page instead, restore it from the page's history. A revision saved before
-this feature has no verdict yet, so it stays unversioned until it is next saved, restored or first
-generated; there is no backfill.</p>
+overwritten on the next start. Every page the store holds carries a <strong>seed verdict</strong> in
+the page list: <em>in sync</em> when it holds the shipped seed, <em>release newer</em> when the release
+moved the seed and the page still holds the one it was installed from, <em>edited</em> when the page
+changed and the seed did not, <em>conflict</em> when both changed, <em>store newer</em> when the
+page holds the shipped bytes but has no record of installing them, and <em>unknown</em> when there is
+no record at all. A page whose seed this release no longer ships is <em>retired</em>, and is an
+ordinary live page. Only <em>release newer</em> offers an install; <em>store newer</em> and an
+<em>unknown</em> page whose content already matches offer <em>record as installed</em> instead. The
+row's button records one page; <a href="/admin/seed-apply">/admin/seed-apply</a> records and installs
+every safe row in one run and stops at the first page that has drifted, naming it. To go
+back to an earlier save of the page, restore it from the page's history. A page written before this
+feature has no record, so it stays <em>unknown</em> until something establishes where it came from;
+there is no backfill of that record.</p>
 <p>Deleting a page leaves a tombstone and its history. Saving the path again continues that history:
 name the key in <strong>Create or open</strong> on the page list, and the editor says the page was
 deleted and that saving brings it back. A deleted page has no current revision, so every row of its

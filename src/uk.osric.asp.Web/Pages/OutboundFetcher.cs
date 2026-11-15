@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using Microsoft.Net.Http.Headers;
 using System.Net;
 using System.Text;
 using uk.osric.asp.Sdk;
@@ -50,44 +51,78 @@ internal sealed class OutboundFetcher(
     /// <param name="request">The request to make.</param>
     /// <param name="caller">Who asked, for the log line: a page key or a tool name.</param>
     /// <param name="origin">Whether page code or the assistant asked, for the <c>User-Agent</c>.</param>
-    /// <param name="credential">A page-bound credential, or <see langword="null"/> for none.</param>
+    /// <param name="credential">A credential to attach where it applies, or <see langword="null"/> for none.</param>
     /// <param name="aborted">Cancelled when the caller gives up.</param>
     /// <param name="deadline">Cancelled when the caller's budget expires.</param>
+    /// <returns>The response as a page reads it: text, and the headers a page may see.</returns>
     public async Task<HttpFetchResponse> FetchAsync(
         HttpFetchRequest request,
         string caller,
         OutboundOrigin origin,
-        PageCredential? credential,
+        IOutboundCredential? credential,
+        CancellationToken aborted,
+        CancellationToken deadline) {
+        OutboundResponse response = await SendAndReadAsync(request, caller, origin, credential, aborted, deadline);
+
+        return Project(response);
+    }
+
+    /// <summary>Performs one request and answers the transport's own result.</summary>
+    /// <param name="request">The request to make.</param>
+    /// <param name="caller">Who asked, for the log line: a page key or a tool name.</param>
+    /// <param name="origin">Whether page code or the assistant asked, for the <c>User-Agent</c>.</param>
+    /// <param name="credential">A credential to attach where it applies, or <see langword="null"/> for none.</param>
+    /// <param name="aborted">Cancelled when the caller gives up.</param>
+    /// <param name="deadline">Cancelled when the caller's budget expires.</param>
+    /// <returns>Every header, the body's bytes and the hops taken, for a caller that wants the response itself.</returns>
+    public Task<OutboundResponse> FetchResponseAsync(
+        HttpFetchRequest request,
+        string caller,
+        OutboundOrigin origin,
+        IOutboundCredential? credential,
+        CancellationToken aborted,
+        CancellationToken deadline) {
+        return SendAndReadAsync(request, caller, origin, credential, aborted, deadline);
+    }
+
+    private async Task<OutboundResponse> SendAndReadAsync(
+        HttpFetchRequest request,
+        string caller,
+        OutboundOrigin origin,
+        IOutboundCredential? credential,
         CancellationToken aborted,
         CancellationToken deadline) {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(caller);
 
+        List<OutboundRedirect> redirects = [];
         if (!TryPrepareRequest(request, caller, credential, out Uri? current, out string? mediaType)) {
-            return Empty(HttpFetchFailure.InvalidRequest);
+            return Empty(HttpFetchFailure.InvalidRequest, redirects);
         }
 
         using CancellationTokenSource budget = CancellationTokenSource.CreateLinkedTokenSource(aborted, deadline);
         budget.CancelAfter(options.Timeout);
         (HttpResponseMessage? response, HttpFetchFailure failure) = await SendUntilResponseAsync(
-            request, caller, origin, credential, current, mediaType, aborted, budget.Token);
+            request, caller, origin, credential, current, mediaType, redirects, aborted, budget.Token);
         if (response is null) {
-            return Empty(failure);
+            return Empty(failure, redirects);
         }
 
         using (response) {
             try {
-                return await ReadAsync(response, failure, budget.Token);
+                return await ReadAsync(response, failure, redirects, budget.Token);
             } catch (OperationCanceledException) {
-                return Refuse(
-                    aborted.IsCancellationRequested ? HttpFetchFailure.Aborted : HttpFetchFailure.Timeout,
-                    caller,
-                    request.Url,
-                    LogLevel.Information);
+                return Empty(
+                    Refuse(
+                        aborted.IsCancellationRequested ? HttpFetchFailure.Aborted : HttpFetchFailure.Timeout,
+                        caller,
+                        request.Url,
+                        LogLevel.Information),
+                    redirects);
             } catch (IOException exception) {
                 logger.LogInformation(exception, "Fetch for {Caller} lost its response body from {Host}", caller, current.IdnHost);
 
-                return Empty(HttpFetchFailure.Network);
+                return Empty(HttpFetchFailure.Network, redirects);
             }
         }
     }
@@ -96,7 +131,7 @@ internal sealed class OutboundFetcher(
     /// <param name="request">The request to make.</param>
     /// <param name="caller">Who asked, for the log line.</param>
     /// <param name="origin">Whether page code or the assistant asked, for the <c>User-Agent</c>.</param>
-    /// <param name="credential">A page-bound credential, or <see langword="null"/> for none.</param>
+    /// <param name="credential">A credential to attach where it applies, or <see langword="null"/> for none.</param>
     /// <param name="aborted">Cancelled when the caller gives up.</param>
     /// <param name="deadline">Cancelled when the caller's lifetime ends.</param>
     /// <param name="onClosed">Records the completed stream.</param>
@@ -104,7 +139,7 @@ internal sealed class OutboundFetcher(
         HttpFetchRequest request,
         string caller,
         OutboundOrigin origin,
-        PageCredential? credential,
+        IOutboundCredential? credential,
         Action<HttpFetchStream> onClosed,
         CancellationToken aborted,
         CancellationToken deadline) {
@@ -119,8 +154,9 @@ internal sealed class OutboundFetcher(
         // The header budget ends at the response headers; body reads have independent clocks.
         using CancellationTokenSource headerBudget = CancellationTokenSource.CreateLinkedTokenSource(aborted, deadline);
         headerBudget.CancelAfter(options.Timeout);
+        // A stream reports its status and headers, not the hops it took, so the list is thrown away.
         (HttpResponseMessage? response, HttpFetchFailure failure) = await SendUntilResponseAsync(
-            request, caller, origin, credential, current, mediaType, aborted, headerBudget.Token);
+            request, caller, origin, credential, current, mediaType, hops: [], aborted, headerBudget.Token);
         if (response is null) {
             return new EmptyHttpFetchStream(failure, onClosed);
         }
@@ -136,7 +172,7 @@ internal sealed class OutboundFetcher(
                 body,
                 ReadHeaders(response),
                 outcome,
-                EncodingFor(response),
+                EncodingFor(response.Content.Headers.ContentType?.ToString()),
                 options.StreamSilence,
                 options.StreamMax,
                 options.MaxStreamBytes,
@@ -168,7 +204,7 @@ internal sealed class OutboundFetcher(
     private bool TryPrepareRequest(
         HttpFetchRequest request,
         string caller,
-        PageCredential? credential,
+        IOutboundCredential? credential,
         out Uri current,
         out string? mediaType) {
         mediaType = null;
@@ -196,15 +232,16 @@ internal sealed class OutboundFetcher(
         HttpFetchRequest request,
         string caller,
         OutboundOrigin origin,
-        PageCredential? credential,
+        IOutboundCredential? credential,
         Uri current,
         string? mediaType,
+        List<OutboundRedirect> hops,
         CancellationToken aborted,
         CancellationToken cancellationToken) {
         HttpMethod method = request.Method == HttpFetchMethod.Post ? HttpMethod.Post : HttpMethod.Get;
         string? body = method == HttpMethod.Post ? request.Body : null;
 
-        for (int redirects = 0; ; redirects++) {
+        for (int followed = 0; ; followed++) {
             HttpResponseMessage response;
             try {
                 using HttpRequestMessage message = CreateRequestMessage(
@@ -235,7 +272,7 @@ internal sealed class OutboundFetcher(
                 return (response, HttpFetchFailure.None);
             }
 
-            if (redirects >= options.MaxRedirects) {
+            if (followed >= options.MaxRedirects) {
                 return (response, HttpFetchFailure.TooManyRedirects);
             }
 
@@ -246,6 +283,10 @@ internal sealed class OutboundFetcher(
             bool changesToGet = response.StatusCode is HttpStatusCode.MovedPermanently
                 or HttpStatusCode.Found
                 or HttpStatusCode.SeeOther;
+
+            // A hop is recorded only when it is taken: a redirect the limit or the scheme rule stops
+            // is answered by the 3xx itself, whose Location header says the same thing.
+            hops.Add(new OutboundRedirect((int)response.StatusCode, location.AbsoluteUri));
             response.Dispose();
 
             if (changesToGet) {
@@ -264,7 +305,7 @@ internal sealed class OutboundFetcher(
         string? body,
         string? mediaType,
         OutboundOrigin origin,
-        PageCredential? credential) {
+        IOutboundCredential? credential) {
         HttpRequestMessage message = new(method, current);
         if (body is not null) {
             message.Content = new StringContent(body, Encoding.UTF8, mediaType ?? "text/plain");
@@ -345,19 +386,58 @@ internal sealed class OutboundFetcher(
             or HttpStatusCode.PermanentRedirect;
     }
 
-    private async Task<HttpFetchResponse> ReadAsync(
+    private async Task<OutboundResponse> ReadAsync(
         HttpResponseMessage response,
         HttpFetchFailure failure,
+        IReadOnlyList<OutboundRedirect> redirects,
         CancellationToken cancellationToken) {
         byte[] body = await ReadBodyAsync(response, cancellationToken);
         bool truncated = body.Length > options.MaxResponseBytes;
-        string text = Decode(response, truncated ? body[..options.MaxResponseBytes] : body);
+        if (truncated) {
+            body = body[..options.MaxResponseBytes];
+        }
 
         HttpFetchFailure outcome = failure == HttpFetchFailure.None && (int)response.StatusCode >= 400
             ? HttpFetchFailure.HttpError
             : failure;
 
-        return new HttpFetchResponse((int)response.StatusCode, ReadHeaders(response), text, outcome, truncated);
+        return new OutboundResponse(
+            (int)response.StatusCode,
+            ReadAllHeaders(response),
+            body,
+            outcome,
+            truncated,
+            redirects);
+    }
+
+    // Everything the response carried. A page is shown a subset of this (ReadHeaders), but a caller
+    // that is checking what the server produced needs the headers it did not think to ask for.
+    private static Dictionary<string, string> ReadAllHeaders(HttpResponseMessage response) {
+        Dictionary<string, string> headers = [with(StringComparer.OrdinalIgnoreCase)];
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers) {
+            headers[header.Key] = string.Join(", ", header.Value);
+        }
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.Content.Headers) {
+            headers[header.Key] = string.Join(", ", header.Value);
+        }
+
+        return headers;
+    }
+
+    // The page's view of a response, which is a decision rather than a transport fact: nine headers it
+    // may see, and the body as text decoded by the charset the response declares.
+    private HttpFetchResponse Project(OutboundResponse response) {
+        Dictionary<string, string> headers = [with(StringComparer.OrdinalIgnoreCase)];
+        foreach ((string name, string value) in response.Headers) {
+            if (PageFetchHeaders.IsResponseAllowed(name)) {
+                headers[name] = value;
+            }
+        }
+
+        string text = Decode(headers.GetValueOrDefault("Content-Type"), response.Body);
+
+        return new HttpFetchResponse(response.Status, headers, text, response.Failure, response.Truncated);
     }
 
     private static Dictionary<string, string> ReadHeaders(HttpResponseMessage response) {
@@ -397,15 +477,17 @@ internal sealed class OutboundFetcher(
         return buffer.ToArray();
     }
 
-    private string Decode(HttpResponseMessage response, byte[] body) {
-        return EncodingFor(response).GetString(body);
+    private string Decode(string? contentType, byte[] body) {
+        return EncodingFor(contentType).GetString(body);
     }
 
-    private Encoding EncodingFor(HttpResponseMessage response) {
-        string? charset = response.Content.Headers.ContentType?.CharSet;
-        if (!string.IsNullOrWhiteSpace(charset)) {
+    private Encoding EncodingFor(string? contentType) {
+        if (contentType is not null
+            && MediaTypeHeaderValue.TryParse(contentType, out MediaTypeHeaderValue? parsed)
+            && parsed.Charset.HasValue) {
+            string charset = parsed.Charset.Value.Trim('"');
             try {
-                return Encoding.GetEncoding(charset.Trim('"'));
+                return Encoding.GetEncoding(charset);
             } catch (ArgumentException exception) {
                 // An unknown charset is the caller's problem to spot; UTF-8 is the least surprising guess.
                 logger.LogDebug(exception, "A fetched response named the unknown charset {Charset}; it was read as UTF-8", charset);
@@ -415,16 +497,16 @@ internal sealed class OutboundFetcher(
         return Encoding.UTF8;
     }
 
-    private HttpFetchResponse Refuse(HttpFetchFailure failure, string caller, string url, LogLevel level) {
+    private HttpFetchFailure Refuse(HttpFetchFailure failure, string caller, string url, LogLevel level) {
         // The host, not the URL: a query can carry a secret, and the host name is enough to explain
         // the refusal.
         string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed) ? parsed.IdnHost : "(unparsed)";
         logger.Log(level, "Fetch for {Caller} was refused a request to {Host}: {Failure}", caller, host, failure);
 
-        return Empty(failure);
+        return failure;
     }
 
-    private static HttpFetchResponse Empty(HttpFetchFailure failure) {
-        return new HttpFetchResponse(0, new Dictionary<string, string>(), string.Empty, failure, false);
+    private static OutboundResponse Empty(HttpFetchFailure failure, IReadOnlyList<OutboundRedirect> redirects) {
+        return new OutboundResponse(0, new Dictionary<string, string>(), [], failure, false, redirects);
     }
 }

@@ -716,3 +716,30 @@ static uk.osric.asp.Core.Pages.PageTree.FoldersAbove(string! key) -> System.Coll
 uk.osric.asp.Core.Compilation.PageDiagnostic.Source.get -> string?
 uk.osric.asp.Core.Compilation.PageDiagnostic.Source.init -> void
 uk.osric.asp.Core.Pages.PageKind.Worker = 3 -> uk.osric.asp.Core.Pages.PageKind
+uk.osric.asp.Core.Compilation.TemplateComments
+static uk.osric.asp.Core.Compilation.TemplateComments.Remove(string! template) -> string!
+static uk.osric.asp.Core.Pages.SeedComparison.Of(string? recorded, string? shipped, string? content) -> uk.osric.asp.Core.Pages.SeedComparison
+static uk.osric.asp.Core.Pages.SeedComparison.operator !=(uk.osric.asp.Core.Pages.SeedComparison left, uk.osric.asp.Core.Pages.SeedComparison right) -> bool
+static uk.osric.asp.Core.Pages.SeedComparison.operator ==(uk.osric.asp.Core.Pages.SeedComparison left, uk.osric.asp.Core.Pages.SeedComparison right) -> bool
+~override uk.osric.asp.Core.Pages.SeedComparison.Equals(object obj) -> bool
+override uk.osric.asp.Core.Pages.SeedComparison.GetHashCode() -> int
+~override uk.osric.asp.Core.Pages.SeedComparison.ToString() -> string
+uk.osric.asp.Core.Pages.SeedComparison
+uk.osric.asp.Core.Pages.SeedComparison.CanAdopt.get -> bool
+uk.osric.asp.Core.Pages.SeedComparison.CanAdopt.init -> void
+uk.osric.asp.Core.Pages.SeedComparison.CanApply.get -> bool
+uk.osric.asp.Core.Pages.SeedComparison.CanApply.init -> void
+uk.osric.asp.Core.Pages.SeedComparison.Deconstruct(out uk.osric.asp.Core.Pages.SeedVerdict Verdict, out bool CanApply, out bool CanAdopt) -> void
+uk.osric.asp.Core.Pages.SeedComparison.Equals(uk.osric.asp.Core.Pages.SeedComparison other) -> bool
+uk.osric.asp.Core.Pages.SeedComparison.SeedComparison() -> void
+uk.osric.asp.Core.Pages.SeedComparison.SeedComparison(uk.osric.asp.Core.Pages.SeedVerdict Verdict, bool CanApply, bool CanAdopt) -> void
+uk.osric.asp.Core.Pages.SeedComparison.Verdict.get -> uk.osric.asp.Core.Pages.SeedVerdict
+uk.osric.asp.Core.Pages.SeedComparison.Verdict.init -> void
+uk.osric.asp.Core.Pages.SeedVerdict
+uk.osric.asp.Core.Pages.SeedVerdict.Conflict = 3 -> uk.osric.asp.Core.Pages.SeedVerdict
+uk.osric.asp.Core.Pages.SeedVerdict.Edited = 2 -> uk.osric.asp.Core.Pages.SeedVerdict
+uk.osric.asp.Core.Pages.SeedVerdict.InSync = 0 -> uk.osric.asp.Core.Pages.SeedVerdict
+uk.osric.asp.Core.Pages.SeedVerdict.ReleaseNewer = 1 -> uk.osric.asp.Core.Pages.SeedVerdict
+uk.osric.asp.Core.Pages.SeedVerdict.Retired = 6 -> uk.osric.asp.Core.Pages.SeedVerdict
+uk.osric.asp.Core.Pages.SeedVerdict.StoreNewer = 4 -> uk.osric.asp.Core.Pages.SeedVerdict
+uk.osric.asp.Core.Pages.SeedVerdict.Unknown = 5 -> uk.osric.asp.Core.Pages.SeedVerdict

@@ -1,0 +1,165 @@
+/* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
+/* SPDX-License-Identifier: MIT */
+
+/* /vim.css - presentation for a textarea that /vim.js drives.
+
+   Shared by the three pages that deal in it: the demo at /vim, the key reference
+   at /vim-help, and /notes, which is the one with something to store. It lives
+   here rather than in a <style> block so that none of them needs an inline style,
+   and it is loaded per page, so the bare kbd rule is not a site-wide leak.
+
+   The [hidden] rules below exist because the furniture arrives hidden and is only
+   revealed once the keys are wired: without them these display rules would
+   outrank the UA stylesheet's [hidden] rule and show it too early. */
+
+[data-vim-only][hidden] { display: none; }
+
+.vim-status {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: baseline;
+    box-sizing: border-box;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid currentColor;
+    border-top: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.875rem;
+    /* Stated rather than inherited, so the mode colour has a known thing to sit on. */
+    color: CanvasText;
+    background-color: Canvas;
+}
+
+.vim-status [data-vim-buffer] { color: #b45309; font-weight: 700; }
+.vim-status [data-vim-position] { opacity: 0.6; }
+
+.vim-editor {
+    border: 1px solid currentColor;
+    /* Explicit, for the same reason: the mode colours are measured against these two,
+       and a page that colours itself must not move the background out from under
+       them. */
+    color: CanvasText;
+    background-color: Canvas;
+}
+.vim-editor fieldset { border: 0; margin: 0; padding: 0; }
+.vim-editor legend { padding: 0.25rem 0.5rem 0; }
+
+.vim-editor textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    border: 0;
+    padding: 0.5rem;
+    background: transparent;
+    color: inherit;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    resize: vertical;
+    tab-size: 4;
+}
+
+.vim-editor textarea:focus { outline: 2px solid currentColor; outline-offset: -2px; }
+.vim-editor button { margin: 0.5rem; }
+
+/* Which mode you are in, said twice: once in a word on the statusline and once in
+   colour.
+
+   The colour is spent on the two edges the textarea itself owns: its caret, and its
+   focus ring. A field with focus therefore says which mode it is in, and the
+   statusline underneath says it whether the field has focus or not - which matters,
+   because an outline is drawn only while something is focused.
+
+   The hues are Okabe-Ito, chosen to stay apart for colour-blind readers: Blue for
+   normal, Vermilion for insert. The attribute is set on the [data-vim] wrapper by
+   /vim.js and removed with the editor, so a textarea it never touched or has just
+   detached keeps the ring and the caret the page gave it.
+
+   Colours are spent in two places and the two thresholds differ. The edges - the
+   focus ring and the caret - need 3:1 (WCAG 1.4.11), and Blue is 5.2:1 and Vermilion
+   3.9:1 on Canvas, so both clear it. The mode word is text, so it needs 4.5:1
+   (1.4.3): Blue clears that at 5.2:1 and Vermilion does not at 3.9:1, which is why
+   the word takes a darker shade of the same hue - #a85000, 5.5:1 - rather than the
+   pure one. Two shades of one hue still read as one colour, and the word is the
+   legend that says what the edges mean.
+
+   Those numbers are measured on Canvas, which the editor box and the bar below now
+   declare rather than inherit. Nothing in this site declares colour-scheme, so
+   Canvas resolves light today: if a dark theme is ever added, the darker Vermilion is
+   the first number to re-check, and light-dark() the way out of it.
+
+   Colour is never the only carrier of the mode, and under forced colours the engine
+   takes outline-color for itself: the ring stays visible and only the hue is dropped.
+   Nothing here ever sets outline: none.
+
+   Only the colour of the caret can change: its shape is the browser's, and a block
+   cursor would take a mirror element to measure the text with, which is the gj/gk
+   backlog item's problem too. */
+
+[data-vim-state="normal"] { --vim-mode: #0072b2; --vim-mode-text: #0072b2; }
+[data-vim-state="insert"] { --vim-mode: #d55e00; --vim-mode-text: #a85000; }
+
+/* The wrapper carries the attribute, but a textarea with no [data-vim] round it gets
+   its parent element as the root and the attribute goes there, so both spellings are
+   needed. outline-color alone rather than the shorthand, so the rule above keeps its
+   width and its inset and only the hue is swapped. */
+[data-vim-state] textarea { caret-color: var(--vim-mode); }
+[data-vim-state] textarea:focus { outline-color: var(--vim-mode); }
+
+/* The word is the legend for those two edges, so it wears the same colour - in the
+   text shade of it, which is the one that carries small type. */
+[data-vim-state] [data-vim-mode] {
+    color: var(--vim-mode-text);
+    font-weight: 600;
+}
+
+kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.875em;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    padding: 0 0.25em;
+    white-space: nowrap;
+}
+
+/* Command reference */
+
+.vim-docs h3 { margin-block: 1.5rem 0.25rem; font-size: 1rem; }
+
+.vim-keys {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.4rem 1rem;
+    align-items: baseline;
+    margin-block: 0.5rem 1rem;
+}
+
+.vim-keys dt { text-align: right; }
+.vim-keys dd { margin: 0; opacity: 0.9; }
+
+@media (max-width: 34rem) {
+    .vim-keys { grid-template-columns: 1fr; gap: 0.15rem; }
+    .vim-keys dt { text-align: left; margin-top: 0.5rem; }
+}
+
+/* The line under the editor that offers the other one. A link and not a checkbox: the
+   answer belongs to the server, so the page already knows which way it went and there is
+   nothing here that could flash the wrong one. */
+
+.vim-choice {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    align-items: baseline;
+    box-sizing: border-box;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid currentColor;
+    border-top: 0;
+    font-size: 0.875rem;
+}
+
+/* Still to do */
+
+.vim-todo li { margin-block: 0.5rem; }
+.vim-todo li strong { display: block; font-weight: 600; }
+.vim-todo li span.cost { font-size: 0.8125rem; opacity: 0.7; }

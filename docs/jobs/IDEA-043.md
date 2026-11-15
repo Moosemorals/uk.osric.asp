@@ -33,7 +33,7 @@ one-write-per-render rule until the batch lands, and removed the editor key's de
 
 The wider class is "a page that maintains the site": the editor, the assistant's tools, an import, a
 bulk restore, a seed harvest and a rename of a folder are one shape — several writes, chosen policy,
-one report. That is the batch, and it is [IDEA-046](IDEA-046.md): this job is the half with no policy
+one report. That is the batch, and it is [IDEA-047](IDEA-047.md): this job is the half with no policy
 vocabulary in it.
 
 ## Sketch
@@ -81,7 +81,7 @@ records the answers and the two wording questions it still asks.
 
 ## Not in scope
 
-- **The batch.** [IDEA-046](IDEA-046.md): several writes, a named policy, one report, and the end of
+- **The batch.** [IDEA-047](IDEA-047.md): several writes, a named policy, one report, and the end of
   the one-write rule.
 - **Renaming, searching and bulk restore.** [IDEA-042](IDEA-042.md), [IDEA-038](IDEA-038.md) and the
   single-action members they still use.
@@ -93,7 +93,7 @@ is not in this repository) with the job list. The IDE plan's Save all and the as
 edit are the two callers that found the one-save rule; the sub-route wish found the one-key rule. The
 owner's decision — "decisions are guidelines, not carved in stone; drop it" — is the whole of the
 mandate. This job was split on 2026-11-15: the widened authority and the merged capability are here, and
-the batch is [IDEA-046](IDEA-046.md), "a bit further down the backlog".
+the batch is [IDEA-047](IDEA-047.md), "a bit further down the backlog".
 
 The plan that places it is [host support for the IDE](../plans/ide-host.md); this is slice 4 there, and
 it has [a plan of its own](../plans/page-writes.md) on its branch.

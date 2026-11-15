@@ -11,7 +11,7 @@ namespace uk.osric.asp.Core.Pages;
 /// the kind.
 /// </para>
 /// <para>
-/// <see cref="Text"/> is a complete representation and its source is the response;
+/// <see cref="Text"/> is a complete representation and its source, less any comment, is the response;
 /// <see cref="Page"/> renders; <see cref="Library"/> is only something another page compiles
 /// against, so it is never served and never given a render; <see cref="Worker"/> is a program a page
 /// starts, which is also never served.
@@ -25,7 +25,7 @@ namespace uk.osric.asp.Core.Pages;
 /// </remarks>
 public enum PageKind {
 
-    /// <summary>No C# at all, so the stored source is the response byte for byte.</summary>
+    /// <summary>No C# at all, so its source, less its comments, is the response.</summary>
     Text,
 
     /// <summary>C# that renders: it is compiled to a handler and wrapped in the site layout.</summary>

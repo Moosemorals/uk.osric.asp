@@ -24,6 +24,8 @@ public abstract partial class IntegrationTest {
     /// <summary>The password for <see cref="UserName"/>.</summary>
     protected const string Password = "correct horse battery staple";
 
+    private readonly List<ViewToken> _mintedViewTokens = [];
+
     private AspApplication _application = null!;
 
     /// <summary>The database the host owns, so a fixture can prove it never touched a real one.</summary>
@@ -84,6 +86,35 @@ public abstract partial class IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther));
     }
+
+    /// <summary>Mints the view token a run of this fixture's owner presents, as the processor does.</summary>
+    /// <param name="runId">The run the token belongs to.</param>
+    internal async Task<ViewToken> MintViewTokenAsync(string? runId = null) {
+        await using AsyncServiceScope scope = _application.Services.CreateAsyncScope();
+        LocalUser? user = await scope.ServiceProvider.GetRequiredService<IUserStore>().FindAsync(UserName);
+        Assert.That(user, Is.Not.Null, "the fixture's account has to exist before a run can view as it");
+
+        ViewToken token = _application.Services.GetRequiredService<ViewTokenStore>()
+            .Mint(runId ?? Guid.NewGuid().ToString("N"), UserName, user!.SecurityStamp);
+        _mintedViewTokens.Add(token);
+
+        return token;
+    }
+
+    /// <summary>Ends every run this test started, which is what a run's finally does.</summary>
+    [TearDown]
+    public void RevokeMintedViewTokens() {
+        foreach (ViewToken token in _mintedViewTokens) {
+            RevokeViewToken(token);
+        }
+
+        _mintedViewTokens.Clear();
+    }
+
+    /// <summary>Forgets a token, as the end of its run would.</summary>
+    /// <param name="token">The token to revoke.</param>
+    internal void RevokeViewToken(ViewToken token) =>
+        _application.Services.GetRequiredService<ViewTokenStore>().Forget(token);
 
     /// <summary>Reads the antiforgery token a form rendered.</summary>
     protected static async Task<string> GetAntiforgeryTokenAsync(HttpClient client, string path) {

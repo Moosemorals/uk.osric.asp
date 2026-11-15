@@ -114,17 +114,24 @@ the build:
   render. `Resolve` says whether a key is usable, `SaveAsync(key, template, expectedHash)` is the
   conditional save whose `null` expectation creates a page, `DeleteAsync` tombstones,
   `RestoreRevisionAsync` and `InstallSeedAsync` answer with the revision they stored, and
-  `SeedSourceAsync` reads the bundled source so the install confirmation can show a diff. Like the
+  `SeedSourceAsync` reads the bundled source so the install confirmation can show a diff.
+  `AdoptSeedAsync` records the shipped seed as installed without storing a revision, and
+  `InstallSeedAsync` refuses a row the gate does not allow — an `edited`, `conflict`, `unknown` or
+  `deleted` page — so the rule is in the capability, not only in the page's markup. Like the
   page's own write, a save belongs to the next request and a started save finishes (`pages-the-editor-capability`, `pages-delete-install-and-restore`).
 - `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
   `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
   layout never meets one (`pages-a-layout-is-a-capability`). See [layouts](shell.md#layouts).
 - `IMarkdownRenderer` renders Markdown to HTML with `ToHtml`. It is pure and needs no `await`; its
-  result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus pipe
-  tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
-  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (`pages-markdown`). A table's header
-  cells carry `scope="col"` and no inline style.
+  result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus heading
+  anchors, pipe tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
+  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (`pages-markdown`). A heading
+  carries an `id` derived from its text, with a numbered suffix when two headings share one, so a page
+  can link to a section. `MarkdownOptions` switches the three features per call — an option belongs to
+  the render, not to the shared capability — and `MarkdownOptions.Default` is the page profile
+  (`pages-markdown-options-are-per-call`). A table's header cells carry `scope="col"` and no inline
+  style.
 - `IDiffRenderer` renders the line changes between two documents with `ToHtml(before, after)`. It
   is pure and needs no `await`, and its result is written with `<%== %>`. Every source line is
   escaped, so unlike Markdown it is safe for a visitor's text, a fetched body or page state: the
@@ -299,15 +306,23 @@ no image.
 
 A page with no code is never compiled. Generation reads the tokens it already produced, and a
 template made only of text has nothing to compile: the revision is stored with no image, its kind is
-text, and every request writes the stored source out byte for byte.
+text, and every request writes the stored source out byte for byte, less any comment it holds.
 Such a page has only the template-shape warnings `TemplateShapeCheck` can find without compiling
 (`pages-the-shape-check`); a clean text page has none.
+
+A **comment**, `<%# … %>`, counts as neither code nor text (`pages-a-comment-is-not-code`): it
+writes no output, it is emitted into no generated source, it makes no page a page and no library a
+page, and it never reaches a visitor — a text page's body is its source with every comment construct
+removed (`TemplateComments`), and a page's body never contained it. Its braces are not the page's
+braces, so a note that mentions `{` is not an unbalanced one, and `<%#if DEBUG %>` is a note rather
+than a directive.
 
 A no-code page is a complete representation: it is never wrapped, so its stored source is the
 response even for an HTML key. It gets no banner, no skip link, no base sheet and no title
 requirement; if it wants chrome, it adds a code block and becomes a fragment.
 
-A **library** is a template whose only tokens are declaration blocks. It has nothing to render, so it
+A **library** is a template whose only tokens are declaration blocks, plus any comment and any
+whitespace between them. It has nothing to render, so it
 is never served: its key answers `404` and it is never an asset, never pinned with `?v=` and never
 wrapped. It is checked when it is saved — Roslyn analyses it and the diagnostics are stored beside the
 source, with no assembly — and a page API violation inside it is reported at the library's own line
@@ -434,16 +449,31 @@ Stored pages are C#, so the surface they may touch is constrained twice.
   should not need an entry of its own. Each entry is checked against the symbol the page actually
   resolved. It is data plus a pure function, so the list is readable and the diagnostic names the
   API to add. `System.Object` is deliberately absent: allowing it would allow `GetType()`.
+- Membership is decided by capability, not by which feature last needed an entry. A type is admitted
+  when its only effect is to compute over a value the page already holds or to shape a value the page
+  already returns; it is refused when it adds a way to reach a resource — a file, the network, a
+  process, the environment, an assembly, reflection or process-wide state. A type that bundles a way
+  to reach with a useful helper is admitted with the reaching members denied by name, which is how
+  `Task` is admitted and `Task.Run` is not (`pages-admit-what-adds-no-capability`). That rule admits
+  `StringComparer`, `HashCode` and `Random`, and refuses `System.Environment`, whose `NewLine` would
+  arrive attached to `Exit` and `GetEnvironmentVariable`.
+- A refusal is one diagnostic per type. The checker reports the symbol a node resolves to and the
+  type it resolves to, so a member of a refused type would otherwise arrive twice; the member is the
+  one reported, because it is what the author wrote. A refusal of a member also names its type —
+  `PAGE001: pages may not use System.IO.File.ReadAllText. The type System.IO.File is not part of the
+  page API.` — because the type is what an entry would change
+  (`pages-admit-what-adds-no-capability`).
 - `System.Threading.Tasks.Task` is admitted by *type*, and ten of its members are denied by name —
   `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`
   and `Yield` — because each starts work the render deadline cannot stop or turns an `await` back
   into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`,
   `Parallel` and `ValueTask` are `PAGE001` without being named (`pages-the-api-policy`).
-- A narrow set of `System.Text.Json` types is allowed, so a fetched JSON body can be parsed:
-  `JsonDocument`, `JsonElement`, `JsonSerializer`, `JsonSerializerOptions`,
-  `JsonSerializerDefaults`, `JsonValueKind` and `JsonException`. The
-  `System.Text.Json.Serialization` attributes are not, and `System.Net` stays denied — `IHttpFetch`
-  is the page's only egress (`pages-the-api-policy`).
+- A narrow set of `System.Text.Json` types is allowed, so a fetched JSON body can be read, built and
+  shaped: `JsonDocument`, `JsonDocumentOptions`, `JsonElement`, `JsonSerializer`,
+  `JsonSerializerOptions`, `JsonSerializerDefaults`, `JsonValueKind`, `JsonException`,
+  `JsonNamingPolicy`, and the `System.Text.Json.Nodes` namespace, which holds `JsonNode`,
+  `JsonObject`, `JsonArray` and `JsonValue`. The `System.Text.Json.Serialization` attributes are not,
+  and `System.Net` stays denied — `IHttpFetch` is the page's only egress (`pages-the-api-policy`).
 - Cryptography is admitted by type: `System.Text.Encoding` to turn text into bytes, `SHA256`,
   `SHA384` and `SHA512` to hash, `HMACSHA256`, `HMACSHA384` and `HMACSHA512` to sign,
   `RandomNumberGenerator` for a nonce and `CryptographicOperations.FixedTimeEquals` to compare a

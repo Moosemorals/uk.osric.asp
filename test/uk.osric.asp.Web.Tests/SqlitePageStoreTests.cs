@@ -605,6 +605,77 @@ public sealed class SqlitePageStoreTests {
     }
 
     [Test]
+    public async Task ASaveRecordsTheContentHashOfItsSourceAsync() {
+        const string source = "line one\nline two";
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+
+        await storage.SavePageAsync(new PageTemplate(Key("/example"), source));
+        PageHeadSummary head = (await storage.GetHeadAsync(Key("/example")))!;
+
+        Assert.Multiple(() => {
+            Assert.That(head.ContentHash, Is.EqualTo(TemplateFingerprint.Of(source)));
+            Assert.That(head.SeedHash, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task ASeedWriteRecordsItsAnchorAndAnOrdinarySaveKeepsItAsync() {
+        string seed = TemplateFingerprint.Of("released");
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+
+        await storage.SavePageAsync(new PageTemplate(Key("/example"), "released") { SeedHash = seed });
+        await storage.SavePageAsync(new PageTemplate(Key("/example"), "mine"));
+
+        PageHeadSummary head = (await storage.GetHeadAsync(Key("/example")))!;
+
+        Assert.Multiple(() => {
+            Assert.That(head.SeedHash, Is.EqualTo(seed));
+            Assert.That(head.ContentHash, Is.EqualTo(TemplateFingerprint.Of("mine")));
+        });
+    }
+
+    [Test]
+    public async Task AConditionalSeedWriteRecordsBothHashesAsync() {
+        string seed = TemplateFingerprint.Of("released");
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        await storage.SavePageAsync(new PageTemplate(Key("/example"), "released") { SeedHash = seed });
+        PageTemplate live = (await storage.GetPageAsync(Key("/example")))!;
+
+        bool saved = await storage.TrySavePageAsync(
+            new PageTemplate(Key("/example"), "updated") { SeedHash = seed }, live.Hash);
+        PageHeadSummary head = (await storage.GetHeadAsync(Key("/example")))!;
+
+        Assert.Multiple(() => {
+            Assert.That(saved, Is.True);
+            Assert.That(head.SeedHash, Is.EqualTo(seed));
+            Assert.That(head.ContentHash, Is.EqualTo(TemplateFingerprint.Of("updated")));
+        });
+    }
+
+    [Test]
+    public async Task TheRepairFillsTheContentHashAndOnlyTheContentHashAsync() {
+        const string source = "<% ctx.Write(\"hi\"); %>";
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        await storage.SavePageAsync(new PageTemplate(Key("/example"), source));
+        await database.Database.ExecuteSqlAsync($"UPDATE \"PageHeads\" SET \"ContentHash\" = NULL");
+
+        int repaired = await PageContentHashRepair.RunAsync(database);
+        PageHeadSummary head = (await storage.GetHeadAsync(Key("/example")))!;
+        int again = await PageContentHashRepair.RunAsync(database);
+
+        Assert.Multiple(() => {
+            Assert.That(repaired, Is.EqualTo(1));
+            Assert.That(head.ContentHash, Is.EqualTo(TemplateFingerprint.Of(source)));
+            Assert.That(head.SeedHash, Is.Null);
+            Assert.That(again, Is.Zero);
+        });
+    }
+
+    [Test]
     public async Task ALazyCompileFillsANullVerdictAsync() {
         const string Source = "<% ctx.Write(\"hi\"); %>";
         await using StorageDbContext database = new(_options);

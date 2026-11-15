@@ -33,6 +33,7 @@ public sealed class ShippedConfigurationTests {
             Assert.That(() => uk.osric.asp.Web.Assistant.AssistantOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => uk.osric.asp.Web.Authentication.AuthenticationOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => uk.osric.asp.Web.Metrics.MetricsOptions.FromConfiguration(configuration), Throws.Nothing);
+            Assert.That(() => uk.osric.asp.Web.SiteOptions.FromConfiguration(configuration), Throws.Nothing);
         });
     }
 

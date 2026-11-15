@@ -79,6 +79,23 @@ public sealed class TemplateShapeCheckTests {
         Assert.That(diagnostics, Is.Empty, "the tokenizer already reports the missing '%>'");
     }
 
+    [TestCase("<%# { %>")]
+    [TestCase("<%# } %>")]
+    [TestCase("<%# a note about { and } %>")]
+    [TestCase("text<%# { %>more")]
+    public void BracesInACommentAreNotThePagesBraces(string template) {
+        Assert.That(TemplateShapeCheck.Check(template), Is.Empty);
+    }
+
+    [Test]
+    public void ACommentDoesNotCloseABraceThePageOpened() {
+        IReadOnlyList<PageDiagnostic> diagnostics = TemplateShapeCheck.Check("<% if (true) { %>text<%# } %>");
+
+        Assert.That(diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(diagnostic =>
+            diagnostic is not null
+            && diagnostic.Message.StartsWith("TEMPLATE004:", StringComparison.Ordinal)));
+    }
+
     [Test]
     public void AWarningIsPositionedInTemplateSpace() {
         IReadOnlyList<PageDiagnostic> diagnostics = TemplateShapeCheck.Check(

@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-046 — A render may write a batch of pages, and the caller names the policy
+# IDEA-047 — A render may write a batch of pages, and the caller names the policy
 
 | | |
 | --- | --- |

@@ -92,11 +92,11 @@ internal sealed class PageArchiveReader(
     }
 
     private PageArchiveReadResult Read(SqliteConnection connection, List<string> problems) {
-        if (!ReadFormat(connection, problems) || !ReadSchema(connection, problems)) {
+        if (!ReadFormat(connection, problems, out int version) || !ReadSchema(connection, version, problems)) {
             return new PageArchiveReadResult([], problems);
         }
 
-        List<PageArchiveEntry> pages = ReadPages(connection, problems);
+        List<PageArchiveEntry> pages = ReadPages(connection, version, problems);
         if (problems.Count > 0) {
             return new PageArchiveReadResult([], problems);
         }
@@ -113,19 +113,23 @@ internal sealed class PageArchiveReader(
 
     // The identity comes before the schema: a database written by something else is not a page
     // archive at all, and saying so is more useful than describing a schema it never had.
-    private static bool ReadFormat(SqliteConnection connection, List<string> problems) {
+    private static bool ReadFormat(SqliteConnection connection, List<string> problems, out int version) {
+        version = 0;
+
         long applicationId = ReadInteger(connection, "PRAGMA application_id");
         if (applicationId != PageArchiveFormat.ApplicationId) {
             Add(problems, "That file is not a page archive: it does not carry the archive's identity.");
             return false;
         }
 
-        long version = ReadInteger(connection, "PRAGMA user_version");
-        if (version != PageArchiveFormat.Version) {
+        long format = ReadInteger(connection, "PRAGMA user_version");
+        if (format is not (1 or 2)) {
             Add(problems,
-                $"That archive was written by another version of the site (format {version.ToString(CultureInfo.InvariantCulture)}); this one reads format {PageArchiveFormat.Version.ToString(CultureInfo.InvariantCulture)}.");
+                $"That archive was written by another version of the site (format {format.ToString(CultureInfo.InvariantCulture)}); this one reads formats 1 and 2.");
             return false;
         }
+
+        version = (int)format;
 
         foreach (string line in ReadStrings(connection, "PRAGMA quick_check")) {
             if (!string.Equals(line, "ok", StringComparison.OrdinalIgnoreCase)) {
@@ -137,7 +141,7 @@ internal sealed class PageArchiveReader(
         return true;
     }
 
-    private static bool ReadSchema(SqliteConnection connection, List<string> problems) {
+    private static bool ReadSchema(SqliteConnection connection, int version, List<string> problems) {
         bool ok = true;
 
         List<(string Type, string Name)> objects = [];
@@ -181,7 +185,7 @@ internal sealed class PageArchiveReader(
             return false;
         }
 
-        return CheckColumns(connection, PageArchiveFormat.PagesTable, PageArchiveFormat.PagesColumns, problems)
+        return CheckColumns(connection, PageArchiveFormat.PagesTable, PageArchiveFormat.PagesColumns(version), problems)
             && CheckColumns(connection, PageArchiveFormat.PageStateTable, PageArchiveFormat.PageStateColumns, problems);
     }
 
@@ -228,8 +232,8 @@ internal sealed class PageArchiveReader(
         return true;
     }
 
-    private List<PageArchiveEntry> ReadPages(SqliteConnection connection, List<string> problems) {
-        (long count, long bytes) = ReadPageTotals(connection);
+    private List<PageArchiveEntry> ReadPages(SqliteConnection connection, int version, List<string> problems) {
+        (long count, long bytes) = ReadPageTotals(connection, version);
         if (count == 0) {
             Add(problems, "That archive holds no pages; an export with nothing in it is a mistake, not a no-op.");
             return [];
@@ -252,10 +256,24 @@ internal sealed class PageArchiveReader(
         HashSet<string> seen = [];
 
         using (SqliteCommand command = connection.CreateCommand()) {
-            command.CommandText = """
-                SELECT typeof("Path"), typeof("Source"), CAST("Path" AS BLOB), CAST("Source" AS BLOB)
-                FROM "Pages"
-                """;
+            bool hasSeed = version >= 2;
+            // One of two constant statements, chosen by the version the format check already
+            // validated; no archive text reaches the SQL.
+#pragma warning disable CA2100
+            command.CommandText = hasSeed
+                ? """
+                    SELECT typeof("Path"), typeof("Source"), typeof("SeedHash"),
+                           CAST("Path" AS BLOB), CAST("Source" AS BLOB), CAST("SeedHash" AS BLOB)
+                    FROM "Pages"
+                    """
+                : """
+                    SELECT typeof("Path"), typeof("Source"), CAST("Path" AS BLOB), CAST("Source" AS BLOB)
+                    FROM "Pages"
+                    """;
+#pragma warning restore CA2100
+
+            int keyColumn = hasSeed ? 3 : 2;
+            int sourceColumn = hasSeed ? 4 : 3;
 
             using SqliteDataReader reader = command.ExecuteReader();
             while (reader.Read()) {
@@ -267,9 +285,29 @@ internal sealed class PageArchiveReader(
                     continue;
                 }
 
-                if (!TryDecode(reader.GetFieldValue<byte[]>(2), out string key, problems, "a page path")
-                    || !TryDecode(reader.GetFieldValue<byte[]>(3), out string source, problems, "page source")) {
+                if (!TryDecode(reader.GetFieldValue<byte[]>(keyColumn), out string key, problems, "a page path")
+                    || !TryDecode(reader.GetFieldValue<byte[]>(sourceColumn), out string source, problems, "page source")) {
                     continue;
+                }
+
+                string? seedHash = null;
+                if (hasSeed) {
+                    string seedType = reader.GetString(2);
+                    if (seedType is not ("null" or "text")) {
+                        Add(problems, $"That archive has a non-text value in \"{PageArchiveFormat.PagesTable}\"; a page archive stores text only.");
+                        continue;
+                    }
+
+                    if (string.Equals(seedType, "text", StringComparison.Ordinal)) {
+                        if (!TryDecode(reader.GetFieldValue<byte[]>(5), out seedHash, problems, "a seed hash")) {
+                            continue;
+                        }
+
+                        if (!RevisionHash.IsCanonical(seedHash)) {
+                            Add(problems, "That archive has a seed hash that is not a content hash; a page archive records the hash it was given.");
+                            continue;
+                        }
+                    }
                 }
 
                 PagePath path = PagePath.Normalize(key);
@@ -293,7 +331,7 @@ internal sealed class PageArchiveReader(
                     continue;
                 }
 
-                pages.Add(new PageArchiveEntry(path, source, []));
+                pages.Add(new PageArchiveEntry(path, source, [], seedHash));
             }
         }
 
@@ -380,12 +418,22 @@ internal sealed class PageArchiveReader(
         }
     }
 
-    private static (long Count, long Bytes) ReadPageTotals(SqliteConnection connection) {
+    private static (long Count, long Bytes) ReadPageTotals(SqliteConnection connection, int version) {
         using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT COUNT(*), COALESCE(SUM(length(CAST("Path" AS BLOB)) + length(CAST("Source" AS BLOB))), 0)
-            FROM "Pages"
-            """;
+        // One of two constant statements, chosen by the validated version; see ReadPages.
+#pragma warning disable CA2100
+        command.CommandText = version >= 2
+            ? """
+                SELECT COUNT(*), COALESCE(SUM(
+                    length(CAST("Path" AS BLOB)) + length(CAST("Source" AS BLOB))
+                    + COALESCE(length(CAST("SeedHash" AS BLOB)), 0)), 0)
+                FROM "Pages"
+                """
+            : """
+                SELECT COUNT(*), COALESCE(SUM(length(CAST("Path" AS BLOB)) + length(CAST("Source" AS BLOB))), 0)
+                FROM "Pages"
+                """;
+#pragma warning restore CA2100
 
         using SqliteDataReader reader = command.ExecuteReader();
         return reader.Read() ? (reader.GetInt64(0), reader.GetInt64(1)) : (0, 0);

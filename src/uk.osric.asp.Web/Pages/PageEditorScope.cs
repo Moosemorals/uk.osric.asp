@@ -34,7 +34,8 @@ internal sealed class PageEditorScope(
     string editorKey,
     PageUser? user,
     bool writable,
-    ReservedPaths reserved) : RenderBoundCapability, IPageEditor {
+    ReservedPaths reserved,
+    PageSeeds seeds) : RenderBoundCapability, IPageEditor {
 
     private int _acted;
 
@@ -51,9 +52,6 @@ internal sealed class PageEditorScope(
     }
 
     /// <inheritdoc/>
-    public IReadOnlyList<string> SeedPaths() => [.. PageSeedInstaller.SeedPaths().Select(seed => seed.Key)];
-
-    /// <inheritdoc/>
     public Task<string?> SeedSourceAsync(string key) {
         if (string.IsNullOrWhiteSpace(key)) {
             throw new ArgumentException("A page key is required.", nameof(key));
@@ -64,7 +62,7 @@ internal sealed class PageEditorScope(
             throw new ArgumentException("The page key is not addressable.", nameof(key));
         }
 
-        return PageAssetSeeder.ReadSeedTemplateAsync(target, Deadline);
+        return Task.FromResult(seeds.Source(target));
     }
 
     /// <inheritdoc/>
@@ -120,27 +118,70 @@ internal sealed class PageEditorScope(
     }
 
     /// <inheritdoc/>
-    public async Task<PageEditResult?> InstallSeedAsync(string key, string? expectedHash) {
+    public async Task<PageEditResult?> AdoptSeedAsync(string key) {
         PagePath target = ResolveForWrite(key);
-        string? source = await PageAssetSeeder.ReadSeedTemplateAsync(target, Deadline);
-        if (source is null) {
+        SeedFile? seed = seeds.Find(target);
+        if (seed is null) {
             return null;
         }
 
         PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
-        if (head is not { IsDeleted: false }) {
-            PageEditResult created = await SaveUnconditionalAsync(target, source);
+        SeedComparison comparison = SeedComparison.Of(head?.SeedHash, seed.Hash, head?.ContentHash);
+
+        if (head is null || head.IsDeleted) {
+            throw new InvalidOperationException(
+                $"{target.Key} is {Words(SeedComparison.Of(head?.SeedHash, seed.Hash, head?.ContentHash), seed.Hash)}; only a live page that already holds the seed can be recorded as installed.");
+        }
+
+        if (string.Equals(head.SeedHash, seed.Hash, StringComparison.Ordinal)) {
+            PageTemplate? already = await pages.GetAsync(target, Deadline);
+            Acted();
+            return Unchanged(already?.Hash);
+        }
+
+        if (!comparison.CanAdopt) {
+            throw new InvalidOperationException(
+                $"{target.Key} is {Words(comparison, seed.Hash)}; only a page that already holds the shipped seed can be recorded as installed.");
+        }
+
+        bool adopted = await pages.AdoptAsync(target, seed.Hash, Deadline);
+        PageTemplate? live = await pages.GetAsync(target, Deadline);
+        Acted();
+
+        return adopted
+            ? new PageEditResult(PageEditOutcome.Saved, live?.Hash, [])
+            : new PageEditResult(PageEditOutcome.Stale, null, []);
+    }
+
+    /// <inheritdoc/>
+    public async Task<PageEditResult?> InstallSeedAsync(string key, string? expectedHash) {
+        PagePath target = ResolveForWrite(key);
+        SeedFile? seed = seeds.Find(target);
+        if (seed is null) {
+            return null;
+        }
+
+        PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
+        if (head is null) {
+            PageEditResult created = await SaveSeedUnconditionalAsync(target, seed);
             Acted();
             return created;
         }
 
-        PageTemplate? live = await pages.GetAsync(target, Deadline);
-        if (PageSourceChange.IsNoOp(live?.Template, source)) {
+        SeedComparison comparison = SeedComparison.Of(head.SeedHash, seed.Hash, head.ContentHash);
+
+        if (comparison.Verdict == SeedVerdict.InSync) {
+            PageTemplate? already = await pages.GetAsync(target, Deadline);
             Acted();
-            return Unchanged(live?.Hash);
+            return Unchanged(already?.Hash);
         }
 
-        PageEditResult result = await SaveConditionalAsync(target, source, expectedHash);
+        if (!comparison.CanApply) {
+            throw new InvalidOperationException(
+                $"{target.Key} is {Words(comparison, seed.Hash)}; the release does not overwrite it automatically.");
+        }
+
+        PageEditResult result = await SaveSeedConditionalAsync(target, seed, expectedHash);
         Acted();
 
         return result;
@@ -176,6 +217,28 @@ internal sealed class PageEditorScope(
 
         return new PageEditResult(PageEditOutcome.Saved, saved.Revision.Hash, PageDiagnostics.ToSdk(saved.Diagnostics));
     }
+
+    private async Task<PageEditResult> SaveSeedUnconditionalAsync(PagePath target, SeedFile seed) {
+        SavedRevision saved = await pages.SaveSeedAsync(target, seed.Source, seed.Hash, CancellationToken.None, Deadline);
+
+        return new PageEditResult(PageEditOutcome.Saved, saved.Revision.Hash, PageDiagnostics.ToSdk(saved.Diagnostics));
+    }
+
+    private async Task<PageEditResult> SaveSeedConditionalAsync(PagePath target, SeedFile seed, string? expectedHash) {
+        if (string.IsNullOrWhiteSpace(expectedHash)) {
+            return new PageEditResult(PageEditOutcome.Stale, null, []);
+        }
+
+        ConditionalPageSaveResult saved = await pages.SaveSeedIfRevisionAsync(
+            target, seed.Source, expectedHash, seed.Hash, CancellationToken.None, Deadline);
+
+        return saved.Saved
+            ? new PageEditResult(PageEditOutcome.Saved, saved.RevisionHash, PageDiagnostics.ToSdk(saved.Diagnostics))
+            : new PageEditResult(PageEditOutcome.Stale, null, []);
+    }
+
+    private static string Words(SeedComparison comparison, string shipped) =>
+        SeedVerdictWords.Describe(comparison, shipped).Verdict;
 
     private static PageEditResult Unchanged(string? hash) => new(PageEditOutcome.Unchanged, hash, []);
 

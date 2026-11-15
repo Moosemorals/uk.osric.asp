@@ -19,15 +19,17 @@ public sealed class SiteNavigationTests {
     // configured editor rather than a constant.
     private const string EditorPath = "/desk/edit";
 
+    private static readonly (string Href, string Text)[] Footer = [("/about", "About"), ("/privacy", "Privacy policy")];
+
     [Test]
-    public void AnAnonymousVisitorIsOfferedHomeAboutPrivacyAndSignIn() {
-        Assert.That(Texts(anonymous: true), Is.EqualTo(["Home", "About", "Privacy", "Sign in"]));
+    public void AnAnonymousVisitorIsOfferedHomeAndSignIn() {
+        Assert.That(Texts(anonymous: true), Is.EqualTo(["Home", "Sign in"]));
     }
 
     [Test]
     public void ASignedInVisitorIsOfferedEveryTool() {
         Assert.That(Texts(anonymous: false),
-            Is.EqualTo(["Home", "About", "Privacy", "Assistant", "Pages", "Admin", "Sign out"]));
+            Is.EqualTo(["Home", "Assistant", "Pages", "Admin", "Sign out"]));
     }
 
     [Test]
@@ -54,17 +56,9 @@ public sealed class SiteNavigationTests {
     }
 
     [Test]
-    public void ThePrivacyItemIsCurrentOnlyAtPrivacy() {
-        Assert.That(Current("/privacy", "Privacy"), Is.True);
-        Assert.That(Current("/privacy/", "Privacy"), Is.False);
-        Assert.That(Current("/", "Privacy"), Is.False);
-    }
-
-    [Test]
-    public void TheAboutItemIsCurrentOnlyAtAbout() {
-        Assert.That(Current("/about", "About"), Is.True);
-        Assert.That(Current("/about/", "About"), Is.False);
-        Assert.That(Current("/", "About"), Is.False);
+    public void TheFooterCarriesAboutAndThePrivacyPolicy() {
+        Assert.That(SiteNavigation.FooterLinks().Select(link => (link.Href, link.Text)),
+            Is.EqualTo(Footer));
     }
 
     [TestCase(EditorPath)]

@@ -120,7 +120,9 @@ public sealed class ShellDocumentTests {
 
         Assert.That(main.Children.Single().Name, Is.EqualTo("h1"));
         Assert.That(main.Children.Single().Text.Trim(), Is.EqualTo("Body"));
-        Assert.That(document.Elements("body").Single().Children[^1].Name, Is.EqualTo("main"));
+        IReadOnlyList<MarkupElement> body = document.Elements("body").Single().Children;
+        Assert.That(body[^2].Name, Is.EqualTo("main"));
+        Assert.That(body[^1].Name, Is.EqualTo("footer"));
     }
 
     private static async Task<string> RenderAsync(

@@ -516,9 +516,31 @@ are not and `System.Net` stays denied. `System.Text.Encoding`, the SHA-2 hashes,
 `RandomNumberGenerator` and `CryptographicOperations` are admitted and nothing else in
 `System.Security.Cryptography` is: a page may encode, hash and sign, but not manage a key or a
 certificate. Widening the list moves the policy version, so every stored image recompiles on its next
-request.
+request. How a type gets in, and what a refusal looks like, is `pages-admit-what-adds-no-capability`.
 
 *Recorded in [pages](pages.md#page-api-policy), [PageApiPolicy](../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs).*
+
+### pages-admit-what-adds-no-capability
+
+The list is read by one test rather than by whichever feature needed an entry last. A type is admitted
+when its only effect is to compute over a value the page already holds or to shape a value the page
+already returns; it is refused when it adds a way to reach a resource — a file, the network, a process,
+the environment, an assembly, reflection or process-wide state. A type that bundles a reach with a
+useful helper is admitted with the reaching members denied by name in `s_deniedApis`, which is what
+`Task` does with `Run`, `Wait` and the rest. Additions are decided by that test, not by taste.
+
+That admits `StringComparer`, `HashCode`, `Random`, `JsonNamingPolicy`, `JsonDocumentOptions` and the
+`System.Text.Json.Nodes` namespace, and refuses `System.Environment`, whose `NewLine` would arrive
+attached to `Exit`, `FailFast` and `GetEnvironmentVariable`. It refines the list rather than loosening
+it: default deny stands, because the alternative was priced and rejected — a deny list over the 4,277
+public types the page compiler's references expose fails open, and cannot state a rule the dangerous
+type does not look like, since a page reading another page's state does it with `File`.
+
+A refusal is one diagnostic per type. The checker reports a node's symbol and its container type, so a
+member of a refused type was once refused twice; the member is kept, and it names the type beside it,
+because the entry that would change the answer is the container and not the member.
+
+*Recorded in [pages](pages.md#page-api-policy), [page api gaps](plans/page-api-gaps.md), [PageApiPolicy](../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs).*
 
 ### pages-load-isolation
 
@@ -740,12 +762,13 @@ condition that makes its source its whole representation. A no-code page is neve
 skip link, base sheet or title requirement, whatever the extension — so a no-code `.html` key is a
 complete document its author wrote, and a page that wants the site's chrome adds a code block and
 becomes a fragment. The verdict comes from generation, which already knows: `HasCode` is true when any
-token other than `Text` appears, a token check rather than a text scan, and the builder stops after
-generation when it is false, taking no compile slot and storing no image. The verdict lands in the
-revision from every path that generates one and is a property of the source, so a recompiled revision
-answers as it did before. A no-code revision is the body byte for byte on every request: nothing is
-compiled, nothing is loaded and no render slot is taken, and a test pins that the handler generated for
-a no-code template writes exactly its source, so the shortcut and the long path cannot drift apart.
+token other than `Text` or `Comment` appears, a token check rather than a text scan, and the builder
+stops after generation when it is false, taking no compile slot and storing no image. The verdict lands
+in the revision from every path that generates one and is a property of the source, so a recompiled
+revision answers as it did before. A no-code revision's body is its source, less any comment it holds
+(`pages-a-comment-is-not-code`), on every request: nothing is compiled, nothing is loaded and no render
+slot is taken, and a test pins that the handler generated for a no-code template writes exactly its
+source, so the shortcut and the long path cannot drift apart.
 There is no backfill: `NULL` means *not an asset* until the revision is next saved, so an existing asset
 becomes pinnable when the owner restores the seed or edits it.
 
@@ -867,6 +890,18 @@ as plain text and becomes formatted when `message.completed` arrives, through an
 route that renders the stored message with the same profile as the reload.
 
 *Recorded in [markdown](plans/archive/markdown.md), [LinkPolicy](../src/uk.osric.asp.Core/Markdown/LinkPolicy.cs).*
+
+### pages-markdown-options-are-per-call
+
+A page chooses the renderer's features for one call: heading anchors, auto-links and pipe tables are
+each a boolean on `MarkdownOptions`, and `ToHtml(markdown, options)` renders that document with them
+while the shared capability stays immutable. Heading anchors are on by default, because a heading
+without an `id` cannot be linked to, and a repeated heading gets a numbered suffix so both anchors
+resolve. Markdig's auto-link option stays off, so `[Heading]` is not silently turned into a link. Raw
+HTML has no switch: the template can already write it, and an option that looked like it removed HTML
+would invite a page to trust the renderer with a visitor's text.
+
+*Recorded in [pages](pages.md#page-contract), [MarkdownOptions](../src/uk.osric.asp.Sdk/MarkdownOptions.cs), [MarkdownRenderer](../src/uk.osric.asp.Runtime/MarkdownRenderer.cs).*
 
 ### pages-diff
 
@@ -1047,6 +1082,54 @@ differ" and "what happened", so `/admin/restore` keeps its preview and summary w
 installs a single seed, and there is no second comparison and no batch store in either.
 
 *Recorded in [page editor](plans/archive/page-editor.md), [revision restore](plans/archive/revision-restore.md), [PageSeedInstaller](../src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs).*
+
+### pages-a-seed-write-records-its-hash
+
+A page's row carries the hash of the seed its content is anchored to (**R**), written in the same
+transaction as the revision and by nothing else: an ordinary save, a restore, an import and the
+assistant all leave it where they found it. With **S**, the hash this release ships at that key, and
+**H**, the hash of the live source, the whole seed rule is one sentence — **an automatic write
+requires H = R and S ≠ R** — so "the release moved this page" and "the author edited this page" stop
+being the same observation. A write with no anchor of its own to keep is the only one that sets R: a
+seed installed on create, an install, or a restore of a seed.
+
+H is stored too, because a listing that had to hash sources to show a bit would spend the render's
+source allowance on it. H is recoverable and a startup repair fills it in for every head written
+before the column existed, from the revision that head points at, in one transaction and idempotently.
+R is not recoverable and is never invented: a page from before the column stays *unknown* until
+something establishes where it came from, and the two are not the same migration step. The repair is
+deliberately not an EF migration, because SQLite has no SHA-256 and a migration gets no context, so
+the alternative would be a frozen second copy of the algorithm.
+
+*Recorded in [seed provenance](plans/archive/seed-provenance.md), [pages](pages.md), [SeedComparison](../src/uk.osric.asp.Core/Pages/SeedComparison.cs), [PageContentHashRepair](../src/uk.osric.asp.Web/Pages/PageContentHashRepair.cs).*
+
+### pages-a-seed-verdict-is-the-hosts
+
+What a seeded row is, is the host's answer: `Core` compares the three hashes to one verdict and the
+shell puts it on `PageEntry.Seed` as a `PageSeedSummary` — the verdict's word, the sentence that says
+why, and the two things the row may do — so a page renders one row's state without reading the seed
+source at all. The list used to read two sources per seeded row to produce one bit and charge a third
+of the render's source allowance for it; the read is now the row it was already reading.
+
+The words are the host's because a page that restated the rule would state a second copy of it. The
+seven comparisons — *in sync*, *release newer*, *edited*, *conflict*, *store newer*, *unknown*,
+*retired* — are all `SeedVerdict`, and the two row states that are not comparisons, a key with no head
+row and a tombstone, stay in `Web` with the words for them, because there is nothing to compare and
+only the caller knows whether the key is shipped.
+
+*Recorded in [seed provenance](plans/archive/seed-provenance.md), [pages](pages.md), [SeedComparison](../src/uk.osric.asp.Core/Pages/SeedComparison.cs), [SeedVerdictWords](../src/uk.osric.asp.Web/Pages/SeedVerdictWords.cs), [PageSeedSummary](../src/uk.osric.asp.Sdk/PageSeedSummary.cs).*
+
+### pages-an-archive-carries-provenance
+
+An archive's format version 2 puts the page's anchor in its `Pages` table beside the source, so an
+export from one site and an import into another keep what the page came from. A version 1 archive is
+still read, with no anchor on any key — the import carries R when the file has it and never invents
+one — and a version 2 file is refused by a build that knows only version 1, which is the right way
+round: a build that dropped the anchor silently would be worse than one that will not open the file.
+The value is validated as a canonical hash on the way in, and a malformed one refuses the archive
+rather than landing a row that no comparison can use.
+
+*Recorded in [seed provenance](plans/archive/seed-provenance.md), [storage](storage.md), [PageArchiveFormat](../src/uk.osric.asp.Web/Admin/PageArchiveFormat.cs).*
 
 ### pages-scrubbing-is-not-editing
 
@@ -1290,6 +1373,22 @@ order with the relay example.
 
 *Recorded in [metrics](metrics.md), [PageMetrics](../src/uk.osric.asp.Web/Pages/PageMetrics.cs).*
 
+### pages-a-comment-is-not-code
+
+A comment is `<%# … %>`, and it is neither code nor text: it writes no output, is emitted into no
+generated source, makes no no-code page a page and no library a page, and never reaches a visitor —
+a text page's body is its source with every comment construct removed, and a page's body never held
+it. Its braces are not the page's braces, so a note that mentions `{` is not an unbalanced one, and
+the script skeleton blanks the whole construct so a JavaScript parser's positions hold. It ends at the
+first `%>` like every other block, which is why `%>` cannot appear inside one, and `<% /* … */ %>` is a
+different thing: C# inside a code block, which makes the template code.
+
+A block that starts with `#` is a comment whether the author meant a directive or not, so
+`<%#if DEBUG %>` is a note rather than a preprocessor line; a directive is written `<% #if DEBUG %>`,
+with the space that keeps it a code block.
+
+*Recorded in [architecture](architecture.md#functional-core-imperative-shell), [pages](pages.md#assets-and-versioned-urls), [TemplateComments](../src/uk.osric.asp.Core/Compilation/TemplateComments.cs), [TemplateTokenizer](../src/uk.osric.asp.Core/Compilation/TemplateTokenizer.cs).*
+
 ## Shell
 
 ### shell-redirect-is-one-helper
@@ -1388,6 +1487,42 @@ editor stop being shell.
 
 *Recorded in [the shell](shell.md), [ChangesEndpoint](../src/uk.osric.asp.Web/Admin/ChangesEndpoint.cs), [RestoreEndpoint](../src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs).*
 
+### shell-the-pack-comes-home
+
+The pack is edited in production — that is what the site is for — and the repository has to be able to
+follow it, so the app carries a `seeds` command that runs before the web host starts: `seeds list`
+prints every seed and what the store holds for it, and `seeds pull` writes the stored source of every
+key the store has moved into a tar on standard output, with everything said about the run on standard
+error and `--all` and `--missing` to widen or to report what a pull cannot fix. `make seeds-pull`
+extracts that into `Pages/Seeds`, so the change arrives as a diff: git is the merge tool and
+`git diff` is the review, and nothing is deleted on the site's word.
+
+It is a command and not a page for the reason the shell exists: it reads the store under the running
+build's own schema, writes to a working tree, and has to be usable when the site is not answering.
+The make target refuses a seed folder with uncommitted changes unless `FORCE=1`, because extracting
+over an edit is the one thing the command can destroy. `make remote-seeds-list` and
+`make remote-seeds-pull` run the same command in the container on `HOST`.
+
+*Recorded in [seed provenance](plans/archive/seed-provenance.md), [the shell](shell.md), [SeedCommands](../src/uk.osric.asp.Web/Pages/SeedCommands.cs), [Makefile](../Makefile).*
+
+### shell-the-seed-apply-is-a-route
+
+A release that moves a seed needs a way to write it that is not the emergency route, so
+`/admin/seed-apply` is its own shell page: a `GET` lists the pack in ordinal key order with each row's
+verdict and what would stop the run, and one `POST` writes every *release newer* row, creates every
+*new* one, records every row whose content already is the shipped seed, and skips *in sync*,
+*deleted* and *retired*, which are not its business.
+
+It stops at the first row that has drifted — *edited*, *conflict*, or *unknown* with content that is
+not the seed — and writes nothing after it, because a half-applied pack that the operator believes is
+applied is worse than a stopped run. `/admin/restore` keeps its job as the way back when the site is
+broken: it writes everything the release ships and reports every outcome. The capability is gated the
+same way: `InstallSeedAsync` refuses unless the verdict says the release moved the seed and the page
+still holds the one it came from, and a page that already holds the shipped bytes is adopted — the
+anchor recorded, no revision written — rather than installed.
+
+*Recorded in [seed provenance](plans/archive/seed-provenance.md), [the shell](shell.md), [ApplySeedsEndpoint](../src/uk.osric.asp.Web/Admin/ApplySeedsEndpoint.cs), [PageEditorScope](../src/uk.osric.asp.Web/Pages/PageEditorScope.cs).*
+
 ### shell-sign-out-is-a-post
 
 Sign-out is a `POST` from a confirmation view reached by a `GET /logout`. A `GET` that changes state can
@@ -1415,6 +1550,18 @@ source's text down when the source is one of ours. The audit gains a fourth reas
 facts, and `/admin/changes` moves under it.
 
 *Recorded in [the shell](shell.md#the-reference), [xml reference](plans/xml-reference.md).*
+
+### shell-the-site-knows-its-own-origin
+
+`Site:Origin` is where the host reaches the site it serves, and it is the one place any credential is
+offered: a required policy value, an origin with no path, query, fragment or user info, and plaintext
+only to loopback. It is the assistant's view that needs it — a process that cannot say which URL is
+*this* one cannot tell a token for itself from a token for somebody else — and the shipped value is the
+container's own loopback, which is what a development host uses. A deployment names the public origin
+instead, because a view of a page that mints an antiforgery token needs an HTTPS request, and a
+production host left on a plaintext origin logs one warning at startup rather than failing a run later.
+
+*Recorded in [the shell](shell.md#a-runs-view), [SiteOptions](../src/uk.osric.asp.Web/SiteOptions.cs).*
 
 ## Auth
 
@@ -1477,6 +1624,42 @@ the client chooses is unbounded memory. A fixed number of buckets bounds it, and
 two clients share a counter.
 
 *Recorded in [LoginRateLimitPolicy](../src/uk.osric.asp.Web/Authentication/LoginRateLimitPolicy.cs).*
+
+### auth-a-view-token-names-its-run
+
+A run's view of the site is carried by a token minted for that run, for the owner the run already acts
+as, and dead when the run ends: 256 random bits held in `ViewTokenStore` and nowhere else — no table, no
+file, no key ring, no configuration key — minted when the processor starts the run and forgotten in its
+`finally`, so a finish, a failure, a cancel and an unexpected exception all revoke it. A configured
+secret would need generating, placing and rotating, and an account of the assistant's own would be the
+same authority under another name while any account is an owner (`product-one-owner`). Nothing stored
+means nothing to leak, and the token is not a sign-in: it cannot become a session and no browser can
+present one.
+
+*Recorded in [the shell](shell.md#a-runs-view), [ViewTokenStore](../src/uk.osric.asp.Web/Authentication/ViewTokenStore.cs).*
+
+### auth-a-view-token-reads-only
+
+A view may use `GET` and `HEAD` and nothing else, and anything else is a `405` with `Allow: GET, HEAD`,
+refused in one middleware after authentication and before authorisation and antiforgery. One middleware
+rather than the page endpoint, because the editor, the admin tools, the assistant and the memory page
+are shell routes with their own `POST`s, and a rule the next endpoint has to repeat is a rule one of
+them will forget. The scope belongs to the credential rather than to the destination, so a `POST` to a
+public page with a view token is refused too.
+
+*Recorded in [the shell](shell.md#a-runs-view), [ViewGuard](../src/uk.osric.asp.Web/Authentication/ViewGuard.cs).*
+
+### auth-a-view-that-does-not-verify-is-refused
+
+A request carrying `Authorization: Bearer` either authenticates or is answered `401` with
+`WWW-Authenticate: Bearer`; it never becomes an anonymous view. Silently downgrading turns "why is my
+page showing the sign-in form" into a debugging session, because a stale or wrong token is
+indistinguishable from no token at all. The scheme compares in fixed time and validates the account the
+way the cookie does on every request — it exists and its `SecurityStamp` has not moved — so `users
+passwd` in the middle of a run takes the view away. The cookie stays the challenge scheme, so a browser's
+sign-in redirect is unchanged.
+
+*Recorded in [the shell](shell.md#a-runs-view), [ViewAuthenticationHandler](../src/uk.osric.asp.Web/Authentication/ViewAuthenticationHandler.cs).*
 
 ## Assistant
 
@@ -1827,6 +2010,29 @@ Operators come out as tokens and are refused for now — that refusal says "yet"
 and redirections will go, with the applets already writing to an output and the shape of an input waiting.
 
 *Recorded in [the assistant](assistant.md#ai-page-assistant), [ShellApplet](../src/uk.osric.asp.Web/Assistant/Shell/ShellApplet.cs), [ShellSyntax](../src/uk.osric.asp.Core/Shell/ShellSyntax.cs).*
+
+### assistant-a-view-is-a-read
+
+`view` names a path on this site — never a URL — and is fetched as the owner the run belongs to, so the
+editor, the conversation, the memory page and the status page render instead of answering a sign-in
+redirect. It needs no approval: it reaches nothing but `Site:Origin`, writes nothing, and answers a
+question about the run's own work, which is the standing `read_page` has, where `fetch` stops for the
+owner because it can carry what the model just read to somebody else's server. A page cannot name the
+token, because it is not in `Pages:Fetch:Credentials` and has no configuration key.
+
+*Recorded in [assistant](assistant.md#ai-page-assistant), [ViewTool](../src/uk.osric.asp.Web/Assistant/Tools/ViewTool.cs).*
+
+### assistant-a-view-is-the-response
+
+A view answers what the server produced: the status, **every** response header including `Set-Cookie`
+and the security policy, the body's own bytes read as UTF-8 (base64 when the body is not UTF-8, never
+replacement characters), the redirects it followed, and the byte length of what came back when a cap cut
+it. A redirect chain is what makes a guard visible: `302 → /login?returnUrl=…` then 200 cannot be
+mistaken for a page that renders a sign-in form. `fetch` keeps its own flattening — nine allow-listed
+headers, and text decoded by the charset the response declares — because that is what a *page* wants, so
+the two answers are one transport with two projections rather than one shape with a flag.
+
+*Recorded in [assistant](assistant.md#ai-page-assistant), [OutboundResponse](../src/uk.osric.asp.Web/Pages/OutboundResponse.cs).*
 
 ## Deploy
 

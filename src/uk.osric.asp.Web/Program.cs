@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using System.Net;
@@ -47,8 +48,10 @@ internal class Program {
 
     private static async Task RunAsync(string[] args) {
         bool isUserCommand = UserCommands.IsCommand(args);
+        bool isSeedsCommand = SeedCommands.IsCommand(args);
+        bool isCommand = isUserCommand || isSeedsCommand;
         WebApplicationBuilder builder = WebApplication.CreateBuilder(
-            isUserCommand ? [] : args);
+            isCommand ? [] : args);
 
         // The site is behind Caddy; nothing on this hop needs to advertise the server that ran it.
         builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
@@ -67,7 +70,14 @@ internal class Program {
             options.JsonWriterOptions = new JsonWriterOptions { Indented = false };
         });
 
-        if (isUserCommand) {
+        if (isSeedsCommand) {
+            // A pull's result is a tar and stdout is where it goes. One log line landing there would
+            // corrupt the archive, so every entry is written to standard error instead.
+            builder.Services.Configure<ConsoleLoggerOptions>(
+                options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+        }
+
+        if (isCommand) {
             // The command's output is its result; migration chatter belongs in the log, not on stdout.
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
             builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
@@ -101,6 +111,7 @@ internal class Program {
         PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
         PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
         RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
+        SiteOptions site = SiteOptions.FromConfiguration(settings.At("Site"));
         StreamOptions stream = StreamOptions.FromConfiguration(settings.At("Pages:Stream"));
 
         string[] reservedKeys = [.. settings.At("Pages").List("ReservedPaths", "page keys", minimum: 1)];
@@ -183,6 +194,7 @@ internal class Program {
         builder.Services.AddSingleton(render);
         builder.Services.AddSingleton(reserved);
         builder.Services.AddSingleton(session);
+        builder.Services.AddSingleton(site);
         builder.Services.AddSingleton(storage);
         builder.Services.AddSingleton(stream);
         builder.Services.AddSingleton(fetch);
@@ -201,6 +213,7 @@ internal class Program {
               services.GetRequiredService<PageReadOptions>(),
               services.GetRequiredService<IPageStateStore>(),
               services.GetRequiredService<IPageReadStore>(),
+              services.GetRequiredService<PageSeeds>(),
               services.GetRequiredService<PageSaver>(),
               services.GetRequiredService<IPageFetcher>(),
               services.GetRequiredService<PageMetrics>(),
@@ -243,6 +256,7 @@ internal class Program {
             services.GetRequiredService<IPageFetcher>(),
             services.GetRequiredService<PageFetchOptions>(),
             services.GetRequiredService<IPageReadStore>(),
+            services.GetRequiredService<PageSeeds>(),
             services.GetRequiredService<PageReadOptions>(),
             services.GetRequiredService<ReservedPaths>(),
             services.GetRequiredService<PageContentTypes>(),
@@ -253,6 +267,7 @@ internal class Program {
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PagePathPolicy>();
+        builder.Services.AddSingleton(new PageSeeds(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds")));
         builder.Services.AddSingleton<PageSaver>();
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton<PageToolExecutor>();
@@ -264,6 +279,7 @@ internal class Program {
         builder.Services.AddSingleton<RunQueue>();
         builder.Services.AddSingleton<RunRegistry>();
         builder.Services.AddSingleton<ToolApprovalCoordinator>();
+        builder.Services.AddSingleton<ViewTokenStore>();
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         // Registered as a scoped store so `users remove` can sweep an account's memories with the
@@ -334,19 +350,28 @@ internal class Program {
             // in flight are closed out before anything can answer for them.
             IConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IConversationStore>();
             await assistantConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
-            IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
-            IReadOnlyList<PagePath> replaced = await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
-            foreach (PagePath key in replaced) {
-                app.Logger.LogWarning(
-                    "Replaced the stored {Key} seed: it named PageDocument, which the page contract no longer has. The revision it replaced is in the page's history",
-                    key.Key);
+            int repaired = await PageContentHashRepair.RunAsync(database, app.Lifetime.ApplicationStopping);
+            if (repaired > 0) {
+                app.Logger.LogInformation(
+                    "Repaired the content hash of {Pages} page(s) written before seed provenance", repaired);
             }
+
+            IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
+            await PageAssetSeeder.SeedAsync(
+                pages, scope.ServiceProvider.GetRequiredService<PageSeeds>(), app.Lifetime.ApplicationStopping);
         }
 
-        if (isUserCommand) {
+        if (isCommand) {
             await using (app) {
-                Environment.ExitCode = await UserCommands.RunAsync(
-                    args[1..], app.Services, app.Lifetime.ApplicationStopping);
+                if (isSeedsCommand) {
+                    using Stream output = Console.OpenStandardOutput();
+                    Environment.ExitCode = await SeedCommands.RunAsync(
+                        args[1..], app.Services, output, Console.Error, app.Lifetime.ApplicationStopping);
+                } else {
+                    Environment.ExitCode = await UserCommands.RunAsync(
+                        args[1..], app.Services, app.Lifetime.ApplicationStopping);
+                }
+
                 return;
             }
         }
@@ -419,6 +444,8 @@ internal class Program {
         // After authentication and routing: the account and the route's ids are the two facts the
         // scope could not carry when it opened.
         app.UseRequestLogSubject();
+        // A view token reads and never writes, and a bearer header that did not authenticate is a 401.
+        app.Use(ViewGuard.ApplyAsync);
         app.UseAuthorization();
         app.UseAntiforgery();
 
@@ -442,6 +469,11 @@ internal class Program {
         app.MapGet("/admin/restore", RestoreEndpoint.PreviewAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/admin/restore", RestoreEndpoint.RestoreAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/admin/seed-apply", ApplySeedsEndpoint.PreviewAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/admin/seed-apply", ApplySeedsEndpoint.ApplyAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         app.MapGet("/admin/export", ExportEndpoint.ListAsync)
@@ -527,9 +559,24 @@ internal class Program {
         app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.HandleAsync);
 
         // One line so a restart is visible without reading the framework's startup chatter.
-        app.Services.GetRequiredService<ILoggerFactory>()
-            .CreateLogger<Program>()
-            .LogInformation("uk.osric.asp starting in {EnvironmentName}", app.Environment.EnvironmentName);
+        ILogger startup = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger<Program>();
+        startup.LogInformation("uk.osric.asp starting in {EnvironmentName}, viewing the site at {Origin}",
+            app.Environment.EnvironmentName, site.Origin);
+
+        // The assistant's own view fetches this origin from inside the process. A host bound anywhere
+        // else (make run's ASPNETCORE_URLS, a changed Site:Origin) answers the tool a network failure
+        // rather than a page, so the mismatch is worth one line at startup rather than a mystery later.
+        if (app.Environment.IsProduction()
+            && !string.Equals(site.Origin.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal)) {
+            // Found by the first view of the editor: in Production the antiforgery cookie is
+            // Secure-always, so a page that mints a token throws when the request is plaintext. The
+            // view still reads every page that does not, which is why this is a warning rather than a
+            // refusal: the value is usable, and the site's https origin is the one that shows the
+            // pages a visitor actually gets.
+            startup.LogWarning(
+                "Site:Origin is {Origin}, which is plaintext, so a view of a page that mints an antiforgery token (the editor) will fail. Name the site's https origin instead.",
+                site.Origin);
+        }
 
         await app.RunAsync();
     }

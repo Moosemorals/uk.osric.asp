@@ -28,7 +28,8 @@ and every caller that needs it today does it badly:
 - **The assistant** has `write_page` and `delete_page` and would do the same two calls, and its
   edit-safety rules are about one key at a time (`assistant-edit-page-is-safe`).
 - **A release** cannot move a seeded page at all: the seed's key is its identity
-  ([IDEA-036](IDEA-036.md)), so a renamed seed is a new page with a new anchor and an orphan on the old
+  ([seed provenance](../plans/archive/seed-provenance.md)), so a renamed seed is a new page with a new
+  anchor and an orphan on the old
   key.
 - **The IDE's tabs** hold keys in a URL, so a move leaves a tab pointing at a tombstone until the
   visitor closes it — an answer this job can give the page (the move, and what happened to the old key)
@@ -71,7 +72,8 @@ and every caller that needs it today does it badly:
 
 1. **A tombstone at the old key, or nothing.** A tombstone is how the store already records "this key
    had a page", and it makes a stale link render the deleted-page answer rather than a missing key. A
-   *moved* marker needs a column (the row work IDEA-036 opens), and it is the only way a visitor learns
+   *moved* marker needs a column (an ordinary row work, beside the anchor IDEA-036 landed), and it is the
+  only way a visitor learns
    where the page went. Nothing at all is honest but loses the trail.
 2. **Whether the history moves or is copied.** One history under the new key is the simple answer; a
    retained copy under the old key costs nothing but bytes and confuses "the history of this key". The
@@ -92,7 +94,7 @@ and every caller that needs it today does it badly:
 - **An alias or redirect.** A key that 301s to another is a response rule and a store column; the
   nearest honest version is the tombstone, and a redirect is a different job with a different security
   story.
-- **A rename in the release's own seed pack.** That is [IDEA-036](IDEA-036.md)'s harvest and adopt
+- **A rename in the release's own seed pack.** That is [IDEA-036](../plans/archive/seed-provenance.md)'s harvest and adopt
   round trip, which this member makes safe rather than necessary.
 
 **Origin:** the owner's comparison of the site's IDE plan (`/ide-plan`, a stored page that is not in this

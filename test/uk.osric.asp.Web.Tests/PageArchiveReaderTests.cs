@@ -43,6 +43,28 @@ public sealed class PageArchiveReaderTests {
     }
 
     [Test]
+    public void AVersionOneArchiveIsReadWithNoProvenance() {
+        byte[] bytes = TestArchive.BuildVersion1([("/about", "About")]);
+
+        PageArchiveReadResult result = Reader().Read(bytes);
+
+        Assert.That(result.Problems, Is.Empty);
+        Assert.That(result.Pages[0].Source, Is.EqualTo("About"));
+        Assert.That(result.Pages[0].SeedHash, Is.Null);
+    }
+
+    [Test]
+    public void ASeedHashThatIsNotAContentHashIsRejected() {
+        byte[] bytes = TestArchive.Archive(connection => {
+            TestArchive.CreateTables(connection);
+            TestArchive.Execute(connection,
+                """INSERT INTO "Pages" ("Path", "Source", "SeedHash") VALUES ('/about', 'About', 'not-a-hash')""");
+        });
+
+        AssertRejected(Reader().Read(bytes), "seed hash");
+    }
+
+    [Test]
     public void AnotherUserVersionIsRejected() {
         // A future version, so the reader has to refuse it before it reads a row.
         byte[] bytes = TestArchive.Archive(connection => {

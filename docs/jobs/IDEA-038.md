@@ -16,7 +16,8 @@ SPDX-License-Identifier: MIT
 A page can list keys and read one source at a time. Nothing searches what the sources say, so the only
 way to find a string is `ReadAsync` per key, and that is charged to
 `Pages:Read:MaxSourceCharsPerRender` — 512 KiB across the whole chain, of which the seeded `/pages`
-already spends a third before it lists anything ([IDEA-036](IDEA-036.md)). A site of thirty pages works
+already spends a third before it lists anything, and a seeded row now costs one read rather than
+three ([IDEA-036](../plans/archive/seed-provenance.md)). A site of thirty pages works
 by accident; a site of three hundred cannot be searched at all.
 
 The host can already do it, three times over, and no page can:

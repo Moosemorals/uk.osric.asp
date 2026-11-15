@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waits for the owner. Nothing below is built |
+| Status | Approved 2026-11-15; in flight on `page-writes`. The branch carries trunk's seed provenance and `/pages` rewrite, so the plan is read against that |
 | Size | M — one capability replaces two, one registration gate and one delete protection removed, a public type renamed, and the tests, the manual, the prompt and the jobs for each |
-| Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageEditor`, `IPageWriter`, `PageEditorScope`, `PageWriterScope`, `PageChain.CreateLayer`, `PageSaver`, `PageEditor`, `EditorPaths`, `PageAssetSeeder` and `PageAuthorPrompt` |
+| Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15 and re-checked after merging `1aade5d`, which landed seed provenance and the editor rewrite |
 | Decisions | At the merge: **pages-any-page-may-write-the-store** is new; the entry that made the editor's registration the authority is retired and replaced by it; `pages-a-page-may-save-itself` is edited in place |
-| Backlog | [IDEA-043](../jobs/IDEA-043.md) is this step; [IDEA-046](../jobs/IDEA-046.md) is the batch, split out of it |
+| Backlog | [IDEA-043](../jobs/IDEA-043.md) is this step; [IDEA-047](../jobs/IDEA-047.md) is the batch, split out of it |
 
 ## The short version
 
@@ -21,7 +21,7 @@ stays, as the bound member it is today; the named, conditional save and the rest
 members sit beside it on the same interface, and one render still makes one write.
 
 The batch — several pages, a named policy, one report — is
-[IDEA-046](../jobs/IDEA-046.md), not this step. It is the half that needs a vocabulary of policies, a
+[IDEA-047](../jobs/IDEA-047.md), not this step. It is the half that needs a vocabulary of policies, a
 transaction boundary and a report value; this half only removes a gate and merges two handles that
 existed apart because of that gate.
 
@@ -31,7 +31,7 @@ handle with a key parameter was kept from every page because every stored page w
 writer of the whole store, and a render was kept to one save because a render that wrote twice could
 leave the site half-changed. The owner has decided the first trade is worth making — nothing about
 editing is special to one page, because the authority is the signed-in visitor — and the batch, which is
-the answer to the second, is [IDEA-046](../jobs/IDEA-046.md) on its own branch.
+the answer to the second, is [IDEA-047](../jobs/IDEA-047.md) on its own branch.
 
 ## What the owner decided
 
@@ -40,17 +40,17 @@ the answer to the second, is [IDEA-046](../jobs/IDEA-046.md) on its own branch.
 | Merge the self-save into the write capability? | Yes: "if a page can save any page it can certainly save itself" | `IPageWriter` goes; a page saves itself through the same interface it saves any page through |
 | The merged capability's name | `IPageWrites` | The renamed type, the seeds, the manual, the prompt and the SDK public API |
 | A bound self-save, or one save only? | Keep the bound one | Two saves on one interface, each with its own answer (below) |
-| One write per render | Keep it, until the batch | Every member shares one action; [IDEA-046](../jobs/IDEA-046.md) removes the rule |
+| One write per render | Keep it, until the batch | Every member shares one action; [IDEA-047](../jobs/IDEA-047.md) removes the rule |
 | The editor key's delete protection | Remove it | `DeleteAsync` treats `Pages:Editor:Key` like any other key; `/admin/restore` is the way back |
 | `Pages:Editor:Key` itself | Keep it | It stops deciding authority and keeps deciding where the editor is served |
-| The job | Split it | This branch rewrites IDEA-043 and files IDEA-046 |
+| The job | Split it | This branch rewrites IDEA-043 and files IDEA-047 |
 | The record | Retire the old entry and name the new rule | The merge writes three changes to [decisions](../decisions.md) (below) |
 
 ## What exists today
 
 | | `IPageWriter` | `IPageEditor` |
 | --- | --- | --- |
-| Members | `SaveAsync(template)` | `Resolve`, `SeedPaths`, `SeedSourceAsync`, `SaveAsync(key, template, expectedHash)`, `DeleteAsync`, `RestoreRevisionAsync`, `InstallSeedAsync` |
+| Members | `SaveAsync(template)` | `Resolve`, `SeedSourceAsync`, `SaveAsync(key, template, expectedHash)`, `AdoptSeedAsync`, `DeleteAsync`, `RestoreRevisionAsync`, `InstallSeedAsync` |
 | Answer | `PageSaveResult` — hash and diagnostics | `PageEditResult` — Saved/Stale/Unchanged, hash, diagnostics; `PageDeleteResult` |
 | Conditional? | No: it always writes | Yes: the head hash the form was rendered from, and `null` means "create only" |
 | Offered to | every content layer (`PageChain.CreateLayer`) | the content layer whose key equals `Pages:Editor:Key` and no other |
@@ -68,9 +68,14 @@ capabilities.Add<IPageWriter>(new PageWriterScope(key, _environment.Saver, _user
 
 if (_editor is { } editor && string.Equals(key.Key, _environment.Editor.Key, StringComparison.Ordinal)) {
     capabilities.Add<IPageEditor>(new PageEditorScope(
-        key, editor, _environment.Editor.Key, _user, writable: !_isHead, _environment.Reserved));
+        key, editor, _environment.Editor.Key, _user, writable: !_isHead, _environment.Reserved, _environment.Seeds));
 }
 ```
+
+Trunk moved under the plan while it waited. The seed-provenance work removed `SeedPaths()` from the
+interface, added `AdoptSeedAsync`, took `PageSeeds` in the register's place and rewrote the editor seed
+around `SeedCommands`; the chain's call above is that version. The merge keeps all of it: the two saves
+join the seed members rather than replacing one, and the scope keeps its `PageSeeds` dependency.
 
 `Pages:Editor:Key` is read in four places beyond that: `ctx.EditorPath` (`SimpleContext`), every
 remedy link through [`EditorPaths.Of`](../../src/uk.osric.asp.Web/Pages/EditorPaths.cs), the
@@ -139,7 +144,7 @@ page holds both capabilities and so two counters, and could save itself *and* ed
 render. After the merge it makes one write like every other page. No seeded page did that, and it is
 the rule the old comment intended.
 
-[IDEA-046](../jobs/IDEA-046.md) removes the rule and puts a policy in its place: all or nothing, stop
+[IDEA-047](../jobs/IDEA-047.md) removes the rule and puts a policy in its place: all or nothing, stop
 at the first refusal, or save what can be saved and report each refusal.
 
 ### 5. The editor key keeps one job and loses two
@@ -189,7 +194,6 @@ reasons `pages-page-first` records.
 public interface IPageWrites {
 
     PageKeyResolution Resolve(string key);
-    IReadOnlyList<string> SeedPaths();
     Task<string?> SeedSourceAsync(string key);
 
     /// <summary>Saves this page's own source as a new revision.</summary>
@@ -198,6 +202,7 @@ public interface IPageWrites {
     /// <summary>Saves a page, only while its head still has the expected revision.</summary>
     Task<PageEditResult> SaveAsync(string key, string template, string? expectedHash);
 
+    Task<PageEditResult?> AdoptSeedAsync(string key);
     Task<PageDeleteResult> DeleteAsync(string key);
     Task<PageEditResult?> RestoreRevisionAsync(string key, string hash, string? expectedHash);
     Task<PageEditResult?> InstallSeedAsync(string key, string? expectedHash);
@@ -216,7 +221,7 @@ and the prompt reuse those sentences.
 | `src/uk.osric.asp.Sdk/IPageEditor.cs`, `IPageWriter.cs` | Deleted |
 | `src/uk.osric.asp.Sdk/PageKeyResolution.cs`, `PageSaveResult.cs` | Doc comments point at `IPageWrites` |
 | `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | The two interfaces' lines become `IPageWrites`'; `PageSaveResult` stays |
-| `src/uk.osric.asp.Web/Pages/PageEditorScope.cs` → `PageWritesScope.cs` | Renamed, gains the bound save, loses `editorKey` and the delete refusal, loses `PageSaver` (it reaches it through `PageEditor`) |
+| `src/uk.osric.asp.Web/Pages/PageEditorScope.cs` → `PageWritesScope.cs` | Renamed, gains the bound save, loses `editorKey` and the delete refusal, keeps the `PageSeeds` dependency the seed-provenance work added, and loses `PageSaver` (it reaches it through `PageEditor`) |
 | `src/uk.osric.asp.Web/Pages/PageWriterScope.cs` | Deleted; its tests and its checks move into the merged scope |
 | `src/uk.osric.asp.Web/Pages/PageChain.cs` | Offers `IPageWrites` to every non-layout layer; no key comparison |
 | `src/uk.osric.asp.Web/Pages/PageEditorOptions.cs` | Doc comment: the key says where the editor is served, not who may write |
@@ -225,12 +230,12 @@ and the prompt reuse those sentences.
 | `src/uk.osric.asp.Web/Pages/Seeds/pages` | `IPageEditor` → `IPageWrites`; the Delete action is not rendered on the editor's own row |
 | `src/uk.osric.asp.Web/Pages/Seeds/scratch` | `IPageWriter` → `IPageWrites`; the prose names the merged capability |
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | The two sections become one: the two saves, the visitor, the keys, one write, and the editor key's two lost jobs |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | `IPageWrites` in the section and the worked example; `Version` → `page-author-v30` |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | `IPageWrites` in the section and the worked example; `Version` → `page-author-v34` |
 | `docs/pages.md` | The `IPageWriter` and `IPageEditor` bullets become one; the worker paragraph names `IPageWrites` |
 | `docs/architecture.md` | "offered `IPageEditor` by its key" becomes "offered `IPageWrites` like every page" |
 | `docs/decisions.md` | At the merge only (below) |
 | `docs/plans/ide-host.md` | This branch: slice 4 splits, and the names it intends are stated |
-| `docs/jobs/IDEA-043.md`, `IDEA-046.md`, `README.md` | This branch: the job split |
+| `docs/jobs/IDEA-043.md`, `IDEA-047.md`, `README.md` | This branch: the job split |
 | `docs/jobs/IDEA-025.md`, `IDEA-033.md`, `IDEA-036.md`, `IDEA-037.md`, `IDEA-042.md`, `docs/plans/page-apps.md` | Location lines and live specs name `IPageWrites`. IDEA-025's analysis of today's authority is rewritten, because "the writer is bound and the editor is offered to one key" is the rule this step removes; closed rows in the jobs index keep their history |
 
 ## Tests
@@ -281,7 +286,7 @@ Three changes, and the citations that follow them.
    key is deletable and `/admin/restore` is the way back.
 3. **Edit `pages-a-page-may-save-itself` in place.** The self-save is the bound member of
    `IPageWrites` rather than an interface of its own, the named save is conditional, the one-write
-   rule stands until **pages-a-batch-names-its-policy** (046), and a started save is still never
+   rule stands until **pages-a-batch-names-its-policy** (047), and a started save is still never
    abandoned. `pages-delete-install-and-restore` and `pages-scratch-saves-itself` are checked and left
    alone.
 
@@ -298,10 +303,10 @@ This branch is documentation only, and it does three things:
 
 - **[IDEA-043](../jobs/IDEA-043.md)** shrinks to this step: the widened authority, the merged
   capability, the rename, the lost delete protection, and the tests, manual and prompt for them.
-- **[IDEA-046](../jobs/IDEA-046.md)** is new: `SaveManyAsync(edits, policy)` with All, FirstRefusal and
+- **[IDEA-047](../jobs/IDEA-047.md)** is new: `SaveManyAsync(edits, policy)` with All, FirstRefusal and
   Continue; compile-before-transaction; the per-edit report; one save as a batch of one; the removal of
   the one-write rule; nothing else in the batch (no rename, search, delete, install or restore).
-- **[the IDE plan](ide-host.md)** gains 046 as its own slice and states both names it intends.
+- **[the IDE plan](ide-host.md)** gains 047 as its own slice and states both names it intends.
 
 ## Slices
 
@@ -340,7 +345,7 @@ tests and the publish.
 
 ## Not in scope
 
-- **The batch.** [IDEA-046](../jobs/IDEA-046.md): policies, transaction boundary, report, and the end
+- **The batch.** [IDEA-047](../jobs/IDEA-047.md): policies, transaction boundary, report, and the end
   of the one-write rule.
 - **Renaming, searching, deleting in bulk, installing or restoring in bulk.** Those stay single-action
   members, and [IDEA-042](../jobs/IDEA-042.md) and [IDEA-038](../jobs/IDEA-038.md) are their own jobs.

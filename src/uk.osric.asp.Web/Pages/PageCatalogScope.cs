@@ -27,6 +27,7 @@ internal sealed class PageCatalogScope(
     ReadBudget budget,
     ReservedPaths reserved,
     PageContentTypes contentTypes,
+    PageSeeds seeds,
     string currentRuntimeId) : RenderBoundCapability, IPageCatalog {
 
     /// <inheritdoc/>
@@ -60,6 +61,7 @@ internal sealed class PageCatalogScope(
                 IsLibrary = PageAssetPolicy.IsLibrary(row.TemplateKind),
                 IsWorker = PageAssetPolicy.IsWorker(row.TemplateKind),
                 State = state.Describe(),
+                Seed = Describe(row),
             });
         }
 
@@ -108,7 +110,27 @@ internal sealed class PageCatalogScope(
         return new PageSource(source.Key, source.Hash, source.SavedAt, source.Template);
     }
 
-    // "" and "/" are the whole store; anything else is a key, so case, a trailing slash and a dot
+    // The row the store answered for, judged against the pack the process read once. A key with no
+    // seed on either side is the owner's own page, and carries no summary.
+    private PageSeedSummary? Describe(PageReadHead row) {
+        PagePath path = PagePath.Normalize(row.Key);
+        SeedFile? seed = seeds.Find(path);
+
+        if (row.IsDeleted) {
+            return seed is null ? null : SeedVerdictWords.Deleted();
+        }
+
+        if (seed is null) {
+            return row.SeedHash is null
+                ? null
+                : SeedVerdictWords.Describe(SeedComparison.Of(row.SeedHash, null, row.ContentHash), null);
+        }
+
+        return SeedVerdictWords.Describe(
+            SeedComparison.Of(row.SeedHash, seed.Hash, row.ContentHash), seed.Hash);
+    }
+
+    // "" and "/" is the whole store; anything else is a key, so case, a trailing slash and a dot
     // segment all normalise the way every other page key does.
     private static string NormalizePrefix(string prefix) {
         if (string.IsNullOrWhiteSpace(prefix)) {

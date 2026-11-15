@@ -7,7 +7,9 @@ using System.Diagnostics;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Text;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Logging;
+using uk.osric.asp.Web.Users;
 
 /// <summary>Runs one queued assistant run to completion, streaming its events and executing its tools.</summary>
 internal sealed class RunProcessor(
@@ -19,6 +21,8 @@ internal sealed class RunProcessor(
     RunContinuationCoordinator continuation,
     AssistantMetrics metrics,
     AssistantOptions options,
+    IUserStore users,
+    ViewTokenStore views,
     ILogger<RunProcessor> logger) {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
@@ -92,6 +96,12 @@ internal sealed class RunProcessor(
         // Recall happens once, on the first step, and the block is frozen for the rest of the run: a
         // memory the model writes mid-run is visible to the next run, not this one.
         string memoryBlock = string.Empty;
+
+        // The run's view of the site: one token, for the owner the run already acts as, revoked in the
+        // finally below so every exit - a finish, a failure, a cancel, an exception - takes it with it.
+        // Nothing stores it, so its lifetime is the run's rather than a second one to reason about.
+        LocalUser? owner = await users.FindAsync(queued.Owner, runTimeout.Token);
+        ViewToken view = views.Mint(queued.RunId, queued.Owner, owner?.SecurityStamp);
 
         try {
             Run? run = await StoreAsync(store => store.GetActiveRunAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
@@ -416,6 +426,7 @@ internal sealed class RunProcessor(
             } catch (Exception exception) {
                 logger.LogWarning(exception, "Unable to record metrics for assistant run {RunId}", queued.RunId);
             }
+            views.Forget(view);
             registry.Complete(queued.RunId, queued.ConversationId);
             registry.RemoveExpired();
         }

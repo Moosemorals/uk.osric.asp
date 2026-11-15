@@ -431,6 +431,7 @@ public sealed class PageStreamingTests {
             TestOptions.Read,
             _state,
             _readStore,
+            TestOptions.Seeds,
             saver,
             _fetcher,
             _metrics,

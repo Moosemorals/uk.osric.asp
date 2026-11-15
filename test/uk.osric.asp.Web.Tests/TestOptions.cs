@@ -22,6 +22,9 @@ internal static class TestOptions {
 
     private static IConfiguration Configuration => ShippedConfiguration.Read();
 
+    /// <summary>The site origin the repository ships.</summary>
+    public static SiteOptions Site { get; } = SiteOptions.FromConfiguration(Configuration);
+
     /// <summary>The render budget the site ships with.</summary>
     public static RenderOptions Render { get; } = RenderOptions.FromConfiguration(Configuration);
 
@@ -81,6 +84,12 @@ internal static class TestOptions {
 
     /// <summary>The keys the site's own routes answer.</summary>
     public static ReservedPaths Reserved { get; } = new(ReservedKeys());
+
+    /// <summary>The pack this release ships, read from beside the test assembly.</summary>
+    public static PageSeeds Seeds { get; } = new(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
+
+    /// <summary>The source this release ships for a key, or null when it ships none.</summary>
+    public static string? SeedSource(PagePath path) => Seeds.Source(path);
 
     /// <summary>The assistant's limits.</summary>
     /// <remarks>

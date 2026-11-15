@@ -78,7 +78,9 @@ internal sealed class SqlitePageStore(
         PageHead? head = await database.Set<PageHead>().AsNoTracking()
             .SingleOrDefaultAsync(row => row.Path == path.Key, cancellationToken);
 
-        return head is null ? null : new PageHeadSummary(PagePath.Normalize(head.Path), head.IsDeleted);
+        return head is null
+            ? null
+            : new PageHeadSummary(PagePath.Normalize(head.Path), head.IsDeleted, head.SeedHash, head.ContentHash);
     }
 
     public async Task<PageTemplate?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
@@ -215,12 +217,16 @@ internal sealed class SqlitePageStore(
     /// <param name="template">The revision the head should point at.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     internal static Task WriteHeadAsync(StorageDbContext database, PageTemplate template, CancellationToken cancellationToken) {
+        string contentHash = TemplateFingerprint.Of(template.Template);
+
         return database.Database.ExecuteSqlAsync($"""
-            INSERT INTO "PageHeads" ("Path", "RevisionId", "IsDeleted")
-            VALUES ({template.Path.Key}, {template.RevisionId}, 0)
+            INSERT INTO "PageHeads" ("Path", "RevisionId", "IsDeleted", "SeedHash", "ContentHash")
+            VALUES ({template.Path.Key}, {template.RevisionId}, 0, {template.SeedHash}, {contentHash})
             ON CONFLICT ("Path") DO UPDATE SET
                 "RevisionId" = excluded."RevisionId",
-                "IsDeleted" = 0
+                "IsDeleted" = 0,
+                "SeedHash" = COALESCE(excluded."SeedHash", "PageHeads"."SeedHash"),
+                "ContentHash" = excluded."ContentHash"
             """, cancellationToken);
     }
 
@@ -232,6 +238,18 @@ internal sealed class SqlitePageStore(
             RevisionId = revisionId,
             Hash = RevisionHash.Of(template.Template, template.CreationRuntimeId, template.SavedAt, revisionId),
         };
+    }
+
+    public async Task<bool> AdoptSeedAsync(PagePath path, string seedHash, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(seedHash);
+
+        int adopted = await database.Database.ExecuteSqlAsync($"""
+            UPDATE "PageHeads" SET "SeedHash" = {seedHash}
+            WHERE "Path" = {path.Key} AND "IsDeleted" = 0 AND "ContentHash" = {seedHash}
+            """, cancellationToken);
+
+        return adopted > 0;
     }
 
     public Task<bool> TrySavePageAsync(PageTemplate template, string expectedHash, CancellationToken cancellationToken = default) {
@@ -279,7 +297,10 @@ internal sealed class SqlitePageStore(
                 database.Add(row);
                 await database.SaveChangesAsync(cancellationToken);
                 await database.Database.ExecuteSqlAsync($"""
-                    UPDATE "PageHeads" SET "RevisionId" = {revision.RevisionId}
+                    UPDATE "PageHeads" SET
+                        "RevisionId" = {revision.RevisionId},
+                        "SeedHash" = COALESCE({revision.SeedHash}, "PageHeads"."SeedHash"),
+                        "ContentHash" = {TemplateFingerprint.Of(revision.Template)}
                     WHERE "Path" = {revision.Path.Key} AND "IsDeleted" = 0
                     """, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
