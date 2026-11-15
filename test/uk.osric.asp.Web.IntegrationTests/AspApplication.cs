@@ -38,6 +38,11 @@ using uk.osric.asp.Web.Users;
 /// write the layout; <c>SiteChromeTests</c> switches the shipped default on.
 /// </param>
 /// <param name="changelist">The file <c>/admin/changes</c> serves, for a fixture that proves the page.</param>
+/// <param name="selfFetchToServer">
+/// Points the outbound client at this host, so the assistant's <c>view</c> is a real request through
+/// the real pipeline with no socket. The fixture sets <c>Site:Origin</c> to the test server's own
+/// base address, because that is the only origin a view's token will be offered to.
+/// </param>
 /// <param name="settings">Extra keys applied last, for a fixture that proves a configuration failure.</param>
 internal sealed class AspApplication(
     int loginPermitLimit = 100,
@@ -53,6 +58,7 @@ internal sealed class AspApplication(
     int? maxOutputTokens = null,
     string? pageLayout = null,
     string? changelist = null,
+    bool selfFetchToServer = false,
     IReadOnlyDictionary<string, string?>? settings = null) : WebApplicationFactory<Program> {
 
     // A fixture is not about a deadline it did not ask for. Every page here is compiled and rendered
@@ -141,6 +147,14 @@ internal sealed class AspApplication(
 
             if (pageFetcher is not null) {
                 services.AddSingleton(pageFetcher);
+            }
+
+            if (selfFetchToServer) {
+                // The handler factory runs when the first outbound client is created, which is after
+                // the host has built, so the server this captures exists by then. It keeps the whole
+                // chain - token, scheme, guard, routing, page - inside one process and inside the gate.
+                services.AddHttpClient(OutboundFetcher.ClientName)
+                    .ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler());
             }
         });
     }

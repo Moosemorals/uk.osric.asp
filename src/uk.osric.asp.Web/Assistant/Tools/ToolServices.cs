@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Assistant.Tools;
 
 using Microsoft.Extensions.DependencyInjection;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Documentation;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
@@ -54,6 +55,12 @@ internal sealed class ToolServices(
 
     /// <summary>The owner's memories, resolved from the call's scope.</summary>
     public IMemoryStore Memories => scope.GetRequiredService<IMemoryStore>();
+
+    /// <summary>The live view tokens, asked by run id so no tool ever holds the secret.</summary>
+    public ViewTokenStore Views => scope.GetRequiredService<ViewTokenStore>();
+
+    /// <summary>Where this host reaches the site it serves, which is what <c>view</c> resolves against.</summary>
+    public SiteOptions Site => scope.GetRequiredService<SiteOptions>();
 
     /// <summary>Shapes and bounds what a tool answers with.</summary>
     public ToolResults Results { get; } = new(options);

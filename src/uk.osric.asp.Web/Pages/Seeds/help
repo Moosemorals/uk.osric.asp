@@ -61,7 +61,8 @@ confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a se
     <li><strong>Restore every seed</strong> on <a href="/admin/restore">/admin/restore</a> is the
     emergency way back when the editor itself will not load: it saves the bundled source of every
     page the site ships with, never touches a page you made, and skips a seed that already matches.</li>
-    <li>The assistant is available from the editor to a signed-in owner.</li>
+    <li>The assistant is available from the editor to a signed-in owner, and it can view the site
+    as you while it works: it sees the pages a signed-in visitor sees, read-only.</li>
 </ul>
 <p>Paths are canonical: <code>/About</code>, <code>/about/</code> and <code>/about</code> are the
 same page. A path the site's own routes already answer for, such as <code>/admin/import</code> or
