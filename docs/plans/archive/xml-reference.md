@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Done — `shell-the-reference`. The corpus, the copy-down, the two pages, the help links and the tool have landed |
 | Size | Large — one reader and normaliser, the `inheritdoc` bridge, one embedded stylesheet, two public routes under `/admin`, the admin menu, the `/help` link audit, one seeded sheet, one assistant tool, the prose and focused tests; no migration, no configuration key, no build change. Without the copy-down it is a Medium; that is the lever |
 | Spike | None. The facts below are measured on this branch: the publish carries the four XML files, their element set is known, a scratch project confirmed `XslCompiledTransform` transforms a document on .NET 11 with no package, and the Microsoft Learn URL shapes were checked against the live API browser |
-| Decisions | `shell-the-reference`: the documentation a build carries is served at `/admin/reference` for all four product assemblies and read by the assistant through one `reference` tool over the page contract only; the corpus is read once per process from the XML beside the assembly and rendered by one embedded stylesheet. The audit in [architecture](../architecture.md#where-a-view-lives) gains the fourth reason below |
+| Decisions | `shell-the-reference`: the documentation a build carries is served at `/admin/reference` for all four product assemblies and read by the assistant through one `reference` tool over the page contract only; the corpus is read once per process from the XML beside the assembly and rendered by one embedded stylesheet. The audit in [architecture](../../architecture.md#where-a-view-lives) gains the fourth reason below |
 | Backlog | — |
 
 ## The short version
@@ -91,7 +91,7 @@ accident rather than an interface.
 
 `GET /admin/reference` is the index. `GET /admin/reference/{slug}` is one of `sdk`, `core`, `runtime`
 and `web`, matched exactly and case-sensitively; anything else answers `404` through
-[`ErrorResponses`](../../src/uk.osric.asp.Web/Errors/ErrorResponses.cs) with a message that names the
+[`ErrorResponses`](../../../src/uk.osric.asp.Web/Errors/ErrorResponses.cs) with a message that names the
 slug and offers the index and the home page. Both are framed by `ShellDocument` like `/status`, and
 therefore carry the security headers, `no-store`, the skip link, the landmark and the site menu
 without writing any of them.
@@ -99,7 +99,7 @@ without writing any of them.
 Both are **public**, even though the key is under `/admin`: the URL is a filing cabinet, not an
 authorisation, and the reference describes the build serving the request as `/about` does. The
 repository is published to be read, so the site's `internal` types are on GitHub either way. The one
-consequence to write down is that [`docs/shell.md`](../shell.md) says "`/admin/**` requires the
+consequence to write down is that [`docs/shell.md`](../../shell.md) says "`/admin/**` requires the
 `Editor` policy"; it gains the `/admin/reference` exception in this change.
 
 Both pages also carry the admin menu (`AdminNavigation`, the "Page administration" landmark) with
@@ -319,7 +319,7 @@ Inline doc elements map as follows:
 | anything else | its children, so no text is silently dropped |
 
 No inline styles, no scripts, no forms, every `nav` named: the shared rules in
-[`AccessibilityTests`](../../test/uk.osric.asp.Web.Tests/AccessibilityTests.cs) apply unchanged.
+[`AccessibilityTests`](../../../test/uk.osric.asp.Web.Tests/AccessibilityTests.cs) apply unchanged.
 
 ### D6 — Each fragment is rendered once
 
@@ -445,20 +445,20 @@ four names. The tool is unaffected: `Sdk` has no `<inheritdoc/>` entries.
 | Area | Change |
 | --- | --- |
 | `src/uk.osric.asp.Web/Documentation/` | New: `ReferenceAssemblies`, `ReferenceDisplay`, `ReferenceDocument`, `ReferenceDocIds`, `ReferenceInheritance`, `ReferenceLibrary`, `ReferenceRenderer`, `ReferenceText`, `ReferenceEndpoint`, `reference.xslt` |
-| [`uk.osric.asp.Web.csproj`](../../src/uk.osric.asp.Web/uk.osric.asp.Web.csproj) | The stylesheet as an `EmbeddedResource` |
-| [`Program.cs`](../../src/uk.osric.asp.Web/Program.cs) | The `ReferenceLibrary` singleton and the two `MapGet`s, before the page catch-all |
+| [`uk.osric.asp.Web.csproj`](../../../src/uk.osric.asp.Web/uk.osric.asp.Web.csproj) | The stylesheet as an `EmbeddedResource` |
+| [`Program.cs`](../../../src/uk.osric.asp.Web/Program.cs) | The `ReferenceLibrary` singleton and the two `MapGet`s, before the page catch-all |
 | `Assistant/Tools/ReferenceTool.cs` | New tool |
-| [`ToolRegistry.cs`](../../src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs), [`ToolServices.cs`](../../src/uk.osric.asp.Web/Assistant/Tools/ToolServices.cs) | Register the tool; resolve the corpus lazily |
-| [`PageAuthorPrompt.cs`](../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs) | The reference paragraph, `/admin/reference` in the shell-file list, `v28` |
-| [`Pages/ReservedPaths.cs`](../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [`appsettings.json`](../../src/uk.osric.asp.Web/appsettings.json) | `/admin/reference` |
-| [`Admin/AdminNavigation.cs`](../../src/uk.osric.asp.Web/Admin/AdminNavigation.cs) | A Reference item before Help, marked current on the two reference pages |
-| [`Assistant/ShellRoutes.cs`](../../src/uk.osric.asp.Web/Assistant/ShellRoutes.cs) | One record, one line, pointing the model at the tool |
+| [`ToolRegistry.cs`](../../../src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs), [`ToolServices.cs`](../../../src/uk.osric.asp.Web/Assistant/Tools/ToolServices.cs) | Register the tool; resolve the corpus lazily |
+| [`PageAuthorPrompt.cs`](../../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs) | The reference paragraph, `/admin/reference` in the shell-file list, `v28` |
+| [`Pages/ReservedPaths.cs`](../../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [`appsettings.json`](../../../src/uk.osric.asp.Web/appsettings.json) | `/admin/reference` |
+| [`Admin/AdminNavigation.cs`](../../../src/uk.osric.asp.Web/Admin/AdminNavigation.cs) | A Reference item before Help, marked current on the two reference pages |
+| [`Assistant/ShellRoutes.cs`](../../../src/uk.osric.asp.Web/Assistant/ShellRoutes.cs) | One record, one line, pointing the model at the tool |
 | `Pages/Seeds/reference.css` | New seeded sheet, including the external-link arrow |
-| [`Pages/Seeds/help`](../../src/uk.osric.asp.Web/Pages/Seeds/help) | The reference link beside the page API paragraph, and a link on the first mention of each type and member in a section (`product-manual-is-a-page`) |
-| [`docs/shell.md`](../shell.md), [`docs/assistant.md`](../assistant.md) | The routes and the tool; the `/admin/**` sentence gains its `/admin/reference` exception |
-| [`docs/architecture.md`](../architecture.md#where-a-view-lives), [`docs/glossary.md`](../glossary.md) | The audit's fourth reason, the **Build fact** entry, bootstrap's list |
-| [`docs/jobs/README.md`](../jobs/README.md) | The job moves to Closed with the summary and `shell-the-reference` |
-| [`docs/decisions.md`](../decisions.md) | One entry, named at the merge |
+| [`Pages/Seeds/help`](../../../src/uk.osric.asp.Web/Pages/Seeds/help) | The reference link beside the page API paragraph, and a link on the first mention of each type and member in a section (`product-manual-is-a-page`) |
+| [`docs/shell.md`](../../shell.md), [`docs/assistant.md`](../../assistant.md) | The routes and the tool; the `/admin/**` sentence gains its `/admin/reference` exception |
+| [`docs/architecture.md`](../../architecture.md#where-a-view-lives), [`docs/glossary.md`](../../glossary.md) | The audit's fourth reason, the **Build fact** entry, bootstrap's list |
+| [`docs/jobs/README.md`](../../jobs/README.md) | The job moves to Closed with the summary and `shell-the-reference` |
+| [`docs/decisions.md`](../../decisions.md) | One entry, named at the merge |
 | `test/uk.osric.asp.Web.BrowserTests/` | One test: the external-link arrow, which no string proves |
 
 ## Phases
@@ -554,7 +554,7 @@ registry holds nineteen tools; the prompt names the tool, the `/admin/reference`
 
 ### 6 — Close-out
 
-Done: the job moved to Closed in [jobs](../jobs/README.md) with a summary, `docs/decisions.md` gained
+Done: the job moved to Closed in [jobs](../../jobs/README.md) with a summary, `docs/decisions.md` gained
 `shell-the-reference`, and every citation in the branch names it.
 
 ## Verification
@@ -593,7 +593,7 @@ Done: the job moved to Closed in [jobs](../jobs/README.md) with a summary, `docs
   lose their copy rather than the page failing; the round-trip test makes that loud, and a generic or
   explicit member the bridge cannot name keeps the note.
 - **A public route under `/admin`.** The key says administration and the access is anyone;
-  [`docs/shell.md`](../shell.md) records the exception and an integration test pins the anonymity.
+  [`docs/shell.md`](../../shell.md) records the exception and an integration test pins the anonymity.
   If that is wrong, owner-only is one `RequireAuthorization`.
 - **The tool can be wrong about modifiers.** An id says by-ref, not `ref`/`out`/`in`, so the
   signature says `ref` and the summary carries the truth. The alternative is a second source of

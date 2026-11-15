@@ -57,5 +57,5 @@ If the review step were dropped, an import would be one `POST` that applies an a
 nothing, and the capability would be a single `ImportAsync(bytes)`. That is a product decision about
 how much a destructive action may skip, and it is not this job's to make.
 
-**Origin:** [the page-first plan](../plans/page-first.md) and `pages-page-first`, which named this route as one of
+**Origin:** [the page-first plan](../plans/archive/page-first.md) and `pages-page-first`, which named this route as one of
 the shell's three exceptions with a job behind it.

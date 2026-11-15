@@ -81,7 +81,7 @@ writes, chosen policy, one report. Building it for Save all alone would be build
 3. **Whether the report is per edit or per key.** One row per key is what a caller wants; two edits to
    one key in one batch must then be refused as a page bug rather than silently merged.
 4. **Whether a batch may span a library and its dependents.** It writes both; whether it compiles the
-   dependents again in the same batch, or leaves them stale as the lazy path does ([page libraries](../plans/page-libraries.md#d7--the-closure-is-recorded-with-the-image-and-nothing-recompiles-eagerly)),
+   dependents again in the same batch, or leaves them stale as the lazy path does ([page libraries](../plans/archive/page-libraries.md#d7--the-closure-is-recorded-with-the-image-and-nothing-recompiles-eagerly)),
    is a property of the saves rather than of the batch, so the answer is likely "leave them stale, and
    let [IDEA-040](IDEA-040.md) say which they are".
 5. **Whether the assistant may batch across the site.** Its edit-safety rules are per key; a batch that
