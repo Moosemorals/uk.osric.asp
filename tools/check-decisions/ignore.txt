@@ -6,6 +6,7 @@
 # name that was real all along. One token per line, with what it is beside it.
 
 deploy-guard                      # a make target
+deploy-ssh                        # a make target
 pages-authentication              # the counter-example in the policy: what a topic name would look like
 pages-diagnostics                 # the counter-example in the policy
 pages-api-policy-2                # the counter-example in the policy: a name disambiguated with a number
