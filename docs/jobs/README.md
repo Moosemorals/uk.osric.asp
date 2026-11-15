@@ -131,7 +131,7 @@ approval.
 | 5 | [Page editor](../plans/archive/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | done |
 | 6 | [ARCH-16](#closed) — one read seam for the assistant's tools and its applets | M | 5, edit safety | merge | done |
 | 7 | [Pages can stream](../plans/page-streaming.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | done |
-| 8 | [IDEA-025](IDEA-025.md) — the shell an app needs ([the plan](../plans/page-apps.md)): a long stream, an outbound stream, a worker kind and jobs. The assistant port is later, and it still needs the authority question in that job answered | L | 6, 7 | the plan, then every phase | phases 0–5 built, awaiting merge |
+| 8 | [IDEA-025](IDEA-025.md) — the shell an app needs ([the plan](../plans/page-apps.md)): a long stream, an outbound stream, a worker kind and jobs; the assistant port is later | L | 6, 7 | the plan, then every phase | in flight |
 | 9 | [Page first](../plans/page-first.md) — the rule and its audit; the memory capability it first proposed is withdrawn, and the gap a page actually has is IDEA-033 | S | — | merge | done |
 | 10 | [#closed](#closed) — page libraries: IDEA-005's shared-code half — a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | done |
 
@@ -161,14 +161,6 @@ capability, which is the specialist capability the memory work had just taught t
 that outlives the render budget, an outbound body read as it arrives, and work that outlives the
 request as a fourth kind, the worker, and a job — and leaves the assistant in the shell until the port
 has its own plan and the authority question in that plan is answered.
-
-All six phases of that plan are built. A page can hold a live response past the render budget, relay
-an outbound text stream, and start a worker as a job it can message, follow and cancel; a worker is
-the fourth page kind, compiled when it is saved and never served. The port is now a step of its own,
-and [IDEA-025](IDEA-025.md) names what it still lacks: an account-scoped store for the transcript and
-memory ([IDEA-033](IDEA-033.md)), a restricted Markdown profile a page can reach, and the page-store
-write authority the tools need — which is a decision for the owner, written down there with its
-options rather than taken by this programme.
 
 **IDEA-026 had no data gate.** Its sketch made the query the gate, and the decision was to remove
 the alias without running it. The cost of being wrong is a stored page that no longer compiles:
@@ -231,7 +223,7 @@ Resolved jobs; the files were deleted and their history is in git.
 | BUG-17 | A long think is not cut off by its own duration: `Assistant:RequestTimeoutSeconds` is re-armed by every event the provider sends, a stall fails as `provider_timeout` with its own sentence, a message that stops at the output limit is stored `truncated`, and the transcript renders the run's own reason after the reload (DEC-119). The failed-request log line a mid-run reload leaves behind is fixed by [the streaming plan](../plans/page-streaming.md): a disconnect during a write is a Debug-level end, not an unhandled exception |
 | BUG-18 | Save and view reads its command from the form for a POST and the query for a link, and a failed save stays on the editor with its diagnostics. Every human surface answers with a document: `Errors/ErrorResponses.cs` writes the shell or an RFC 9457 problem document by `Accept`, and `UseStatusCodePages` covers every status no endpoint described (DEC-131). See [the shell](../shell.md#error-responses) |
 | OPS-02 | The health endpoint and its monitoring: `/heath` pings storage and reports abandoned renders, the quadlet probes it and restarts after three failures, and `/status` draws what Prometheus scraped. The alerting it named was always [OPS-05](OPS-05.md)'s (DEC-45). See [deployment](../../deploy/operations.md#resource-limits-and-restarts) |
-| OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and DEC-180–DEC-185 |
+| OPS-06 | `/status` is rebuilt from the instruments: one panel each, the type decides the chart, a dense grid of self-contained drawings, and a chart endpoint for a link. See [the plan](../plans/archive/status-page-rebuild.md) and DEC-180–DEC-183, DEC-319, DEC-320 |
 | DOC-01..05 | Instructions, architecture, deployment, testing and `.editorconfig` match the code |
 | IDEA-002 | A page reaches any `http` or `https` host through `ctx.Capabilities.GetRequired<IHttpFetch>()`; every failure is a value (DEC-216, DEC-129, DEC-143). See [the plan](../plans/archive/page-fetch-and-storage.md) |
 | IDEA-023 | `/assistant/memory` lists every memory the owner holds, grouped by kind with the pinned ones first, each row a form that saves content, kind and pin under the version it was rendered from, with a count against the cap and a forget that asks on its own page first (DEC-205–DEC-209). See [the plan](../plans/archive/assistant-memory-page.md) |

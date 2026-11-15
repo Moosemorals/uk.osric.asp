@@ -5,7 +5,9 @@ SPDX-License-Identifier: MIT
 
 # The status page, rebuilt a panel at a time
 
-**Status:** implemented (DEC-180–DEC-185).
+**Status:** implemented (DEC-180–DEC-183, DEC-319 and DEC-320). The last two were written as
+DEC-184 and DEC-185, and were renumbered when the assistant's memory decisions were found to hold the
+same pair.
 
 [OPS-06](../../jobs/README.md#closed) recorded that half of what the site measures never reaches `/status`:
 sixteen of the twenty-three instruments have no panel at all. It also found the reason the gap
@@ -542,11 +544,11 @@ from DEC-180):
   side gains an entry the other lacks, when a type disagrees with the chart, or when a query names a
   family that is neither an instrument nor a known runtime one. The family names are proved against
   the live `/metrics` body.
-- **[DEC-184](../../decisions.md#metrics-and-the-status-page)** — a drawing is self-contained: colour,
+- **[DEC-319](../../decisions.md#metrics-and-the-status-page)** — a drawing is self-contained: colour,
   dash, fill and type size are presentation attributes from a palette in `Core.Charting`, not rules
   in `/status.css`, so the same SVG is legible with no stylesheet. The page's sheet keeps only the
   grid, the caption and the hover and pinned states.
-- **[DEC-185](../../decisions.md#metrics-and-the-status-page)** — a chart can be served on its own:
+- **[DEC-320](../../decisions.md#metrics-and-the-status-page)** — a chart can be served on its own:
   `GET /status/chart?panel=&start=&duration=` returns one panel's SVG under the owner policy, with
   `no-store` and the global security headers, addressing panels by catalogue id. The window is an
   explicit start plus a length, snapped to the step, so a link reproduces the chart it showed; a

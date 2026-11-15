@@ -18,7 +18,7 @@ the other half of the same question and live in [logging](logging.md).
 | `page.render.wait` | histogram | s | — time spent waiting for a render slot; site-wide, not per page |
 | `page.stream.duration` | histogram | s | `page.path`, `outcome` (`completed`, `silence`, `ceiling`, `client-left`, `error`) — the committed life of a streamed response |
 | `page.render.abandoned` | counter | — | `page.path` — renders given up on at the deadline |
-| `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`, `import`) |
+| `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`) |
 | `page.load.duration` | histogram | s | `page.path` |
 | `page.invoke.duration` | histogram | s | `page.path`, `outcome` |
 | `page.save.duration` | histogram | s | `page.path`, `outcome` |
@@ -60,9 +60,7 @@ add a request-duration metric of our own. A streamed render is measured twice on
 nested. A run's duration is wall-clock, so it includes the time an
 approval or a continuation waited for its owner, as `assistant.run.duration` always has. On a cache
 miss `page.compile.duration` is a subset of
-`page.render.duration`; never add the two together. The `reason` tag says why the compile happened,
-not what was compiled: a worker is compiled on save like a page, and rebuilt on its next job because
-its library moved, which is `lazy`. There is no `worker` reason, and a compile is not split by kind. `page.path` is bounded by the number of stored
+`page.render.duration`; never add the two together. `page.path` is bounded by the number of stored
 pages, which is small — if that ever stops being true, drop the tag and keep the path in logs.
 Recording costs nothing until an exporter listens, so the instruments are always on. For a quick
 look while the site runs: `dotnet-counters monitor --counters uk.osric.asp.Pages <pid>`.
@@ -167,12 +165,12 @@ pointer-only; a keyboard or screen-reader reader gets the label, the legend and 
 `<title>`.
 
 The palette and the dashes are presentation attributes written by `Core.Charting`, not stylesheet
-rules, so a chart served on its own is legible with no stylesheet at all (DEC-184). `/status.css`
+rules, so a chart served on its own is legible with no stylesheet at all (DEC-319). `/status.css`
 holds only the grid, the caption and the hover and pinned states.
 
 ## One chart on its own
 
-Any panel can be linked directly (DEC-185):
+Any panel can be linked directly (DEC-320):
 
 ```
 GET /status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration=1h
