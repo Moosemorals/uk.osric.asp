@@ -123,13 +123,18 @@ keeps the route's authority in one place and survives the day the collector ever
 site's authentication. It is compared as UTF-8 bytes with `CryptographicOperations.FixedTimeEquals`,
 exactly as `ViewTokenStore` compares a view token.
 
-The collector's token rules:
+The token rules, and the two sides are deliberately different:
 
-- **Required, not optional.** The site could start without a build token because it has other work;
-  the collector exists to accept pushes, so a missing token stops it at startup with the usual list.
+- **Required on the collector.** The collector exists to accept pushes, so a missing or short token
+  stops it at startup with the usual list, naming the key and the range. The first deploy needs
+  `collector.env` filled before the unit starts.
+- **Optional in the build.** A build with no token records every duration and skips the push; the
+  outermost make invocation prints **one warning at the end**, where someone will see it, and the
+  build's exit code is the command's. The warning names the missing value and the spool, and
+  `make build-metrics-push` re-sends once the token exists. A missing token is never a build failure.
 - **At least 32 characters.** A floor is a safety net, not a ration: a short secret is a mistake and
-  should stop the start rather than be accepted. `openssl rand -base64 32` is the documented way to
-  make one.
+  should stop the collector rather than be accepted. `openssl rand -base64 32` is the documented way
+  to make one.
 - **Never logged.** The journal line names the target and the duration, never the header.
 - **No rate limit.** The token is the gate, the body is bounded, the target set is closed, and the
   only thing a holder can do is set a duration on a chart the owner could already see. If that
@@ -178,8 +183,7 @@ The site's `/metrics` is untouched. Prometheus gains one job:
       - targets: ["collector:8080"]
 ```
 
-The build's URL is the collector's public name, `https://build.moosemorals.com/build`; the exact
-name is the owner's, and the Caddy block uses that one until they say otherwise.
+The build's URL is the collector's public name, `https://collector.moosemorals.com/build`.
 
 ### D2 — **metrics-a-build-push-carries-a-token**
 
@@ -217,7 +221,7 @@ The wire record is:
 
 `Core.Metrics.BuildTargets` holds the closed list of names:
 
-`format`, `format-check`, `check`, `test`, `test-core`, `test-runtime`, `test-web`,
+`format`, `format-check`, `check`, `ci`, `test`, `test-core`, `test-runtime`, `test-web`,
 `test-collector`, `test-integration`, `test-browser`, `test-browser-live`, `license-check`, `audit`,
 `decisions`, `check-pages`, `publish`, `image`, `image-check`, `deploy`, `deploy-ssh`.
 
@@ -279,6 +283,9 @@ is measured as well as its parts:
 - `deploy` records the whole deploy; `deploy-ssh` records the recipe that does the pushing,
   installing and restarting. The gate and the image are separately measured, so the ssh phase is the
   part that is not one of them.
+- `ci` is measured as well, because it reaches `check` through its own sub-make; without a wrapper at
+  the top, the one missing-token warning would be written by a child invocation that is not the end of
+  the build the owner is watching.
 
 A target is measured by one wrapper. A one-line recipe is wrapped in place; a multi-line recipe or an
 aggregate moves its work to an inner `_name` target, and the wrapper times a sub-make of that. The
@@ -289,24 +296,27 @@ A prerequisite that is only setup stays outside the timer; a prerequisite that i
 stays inside it. `test-core: build` keeps `build` outside, so the suite's number is the suite, not a
 stale build. `_check` keeps the gate's parts inside, so `check`'s number is the gate.
 
-### D6 — **metrics-the-collector-renders-its-own-text**
+### D6 — **metrics-the-collector-uses-the-prometheus-exporter**
 
-The collector serves the Prometheus exposition itself: a `StringBuilder` writes the `# HELP` and
-`# TYPE` lines and one sample per target, sorted, at `text/plain; version=0.0.4; charset=utf-8`. No
-package, no meter provider, no exporter. The family name is stated where it is written, which is the
-one the panel queries, and a test asserts the exact body for zero, one and two targets.
+The collector uses the site's own metrics stack: `System.Diagnostics.Metrics` for the instrument and
+`OpenTelemetry.Exporter.Prometheus.AspNetCore` plus `OpenTelemetry.Extensions.Hosting` for the
+exposition. A `BuildMetrics` class owns a meter named `uk.osric.asp.Build` and one observable gauge,
+`build.duration`, unit `s`, tagged `target`; `Program` calls `AddMeter`, `AddPrometheusExporter` and
+`MapPrometheusScrapingEndpoint("/metrics")`, so the family the site queries is the one the exporter
+writes, `build_duration_seconds`.
 
-The alternative is `System.Diagnostics.Metrics` plus
-`OpenTelemetry.Exporter.Prometheus.AspNetCore` — the site's own pattern, and the packages are already
-pinned. It buys the exporter's naming and escaping and a path to histograms and counters, at the cost
-of a meter provider and two packages in a service whose whole output is one gauge. If the collector
-grows a second instrument or a distribution, that is the moment to take the exporter; the renderer is
-a function behind a tiny interface, not a permanent choice.
+The two packages are already pinned in `Directory.Packages.props` and already used by the site, so
+the collector adds two references and no new package or version to the repository. It gains the
+exporter's naming, escaping and label handling, which are exactly the boring, easy-to-get-wrong
+parts; a collector integration test reads the live `/metrics` body for `build_duration_seconds`, so a
+package upgrade that changes the family fails a test rather than quietly emptying the panel.
 
-`Microsoft.Diagnostics` alone does not serve `/metrics`: `System.Diagnostics.Metrics` is only the
-API, and the OpenTelemetry exporter is the bridge. If the owner meant `dotnet-monitor`
-(`Microsoft.Diagnostics.Monitoring`), that monitors a .NET process; it is not an endpoint for a blob
-and would be a much larger thing than this collector.
+The rejected alternative is rendering the exposition by hand. For one gauge it is about forty lines
+and no packages, and it was the first draft of this plan; it is rejected because the owner would
+rather take the dependency than own the escaping, the label quoting and the content negotiation, and
+because two implementations of one family name is one more place to get the contract wrong.
+`Microsoft.Diagnostics.Monitoring` (`dotnet-monitor`) is not the alternative it sounds like: it
+monitors a .NET process rather than accepting a blob.
 
 ## The collector's endpoint
 
@@ -336,7 +346,7 @@ deploy's wait have an answer that does not depend on the site's storage or page 
 | Test project | `test/uk.osric.asp.Collector.Tests`, NUnit and `WebApplicationFactory<Program>` |
 | Image | `make image` builds the site and the collector; `make image-check` proves both reproducible; `make deploy` tags and pushes both commit tags |
 | Quadlet | `deploy/uk.osric.asp.collector.container`: rootless, `Network=uk.osric.asp.network`, `NetworkAlias=collector`, `PublishPort=127.0.0.1:8081:8080`, `EnvironmentFile` for the token, a `wget` health check and a small memory/pids cap |
-| Caddy | A `build.moosemorals.com` block: `respond @metrics 404`, then `reverse_proxy 127.0.0.1:8081` |
+| Caddy | A `collector.moosemorals.com` block: `respond @metrics 404`, then `reverse_proxy 127.0.0.1:8081` |
 | Prometheus | The `build` job above |
 | Deploy | Seed `collector.env` once, install both quadlets, restart the collector first and wait for its health, then restart the app and Prometheus; push both images and pull both commit tags |
 | The site | No route, no meter, no build token. Only the Build panel and the external-family rename in the catalogue |
@@ -368,9 +378,19 @@ command's exit status. The record line is the wire object plus the two facts the
 When the command succeeded, `BUILD_METRICS_URL` is set and a token is found — `BUILD_METRICS_TOKEN`,
 or `deploy/build-metrics.token` — it posts the record to `POST /build`. The token is put in a private
 curl config file (`mktemp`, mode 0600, removed afterwards) rather than on the command line, so it
-never appears in `ps`. The request is capped (`--connect-timeout 2 --max-time 5`), a failure is a
-warning on stderr, and neither changes the command's status. No configuration at all means no push,
-which is the default on a fresh checkout.
+never appears in `ps`. The request is capped (`--connect-timeout 2 --max-time 5`) and never changes
+the command's status.
+
+A push that is skipped (no URL or token) or that fails writes one line to
+`artifacts/build-metrics/push-problems` and stays quiet. The warning is printed once, at the end: a
+wrapper invoked by the outermost make (`MAKELEVEL` is zero) reads the marker, prints one line naming
+the reason and the spool, and clears it. `make test-core` run on its own is the outermost invocation
+and warns; the same target inside `make check` does not, and `check`'s own wrapper does at the end.
+Nothing about a missing token or an unreachable collector fails a build; the spool is the record, and
+`make build-metrics-push` re-sends it once the collector or the token is there.
+
+The `push` mode is the exception: a manual `make build-metrics-push` reports a missing URL or token as
+an error, because it was asked to push and cannot.
 
 The URL is the collector's public name. A plain HTTP URL is for a local collector only: on any other
 host the token would travel in clear.
@@ -409,9 +429,11 @@ _deploy-ssh: | $(SSH_CONTROL_DIR)
 	# the existing ssh and podman recipe, extended for the collector
 ```
 
-`test` gains `test-collector`; the help gains that target and `build-metrics-push`; the inner `_`
-targets are phony and unlisted. `make -n` still prints the wrapper lines without running them, and
-the gate is not run with `-j` (the existing comment on `deploy` already says the order is the point).
+`test` gains `test-collector`; `ci` becomes a wrapper around its existing recipe, so its sub-make
+chain still ends with the one missing-token warning; the help gains `test-collector` and
+`build-metrics-push`; the inner `_` targets are phony and unlisted. `make -n` still prints the wrapper
+lines without running them, and the gate is not run with `-j` (the existing comment on `deploy`
+already says the order is the point).
 
 ## Components
 
@@ -420,15 +442,14 @@ the gate is not run with `-j` (the existing comment on `deploy` already says the
 | `Core/Metrics/BuildTargets.cs` | New: the closed list of measured names (D3) |
 | `Core/Metrics/BuildDurationRecord.cs`, `BuildDurationJson.cs`, `BuildDurationRead.cs` | New: the immutable record and its pure parse (D3) |
 | `Core/PublicAPI.Unshipped.txt` | The new public surface |
-| `src/uk.osric.asp.Collector/Program.cs` | New: the minimal API, options, routes and health |
-| `src/uk.osric.asp.Collector/BuildDurations.cs` | New: the concurrent last-value store and its sorted snapshot |
+| `src/uk.osric.asp.Collector/Program.cs` | New: the minimal API, options, routes, health, and `AddMeter`/`AddPrometheusExporter`/`MapPrometheusScrapingEndpoint` (D6) |
+| `src/uk.osric.asp.Collector/BuildMetrics.cs` | New: the meter, the `build.duration` gauge, the last-value store and `Record` (D6) |
 | `src/uk.osric.asp.Collector/BuildMetricsEndpoint.cs` | New: the token, the bounded body, the parse and the `204` |
-| `src/uk.osric.asp.Collector/BuildMetricsExposition.cs` | New: the hand-rendered Prometheus text (D6) |
 | `src/uk.osric.asp.Collector/CollectorOptions.cs` | New: the token and the two caps, with its own small reader (D2) |
 | `src/uk.osric.asp.Collector/appsettings.json` | The two caps; no token |
-| `src/uk.osric.asp.Collector/uk.osric.asp.Collector.csproj` | The web SDK, the container metadata, the `Core` reference and `InternalsVisibleTo` |
+| `src/uk.osric.asp.Collector/uk.osric.asp.Collector.csproj` | The web SDK, the container metadata, the two OpenTelemetry packages (already pinned), the `Core` reference and `InternalsVisibleTo` |
 | `uk.osric.asp.slnx` | The two new projects |
-| `test/uk.osric.asp.Collector.Tests/…` | New: options, endpoint, exposition and the Makefile/target drift |
+| `test/uk.osric.asp.Collector.Tests/…` | New: options, endpoint, metrics and the Makefile/target drift |
 | `Web/Metrics/StatusCatalogue.cs` | The `Build` group, the panel, and `HostFamilies` → `ExternalFamilies` (D4) |
 | `Web/Metrics/StatusCatalogueTests.cs` | The group and the external family assertions |
 | `Makefile` | The wrapper and inner targets, `test-collector`, `build-metrics-push`, the collector image/tag/publish variables, both images, both pushes, the deploy order |
@@ -452,23 +473,25 @@ Written first, one behaviour each:
 - **`CollectorOptionsTests`** — the shipped caps; an override; a refusal naming the key, range and
   recommendation; the token missing is refused; a blank and a 31-character token are refused; 32
   characters are accepted.
-- **`CollectorMetricsTests`** — the exposition's content type; the `# HELP`/`# TYPE` lines; zero
-  targets; one target; two targets sorted; a repeated target replaces its value; a value is rendered
-  in invariant culture.
-- **`CollectorEndpointTests`** — a good record is `204` and `/metrics` carries it; the token missing
-  and wrong are `401`; an unknown target, malformed JSON and an over-cap duration are `400`; a
-  non-JSON content type is `415`; an oversized body is `413`; `/health` is `200`.
+- **`CollectorMetricsTests`** — the meter registers `build.duration`; `Record` emits one measurement
+  per target, tagged `target`; nothing is emitted before the first record; a repeated target replaces
+  its value; the live `/metrics` body carries `build_duration_seconds` with the target label, which
+  is the exporter's family and the panel's contract.
+- **`CollectorEndpointTests`** — a good record is `204` and the live `/metrics` body carries it; the
+  token missing and wrong are `401`; an unknown target, malformed JSON and an over-cap duration are
+  `400`; a non-JSON content type is `415`; an oversized body is `413`; `/health` is `200`.
 - **`BuildTargetsTests`** — the Makefile's `$(BUILD_METRICS) <name> --` lines and `BuildTargets.Names`
   are the same set.
 - **`StatusCatalogueTests`** — every instrument still has one panel; the Build panel names its
   external family and is a line; `Build` is in `Groups`; the Host panels still name theirs.
 - **`MetricNamesTests`** — unchanged in the app: it records every app instrument and the live
   `/metrics` body carries them. The Build family is the collector's, not the app's, so it is not in
-  this test; the collector's own exposition test is the proof.
+  this test; the collector's own live-body test is the proof.
 
 The wrapper itself is shell, and NUnit does not drive it: the build phase proves it by running the
-targets and reading the spool, and the collector's endpoint fixture proves the contract. Its JSON is
-the only glue, and the spool is the record if a number is ever questioned.
+targets and reading the spool, including the one missing-token warning at the end, and the
+collector's endpoint fixture proves the contract. Its JSON is the only glue, and the spool is the
+record if a number is ever questioned.
 
 ## Phases
 
@@ -524,11 +547,12 @@ deploy` brings both units up with the collector first.
 
 ## Documentation and decisions
 
-- `docs/collector.md` — the new service: why it is not the site, the three routes, the token, the two
-  caps, the store's lifetime, the image and quadlet, and the build wrapper's push.
+- `docs/collector.md` — the new service: why it is not the site, the three routes, the token (required
+  there, optional in the build), the two caps, the store's lifetime, the meter and exporter, the image
+  and quadlet, and the build wrapper's push and end warning.
 - `docs/metrics.md` — the Build panel and its external family, the second scrape target, the two
-  internal `/metrics` paths, the relay lifetime and the last-good-run rule, and the panel count
-  (nineteen Pages, ten Assistant, one Build, five Host).
+  internal `/metrics` paths, the exporter's family name, the relay lifetime and the last-good-run
+  rule, and the panel count (nineteen Pages, ten Assistant, one Build, five Host).
 - `docs/architecture.md` — `Collector` in the project list, `Collector → Core` in the dependency
   direction, and why the collector is not part of the page pipeline.
 - `docs/testing.md` — the collector suite in the suite list and the counts.
@@ -543,7 +567,7 @@ deploy` brings both units up with the collector first.
   **metrics-a-build-target-is-a-fixed-name**,
   **metrics-a-build-chart-shows-the-last-good-run**,
   **metrics-a-build-measures-a-make-target**,
-  **metrics-the-collector-renders-its-own-text**.
+  **metrics-the-collector-uses-the-prometheus-exporter**.
   If the merge judges two of them one rule, it folds them and updates the citations in this plan.
 - `/help` is unchanged: this adds no page-authoring capability.
 
@@ -552,10 +576,12 @@ deploy` brings both units up with the collector first.
 | Risk | Answer |
 | --- | --- |
 | A second service to run, update and roll back | It is a single process with no storage. Its own image and quadlet are small; the deploy restarts it first and waits for its health, and an app-only change never touches it |
-| The collector is down when a build runs | The wrapper spools every record and warns; `make build-metrics-push` re-sends. The failure is a line lost from a chart, never a failed build |
+| The collector is down when a build runs | The wrapper spools the record and prints one warning at the end; `make build-metrics-push` re-sends. The failure is a line lost from a chart, never a failed build |
+| The build has no token | Every duration is spooled and one warning is printed at the end; nothing fails. `make build-metrics-push` re-sends once the token is set |
 | The collector is down when Prometheus scrapes | The series goes stale; the previous samples stay in Prometheus. The next scrape after a restart resumes |
 | A leaked token pollutes the chart | A 256-bit token, fixed-time comparison, a closed target list, a body cap and a duration cap. The only thing a holder can do is set a duration on a chart the owner could already see; rotation is a restart |
-| The collector's DNS or certificate is not ready | The build's push warns and spools; the app and its own metrics are unaffected. The deploy's Caddyfile is installed as one file, so the block is inert until the name resolves |
+| The exporter's family changes on a package upgrade | The collector's live `/metrics` test fails; the panel is never silently empty. If the change is wanted, the panel's query moves with it |
+| The collector's DNS or certificate is not ready | The build's push warns once at the end and spools; the app and its own metrics are unaffected. The deploy's Caddyfile is installed as one file, so the block is inert until the name resolves |
 | The release now builds and pushes two images | The collector layer is a few hundred kilobytes; `image-check` adds two tiny builds. The site image is unchanged |
 | `deploy` dominates the shared axis | The panel's sentence and hover names each value; the trend of each line is the question. A log axis, if wanted, is a change to every chart |
 | The site's panel is empty until the first push | It is one "No data" panel on an owner-only page, the same as any instrument before its first sample |
@@ -576,5 +602,7 @@ The collector is its own rootless unit at its own name, with its own image, toke
 `build_duration_seconds{target}` and `/status` draws one line per target in a Build group; the site is
 not in the push path, so the gate's numbers land while the site is broken; a failed run is in the
 spool and the journal but not on the chart; a missing collector token stops the collector with a list
-naming the key, a wrong token is 401, and a push that cannot happen never fails a build; `make check`
-is green and the catalogue's drift tests hold the Build panel to its external family.
+naming the key, while a build with no token prints one warning at the end and exits with the
+command's status; a wrong token is 401; a push that cannot happen never fails a build; `make check`
+is green, the collector's live-body test holds the family the panel queries, and the catalogue's
+drift tests hold the Build panel to its external family.
