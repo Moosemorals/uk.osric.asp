@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using System.Net;
@@ -47,8 +48,10 @@ internal class Program {
 
     private static async Task RunAsync(string[] args) {
         bool isUserCommand = UserCommands.IsCommand(args);
+        bool isSeedsCommand = SeedCommands.IsCommand(args);
+        bool isCommand = isUserCommand || isSeedsCommand;
         WebApplicationBuilder builder = WebApplication.CreateBuilder(
-            isUserCommand ? [] : args);
+            isCommand ? [] : args);
 
         // The site is behind Caddy; nothing on this hop needs to advertise the server that ran it.
         builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
@@ -67,7 +70,14 @@ internal class Program {
             options.JsonWriterOptions = new JsonWriterOptions { Indented = false };
         });
 
-        if (isUserCommand) {
+        if (isSeedsCommand) {
+            // A pull's result is a tar and stdout is where it goes. One log line landing there would
+            // corrupt the archive, so every entry is written to standard error instead.
+            builder.Services.Configure<ConsoleLoggerOptions>(
+                options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+        }
+
+        if (isCommand) {
             // The command's output is its result; migration chatter belongs in the log, not on stdout.
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
             builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
@@ -253,6 +263,7 @@ internal class Program {
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PagePathPolicy>();
+        builder.Services.AddSingleton(new PageSeeds(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds")));
         builder.Services.AddSingleton<PageSaver>();
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton<PageToolExecutor>();
@@ -338,10 +349,17 @@ internal class Program {
             await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
         }
 
-        if (isUserCommand) {
+        if (isCommand) {
             await using (app) {
-                Environment.ExitCode = await UserCommands.RunAsync(
-                    args[1..], app.Services, app.Lifetime.ApplicationStopping);
+                if (isSeedsCommand) {
+                    using Stream output = Console.OpenStandardOutput();
+                    Environment.ExitCode = await SeedCommands.RunAsync(
+                        args[1..], app.Services, output, Console.Error, app.Lifetime.ApplicationStopping);
+                } else {
+                    Environment.ExitCode = await UserCommands.RunAsync(
+                        args[1..], app.Services, app.Lifetime.ApplicationStopping);
+                }
+
                 return;
             }
         }

@@ -123,7 +123,7 @@ BUILD_INPUTS := $(shell find src test tools -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit check-pages decisions test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
+.PHONY: help build restore check ci drift-check audit check-pages decisions test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -157,6 +157,10 @@ help:
 		'remote-user-passwd Same as user-passwd, in the container on HOST=...' \
 		'remote-user-list   Same as user-list, in the container on HOST=...' \
 		'remote-user-remove Same as user-remove, in the container on HOST=...' \
+		'seeds-list         List every seed, and what the store holds for it.' \
+		'seeds-pull         Write the stored source of every changed seed into Pages/Seeds (ALL=1, MISSING=1).' \
+		'remote-seeds-list  Same as seeds-list, in the container on HOST=deploy@server.' \
+		'remote-seeds-pull  Same as seeds-pull, from the container on HOST=...' \
 		'run                Run the web app on the default URLs.' \
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image with the SDK; the base is pinned in the Makefile.' \
@@ -369,6 +373,34 @@ remote-user-remove: | $(SSH_CONTROL_DIR)
 	@test -n "$(strip $(HOST))" || { echo "usage: make remote-user-remove HOST=deploy@server ACCOUNT=name"; exit 1; }
 	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make remote-user-remove HOST=deploy@server ACCOUNT=name"; exit 1; }
 	$(SSH) $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users remove '$(ACCOUNT)'
+
+# ---- Seeds ----------------------------------------------------------------------------------------
+#
+# The pack is edited in production and the repository falls behind it. `seeds` prints what the store
+# holds for each seed and pulls the store's bytes back into the working tree; git is the merge tool and
+# `git diff` is the review. Pull refuses a dirty seed folder unless FORCE=1, because extracting over an
+# uncommitted edit is the one thing it can destroy.
+
+seeds-list: build
+	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) \
+		$(DOTNET) run --project $(WEB_PROJECT) --no-build -- seeds list
+
+seeds-pull: build
+	@test -z "$$(git status --porcelain -- $(SEED_DIRECTORY))" || test -n "$(strip $(FORCE))" || { echo "Pages/Seeds has uncommitted changes; commit them, or pass FORCE=1 to overwrite"; exit 1; }
+	@archive=$$(mktemp); trap 'rm -f "$$archive"' EXIT; \
+		ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) $(DOTNET) run --project $(WEB_PROJECT) --no-build -- seeds pull $(if $(strip $(ALL)),--all) $(if $(strip $(MISSING)),--missing) > "$$archive" && \
+		tar -x -C $(SEED_DIRECTORY) -f "$$archive"
+
+remote-seeds-list: | $(SSH_CONTROL_DIR)
+	@test -n "$(strip $(HOST))" || { echo "usage: make remote-seeds-list HOST=deploy@server"; exit 1; }
+	$(SSH) $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) seeds list
+
+remote-seeds-pull: | $(SSH_CONTROL_DIR)
+	@test -n "$(strip $(HOST))" || { echo "usage: make remote-seeds-pull HOST=deploy@server"; exit 1; }
+	@test -z "$$(git status --porcelain -- $(SEED_DIRECTORY))" || test -n "$(strip $(FORCE))" || { echo "Pages/Seeds has uncommitted changes; commit them, or pass FORCE=1 to overwrite"; exit 1; }
+	@archive=$$(mktemp); trap 'rm -f "$$archive"' EXIT; \
+		$(SSH) $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) seeds pull $(if $(strip $(ALL)),--all) $(if $(strip $(MISSING)),--missing) > "$$archive" && \
+		tar -x -C $(SEED_DIRECTORY) -f "$$archive"
 
 run:
 	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) $(DOTNET) run --project $(WEB_PROJECT)
