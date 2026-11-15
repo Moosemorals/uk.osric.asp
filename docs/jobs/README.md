@@ -60,8 +60,10 @@ places read the flag, but the key rule is what the tests and the deployment actu
 it closed the same day (`assistant-always-on`). BUG-19 came out of the owner's note of 2026-11-15: a
 chart counted its samples from the first one while its axis counted from the window's start, so a
 window wider than the data left the line at the left edge; it is closed
-(`metrics-a-chart-counts-from-its-window`). IDEA-036 came out of the owner's seed-provenance note of
-the same day: a seed is identified by nothing, so a deploy cannot tell a page the release moved from a
+(`metrics-a-chart-counts-from-its-window`). BUG-20 came out of the owner's note of the same day: a
+rendered Markdown heading had no anchor, and a page could not switch the renderer's features.
+IDEA-036 came out of the owner's seed-provenance note of the same day: a seed is identified by
+nothing, so a deploy cannot tell a page the release moved from a
 page the author edited, and nothing brings an edited seed back from the running site to the
 repository. Its plan is [seed provenance](../plans/seed-provenance.md). IDEA-037 to IDEA-043 came out of the
 owner's note of 2026-11-15 comparing the site's IDE plan (`/ide-plan`, a stored page that is not in this
@@ -77,6 +79,7 @@ fails to compile: the template language has an opener for everything except a no
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
+| [BUG-20](BUG-20.md) | Medium | S | A rendered heading has no anchor, and a page cannot choose the Markdown renderer's features |
 | [SEC-03](SEC-03.md) | Medium | L | Page code has no process boundary |
 | [OPS-03](OPS-03.md) | Medium | M | The gate exists but nothing runs it unasked |
 | [OPS-05](OPS-05.md) | Medium | M | No outbound notifications when the site breaks |

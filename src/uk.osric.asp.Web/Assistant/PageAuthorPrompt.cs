@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v31";
+    public const string Version = "page-author-v32";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -317,11 +317,16 @@ internal static class PageAuthorPrompt {
         ## Markdown
         A page renders Markdown through `ctx.Capabilities.GetRequired<IMarkdownRenderer>()`
         and `ToHtml`; write the result raw with `<%== … %>`. It supports
-        CommonMark, pipe tables, auto-links, links and images. An image must
-        be served by this site, because the response's policy allows images only
-        from the same origin. Raw HTML in the Markdown passes through, exactly
-        like `<%== %>`, so it is not a sanitiser: never render a visitor's
-        input or a fetched value without escaping it first.
+        CommonMark, heading anchors, pipe tables, auto-links, links and images,
+        and a heading's `id` is made from its text, so a page can link to a
+        section with `#the-heading`. An image must be served by this site,
+        because the response's policy allows images only from the same origin.
+        Raw HTML in the Markdown passes through, exactly like `<%== %>`, so it
+        is not a sanitiser: never render a visitor's input or a fetched value
+        without escaping it first. Heading anchors, pipe tables and auto-links
+        can be switched for one call with `MarkdownOptions.Default with { … }`
+        passed as `ToHtml`'s second argument; `MarkdownOptions.Default` has all
+        three on.
 
         Your own replies are rendered as Markdown with a smaller set:
         paragraphs, emphasis, strong, inline and fenced code, lists,

@@ -564,12 +564,20 @@ something your own page may ask for.</p>
 <p><a href="/admin/reference/sdk#t-IMarkdownRenderer"><code>IMarkdownRenderer</code></a> renders Markdown to HTML. Write its result raw:</p>
 <pre class="source" tabindex="0"><code>&lt;% IMarkdownRenderer markdown = ctx.Capabilities.GetRequired&lt;IMarkdownRenderer&gt;(); %&gt;
 &lt;%== markdown.ToHtml("## Today\n\n- one\n- two") %&gt;</code></pre>
-<p>It understands CommonMark, pipe tables, auto-links, links and images. Raw HTML in the
-Markdown passes through, exactly like <code>&lt;%== %&gt;</code>: the renderer is not a
+<p>It understands CommonMark, heading anchors, pipe tables, auto-links, links and images. Raw HTML
+in the Markdown passes through, exactly like <code>&lt;%== %&gt;</code>: the renderer is not a
 sanitiser, so escape a visitor's or a fetched value with <code>ctx.Write</code> rather than
 rendering it. An image must be served by this site, because the response's policy allows images
 only from the same origin. A table's header cells are written with <code>scope="col"</code>, and
 column alignment markers are ignored because the site's policy forbids inline styles.</p>
+<p>A heading is written with an <code>id</code> made from its text, so you can link to a section with
+<code>#the-heading</code>; a second heading with the same text gets <code>-1</code>. Heading anchors,
+pipe tables and auto-links can be switched for one call with <code>MarkdownOptions</code>, which
+belongs to the call rather than to the shared renderer:</p>
+<pre class="source" tabindex="0"><code>&lt;%== markdown.ToHtml("## Today", MarkdownOptions.Default with { HeadingAnchors = false }) %&gt;</code></pre>
+<p><code>MarkdownOptions.Default</code> has all three on. Raw HTML has no switch, because the
+template can already write it and a renderer that looked like it removed HTML would invite you to
+trust it with a visitor's text.</p>
 
 <h2 id="diff">Diff</h2>
 <p><a href="/admin/reference/sdk#t-IDiffRenderer"><code>IDiffRenderer</code></a> renders the line changes between two strings as HTML. Write its

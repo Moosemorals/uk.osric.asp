@@ -121,10 +121,13 @@ the build:
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
   layout never meets one (`pages-a-layout-is-a-capability`). See [layouts](shell.md#layouts).
 - `IMarkdownRenderer` renders Markdown to HTML with `ToHtml`. It is pure and needs no `await`; its
-  result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus pipe
-  tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
-  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (`pages-markdown`). A table's header
-  cells carry `scope="col"` and no inline style.
+  result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus heading
+  anchors, pipe tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
+  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (`pages-markdown`). A heading
+  carries an `id` derived from its text, with a numbered suffix when two headings share one, so a page
+  can link to a section. `MarkdownOptions` switches the three features per call — an option belongs to
+  the render, not to the shared capability — and `MarkdownOptions.Default` is the page profile. A
+  table's header cells carry `scope="col"` and no inline style.
 - `IDiffRenderer` renders the line changes between two documents with `ToHtml(before, after)`. It
   is pure and needs no `await`, and its result is written with `<%== %>`. Every source line is
   escaped, so unlike Markdown it is safe for a visitor's text, a fetched body or page state: the
