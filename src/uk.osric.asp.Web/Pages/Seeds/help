@@ -84,8 +84,8 @@ API policy applies to it exactly as it does to code in a page.</p>
 <code>IWorker</code> &mdash; a type with a parameterless constructor and a
 <code>RunAsync(IWorkerContext)</code> method &mdash; is a <strong>worker</strong> rather than a library.
 It is compiled and checked when you save it, is never served, and is not a library: a page that names
-its namespace does not compile. A worker is a program a page starts, and the capability that starts one
-arrives with the job runner.</p>
+its namespace does not compile. A worker is a program a page starts, with
+<code>ctx.Capabilities.GetRequired&lt;IPageJobs&gt;()</code>; see <a href="#jobs">Starting a job</a>.</p>
 <p>Libraries live under <code>/_lib/</code> by convention &mdash; the seeded document writer is
 <code>/_lib/document</code> &mdash; so code has a folder of its own in the page list instead of a key a
 visitor might ask for. Nothing refuses a library elsewhere, and its key is never served either way.</p>
@@ -246,6 +246,65 @@ try {
 <p><code>ReadLineAsync()</code> returns <code>null</code> at end of body or after a failure; inspect
 <code>Failure</code> and <code>Truncated</code> after the loop. The host closes streams a page
 leaves open when the render ends or is abandoned.</p>
+
+<h2 id="jobs">Starting a job</h2>
+<p>Some work outlives the request that asked for it: a long answer, a polling loop, anything that should
+keep going if the visitor closes the tab. A <strong>worker</strong> is a stored program for that, and a
+<strong>job</strong> is one run of it. <code>IPageJobs</code> starts one, talks to it, reads what it
+published and stops it:</p>
+<pre class="source" tabindex="0"><code>&lt;% IPageJobs jobs = ctx.Capabilities.GetRequired&lt;IPageJobs&gt;();
+   PageJobStart start = await jobs.StartAsync("/_work/answer", "the question");
+   if (!start.Started) {
+       ctx.Write("Could not start: " + start.Refusal);
+       return;
+   } %&gt;
+&lt;p&gt;Started &lt;%= start.Id %&gt;.&lt;/p&gt;</code></pre>
+<p>Every call answers with a value: <code>start.Started</code> and <code>start.Refusal</code>,
+<code>sent.Sent</code>, and <code>null</code> from <code>GetAsync</code> when the job is unknown or
+another visitor's. <code>ListAsync()</code> lists the jobs this visitor started, which is how a reload
+finds one that is still running. <code>SendAsync(jobId, message)</code> queues a message for the worker,
+and <code>CancelAsync(jobId)</code> asks it to stop at its next <code>await</code>.</p>
+<p><code>ReadEventsAsync(jobId, after, waitSeconds)</code> reads what the worker published. Pass the last
+sequence you saw as <code>after</code>, and it answers the events since then, waiting up to
+<code>waitSeconds</code> for the next one. <code>Next</code> is the sequence to pass back, and
+<code>Reset</code> says the worker published more than the journal kept, so start again from
+<code>Next</code>. A viewer that streams is a page that flushes each batch as server-sent events; see
+<a href="#streaming">Streaming a response</a>.</p>
+<p>The journal is memory, and it is bounded: it keeps the most recent events and drops the oldest, and a
+restart loses every job. A worker that must not lose what it has done writes it to the starting page's
+storage, which the page can read again — that state, not the journal, is the record. A job is never
+offered a layout, a renderer or a page writer, and a <code>HEAD</code> is offered the reads and not the
+ones that start, send or cancel.</p>
+<p>A worker declares exactly one public type implementing <code>IWorker</code> with a parameterless
+constructor. Its <code>RunAsync(IWorkerContext context)</code> gets the job's <code>Id</code>, the
+starting page as <code>Path</code>, its own key as <code>Worker</code>, the owner as
+<code>User</code>, the first message as <code>Input</code>, <code>Aborted</code>,
+<code>Capabilities</code>, three log members, <code>ReceiveAsync</code> for later messages and
+<code>Publish</code> for events:</p>
+<pre class="source" tabindex="0"><code>&lt;%!
+using System.Threading.Tasks;
+
+namespace Site.Work {
+    public sealed class Answer : IWorker {
+        public async Task RunAsync(IWorkerContext context) {
+            IPageStorage storage = context.Capabilities.GetRequired&lt;IPageStorage&gt;();
+            context.Publish("delta", "thinking");
+            await storage.SetAsync("last-question", context.Input ?? "");
+            while (await context.ReceiveAsync(30) is { } message) {
+                context.Publish("delta", message);
+            }
+        }
+    }
+}
+%&gt;</code></pre>
+<p>A worker has no response: it cannot write, flush, redirect or set a status, and it is offered no
+renderer, no writer and no layout. Its storage is the starting page's, so a job and the page that shows
+it share one store; its fetch and catalog are the worker's own, so a credential bound to the worker stays
+the worker's. It asks for those through <code>context.Capabilities</code> exactly as a page does.</p>
+<p>A wait in <code>ReceiveAsync</code> is not silence: it pauses the job's silence clock, so a worker
+waiting for its owner is bounded only by the job's ceiling. A worker that neither publishes nor receives
+for <code>Pages:Jobs:SilenceSeconds</code> is cut, and one that runs longer than
+<code>MaxDurationSeconds</code> is stopped, so a wedged job cannot burn the ceiling.</p>
 
 <h2 id="head-and-scripts">Stylesheets, head and scripts</h2>
 <p>The page's key chooses its initial content type from the host's extension map; an unmapped key is

@@ -94,6 +94,23 @@ internal sealed class FakePageReadStore : IPageReadStore {
     }
 
     /// <inheritdoc/>
+    public async Task<PageReadHead?> GetHeadAsync(string key, CancellationToken cancellationToken = default) {
+        LastCancellationToken = cancellationToken;
+        ReadCount++;
+        await Task.Delay(ReadDelay, cancellationToken);
+
+        if (!_pages.TryGetValue(key, out List<FakeRevision>? revisions)) {
+            return null;
+        }
+
+        FakeRevision latest = revisions[^1];
+
+        return new PageReadHead(
+            key, latest.SavedAt, latest.Hash, _deleted.Contains(key), latest.TemplateKind,
+            latest.RuntimeId, latest.HasImage, latest.HasDiagnostics);
+    }
+
+    /// <inheritdoc/>
     public async Task<PageReadSource?> GetSourceAsync(string key, CancellationToken cancellationToken = default) {
         LastCancellationToken = cancellationToken;
         ReadCount++;

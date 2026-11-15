@@ -88,7 +88,14 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   the commit point: the first flush applies the response, a wrapped page cannot flush, a streamed
   page is served alone, the tail is sent at completion, the body cap stops at the commit, `HEAD`
   writes nothing and a committed exception or deadline truncates rather than answering an error page
-  or a `504`. `PageSaverTests` proves a worker is stored with its image and the library fingerprint
+  or a `504`. `PageJobTests` drives the whole job path with real workers — one writes the starting
+  page's storage, one receives a message the page sent, one waits past the silence clock but not past
+  the ceiling, one is cut for never publishing, one is cancelled at its next await, one throws, one no
+  longer compiles — and pins the refusals, another visitor's job being unknown, a full queue, the
+  journal's reset and its drop of old events. `PageJobRenderTests` proves what a render is offered:
+  the capability for a page, nothing for a layout, and the reads but not the writes for a `HEAD`;
+  `PageJobOptionsTests` the shipped, overridden and refused values.
+  `PageSaverTests` proves a worker is stored with its image and the library fingerprint
   that rebuilds it when that library moves, and that neither a page nor a library may name one; the
   endpoint, the listing, the catalog's marks and the image state each say "worker" in their own
   fixture. `PageFetcherTests` covers the outbound text stream's chunk and UTF-8 line decoding,

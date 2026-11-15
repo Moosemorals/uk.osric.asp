@@ -304,7 +304,13 @@ decision. `IPageWriter` is not offered: a job keeps data, not code, and the auth
 the port's question. Rejected: one key for all three (either the worker owns the page's data or the
 page owns the worker's credential); giving the worker a renderer (it would be formatting a document
 nobody receives); an `IContext` (a job looks like a visitor's request and is handed a response nobody
-receives); no capabilities at all.
+receives); no capabilities at all; constructor injection into the worker
+(`IWorkerContext.Capabilities` is the seam that reaches the four, so a second route to the same four
+would be the one the gate cannot see — `check-pages` compiles a worker and never constructs one — while
+a closed allow-list of parameters would be a parallel capability seam with a hidden resolution order
+and no refusal to report. It would also raise a question the collectible load context cannot answer:
+what lifetime an injected instance has, when the assembly is unloaded at the end of the job. A worker
+that wants an object graph constructs one, because it is ordinary C#).
 
 **D15 — a worker's image is a page's mechanics without a handler.** The worker's source and its
 `using` closure are policy-checked and emitted at save, and the image and symbols are stored on the

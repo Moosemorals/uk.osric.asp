@@ -41,9 +41,9 @@ registered or absent, never `null` (DEC-142). The type that declares them is `IP
 the old `Features` spelling was removed once its release was over, so a page that still says
 `ctx.Features` no longer compiles (DEC-228, DEC-254).
 
-Ten capabilities are registered today — six that do I/O and are bounded by the render, one that is
-the page's slots in its document, two that are pure renderers, and one that is a fact about the
-build:
+Eleven capabilities are registered today — seven that do I/O or work and are bounded by the render,
+one that is the page's slots in its document, two that are pure renderers, and one that is a fact about
+the build:
 
 - `IBuildInfo` says which build is answering: `Commit` is the full git commit hash, or `null` when
   the build did not come from a checkout. It is a capability because the page API denies both the
@@ -77,6 +77,15 @@ build:
   the credential is bound to, and the page never reads the value. An unknown name is an
   `InvalidRequest` (DEC-230). Response headers use `Pages:Fetch:TimeoutSeconds`; a stream's body
   also has independent `StreamSilenceSeconds`, `StreamMaxSeconds` and `MaxStreamBytes` limits.
+- `IPageJobs` starts a **worker** as a **job**, talks to it, reads what it published and stops it.
+  A job outlives the request that started it, so it has no response and no visitor waiting on it: it
+  is work a page can start, watch and cancel. `StartAsync(workerKey, firstMessage)` answers a
+  `PageJobStart` whose `Refusal` says why a key that is not a worker, a reserved key, an anonymous
+  render or a full queue was refused; `SendAsync`, `GetAsync`, `ListAsync`, `ReadEventsAsync` and
+  `CancelAsync` are the rest. Every call is filtered to the signed-in visitor the render was bound to,
+  so another account's job is an unknown one rather than a refusal that says it exists (DEC-190). A
+  `HEAD` is offered the reads and not the start, send or cancel, and a layout is offered nothing.
+  See [jobs](#jobs).
 - `IPageCatalog` reads the page store: `ListAsync(prefix)` lists the heads under a subtree,
   `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a page's history and
   `ReadRevisionAsync(key, hash)` reads one retained revision. Each `PageEntry` marks the head
@@ -231,6 +240,50 @@ try {
 `Truncated` after the read loop. The host closes any stream a page leaves open when the render ends
 or is abandoned. The example uses `WriteRaw` because this response is SSE, not HTML; each upstream
 line is framed as an SSE `data` field.
+
+### Jobs
+
+A **worker** is a stored source whose only blocks are declarations and which declares exactly one
+public type implementing `IWorker` with a parameterless constructor; it is compiled when it is saved
+and never served (see [assets and versioned URLs](#assets-and-versioned-urls)). A **job** is one run
+of one, started by a page:
+
+```html
+<%
+IPageJobs jobs = ctx.Capabilities.GetRequired<IPageJobs>();
+PageJobStart start = await jobs.StartAsync("/_work/answer", "the question");
+if (!start.Started) { ctx.Write("Could not start: " + start.Refusal); return; }
+%>
+<p>Started <%= start.Id %>.</p>
+```
+
+The job takes a job slot rather than a render slot, because it is answering nobody: `Pages:Jobs`
+bounds how many wait (`QueueCapacity`), how many run (`MaxConcurrent`), how long one may be quiet
+(`SilenceSeconds`), how long one may live (`MaxDurationSeconds`), what it may be sent
+(`MaxMessageBytes`, `MaxPendingMessages`), and what its journal keeps (`MaxEvents`, `MaxEventBytes`,
+`RetentionMinutes`). The runner gives each job its own scope and load context and unloads the
+worker's assembly when the job ends; a worker whose library moved is compiled again before it runs.
+
+The running worker gets an `IWorkerContext`, which is deliberately not an `IContext`: `Id`, `Path`
+(the starting page), `Worker`, `User`, `Input`, `Aborted`, `Capabilities`, `Log`/`LogWarning`/
+`LogError`, `ReceiveAsync` and `Publish(type, dataJson)`. Its `Capabilities` offer `IPageStorage`
+bound to the **starting page** — the data, so the job and the view that shows it share one store —
+and `IHttpFetch`, `IPageCatalog` and `IPageJobs` bound to the **worker** — the code, so a credential
+bound to the worker stays the worker's. A worker is offered no `IMarkdownRenderer`, no `IPageWriter`
+and no `IPageLayout`: it publishes text or JSON, and the page renders it.
+
+`ReceiveAsync(waitSeconds)` pauses the silence clock while it waits, so a worker waiting for its
+owner is bounded by the ceiling rather than by silence; a timed wait returns and the clock resumes,
+which is how a worker does periodic work without a sleep primitive. A worker that neither publishes
+nor receives for `SilenceSeconds` is cut, and one that outlives `MaxDurationSeconds` is stopped.
+`CancelAsync` ends a job at its next `await`, and the host stopping does the same.
+
+The journal is in memory, bounded and replayable: `ReadEventsAsync(jobId, after, waitSeconds)` answers
+the events after a sequence, waits briefly for the next one, and reports `Reset` when the caller's
+sequence has been dropped — the view starts again from `Next` rather than treat the gap as delivered.
+A restart loses every job and every event; a worker that must not lose what it has done writes it to
+the starting page's storage, and that state is the record. A page that finds its own state says
+running while `GetAsync` returns `null` knows the host restarted.
 
 ## Assets and versioned URLs
 

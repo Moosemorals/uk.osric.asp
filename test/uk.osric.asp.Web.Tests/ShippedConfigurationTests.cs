@@ -19,6 +19,7 @@ public sealed class ShippedConfigurationTests {
             Assert.That(() => RenderOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => CompileOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => StreamOptions.FromConfiguration(configuration), Throws.Nothing);
+            Assert.That(() => PageJobOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => PageStorageOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => PageSessionOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => PageFetchOptions.FromConfiguration(configuration), Throws.Nothing);

@@ -31,6 +31,9 @@ internal static class TestOptions {
     /// <summary>The stream limits the site ships with.</summary>
     public static StreamOptions Stream { get; } = StreamOptions.FromConfiguration(Configuration);
 
+    /// <summary>The job bounds the site ships with.</summary>
+    public static PageJobOptions Jobs { get; } = PageJobOptions.FromConfiguration(Configuration);
+
     /// <summary>The page store's limits.</summary>
     public static PageStorageOptions Storage { get; } = PageStorageOptions.FromConfiguration(Configuration);
 

@@ -165,6 +165,13 @@ pinned with `?v=`, and a library is compiled into the pages that name it. **Owne
 `PageKind`, `PageAssetPolicy.IsLibrary`, the library shape rule in `PageApiChecker`, and the closure
 in `PageCompiler`.
 
+## Job
+One run of a stored **worker**, started by a page through `IPageJobs` and owned by the signed-in
+visitor who started it. It has a job slot of its own rather than a render slot, a silence clock
+re-armed by everything it publishes or receives, and a ceiling; its events live in an in-memory,
+bounded journal a viewer reads by sequence, and the starting page's storage is what it must write to
+be sure of keeping. A job is never a request: it has no response, no layout and no visitor waiting.
+
 ## Worker
 A stored source whose only blocks are declarations and which declares exactly one entry point: a
 public type implementing `IWorker` with a parameterless constructor. It is compiled to an assembly

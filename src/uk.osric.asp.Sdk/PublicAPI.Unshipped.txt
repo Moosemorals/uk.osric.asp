@@ -246,3 +246,127 @@ uk.osric.asp.Sdk.IWorkerContext.User.get -> uk.osric.asp.Sdk.PageUser!
 uk.osric.asp.Sdk.IWorkerContext.Worker.get -> string!
 uk.osric.asp.Sdk.PageEntry.IsWorker.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsWorker.init -> void
+override uk.osric.asp.Sdk.PageJobEvent.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageJobEvent.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageJobEvent.ToString() -> string!
+override uk.osric.asp.Sdk.PageJobEvents.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageJobEvents.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageJobEvents.ToString() -> string!
+override uk.osric.asp.Sdk.PageJobInfo.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageJobInfo.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageJobInfo.ToString() -> string!
+override uk.osric.asp.Sdk.PageJobSendResult.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageJobStart.GetHashCode() -> int
+static uk.osric.asp.Sdk.PageJobEvent.operator !=(uk.osric.asp.Sdk.PageJobEvent? left, uk.osric.asp.Sdk.PageJobEvent? right) -> bool
+static uk.osric.asp.Sdk.PageJobEvent.operator ==(uk.osric.asp.Sdk.PageJobEvent? left, uk.osric.asp.Sdk.PageJobEvent? right) -> bool
+static uk.osric.asp.Sdk.PageJobEvents.operator !=(uk.osric.asp.Sdk.PageJobEvents? left, uk.osric.asp.Sdk.PageJobEvents? right) -> bool
+static uk.osric.asp.Sdk.PageJobEvents.operator ==(uk.osric.asp.Sdk.PageJobEvents? left, uk.osric.asp.Sdk.PageJobEvents? right) -> bool
+static uk.osric.asp.Sdk.PageJobInfo.operator !=(uk.osric.asp.Sdk.PageJobInfo? left, uk.osric.asp.Sdk.PageJobInfo? right) -> bool
+static uk.osric.asp.Sdk.PageJobInfo.operator ==(uk.osric.asp.Sdk.PageJobInfo? left, uk.osric.asp.Sdk.PageJobInfo? right) -> bool
+static uk.osric.asp.Sdk.PageJobSendResult.operator !=(uk.osric.asp.Sdk.PageJobSendResult left, uk.osric.asp.Sdk.PageJobSendResult right) -> bool
+static uk.osric.asp.Sdk.PageJobSendResult.operator ==(uk.osric.asp.Sdk.PageJobSendResult left, uk.osric.asp.Sdk.PageJobSendResult right) -> bool
+static uk.osric.asp.Sdk.PageJobStart.operator !=(uk.osric.asp.Sdk.PageJobStart left, uk.osric.asp.Sdk.PageJobStart right) -> bool
+static uk.osric.asp.Sdk.PageJobStart.operator ==(uk.osric.asp.Sdk.PageJobStart left, uk.osric.asp.Sdk.PageJobStart right) -> bool
+uk.osric.asp.Sdk.IPageJobs
+uk.osric.asp.Sdk.IPageJobs.CancelAsync(string! jobId) -> System.Threading.Tasks.Task<bool>!
+uk.osric.asp.Sdk.IPageJobs.GetAsync(string! jobId) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobInfo?>!
+uk.osric.asp.Sdk.IPageJobs.ListAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageJobInfo!>!>!
+uk.osric.asp.Sdk.IPageJobs.ReadEventsAsync(string! jobId, long after = 0, double? waitSeconds = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobEvents!>!
+uk.osric.asp.Sdk.IPageJobs.SendAsync(string! jobId, string! message) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobSendResult>!
+uk.osric.asp.Sdk.IPageJobs.StartAsync(string! workerKey, string? firstMessage) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobStart>!
+uk.osric.asp.Sdk.IWorkerContext.Aborted.get -> System.Threading.CancellationToken
+uk.osric.asp.Sdk.IWorkerContext.Capabilities.get -> uk.osric.asp.Sdk.IPageCapabilities!
+uk.osric.asp.Sdk.IWorkerContext.Id.get -> string!
+uk.osric.asp.Sdk.IWorkerContext.Input.get -> string?
+uk.osric.asp.Sdk.IWorkerContext.Log(string! message) -> void
+uk.osric.asp.Sdk.IWorkerContext.LogError(string! message) -> void
+uk.osric.asp.Sdk.IWorkerContext.LogWarning(string! message) -> void
+uk.osric.asp.Sdk.IWorkerContext.Path.get -> string!
+uk.osric.asp.Sdk.IWorkerContext.Publish(string! type, string! dataJson) -> void
+uk.osric.asp.Sdk.IWorkerContext.ReceiveAsync(double? waitSeconds = null) -> System.Threading.Tasks.Task<string?>!
+uk.osric.asp.Sdk.PageJobEvent
+uk.osric.asp.Sdk.PageJobEvent.<Clone>$() -> uk.osric.asp.Sdk.PageJobEvent!
+uk.osric.asp.Sdk.PageJobEvent.Data.get -> string!
+uk.osric.asp.Sdk.PageJobEvent.Data.init -> void
+uk.osric.asp.Sdk.PageJobEvent.Deconstruct(out long Sequence, out string! Type, out string! Data) -> void
+uk.osric.asp.Sdk.PageJobEvent.Equals(uk.osric.asp.Sdk.PageJobEvent? other) -> bool
+uk.osric.asp.Sdk.PageJobEvent.PageJobEvent(long Sequence, string! Type, string! Data) -> void
+uk.osric.asp.Sdk.PageJobEvent.Sequence.get -> long
+uk.osric.asp.Sdk.PageJobEvent.Sequence.init -> void
+uk.osric.asp.Sdk.PageJobEvent.Type.get -> string!
+uk.osric.asp.Sdk.PageJobEvent.Type.init -> void
+uk.osric.asp.Sdk.PageJobEvents
+uk.osric.asp.Sdk.PageJobEvents.<Clone>$() -> uk.osric.asp.Sdk.PageJobEvents!
+uk.osric.asp.Sdk.PageJobEvents.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageJobEvent!>! Events, out long Next, out bool Reset, out uk.osric.asp.Sdk.PageJobState? State, out string? Failure) -> void
+uk.osric.asp.Sdk.PageJobEvents.Equals(uk.osric.asp.Sdk.PageJobEvents? other) -> bool
+uk.osric.asp.Sdk.PageJobEvents.Events.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageJobEvent!>!
+uk.osric.asp.Sdk.PageJobEvents.Events.init -> void
+uk.osric.asp.Sdk.PageJobEvents.Failure.get -> string?
+uk.osric.asp.Sdk.PageJobEvents.Failure.init -> void
+uk.osric.asp.Sdk.PageJobEvents.Next.get -> long
+uk.osric.asp.Sdk.PageJobEvents.Next.init -> void
+uk.osric.asp.Sdk.PageJobEvents.PageJobEvents(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageJobEvent!>! Events, long Next, bool Reset, uk.osric.asp.Sdk.PageJobState? State, string? Failure) -> void
+uk.osric.asp.Sdk.PageJobEvents.Reset.get -> bool
+uk.osric.asp.Sdk.PageJobEvents.Reset.init -> void
+uk.osric.asp.Sdk.PageJobEvents.State.get -> uk.osric.asp.Sdk.PageJobState?
+uk.osric.asp.Sdk.PageJobEvents.State.init -> void
+uk.osric.asp.Sdk.PageJobInfo
+uk.osric.asp.Sdk.PageJobInfo.<Clone>$() -> uk.osric.asp.Sdk.PageJobInfo!
+uk.osric.asp.Sdk.PageJobInfo.Deconstruct(out string! Id, out string! Worker, out string! Path, out uk.osric.asp.Sdk.PageJobState State, out System.DateTimeOffset StartedAt, out System.DateTimeOffset? EndedAt, out string? Failure) -> void
+uk.osric.asp.Sdk.PageJobInfo.EndedAt.get -> System.DateTimeOffset?
+uk.osric.asp.Sdk.PageJobInfo.EndedAt.init -> void
+uk.osric.asp.Sdk.PageJobInfo.Equals(uk.osric.asp.Sdk.PageJobInfo? other) -> bool
+uk.osric.asp.Sdk.PageJobInfo.Failure.get -> string?
+uk.osric.asp.Sdk.PageJobInfo.Failure.init -> void
+uk.osric.asp.Sdk.PageJobInfo.Id.get -> string!
+uk.osric.asp.Sdk.PageJobInfo.Id.init -> void
+uk.osric.asp.Sdk.PageJobInfo.PageJobInfo(string! Id, string! Worker, string! Path, uk.osric.asp.Sdk.PageJobState State, System.DateTimeOffset StartedAt, System.DateTimeOffset? EndedAt, string? Failure) -> void
+uk.osric.asp.Sdk.PageJobInfo.Path.get -> string!
+uk.osric.asp.Sdk.PageJobInfo.Path.init -> void
+uk.osric.asp.Sdk.PageJobInfo.StartedAt.get -> System.DateTimeOffset
+uk.osric.asp.Sdk.PageJobInfo.StartedAt.init -> void
+uk.osric.asp.Sdk.PageJobInfo.State.get -> uk.osric.asp.Sdk.PageJobState
+uk.osric.asp.Sdk.PageJobInfo.State.init -> void
+uk.osric.asp.Sdk.PageJobInfo.Worker.get -> string!
+uk.osric.asp.Sdk.PageJobInfo.Worker.init -> void
+uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.Anonymous = 1 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.Ended = 9 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.InvalidKey = 3 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.MessageTooLarge = 11 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.None = 0 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.NotAWorker = 6 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.QueueFull = 7 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.ReadOnly = 2 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.OwnedBySite = 4 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.TooManyMessages = 10 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.UnknownJob = 8 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.UnknownWorker = 5 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobSendResult
+uk.osric.asp.Sdk.PageJobSendResult.Deconstruct(out uk.osric.asp.Sdk.PageJobRefusal Refusal) -> void
+uk.osric.asp.Sdk.PageJobSendResult.Equals(uk.osric.asp.Sdk.PageJobSendResult other) -> bool
+uk.osric.asp.Sdk.PageJobSendResult.PageJobSendResult() -> void
+uk.osric.asp.Sdk.PageJobSendResult.PageJobSendResult(uk.osric.asp.Sdk.PageJobRefusal Refusal) -> void
+uk.osric.asp.Sdk.PageJobSendResult.Refusal.get -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobSendResult.Refusal.init -> void
+uk.osric.asp.Sdk.PageJobSendResult.Sent.get -> bool
+uk.osric.asp.Sdk.PageJobStart
+uk.osric.asp.Sdk.PageJobStart.Deconstruct(out string? Id, out uk.osric.asp.Sdk.PageJobRefusal Refusal) -> void
+uk.osric.asp.Sdk.PageJobStart.Equals(uk.osric.asp.Sdk.PageJobStart other) -> bool
+uk.osric.asp.Sdk.PageJobStart.Id.get -> string?
+uk.osric.asp.Sdk.PageJobStart.Id.init -> void
+uk.osric.asp.Sdk.PageJobStart.PageJobStart() -> void
+uk.osric.asp.Sdk.PageJobStart.PageJobStart(string? Id, uk.osric.asp.Sdk.PageJobRefusal Refusal) -> void
+uk.osric.asp.Sdk.PageJobStart.Refusal.get -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobStart.Refusal.init -> void
+uk.osric.asp.Sdk.PageJobStart.Started.get -> bool
+uk.osric.asp.Sdk.PageJobState
+uk.osric.asp.Sdk.PageJobState.Cancelled = 4 -> uk.osric.asp.Sdk.PageJobState
+uk.osric.asp.Sdk.PageJobState.Completed = 2 -> uk.osric.asp.Sdk.PageJobState
+uk.osric.asp.Sdk.PageJobState.Failed = 3 -> uk.osric.asp.Sdk.PageJobState
+uk.osric.asp.Sdk.PageJobState.Queued = 0 -> uk.osric.asp.Sdk.PageJobState
+uk.osric.asp.Sdk.PageJobState.Running = 1 -> uk.osric.asp.Sdk.PageJobState
+~override uk.osric.asp.Sdk.PageJobSendResult.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageJobSendResult.ToString() -> string
+~override uk.osric.asp.Sdk.PageJobStart.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageJobStart.ToString() -> string

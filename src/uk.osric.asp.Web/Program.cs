@@ -28,6 +28,7 @@ using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
 using uk.osric.asp.Web.Users;
+using uk.osric.asp.Web.Work;
 
 // Not static: WebApplicationFactory<Program> needs a type to name when it looks for the entry point.
 // Internal, like the rest of the shell; the integration tests reach it through InternalsVisibleTo.
@@ -92,6 +93,7 @@ internal class Program {
         PageEditorOptions editor = PageEditorOptions.FromConfiguration(settings.At("Pages:Editor"));
         RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
         StreamOptions stream = StreamOptions.FromConfiguration(settings.At("Pages:Stream"));
+        PageJobOptions jobOptions = PageJobOptions.FromConfiguration(settings.At("Pages:Jobs"));
         PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
         PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
         PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
@@ -160,6 +162,7 @@ internal class Program {
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton(render);
         builder.Services.AddSingleton(stream);
+        builder.Services.AddSingleton(jobOptions);
         builder.Services.AddSingleton(contentTypes);
         builder.Services.AddSingleton(storage);
         builder.Services.AddSingleton(session);
@@ -203,7 +206,8 @@ internal class Program {
             services.GetRequiredService<DiffRenderer>(),
             services.GetRequiredService<PageSessionOptions>(),
             services.GetRequiredService<IPageSessionStore>(),
-            services.GetRequiredService<PageSessionCookieOptions>()));
+            services.GetRequiredService<PageSessionCookieOptions>(),
+            services.GetRequiredService<PageJobs>()));
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
         // Registered whether or not the assistant is enabled: the tables are migrated either way, and
@@ -230,6 +234,28 @@ internal class Program {
         builder.Services.AddSingleton<PageSaver>();
         builder.Services.AddSingleton<PageImageBuilder>();
         builder.Services.AddScoped<PageRenderer>();
+
+        // The jobs: a queue a start is written to, a registry in memory, and a runner that gives each
+        // one a scope of its own and unloads its assembly when it ends.
+        builder.Services.AddSingleton<PageJobQueue>();
+        builder.Services.AddSingleton<PageJobs>();
+        builder.Services.AddSingleton<IWorkerStore, ScopedWorkerStore>();
+        builder.Services.AddSingleton(services => new PageJobEnvironment(
+            services.GetRequiredService<PageJobOptions>(),
+            services.GetRequiredService<IWorkerStore>(),
+            services.GetRequiredService<IPageStateStore>(),
+            services.GetRequiredService<PageStorageOptions>(),
+            services.GetRequiredService<IPageFetcher>(),
+            services.GetRequiredService<PageFetchOptions>(),
+            services.GetRequiredService<IPageReadStore>(),
+            services.GetRequiredService<PageReadOptions>(),
+            services.GetRequiredService<ReservedPaths>(),
+            services.GetRequiredService<PageContentTypes>(),
+            services.GetRequiredService<PageImageBuilder>(),
+            services.GetRequiredService<PageLibraries>(),
+            services.GetRequiredService<IPageCompiler>(),
+            services.GetRequiredService<PageMetrics>()));
+        builder.Services.AddHostedService<PageJobRunner>();
 
         if (assistantEnabled) {
             builder.Services.AddHostedService<RunWorker>();

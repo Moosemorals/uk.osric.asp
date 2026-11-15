@@ -86,6 +86,36 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
     }
 
     /// <inheritdoc/>
+    public async Task<PageReadHead?> GetHeadAsync(string key, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(key);
+
+        await using StorageDbContext database = contexts.CreateDbContext();
+
+        var row = await database.Set<PageHead>().AsNoTracking()
+            .Where(head => head.Path == key)
+            .Join(database.Set<PageRevision>().AsNoTracking(),
+                head => new { head.RevisionId, head.Path },
+                revision => new { revision.RevisionId, revision.Path },
+                (head, revision) => new {
+                    head.Path,
+                    head.IsDeleted,
+                    revision.SavedAt,
+                    revision.Hash,
+                    revision.TemplateKind,
+                    revision.RuntimeId,
+                    HasImage = revision.Image != null,
+                    HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
+                })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return row is null
+            ? null
+            : new PageReadHead(
+                row.Path, row.SavedAt, row.Hash, row.IsDeleted, row.TemplateKind,
+                row.RuntimeId, row.HasImage, row.HasDiagnostics);
+    }
+
+    /// <inheritdoc/>
     public async Task<PageReadSource?> GetSourceAsync(string key, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(key);
 

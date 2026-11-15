@@ -99,6 +99,8 @@ the unit of work, so a line from a worker is as attributable as a line from a re
 
 - `RunWorker`/`RunProcessor`: `RunId`, `ConversationId`, `UserName`, and `Model` once known.
 - `ImportWorker`/`ImportProcessor`: `StageId`.
+- `PageJobRunner` (a job): `JobId`, `Worker` and the starting page as `Page`. A job outlives the
+  request, so its lines are found by the job rather than by a `RequestId` that is already gone.
 - `SimpleContext` (page code): `Page {Path}` around each message.
 
 **What does not go in a scope.** A scope is not a dumping ground for the request: bodies, headers,
@@ -135,6 +137,7 @@ query strings, page source, prompts and reasoning are never in one. Nor is anyth
 | `PageEndpoint`/`PageRenderer` | render outcomes worth knowing (abandoned, timed out, a stream truncated and why); the rest is metrics |
 | `PageImageBuilder`/`PageCompiler` | compile faults (Error); compile timeouts (Warning); the generated source of a failure (Debug) |
 | `EditorEndpoint`/`PageEditor` | saves (Information); a scrub that did not complete (Error) |
+| `PageJobs`/`PageJobRunner` | a start, a stop and a job's end (Information); a refusal and a job that failed or was cut (Warning) |
 | `Authentication` | sign-in, failed sign-in, sign-out (Information); a ticket that would not be deleted (Warning) |
 | `Admin` | imports and exports (Information); a compiler fault during an import (Error); a rejected archive (Debug) |
 | `Assistant` | run start and finish (Information); provider and tool failures (Warning); a run that escaped (Error) |
