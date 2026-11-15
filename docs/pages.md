@@ -299,15 +299,22 @@ no image.
 
 A page with no code is never compiled. Generation reads the tokens it already produced, and a
 template made only of text has nothing to compile: the revision is stored with no image, its kind is
-text, and every request writes the stored source out byte for byte.
+text, and every request writes the stored source out byte for byte, less any comment it holds.
 Such a page has only the template-shape warnings `TemplateShapeCheck` can find without compiling
 (`pages-the-shape-check`); a clean text page has none.
+
+A **comment**, `<%# … %>`, counts as neither code nor text: it writes no output, it is emitted into
+no generated source, it makes no page a page and no library a page, and it never reaches a visitor —
+a text page's body is its source with every comment construct removed (`TemplateComments`), and a
+page's body never contained it. Its braces are not the page's braces, so a note that mentions `{` is
+not an unbalanced one.
 
 A no-code page is a complete representation: it is never wrapped, so its stored source is the
 response even for an HTML key. It gets no banner, no skip link, no base sheet and no title
 requirement; if it wants chrome, it adds a code block and becomes a fragment.
 
-A **library** is a template whose only tokens are declaration blocks. It has nothing to render, so it
+A **library** is a template whose only tokens are declaration blocks, plus any comment and any
+whitespace between them. It has nothing to render, so it
 is never served: its key answers `404` and it is never an asset, never pinned with `?v=` and never
 wrapped. It is checked when it is saved — Roslyn analyses it and the diagnostics are stored beside the
 source, with no assembly — and a page API violation inside it is reported at the library's own line

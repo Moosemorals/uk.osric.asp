@@ -343,6 +343,12 @@ in a page's own markup. Rewriting rendered HTML is not something the host does.<
     <dt><code>&lt;%! %&gt;</code></dt>
     <dd>Declarations, such as <code>using</code> directives and types of the page's own. They are
     hoisted above the handler and keep their template order.</dd>
+    <dt><code>&lt;%# %&gt;</code></dt>
+    <dd>A comment: a note to yourself that writes no output and never reaches the visitor. It counts
+    as neither code nor text, so a page of text and comments has no code and is served with the
+    comments removed, and a library that carries one is still a library. <code>&lt;% /* … */ %&gt;</code>
+    is a C# comment inside a code block instead, which makes the template code — the two are not
+    interchangeable.</dd>
 </dl>
 <pre class="source" tabindex="0"><code>&lt;h1&gt;Hello&lt;/h1&gt;
 &lt;p&gt;You asked for &lt;%= ctx.Path %&gt;.&lt;/p&gt;

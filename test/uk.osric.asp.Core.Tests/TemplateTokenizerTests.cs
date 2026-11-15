@@ -232,4 +232,64 @@ public sealed class TemplateTokenizerTests {
             new(TokenType.Code, "complete", new TemplatePosition(1, 3)),
         }));
     }
+
+    [TestCase("", "<%#%>")]
+    [TestCase(" a note ", "<%# a note %>")]
+    [TestCase(" \r\nnote\r\n ", "<%# \r\nnote\r\n %>")]
+    public void ACommentBlockIsACommentToken(string expected, string input) {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Comment, expected, new TemplatePosition(1, 4)),
+        }));
+    }
+
+    [Test]
+    public void ACommentKeepsItsPlaceAndDoesNotDisturbWhatFollows() {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("before<%# note %>between<% first(); %>after").Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Text, "before", new TemplatePosition(1, 1)),
+            new(TokenType.Comment, " note ", new TemplatePosition(1, 10)),
+            new(TokenType.Text, "between", new TemplatePosition(1, 18)),
+            new(TokenType.Code, " first(); ", new TemplatePosition(1, 27)),
+            new(TokenType.Text, "after", new TemplatePosition(1, 39)),
+        }));
+    }
+
+    [Test]
+    public void ClosingDelimiterEndsACommentAndTheRestIsText() {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("before<%# note %>after").Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Text, "before", new TemplatePosition(1, 1)),
+            new(TokenType.Comment, " note ", new TemplatePosition(1, 10)),
+            new(TokenType.Text, "after", new TemplatePosition(1, 18)),
+        }));
+    }
+
+    [TestCase("<% #if DEBUG %>")]
+    [TestCase("<%\t#if DEBUG %>")]
+    [TestCase("<%\n#if DEBUG %>")]
+    public void AHashIsACommentOnlyWhenAdjacentToTheOpener(string input) {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Code, input[2..^2], new TemplatePosition(1, 3)),
+        }));
+    }
+
+    [TestCase("<%#", 1, 1)]
+    [TestCase("<%#>", 1, 1)]
+    [TestCase("before<%# a note", 1, 7)]
+    [TestCase("line one\r\n<%# a note", 2, 1)]
+    public void AnUnterminatedCommentBlockIsReportedAtItsOpeningDelimiter(string input, int line, int column) {
+        TokenizeResult result = TemplateTokenizer.Tokenize(input);
+
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Errors, Is.EqualTo(new PageDiagnostic[] {
+            new(PageDiagnosticSeverity.Error, new TemplatePosition(line, column),
+                "TEMPLATE001: unterminated comment block; the '<%#' has no matching '%>'."),
+        }));
+    }
 }

@@ -7,6 +7,7 @@ namespace uk.osric.asp.Core.Compilation;
 internal enum TokenType {
     Text,
     Code,
+    Comment,
     Declaration,
     Write,
     WriteRaw,

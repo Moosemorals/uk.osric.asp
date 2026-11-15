@@ -37,6 +37,10 @@ rules are still the built-in grammar's, reached through `source.cs#…` includes
 and identifiers are ours, because `<% // note %>` must stop at the delimiter and the C# grammar's
 keyword rules are spread across its statement and expression rules.
 
+`<%# note %>` is the template's own comment, and it is a block of its own rather than C#: the rule
+takes the whole construct as `comment.block.asp`. `asp-injection.html` includes it too, so a note
+inside an HTML attribute is coloured as the comment it is rather than as markup.
+
 `asp-injection.html` applies the same block rules inside HTML attribute strings, so
 `href="<%= x %>"` highlights too. `injectTo` keeps it out of every other HTML file.
 

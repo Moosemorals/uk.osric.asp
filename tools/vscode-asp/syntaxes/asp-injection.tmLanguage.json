@@ -4,6 +4,9 @@
   "injectionSelector": "L:string.quoted.double.html - meta.embedded.block.asp, L:string.quoted.single.html - meta.embedded.block.asp",
   "patterns": [
     {
+      "include": "text.html.asp#asp-comment"
+    },
+    {
       "include": "text.html.asp#asp-raw-write"
     },
     {

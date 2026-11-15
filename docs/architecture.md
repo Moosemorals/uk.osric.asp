@@ -45,8 +45,8 @@ Nothing the author types is an exception either. A template that does not parse 
 `PageDiagnostic`, so it is stored beside the source exactly like a compile error: the editor shows
 it, the page answers "Handler failed to compile.", and it is not recompiled on every request.
 
-A template is text, `<% %>` code blocks, `<%! %>` declaration blocks, and expression blocks:
-`<%= expression %>` writes a string through `ctx.Write` (HTML-encoded), while
+A template is text, `<% %>` code blocks, `<%! %>` declaration blocks, `<%# %>` comments, and
+expression blocks: `<%= expression %>` writes a string through `ctx.Write` (HTML-encoded), while
 `<%== expression %>` uses `ctx.WriteRaw` (unencoded). Expressions must be strings; convert other
 values explicitly, such as with `.ToString()`. The generator emits the corresponding call, trimming
 expression edges and removing at most one trailing semicolon. Declarations are hoisted above
@@ -54,6 +54,12 @@ expression edges and removing at most one trailing semicolon. Declarations are h
 its whole body. Declarations are compile-time only: they write no output and are never conditional,
 even inside an `if` in the template. Template order is also the using order, so a `using` written
 after a type is `CS1529` on the line that wrote it.
+
+A comment is a note to nobody, and it is the one construct that is neither code nor text: it writes
+no output, it does not make a no-code page a page or a library a page, and it is removed from the
+body a no-code page serves, because that body is its source (`TemplateComments`). `<%#` is the only
+comment form; `<% /* … */ %>` is C# inside a code block and makes the template code. A block ends at
+the first `%>` whatever it holds, so a comment cannot mention one.
 
 Diagnostics live in template space: `PageDiagnostic.Position` is a 1-based `TemplatePosition` in the
 page the author typed, or `null` when there is no position. The generator wraps each code block in
@@ -79,7 +85,7 @@ and the logs quote them:
 
 | Code | Raised by | Means |
 | --- | --- | --- |
-| `TEMPLATE001` | `TemplateTokenizer` | a statement, escaped-write, raw-write or declaration opener has no `%>` |
+| `TEMPLATE001` | `TemplateTokenizer` | a statement, escaped-write, raw-write, declaration or comment opener has no `%>` |
 | `TEMPLATE002` | `TemplateSourceGenerator` | a `<%=` or `<%==` expression is empty |
 | `TEMPLATE003` | `TemplateShapeCheck` | literal text holds a `%>` with no matching `<%` |
 | `TEMPLATE004` | `TemplateShapeCheck` | a `{` in page code is never closed |

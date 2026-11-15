@@ -48,11 +48,11 @@ public static class TemplateShapeCheck {
 
     // Braces may open in one block and close in another: that is how an if or foreach wraps markup.
     // The stack therefore runs across the whole template, and only what is still open at the end is
-    // unbalanced.
+    // unbalanced. A comment holds prose rather than code, so its braces are not counted either way.
     private static void AddUnbalancedBraces(IReadOnlyList<Token> tokens, List<PageDiagnostic> diagnostics) {
         Stack<TemplatePosition> openings = [];
         foreach (Token token in tokens) {
-            if (token.Type != TokenType.Text) {
+            if (token.Type is not (TokenType.Text or TokenType.Comment)) {
                 Scan(token, openings, diagnostics);
             }
         }

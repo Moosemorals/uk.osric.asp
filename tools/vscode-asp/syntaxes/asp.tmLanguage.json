@@ -3,6 +3,9 @@
   "scopeName": "text.html.asp",
   "patterns": [
     {
+      "include": "#asp-comment"
+    },
+    {
       "include": "#asp-raw-write"
     },
     {
@@ -19,6 +22,24 @@
     }
   ],
   "repository": {
+    "asp-comment": {
+      "begin": "(<%)(#)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.begin.asp"
+        },
+        "2": {
+          "name": "punctuation.section.embedded.operator.asp"
+        }
+      },
+      "end": "(%>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.end.asp"
+        }
+      },
+      "contentName": "comment.block.asp"
+    },
     "asp-raw-write": {
       "begin": "(<%)(==)",
       "beginCaptures": {

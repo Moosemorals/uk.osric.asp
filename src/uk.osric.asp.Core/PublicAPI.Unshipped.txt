@@ -716,3 +716,5 @@ static uk.osric.asp.Core.Pages.PageTree.FoldersAbove(string! key) -> System.Coll
 uk.osric.asp.Core.Compilation.PageDiagnostic.Source.get -> string?
 uk.osric.asp.Core.Compilation.PageDiagnostic.Source.init -> void
 uk.osric.asp.Core.Pages.PageKind.Worker = 3 -> uk.osric.asp.Core.Pages.PageKind
+uk.osric.asp.Core.Compilation.TemplateComments
+static uk.osric.asp.Core.Compilation.TemplateComments.Remove(string! template) -> string!

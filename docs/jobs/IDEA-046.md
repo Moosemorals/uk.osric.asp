@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Size | S — a token type, one opener in the tokenizer, five consumers that each have to say what they do with it, and the manual, prompt and grammar entry that teach it |
 | Area | Core, Web (pages, assistant, seeds), tools, docs |
-| Location | `src/uk.osric.asp.Core/Compilation/TokenType.cs`, `src/uk.osric.asp.Core/Compilation/Token.cs`, `src/uk.osric.asp.Core/Compilation/TemplateTokenizer.cs`, `src/uk.osric.asp.Core/Compilation/TemplateSourceGenerator.cs`, `src/uk.osric.asp.Core/Compilation/TemplateShapeCheck.cs`, `src/uk.osric.asp.Core/Compilation/TemplateScriptSkeleton.cs`, `src/uk.osric.asp.Core/Compilation/TemplateComments.cs` (new), `src/uk.osric.asp.Core/Pages/PageKind.cs`, `src/uk.osric.asp.Web/Pages/PageRenderer.cs`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `tools/vscode-asp/syntaxes/asp.tmLanguage.json`, `tools/vscode-asp/syntaxes/asp-injection.tmLanguage.json`, `tools/vscode-asp/README.md` |
+| Location | `src/uk.osric.asp.Core/Compilation/TokenType.cs`, `src/uk.osric.asp.Core/Compilation/Token.cs`, `src/uk.osric.asp.Core/Compilation/TemplateTokenizer.cs`, `src/uk.osric.asp.Core/Compilation/TemplateSourceGenerator.cs`, `src/uk.osric.asp.Core/Compilation/TemplateShapeCheck.cs`, `src/uk.osric.asp.Core/Compilation/TemplateScriptSkeleton.cs`, `src/uk.osric.asp.Core/Compilation/TemplateComments.cs` (new), `src/uk.osric.asp.Core/Pages/PageKind.cs`, `src/uk.osric.asp.Web/Pages/PageEndpoint.cs`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `tools/vscode-asp/syntaxes/asp.tmLanguage.json`, `tools/vscode-asp/syntaxes/asp-injection.tmLanguage.json`, `tools/vscode-asp/README.md` |
 
 ## Idea
 
@@ -84,17 +84,18 @@ and it rewrites.
    error in a page that is fine.
 
 6. **A no-code page serves its text without its comments.** This is the part that is easy to miss. A
-   `PageKind.Text` revision is never generated at render time: `PageRenderer` hands `page.Template`
-   to the body at three places and the revision's source *is* the response (`pages-an-asset-is-a-page-with-no-code`).
+   `PageKind.Text` revision is never generated at render time: its stored source *is* the response
+   (`pages-an-asset-is-a-page-with-no-code`), and the endpoint has two fast paths that hand a head or
+   a revision's `Template` straight to `WriteSourceAsync` without asking `PageRenderer` at all.
    Keeping that promise with comments allowed would ship `<%# a note %>` to the browser, so the body
    becomes "the source with each comment construct removed" — `TemplateComments.Remove(template)`, a
-   pure `Core` function that joins the `Text` tokens, called where `page.Template` is handed over
-   today. A comment removes itself entirely, as a code block that writes nothing does; it does not
-   leave whitespace in its place. Blanking, which is what the skeleton does, is deliberately not
-   reused: the skeleton exists to keep *positions*, the body exists to be the bytes a browser gets.
-   The source the author and the tool read stays whole — stripping at save time would lose the note
-   and make the revision disagree with the editor — so the removal belongs to the render, and
-   `PageKind.Text`'s doc comment ("the stored source is the response byte for byte") says so.
+   pure `Core` function that joins the `Text` tokens, applied once in `WriteSourceAsync` because that
+   is the one place a stored source becomes a response. A comment removes itself entirely, as a code
+   block that writes nothing does; it does not leave whitespace in its place. Blanking, which is what
+   the skeleton does, is deliberately not reused: the skeleton exists to keep *positions*, the body
+   exists to be the bytes a browser gets. The source the author and the tool read stays whole —
+   stripping at save time would lose the note and make the revision disagree with the editor — so the
+   removal belongs to the response, and `PageKind.Text`'s doc comment ("less its comments") says so.
 
 7. **The fingerprint and the revision are unchanged.** A comment is part of the source, so editing
    one changes the fingerprint and recompiles the page — normalising the text before hashing would
@@ -150,9 +151,8 @@ Test-first, and every one of these fails before the tokenizer knows the opener:
 - **Script skeleton** — a comment is blanked, its line breaks survive, and the position of the token
   after it is unchanged.
 - **Host** — a no-code page with a comment is stored without compiling, is still an asset, and is
-  *served without the comment*; a page with a note saves clean through the real endpoint (the
-  **`ANoCodePageIsServedRawWhateverTheLayoutPolicyIsAsync`** case in `PageEndpointTests` is the one to
-  extend).
+  *served without the comment*, beside `ANoCodePageIsServedRawWhateverTheLayoutPolicyIsAsync` in
+  `PageEndpointTests`; and a page with a note compiles clean through `PageImageBuilder`.
 
 ## Not in scope
 
