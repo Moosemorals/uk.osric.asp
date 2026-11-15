@@ -516,9 +516,31 @@ are not and `System.Net` stays denied. `System.Text.Encoding`, the SHA-2 hashes,
 `RandomNumberGenerator` and `CryptographicOperations` are admitted and nothing else in
 `System.Security.Cryptography` is: a page may encode, hash and sign, but not manage a key or a
 certificate. Widening the list moves the policy version, so every stored image recompiles on its next
-request.
+request. How a type gets in, and what a refusal looks like, is `pages-admit-what-adds-no-capability`.
 
 *Recorded in [pages](pages.md#page-api-policy), [PageApiPolicy](../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs).*
+
+### pages-admit-what-adds-no-capability
+
+The list is read by one test rather than by whichever feature needed an entry last. A type is admitted
+when its only effect is to compute over a value the page already holds or to shape a value the page
+already returns; it is refused when it adds a way to reach a resource — a file, the network, a process,
+the environment, an assembly, reflection or process-wide state. A type that bundles a reach with a
+useful helper is admitted with the reaching members denied by name in `s_deniedApis`, which is what
+`Task` does with `Run`, `Wait` and the rest. Additions are decided by that test, not by taste.
+
+That admits `StringComparer`, `HashCode`, `Random`, `JsonNamingPolicy`, `JsonDocumentOptions` and the
+`System.Text.Json.Nodes` namespace, and refuses `System.Environment`, whose `NewLine` would arrive
+attached to `Exit`, `FailFast` and `GetEnvironmentVariable`. It refines the list rather than loosening
+it: default deny stands, because the alternative was priced and rejected — a deny list over the 4,277
+public types the page compiler's references expose fails open, and cannot state a rule the dangerous
+type does not look like, since a page reading another page's state does it with `File`.
+
+A refusal is one diagnostic per type. The checker reports a node's symbol and its container type, so a
+member of a refused type was once refused twice; the member is kept, and it names the type beside it,
+because the entry that would change the answer is the container and not the member.
+
+*Recorded in [pages](pages.md#page-api-policy), [page api gaps](plans/page-api-gaps.md), [PageApiPolicy](../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs).*
 
 ### pages-load-isolation
 

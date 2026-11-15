@@ -439,14 +439,15 @@ Stored pages are C#, so the surface they may touch is constrained twice.
   already returns; it is refused when it adds a way to reach a resource — a file, the network, a
   process, the environment, an assembly, reflection or process-wide state. A type that bundles a way
   to reach with a useful helper is admitted with the reaching members denied by name, which is how
-  `Task` is admitted and `Task.Run` is not (`pages-the-api-policy`). That rule admits
+  `Task` is admitted and `Task.Run` is not (`pages-admit-what-adds-no-capability`). That rule admits
   `StringComparer`, `HashCode` and `Random`, and refuses `System.Environment`, whose `NewLine` would
   arrive attached to `Exit` and `GetEnvironmentVariable`.
 - A refusal is one diagnostic per type. The checker reports the symbol a node resolves to and the
   type it resolves to, so a member of a refused type would otherwise arrive twice; the member is the
   one reported, because it is what the author wrote. A refusal of a member also names its type —
   `PAGE001: pages may not use System.IO.File.ReadAllText. The type System.IO.File is not part of the
-  page API.` — because the type is what an entry would change (`pages-the-api-policy`).
+  page API.` — because the type is what an entry would change
+  (`pages-admit-what-adds-no-capability`).
 - `System.Threading.Tasks.Task` is admitted by *type*, and ten of its members are denied by name —
   `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`
   and `Yield` — because each starts work the render deadline cannot stop or turns an `await` back
