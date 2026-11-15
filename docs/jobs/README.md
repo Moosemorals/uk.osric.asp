@@ -134,7 +134,7 @@ approval.
 | 5 | [Page editor](../plans/archive/page-editor.md) — update the plan against what has landed, then phases 0–5 | L | 3 | the plan, then every phase | done |
 | 6 | [ARCH-16](#closed) — one read seam for the assistant's tools and its applets | M | 5, edit safety | merge | done |
 | 7 | [Pages can stream](../plans/page-streaming.md) — `IContext.FlushAsync`, and BUG-17's failed-request log line with it | M | — | merge | done |
-| 8 | [IDEA-025](IDEA-025.md) — the shell an app needs ([the plan](../plans/page-apps.md)): a long stream, an outbound stream, a worker kind and jobs; the assistant port is later | L | 6, 7 | the plan, then every phase | in flight |
+| 8 | [IDEA-025](IDEA-025.md) — the shell an app needs ([the plan](../plans/page-apps.md)): a long stream, an outbound stream, a worker kind and jobs; the assistant port is later | L | 6, 7 | the plan, then every phase | done |
 | 9 | [Page first](../plans/page-first.md) — the rule and its audit; the memory capability it first proposed is withdrawn, and the gap a page actually has is IDEA-033 | S | — | merge | done |
 | 10 | [#closed](#closed) — page libraries: IDEA-005's shared-code half — a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | done |
 

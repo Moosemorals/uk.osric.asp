@@ -271,8 +271,7 @@ the same bug in a second place.
 
 ## Decisions this plan proposes
 
-These are proposals; the numbers are taken from `trunk` at merge and every citation in the branch is
-updated then (DEC-09, DEC-281).
+Numbered DEC-292 to DEC-300 when the work merged (DEC-09, DEC-281).
 
 **D1 — `FlushAsync` takes no cancellation token.** The render owns the lifetime, as DEC-123 says.
 ARCH-13's sketch predates DEC-123 and is not followed. Rejected: a token parameter that no other
@@ -482,11 +481,11 @@ The owner answered on 2026-11-14.
 
 ## Status
 
-**Implemented 2026-11-14 on `page-streaming`, gate run.** `IContext.FlushAsync` is in the contract,
+**Done — merged 2026-11-14, gate run.** `IContext.FlushAsync` is in the contract,
 `SimpleContext` commits through `PageBodySink`, the chain is skipped for a committed response, a
 committed failure truncates, the body cap stops at the first flush, and `DisconnectGuard` closes
 BUG-17's failed-request line. `make check` passes: formatting, licences, the package audit, the seeded
 pages, all four suites and a Release publish. `ARCH-13` left the job index and joined "Closed".
 
-The decisions above still take numbers from `trunk` at merge, and every citation in the branch is
-updated then (DEC-281). The owner merges; this branch waits.
+The decisions above were numbered DEC-292 to DEC-300 at the merge, and every citation was updated with
+them (DEC-281). Merged; the branch is gone and the work is in `trunk`.

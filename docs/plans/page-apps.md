@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-14 — awaiting the owner's answer; nothing is built |
+| Status | Done — DEC-303–DEC-318. Phases 0–5 landed and merged on 2026-11-15: the stream's own lifetime, the outbound line stream, the Worker kind and jobs. What is left is not work on this plan but the owner's answer on the page-store write authority (IDEA-025), which the assistant port waits on |
 | Size | Large — three capabilities, a fourth page kind and a readiness pass, each phase merging on its own |
 | Area | Core, Sdk, Runtime, Web (pages and work), deploy, docs |
 | Location | `src/uk.osric.asp.Core/`, `src/uk.osric.asp.Sdk/`, `src/uk.osric.asp.Runtime/`, `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Work/`, `deploy/Caddyfile`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
