@@ -1015,7 +1015,7 @@ render, and one render makes at most one write, whichever member it uses. The ca
 `POST` that saves and answers with the diagnostics, or saves and redirects with `303`. A batch that
 names its own policy is [IDEA-047](../docs/jobs/IDEA-047.md)'s work.
 
-*Recorded in [page self-save](plans/archive/page-self-save.md), [page writes](plans/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
+*Recorded in [page self-save](plans/archive/page-self-save.md), [page writes](plans/archive/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
 ### pages-scratch-saves-itself
 
@@ -1064,7 +1064,7 @@ for a deleted or broken editor, and `/admin/scrub` for the irreversible delete. 
 owner's decision — a page the assistant writes can rewrite the site — and the assistant's own edit-safety
 rules are what stop it from doing so by accident (`assistant-edit-page-is-safe`).
 
-*Recorded in [page writes](plans/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
+*Recorded in [page writes](plans/archive/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
 ### pages-delete-install-and-restore
 

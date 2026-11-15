@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Approved 2026-11-15; in flight on `page-writes`. The branch carries trunk's seed provenance and `/pages` rewrite, so the plan is read against that |
+| Status | Merged 2026-11-15, and this plan is frozen with the work: the merged capability, the widened authority, the seeds, the manual, the prompt and the record are on `trunk`. A statement here that the code has since overtaken is expected rather than a defect |
 | Size | M — one capability replaces two, one registration gate and one delete protection removed, a public type renamed, and the tests, the manual, the prompt and the jobs for each |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15 and re-checked after merging `1aade5d`, which landed seed provenance and the editor rewrite |
 | Decisions | At the merge: **pages-any-page-may-write-the-store** is new; the entry that made the editor's registration the authority is retired and replaced by it; `pages-a-page-may-save-itself` is edited in place |
-| Backlog | [IDEA-043](../jobs/IDEA-043.md) is this step; [IDEA-047](../jobs/IDEA-047.md) is the batch, split out of it |
+| Backlog | [IDEA-043](../../jobs/README.md#closed) is this step; [IDEA-047](../../jobs/IDEA-047.md) is the batch, split out of it |
 
 ## The short version
 
@@ -21,17 +21,17 @@ stays, as the bound member it is today; the named, conditional save and the rest
 members sit beside it on the same interface, and one render still makes one write.
 
 The batch — several pages, a named policy, one report — is
-[IDEA-047](../jobs/IDEA-047.md), not this step. It is the half that needs a vocabulary of policies, a
+[IDEA-047](../../jobs/IDEA-047.md), not this step. It is the half that needs a vocabulary of policies, a
 transaction boundary and a report value; this half only removes a gate and merges two handles that
 existed apart because of that gate.
 
 The IDE's Save all and the assistant's multi-file edit found the one-save rule, and an editor sub-route
-found the one-key rule ([IDEA-043](../jobs/IDEA-043.md)'s origin). Both narrowings were deliberate: a
+found the one-key rule ([IDEA-043](../../jobs/README.md#closed)'s origin). Both narrowings were deliberate: a
 handle with a key parameter was kept from every page because every stored page would then have been a
 writer of the whole store, and a render was kept to one save because a render that wrote twice could
 leave the site half-changed. The owner has decided the first trade is worth making — nothing about
 editing is special to one page, because the authority is the signed-in visitor — and the batch, which is
-the answer to the second, is [IDEA-047](../jobs/IDEA-047.md) on its own branch.
+the answer to the second, is [IDEA-047](../../jobs/IDEA-047.md) on its own branch.
 
 ## What the owner decided
 
@@ -40,11 +40,11 @@ the answer to the second, is [IDEA-047](../jobs/IDEA-047.md) on its own branch.
 | Merge the self-save into the write capability? | Yes: "if a page can save any page it can certainly save itself" | `IPageWriter` goes; a page saves itself through the same interface it saves any page through |
 | The merged capability's name | `IPageWrites` | The renamed type, the seeds, the manual, the prompt and the SDK public API |
 | A bound self-save, or one save only? | Keep the bound one | Two saves on one interface, each with its own answer (below) |
-| One write per render | Keep it, until the batch | Every member shares one action; [IDEA-047](../jobs/IDEA-047.md) removes the rule |
+| One write per render | Keep it, until the batch | Every member shares one action; [IDEA-047](../../jobs/IDEA-047.md) removes the rule |
 | The editor key's delete protection | Remove it | `DeleteAsync` treats `Pages:Editor:Key` like any other key; `/admin/restore` is the way back |
 | `Pages:Editor:Key` itself | Keep it | It stops deciding authority and keeps deciding where the editor is served |
 | The job | Split it | This branch rewrites IDEA-043 and files IDEA-047 |
-| The record | Retire the old entry and name the new rule | The merge writes three changes to [decisions](../decisions.md) (below) |
+| The record | Retire the old entry and name the new rule | The merge writes three changes to [decisions](../../decisions.md) (below) |
 
 ## What exists today
 
@@ -57,7 +57,7 @@ the answer to the second, is [IDEA-047](../jobs/IDEA-047.md) on its own branch.
 | Bound to a key? | yes, `ctx.Path`, with no key parameter | no: every call names a key |
 | Refusals | anonymous (`UserFacingException`), `HEAD`, ended render, second save (`InvalidOperationException`), reserved key (unreachable, because reserved keys never render) | anonymous, `HEAD`, ended render, second action, unaddressable key, reserved key, and a delete of the editor itself |
 
-Both already end in the one compile-then-store path, [`PageSaver`](../../src/uk.osric.asp.Web/Editor/PageSaver.cs);
+Both already end in the one compile-then-store path, [`PageSaver`](../../../src/uk.osric.asp.Web/Editor/PageSaver.cs);
 both save paths are handed `CancellationToken.None` and the render's deadline, so a started save is
 never abandoned (`pages-a-page-may-save-itself`).
 
@@ -78,7 +78,7 @@ around `SeedCommands`; the chain's call above is that version. The merge keeps a
 join the seed members rather than replacing one, and the scope keeps its `PageSeeds` dependency.
 
 `Pages:Editor:Key` is read in four places beyond that: `ctx.EditorPath` (`SimpleContext`), every
-remedy link through [`EditorPaths.Of`](../../src/uk.osric.asp.Web/Pages/EditorPaths.cs), the
+remedy link through [`EditorPaths.Of`](../../../src/uk.osric.asp.Web/Pages/EditorPaths.cs), the
 `?edit=`/`cmd=` URLs `PageUrls` builds, and the delete refusal inside `PageEditorScope`.
 
 ## The design
@@ -101,7 +101,7 @@ if (!isLayout && _editor is { } editor) {
 ```
 
 `IPageWriter`'s separate scope goes with its interface: the bound save moves onto
-[`PageEditorScope`](../../src/uk.osric.asp.Web/Pages/PageEditorScope.cs), which is renamed, and which
+[`PageEditorScope`](../../../src/uk.osric.asp.Web/Pages/PageEditorScope.cs), which is renamed, and which
 already has the anonymous, `HEAD`, ended-render and one-action checks the bound save needs.
 
 ### 2. Two saves, two answers
@@ -144,7 +144,7 @@ page holds both capabilities and so two counters, and could save itself *and* ed
 render. After the merge it makes one write like every other page. No seeded page did that, and it is
 the rule the old comment intended.
 
-[IDEA-047](../jobs/IDEA-047.md) removes the rule and puts a policy in its place: all or nothing, stop
+[IDEA-047](../../jobs/IDEA-047.md) removes the rule and puts a policy in its place: all or nothing, stop
 at the first refusal, or save what can be saved and report each refusal.
 
 ### 5. The editor key keeps one job and loses two
@@ -269,9 +269,9 @@ The two delete-protection tests (`TheEditorCannotDeleteItselfAsync`,
   deleted or broken editor.
 - **`PageAuthorPrompt`** gains the same words and the new type, with its `Version` bumped: the
   assistant is the second caller and must stop believing a page writes only itself.
-- **[pages](../pages.md)** records the contract; **[architecture](../architecture.md)** stops saying
+- **[pages](../../pages.md)** records the contract; **[architecture](../../architecture.md)** stops saying
   the editor is offered the capability by its key.
-- **[decisions](../decisions.md)** at the merge, below.
+- **[decisions](../../decisions.md)** at the merge, below.
 
 ## The record at the merge
 
@@ -290,8 +290,8 @@ Three changes, and the citations that follow them.
    abandoned. `pages-delete-install-and-restore` and `pages-scratch-saves-itself` are checked and left
    alone.
 
-The retired name is cited in ten backticked places outside the record: two in [pages](../pages.md),
-one in [IDEA-037](../jobs/IDEA-037.md), six in the archived editor plan and one in the archived
+The retired name is cited in ten backticked places outside the record: two in [pages](../../pages.md),
+one in [IDEA-037](../../jobs/IDEA-037.md), six in the archived editor plan and one in the archived
 edit-safety plan. The six headings and the row are repointed where a pointer is what they are, and the
 lines that record *what that plan wrote at the time* say "the capability entry (since retired)" instead,
 so the archive does not claim a plan wrote a name that did not exist yet. The archived naming plan's
@@ -302,12 +302,12 @@ name, which is still true.
 
 This branch is documentation only, and it does three things:
 
-- **[IDEA-043](../jobs/IDEA-043.md)** shrinks to this step: the widened authority, the merged
+- **[IDEA-043](../../jobs/README.md#closed)** shrinks to this step: the widened authority, the merged
   capability, the rename, the lost delete protection, and the tests, manual and prompt for them.
-- **[IDEA-047](../jobs/IDEA-047.md)** is new: `SaveManyAsync(edits, policy)` with All, FirstRefusal and
+- **[IDEA-047](../../jobs/IDEA-047.md)** is new: `SaveManyAsync(edits, policy)` with All, FirstRefusal and
   Continue; compile-before-transaction; the per-edit report; one save as a batch of one; the removal of
   the one-write rule; nothing else in the batch (no rename, search, delete, install or restore).
-- **[the IDE plan](ide-host.md)** gains 047 as its own slice and states both names it intends.
+- **[the IDE plan](../ide-host.md)** gains 047 as its own slice and states both names it intends.
 
 ## Slices
 
@@ -318,7 +318,7 @@ the seeds that name it have to land together or `make check-pages` fails on the 
    delete protection, the seeds, the public API, the harness, the tests.
 2. **The manual and the prompt.** `/help`, `PageAuthorPrompt` and its version, the seeder and prompt
    tests.
-3. **The docs.** [pages](../pages.md) and [architecture](../architecture.md).
+3. **The docs.** [pages](../../pages.md) and [architecture](../../architecture.md).
 4. **The merge.** The three decision changes, the citation repointing, and the ide-host pointer at the
    name it took.
 
@@ -346,10 +346,10 @@ tests and the publish.
 
 ## Not in scope
 
-- **The batch.** [IDEA-047](../jobs/IDEA-047.md): policies, transaction boundary, report, and the end
+- **The batch.** [IDEA-047](../../jobs/IDEA-047.md): policies, transaction boundary, report, and the end
   of the one-write rule.
 - **Renaming, searching, deleting in bulk, installing or restoring in bulk.** Those stay single-action
-  members, and [IDEA-042](../jobs/IDEA-042.md) and [IDEA-038](../jobs/IDEA-038.md) are their own jobs.
+  members, and [IDEA-042](../../jobs/IDEA-042.md) and [IDEA-038](../../jobs/IDEA-038.md) are their own jobs.
 - **A page store for a job.** A worker is offered no write (`pages-a-worker-gets-no-response`).
 - **The shell's writes.** Import, export, restore and scrub stay routes (`pages-page-first`).
 - **Removing `Pages:Editor:Key`.** It still decides routing; a host that stopped knowing where the

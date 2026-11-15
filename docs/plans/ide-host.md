@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large as a programme, small as a step: eight capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
 | Decisions | None recorded yet. They are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
-| Backlog | [IDEA-037](../jobs/IDEA-037.md), [IDEA-038](../jobs/IDEA-038.md), [IDEA-039](../jobs/IDEA-039.md), [IDEA-040](../jobs/IDEA-040.md), [IDEA-041](../jobs/IDEA-041.md), [IDEA-042](../jobs/IDEA-042.md), [IDEA-043](../jobs/IDEA-043.md), [IDEA-047](../jobs/IDEA-047.md) |
+| Backlog | [IDEA-037](../jobs/IDEA-037.md), [IDEA-038](../jobs/IDEA-038.md), [IDEA-039](../jobs/IDEA-039.md), [IDEA-040](../jobs/IDEA-040.md), [IDEA-041](../jobs/IDEA-041.md), [IDEA-042](../jobs/IDEA-042.md), [IDEA-043](../jobs/README.md#closed), [IDEA-047](../jobs/IDEA-047.md) |
 
 ## The short version
 
@@ -73,8 +73,8 @@ for eight of the eleven, and those eight are why the page can start before any o
 
 An entry in [decisions](../decisions.md) is a guideline against relitigating the same problem, not a
 constraint that outlives its reason. Two of them have outlived theirs, and the owner decided on
-2026-11-15 that both go. They are two steps rather than one: [IDEA-043](../jobs/IDEA-043.md) takes the
-authority and has [a plan of its own](page-writes.md), and [IDEA-047](../jobs/IDEA-047.md) takes the
+2026-11-15 that both go. They are two steps rather than one: [IDEA-043](../jobs/README.md#closed) takes the
+authority and has [a plan of its own](archive/page-writes.md), and [IDEA-047](../jobs/IDEA-047.md) takes the
 batch.
 
 **The authority to write is the visitor's, not the page's.** The entry that makes the isolated
@@ -146,7 +146,7 @@ smallest changes come first because they are what every later slice is written a
    question is no — a check is a read that compiles — because 047 removes the action rule entirely.
    Proves: a check stores nothing and the head hash is unchanged; a broken template answers its
    diagnostics; the compile budget is charged and refused when the queue is full.
-4. **043 — the widened authority.** The step with its own plan ([page writes](page-writes.md)), because
+4. **043 — the widened authority.** The step with its own plan ([page writes](archive/page-writes.md)), because
    it renames two public interfaces and breaks every stored page that names them. Proves: an anonymous
    render is refused; a layout never gets the handle; every content page does; two saves answer with
    their own values; a page writes another key; one render still makes one write; the editor's key is
