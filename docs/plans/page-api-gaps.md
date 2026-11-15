@@ -238,13 +238,14 @@ behaviour is added, so no new test.
 ## Status
 
 Merged into `trunk` on 2026-11-15 after `make check` came back green (format, licence, audit,
-decisions, `check-pages`, 789 Core, 174 Runtime, 1801 Web, 232 integration, publish). The entry is
+decisions, `check-pages`, 827 Core, 174 Runtime, 1805 Web, 232 integration, publish). The entry is
 `pages-admit-what-adds-no-capability` in [the record](../decisions.md).
 
 Two things the build added that the phases did not name:
 
 - `PageCompilerTests.RuntimeIdStartsWithTheFormatAndPolicyVersions` pins the policy number, so D6's
   bump is a one-line test change as well as a one-line constant.
-- `PageAuthorPrompt.Version` moves `page-author-v29` to `page-author-v30`, with the three assertions
-  that pin it. The policy paragraph is part of what a stored run records, so the version moves with
-  it.
+- `PageAuthorPrompt.Version` moves, with the three assertions that pin it, because the policy
+  paragraph is part of what a stored run records. It was `v29` to `v30` on this branch;
+  `pages-a-comment-is-not-code` landed `v30` the same day for the template comment, so the merge
+  folded the two and moved it to `v31`.
