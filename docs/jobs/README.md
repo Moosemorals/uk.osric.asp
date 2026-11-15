@@ -78,7 +78,9 @@ but keeps reaching for a way to see what it wrote, and the parts worth seeing ar
 guard — so a browser and an identity are two jobs, and neither is part of the IDE plan; the identity
 landed the same day as a token minted per run, so IDEA-044 is the one left. IDEA-046 came
 out of the same day's note that the assistant keeps writing `<%# %>` as a comment and the page then
-fails to compile: the template language has an opener for everything except a note to nobody.
+fails to compile: the template language has an opener for everything except a note to nobody. IDEA-043
+was split on 2026-11-15: the widened write authority and the merged write capability are one step, and
+the batch that lets a render write several pages is IDEA-047, a little further down this list.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -102,8 +104,9 @@ fails to compile: the template language has an opener for everything except a no
 | [IDEA-040](IDEA-040.md) | — | S | Nothing says which pages a library edit will recompile, though the closure is written with every image |
 | [IDEA-041](IDEA-041.md) | — | S | A diagnostic is a point in an unnamed source: the extent is thrown away and a library's key does not reach the page |
 | [IDEA-042](IDEA-042.md) | — | M | A page cannot move a page, so a rename is two histories, an orphaned seed anchor and every inbound link broken silently |
-| [IDEA-043](IDEA-043.md) | — | L | The authority to edit the store belongs to one page and to one save: any page may write, and a render may write a batch under a policy |
+| [IDEA-043](IDEA-043.md) | — | M | The authority to write the store belongs to one page: any page may save any page, and the two write capabilities become one |
 | [IDEA-044](IDEA-044.md) | — | L | A page cannot render a page in a browser: the assistant's own scripts are never run, though the server's HTML is already one `fetch` away, and a screenshot has nowhere to be read, served or kept |
+| [IDEA-047](IDEA-047.md) | — | L | A render may write one page and no more, so Save all cannot be atomic and a multi-file edit is N requests: a batch with a named policy |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -160,6 +163,7 @@ approval.
 | 9 | [Page first](../plans/page-first.md) — the rule and its audit; the memory capability it first proposed is withdrawn, and the gap a page actually has is IDEA-033 | S | — | merge | done |
 | 10 | [#closed](#closed) — page libraries: IDEA-005's shared-code half — a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | done |
 | 11 | [Seed provenance](../plans/archive/seed-provenance.md) — IDEA-036: a seed write records its hash, the host answers the verdict, `seeds` brings the pack home and `/admin/seed-apply` moves a release's seeds | L | 5 | the plan, then every slice | done |
+| 12 | [IDEA-043](IDEA-043.md) ([the plan](../plans/page-writes.md)) — the store's write offered to every page: `IPageEditor` and `IPageWriter` become `IPageWrites`, the authority is the visitor, and `Pages:Editor:Key` only says where the editor is served | M | 5 | the plan, then merge | in flight |
 
 The [assistant edit-safety plan](../plans/archive/assistant-edit-safety.md) landed between steps 5 and
 6 and is not a numbered job: it gives the edit tool its diff and line assertions, numbers the reads,

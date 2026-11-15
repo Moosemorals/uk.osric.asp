@@ -97,28 +97,24 @@ the build:
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets
   bound it (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`). See [source storage](storage.md#source-storage).
-- `IPageWriter` saves the calling page's own source: `SaveAsync(template)` answers with a
-  `PageSaveResult` — the new revision's hash and the compiler's diagnostics as `PageDiagnostic`
-  values — and the handle is bound to `ctx.Path`, so a page writes itself and nothing else. It
-  compiles before it stores, so an error is stored and reported and a warning still serves. **The
-  write requires a signed-in visitor**: unlike the read, it refuses an anonymous render before it
-  stores anything, and a `HEAD`, an ended render or a second save in one render is a page bug. A
-  save belongs to the next request, and a save that has started finishes even if the render times
-  out. A layout is offered the read and not the write (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`). See
-  [source storage](storage.md#source-storage).
-- `IPageEditor` is the editor's authority, and it is offered to one render only: the page stored at
-  `Pages:Editor:Key` (`/pages` as shipped). No other key gets it and a layout never does, so the
-  registration is the authority rather than a check inside the handle (`pages-the-editor-capability`). It answers with
-  values the compiler produced — `PageEditResult` carries the outcome, the new hash and
-  `PageDiagnostic`s — and it refuses an anonymous render, a `HEAD` write and a second action in one
-  render. `Resolve` says whether a key is usable, `SaveAsync(key, template, expectedHash)` is the
-  conditional save whose `null` expectation creates a page, `DeleteAsync` tombstones,
-  `RestoreRevisionAsync` and `InstallSeedAsync` answer with the revision they stored, and
-  `SeedSourceAsync` reads the bundled source so the install confirmation can show a diff.
-  `AdoptSeedAsync` records the shipped seed as installed without storing a revision, and
-  `InstallSeedAsync` refuses a row the gate does not allow — an `edited`, `conflict`, `unknown` or
-  `deleted` page — so the rule is in the capability, not only in the page's markup. Like the
-  page's own write, a save belongs to the next request and a started save finishes (`pages-the-editor-capability`, `pages-delete-install-and-restore`).
+- `IPageWrites` is the store's write capability, and every page that is not a layout is offered it:
+  the authority is the signed-in visitor's, not the page's (`pages-any-page-may-write-the-store`).
+  It has two saves. `SaveAsync(template)` saves the calling page's own source, bound to `ctx.Path`, and
+  answers a `PageSaveResult` — the new revision's hash and the compiler's diagnostics as
+  `PageDiagnostic` values. `SaveAsync(key, template, expectedHash)` saves any key the shell does not
+  route, only while the head still has the hash the form was drawn from, and answers a `PageEditResult`
+  whose outcome is Saved, Stale or Unchanged; a `null` expectation means the form was drawn from a
+  page with no live source, so a create cannot overwrite one. Both compile before they store, so an
+  error is stored and reported and a warning still serves. **The write requires a signed-in visitor**:
+  it refuses an anonymous render before it stores anything, and a `HEAD`, an ended render, a reserved
+  key or a second write in one render is a page bug. A write belongs to the next request, and a write
+  that has started finishes even if the render times out. A layout is offered the read and not the
+  write. `Pages:Editor:Key` says only where the editor is served — it is not an authority — and the
+  editor's own key is an ordinary key, so `/admin/restore` is the way back from a deleted editor. The
+  rest is the editor's toolbox: `Resolve`, `DeleteAsync`, `RestoreRevisionAsync`, `AdoptSeedAsync`,
+  `InstallSeedAsync` — which refuses a row the seed gate does not allow — and `SeedSourceAsync`
+  (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`,
+  `pages-delete-install-and-restore`). See [source storage](storage.md#source-storage).
 - `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
   `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
@@ -276,7 +272,7 @@ The running worker gets an `IWorkerContext`, which is deliberately not an `ICont
 `LogError`, `ReceiveAsync` and `Publish(type, dataJson)`. Its `Capabilities` offer `IPageStorage`
 bound to the **starting page** — the data, so the job and the view that shows it share one store —
 and `IHttpFetch`, `IPageCatalog` and `IPageJobs` bound to the **worker** — the code, so a credential
-bound to the worker stays the worker's. A worker is offered no `IMarkdownRenderer`, no `IPageWriter`
+bound to the worker stays the worker's. A worker is offered no `IMarkdownRenderer`, no `IPageWrites`
 and no `IPageLayout`: it publishes text or JSON, and the page renders it.
 
 `ReceiveAsync(waitSeconds)` pauses the silence clock while it waits, so a worker waiting for its

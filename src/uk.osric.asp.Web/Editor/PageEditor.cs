@@ -6,13 +6,13 @@ namespace uk.osric.asp.Web.Editor;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
-/// <summary>Reads and saves pages for the editor.</summary>
+/// <summary>Reads and saves pages for the store's write capability.</summary>
 /// <remarks>
 /// <para>
 /// A save compiles before it stores, so the page never sits in the database without the result of
 /// compiling it. That is <see cref="PageSaver"/>'s job, and it is shared with a page that saves its
-/// own source; this class is the editor's view of it, plus the conditional save the editor alone
-/// needs (`pages-a-page-may-save-itself`).
+/// own source; this class is the capability's view of it, for both the bound save and the conditional
+/// one every page may now make (`pages-a-page-may-save-itself`).
 /// </para>
 /// <para>
 /// The unconditional save records <c>page.save.duration</c> through the saver; the conditional one

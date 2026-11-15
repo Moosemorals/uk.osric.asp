@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Sdk;
 
-/// <summary>What a key names, as <see cref="IPageEditor.Resolve"/> reports it.</summary>
+/// <summary>What a key names, as <see cref="IPageWrites.Resolve"/> reports it.</summary>
 /// <remarks>
 /// A page's edited key arrives as a query value, so a key that names nothing is an answer the page
 /// renders rather than an exception it catches. <see cref="IsReserved"/> is the host's own routing

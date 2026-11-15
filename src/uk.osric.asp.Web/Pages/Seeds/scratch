@@ -4,7 +4,7 @@
 <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Scratch: a page that edits itself"; %>
 <h1>Scratch</h1>
 <p>Signed in as <%= user.Name %>. This page is a demonstration of the page-write capability
-(<code>IPageWriter</code>): it reads its own source with <code>IPageCatalog</code>, shows it below,
+(<code>IPageWrites</code>): it reads its own source with <code>IPageCatalog</code>, shows it below,
 and saves what you submit as a new revision of <em>this page</em>. It is the worked example for the
 page that edits itself (<a href="/help#writing">IDEA-016</a>); <a href="<%= ctx.EditorPath %>">the editor</a> is the
 owner's version of the same save, and <a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is the same read without a
@@ -31,7 +31,7 @@ has this page's history and an <strong>Install from seed</strong> action.</p>
             refusal = "Somebody saved this page while you were typing, so nothing was saved. The current source is in the box.";
         } else {
             draft = template;
-            answered = await ctx.Capabilities.GetRequired<IPageWriter>().SaveAsync(template);
+            answered = await ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync(template);
             headHash = answered.Hash;
         }
     }

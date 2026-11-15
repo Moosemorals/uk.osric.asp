@@ -493,7 +493,7 @@ catch. <code>System.IO</code>, <code>System.Net</code>, <code>System.Reflection<
 <p><a href="/admin/reference/sdk#t-IPageCatalog"><code>IPageCatalog</code></a> is a read-only view of the site's page store: list the heads under a
 prefix, read a live page's template, list a page's history, and read one retained revision by its
 key and hash. It never meets an image, a symbol or a write; saving is
-<a href="/admin/reference/sdk#t-IPageWriter"><code>IPageWriter</code></a>, below.</p>
+<a href="/admin/reference/sdk#t-IPageWrites"><code>IPageWrites</code></a>, below.</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageCatalog catalog = ctx.Capabilities.GetRequired&lt;IPageCatalog&gt;();
    System.Collections.Generic.IReadOnlyList&lt;PageEntry&gt; pages = await catalog.ListAsync("/blog");
    PageSource? page = await catalog.ReadAsync("/blog");
@@ -532,39 +532,61 @@ page. A listing charges nothing, because its rows are metadata and the body cap 
 can write out of them. Both limits are set under <code>Pages:Read</code>, and a missing or unusable
 value stops the site at startup rather than being quietly replaced.</p>
 
-<h2 id="writing">Saving the page you are</h2>
-<p><a href="/admin/reference/sdk#t-IPageWriter"><code>IPageWriter</code></a> saves the source of the page that calls it. It is bound to
-<code>ctx.Path</code> and takes no key, so a page writes itself and nothing else:</p>
-<pre class="source" tabindex="0"><code>&lt;% PageSaveResult saved = await ctx.Capabilities.GetRequired&lt;IPageWriter&gt;()
+<h2 id="writing">Writing the page store</h2>
+<p><a href="/admin/reference/sdk#t-IPageWrites"><code>IPageWrites</code></a> is the store's write
+capability. Every page that is not a layout is offered it, and the authority it checks is the
+signed-in visitor's rather than the page's. There are two saves.</p>
+<p><code>SaveAsync(template)</code> stores <em>this</em> page's own source. It is bound to
+<code>ctx.Path</code> and takes no key, so a page writes itself without naming anything:</p>
+<pre class="source" tabindex="0"><code>&lt;% PageSaveResult saved = await ctx.Capabilities.GetRequired&lt;IPageWrites&gt;()
         .SaveAsync(ctx.Request.Form["template"]); %&gt;
 &lt;p&gt;Saved &lt;code&gt;&lt;%= saved.Hash %&gt;&lt;/code&gt;.&lt;/p&gt;</code></pre>
-<p>The answer is a <a href="/admin/reference/sdk#t-PageSaveResult"><code>PageSaveResult</code></a>: the new revision's hash, and the compiler's
-diagnostics as <a href="/admin/reference/sdk#t-PageDiagnostic"><code>PageDiagnostic</code></a> values — severity, the template line and column when there
-is one, the code (<code>PAGE001</code>, <code>CS1002</code>) and its text. A save compiles before it
-stores, exactly as the editor's does, so a template with an error is still saved and reported, and a
-warning still serves. A page that saves itself reads its own current source with
-<code>IPageCatalog.ReadAsync(ctx.Path)</code>, which is also where the hash for a stale-form check
-comes from.</p>
+<p>It answers a <a href="/admin/reference/sdk#t-PageSaveResult"><code>PageSaveResult</code></a>: the new
+revision's hash, and the compiler's diagnostics as
+<a href="/admin/reference/sdk#t-PageDiagnostic"><code>PageDiagnostic</code></a> values — severity, the
+template line and column when there is one, the code (<code>PAGE001</code>, <code>CS1002</code>) and its
+text.</p>
+<p><code>SaveAsync(key, template, expectedHash)</code> stores <em>any</em> key the site's own routes do
+not answer, and only while that page still has the head hash the form was drawn from. It answers a
+<a href="/admin/reference/sdk#t-PageEditResult"><code>PageEditResult</code></a>: <code>Outcome</code> is
+<em>Saved</em>, <em>Stale</em> or <em>Unchanged</em>, with the revision's hash and the diagnostics. A
+stale answer wrote nothing, so re-read the source and show the author what changed. An expectation of
+<code>null</code> means the form was drawn from a page with no live source, so a create cannot quietly
+overwrite a page that appeared in the meantime.</p>
+<pre class="source" tabindex="0"><code>&lt;% PageEditResult saved = await ctx.Capabilities.GetRequired&lt;IPageWrites&gt;()
+        .SaveAsync("/blog/post", ctx.Request.Form["template"], expected); %&gt;</code></pre>
+<p>Both saves compile before they store, exactly as the editor's does, so a template with an error is
+still saved and reported, and a warning still serves. A page that saves itself reads its own current
+source with <code>IPageCatalog.ReadAsync(ctx.Path)</code>, which is also where the hash for a stale-form
+check comes from.</p>
 <p><strong>The write needs a signed-in visitor.</strong> Reading the store is as public as the page
-that calls it; changing what the site serves is not, so <code>SaveAsync</code> refuses an anonymous
-render before it compiles anything, with a message saying to sign in. Guard your own form as well when
-you want the visitor sent to the sign-in page instead of the error page:</p>
+that calls it; changing what the site serves is not, so either save refuses an anonymous render before
+it compiles anything, with a message saying to sign in. Guard your own form as well when you want the
+visitor sent to the sign-in page instead of the error page:</p>
 <pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;</code></pre>
+<p><strong>The visitor is the authority, not the page.</strong> Any page may save any key the shell does
+not answer; the editor is the first customer of the capability and the owner of none.
+<code>Pages:Editor:Key</code> says only where the editor is served, which is the key
+<code>ctx.EditorPath</code> gives you — link to it to offer "edit this page". Reserved keys are refused,
+so a shell file is never written. The editor's own page is ordinary too: any page may save it or delete
+it, and <a href="/admin/restore">/admin/restore</a> puts the seeded editor back if it is deleted or
+broken.</p>
 <p>A save belongs to the <em>next</em> request: the running page is already compiled, so the response
 you are writing is still the page as it was. Save on a <code>POST</code>, write the answer you were
-given, and let the next request serve the new source. A <code>HEAD</code> never saves, because it runs
-the page once per validator, and one render saves once. A save that has started is never abandoned: if
-the page runs out of time the revision is still stored, and the next request serves it.</p>
+given, and let the next request serve the new source. A <code>HEAD</code> never writes, because it runs
+the page once per validator, and one render writes once: a save, a delete, a restore or an install
+spends the one action. A write that has started is never abandoned: if the page runs out of time the
+revision is still stored, and the next request serves it.</p>
 <p>A layout is offered the read and not the write, because it is markup: one that saved itself would
-add a revision to every page it wraps. The seeded <a href="/scratch">/scratch</a> is the worked
-example — a page that shows its own source, saves it, reports the diagnostics and refuses a form whose
-revision hash has been overtaken.</p>
-<p>A page writes only itself. <a href="/admin/reference/sdk#t-IPageEditor"><code>IPageEditor</code></a> is the one capability that names another key:
-it resolves a key, saves conditionally, tombstones a page, restores a revision and installs a seed.
-The host offers it to a single page &mdash; the editor, at <code>/pages</code> &mdash; so
-<code>ctx.Capabilities.Get&lt;IPageEditor&gt;()</code> is <code>null</code> everywhere else and no
-stored page can make itself an editor. Treat it as the answer to "how is the editor written", not as
-something your own page may ask for.</p>
+add a revision to every page it wraps. The seeded <a href="/scratch">/scratch</a> is the worked example
+of the bound save — a page that shows its own source, saves it, reports the diagnostics and refuses a
+form whose revision hash has been overtaken.</p>
+<p>The rest of the capability is the editor's toolbox: <code>Resolve</code> says whether a key is
+usable, <code>DeleteAsync</code> tombstones a page, <code>RestoreRevisionAsync</code> saves a retained
+revision as a new one, <code>InstallSeedAsync</code> stores the source a release ships,
+<code>AdoptSeedAsync</code> records a page as already holding it, and <code>SeedSourceAsync</code>
+reads a seed so a confirmation can show the diff. The seeded
+<a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is the worked example of those.</p>
 
 <h2 id="markdown">Markdown</h2>
 <p><a href="/admin/reference/sdk#t-IMarkdownRenderer"><code>IMarkdownRenderer</code></a> renders Markdown to HTML. Write its result raw:</p>

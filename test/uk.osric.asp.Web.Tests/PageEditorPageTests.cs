@@ -14,7 +14,7 @@ using uk.osric.asp.Web.Pages;
 
 /// <summary>The seeded `/pages` page: its listing, its editor and its refusals.</summary>
 /// <remarks>
-/// The page reads through `IPageCatalog` and writes through `IPageEditor`, so a test seeds the read
+/// The page reads through `IPageCatalog` and writes through `IPageWrites`, so a test seeds the read
 /// store for a view and asserts the page store for a write: each is the seam that call touches. The
 /// two over one real database are proven in the integration suite.
 /// </remarks>

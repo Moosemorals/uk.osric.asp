@@ -34,7 +34,7 @@ upload and download.
    `ctx.Capabilities.GetRequired<IPageArchive>()` with `Task<byte[]> ExportAsync()`,
    `Task<ArchivePlan> StageAsync(string fileName, byte[] archive)` and
    `Task<PageSaveResult[]> ApplyAsync(ArchivePlan plan)`, refusing an anonymous render exactly as
-   `IPageWriter` does (`pages-a-page-may-save-itself`).
+   `IPageWrites` does (`pages-a-page-may-save-itself`).
 2. **The caps follow the capability.** `Pages:Archive:MaxUploadBytes` bounds `StageAsync`, and the
    export is bounded by the store; a page never sees the whole page store's bytes in one string, which
    is why the export would have to be a page-level capability rather than `IPageCatalog` plus a loop.

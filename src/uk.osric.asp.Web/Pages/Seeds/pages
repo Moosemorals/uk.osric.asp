@@ -8,7 +8,7 @@ using Site.Editor;
     if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }
 
     IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>();
-    IPageEditor editor = ctx.Capabilities.GetRequired<IPageEditor>();
+    IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
     IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
     IDiffRenderer differ = ctx.Capabilities.GetRequired<IDiffRenderer>();
 
@@ -111,7 +111,7 @@ using Site.Editor;
             return;
         }
 
-        PageKeyResolution resolved = editor.Resolve(editText ?? pageText!);
+        PageKeyResolution resolved = writes.Resolve(editText ?? pageText!);
         if (!resolved.IsSuccess) {
             Problem(400, "That is not a page address", resolved.Error ?? "That is not a page address.");
         } else if (resolved.IsReserved) {
@@ -124,7 +124,7 @@ using Site.Editor;
     }
 
     async Task NewPageAsync() {
-        PageKeyResolution created = editor.Resolve(One(ctx.Request.Form, "path") ?? "");
+        PageKeyResolution created = writes.Resolve(One(ctx.Request.Form, "path") ?? "");
         if (!created.IsSuccess || created.IsReserved) {
             Problem(400, "That page name cannot be used",
                 created.Error ?? created.Key + " is answered by the site itself, so no page is stored there. Nothing was created.");
@@ -156,7 +156,7 @@ using Site.Editor;
         expected = string.IsNullOrWhiteSpace(renderedFrom) ? null : renderedFrom;
 
         text = submitted;
-        PageEditResult saved = await editor.SaveAsync(key, submitted, expected);
+        PageEditResult saved = await writes.SaveAsync(key, submitted, expected);
         diagnostics = saved.Diagnostics;
         stage = "editor";
 
@@ -185,7 +185,7 @@ using Site.Editor;
         }
 
         if (command == "delete") {
-            PageDeleteResult removed = await editor.DeleteAsync(key);
+            PageDeleteResult removed = await writes.DeleteAsync(key);
             stage = "listing";
             notice = removed.Deleted
                 ? "Deleted " + key + "; revision history is retained."
@@ -195,9 +195,9 @@ using Site.Editor;
 
         if (command == "install") {
             expected = One(ctx.Request.Form, "expected");
-            PageEditResult? installed = expected is null ? null : await editor.InstallSeedAsync(key, expected);
+            PageEditResult? installed = expected is null ? null : await writes.InstallSeedAsync(key, expected);
             if (installed is null) {
-                seedSource = await editor.SeedSourceAsync(key);
+                seedSource = await writes.SeedSourceAsync(key);
                 if (seedSource is null) {
                     Problem(404, "That is not a seeded page", key + " is not one of the pages this release ships, so there is no seed to install.");
                 } else {
@@ -208,7 +208,7 @@ using Site.Editor;
 
             stage = "install";
             live = await catalog.ReadAsync(key);
-            seedSource = await editor.SeedSourceAsync(key);
+            seedSource = await writes.SeedSourceAsync(key);
             notice = installed.Outcome switch {
                 PageEditOutcome.Stale => "The page changed while this confirmation was open, so nothing was installed. Compare again and retry.",
                 PageEditOutcome.Unchanged => "Nothing was installed: " + key + " already holds the seed's source.",
@@ -223,7 +223,7 @@ using Site.Editor;
         }
 
         if (command == "adopt") {
-            PageEditResult? adopted = await editor.AdoptSeedAsync(key);
+            PageEditResult? adopted = await writes.AdoptSeedAsync(key);
             if (adopted is null) {
                 Problem(404, "That is not a seeded page", key + " is not one of the pages this release ships, so there is no seed to record.");
                 return;
@@ -252,7 +252,7 @@ using Site.Editor;
                 return;
             }
 
-            PageEditResult? restored = await editor.RestoreRevisionAsync(key, hash!, expected);
+            PageEditResult? restored = await writes.RestoreRevisionAsync(key, hash!, expected);
             if (restored is null) {
                 Problem(404, "That revision is not on this page", "No revision of " + key + " has that hash, so nothing was restored.");
                 return;
@@ -304,7 +304,7 @@ using Site.Editor;
         }
 
         if (command == "install") {
-            seedSource = await editor.SeedSourceAsync(key);
+            seedSource = await writes.SeedSourceAsync(key);
             if (seedSource is null) {
                 Problem(404, "That is not a seeded page",
                     key + " is not one of the pages this release ships, so there is no seed to install.");

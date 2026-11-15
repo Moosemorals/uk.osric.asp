@@ -108,7 +108,7 @@ read is as public as the page that calls it: the host adds no gate, a page that 
 the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that
 page.
 
-A page may save its own template through `ctx.Capabilities.GetRequired<IPageWriter>()` (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`).
+A page may save its own template through `ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync(template)`, and any page the shell does not route through the same capability's named save (`pages-a-page-may-save-itself`, `pages-any-page-may-write-the-store`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`).
 The write is the shell's save reached from inside a render: `PageSaver` compiles the template and
 `IPageRevisionStore` opens its own context for the insert, because a page's task can outlive the
 request, and both call the same `StoreRevisionAsync` the editor and the import batch use, so there is

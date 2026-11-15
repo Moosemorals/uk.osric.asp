@@ -62,7 +62,7 @@ view outlived the view and had to be withdrawn (`assistant-memory-belongs-to-the
 | Asks for approval, asks to continue | A decision sent as a message to the running job, or a stored row that starts the next job | **Workers and jobs** — the message channel; the page chooses whether to wait or to end |
 | Streams from the provider | An outbound body read as it arrives | **Streaming outbound HTTP** (this plan) |
 | Renders deltas as they are written | A response written while the page runs | **The stream's own lifetime** (this plan) |
-| Reads and edits pages through eighteen tools | Read every page; write any page the shell does not route | `IPageCatalog` already reads everything, but `IPageWriter` writes only the page's own key. Writing *another* page is the authority question in [phase 5](#phase-5--what-a-port-still-lacks-documents-only); the tools write every page the shell does not route (`assistant-reads-the-shell-files`) |
+| Reads and edits pages through eighteen tools | Read every page; write any page the shell does not route | `IPageCatalog` already reads everything and `IPageWrites` writes every page the shell does not route, so a page can make the same edits the tools do (`pages-any-page-may-write-the-store`); the tools' diff, search and batch are the rest of [phase 5](#phase-5--what-a-port-still-lacks-documents-only) |
 | Remembers, recalls, forgets | Owner-scoped rows with search and versions | Page code over the owner's store; memory is not a capability |
 | Renders a model's Markdown | A renderer that is safe on untrusted text | `IMarkdownRenderer` exists, but only the permissive profile. The restricted profile (`pages-markdown`) is a named gap for the port |
 | Reads the provider's balance | One outbound GET | `IHttpFetch` already does it |
@@ -300,7 +300,7 @@ its view therefore share storage: the job writes the transcript and the view rea
 worker's credential stays the worker's. A worker is not a view: it publishes text or JSON and the page
 renders it, so `IMarkdownRenderer` is the page's and not the worker's — a worker has no document to
 render into, and whether text is rendered with the author or the restricted profile is the view's
-decision. `IPageWriter` is not offered: a job keeps data, not code, and the authority to save a page is
+decision. `IPageWrites` is not offered: a job keeps data, not code, and the authority to save a page is
 the port's question. Rejected: one key for all three (either the worker owns the page's data or the
 page owns the worker's credential); giving the worker a renderer (it would be formatting a document
 nobody receives); an `IContext` (a job looks like a visitor's request and is handed a response nobody
@@ -658,7 +658,7 @@ client.
 
 1. **The page-store write authority.** The assistant's tools save other pages. A page cannot, and a
    job can only keep data. The port cannot happen without an answer. Does a worker get a page writer
-   for another key, bound to one configured worker, or does `IPageWriter` grow a key for any caller?
+   for another key, bound to one configured worker, or does the page's write grow a key for any caller?
    Phase 5 records the choice, and it is written out with its three shapes and their costs in
    [IDEA-025](../jobs/IDEA-025.md#the-authority-question-for-the-owner). It is still open: it is the
    owner's to make, and it is also listed in [the open questions](../decisions.md#open-questions).
