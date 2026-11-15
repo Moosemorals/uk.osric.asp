@@ -1,0 +1,43 @@
+// SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+// SPDX-License-Identifier: MIT
+
+namespace uk.osric.asp.Web.Pages;
+
+using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Runtime;
+using uk.osric.asp.Web.Work;
+
+/// <summary>What a job needs from the shell, gathered in one place.</summary>
+/// <remarks>
+/// It is the job's half of <see cref="PageEnvironment"/>: the same stores and caps a render uses, minus
+/// everything about a response, a visitor's session or a layout, because a job has none of those.
+/// </remarks>
+/// <param name="Jobs">The job bounds.</param>
+/// <param name="Store">Where a job reads its worker and stores a rebuilt image.</param>
+/// <param name="State">Where the starting page's state is read and written.</param>
+/// <param name="Storage">The caps on that state.</param>
+/// <param name="Fetcher">Where a worker's outbound request goes.</param>
+/// <param name="Fetch">The outbound fetch caps.</param>
+/// <param name="ReadStore">Where a worker's catalog reads the page store.</param>
+/// <param name="Read">The caps on that read.</param>
+/// <param name="Reserved">The keys the site's own routes answer for.</param>
+/// <param name="ContentTypes">The media type each page key's extension names.</param>
+/// <param name="Images">Builds a worker's image when its library has moved.</param>
+/// <param name="Libraries">The live libraries a worker may be compiled with.</param>
+/// <param name="Compiler">Loads the worker's image and finds its entry point.</param>
+/// <param name="Metrics">Where a worker's own fetches are recorded.</param>
+internal sealed record PageJobEnvironment(
+    PageJobOptions Jobs,
+    IWorkerStore Store,
+    IPageStateStore State,
+    PageStorageOptions Storage,
+    IPageFetcher Fetcher,
+    PageFetchOptions Fetch,
+    IPageReadStore ReadStore,
+    PageReadOptions Read,
+    ReservedPaths Reserved,
+    PageContentTypes ContentTypes,
+    PageImageBuilder Images,
+    PageLibraries Libraries,
+    IPageCompiler Compiler,
+    PageMetrics Metrics);

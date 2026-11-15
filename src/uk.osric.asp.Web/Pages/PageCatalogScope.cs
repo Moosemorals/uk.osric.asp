@@ -58,6 +58,7 @@ internal sealed class PageCatalogScope(
                 IsHtml(row.Key)) {
                 IsAsset = PageAssetPolicy.IsAsset(row.TemplateKind),
                 IsLibrary = PageAssetPolicy.IsLibrary(row.TemplateKind),
+                IsWorker = PageAssetPolicy.IsWorker(row.TemplateKind),
                 State = state.Describe(),
             });
         }

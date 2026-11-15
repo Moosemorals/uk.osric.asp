@@ -9,6 +9,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Emit;
 using System.Globalization;
 using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 // The page contract has a diagnostic value of its own, so the compiler names its own type here.
 using PageDiagnostic = uk.osric.asp.Core.Compilation.PageDiagnostic;
@@ -65,6 +66,86 @@ public sealed class PageCompiler : IPageCompiler {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(libraries);
 
+        Prepared prepared = Prepare(source, libraries, asDeclarations: false);
+        if (prepared.Violations.Count > 0) {
+            return new CompileResult(null, null, PageDiagnostic.SortedForDisplay(prepared.Violations)) {
+                Libraries = prepared.Used,
+            };
+        }
+
+        return Emit(prepared, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// A declaration-only source is analysed first: a worker is emitted, so the runner has something
+    /// to load, while a library is not, because there is nothing to run and the one thing an author
+    /// needs is the diagnostics.
+    /// </remarks>
+    public CompileResult CompileWorker(
+        GeneratedSource source,
+        IReadOnlyList<LibrarySource> libraries,
+        CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(libraries);
+
+        Prepared prepared = Prepare(source, libraries, asDeclarations: true);
+        PageKind kind = Refine(prepared, out List<PageDiagnostic> shape);
+
+        List<PageDiagnostic> problems = [.. prepared.Violations, .. shape];
+        if (problems.Count > 0) {
+            return new CompileResult(null, null, PageDiagnostic.SortedForDisplay(problems)) {
+                Libraries = prepared.Used,
+                Kind = kind,
+            };
+        }
+
+        if (kind is PageKind.Library) {
+            return new CompileResult(null, null, MapDiagnostics(
+                prepared.Compilation.GetDiagnostics(cancellationToken),
+                prepared.SourcesByTree)) {
+                Libraries = prepared.Used,
+                Kind = kind,
+            };
+        }
+
+        CompileResult emitted = Emit(prepared, cancellationToken);
+
+        return emitted with { Kind = kind };
+    }
+
+    /// <summary>Loads a compiled image so its handler can be run.</summary>
+    /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
+    /// <param name="symbols">The portable PDB emitted beside the image, when there was one.</param>
+    /// <returns>The loaded handler; dispose it to release the assembly.</returns>
+    public LoadedPage Load(byte[] image, byte[]? symbols = null) {
+        ArgumentNullException.ThrowIfNull(image);
+
+        return new LoadedPage(image, symbols);
+    }
+
+    /// <summary>Loads a compiled worker so its entry point can be run.</summary>
+    /// <param name="image">The bytes an earlier <see cref="CompileWorker"/> emitted.</param>
+    /// <param name="symbols">The portable PDB emitted beside the image, when there was one.</param>
+    /// <returns>The loaded worker; dispose it to release the assembly.</returns>
+    public LoadedWorker LoadWorker(byte[] image, byte[]? symbols = null) {
+        ArgumentNullException.ThrowIfNull(image);
+
+        return new LoadedWorker(image, symbols);
+    }
+
+    // Everything a compile needs before it can answer: the trees, the compilation, the closure and
+    // the policy's verdict. A page and a declaration-only source differ only in what they do with it.
+    private sealed record Prepared(
+        CSharpCompilation Compilation,
+        SyntaxTree Source,
+        IReadOnlyList<string> Used,
+        List<PageDiagnostic> Violations,
+        IReadOnlyDictionary<SyntaxTree, string> SourcesByTree);
+
+    // A declaration-only unit is held to the library rules: it has no handler, so declaring a
+    // namespace is exactly what a worker does and a page may not.
+    private Prepared Prepare(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, bool asDeclarations) {
         SyntaxTree page = Parse(source);
         Dictionary<string, SyntaxTree> candidates = [with(StringComparer.Ordinal)];
         foreach (LibrarySource library in libraries) {
@@ -80,8 +161,9 @@ public sealed class PageCompiler : IPageCompiler {
         // could be stored and served. The closure's trees are authored code, so a page may call a
         // library type the way it calls its own - and every library in the closure is checked here
         // too, because that is what makes trusting its types safe.
-        List<PageDiagnostic> violations = [.. PageApiChecker.Check(
-            page, compilation.GetSemanticModel(page), authored)];
+        List<PageDiagnostic> violations = asDeclarations
+            ? [.. PageApiChecker.CheckLibrary(page, compilation.GetSemanticModel(page), authored)]
+            : [.. PageApiChecker.Check(page, compilation.GetSemanticModel(page), authored)];
 
         foreach (string key in used) {
             SyntaxTree tree = candidates[key];
@@ -90,22 +172,23 @@ public sealed class PageCompiler : IPageCompiler {
                 .Select(diagnostic => diagnostic with { Source = key }));
         }
 
-        if (violations.Count > 0) {
-            return new CompileResult(null, null, PageDiagnostic.SortedForDisplay(violations)) {
-                Libraries = used,
-            };
-        }
+        return new Prepared(
+            compilation,
+            page,
+            used,
+            violations,
+            used.ToDictionary(key => candidates[key], key => key));
+    }
 
+    private static CompileResult Emit(Prepared prepared, CancellationToken cancellationToken) {
         using MemoryStream image = new();
         using MemoryStream symbols = new();
-        EmitResult result = compilation.Emit(
+        EmitResult result = prepared.Compilation.Emit(
             peStream: image,
             pdbStream: symbols,
             options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb),
             cancellationToken: cancellationToken);
-        List<PageDiagnostic> diagnostics = MapDiagnostics(
-            result.Diagnostics,
-            used.ToDictionary(key => candidates[key], key => key));
+        List<PageDiagnostic> diagnostics = MapDiagnostics(result.Diagnostics, prepared.SourcesByTree);
 
         if (!result.Success && !diagnostics.Exists(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error)) {
             throw new InvalidOperationException(
@@ -116,38 +199,73 @@ public sealed class PageCompiler : IPageCompiler {
             result.Success ? image.ToArray() : null,
             result.Success ? symbols.ToArray() : null,
             diagnostics) {
-            Libraries = used,
+            Libraries = prepared.Used,
         };
     }
 
-    /// <inheritdoc/>
-    /// <remarks>
-    /// A library is analysed and not emitted: there is nothing to run, and the one thing an author
-    /// needs is the diagnostics, positioned in the library's own template.
-    /// </remarks>
-    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
-        ArgumentNullException.ThrowIfNull(source);
+    // Generation can only say "declarations and nothing to render". Which declarations they are is a
+    // question about types, so the worker verdict is made here, once, from the compiled symbols.
+    private static PageKind Refine(Prepared prepared, out List<PageDiagnostic> problems) {
+        problems = [];
 
-        SyntaxTree tree = Parse(source);
-        CSharpCompilation compilation = Create([tree]);
-
-        IReadOnlyList<PageDiagnostic> violations = PageApiChecker.CheckLibrary(
-            tree, compilation.GetSemanticModel(tree), [tree]);
-        if (violations.Count > 0) {
-            return new CompileResult(null, null, violations);
+        INamedTypeSymbol? contract = prepared.Compilation.GetTypeByMetadataName(typeof(IWorker).FullName!);
+        if (contract is null) {
+            return PageKind.Library;
         }
 
-        return new CompileResult(null, null, MapDiagnostics(compilation.GetDiagnostics(cancellationToken)));
+        SemanticModel model = prepared.Compilation.GetSemanticModel(prepared.Source);
+        List<INamedTypeSymbol> entryPoints = [];
+        foreach (TypeDeclarationSyntax declaration in prepared.Source.GetRoot().DescendantNodes().OfType<TypeDeclarationSyntax>()) {
+            if (model.GetDeclaredSymbol(declaration) is not INamedTypeSymbol symbol
+                || symbol.ContainingType is not null
+                || symbol.TypeKind is not (TypeKind.Class or TypeKind.Struct)
+                || symbol.IsAbstract
+                || !symbol.AllInterfaces.Contains(contract, SymbolEqualityComparer.Default)) {
+                continue;
+            }
+
+            entryPoints.Add(symbol);
+        }
+
+        if (entryPoints.Count == 0) {
+            return PageKind.Library;
+        }
+
+        if (entryPoints.Count > 1) {
+            string names = string.Join(", ", entryPoints.Select(symbol => symbol.Name));
+            foreach (INamedTypeSymbol extra in entryPoints.Skip(1)) {
+                problems.Add(Problem(extra,
+                    $"PAGE006: a worker declares exactly one IWorker entry point, but this source declares {entryPoints.Count}: {names}."));
+            }
+
+            return PageKind.Worker;
+        }
+
+        INamedTypeSymbol entryPoint = entryPoints[0];
+        if (entryPoint.DeclaredAccessibility is not Accessibility.Public) {
+            problems.Add(Problem(entryPoint, $"PAGE006: the worker entry point {entryPoint.Name} must be public."));
+        }
+
+        // A struct is always constructible with no arguments; a class needs a constructor that takes none.
+        bool constructible = entryPoint.TypeKind is TypeKind.Struct
+            || entryPoint.InstanceConstructors.Any(constructor => constructor.Parameters.Length == 0);
+        if (!constructible) {
+            problems.Add(Problem(entryPoint, $"PAGE006: the worker entry point {entryPoint.Name} needs a parameterless constructor."));
+        }
+
+        return PageKind.Worker;
     }
 
-    /// <summary>Loads a compiled image so its handler can be run.</summary>
-    /// <param name="image">The bytes an earlier <see cref="Compile"/> emitted.</param>
-    /// <param name="symbols">The portable PDB emitted beside the image, when there was one.</param>
-    /// <returns>The loaded handler; dispose it to release the assembly.</returns>
-    public LoadedPage Load(byte[] image, byte[]? symbols = null) {
-        ArgumentNullException.ThrowIfNull(image);
+    private static PageDiagnostic Problem(INamedTypeSymbol symbol, string message) {
+        TemplatePosition? position = null;
+        foreach (Location location in symbol.Locations) {
+            if (location.IsInSource && location.GetMappedLineSpan() is { HasMappedPath: true } span) {
+                position = new TemplatePosition(span.StartLinePosition.Line + 1, span.StartLinePosition.Character + 1);
+                break;
+            }
+        }
 
-        return new LoadedPage(image, symbols);
+        return new PageDiagnostic(PageDiagnosticSeverity.Error, position, message);
     }
 
     private static SyntaxTree Parse(GeneratedSource source) =>

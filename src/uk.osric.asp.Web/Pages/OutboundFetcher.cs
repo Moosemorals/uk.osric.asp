@@ -63,109 +63,227 @@ internal sealed class OutboundFetcher(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(caller);
 
-        return await SendAsync(request, caller, origin, credential, aborted, deadline);
-    }
-
-    private async Task<HttpFetchResponse> SendAsync(
-        HttpFetchRequest request,
-        string caller,
-        OutboundOrigin origin,
-        PageCredential? credential,
-        CancellationToken aborted,
-        CancellationToken deadline) {
-        if (!TryCreateUri(request.Url, out Uri? current) || !TryValidate(request, out string? mediaType)) {
-            return Refuse(HttpFetchFailure.InvalidRequest, caller, request.Url, LogLevel.Warning);
-        }
-
-        // A credential is for one host over a secure channel; a request that does not match is a
-        // mistake in the page, refused before any connection is made.
-        if (credential is not null && !credential.AppliesTo(current)) {
-            logger.LogWarning(
-                "Fetch for {Caller} was refused credential {Credential} for {Host}: it is not the credential's host or is not secure",
-                caller,
-                credential.Name,
-                current.IdnHost);
-
+        if (!TryPrepareRequest(request, caller, credential, out Uri? current, out string? mediaType)) {
             return Empty(HttpFetchFailure.InvalidRequest);
         }
 
         using CancellationTokenSource budget = CancellationTokenSource.CreateLinkedTokenSource(aborted, deadline);
         budget.CancelAfter(options.Timeout);
+        (HttpResponseMessage? response, HttpFetchFailure failure) = await SendUntilResponseAsync(
+            request, caller, origin, credential, current, mediaType, aborted, budget.Token);
+        if (response is null) {
+            return Empty(failure);
+        }
 
+        using (response) {
+            try {
+                return await ReadAsync(response, failure, budget.Token);
+            } catch (OperationCanceledException) {
+                return Refuse(
+                    aborted.IsCancellationRequested ? HttpFetchFailure.Aborted : HttpFetchFailure.Timeout,
+                    caller,
+                    request.Url,
+                    LogLevel.Information);
+            } catch (IOException exception) {
+                logger.LogInformation(exception, "Fetch for {Caller} lost its response body from {Host}", caller, current.IdnHost);
+
+                return Empty(HttpFetchFailure.Network);
+            }
+        }
+    }
+
+    /// <summary>Opens a bounded text stream for one request.</summary>
+    /// <param name="request">The request to make.</param>
+    /// <param name="caller">Who asked, for the log line.</param>
+    /// <param name="origin">Whether page code or the assistant asked, for the <c>User-Agent</c>.</param>
+    /// <param name="credential">A page-bound credential, or <see langword="null"/> for none.</param>
+    /// <param name="aborted">Cancelled when the caller gives up.</param>
+    /// <param name="deadline">Cancelled when the caller's lifetime ends.</param>
+    /// <param name="onClosed">Records the completed stream.</param>
+    public async Task<HttpFetchStream> StreamAsync(
+        HttpFetchRequest request,
+        string caller,
+        OutboundOrigin origin,
+        PageCredential? credential,
+        Action<HttpFetchStream> onClosed,
+        CancellationToken aborted,
+        CancellationToken deadline) {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(caller);
+        ArgumentNullException.ThrowIfNull(onClosed);
+
+        if (!TryPrepareRequest(request, caller, credential, out Uri? current, out string? mediaType)) {
+            return new EmptyHttpFetchStream(HttpFetchFailure.InvalidRequest, onClosed);
+        }
+
+        // The header budget ends at the response headers; body reads have independent clocks.
+        using CancellationTokenSource headerBudget = CancellationTokenSource.CreateLinkedTokenSource(aborted, deadline);
+        headerBudget.CancelAfter(options.Timeout);
+        (HttpResponseMessage? response, HttpFetchFailure failure) = await SendUntilResponseAsync(
+            request, caller, origin, credential, current, mediaType, aborted, headerBudget.Token);
+        if (response is null) {
+            return new EmptyHttpFetchStream(failure, onClosed);
+        }
+
+        HttpFetchFailure outcome = failure == HttpFetchFailure.None && (int)response.StatusCode >= 400
+            ? HttpFetchFailure.HttpError
+            : failure;
+
+        try {
+            Stream body = await response.Content.ReadAsStreamAsync(headerBudget.Token);
+            return new OutboundHttpFetchStream(
+                response,
+                body,
+                ReadHeaders(response),
+                outcome,
+                EncodingFor(response),
+                options.StreamSilence,
+                options.StreamMax,
+                options.MaxStreamBytes,
+                aborted,
+                deadline,
+                onClosed);
+        } catch (OperationCanceledException) {
+            response.Dispose();
+
+            HttpFetchFailure cancelled = aborted.IsCancellationRequested
+                ? HttpFetchFailure.Aborted
+                : HttpFetchFailure.Timeout;
+            _ = Refuse(cancelled, caller, request.Url, LogLevel.Information);
+
+            return new EmptyHttpFetchStream(cancelled, onClosed);
+        } catch (HttpRequestException exception) {
+            response.Dispose();
+            logger.LogInformation(exception, "Fetch for {Caller} could not open the response body from {Host}", caller, current.IdnHost);
+
+            return new EmptyHttpFetchStream(HttpFetchFailure.Network, onClosed);
+        } catch (IOException exception) {
+            response.Dispose();
+            logger.LogInformation(exception, "Fetch for {Caller} could not open the response body from {Host}", caller, current.IdnHost);
+
+            return new EmptyHttpFetchStream(HttpFetchFailure.Network, onClosed);
+        }
+    }
+
+    private bool TryPrepareRequest(
+        HttpFetchRequest request,
+        string caller,
+        PageCredential? credential,
+        out Uri current,
+        out string? mediaType) {
+        mediaType = null;
+        if (!TryCreateUri(request.Url, out Uri? parsed) || !TryValidate(request, out mediaType)) {
+            _ = Refuse(HttpFetchFailure.InvalidRequest, caller, request.Url, LogLevel.Warning);
+            current = null!;
+            return false;
+        }
+
+        current = parsed;
+        if (credential is null || credential.AppliesTo(current)) {
+            return true;
+        }
+
+        logger.LogWarning(
+            "Fetch for {Caller} was refused credential {Credential} for {Host}: it is not the credential's host or is not secure",
+            caller,
+            credential.Name,
+            current.IdnHost);
+
+        return false;
+    }
+
+    private async Task<(HttpResponseMessage? Response, HttpFetchFailure Failure)> SendUntilResponseAsync(
+        HttpFetchRequest request,
+        string caller,
+        OutboundOrigin origin,
+        PageCredential? credential,
+        Uri current,
+        string? mediaType,
+        CancellationToken aborted,
+        CancellationToken cancellationToken) {
         HttpMethod method = request.Method == HttpFetchMethod.Post ? HttpMethod.Post : HttpMethod.Get;
         string? body = method == HttpMethod.Post ? request.Body : null;
 
         for (int redirects = 0; ; redirects++) {
-            using HttpRequestMessage message = new(method, current);
-            if (body is not null) {
-                message.Content = new StringContent(body, Encoding.UTF8, mediaType ?? "text/plain");
-            }
-
-            foreach ((string name, string value) in request.Headers) {
-                // Content-Type belongs on the content, and was applied to it above; User-Agent is
-                // the host's, so a page cannot claim to be a different client.
-                if (!string.Equals(name, "Content-Type", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(name, "User-Agent", StringComparison.OrdinalIgnoreCase)) {
-                    message.Headers.TryAddWithoutValidation(name, value);
-                }
-            }
-
-            // Per hop, not once for the chain: a redirect to another host or to plaintext is still
-            // followed under the ordinary rules, but it does not carry the credential.
-            if (credential is not null && credential.AppliesTo(current)) {
-                message.Headers.TryAddWithoutValidation(credential.Header, credential.HeaderValue);
-            }
-
-            message.Headers.TryAddWithoutValidation("User-Agent", OutboundUserAgent.For(origin));
-
             HttpResponseMessage response;
             try {
-                response = await SendAsync(message, budget.Token);
+                using HttpRequestMessage message = CreateRequestMessage(
+                    request, current, method, body, mediaType, origin, credential);
+                response = await SendAsync(message, cancellationToken);
             } catch (OperationCanceledException) {
-                return aborted.IsCancellationRequested
-                    ? Refuse(HttpFetchFailure.Aborted, caller, request.Url, LogLevel.Information)
-                    : Refuse(HttpFetchFailure.Timeout, caller, request.Url, LogLevel.Information);
-            } catch (HttpRequestException failure) {
-                logger.LogInformation(failure, "Fetch for {Caller} could not reach {Host}", caller, current.IdnHost);
+                HttpFetchFailure failure = aborted.IsCancellationRequested
+                    ? HttpFetchFailure.Aborted
+                    : HttpFetchFailure.Timeout;
+                _ = Refuse(failure, caller, request.Url, LogLevel.Information);
 
-                return Empty(HttpFetchFailure.Network);
+                return (null, failure);
+            } catch (HttpRequestException exception) {
+                logger.LogInformation(exception, "Fetch for {Caller} could not reach {Host}", caller, current.IdnHost);
+
+                return (null, HttpFetchFailure.Network);
             }
 
-            using (response) {
-                if (!IsRedirect(response.StatusCode)) {
-                    return await ReadAsync(response, HttpFetchFailure.None, budget.Token);
-                }
+            if (!IsRedirect(response.StatusCode)) {
+                return (response, HttpFetchFailure.None);
+            }
 
-                Uri? location = response.Headers.Location is { } target
-                    ? target.IsAbsoluteUri ? target : new Uri(current, target)
-                    : null;
+            Uri? location = response.Headers.Location is { } target
+                ? target.IsAbsoluteUri ? target : new Uri(current, target)
+                : null;
 
-                if (location is null || options.MaxRedirects == 0) {
-                    return await ReadAsync(response, HttpFetchFailure.None, budget.Token);
-                }
+            if (location is null || options.MaxRedirects == 0) {
+                return (response, HttpFetchFailure.None);
+            }
 
-                if (redirects >= options.MaxRedirects) {
-                    return await ReadAsync(response, HttpFetchFailure.TooManyRedirects, budget.Token);
-                }
+            if (redirects >= options.MaxRedirects) {
+                return (response, HttpFetchFailure.TooManyRedirects);
+            }
 
-                if (!IsFetchable(location)) {
-                    // The caller still sees where it pointed and the status it answered with, but no
-                    // connection is made to the target it named.
-                    return await ReadAsync(response, HttpFetchFailure.InvalidRequest, budget.Token);
-                }
+            if (!IsFetchable(location)) {
+                return (response, HttpFetchFailure.InvalidRequest);
+            }
 
-                // The browser convention: a redirected POST becomes a bodiless GET unless the status
-                // says the method and body are preserved.
-                if (response.StatusCode is HttpStatusCode.MovedPermanently
-                    or HttpStatusCode.Found
-                    or HttpStatusCode.SeeOther) {
-                    method = HttpMethod.Get;
-                    body = null;
-                }
+            bool changesToGet = response.StatusCode is HttpStatusCode.MovedPermanently
+                or HttpStatusCode.Found
+                or HttpStatusCode.SeeOther;
+            response.Dispose();
 
-                current = location;
+            if (changesToGet) {
+                method = HttpMethod.Get;
+                body = null;
+            }
+
+            current = location;
+        }
+    }
+
+    private static HttpRequestMessage CreateRequestMessage(
+        HttpFetchRequest request,
+        Uri current,
+        HttpMethod method,
+        string? body,
+        string? mediaType,
+        OutboundOrigin origin,
+        PageCredential? credential) {
+        HttpRequestMessage message = new(method, current);
+        if (body is not null) {
+            message.Content = new StringContent(body, Encoding.UTF8, mediaType ?? "text/plain");
+        }
+
+        foreach ((string name, string value) in request.Headers) {
+            if (!string.Equals(name, "Content-Type", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(name, "User-Agent", StringComparison.OrdinalIgnoreCase)) {
+                message.Headers.TryAddWithoutValidation(name, value);
             }
         }
+
+        if (credential is not null && credential.AppliesTo(current)) {
+            message.Headers.TryAddWithoutValidation(credential.Header, credential.HeaderValue);
+        }
+
+        message.Headers.TryAddWithoutValidation("User-Agent", OutboundUserAgent.For(origin));
+
+        return message;
     }
 
     // The client is cheap and owns no socket; the handler behind it is pooled by the factory, so a
@@ -235,6 +353,14 @@ internal sealed class OutboundFetcher(
         bool truncated = body.Length > options.MaxResponseBytes;
         string text = Decode(response, truncated ? body[..options.MaxResponseBytes] : body);
 
+        HttpFetchFailure outcome = failure == HttpFetchFailure.None && (int)response.StatusCode >= 400
+            ? HttpFetchFailure.HttpError
+            : failure;
+
+        return new HttpFetchResponse((int)response.StatusCode, ReadHeaders(response), text, outcome, truncated);
+    }
+
+    private static Dictionary<string, string> ReadHeaders(HttpResponseMessage response) {
         Dictionary<string, string> headers = [with(StringComparer.OrdinalIgnoreCase)];
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers) {
             if (PageFetchHeaders.IsResponseAllowed(header.Key)) {
@@ -248,11 +374,7 @@ internal sealed class OutboundFetcher(
             }
         }
 
-        HttpFetchFailure outcome = failure == HttpFetchFailure.None && (int)response.StatusCode >= 400
-            ? HttpFetchFailure.HttpError
-            : failure;
-
-        return new HttpFetchResponse((int)response.StatusCode, headers, text, outcome, truncated);
+        return headers;
     }
 
     // Content-Length is not trusted to be small, so the cap is applied to what arrives.
@@ -276,17 +398,21 @@ internal sealed class OutboundFetcher(
     }
 
     private string Decode(HttpResponseMessage response, byte[] body) {
+        return EncodingFor(response).GetString(body);
+    }
+
+    private Encoding EncodingFor(HttpResponseMessage response) {
         string? charset = response.Content.Headers.ContentType?.CharSet;
         if (!string.IsNullOrWhiteSpace(charset)) {
             try {
-                return Encoding.GetEncoding(charset.Trim('"')).GetString(body);
+                return Encoding.GetEncoding(charset.Trim('"'));
             } catch (ArgumentException exception) {
                 // An unknown charset is the caller's problem to spot; UTF-8 is the least surprising guess.
                 logger.LogDebug(exception, "A fetched response named the unknown charset {Charset}; it was read as UTF-8", charset);
             }
         }
 
-        return Encoding.UTF8.GetString(body);
+        return Encoding.UTF8;
     }
 
     private HttpFetchResponse Refuse(HttpFetchFailure failure, string caller, string url, LogLevel level) {

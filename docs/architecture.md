@@ -88,6 +88,7 @@ and the logs quote them:
 | `PAGE002` | `PageApiChecker` | page code escaped its method, or a declaration block declared something other than a type |
 | `PAGE003` | `PageImageBuilder` | the page waited too long for a compile slot |
 | `PAGE004` | `PageImageBuilder` | the page took too long to compile |
+| `PAGE006` | `PageCompiler` | a worker does not declare exactly one constructible public entry point |
 | `SCRIPT001` | `JavaScriptValidator` | the assistant's script check found a syntax error |
 | `SCRIPT002` | `JavaScriptValidator` | the assistant's script check found an opener the failed parse never closed |
 
@@ -112,7 +113,7 @@ clean compile does not hide them, and they never stop a page being served (DEC-2
 | The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
-| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageCapabilities`, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure` | `Sdk`, as plain values a compiled page binds against |
+| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageCapabilities`, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure`, `IWorker`/`IWorkerContext` | `Sdk`, as plain values a compiled page binds against |
 | The page policy: `PageApiPolicy`, `ApiReference` | `Core.Compilation`, as a pure rule over strings |
 | Which media type a page's key names, and what an unmapped key falls back to | `Core.Pages`, as `PageContentTypes` beside `PagePath`; `Web` reads the section |
 | The Roslyn walk that applies the page policy | `Runtime` |
@@ -145,12 +146,16 @@ is the worked example: it is the seeded `/pages`, which is offered `IPageEditor`
 | `/admin/changes`, `/admin/reference` | **The build's own facts.** Both read a file the image carries — the changelist and the XML documentation — which a page cannot read | DEC-255, DEC-302 |
 | `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | DEC-210, DEC-256 |
 | `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | DEC-210 |
-| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** A live run needs a stream and the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [ARCH-13](jobs/ARCH-13.md), [IDEA-025](jobs/IDEA-025.md) |
+| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The stream, the worker kind and jobs now exist, so the view and the run are page code; what blocks the port is an account-scoped store for the transcript and memory ([IDEA-033](jobs/IDEA-033.md)), the page-store write authority the tools need, and a restricted Markdown profile a page can reach | [IDEA-025](jobs/IDEA-025.md) |
 | `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](jobs/IDEA-024.md) |
 
 The page column is the default, so a new route asks which column it is in before it is written, and
 "it is easier in C#" is an IDEA file rather than an answer. The list is expected to shrink: when
-IDEA-024 lands, import and export join the page column, and the rule is what stays the same.
+IDEA-024 lands, import and export join the page column, and the rule is what stays the same. The
+assistant row's reason has already changed once: "a live run needs a stream" was true when this table
+was written and is not true now, because a page can hold a response open and start a job. What is left
+there is the store, the write authority and the renderer profile — each recorded in
+[IDEA-025](jobs/IDEA-025.md), and none of them a route the shell has to keep.
 
 ## Configuration
 

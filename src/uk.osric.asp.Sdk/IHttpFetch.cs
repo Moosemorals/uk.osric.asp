@@ -16,6 +16,11 @@ public interface IHttpFetch {
     /// <returns>The response. A failure is a value, not an exception.</returns>
     public Task<HttpFetchResponse> SendAsync(HttpFetchRequest request);
 
+    /// <summary>Makes an outbound HTTP request whose text response can be read one line at a time.</summary>
+    /// <param name="request">The request to make.</param>
+    /// <returns>The response stream. A transport failure is reported through its values, not an exception.</returns>
+    public Task<HttpFetchStream> StreamAsync(HttpFetchRequest request);
+
     /// <summary>Makes a <c>GET</c> request.</summary>
     /// <param name="url">An absolute <c>http</c> or <c>https</c> URL.</param>
     /// <returns>The response. A failure is a value, not an exception.</returns>

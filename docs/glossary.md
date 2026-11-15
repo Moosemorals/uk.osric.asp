@@ -43,7 +43,8 @@ this: those are the `Assistant:Max*` limits on one run or conversation, drawn as
 pairs (DEC-141, DEC-159).
 
 **Owner:** pages — `PageBudget`, `Pages:Render:TimeoutSeconds`, `Pages:Render:Slots`,
-`Pages:Render:MaxBodyChars`, `Pages:Compile:TimeoutSeconds` and `Pages:Compile:Slots`.
+`Pages:Render:MaxBodyChars`, `Pages:Compile:TimeoutSeconds` and `Pages:Compile:Slots`; a committed
+stream leaves the budget for its own clocks in `Pages:Stream`.
 
 ## Build fact
 Something the image carries that describes the build serving it — the changelist and the XML
@@ -169,6 +170,26 @@ a site's own helpers belong; the key is a name rather than a rule, and it is nev
 pinned with `?v=`, and a library is compiled into the pages that name it. **Owner:** pages —
 `PageKind`, `PageAssetPolicy.IsLibrary`, the library shape rule in `PageApiChecker`, and the closure
 in `PageCompiler`.
+
+## Job
+One run of a stored **worker**, started by a page through `IPageJobs` and owned by the signed-in
+visitor who started it. It has a job slot of its own rather than a render slot, a silence clock
+re-armed by everything it publishes or receives, and a ceiling; its events live in an in-memory,
+bounded journal a viewer reads by sequence, and the starting page's storage is what it must write to
+be sure of keeping. A job is never a request: it has no response, no layout and no visitor waiting.
+
+## Worker
+A stored source whose only blocks are declarations and which declares exactly one entry point: a
+public type implementing `IWorker` with a parameterless constructor. It is compiled to an assembly
+when it is saved and keeps its diagnostics, it is never served, and it is **not** a library — the
+closure a page is compiled with is the live libraries alone, so naming a worker's namespace is a
+compile error. A page starts one and it runs with no response of its own. **Owner:** pages —
+`PageKind.Worker`, the refinement in `PageCompiler`, and `PageAssetPolicy.IsWorker`.
+
+It is not a `System.Threading.Thread` and not a task: it is a stored program the host compiles,
+loads into a collectible context and invokes once per job, so the host owns its lifetime, its slot
+and its clocks. Nor is it a *page* with a hidden response — a job has no document, which is why
+`IWorkerContext` is not an `IContext`.
 
 ## Markdown
 The source format a page may render to HTML, and the format an assistant reply is written in.
@@ -408,8 +429,9 @@ or their deadline passes.
 
 **Not** a thread or a budget. A slot bounds concurrency; the budget bounds time.
 
-**Owner:** pages — `PageBudget.RenderSlots` and `PageBudget.CompileSlots`; `Pages:Render:Slots` and
-`Pages:Compile:Slots`.
+**Owner:** pages — `PageBudget.RenderSlots`, `PageBudget.CompileSlots` and `PageBudget.StreamSlots`;
+`Pages:Render:Slots`, `Pages:Compile:Slots` and `Pages:Stream:Slots`. A committed stream swaps its
+render slot for a stream slot, so what it holds while it waits is the site's stream allowance.
 
 ## Staleness
 The state of a stored image that no longer matches the current template or runtime.

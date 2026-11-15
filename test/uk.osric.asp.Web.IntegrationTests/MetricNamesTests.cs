@@ -62,6 +62,7 @@ public sealed class MetricNamesTests : IntegrationTest {
             pages.RecordInvoke(path, true, TimeSpan.FromMilliseconds(5));
             pages.RecordSave(path, true, TimeSpan.FromMilliseconds(5));
             pages.RecordFetch(path, PageMetrics.FetchOk, TimeSpan.FromMilliseconds(5));
+            pages.RecordStream(path, PageMetrics.StreamCompleted, TimeSpan.FromMilliseconds(5));
             pages.RecordImport(PageMetrics.ImportCommitted, TimeSpan.FromMilliseconds(5));
             pages.RecordImageSize(path, 1000);
             pages.RecordAbandoned(path);

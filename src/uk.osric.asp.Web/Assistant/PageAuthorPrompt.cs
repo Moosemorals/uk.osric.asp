@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v28";
+    public const string Version = "page-author-v29";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -109,7 +109,10 @@ internal static class PageAuthorPrompt {
         `<%! using Some.Namespace; %>` directive; the page is compiled with the
         library, and only the libraries its usings reach. A page whose blocks are
         only `<%! %>` declarations is itself a library: it is checked when saved,
-        is never served, and must declare its types inside a namespace.
+        is never served, and must declare its types inside a namespace. One that
+        declares exactly one public type implementing `IWorker` is a worker
+        instead: it is compiled to an entry point when saved, is started by a
+        page, is never served, and is not a library any page may name.
 
         Forms use `<form class="form">` with one `<dl>` holding
         `<dt><label for="id">…</label></dt>` and `<dd>` around the control. A
@@ -257,7 +260,8 @@ internal static class PageAuthorPrompt {
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
         and never writes. `ListAsync(prefix)` lists the heads under a subtree
         and returns `PageEntry` rows with `Key`, `SavedAt`, `Hash` and five
-        marks: `IsDeleted`, `IsReserved`, `IsHtml`, `IsAsset` and `IsLibrary`. A prefix is a subtree,
+        marks: `IsDeleted`, `IsReserved`, `IsHtml`, `IsAsset`, `IsLibrary` and
+        `IsWorker`. A prefix is a subtree,
         not a string prefix: `/blog` lists `/blog` and `/blog/post`, never
         `/blogroll`; `""` and `/` are the whole store. `ReadAsync(key)` reads a
         live page's template as a `PageSource`, or null when there is none;
@@ -385,6 +389,23 @@ internal static class PageAuthorPrompt {
         the page never sees the value. Use the name the owner supplies, never a
         token, never a value in a URL or the page source, and never invent one:
         an unknown name is an `InvalidRequest`.
+
+        ## Jobs
+        `ctx.Capabilities.GetRequired<IPageJobs>()` starts a **worker** as a
+        **job** that outlives the request. A worker is a stored source whose only
+        blocks are declarations and which declares exactly one public type
+        implementing `IWorker` with a parameterless constructor; it is compiled
+        when it is saved and never served. `StartAsync(workerKey, firstMessage)`
+        answers a `PageJobStart`: check `Started`, and read `Refusal` when it is
+        false. `ListAsync()` finds this visitor's jobs after a reload,
+        `SendAsync(jobId, message)` queues a message, `CancelAsync(jobId)` stops
+        one, and `ReadEventsAsync(jobId, after, waitSeconds)` reads what the
+        worker published, waiting briefly for the next event: pass the last
+        sequence you saw, keep `Next`, and start again from `Next` when `Reset`
+        is true. The journal is memory and bounded, so what must survive belongs
+        in the starting page's storage. A `HEAD` cannot start, send or cancel,
+        and a layout is offered none of it. Do not invent a worker key: list the
+        pages and read the one you mean.
 
         ## Page API policy
         The `uk.osric.asp.Sdk` contract is allowed.

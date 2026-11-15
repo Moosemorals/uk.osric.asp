@@ -100,6 +100,12 @@ public interface IContext {
     /// request commits the response but sends no body.
     /// </para>
     /// <para>
+    /// The first flush is also where the render budget changes shape. Before it the render's whole
+    /// budget applies; from it the response has its own silence and ceiling (<c>Pages:Stream</c>), the
+    /// render slot is released and a stream slot is taken. A stream that goes quiet, or reaches its
+    /// ceiling, is truncated; it is no longer cut by the render's timeout.
+    /// </para>
+    /// <para>
     /// This takes no cancellation token, like every other I/O member here: the render owns
     /// <see cref="Aborted"/> and the deadline and links them per call.
     /// </para>
@@ -107,6 +113,10 @@ public interface IContext {
     /// <exception cref="InvalidOperationException">
     /// The render cannot stream, the page is a layout, it has redirected, or it is still wrapped in a
     /// layout.
+    /// </exception>
+    /// <exception cref="PageStreamRefusedException">
+    /// Every stream slot is taken, so nothing was committed. The shell answers <c>503</c> unless the
+    /// page catches this and writes its own document.
     /// </exception>
     public Task FlushAsync();
 

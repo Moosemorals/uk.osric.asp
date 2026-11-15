@@ -8,6 +8,7 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
+using uk.osric.asp.Web.Work;
 
 /// <summary>What the page endpoint needs beyond the renderer, gathered in one place.</summary>
 /// <remarks>
@@ -33,6 +34,10 @@ using uk.osric.asp.Web.Editor;
 /// <param name="Sessions">The bounds on one visitor's session.</param>
 /// <param name="SessionStore">Where a visitor's session is read and written.</param>
 /// <param name="SessionCookie">The cookie that names the visitor's session.</param>
+/// <param name="Jobs">
+/// Where a page's jobs are started and read, or <see langword="null"/> when this host offers none. A
+/// host without one simply does not offer the capability, which is what a page is already prepared for.
+/// </param>
 internal sealed record PageEnvironment(
     ReservedPaths Reserved,
     PageEditorOptions Editor,
@@ -52,4 +57,5 @@ internal sealed record PageEnvironment(
     DiffRenderer Diff,
     PageSessionOptions Sessions,
     IPageSessionStore SessionStore,
-    PageSessionCookieOptions SessionCookie);
+    PageSessionCookieOptions SessionCookie,
+    PageJobs? Jobs = null);

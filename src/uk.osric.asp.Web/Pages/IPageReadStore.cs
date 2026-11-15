@@ -70,6 +70,16 @@ internal interface IPageReadStore {
     /// <returns>At most <paramref name="limit"/> heads, in ordinal key order.</returns>
     Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, int limit, CancellationToken cancellationToken = default);
 
+    /// <summary>Reads one head, which is how a caller learns what a key holds.</summary>
+    /// <param name="key">The canonical key to read.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The head, a tombstone's included, or <see langword="null"/> when no page has that key.</returns>
+    /// <remarks>
+    /// It is one row rather than a listing of the key's subtree: a caller that needs a page's kind
+    /// before it can decide anything must not be given its children as a side effect.
+    /// </remarks>
+    Task<PageReadHead?> GetHeadAsync(string key, CancellationToken cancellationToken = default);
+
     /// <summary>Reads a live page's template.</summary>
     /// <param name="key">The canonical key to read.</param>
     /// <param name="cancellationToken">Cancels the read.</param>

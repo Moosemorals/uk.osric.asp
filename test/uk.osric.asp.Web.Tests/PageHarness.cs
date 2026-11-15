@@ -11,6 +11,7 @@ using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Work;
 
 /// <summary>Builds the page classes over one storage and one counting compiler.</summary>
 /// <remarks>
@@ -35,7 +36,10 @@ internal sealed class PageHarness : IDisposable {
         PageFetchOptions? fetchOptions = null,
         PageContentTypes? contentTypes = null,
         MarkdownRenderer? markdown = null,
-        DiffRenderer? diff = null) {
+        DiffRenderer? diff = null,
+        PageJobOptions? jobOptions = null,
+        IWorkerStore? workerStore = null,
+        TimeProvider? clock = null) {
         State = state ?? new FakePageStateStore();
         Sessions = sessionStore ?? new FakePageSessionStore();
         Session = new PageSessionRequest(uk.osric.asp.Web.Authentication.PageSessionCookie.Mint(), null, presented: false, exists: false);
@@ -48,7 +52,7 @@ internal sealed class PageHarness : IDisposable {
         FetchOptions = fetchOptions ?? TestOptions.Fetch;
         ReadOptions = TestOptions.Read;
         Options = options ?? TestOptions.Render;
-        Budget = budget ?? new PageBudget(Options, TestOptions.Compile);
+        Budget = budget ?? new PageBudget(Options, TestOptions.Compile, TestOptions.Stream);
         Health = health ?? new PageHealth(Options.AbandonedLimit);
         Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
         Metrics = new PageMetrics();
@@ -68,6 +72,21 @@ internal sealed class PageHarness : IDisposable {
             Health,
             rendererLogger ?? NullLogger<PageRenderer>.Instance);
         Editor = new PageEditor(storage, Saver);
+
+        JobOptions = jobOptions ?? TestOptions.Jobs;
+        WorkerStore = workerStore ?? new FakeWorkerStore(storage);
+        Reserved = new ReservedPaths(ReservedPaths.Default);
+        JobQueue = new PageJobQueue(JobOptions);
+        Jobs = new PageJobs(
+            JobOptions, JobQueue, Reserved, ReadStore, clock ?? TimeProvider.System, NullLogger<PageJobs>.Instance);
+        JobRunner = new PageJobRunner(
+            JobQueue,
+            Jobs,
+            new PageJobEnvironment(
+                JobOptions, WorkerStore, State, StorageOptions, Fetch, FetchOptions, ReadStore, ReadOptions,
+                Reserved, ContentTypes, Images, Libraries, Compiler, Metrics),
+            NullLoggerFactory.Instance,
+            NullLogger<PageJobRunner>.Instance);
     }
 
     public RenderOptions Options { get; }
@@ -128,6 +147,30 @@ internal sealed class PageHarness : IDisposable {
     public PageRenderer Renderer { get; }
 
     public PageEditor Editor { get; }
+
+    /// <summary>The job bounds this harness runs with.</summary>
+    public PageJobOptions JobOptions { get; }
+
+    /// <summary>Where a job reads its worker and stores a rebuilt image.</summary>
+    public IWorkerStore WorkerStore { get; }
+
+    /// <summary>The keys the site's own routes answer.</summary>
+    public ReservedPaths Reserved { get; }
+
+    /// <summary>The queue a job start is written to.</summary>
+    public PageJobQueue JobQueue { get; }
+
+    /// <summary>The jobs themselves.</summary>
+    public PageJobs Jobs { get; }
+
+    /// <summary>The runner that gives each job a scope and a load context.</summary>
+    public PageJobRunner JobRunner { get; }
+
+    /// <summary>Starts the runner, as the host's hosted service would.</summary>
+    public Task StartJobsAsync() => JobRunner.StartAsync(CancellationToken.None);
+
+    /// <summary>Stops the runner, which cancels the jobs it is running.</summary>
+    public Task StopJobsAsync() => JobRunner.StopAsync(CancellationToken.None);
 
     public static PagePath Key(string path) {
         return PagePath.Normalize(path);
@@ -285,7 +328,8 @@ internal sealed class PageHarness : IDisposable {
             Diff,
             TestOptions.Session,
             Sessions,
-            TestSessions.Cookie);
+            TestSessions.Cookie,
+            Jobs);
     }
 
     // The timeout tests measure the page, not the compiler: a page compiled on its first request
@@ -295,6 +339,7 @@ internal sealed class PageHarness : IDisposable {
     }
 
     public void Dispose() {
+        JobRunner.Dispose();
         Metrics.Dispose();
     }
 }

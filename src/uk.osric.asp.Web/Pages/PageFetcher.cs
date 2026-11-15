@@ -38,44 +38,101 @@ internal sealed class PageFetcher(
         return response;
     }
 
+    /// <inheritdoc/>
+    public async Task<HttpFetchStream> StreamAsync(
+        HttpFetchRequest request,
+        string pagePath,
+        CancellationToken aborted,
+        CancellationToken deadline) {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pagePath);
+
+        PagePath path = PagePath.Normalize(pagePath);
+        long start = Stopwatch.GetTimestamp();
+        if (!TryResolveCredential(request, path, out PageCredential? credential)) {
+            return new EmptyHttpFetchStream(HttpFetchFailure.InvalidRequest, stream =>
+                metrics.RecordFetch(path, OutcomeOf(stream), Stopwatch.GetElapsedTime(start)));
+        }
+
+        return await fetcher.StreamAsync(
+            request,
+            path.Key,
+            OutboundOrigin.Page,
+            credential,
+            stream => metrics.RecordFetch(path, OutcomeOf(stream), Stopwatch.GetElapsedTime(start)),
+            aborted,
+            deadline);
+    }
+
     private async Task<HttpFetchResponse> SendAsync(
         HttpFetchRequest request,
         PagePath path,
         CancellationToken aborted,
         CancellationToken deadline) {
-        PageCredential? credential = null;
-
-        if (request.Credential is not null) {
-            if (!options.Credentials.TryGetValue(request.Credential, out credential)) {
-                return Refuse(path, request.Url, "an unknown credential was named");
-            }
-
-            if (!credential.IsBoundTo(path.Key)) {
-                return Refuse(path, request.Url, $"{credential.Name} is bound to another page");
-            }
-
-            if (request.Headers.Keys.Any(header => string.Equals(header, credential.Header, StringComparison.OrdinalIgnoreCase))) {
-                return Refuse(path, request.Url, $"the request sets {credential.Header}, which {credential.Name} also sets");
-            }
+        if (!TryResolveCredential(request, path, out PageCredential? credential)) {
+            return Empty(HttpFetchFailure.InvalidRequest);
         }
 
         return await fetcher.FetchAsync(request, path.Key, OutboundOrigin.Page, credential, aborted, deadline);
     }
 
-    private HttpFetchResponse Refuse(PagePath path, string url, string reason) {
+    private bool TryResolveCredential(HttpFetchRequest request, PagePath path, out PageCredential? credential) {
+        credential = null;
+        if (request.Credential is null) {
+            return true;
+        }
+
+        if (!options.Credentials.TryGetValue(request.Credential, out credential)) {
+            LogRefusal(path, request.Url, "an unknown credential was named");
+
+            return false;
+        }
+
+        if (!credential.IsBoundTo(path.Key)) {
+            LogRefusal(path, request.Url, $"{credential.Name} is bound to another page");
+            credential = null;
+
+            return false;
+        }
+
+        foreach (string header in request.Headers.Keys) {
+            if (!string.Equals(header, credential.Header, StringComparison.OrdinalIgnoreCase)) {
+                continue;
+            }
+
+            LogRefusal(path, request.Url, $"the request sets {credential.Header}, which {credential.Name} also sets");
+            credential = null;
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private void LogRefusal(PagePath path, string url, string reason) {
         string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed) ? parsed.IdnHost : "(unparsed)";
         logger.LogWarning("Page {Path} was refused a fetch to {Host}: {Reason}", path.Key, host, reason);
+    }
 
+    private static HttpFetchResponse Empty(HttpFetchFailure failure) {
         return new HttpFetchResponse(
             0,
             new Dictionary<string, string>(),
             string.Empty,
-            HttpFetchFailure.InvalidRequest,
+            failure,
             false);
     }
 
     private static string OutcomeOf(HttpFetchResponse response) {
-        return response.Failure switch {
+        return OutcomeOf(response.Failure);
+    }
+
+    private static string OutcomeOf(HttpFetchStream stream) {
+        return OutcomeOf(stream.Failure);
+    }
+
+    private static string OutcomeOf(HttpFetchFailure failure) {
+        return failure switch {
             HttpFetchFailure.None => PageMetrics.FetchOk,
             HttpFetchFailure.HttpError => PageMetrics.FetchHttpError,
             HttpFetchFailure.Timeout => PageMetrics.FetchTimeout,

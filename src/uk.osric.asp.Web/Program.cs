@@ -29,6 +29,7 @@ using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
 using uk.osric.asp.Web.Users;
+using uk.osric.asp.Web.Work;
 
 // Not static: WebApplicationFactory<Program> needs a type to name when it looks for the entry point.
 // Internal, like the rest of the shell; the integration tests reach it through InternalsVisibleTo.
@@ -96,9 +97,11 @@ internal class Program {
         PageFetchOptions fetch = PageFetchOptions.FromConfiguration(settings.At("Pages:Fetch"));
         PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(settings.At("Pages:Layout"));
         PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
+        PageJobOptions jobOptions = PageJobOptions.FromConfiguration(settings.At("Pages:Jobs"));
         PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
         PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
         RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
+        StreamOptions stream = StreamOptions.FromConfiguration(settings.At("Pages:Stream"));
 
         string[] reservedKeys = [.. settings.At("Pages").List("ReservedPaths", "page keys", minimum: 1)];
         settings.Complete();
@@ -141,6 +144,7 @@ internal class Program {
         builder.Services.AddHostedService<PageStorageSampler>();
         builder.Services.AddHostedService<PageSessionCleanupService>();
         builder.Services.AddHostedService<ImportWorker>();
+        builder.Services.AddHostedService<PageJobRunner>();
         builder.Services.AddHostedService<RunJournalCleanupService>();
         builder.Services.AddHostedService<RunWorker>();
 
@@ -172,6 +176,7 @@ internal class Program {
         builder.Services.AddSingleton(compile);
         builder.Services.AddSingleton(contentTypes);
         builder.Services.AddSingleton(editor);
+        builder.Services.AddSingleton(jobOptions);
         builder.Services.AddSingleton(layout);
         builder.Services.AddSingleton(metrics);
         builder.Services.AddSingleton(read);
@@ -179,6 +184,7 @@ internal class Program {
         builder.Services.AddSingleton(reserved);
         builder.Services.AddSingleton(session);
         builder.Services.AddSingleton(storage);
+        builder.Services.AddSingleton(stream);
         builder.Services.AddSingleton(fetch);
 
         // Singletons, sort alphabetically so the list is easy to scan.
@@ -203,7 +209,8 @@ internal class Program {
               services.GetRequiredService<DiffRenderer>(),
               services.GetRequiredService<PageSessionOptions>(),
               services.GetRequiredService<IPageSessionStore>(),
-              services.GetRequiredService<PageSessionCookieOptions>()));
+              services.GetRequiredService<PageSessionCookieOptions>(),
+              services.GetRequiredService<PageJobs>()));
         builder.Services.AddSingleton(services => new PageHealth(services.GetRequiredService<RenderOptions>().AbandonedLimit));
 
         builder.Services.AddSingleton<AssistantMetrics>();
@@ -225,6 +232,24 @@ internal class Program {
         builder.Services.AddSingleton<OutboundFetcher>();
         builder.Services.AddSingleton<PageBudget>();
         builder.Services.AddSingleton<PageImageBuilder>();
+        builder.Services.AddSingleton<PageJobQueue>();
+        builder.Services.AddSingleton<PageJobs>();
+        builder.Services.AddSingleton<IWorkerStore, ScopedWorkerStore>();
+        builder.Services.AddSingleton(services => new PageJobEnvironment(
+            services.GetRequiredService<PageJobOptions>(),
+            services.GetRequiredService<IWorkerStore>(),
+            services.GetRequiredService<IPageStateStore>(),
+            services.GetRequiredService<PageStorageOptions>(),
+            services.GetRequiredService<IPageFetcher>(),
+            services.GetRequiredService<PageFetchOptions>(),
+            services.GetRequiredService<IPageReadStore>(),
+            services.GetRequiredService<PageReadOptions>(),
+            services.GetRequiredService<ReservedPaths>(),
+            services.GetRequiredService<PageContentTypes>(),
+            services.GetRequiredService<PageImageBuilder>(),
+            services.GetRequiredService<PageLibraries>(),
+            services.GetRequiredService<IPageCompiler>(),
+            services.GetRequiredService<PageMetrics>()));
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PagePathPolicy>();
@@ -296,6 +321,7 @@ internal class Program {
             .AddView("page.render.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.render.wait", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.stream.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.StreamBuckets })
             .AddPrometheusExporter());
 
         WebApplication app = builder.Build();

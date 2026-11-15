@@ -54,6 +54,52 @@ public sealed class PageFetchRenderTests {
     }
 
     [Test]
+    public async Task APageCanReadAndLeaveAnOutboundStreamForRenderCleanupAsync() {
+        FakePageFetcher fetcher = new();
+        FakeHttpFetchStream stream = new("upstream line");
+        fetcher.StreamAnswer = _ => stream;
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
+        await pages.StoreCompiledAsync("/live", """
+            <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+               HttpFetchStream stream = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/events"));
+               ctx.Write(await stream.ReadLineAsync() ?? "empty"); %>
+            """);
+
+        (RenderResult result, string output) = await pages.RenderAsync("/live");
+
+        Assert.Multiple(() => {
+            Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
+            Assert.That(output, Is.EqualTo("upstream line"));
+            Assert.That(stream.IsClosed, Is.True,
+                "an upstream response left open by page code must be closed when its render ends");
+            Assert.That(fetcher.StreamRequests, Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task AStreamRequestCountsAgainstTheRenderFetchCapAsync() {
+        FakePageFetcher fetcher = new();
+        PageFetchOptions options = TestOptions.Fetch with { MaxRequestsPerRender = 1 };
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
+        await pages.StoreCompiledAsync("/limited", """
+            <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+               HttpFetchStream first = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/first"));
+               await first.CloseAsync();
+               HttpFetchStream second = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/second"));
+               ctx.Write(second.Failure.ToString());
+               await second.CloseAsync(); %>
+            """);
+
+        (RenderResult result, string output) = await pages.RenderAsync("/limited");
+
+        Assert.Multiple(() => {
+            Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
+            Assert.That(output, Is.EqualTo(nameof(HttpFetchFailure.TooManyRequests)));
+            Assert.That(fetcher.StreamRequests, Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
     public async Task AHeadRenderCannotPostAsync() {
         FakePageFetcher fetcher = new();
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher);

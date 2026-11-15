@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Runtime;
 
 using uk.osric.asp.Core.Compilation;
+using uk.osric.asp.Core.Pages;
 
 /// <summary>The outcome of compiling generated page source.</summary>
 /// <param name="Image">The emitted assembly, or <see langword="null"/> when compilation failed.</param>
@@ -28,4 +29,11 @@ public sealed record CompileResult(byte[]? Image, byte[]? Symbols, IReadOnlyList
     /// none. An image that carries this list was built against exactly these libraries.
     /// </summary>
     public IReadOnlyList<string> Libraries { get; init; } = [];
+
+    /// <summary>
+    /// What the compiler judged a declaration-only source to be, or <see langword="null"/> when it
+    /// refined nothing. Generation can tell a template has only declarations; whether those
+    /// declarations are a <see cref="PageKind.Worker"/> is a question only the compiled types answer.
+    /// </summary>
+    public PageKind? Kind { get; init; }
 }

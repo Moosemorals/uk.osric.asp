@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 
@@ -47,7 +48,7 @@ public sealed class PageStreamingTests {
         (Task run, DefaultHttpContext context) = Start("/stream");
 
         await _state.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
-        string first = await TestHttp.ReadBodyAsync(context);
+        string first = await WaitForBodyAsync(context);
         Assert.Multiple(() => {
             Assert.That(first, Is.EqualTo("first"),
                 "the first flush must reach the response before the page finishes");
@@ -58,6 +59,67 @@ public sealed class PageStreamingTests {
         await run.WaitAsync(TimeSpan.FromSeconds(5), TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
 
         Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("firstsecond"));
+    }
+
+    [Test]
+    public async Task APageCanRelayAnOutboundStreamToTheClientAsync() {
+        GatedHttpFetchStream upstream = new();
+        _fetcher.StreamAnswer = _ => upstream;
+        Store("/relay", """
+            <% ctx.Write("ready"); await ctx.FlushAsync();
+               IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+               HttpFetchStream upstream = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/events"));
+               string? line;
+               while ((line = await upstream.ReadLineAsync()) is not null) {
+                   ctx.Write(line);
+                   await ctx.FlushAsync();
+               } %>
+            """);
+
+        (Task run, DefaultHttpContext context) = Start("/relay");
+
+        string first = await WaitForBodyContainingAsync(context, "first");
+        Assert.Multiple(() => {
+            Assert.That(first, Is.EqualTo("readyfirst"));
+            Assert.That(run.IsCompleted, Is.False);
+            Assert.That(upstream.IsClosed, Is.False);
+        });
+
+        upstream.ReleaseSecondLine();
+        await run.WaitAsync(TimeSpan.FromSeconds(5), TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("readyfirstsecond"));
+    }
+
+    [Test]
+    [NonParallelizable]
+    public async Task AnAbandonedRenderClosesItsOutboundStreamAsync() {
+        GatedHttpFetchStream upstream = new();
+        _fetcher.StreamAnswer = _ => upstream;
+        Store("/relay", """
+            <% ctx.Write("ready"); await ctx.FlushAsync();
+               IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+               HttpFetchStream upstream = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/events"));
+               string? line;
+               while ((line = await upstream.ReadLineAsync()) is not null) {
+                   ctx.Write(line);
+                   await ctx.FlushAsync();
+               } %>
+            """);
+
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = 30 };
+        StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 2, MaxSeconds = 10 };
+        (Task run, DefaultHttpContext context) = Start("/relay", options: options, stream: stream);
+
+        string body = await WaitForBodyContainingAsync(context, "first");
+        await run.WaitAsync(TimeSpan.FromSeconds(5), TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+        string finalBody = await TestHttp.ReadBodyAsync(context);
+
+        Assert.Multiple(() => {
+            Assert.That(body, Is.EqualTo("readyfirst"));
+            Assert.That(upstream.IsClosed, Is.True);
+            Assert.That(finalBody, Is.EqualTo("readyfirst"));
+        });
     }
 
     [Test]
@@ -190,20 +252,92 @@ public sealed class PageStreamingTests {
 
     [Test]
     [NonParallelizable]
-    public async Task ATimeoutAfterTheFlushTruncatesInsteadOfAnswering504Async() {
+    public async Task AStreamOutlivesTheRenderBudgetAsync() {
         Store("/stream", """
             <% ctx.Write("prefix"); await ctx.FlushAsync();
                System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600);
-               while (System.DateTime.UtcNow < until) { } %>
+               while (System.DateTime.UtcNow < until) { }
+               ctx.Write("done"); await ctx.FlushAsync(); %>
             """);
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = 0.25 };
+        StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 10, MaxSeconds = 30 };
 
-        (DefaultHttpContext context, string body) = await RenderAsync("/stream", options: options);
+        (DefaultHttpContext context, string body) = await RenderAsync("/stream", options: options, stream: stream);
+
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+            Assert.That(body, Is.EqualTo("prefixdone"),
+                "the render budget must stop at the commit; the stream has its own clocks");
+        });
+    }
+
+    [Test]
+    [NonParallelizable]
+    public async Task AStreamThatGoesQuietIsTruncatedAsync() {
+        Store("/stream", """
+            <% ctx.Write("prefix"); await ctx.FlushAsync();
+               System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600);
+               while (System.DateTime.UtcNow < until) { }
+               ctx.Write("done"); await ctx.FlushAsync(); %>
+            """);
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = 5 };
+        StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 0.1, MaxSeconds = 30 };
+        RecordingLoggerFactory logs = new();
+
+        (DefaultHttpContext context, string body) = await RenderAsync("/stream", options: options, stream: stream, logs: logs);
 
         Assert.Multiple(() => {
             Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
             Assert.That(body, Is.EqualTo("prefix"));
+            Assert.That(logs.Entries.Any(entry =>
+                entry.Level == LogLevel.Warning
+                && entry.Message.Contains("went quiet", StringComparison.Ordinal)), Is.True);
         });
+    }
+
+    [Test]
+    [NonParallelizable]
+    public async Task AStreamAtItsCeilingIsTruncatedAsync() {
+        Store("/stream", """
+            <% ctx.Write("prefix"); await ctx.FlushAsync();
+               System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600);
+               while (System.DateTime.UtcNow < until) { }
+               ctx.Write("done"); await ctx.FlushAsync(); %>
+            """);
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = 5 };
+        StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 10, MaxSeconds = 0.1 };
+        RecordingLoggerFactory logs = new();
+
+        (DefaultHttpContext context, string body) = await RenderAsync("/stream", options: options, stream: stream, logs: logs);
+
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+            Assert.That(body, Is.EqualTo("prefix"));
+            Assert.That(logs.Entries.Any(entry =>
+                entry.Level == LogLevel.Warning
+                && entry.Message.Contains("stream ceiling", StringComparison.Ordinal)), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task AFullStreamPoolRefusesTheFirstFlushWith503Async() {
+        Store("/stream", """<% ctx.Write("hi"); await ctx.FlushAsync(); %>""");
+        RenderOptions options = TestOptions.Render with { TimeoutSeconds = 5 };
+        StreamOptions stream = TestOptions.Stream with { Slots = 1, SilenceSeconds = 10, MaxSeconds = 30 };
+        PageBudget budget = new(options, TestOptions.Compile, stream);
+
+        await budget.StreamSlots.WaitAsync();
+        try {
+            (DefaultHttpContext context, string body) = await RenderAsync("/stream", options: options, stream: stream, budget: budget);
+
+            Assert.Multiple(() => {
+                Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status503ServiceUnavailable));
+                Assert.That(body, Does.Contain("live-stream limit"));
+            });
+        } finally {
+            budget.StreamSlots.Release();
+            budget.Dispose();
+        }
     }
 
     [Test]
@@ -278,9 +412,13 @@ public sealed class PageStreamingTests {
         string method = "GET",
         RenderOptions? options = null,
         string? layout = null,
-        RecordingLoggerFactory? logs = null) {
+        RecordingLoggerFactory? logs = null,
+        StreamOptions? stream = null,
+        PageBudget? budget = null) {
         RenderOptions render = options ?? TestOptions.Render;
-        PageSaver saver = CreateSaver(render);
+        StreamOptions streaming = stream ?? TestOptions.Stream;
+        PageBudget shared = budget ?? new PageBudget(render, TestOptions.Compile, streaming);
+        PageSaver saver = CreateSaver(shared);
         DefaultHttpContext context = TestHttp.CreateContext(path.TrimStart('/'), method, path);
         PageEnvironment environment = new(
             new ReservedPaths(ReservedPaths.Default),
@@ -305,7 +443,7 @@ public sealed class PageStreamingTests {
 
         ILoggerFactory factory = logs is null ? NullLoggerFactory.Instance : logs;
 
-        return (PageEndpoint.HandleAsync(context, CreateRenderer(render), factory, environment), context);
+        return (PageEndpoint.HandleAsync(context, CreateRenderer(render, shared, logs), factory, environment), context);
     }
 
     private async Task<(DefaultHttpContext Context, string Body)> RenderAsync(
@@ -313,15 +451,16 @@ public sealed class PageStreamingTests {
         string method = "GET",
         RenderOptions? options = null,
         string? layout = null,
-        RecordingLoggerFactory? logs = null) {
-        (Task run, DefaultHttpContext context) = Start(path, method, options, layout, logs);
+        RecordingLoggerFactory? logs = null,
+        StreamOptions? stream = null,
+        PageBudget? budget = null) {
+        (Task run, DefaultHttpContext context) = Start(path, method, options, layout, logs, stream, budget);
         await run;
 
         return (context, await TestHttp.ReadBodyAsync(context));
     }
 
-    private PageSaver CreateSaver(RenderOptions options) {
-        PageBudget budget = new(options, TestOptions.Compile);
+    private PageSaver CreateSaver(PageBudget budget) {
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageSaver(
@@ -329,8 +468,7 @@ public sealed class PageStreamingTests {
             _metrics, NullLogger<PageSaver>.Instance);
     }
 
-    private PageRenderer CreateRenderer(RenderOptions options) {
-        PageBudget budget = new(options, TestOptions.Compile);
+    private PageRenderer CreateRenderer(RenderOptions options, PageBudget budget, RecordingLoggerFactory? logs) {
         PageImageBuilder images = new(_compiler, budget, _metrics, NullLogger<PageImageBuilder>.Instance);
 
         return new PageRenderer(
@@ -341,6 +479,69 @@ public sealed class PageStreamingTests {
             _metrics,
             budget,
             new PageHealth(options.AbandonedLimit),
-            NullLogger<PageRenderer>.Instance);
+            logs?.CreateLogger<PageRenderer>() ?? NullLogger<PageRenderer>.Instance);
+    }
+
+    private static async Task<string> WaitForBodyAsync(DefaultHttpContext context) {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+        while (context.Response.Body.Length == 0) {
+            await Task.Delay(1, timeout.Token);
+        }
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> WaitForBodyContainingAsync(DefaultHttpContext context, string expected) {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+        while (true) {
+            string body = await TestHttp.ReadBodyAsync(context);
+            if (body.Contains(expected, StringComparison.Ordinal)) {
+                return body;
+            }
+
+            await Task.Delay(1, timeout.Token);
+        }
+    }
+
+    private sealed class GatedHttpFetchStream : HttpFetchStream {
+        private readonly TaskCompletionSource _secondLine = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _line;
+
+        public bool IsClosed { get; private set; }
+
+        public override int Status => 200;
+
+        public override IReadOnlyDictionary<string, string> Headers { get; } = new Dictionary<string, string>();
+
+        public override HttpFetchFailure Failure => HttpFetchFailure.None;
+
+        public override bool Truncated => false;
+
+        public void ReleaseSecondLine() => _secondLine.TrySetResult();
+
+        public override Task<string?> ReadLineAsync() {
+            if (IsClosed) {
+                return Task.FromResult<string?>(null);
+            }
+
+            return _line++ switch {
+                0 => Task.FromResult<string?>("first"),
+                1 => ReadSecondLineAsync(),
+                _ => Task.FromResult<string?>(null),
+            };
+        }
+
+        public override Task CloseAsync() {
+            IsClosed = true;
+            ReleaseSecondLine();
+
+            return Task.CompletedTask;
+        }
+
+        private async Task<string?> ReadSecondLineAsync() {
+            await _secondLine.Task;
+
+            return IsClosed ? null : "second";
+        }
     }
 }

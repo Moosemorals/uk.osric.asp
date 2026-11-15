@@ -216,6 +216,44 @@ public sealed class PageApiPolicyTests {
     }
 
     [Test]
+    public void APageCanReadAnOutboundStreamWithoutUsingIoTypes() {
+        string template = """
+            <%
+                IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+                HttpFetchStream stream = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/events"));
+                string? line = await stream.ReadLineAsync();
+                await stream.CloseAsync();
+                ctx.Write(line ?? "empty");
+            %>
+            """;
+
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    [Test]
+    public void AWorkerDeclarationCompilesUnderThePolicy() {
+        string template = """
+            <%!
+            using System.Threading.Tasks;
+
+            namespace Site.Work {
+                public sealed class Echo : IWorker {
+                    public Task RunAsync(IWorkerContext context) => Task.CompletedTask;
+                }
+            }
+            %>
+            """;
+
+        CompileResult result = Compiler.CompileWorker(
+            TemplateSourceGenerator.GenerateLibrary(template).Source!, []);
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Kind, Is.EqualTo(uk.osric.asp.Core.Pages.PageKind.Worker));
+    }
+
+    [Test]
     public void CallingAnObjectMemberIsRejected() {
         CompileResult result = Compile("<% System.Object value = 1; ctx.Write(value.ToString()); %>");
 

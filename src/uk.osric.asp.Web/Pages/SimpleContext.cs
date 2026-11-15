@@ -66,6 +66,7 @@ internal sealed class SimpleContext : IContext {
     private bool _allowsScripts;
     private string _contentType;
     private CancellationToken _deadline = CancellationToken.None;
+    private RenderLifetime? _lifetime;
     private string? _location;
     private int _status = PageResponse.Default.Status;
 
@@ -195,11 +196,14 @@ internal sealed class SimpleContext : IContext {
     /// <summary>Whether the first flush has committed the response.</summary>
     public bool IsCommitted => _commit.Committed;
 
-    /// <summary>Gives the page the render's deadline, so its I/O is cancelled with the render.</summary>
-    /// <param name="deadline">The deadline's token; it outlives this context's use of it.</param>
-    public void AttachDeadline(CancellationToken deadline) {
-        _deadline = deadline;
-        _capabilities.AttachDeadline(deadline);
+    /// <summary>Gives the page the render's lifetime, so its I/O and its stream share one clock.</summary>
+    /// <param name="lifetime">The lifetime the renderer opened for this request.</param>
+    public void AttachLifetime(RenderLifetime lifetime) {
+        ArgumentNullException.ThrowIfNull(lifetime);
+
+        _lifetime = lifetime;
+        _deadline = lifetime.Token;
+        _capabilities.AttachLifetime(lifetime);
     }
 
     /// <summary>Stops the page writing, once its render has been given up on.</summary>
@@ -275,6 +279,15 @@ internal sealed class SimpleContext : IContext {
 
                 text = TakeBuffer();
                 first = !_commit.Committed;
+            }
+
+            // The stream slot is taken, and the render slot released, before anything is committed:
+            // a refusal must leave the response whole so the endpoint can still answer with a 503.
+            if (first && _lifetime is not null) {
+                await _lifetime.BeginStreamAsync();
+            }
+
+            lock (_body) {
                 if (first) {
                     _commit.Committed = true;
                 }
@@ -287,6 +300,8 @@ internal sealed class SimpleContext : IContext {
             if (text.Length > 0) {
                 await _bodySink!.WriteAsync(Encoding.UTF8.GetBytes(text), cancellationToken);
             }
+
+            _lifetime?.ReArm();
         } finally {
             _ = _flushing.Release();
         }

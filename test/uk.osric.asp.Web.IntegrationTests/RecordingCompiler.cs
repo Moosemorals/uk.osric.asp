@@ -20,12 +20,16 @@ internal sealed class RecordingCompiler(IPageCompiler inner) : IPageCompiler {
         return inner.Compile(source, libraries, cancellationToken);
     }
 
-    public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) {
+    public CompileResult CompileWorker(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) {
         Interlocked.Increment(ref _compileCount);
-        return inner.CompileLibrary(source, cancellationToken);
+        return inner.CompileWorker(source, libraries, cancellationToken);
     }
 
     public LoadedPage Load(byte[] image, byte[]? symbols = null) {
         return inner.Load(image, symbols);
+    }
+
+    public LoadedWorker LoadWorker(byte[] image, byte[]? symbols = null) {
+        return inner.LoadWorker(image, symbols);
     }
 }

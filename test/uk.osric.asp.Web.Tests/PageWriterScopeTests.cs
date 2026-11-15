@@ -244,10 +244,13 @@ public sealed class PageWriterScopeTests {
                     "PAGE003: the page waited longer than 10 s for a compile slot."),
             ]);
 
-        public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) =>
-            Compile(source, [], cancellationToken);
+        public CompileResult CompileWorker(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) =>
+            Compile(source, libraries, cancellationToken);
 
         public LoadedPage Load(byte[] image, byte[]? symbols = null) =>
+            throw new NotSupportedException("this compiler never produces an image");
+
+        public LoadedWorker LoadWorker(byte[] image, byte[]? symbols = null) =>
             throw new NotSupportedException("this compiler never produces an image");
     }
 }

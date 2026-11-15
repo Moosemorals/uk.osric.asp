@@ -41,9 +41,9 @@ registered or absent, never `null` (DEC-142). The type that declares them is `IP
 the old `Features` spelling was removed once its release was over, so a page that still says
 `ctx.Features` no longer compiles (DEC-228, DEC-254).
 
-Ten capabilities are registered today — six that do I/O and are bounded by the render, one that is
-the page's slots in its document, two that are pure renderers, and one that is a fact about the
-build:
+Eleven capabilities are registered today — seven that do I/O or work and are bounded by the render,
+one that is the page's slots in its document, two that are pure renderers, and one that is a fact about
+the build:
 
 - `IBuildInfo` says which build is answering: `Commit` is the full git commit hash, or `null` when
   the build did not come from a checkout. It is a capability because the page API denies both the
@@ -68,11 +68,24 @@ build:
   `https` host the URL names: there is no host allow-list (DEC-216). Every request carries
   `moosemorals.com (page)` as its `User-Agent`, set by the host after the page's own headers, so a
   page cannot claim to be another client. `GetAsync` and `PostAsync` sit over
-  `SendAsync(HttpFetchRequest)`; every failure is a value rather than an exception, and the
-  render's shared request count, the deadline and abandonment all bound it (DEC-216, DEC-129,
-  DEC-143). A request may name an operator-configured credential with `Credential`: the host
-  supplies the header, only to that credential's host and only from the page the credential is
-  bound to, and the page never reads the value. An unknown name is an `InvalidRequest` (DEC-230).
+  `SendAsync(HttpFetchRequest)`; `StreamAsync` opens the same request rules and returns an
+  `HttpFetchStream` that reads decoded text lines with `ReadLineAsync()`, exposes response metadata
+  and failure values, and can be closed explicitly. Open streams close when the render ends or is
+  abandoned. The render's shared request count, the deadline and abandonment bound the request
+  (DEC-216, DEC-129, DEC-143). A request may name an operator-configured credential with
+  `Credential`: the host supplies the header, only to that credential's host and only from the page
+  the credential is bound to, and the page never reads the value. An unknown name is an
+  `InvalidRequest` (DEC-230). Response headers use `Pages:Fetch:TimeoutSeconds`; a stream's body
+  also has independent `StreamSilenceSeconds`, `StreamMaxSeconds` and `MaxStreamBytes` limits.
+- `IPageJobs` starts a **worker** as a **job**, talks to it, reads what it published and stops it.
+  A job outlives the request that started it, so it has no response and no visitor waiting on it: it
+  is work a page can start, watch and cancel. `StartAsync(workerKey, firstMessage)` answers a
+  `PageJobStart` whose `Refusal` says why a key that is not a worker, a reserved key, an anonymous
+  render or a full queue was refused; `SendAsync`, `GetAsync`, `ListAsync`, `ReadEventsAsync` and
+  `CancelAsync` are the rest. Every call is filtered to the signed-in visitor the render was bound to,
+  so another account's job is an unknown one rather than a refusal that says it exists (DEC-190). A
+  `HEAD` is offered the reads and not the start, send or cancel, and a layout is offered nothing.
+  See [jobs](#jobs).
 - `IPageCatalog` reads the page store: `ListAsync(prefix)` lists the heads under a subtree,
   `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a page's history and
   `ReadRevisionAsync(key, hash)` reads one retained revision. Each `PageEntry` marks the head
@@ -176,17 +189,113 @@ commit point and the whole of the opt-in:
 - `AntiforgeryField` must be read before the first flush; after it, the field's cookie can no longer
   be sent. A first session write after the commit is refused for the same reason; a write with a
   session the visitor already has is ordinary, because it needs no header.
-- The render deadline and the render slot still apply. A stream that outlives the deadline is
-  truncated, and a long-lived stream holds its slot. This is the shape a page needs for progressive
-  HTML, long-poll and server-sent events; it does not make an unbounded stream safe, which is the
-  assistant page's own problem.
+- The commit ends the render's budget and starts the stream's own clocks, so a stream outlives
+  `Pages:Render:TimeoutSeconds` and is bounded by `Pages:Stream` instead (see [the page execution
+  budget](#page-execution-budget)). A committed stream gives its render slot back and takes a stream
+  slot, so one that is mostly waiting costs the render pool nothing; when every stream slot is taken
+  the first flush throws `PageStreamRefusedException` before anything is committed, and the endpoint
+  answers `503`. This is the shape a page needs for progressive HTML, long-poll and server-sent
+  events; it does not make an unbounded stream safe, which is the app's own problem.
+
+#### Relaying an upstream stream
+
+When an upstream may be slow, write and flush the response before opening it or waiting for a line.
+That commits the client response, so `Pages:Stream` bounds the client connection while
+`Pages:Fetch:StreamSilenceSeconds`, `StreamMaxSeconds` and `MaxStreamBytes` independently bound the
+upstream body. A failure after the flush cannot change the response status; report it in the stream
+instead:
+
+```html
+<%
+IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
+ctx.SetContentType("text/event-stream; charset=utf-8");
+ctx.SetHeader("X-Accel-Buffering", "no");
+ctx.WriteRaw(": connected\n\n");
+await ctx.FlushAsync();
+
+HttpFetchStream upstream = await fetch.StreamAsync(
+    new HttpFetchRequest("https://api.example.com/events"));
+try {
+    string? line;
+    while ((line = await upstream.ReadLineAsync()) is not null) {
+        ctx.WriteRaw($"data: {line}\n\n");
+        await ctx.FlushAsync();
+    }
+
+    string? failure = upstream.Truncated
+        ? "truncated"
+        : upstream.Failure == HttpFetchFailure.None ? null : upstream.Failure.ToString();
+    if (failure is not null) {
+        ctx.WriteRaw($"event: error\ndata: {failure}\n\n");
+        await ctx.FlushAsync();
+    }
+} finally {
+    await upstream.CloseAsync();
+}
+%>
+```
+
+`ReadLineAsync()` returns `null` at end of body or when the stream fails; inspect `Failure` and
+`Truncated` after the read loop. The host closes any stream a page leaves open when the render ends
+or is abandoned. The example uses `WriteRaw` because this response is SSE, not HTML; each upstream
+line is framed as an SSE `data` field.
+
+### Jobs
+
+A **worker** is a stored source whose only blocks are declarations and which declares exactly one
+public type implementing `IWorker` with a parameterless constructor; it is compiled when it is saved
+and never served (see [assets and versioned URLs](#assets-and-versioned-urls)). A **job** is one run
+of one, started by a page:
+
+```html
+<%
+IPageJobs jobs = ctx.Capabilities.GetRequired<IPageJobs>();
+PageJobStart start = await jobs.StartAsync("/_work/answer", "the question");
+if (!start.Started) { ctx.Write("Could not start: " + start.Refusal); return; }
+%>
+<p>Started <%= start.Id %>.</p>
+```
+
+The job takes a job slot rather than a render slot, because it is answering nobody: `Pages:Jobs`
+bounds how many wait (`QueueCapacity`), how many run (`MaxConcurrent`), how long one may be quiet
+(`SilenceSeconds`), how long one may live (`MaxDurationSeconds`), what it may be sent
+(`MaxMessageBytes`, `MaxPendingMessages`), and what its journal keeps (`MaxEvents`, `MaxEventBytes`,
+`RetentionMinutes`). The runner gives each job its own scope and load context and unloads the
+worker's assembly when the job ends; a worker whose library moved is compiled again before it runs.
+
+The running worker gets an `IWorkerContext`, which is deliberately not an `IContext`: `Id`, `Path`
+(the starting page), `Worker`, `User`, `Input`, `Aborted`, `Capabilities`, `Log`/`LogWarning`/
+`LogError`, `ReceiveAsync` and `Publish(type, dataJson)`. Its `Capabilities` offer `IPageStorage`
+bound to the **starting page** — the data, so the job and the view that shows it share one store —
+and `IHttpFetch`, `IPageCatalog` and `IPageJobs` bound to the **worker** — the code, so a credential
+bound to the worker stays the worker's. A worker is offered no `IMarkdownRenderer`, no `IPageWriter`
+and no `IPageLayout`: it publishes text or JSON, and the page renders it.
+
+`ReceiveAsync(waitSeconds)` pauses the silence clock while it waits, so a worker waiting for its
+owner is bounded by the ceiling rather than by silence; a timed wait returns and the clock resumes,
+which is how a worker does periodic work without a sleep primitive. A worker that neither publishes
+nor receives for `SilenceSeconds` is cut, and one that outlives `MaxDurationSeconds` is stopped.
+`CancelAsync` ends a job at its next `await`, and the host stopping does the same.
+
+The journal is in memory, bounded and replayable: `ReadEventsAsync(jobId, after, waitSeconds)` answers
+the events after a sequence, waits briefly for the next one, and reports `Reset` when the caller's
+sequence has been dropped — the view starts again from `Next` rather than treat the gap as delivered.
+A restart loses every job and every event; a worker that must not lose what it has done writes it to
+the starting page's storage, and that state is the record. A page that finds its own state says
+running while `GetAsync` returns `null` knows the host restarted.
 
 ## Assets and versioned URLs
 
-Every stored revision is one of three kinds, judged from its tokens by generation and stored beside
-the source (`PageKind`): **text** (no C#), **page** (C# that renders) and **library** (only
-declaration blocks). A kind is a property of the source rather than of the key, so editing a page can
-change what it is; there is no configuration for it.
+Every stored revision is one of four kinds, judged from its source and stored beside it
+(`PageKind`): **text** (no C#), **page** (C# that renders), **library** (only declaration blocks, for
+other sources to name) and **worker** (only declaration blocks, declaring one entry point a page
+starts). A kind is a property of the source rather than of the key, so editing a page can change what
+it is; there is no configuration for it. Generation answers for all but the last: whether declarations
+are a worker is a question about types, so the compiler refines a declaration-only source to worker
+when it declares exactly one public type implementing `IWorker` with a parameterless constructor. Two
+entry points, or an entry point that is not public or cannot be constructed, is a `PAGE006` error and
+no image.
 
 A page with no code is never compiled. Generation reads the tokens it already produced, and a
 template made only of text has nothing to compile: the revision is stored with no image, its kind is
@@ -204,6 +313,14 @@ wrapped. It is checked when it is saved — Roslyn analyses it and the diagnosti
 source, with no assembly — and a page API violation inside it is reported at the library's own line
 and key. A library declares at least one type in a namespace, which is how a page names it; a page
 may not declare a namespace.
+
+A **worker** is a library that declares one entry point: a public type implementing `IWorker` with a
+parameterless constructor. It is compiled to an assembly when it is saved, so its image is stored
+beside its source, and its diagnostics are the compiler's as any page's are. It is never served, never
+wrapped and never an asset, and it is not a library: the closure a page or a library is compiled with
+is the live libraries alone, so a source that names a worker's namespace fails with the compiler's
+missing-namespace diagnostic. A worker's own closure is recorded like a page's, so a worker whose
+library moved is compiled again before it is run.
 
 A library lives under **`/_lib/`** by convention: `/_lib/document` is the seeded document writer,
 and a site's own helpers belong beside it rather than in the keys a visitor might ask for. The
@@ -408,8 +525,15 @@ waits for it against one deadline that covers both queueing and running:
   request answers `504` without starting the page. The next request is served from the store.
 - `Pages:Render:MaxBodyChars` caps the buffered body, so a page that writes in a loop fails quickly
   instead of growing the process. The cap stops at the first flush: a streamed body is already on the
-  wire and is not charged, so a post-commit loop is bounded by the deadline and the container rather
-  than by this setting.
+  wire and is not charged, so a post-commit loop is bounded by the stream's clocks and the container
+  rather than by this setting.
+- A committed stream is bounded by `Pages:Stream` instead of by the render budget. The commit ends
+  the render's deadline and starts two clocks: `SilenceSeconds` truncates a stream that flushes
+  nothing for that long, and `MaxSeconds` truncates one that is still busy that far past its commit,
+  so neither a page that stopped talking nor one that never stops can hold a slot forever. Every
+  flush restarts the silence clock. `Slots` caps how many streams may be committed at once; a render
+  whose first flush finds none is answered `503` and never commits. Each truncation is logged with
+  its reason and recorded as the stream's outcome on `page.stream.duration`.
 
 Every key in this section is required: a missing or out-of-range value stops the site at startup
 with a sentence naming the key, its range and the shipped value. See

@@ -70,6 +70,19 @@ public sealed class PageEditorPageTests {
     }
 
     [Test]
+    public async Task AWorkerIsListedWithoutAViewLinkAsync() {
+        Store("/_work/echo", "<%! namespace Site.Work { public sealed class Echo : IWorker { } } %>", PageKind.Worker);
+
+        Rendered rendered = await RenderAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Body, Does.Contain("/_work/echo"), "a worker is listed so the owner can open it");
+            Assert.That(rendered.Body, Does.Not.Contain("aria-label=\"View /_work/echo\""),
+                "a worker has no page to view");
+        });
+    }
+
+    [Test]
     public async Task AShellFileIsNotOfferedAsAPageAsync() {
         Store("/login", "stored but answered by the shell");
 
@@ -334,9 +347,9 @@ public sealed class PageEditorPageTests {
     // The hash the read store gave the page's newest revision, which is what a form is rendered from.
     private string HashOf(string path) => _hashes[PagePath.Normalize(path).Key];
 
-    private void Store(string path, string template) {
+    private void Store(string path, string template, PageKind? kind = null) {
         PagePath key = PagePath.Normalize(path);
-        PageKind kind = TemplateSourceGenerator.Generate(template).Kind;
+        kind ??= TemplateSourceGenerator.Generate(template).Kind;
         _storage[key.Key] = new PageTemplate(key, template) { Kind = kind };
 
         // The catalog has to agree with the store about the head's hash, because the form carries the

@@ -45,9 +45,12 @@ own: it is the page contract — interfaces and plain values with documentation 
 and what depends on it is asserted by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScopeTests`,
 `PageLoadContextTests`, `PageReferenceSetTests`).
 - **Runtime tests** cover what the core cannot: Roslyn emitting a handler, loading the assembly and
-  invoking it. `ScaffoldTests` compiles the generated wrapper for every token shape under the
-  production options to prove the scaffold never warns, and `PageCompilerTests` proves a page's own
-  warning is mapped to its template line. They also cover the page API policy — one test per banned construct, plus a page of
+  invoking it, and `PageWorkerTests` the fourth kind — a declaration-only source that stays a library,
+  one entry point that is emitted and loaded, two entry points, an entry point that is not public or
+  has no parameterless constructor, and a worker compiled with the library it names. `ScaffoldTests`
+  compiles the generated wrapper for every token shape under the production options to prove the
+  scaffold never warns, and `PageCompilerTests` proves a page's own warning is mapped to its template
+  line. They also cover the page API policy — one test per banned construct, plus a page of
   ordinary code that must still compile — the reference set the compiler is built on, and the load
   context, which is reachable from the tests through `InternalsVisibleTo`. They reference `Runtime`
   and `Sdk`, never `Web`.
@@ -85,7 +88,24 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   the commit point: the first flush applies the response, a wrapped page cannot flush, a streamed
   page is served alone, the tail is sent at completion, the body cap stops at the commit, `HEAD`
   writes nothing and a committed exception or deadline truncates rather than answering an error page
-  or a `504`. `DisconnectGuardTests` pins the write after a client disconnect as a Debug-level end,
+  or a `504`. `PageJobTests` drives the whole job path with real workers — one writes the starting
+  page's storage, one receives a message the page sent, one waits past the silence clock but not past
+  the ceiling, one is cut for never publishing, one is cancelled at its next await, one throws, one no
+  longer compiles — and pins the refusals, another visitor's job being unknown, a full queue, the
+  journal's reset and its drop of old events. `PageJobRenderTests` proves what a render is offered:
+  the capability for a page, nothing for a layout, and the reads but not the writes for a `HEAD`;
+  `PageJobOptionsTests` the shipped, overridden and refused values.
+  `PageSaverTests` proves a worker is stored with its image and the library fingerprint
+  that rebuilds it when that library moves, and that neither a page nor a library may name one; the
+  endpoint, the listing, the catalog's marks and the image state each say "worker" in their own
+  fixture. `PageFetcherTests` covers the outbound text stream's chunk and UTF-8 line decoding,
+  failure values, silence and ceiling timeouts, byte cap and redirect credential handling;
+  `PageFetchRenderTests` pins the shared per-render fetch count, and `PageStreamingTests` proves a
+  page can relay an outbound line to the client before waiting for its next line.
+  `RenderLifetimeTests` proves the lifetime those cases lean on: the commit moves the
+  render slot to a stream slot and gives it back when the stream ends, a full stream pool refuses
+  before anything is committed, and a flush re-arms the silence clock while the ceiling ends a stream
+  that keeps talking. `DisconnectGuardTests` pins the write after a client disconnect as a Debug-level end,
   `Web.IntegrationTests/PageStreamingTests` and `AssistantDisconnectTests` drive the same shapes
   through the real host. `LoginRedirectTests` pins the
   `returnUrl` it builds, and `SimpleContextTests` the guard's status per method, the one-token-per-
@@ -170,7 +190,8 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   findings recorded beside the plan.
 - **The execution budget** is tested in `Web.Tests` (`PageRendererTests` for the render deadline, the
   render queue, the abandoned context and the body cap; `PageImageBuilderTests` for the compile queue
-  and the compile deadline; `AbandonedRenderHealthCheckTests` for the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the
+  and the compile deadline; `RenderLifetimeTests` for the stream's own clocks and slots;
+  `AbandonedRenderHealthCheckTests` for the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the
   host on a one-second budget and asserts `504`. A slow page there burns CPU against a wall clock
   rather than sleeping, because the page API policy refuses `Thread.Sleep` and `Task.Delay`. Nothing
   asserts on the podman restart: that belongs to the supervisor, not to `WebApplicationFactory`.
@@ -349,6 +370,31 @@ close enough to a healthy run to abort one. Each can be overridden on a machine 
 The ceiling is VSTest's `RunConfiguration.TestSessionTimeout` rather than `--blame-hang`, because the
 blame collector warns on every run that ends normally that it wrote no sequence file: that is the
 good outcome said as a problem, and a warning nobody can act on is one everybody learns to skip.
+
+## Known nondeterminism follow-up
+
+On 2026-11-14, `AccessibilityTests.TheEditorsFieldIsLabelledAsync` and
+`PageRendererTests.AnAbandonedPageWaitingOnStorageIsCancelledAndReleasedAsync` failed in full
+`Web.Tests` runs while this machine was under heavy Roslyn load. Both passed when run alone and in
+repeated focused fixture runs; a later full `make check` also passed. Treat these as unresolved
+flakiness, not fixed tests. Follow up by finding and removing the scheduling or shared-state
+dependency; do not hide it by adding retries or widening timeouts.
+
+The phase-2 gate again failed in `Web.Tests`, despite raising the outer test-session ceiling:
+`AnImportOverTheCompiledCapWritesNothing`, `PromptExamplesCompileThroughTheRealPageCompiler`,
+`AKeyThatIsNotASeedHasNothingToInstallAsync`, `EveryListingActionNamesItsPageAsync`,
+`EveryListingStateCellSaysWhichStateItIsAsync`, `TheEditorsFieldIsLabelledAsync`,
+`AnAnonymousVisitorIsSentToSignInAsync` and `ANeverSavedKeyOpensAnEmptyEditorAsync`. The rerun of
+those eight tests passed five; the editor-key test and two listing assertions failed again, and the
+editor-key test also timed out when run by itself. The failures are not explained yet: several return
+the render timeout page, while the listing tests see no table or state cells. Keep this follow-up
+open; do not attribute every failure to parallel load or mask it with wider page budgets.
+
+The integration run also had three 500 responses in `ArchiveEndpointTests.AdminPathsAreNotPageKeys`,
+`AssistantDisabledTests.EditorDoesNotLinkToDisabledAssistantAsync` and
+`ArchiveEndpointTests.ExportThenImportRoundTripsThroughTheRealHost`; the last included a `PAGE004`
+compile timeout. The outbound-fetch integration fixture passed in its focused run. Record these
+failures for the same follow-up rather than widening the page or compile budgets.
 
 ## Parallelism
 

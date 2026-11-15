@@ -331,10 +331,13 @@ public sealed partial class ImportEndpointTests {
         public CompileResult Compile(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("the fixture failed this compile");
 
-        public CompileResult CompileLibrary(GeneratedSource source, CancellationToken cancellationToken = default) =>
+        public CompileResult CompileWorker(GeneratedSource source, IReadOnlyList<LibrarySource> libraries, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("the fixture failed this compile");
 
         public LoadedPage Load(byte[] image, byte[]? symbols = null) =>
+            throw new NotSupportedException();
+
+        public LoadedWorker LoadWorker(byte[] image, byte[]? symbols = null) =>
             throw new NotSupportedException();
     }
 }

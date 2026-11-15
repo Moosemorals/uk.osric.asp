@@ -23,14 +23,18 @@ internal sealed class PageBudget : IDisposable {
     /// <summary>Creates the limits from the configured options.</summary>
     /// <param name="render">The render limits.</param>
     /// <param name="compile">The compile limits.</param>
-    public PageBudget(RenderOptions render, CompileOptions compile) {
+    /// <param name="stream">The stream limits.</param>
+    public PageBudget(RenderOptions render, CompileOptions compile, StreamOptions stream) {
         ArgumentNullException.ThrowIfNull(render);
         ArgumentNullException.ThrowIfNull(compile);
+        ArgumentNullException.ThrowIfNull(stream);
 
         RenderOptions = render;
         CompileOptions = compile;
+        StreamOptions = stream;
         RenderSlots = new SemaphoreSlim(render.Slots, render.Slots);
         CompileSlots = new SemaphoreSlim(compile.Slots, compile.Slots);
+        StreamSlots = new SemaphoreSlim(stream.Slots, stream.Slots);
     }
 
     /// <summary>The render limits.</summary>
@@ -38,6 +42,9 @@ internal sealed class PageBudget : IDisposable {
 
     /// <summary>The compile limits.</summary>
     public CompileOptions CompileOptions { get; }
+
+    /// <summary>The stream limits.</summary>
+    public StreamOptions StreamOptions { get; }
 
     /// <summary>Describes a budget as the number of seconds a message shows.</summary>
     /// <param name="budget">The budget to describe.</param>
@@ -56,9 +63,13 @@ internal sealed class PageBudget : IDisposable {
     /// <summary>Compiles allowed to run at once.</summary>
     public SemaphoreSlim CompileSlots { get; }
 
+    /// <summary>Committed streams allowed to be open at once.</summary>
+    public SemaphoreSlim StreamSlots { get; }
+
     /// <inheritdoc/>
     public void Dispose() {
         RenderSlots.Dispose();
         CompileSlots.Dispose();
+        StreamSlots.Dispose();
     }
 }

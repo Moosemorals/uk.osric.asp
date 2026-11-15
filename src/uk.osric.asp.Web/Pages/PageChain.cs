@@ -155,6 +155,13 @@ internal sealed class PageChain {
         // A layout is markup, so it is offered the read and not the write: one that saved itself
         // would append a revision on every render it wraps (DEC-194).
         if (!isLayout) {
+            // A job is started by the page that can read its events, and never by a layout: a layout
+            // that started one would start it once per page it wraps.
+            if (_environment.Jobs is { } jobs) {
+                capabilities.Add<IPageJobs>(new PageJobsScope(
+                    key, _isHead, _user, jobs, jobs.Options));
+            }
+
             capabilities.Add<IPageWriter>(new PageWriterScope(key, _environment.Saver, _user, writable: !_isHead));
 
             // The editor's authority is the registration, not the handle: no other key is offered it,
