@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Size | M — one member on the editor capability, one call through the save path that discards its answer, a compile-budget rule, and the tests and manual entry for each |
 | Area | Sdk, Runtime, Web (pages, editor), docs |
-| Location | `src/uk.osric.asp.Sdk/IPageEditor.cs`, `src/uk.osric.asp.Sdk/PageEditResult.cs`, `src/uk.osric.asp.Web/Pages/PageEditorScope.cs`, `src/uk.osric.asp.Web/Editor/PageSaver.cs`, `src/uk.osric.asp.Web/Pages/PageImageBuilder.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
+| Location | `src/uk.osric.asp.Sdk/IPageWrites.cs`, `src/uk.osric.asp.Sdk/PageEditResult.cs`, `src/uk.osric.asp.Web/Pages/PageWritesScope.cs`, `src/uk.osric.asp.Web/Editor/PageSaver.cs`, `src/uk.osric.asp.Web/Pages/PageImageBuilder.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
 ## Idea
 
@@ -35,7 +35,7 @@ hundredths of a millisecond and a warm compile is 30–70 ms (`Pages:Compile:Slo
 
 ## Sketch
 
-1. **One member, one answer.** `CheckAsync(key, template)` on `IPageEditor`, answering the diagnostics
+1. **One member, one answer.** `CheckAsync(key, template)` on `IPageWrites`, answering the diagnostics
    the same save would produce and nothing else — no revision, no head, no image, no change to any
    dependent's closure. The value is a report with its diagnostics and whether any is an error, so a
    caller does not have to count severities itself.
@@ -68,14 +68,15 @@ hundredths of a millisecond and a warm compile is 30–70 ms (`Pages:Compile:Slo
 
 ## Open questions
 
-1. **One member or two.** `CheckAsync` on `IPageEditor` keeps one authority and one shape of answer.
+1. **One member or two.** `CheckAsync` on `IPageWrites` keeps one authority and one shape of answer.
    A second capability (`IPageCompiler`) would let a read-only page check a draft it never saves, which
-   is the assistant's case, but it is a second way to ask the same question — the same objection
-   `pages-the-editor-capability` raised against widening a handle with a key.
+   is the assistant's case, but it is a second way to ask the same question — the same objection the
+   old registration rule raised against a handle that names a key, which the owner has since answered
+   (`pages-any-page-may-write-the-store`).
 2. **Whether a check is "the action".** A page that checks and then saves makes two compiles in one
-   render, and `PageEditorScope` currently counts any edit as the one action. If IDEA-043 replaces that
-   rule with a batch, check-then-save is one batch of one; until then the check must not spend the
-   action, or the editor cannot check and save.
+   render, and `PageWritesScope` currently counts any write as the one action. If
+   [IDEA-047](IDEA-047.md) replaces that rule with a batch, check-then-save is one batch of one; until
+   then the check must not spend the action, or the editor cannot check and save.
 3. **Anonymous checks.** A check discloses nothing from the store, but it spends a compile slot, and a
    slot is a shared resource. Signed-in only is the conservative answer; a public check is a denial of
    service with a friendly face.

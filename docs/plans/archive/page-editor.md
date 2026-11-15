@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a new Sdk capability and its values, a read-contract extension, a scoped authority, the seeded `/pages` editor and its module, retiring `/edit`, a shell scrub route, and the tests and documents for each |
 | Area | Sdk, Web (pages, editor, admin, routing, navigation), seeds, docs |
 | Backlog | IDEA-017 — closed by this plan. [IDEA-028](../../jobs/README.md#closed) — the prerequisite recovery path, landed |
-| Decisions | `pages-the-editor-is-a-page`, `pages-the-editor-capability`, `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`, with `pages-a-page-has-a-state` (the read state) and `shell-the-admin-tools` (the recovery route) from the phases that landed earlier |
+| Decisions | `pages-the-editor-is-a-page`, its write-capability entry (retired 2026-11-15), `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`, with `pages-a-page-has-a-state` (the read state) and `shell-the-admin-tools` (the recovery route) from the phases that landed earlier |
 | Prerequisite | [IDEA-028](../../jobs/README.md#closed) landed 2026-11-13: `/admin/restore` is the way back from a broken editor (`shell-the-admin-tools`) |
 
 ## The short version
@@ -135,7 +135,7 @@ Rejected: `/editor?path=` as a new seeded page, because it duplicates the listin
 already is and adds a seed to restore. Rejected: a catch-all subtree for one page, because it changes
 the meaning of every page key.
 
-### D2 (`pages-the-editor-capability`) — A new `IPageEditor` capability, not `IPageWriter` widened
+### D2 (`pages-any-page-may-write-the-store`) — A new `IPageEditor` capability, not `IPageWriter` widened
 
 `IPageWriter` is safe because the handle itself has no key: a page can only save itself (`pages-a-page-may-save-itself`).
 Giving it a `path` parameter would turn every stored page into a handle on the whole store. The
@@ -160,7 +160,7 @@ carries `Saved`, `Stale`, the hash and the diagnostics, so a matching seed can s
 without a write; `PageDeleteResult` carries whether the head was live. A missing revision or a key
 that is not a seed returns `null`, because that is an answer the page shows rather than an exception.
 
-### D3 (`pages-the-editor-capability`) — Authority is structural, then checked
+### D3 (`pages-any-page-may-write-the-store`) — Authority is structural, then checked
 
 `IPageEditor` is registered only for the content layer whose key is the configured editor key. A
 layout never sees it, another stored page never gets it even if its code asks, and a `HEAD` gets the
@@ -185,7 +185,7 @@ which is why the self-delete guard protects whatever key is configured rather th
 The assistant's `PagePathPolicy` is not reused for the owner: its writable prefix and its shell-file
 rule exist to stop the assistant, and the owner edits exactly those pages.
 
-### D4 (`pages-the-editor-capability`) — A save is conditional, and stale text is preserved
+### D4 (`pages-any-page-may-write-the-store`) — A save is conditional, and stale text is preserved
 
 The editor form carries the hash it was rendered from. `SaveAsync` calls a new
 `PageSaver.SaveIfRevisionAsync`, which compiles before it stores only while the head still matches.
@@ -525,7 +525,7 @@ behaviour, and on one piece of its code:
 | `docs/pages.md` | A tenth capability, the read state, the editor page and its URL |
 | `docs/shell.md` | The editor section, the routes, the nav, the recovery links and the retired `/edit` key |
 | `docs/testing.md` | The capability, page, shell and browser suites |
-| `docs/decisions.md` | `pages-the-editor-is-a-page`, `pages-the-editor-capability`, `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`, taken at the merge (`product-plan-before-building`) |
+| `docs/decisions.md` | `pages-the-editor-is-a-page`, the capability entry (since retired), `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`, taken at the merge (`product-plan-before-building`) |
 | `docs/jobs/IDEA-017.md`, `docs/jobs/README.md` | Close IDEA-017 and remove it from the table; IDEA-028 closes on its own |
 | `docs/plans/archive/page-editor.md` | Move this plan here when it lands |
 
@@ -690,7 +690,7 @@ proved by behaviour, not by a browser test that restates the markup.
 - `docs/shell.md` describes the new routes, the retired `/edit` key, the navigation and the recovery
   links.
 - `docs/testing.md` names the new suites and what each proves.
-- `docs/decisions.md` carries the numbered rows, `pages-the-editor-is-a-page`, `pages-the-editor-capability`, `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`, taken at the merge; D6 and D10
+- `docs/decisions.md` carries the numbered rows, `pages-the-editor-is-a-page`, the capability entry (since retired), `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`, taken at the merge; D6 and D10
   were numbered earlier with the phases that landed them (`pages-a-page-has-a-state` and `shell-the-admin-tools`).
 - `docs/jobs/IDEA-017.md` is removed from the job list when the work lands; IDEA-028 closes with its
   own change. The plan moves to `docs/plans/archive/`.

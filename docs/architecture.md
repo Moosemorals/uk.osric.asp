@@ -138,7 +138,7 @@ host, and `SimpleContext` is its only implementation.
 
 A new view starts as a page. It becomes an endpoint only when it needs something a page may not have
 — identity, cookies, the page store, framing headers, or work that outlives the request. The editor
-is the worked example: it is the seeded `/pages`, which is offered `IPageEditor` by its key, and
+is the worked example: it is the seeded `/pages`, which is offered `IPageWrites` like every page, and
 [IDEA-030](jobs/IDEA-030.md) is the remaining tidying. See [jobs](jobs/README.md).
 
 ### Where a view lives

@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Size | M — one store operation with a transaction and a migration, one member on the write capability, an answer value, and the tests, the manual entry and the assistant prompt for each |
 | Area | Sdk, Web (pages, storage), docs |
-| Location | `src/uk.osric.asp.Sdk/IPageEditor.cs`, `src/uk.osric.asp.Web/Pages/PageEditorScope.cs`, `src/uk.osric.asp.Web/Editor/PageEditor.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageStore.cs`, `src/uk.osric.asp.Web/Pages/PageRevision.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
+| Location | `src/uk.osric.asp.Sdk/IPageWrites.cs`, `src/uk.osric.asp.Web/Pages/PageWritesScope.cs`, `src/uk.osric.asp.Web/Editor/PageEditor.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageStore.cs`, `src/uk.osric.asp.Web/Pages/PageRevision.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
 ## Idea
 
@@ -50,9 +50,10 @@ and every caller that needs it today does it badly:
    *page* is not in anyone's closure.
 
 3. **The refusals are the store's own rules.** A reserved key, a key that already has a live head, a key
-   that names a folder the move would empty, the page the move is running in, and the editor's own key
-   while it is the only way back. A move to the same key, or a case-only rename, is a question the
-   result answers rather than an exception.
+   that names a folder the move would empty, and the page the move is running in. The editor's own key
+   is an ordinary key now, so moving it is allowed and `/admin/restore` puts the seeded editor back
+   (`pages-any-page-may-write-the-store`). A move to the same key, or a case-only rename, is a question
+   the result answers rather than an exception.
 
 4. **A library is the hard case.** Moving a library changes every dependent's closure: the dependents
    keep naming the old key and go stale, or the move recompiles them all, or the move is refused while

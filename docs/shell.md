@@ -188,10 +188,11 @@ signed-in owner, and a problem document when the request wanted JSON.
 
 There is no editor in the shell. The editor is a seeded page at `Pages:Editor:Key` — `/pages` as
 shipped — so it is served by the page pipeline and guards itself with the ordinary `ctx.User` check.
-What keeps it trustworthy is not a route but the capability: `IPageEditor` is registered for that
-key alone, so a page stored anywhere else cannot read, write, delete or restore another page, and
-the shell still owns the things a page must not: routing, the session, the recovery routes and the
-typed confirmation a scrub needs. Pages stay public unless their own code checks `ctx.User` (see
+What keeps it trustworthy is not a route but the page's own guard: `IPageWrites` is offered to
+every page now, so the editor's key decides where the editor is served and nothing else, and the
+authority to write is the signed-in visitor's (`pages-any-page-may-write-the-store`). The shell still
+owns the things a page must not: routing, the session, the recovery routes and the typed confirmation
+a scrub needs. Pages stay public unless their own code checks `ctx.User` (see
 "Page authentication" below).
 
 A seeded page is installed from its row only when the release moved the seed and the page still holds

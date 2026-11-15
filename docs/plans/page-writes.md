@@ -227,7 +227,7 @@ and the prompt reuse those sentences.
 | `src/uk.osric.asp.Web/Pages/PageEditorOptions.cs` | Doc comment: the key says where the editor is served, not who may write |
 | `src/uk.osric.asp.Web/Pages/PageEndpoint.cs` | Unchanged: the optional service and the signature stay, and a host without one offers no write |
 | `src/uk.osric.asp.Web/Editor/PageEditor.cs` | Doc comment only: the conditional save is no longer "the editor alone's" |
-| `src/uk.osric.asp.Web/Pages/Seeds/pages` | `IPageEditor` → `IPageWrites`; the Delete action is not rendered on the editor's own row |
+| `src/uk.osric.asp.Web/Pages/Seeds/pages` | `IPageEditor` → `IPageWrites` and the handle's name follows; trunk's rewrite already hides the Delete action on the editor's own row |
 | `src/uk.osric.asp.Web/Pages/Seeds/scratch` | `IPageWriter` → `IPageWrites`; the prose names the merged capability |
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | The two sections become one: the two saves, the visitor, the keys, one write, and the editor key's two lost jobs |
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | `IPageWrites` in the section and the worked example; `Version` → `page-author-v34` |
@@ -290,12 +290,13 @@ Three changes, and the citations that follow them.
    abandoned. `pages-delete-install-and-restore` and `pages-scratch-saves-itself` are checked and left
    alone.
 
-The retired name is cited in eleven backticked places outside the record: two in [pages](../pages.md),
-one in [IDEA-037](../jobs/IDEA-037.md), six in the archived editor plan, one in the archived
-edit-safety plan and one in the archived naming plan. Every one is repointed in the same merge, because
-a citation is a pointer; where a line records *what that plan wrote at the time*, it is reworded rather
-than repointed, so the archive does not claim a plan wrote a name that did not exist yet. That is the
-one judgement call in the merge and it is called out here so it can be changed cheaply.
+The retired name is cited in ten backticked places outside the record: two in [pages](../pages.md),
+one in [IDEA-037](../jobs/IDEA-037.md), six in the archived editor plan and one in the archived
+edit-safety plan. The six headings and the row are repointed where a pointer is what they are, and the
+lines that record *what that plan wrote at the time* say "the capability entry (since retired)" instead,
+so the archive does not claim a plan wrote a name that did not exist yet. The archived naming plan's
+mapping table names it without backticks and is left alone: it records which `DEC-` numbers became that
+name, which is still true.
 
 ## The job split
 
@@ -363,6 +364,6 @@ tests and the publish.
    two of the lines say "what this plan wrote to `docs/decisions.md`". The plan rewords those two and
    repoints the other four; the alternative is to unwrap the token and leave the prose exactly as it
    was.
-3. **The editor's own Delete action.** The plan hides it on the editor's row in the seeded `/pages`.
-   The capability allows the call either way; hiding it is a page decision, and the owner may prefer
-   the button to stay and `/admin/restore` to be the answer.
+3. **The editor's own Delete action.** Trunk's rewritten `/pages` already hides it on the editor's
+   row and in the page's own menu, so this plan changes nothing there; the capability allows the call
+   and `/admin/restore` is the answer if one is made.

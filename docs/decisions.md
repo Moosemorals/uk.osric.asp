@@ -982,18 +982,19 @@ observation. Each front-end keeps its projection and its wording, and a tombston
 
 ### pages-a-page-may-save-itself
 
-Saving a page's own source is a capability, `IPageWriter.SaveAsync(template)`, reached through the seam,
-with `PageSaveResult`, `PageDiagnostic` and `PageDiagnosticSeverity` as the values a page may name. The
-handle is bound to `ctx.Path` and takes no key, so a page cannot write another page and a reserved key is
-unreachable; there is no read member and no conditional save. The author-facing diagnostic is an `Sdk`
-value — severity, a 1-based template line and column that are both `null` when the position is unknown,
-the code and its text — and `Core.Compilation.PageDiagnostic` stays where it is, because moving it would
-make the generator depend on the page contract.
+Saving a page's own source is the bound save of `IPageWrites`, reached through the seam, with
+`PageSaveResult`, `PageDiagnostic` and `PageDiagnosticSeverity` as the values a page may name. It takes
+no key — the handle saves `ctx.Path` — so a page repairs itself without naming anything, and it is
+unconditional, so a page that wants the stale check uses the capability's named save and passes its
+head hash (`pages-any-page-may-write-the-store`). The author-facing diagnostic is an `Sdk` value —
+severity, a 1-based template line and column that are both `null` when the position is unknown, the code
+and its text — and `Core.Compilation.PageDiagnostic` stays where it is, because moving it would make the
+generator depend on the page contract.
 
 Authority is asymmetric: the read is public and the write requires a signed-in visitor, because a
 disclosure and a change are not the same act. The capability refuses an anonymous render before it
 compiles or stores anything, with a `UserFacingException` whose message says to sign in; a `HEAD`, an
-ended render and a second save in one render are page bugs and throw. The check is the capability's, not
+ended render and a second write in one render are page bugs and throw. The check is the capability's, not
 the page's: a page's own `ctx.User` guard is only a nicer redirect in front of it.
 
 A started save is never abandoned. An ended render, a `HEAD` or a missing identity refuses before the
@@ -1004,16 +1005,17 @@ decisions already refuse.
 
 There is still one writer: `PageSaver` is `PageEditor.SaveAsync`'s compile-then-store algorithm as a
 singleton, `PageEditor` delegates to it, and `IPageRevisionStore` is a singleton that calls the same
-`StoreRevisionAsync` the single save and the import batch call, which is what lets a page's write land
-after its request has gone. The editor's conditional save stays in the scoped store and is not offered to
-a page.
+`StoreRevisionAsync` every save and the import batch call, which is what lets a page's write land after
+its request has gone. The conditional save is the same algorithm on the same seam, so the bound save and
+the named save cannot drift.
 
 A save belongs to the next request: the running image is not re-read, the response in hand is the old
 page unless the page shows the result the save returned, the save is committed before the rest of the
-render, and one render makes at most one save. The canonical pattern is a `POST` that saves and answers
-with the diagnostics, or saves and redirects with `303`.
+render, and one render makes at most one write, whichever member it uses. The canonical pattern is a
+`POST` that saves and answers with the diagnostics, or saves and redirects with `303`. A batch that
+names its own policy is [IDEA-047](../docs/jobs/IDEA-047.md)'s work.
 
-*Recorded in [page self-save](plans/archive/page-self-save.md), [IPageWriter](../src/uk.osric.asp.Sdk/IPageWriter.cs).*
+*Recorded in [page self-save](plans/archive/page-self-save.md), [page writes](plans/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
 ### pages-scratch-saves-itself
 
@@ -1027,7 +1029,7 @@ has been overtaken. The manual gains a section for the capability and the page l
 
 The editor is the stored `/pages` page with `?edit=<key>`: one page is one key, the edited path is a
 query value, `?page=` stays the read and history view, and the page validates the key through
-`IPageEditor.Resolve`. A separate `/editor` seed was rejected because it duplicates the listing, and a
+`IPageWrites.Resolve`. A separate `/editor` seed was rejected because it duplicates the listing, and a
 catch-all subtree because it changes the meaning of every key. The page answers in place — a save
 re-renders with its diagnostics, hash and the submitted text; a stale save is `409` with both sources;
 save-and-view redirects only when nothing failed — and it writes no page-session key, so the capability
@@ -1038,27 +1040,31 @@ are seeds too.
 
 *Recorded in [page editor](plans/archive/page-editor.md), [the editor page](../src/uk.osric.asp.Web/Pages/Seeds/pages).*
 
-### pages-the-editor-capability
+### pages-any-page-may-write-the-store
 
-The editor's authority is a capability of its own, `IPageEditor`, rather than `IPageWriter` widened: a
-handle with a key parameter would make every stored page a handle on the whole store. It answers with
-values — `PageKeyResolution`, `PageEditResult` with `Saved`/`Stale` and the diagnostics, `PageDeleteResult`
-— and returns `null` for a revision or a seed that is not there, because the page shows that rather than
-catching it.
+The authority to write the page store is the signed-in visitor's, not the page's. `IPageWrites` is
+offered to every content layer and to no layout, every named call says which key it writes, and an
+anonymous render is refused in the capability before anything is compiled or stored. There is no
+registration gate: `Pages:Editor:Key` says where the editor is served — which is all `ctx.EditorPath`
+and the shell's remedy links ever needed from it — and the editor's own key is an ordinary key. The
+narrowing it replaces kept a handle that names a key away from every page; the owner removed it on
+2026-11-15 because nothing about editing is special to one page, and a page that may not write the
+store it is reading cannot maintain the site.
 
-It is registered for the configured editor key and nothing else, so the registration is the authority: a
-layout never sees it, another page never gets it, and a `HEAD` gets the read members with every write
-refused. The scope checks what the handle cannot — an anonymous render before anything is stored, an
-ended render, a write during a `HEAD`, a second action in one render, a reserved key and a delete of the
-editor itself. The key is `Pages:Editor:Key`.
+One capability has two saves. The bound one is a page's own source (`pages-a-page-may-save-itself`); the
+named one is any key the shell does not route, conditional on the head hash the form was drawn from,
+answering `PageEditResult` with Saved, Stale or Unchanged, so a mismatch writes nothing and the page
+shows the author what changed. A `null` expectation means the form was drawn from a page with no live
+source, so a create cannot overwrite one. `Resolve`, `DeleteAsync`, `RestoreRevisionAsync`,
+`AdoptSeedAsync`, `InstallSeedAsync` and `SeedSourceAsync` are the same authority on the same handle, and
+they spend the same one action a save does.
 
-A save is conditional on the hash the form was rendered from, and `null` means "the page was missing when
-this form was drawn", so creating is conditional too. A mismatch is `Stale` with no write; the page
-answers `409` and renders the submitted text beside the stored source, so the draft is never lost. The
-conditional save lives in `PageSaver` and `IPageRevisionStore`, which own a context per write, so a
-started save outlives the request that began it.
+What guards it: the signed-in visitor before anything is compiled, the reserved keys, `/admin/restore`
+for a deleted or broken editor, and `/admin/scrub` for the irreversible delete. The blast radius is the
+owner's decision — a page the assistant writes can rewrite the site — and the assistant's own edit-safety
+rules are what stop it from doing so by accident (`assistant-edit-page-is-safe`).
 
-*Recorded in [page editor](plans/archive/page-editor.md), [PageEditorScope](../src/uk.osric.asp.Web/Pages/PageEditorScope.cs).*
+*Recorded in [page writes](plans/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
 ### pages-delete-install-and-restore
 
@@ -2210,10 +2216,15 @@ window from the samples.
 ## Retired
 
 A name that was used and then removed is listed here with what replaced it, so it is not taken again by
-someone who cannot see that it was once used. Nothing has retired yet: the numbering scheme this file
-replaces was a way of writing decisions down rather than a decision with a name, and the entries that were
-already superseded when this file was written are in the [frozen file](archive/decisions.md), which is where their
-numbers still mean what they meant.
+someone who cannot see that it was once used.
+
+- `pages-the-editor-capability` — replaced by **pages-any-page-may-write-the-store**. It made the
+  editor's registration the authority: one content key, `Pages:Editor:Key`, and the store's write offered
+  to no other page. The owner removed that narrowing on 2026-11-15.
+
+The numbering scheme this file replaces was a way of writing decisions down rather than a decision with a
+name, and the entries that were already superseded when this file was written are in the
+[frozen file](archive/decisions.md), which is where their numbers still mean what they meant.
 
 ## Open questions
 

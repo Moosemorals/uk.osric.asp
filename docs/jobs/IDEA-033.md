@@ -19,7 +19,7 @@ A page can reach three stores, and none of them belongs to an account:
 | --- | --- | --- |
 | `IPageStorage` | the page — every visitor shares it | until the key or the page goes |
 | `IPageSession` | one browser | until sign-out, or 30 minutes idle (8 hours signed in) |
-| `IPageCatalog` / `IPageWriter` | the page store itself | forever |
+| `IPageCatalog` / `IPageWrites` | the page store itself | forever |
 | **nothing** | **one signed-in account** | — |
 
 So a page cannot keep a personal list, a preference or a record for the person signed in. A page that

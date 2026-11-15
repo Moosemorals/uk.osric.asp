@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Landed; the decisions are numbered as `assistant-edit-page-is-safe`, `pages-the-shape-check` |
 | Size | Medium — four assistant tools, one Core range editor, one template check, the array argument schema, and the tests and documents for each |
 | Area | Core (Assistant, Compilation), Web (Assistant tools, page compilation), docs |
-| Backlog | None. The page editor landed first (`pages-the-editor-is-a-page`, `pages-the-editor-capability`, `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`); this is the assistant's half of the same work |
+| Backlog | None. The page editor landed first (`pages-the-editor-is-a-page`, the capability entry since retired, `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`); this is the assistant's half of the same work |
 | Decisions | D1–D5 below, recorded as `assistant-edit-page-is-safe`, `pages-the-shape-check` |
 
 ## The short version
