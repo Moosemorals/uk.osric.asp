@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/reference.css", "/rocket.svg", "/scratch", "/site.css", "/status.css"];
+    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/_lib/editor", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor-mode", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/reference.css", "/rocket.svg", "/scratch", "/site.css", "/sortable.css", "/sortable.js", "/status.css", "/vim-help", "/vim.css", "/vim.js"];
 
     private static readonly PageSeeds Pack = new(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
 

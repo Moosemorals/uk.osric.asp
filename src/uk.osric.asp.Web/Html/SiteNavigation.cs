@@ -62,8 +62,6 @@ internal static class SiteNavigation {
 
         List<NavLink> links = [
             new("/", "Home", At(path, "/")),
-            new("/about", "About", At(path, "/about")),
-            new("/privacy", "Privacy", At(path, "/privacy")),
         ];
 
         if (!authenticated) {
@@ -78,6 +76,17 @@ internal static class SiteNavigation {
 
         return links;
     }
+
+    /// <summary>The items the document's footer carries, which are the same on every page.</summary>
+    /// <remarks>
+    /// The layout the stored pages are served in writes these in a footer, and the shell writes the
+    /// same document for its own views: a footer is where the two links every page carries belong, and
+    /// the header is for where the visitor can go from here.
+    /// </remarks>
+    public static IReadOnlyList<NavLink> FooterLinks() => [
+        new("/about", "About", false),
+        new("/privacy", "Privacy policy", false),
+    ];
 
     // The editor the visitor lands on after signing in carries the menu, so a page's own return path
     // only has to survive as a query parameter, not as an absolute URL.

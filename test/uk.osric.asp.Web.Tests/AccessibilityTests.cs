@@ -249,7 +249,7 @@ public sealed class AccessibilityTests {
     [Test]
     public async Task EveryListingStateCellSaysWhichStateItIsAsync() {
         MarkupReader listing = MarkupReader.Parse((await ViewAsync("pages-listing")).Html);
-        MarkupElement[] cells = [.. listing.Root.Descendants().Where(element => element.HasClass("page-state"))];
+        MarkupElement[] cells = [.. listing.Root.Descendants().Where(element => element.HasClass("page-status"))];
 
         Assert.That(cells, Is.Not.Empty);
         foreach (MarkupElement cell in cells) {

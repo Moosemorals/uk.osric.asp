@@ -34,6 +34,7 @@ public sealed class PageEditorPageTests {
     public async Task StoreTheEditorPageAsync() {
         Store(EditorPath, (await SeedAsync(EditorPath))!);
         Store(DocumentLibraryPath, (await SeedAsync(DocumentLibraryPath))!);
+        Store("/_lib/editor", (await SeedAsync("/_lib/editor"))!);
         Store("/_layout", """
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><title><%= layout.Title %></title><link rel="stylesheet" href="/site.css"><% foreach (string href in layout.Stylesheets) { %><link rel="stylesheet" href="<%= href %>"><% } %><main id="main"><%== layout.Body %></main></body></html>
             """);

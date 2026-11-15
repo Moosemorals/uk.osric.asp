@@ -1,0 +1,71 @@
+<%!
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Site.Editor;
+%><%
+    IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>();
+    IPageSession session = ctx.Capabilities.GetRequired<IPageSession>();
+
+    layout.Title = "Editor mode";
+
+    static string? One(IReadOnlyDictionary<string, string> values, string name) =>
+        values.TryGetValue(name, out string? value) && !string.IsNullOrWhiteSpace(value) ? value : null;
+
+    // Only a rooted, single-slash, site-local path is honoured as the way back, so a crafted
+    // to= cannot turn this page into a redirect off the site.
+    static string? Local(string? candidate) {
+        if (string.IsNullOrWhiteSpace(candidate)) { return null; }
+        if (candidate[0] != '/' || candidate.StartsWith("//", StringComparison.Ordinal)) { return null; }
+        if (candidate.Contains('\\') || candidate.Contains('\r') || candidate.Contains('\n')) { return null; }
+        return candidate;
+    }
+
+    // The way back arrives in the query, from the link that brought the visitor here, and then
+    // in the form, which is how it survives the POST.
+    string target = Local(One(ctx.Request.Query, "to")) ?? Local(One(ctx.Request.Form, "to")) ?? "/";
+
+    string? problem = null;
+    if (string.Equals(ctx.Request.Method, "POST", StringComparison.Ordinal)) {
+        string? mode = One(ctx.Request.Form, "mode");
+        if (mode is not (Editor.Vim or Editor.Plain)) {
+            // Nothing is written, so an incomplete form cannot silently pick a mode for them.
+            ctx.SetStatus(400);
+            problem = "That form did not say which editor to use, so nothing was changed.";
+        } else {
+            // The one page that writes the key, because a page may only write its own session.
+            await session.SetAsync(Editor.Key, mode);
+            ctx.Redirect(target, 303);
+            return;
+        }
+    }
+
+    bool vim = await Editor.EnabledAsync(ctx);
+%><h1>Editor mode</h1>
+<p>This browser is set to <strong><%= vim ? "the vim editor" : "a plain textarea" %></strong>.</p>
+<p>A page that renders a text field either sends the modal editor or does not, and the answer is
+kept here rather than on any one page. A page that wants the keys loads them; a page that does not
+ships a plain textarea and no script at all.</p>
+<% if (problem is not null) { %>
+<p class="notice"><%= problem %></p>
+<% } %>
+<form method="post" action="<%= Editor.TogglePath %>" class="form">
+    <%== ctx.AntiforgeryField %>
+    <input type="hidden" name="to" value="<%= target %>">
+    <fieldset>
+        <legend>Which editor</legend>
+        <dl>
+            <dt><label for="mode-vim">Vim</label></dt>
+            <dd>
+                <button type="submit" id="mode-vim" name="mode" value="<%= Editor.Vim %>">Use the vim editor</button>
+            </dd>
+            <dt><label for="mode-plain">Plain</label></dt>
+            <dd>
+                <button type="submit" id="mode-plain" name="mode" value="<%= Editor.Plain %>">Use a plain textarea</button>
+            </dd>
+        </dl>
+    </fieldset>
+</form>
+<p>The answer belongs to this browser, not to the page you were reading. It is kept for the
+length of a session: signing out forgets it, and so does a visit after a long enough pause.
+<a href="<%= target %>">Go back</a>.</p>

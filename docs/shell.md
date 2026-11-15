@@ -26,7 +26,7 @@ view to the next.
 
 - The body opens with the skip link, then the banner, then the one `main`. `BeginAsync` requires a
   navigation argument, so no view can be written without a menu: the shell composes its own with
-  `SiteNavigation`, and the seeded layout writes the same items for stored pages (`shell-the-menu-is-written-twice`, `pages-the-document-is-the-shells`).
+  `SiteNavigation`, and the seeded layout writes the same items for stored pages (`shell-the-menu-is-written-twice`, `pages-the-document-is-the-shells`). The header carries where the visitor can go from here; the footer carries About and the privacy policy on every page, and the shell writes the same footer from `SiteNavigation.FooterLinks()`.
 - `/site.css` is a seeded page and the only base sheet (`pages-one-base-sheet`). It holds the document's shape —
   the visually hidden utility, the listing and the form grid — and the site's look, with the shape
   rules first. The view's own sheet is linked last, so it can override a structural rule without a
@@ -115,7 +115,8 @@ write buffer 2
   page unwrapped, logs a warning and counts `page.layout.fallback`; a layout the page *named* that
   cannot be served is an error naming the key.
 - **The menu is written twice, on purpose.** `SiteNavigation` composes it from the principal for the
-  shell's own views; the seeded `/_layout` writes it from `ctx.User` for stored pages. The shell's
+  shell's own views, and the seeded `/_layout` writes it from `ctx.User` for stored pages — the header
+  items and the constant footer alike. The shell's
   document must not depend on a stored page, because the error, health and sign-in routes have to
   answer when the page pipeline is broken (`shell-the-menu-is-written-twice`). The shell's copy comes from
   `ShellDocument.Nav`, the layout's from the seeded library, and an integration test compares the

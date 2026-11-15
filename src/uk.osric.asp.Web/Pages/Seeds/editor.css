@@ -1,12 +1,25 @@
 /* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
 /* SPDX-License-Identifier: MIT */
 
-body.editor-page {
+/* /editor.css - the editor, history and listing stages of /pages.
+
+   Loaded by every stage, the page list included, so each rule is scoped either by a class
+   only one stage writes (.editor-form, .page-counts, .pages, .source, ...) or by
+   :has(), which is how the editor stage asks for the window. Nothing here assumes a
+   class on <body>: /pages is a fragment and cannot add one, because the host wraps
+   it in /_layout - so the selectors name what the fragment does write, and
+   body:has(.editor-form) is the editor stage and nothing else on the site. */
+
+:root {
+   --border: 1px solid #aaa;
+}
+
+/* The editor wants the window, not site.css's column of prose. A browser without
+   :has() keeps the site's column and the 12rem floor on .editor below, which is a
+   plainer editor rather than a broken one. */
+body:has(.editor-form) {
     box-sizing: border-box;
-    /* The editor wants the window, not site.css's column of prose. */
     max-width: none;
-    /* A definite height, so the editor is the viewport and the textarea scrolls inside it. A long
-       header still pushes the page taller: .editor's min-height is what it refuses to go below. */
     height: 100vh;
     height: 100dvh;
     display: flex;
@@ -14,9 +27,15 @@ body.editor-page {
     gap: 0.5rem;
 }
 
-/* The document's children used to be the body's; the landmark that now wraps them is a flex column
-   so the editor keeps the window and the form keeps filling it. */
-body.editor-page > main {
+/* site.css margins the banner as a document's first block; as a row of a flex column
+   the gap above is the whole of the space it needs. */
+body:has(.editor-form) .site-header {
+    margin-block-end: 0;
+}
+
+/* The document's landmark fills what the banner leaves, so its own rows - the title,
+   the diagnostics, the editor - divide that height between them. */
+body:has(.editor-form) > main {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -24,76 +43,118 @@ body.editor-page > main {
     min-height: 0;
 }
 
-.editor-menu {
+/* The wrapper /vim.js is handed. It holds the form, and places the statusline it
+   builds straight after it, so this is the row that fills and the form and the bar
+   share it. */
+[data-vim] {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+form.editor-form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    border: var(--border);
+}
+
+/* The label above the box, at the weight site.css gives a fieldset's legend: it is
+   the same thing to a visitor, split across a div rather than a fieldset. */
+form.editor-form > label {
+    font-weight: 600;
+}
+
+/* Both submit buttons on one row, at the form's left edge rather than stretched
+   across it. */
+.editor-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem 1rem;
-}
-
-.editor-page form.editor-form {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
     gap: 0.5rem;
-    min-height: 0;
+    padding: 0.5rem;
 }
 
-/* Stretched to the form's width it reads as a text field; it takes the width its label needs. */
-.editor-page form.editor-form > button {
-    align-self: flex-start;
-}
-
+/* The box the keys write into: the numbers down the left, the textarea filling the
+   rest. Its floor is what a browser without :has() falls back to. */
 .editor {
     display: flex;
     flex: 1;
     min-height: 12rem;
     min-width: 0;
-    border: 1px solid #ccc;
-    background: #fff;
+    border: var(--border);
+    /* Explicit rather than inherited, for the same reason /vim.css states them: the
+       mode colour on the focus ring is measured against this pair. The gutter below
+       keeps its own light-mode greys, so a dark theme would have to look at those
+       too. */
+    background: Canvas;
+    color: CanvasText;
     font: 1rem/1.6 ui-monospace, Menlo, Consolas, monospace;
+}
 
-    & .gutter {
-        box-sizing: border-box;
-        /* Never shrinks: as a shrinkable flex item it lost width to the textarea's intrinsic size,
-           which crowded the numbers up against the text. */
-        flex: none;
-        overflow: hidden;
-        /* The same bottom padding as the textarea keeps the two scroll ranges identical. */
-        padding: 0.5rem 0.5rem 0.5rem 0.25rem;
-        text-align: right;
-        white-space: nowrap;
-        user-select: none;
-        /* Dark enough to pass AA on the gutter's own background. */
-        color: #595959;
-        background: #f5f5f5;
-        border-right: 1px solid #ddd;
-    }
+/* Which mode you are in, said in colour as well as in the word on the statusline.
 
-    & .gutter > span {
-        display: block;
-        /* Two digits before a longer page widens the column by itself; reserving three left a gap
-           most pages never fill. */
-        min-width: 2ch;
-    }
+   The colour goes on the textarea's focus ring, as it does in /vim.css, and not on
+   the frames: this box and the form's are a pixel of #aaa that belongs to the page,
+   not to the editor, and tinting them made the page look like it was in a state.
 
-    & .gutter > span:target {
-        background: #ffe08a;
-        color: #000;
-    }
+   The ring is stated whole rather than recoloured, because the engine's default is
+   outline-style: auto, and one that draws that with the platform accent ignores
+   outline-color. Two pixels of solid keeps the shape /vim.css uses, and the inset
+   offset above keeps it off the numbers.
 
-    & textarea {
-        flex: 1 1 auto;
-        min-width: 0;
-        margin: 0;
-        padding: 0.5rem;
-        border: 0;
-        font: inherit;
-        white-space: pre;
-        background: transparent;
-        resize: both;
-        /* Inside its own box, so the focus ring does not draw over the numbers. */
-        outline-offset: -2px;
-    }
+   data-vim-state is set by /vim.js and taken off when the keys go; --vim-mode is
+   declared beside it in /vim.css, which this page loads too: Blue for normal,
+   Vermilion for insert, both Okabe-Ito. On this page the textarea is over #fff, so
+   the two run 5.2:1 and 3.9:1 - clear of the 3:1 a focus indicator needs - and the
+   statusline word carries the mode without relying on the ring at all. */
+[data-vim-state] .editor textarea:focus {
+    outline: 2px solid var(--vim-mode);
+}
+
+.editor .gutter {
+    box-sizing: border-box;
+    /* Never shrinks: as a shrinkable flex item it lost width to the textarea's
+       intrinsic size, which crowded the numbers up against the text. */
+    flex: none;
+    overflow: hidden;
+    /* The same bottom padding as the textarea keeps the two scroll ranges identical. */
+    padding: 0.5rem 0.5rem 0.5rem 0.25rem;
+    text-align: right;
+    white-space: nowrap;
+    user-select: none;
+    /* Dark enough to pass AA on the gutter's own background. */
+    color: #595959;
+    background: #f5f5f5;
+    border-right: 1px solid #ddd;
+}
+
+.editor .gutter > span {
+    display: block;
+    /* Two digits before a longer page widens the column by itself; reserving three
+       left a gap most pages never fill. */
+    min-width: 2ch;
+}
+
+/* Where a diagnostic link landed. */
+.editor .gutter > span:target {
+    background: #ffe08a;
+    color: #000;
+}
+
+.editor textarea {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0.5rem;
+    border: 0;
+    font: inherit;
+    white-space: pre;
+    background: transparent;
+    resize: both;
+    /* Inside its own box, so the focus ring does not draw over the numbers. */
+    outline-offset: -2px;
 }
 
 .diagnostics a {
@@ -101,14 +162,12 @@ body.editor-page > main {
     text-decoration: underline dotted;
 }
 
-/* The page list. The words are the state; the class is what lets the two that want attention read
-   as such. An installation that kept an older copy of this sheet shows plain text, which is why the
-   words are written for that case. */
 .pages {
     border-collapse: collapse;
 }
 
-/* Alignment is the shell's: /site.css left-aligns a row header and centres a column one. */
+/* Alignment is the shell's: /site.css left-aligns a row header and centres a column
+   one. */
 .pages th,
 .pages td {
     padding: 0.25rem 0.75rem 0.25rem 0;
@@ -121,6 +180,20 @@ body.editor-page > main {
 
 .page-actions {
     white-space: nowrap;
+}
+
+/* The kind and the status are single values the sheet must not break across two lines: the
+   kind is one noun, and the status is the host's own phrase, longest as "Compiled with
+   warnings". */
+.page-kind,
+.page-status {
+    white-space: nowrap;
+}
+
+/* The kind sits back; the status is the one that carries a colour, from the .state-* rules
+   below. That is why the state class goes on the status cell rather than on the row. */
+.page-kind {
+    color: #595959;
 }
 
 .page-actions form {
@@ -150,8 +223,8 @@ body.editor-page > main {
     overflow-x: auto;
 }
 
-/* The history page's two revision selects. It is a GET form rather than a .form: there is no
-   submission to save, only two values to name in the query. */
+/* The history page's two revision selects. It is a GET form rather than a .form:
+   there is no submission to save, only two values to name in the query. */
 .revision-compare {
     display: flex;
     flex-wrap: wrap;
@@ -162,4 +235,12 @@ body.editor-page > main {
 
 .revision-compare select {
     max-width: 100%;
+}
+
+/* A window too short for the editor's floor: hand the document back its scroll rather
+   than squeeze the box the keys write into. */
+@media (max-height: 30rem) {
+    body:has(.editor-form) {
+        height: auto;
+    }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Site.Document;
+using Site.Editor;
 %><%
     if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }
 
@@ -10,6 +11,10 @@ using Site.Document;
     IPageEditor editor = ctx.Capabilities.GetRequired<IPageEditor>();
     IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
     IDiffRenderer differ = ctx.Capabilities.GetRequired<IDiffRenderer>();
+
+    // Whether this render is a vim editor. Read once and guarded at every use, so the markup and
+    // the script that markup needs cannot disagree about which editor the visitor has.
+    bool vim = await Editor.EnabledAsync(ctx);
 
     // Every URL this page links is built here, so a key is escaped in exactly one place. The page
     // names itself rather than its shipped key: the host decides which key is the editor.
@@ -37,8 +42,26 @@ using Site.Document;
     static string Iso(System.DateTimeOffset when) =>
         when.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
 
+    // The sort key for a saved time. Iso writes seven fractional digits, which a browser's
+    // Date.parse is not obliged to read, so the key keeps the same instant in the spelling
+    // every engine does read: UTC, milliseconds, one Z. Two revisions a millisecond apart
+    // still order; two in the same millisecond keep the newest-first order the query gave.
+    static string SortStamp(System.DateTimeOffset when) =>
+        when.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture);
+
     // The state word is the host's; this is only how the row marks it, so the sheet can colour it.
     static string StateClass(string state) => "state-" + state.ToLowerInvariant().Replace(' ', '-');
+
+    // What the key is: a library compiles into the pages that name it and is never served, an asset
+    // has no code so its source is the response, and every other key is a compiled page. A row the
+    // host marks reserved is a key the site's own routes already answer for, so its stored head is
+    // shadowed and there is nothing left to do with it.
+    static string KindOf(PageEntry entry) =>
+        entry.IsReserved ? "Shell"
+        : entry.IsLibrary ? "Library"
+        : entry.IsWorker ? "Worker"
+        : entry.IsAsset ? "Text"
+        : "Page";
 
     static string Stamped(System.DateTimeOffset when) =>
         when.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
@@ -403,11 +426,19 @@ using Site.Document;
         ctx.SetStatus(status);
     }
 
-    if (stage is "editor" or "read" or "revision" or "diff" or "install" or "restore") {
+    // The listing shares the sheet too, so its kind and status columns are marked the same way
+    // every other stage's table is.
+    if (stage is "listing" or "editor" or "read" or "revision" or "diff" or "install" or "restore") {
         layout.AddStylesheet("/editor.css");
     }
 
     if (stage == "editor") {
+        // The keys are presentation as much as behaviour: /vim.css styles the statusline the module
+        // builds under the form, and is what keeps the hint hidden until an editor has attached.
+        // Worth a request only when the keys are actually coming.
+        if (vim) {
+            layout.AddStylesheet("/vim.css");
+        }
         ctx.AllowScripts();
     }
 
@@ -451,10 +482,12 @@ run.</p>
             if (rows.Length == 0) {
                 %><p><%= empties[index] %></p><%
             } else {
-                %><table class="pages">
+                %><table class="pages sortable">
     <caption><%= headings[index] %></caption>
     <thead>
-        <tr><th scope="col">Page</th><th scope="col">State</th><th scope="col">Seed</th><th scope="col">Actions</th></tr>
+        <!-- A header sorts its column; the actions beside a row have no order, so that one says
+             data-sort="off" and keeps the scope a screen reader needs. -->
+        <tr><th scope="col">Page</th><th scope="col">Kind</th><th scope="col">Status</th><th scope="col">Seed</th><th scope="col" data-sort="off">Actions</th></tr>
     </thead>
     <tbody><%
                 foreach (PageEntry entry in rows) {
@@ -464,7 +497,8 @@ run.</p>
                     } else {
                         %><th scope="row"><a href="<%= entry.Key %>" aria-label="View <%= entry.Key %>"><%= entry.Key %></a></th><%
                     }
-                    %><td class="page-state <%= StateClass(entry.State) %>"><%= entry.State %></td>
+                    %><td class="page-kind"><%= KindOf(entry) %></td>
+<td class="page-status <%= StateClass(entry.State) %>"><%= entry.State %></td>
 <td class="page-seed"><%
                     if (entry.Seed is not null) {
                         %><strong><%= entry.Seed.Verdict %></strong> <span><%= entry.Seed.Sentence %></span><%
@@ -507,10 +541,16 @@ run.</p>
         if (row?.Seed?.CanApply == true) {
             menu.Add(new(InstallUrl(key), "Install from seed"));
         }
+        // The keys this editor answers to have their own page, and it is the only place the whole
+        // grammar is written down: linked beside Help, and only where there may be keys to learn.
+        menu.Add(new("/vim-help", "Vim keys"));
+        // The switch, which is a hop through /editor-mode: this page cannot write another page's
+        // session, so it cannot flip the answer itself.
+        menu.Add(new(Editor.ToggleHref(ctx), vim ? "Plain textarea" : "Vim editing"));
         menu.Add(new("/help", "Help"));
 
         int lines = text.Split('\n').Length;
-        %><h1>Editing <%= key %></h1<%
+        %><h1>Editing <%= key %></h1><%
         if (notice is not null) {
             %><p class="notice"><%= notice %></p><%
         }
@@ -538,22 +578,33 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
             %></ul><%
         }
         Menu("Editor navigation", menu);
-        %><form method="post" action="<%= EditUrl(key) %>" class="editor-form">
-    <%== ctx.AntiforgeryField %>
-    <input type="hidden" name="expected" value="<%= expected ?? "" %>">
-    <label for="template">Template for <%= key %></label>
-    <div class="editor">
-        <div id="gutter" class="gutter" aria-hidden="true"><%
-        for (int number = 1; number <= lines; number++) {
-            string label = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            %><span id="L<%= label %>"><%= label %></span><%
-        }
-        %></div>
-        <textarea name="template" id="template" rows="10" cols="50" wrap="off" spellcheck="false"><%= text %></textarea>
-    </div>
-    <button type="submit" name="cmd" value="save">Save</button>
-    <button type="submit" name="cmd" value="save-and-view">Save and view</button>
-</form>
+        // /vim.js settles the keys itself from whether the device has a fine pointer, so there is no
+        // switch here: a phone gets the plain textarea it can actually drive, and a keyboard gets the
+        // grammar. This line is revealed by the editor that attached, never by an answer of ours.
+        %><p class="vim-hint" data-vim-only hidden>Modal editing is on: <kbd>Esc</kbd> leaves insert mode,
+<kbd>:w</kbd> submits the form exactly as the Save button does, and <a href="/vim-help">every key</a>
+is on its own page.</p>
+<div data-vim>
+    <form method="post" action="<%= EditUrl(key) %>" class="editor-form">
+        <%== ctx.AntiforgeryField %>
+        <input type="hidden" name="expected" value="<%= expected ?? "" %>">
+        <label for="template">Template for <%= key %></label>
+        <div class="editor">
+            <div id="gutter" class="gutter" aria-hidden="true"><%
+            for (int number = 1; number <= lines; number++) {
+                string label = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                %><span id="L<%= label %>"><%= label %></span><%
+            }
+            %></div>
+            <textarea name="template" id="template" rows="10" cols="50" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off"><%= text %></textarea>
+        </div>
+        <div class="editor-actions">
+            <button type="submit" name="cmd" value="save">Save</button>
+            <button type="submit" name="cmd" value="save-and-view">Save and view</button>
+        </div>
+    </form>
+</div>
+<% if (vim) { Editor.Script(ctx); } %>
 <script type="module" src="<%= ctx.AssetUrl("/editor.js") %>"></script><%
     } else if (stage == "read") {
         layout.Title = "History for " + key;
@@ -576,16 +627,18 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
         if (revisions.Count == 0) {
             %><p>This page has no history. It may never have been saved, or it may have been scrubbed.</p><%
         } else {
-            %><table>
+            %><table class="sortable">
     <caption>Saved revisions of <%= key %>, newest first</caption>
     <thead>
-        <tr><th scope="col">Revision</th><th scope="col">Saved</th><th scope="col">Current</th><th scope="col">Action</th></tr>
+        <!-- The saved column sorts by the machine-readable time in data-sort-key, not by the
+             words beside it, so "2026-11-15" and "2026-11-9" order as dates rather than as text. -->
+        <tr><th scope="col">Revision</th><th scope="col" class="sort-date">Saved</th><th scope="col">Current</th><th scope="col" data-sort="off">Action</th></tr>
     </thead>
     <tbody><%
             foreach (PageRevisionInfo info in revisions) {
                 %><tr>
     <th scope="row"><a href="<%= RevisionUrl(key, info.Hash) %>"><code><%= info.Hash %></code></a></th>
-    <td><time datetime="<%= Iso(info.SavedAt) %>"><%= Stamped(info.SavedAt) %></time></td>
+    <td data-sort-key="<%= SortStamp(info.SavedAt) %>"><time datetime="<%= Iso(info.SavedAt) %>"><%= Stamped(info.SavedAt) %></time></td>
     <td><%= info.IsCurrent ? "current" : "" %></td>
     <td><% if (!info.IsCurrent) { %><a href="<%= RestoreUrl(key, info.Hash) %>" aria-label="Restore revision <%= info.Hash %> of <%= key %>">Restore</a><% } %></td>
 </tr><%
@@ -696,4 +749,18 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
         }
         Menu("Confirmation navigation", [new(ReadUrl(key), "Back to history"), new(EditUrl(key), "Back to editor")]);
     }
-    %>
+
+    // The two tables a visitor meets as a list - the page listing and one page's revision
+    // history - sort by column, so both ask for the module and the sheet it needs, and this
+    // response allows same-origin scripts for the module to arrive at all. The diff's table
+    // is a diff rather than a listing and is left alone. Where each table is written it says
+    // class="sortable", and a column with no order to offer says data-sort="off".
+    bool sortable = stage is "listing" or "read";
+    if (sortable) {
+        layout.AddStylesheet("/sortable.css");
+        ctx.AllowScripts();
+    }
+%>
+<% if (sortable) { %>
+<script type="module" src="<%= ctx.AssetUrl("/sortable.js") %>"></script>
+<% } %>
