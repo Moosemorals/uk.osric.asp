@@ -73,7 +73,8 @@ builds the IDE itself — and [their plan](../plans/ide-host.md) orders them, re
 were in the way, and scopes each one to its wider class of caller rather than to the editor. IDEA-044 and IDEA-045 came out
 of the owner's follow-up of the same day: the assistant does not ask for a browser in so many words,
 but keeps reaching for a way to see what it wrote, and the parts worth seeing are behind the sign-in
-guard — so a browser and an identity are two jobs, and neither is part of the IDE plan. IDEA-046 came
+guard — so a browser and an identity are two jobs, and neither is part of the IDE plan; the identity
+landed the same day as a token minted per run, so IDEA-044 is the one left. IDEA-046 came
 out of the same day's note that the assistant keeps writing `<%# %>` as a comment and the page then
 fails to compile: the template language has an opener for everything except a note to nobody.
 
@@ -102,7 +103,6 @@ fails to compile: the template language has an opener for everything except a no
 | [IDEA-042](IDEA-042.md) | — | M | A page cannot move a page, so a rename is two histories, an orphaned seed anchor and every inbound link broken silently |
 | [IDEA-043](IDEA-043.md) | — | L | The authority to edit the store belongs to one page and to one save: any page may write, and a render may write a batch under a policy |
 | [IDEA-044](IDEA-044.md) | — | L | A page cannot render a page in a browser: the assistant's own scripts are never run, though the server's HTML is already one `fetch` away, and a screenshot has nowhere to be read, served or kept |
-| [IDEA-045](IDEA-045.md) | — | M | A page, a fetch and the assistant only ever see the anonymous view, so every guarded page renders as a sign-in redirect, and the carrier for a token already exists |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -207,6 +207,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [IDEA-045](../plans/assistant-view.md) | A run sees the site it is serving: `view` GETs a path on `Site:Origin` as the owner the run belongs to, and answers the response as the server produced it — every header, the body's own bytes read as UTF-8, the redirects it followed — where `fetch` stays anonymous and keeps its text projection. The token is minted per run, held in memory and dead when the run ends; it reads and never writes, and a page cannot name it. `auth-a-view-token-names-its-run`, `auth-a-view-token-reads-only`, `auth-a-view-that-does-not-verify-is-refused`, `shell-the-site-knows-its-own-origin`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`. See [the plan](../plans/assistant-view.md) |
 | [IDEA-046](../decisions.md) | The template has a comment: `<%# %>` is a token of its own that is neither code nor text — it writes nothing, is emitted into no generated source, leaves a no-code page a text page and a library a library, its braces are not the page's, the script skeleton blanks it, and a text page is served with every comment removed. `pages-a-comment-is-not-code` |
 | [IDEA-035](../decisions.md) | The assistant always runs: `Assistant:Enabled`, the disabled note, the `404` fallback and the key exemption are gone, and `Assistant:ApiKey` is required at startup. `assistant-always-on` |
 | [ARCH-16](../plans/archive/page-store-reader.md) | The assistant's tools and its virtual shell read through one `PageStoreReader`: the tree with its facts, the sources in a scope, one key, a history and one revision. `PageTree` and `PageScope` moved to `Core`, and the loose lists, source walks and scope copies are gone. `pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree` |

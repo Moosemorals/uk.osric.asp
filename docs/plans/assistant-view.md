@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15; approved and built the same day. Waits for the owner's merge |
+| Status | Proposed, built and merged 2026-11-15. The six names it proposed are in [the record](../decisions.md) |
 | Size | M — four files in `Authentication`, one options record, one tool, a credential rule stated once, and the tests, the prompt and the docs for each. The idea's `L` was for an account of the assistant's own; this design needs no account, no secret and no schema, so it stays an `M` |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `AuthenticationExtensions`, `PageCredential`, `PageFetchOptions`, `OutboundFetcher`, `AssistantFetcher`, `FetchTool`, `PageEndpoint`, `RunProcessor`, `PageAuthorPrompt` |
-| Decisions | None recorded yet. They are named at the merge (`product-plan-before-building`); this branch states the names it intends |
-| Backlog | [IDEA-045](../jobs/IDEA-045.md) |
+| Decisions | Six, taken at the merge and listed at the bottom of this file; no existing entry is revised |
+| Backlog | IDEA-045, closed by this merge ([the job index](../jobs/README.md#closed)) |
 
 ## The short version
 
@@ -435,30 +435,31 @@ Three the plan puts back, each with a recommendation it will follow unless the o
    by the validation rule, so the deployment sets it and the shipped loopback value stays for
    development.
 
-## The names this plan intends
+## The names this step took
 
-Bold rather than in backticks, because `make decisions` fails on a cited name the record does not have
-yet, and these are written at the merge:
+Written at the merge, all six of them:
 
-- **auth-a-view-token-names-its-run** — the token is minted per run, for the run's owner, and is dead
-  when the run is; it is never stored, configured or persisted, and it is not a sign-in.
-- **auth-a-view-token-reads-only** — `GET` and `HEAD`, on the site's own origin, refused `405` with
-  `Allow` for anything else, before authorisation and before antiforgery.
-- **auth-a-view-that-does-not-verify-is-refused** — a bearer header that does not authenticate is `401`,
-  never a silent anonymous view.
-- **shell-the-site-knows-its-own-origin** — `Site:Origin` is a required policy value, the one place a
-  credential is offered, and an origin with no path, query, fragment or user info; plaintext only to
-  loopback.
-- **assistant-a-view-is-a-read** — `view` names a path on this site, is signed in as the run's owner,
-  and needs no approval, where `fetch` names any URL, is anonymous and does.
-- **assistant-a-view-is-the-response** — a view answers what the server produced: every header, the
-  body's own bytes read as UTF-8, the redirect hops, and the true length when it is cut. `fetch`'s
-  allow-listed headers and declared-charset text stay what a *page's* fetch is, and do not leak into the
-  view.
+- [auth-a-view-token-names-its-run](../decisions.md#auth-a-view-token-names-its-run) — the token is
+  minted per run, for the run's owner, and is dead when the run is; it is never stored, configured or
+  persisted, and it is not a sign-in.
+- [auth-a-view-token-reads-only](../decisions.md#auth-a-view-token-reads-only) — `GET` and `HEAD`, on
+  the site's own origin, refused `405` with `Allow` for anything else, before authorisation and before
+  antiforgery.
+- [auth-a-view-that-does-not-verify-is-refused](../decisions.md#auth-a-view-that-does-not-verify-is-refused)
+  — a bearer header that does not authenticate is `401`, never a silent anonymous view.
+- [shell-the-site-knows-its-own-origin](../decisions.md#shell-the-site-knows-its-own-origin) —
+  `Site:Origin` is a required policy value, the one place a credential is offered, and an origin with no
+  path, query, fragment or user info; plaintext only to loopback.
+- [assistant-a-view-is-a-read](../decisions.md#assistant-a-view-is-a-read) — `view` names a path on this
+  site, is signed in as the run's owner, and needs no approval, where `fetch` names any URL, is
+  anonymous and does.
+- [assistant-a-view-is-the-response](../decisions.md#assistant-a-view-is-the-response) — a view answers
+  what the server produced: every header, the body's own bytes read as UTF-8, the redirect hops, and the
+  length of the bytes it returned when a cap cut them. `fetch`'s allow-listed headers and
+  declared-charset text stay what a *page's* fetch is, and do not leak into the view.
 
-The merge may fold the second and third into one entry if it judges them one rule; they are written
-apart here because a scope that is too wide and a check that fails open are different failures with
-different tests.
+The merge kept the second and third apart: a scope that is too wide and a check that fails open are
+different failures with different tests.
 
 ## Not in scope
 
