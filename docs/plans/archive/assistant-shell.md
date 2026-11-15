@@ -6,8 +6,8 @@ SPDX-License-Identifier: MIT
 # A kernel for the virtual shell
 
 Status: **implemented 2026-11-10**. The plan for the shell the shell became: commands as applets,
-one kernel that lexes, parses and expands, and the POSIX rule DEC-224 set. Written before the work
-and kept afterwards, as DEC-09 asks; the decisions it landed are DEC-226 and DEC-227.
+one kernel that lexes, parses and expands, and the POSIX rule `assistant-the-shell-is-posix` set. Written before the work
+and kept afterwards, as `product-plan-before-building` asks; the decisions it landed are `assistant-the-shell-is-applets` and `assistant-the-shell-is-posix`.
 
 Implementation notes, where the code differs from the plan: the applet fixtures were consolidated
 rather than one file per command — `CatAndStatAppletTests`, `LsAppletTests` and
@@ -139,7 +139,7 @@ Pipes and redirections are not in this plan, but two of its shapes exist so that
 - **The lexer already emits operators as tokens**, so a `ShellLine` is a token list, not a single command. A pipeline is then a kernel stage that splits the tokens on `|`, builds one `ShellContext` per segment and connects each segment's `IShellOutput` to the next segment's `IShellInput`.
 - **Applets write to an output and read an input**, not to a string. Nothing in an applet knows whether its output is the tool result or the next command's stdin.
 - **What `>` will need:** a redirect target is a *write* to a page, and the shell tool is read-only today (`NeedsApproval: false`). A redirection that writes must go through the same path policy and approval as `write_page`, or be refused; that is a security decision, not an applet's, and it belongs with the operators rather than here.
-- **Standard input changes one documented deviation.** Today a path-less `grep`/`cat`/`wc`/`head`/`tail` reads the store (the root level), because there is no stdin and "search nothing" would be useless. POSIX says they read standard input. When `|` lands the applets will read `IShellInput` when it has content, and the path-less case becomes a decision to take then: keep the store default (useful, and a deliberate deviation of a shell built for a page store, like `ls` on a page naming the page) or follow POSIX and read an empty input. The deviation is recorded in DEC-226 either way, so it is visible rather than accidental.
+- **Standard input changes one documented deviation.** Today a path-less `grep`/`cat`/`wc`/`head`/`tail` reads the store (the root level), because there is no stdin and "search nothing" would be useless. POSIX says they read standard input. When `|` lands the applets will read `IShellInput` when it has content, and the path-less case becomes a decision to take then: keep the store default (useful, and a deliberate deviation of a shell built for a page store, like `ls` on a page naming the page) or follow POSIX and read an empty input. The deviation is recorded in `assistant-the-shell-is-applets` either way, so it is visible rather than accidental.
 
 
 
@@ -153,7 +153,7 @@ Six commits, `make check` green at each, so the branch is never broken.
 3. **The kernel and the first applets.** Add `ShellApplet`, `ShellRegistry`, `ShellRunner`, `ShellContext`, `ShellOutput`, `IPageStoreView`, `PageStoreView`, `ShellPath`, and port `help`, `ls`, `cat`, `stat` — the applets that only read. `PageToolExecutor.ShellAsync` delegates to `ShellRunner` for those four and keeps the old path for the rest. `ShellHelp.cs` becomes `HelpApplet`; `ShellHelpTests` becomes `ShellRegistryTests`.
 4. **Expansion, then the rest.** Add `ShellExpansion` and bring globs back as the stage. Port `grep`, `wc`, `head`, `tail` (with the POSIX multi-file output), then delete `GrepAsync`, `ReadAsync`, `CountOrNameAsync`, `KeysMatching`, `CountsMatching`, `SourcesAsync`, `IsInScope`, `ResolveAsync`, `LineCount`, `WithinBudget` and the rest of the executor's shell helpers. `find` is rewritten as the POSIX subset here, as a new `FindApplet` + `FindExpression`.
 5. **`diff` last, and the cleanup.** Port `DiffApplet`; delete `PageToolExecutor`'s last shell members, `ShellHelp`, the parser's tables and the now-dead `VirtualShellOptions`; move the shell tests out of `PageToolExecutorTests` into per-applet fixtures. `PageToolExecutor` ends at roughly the page tools' size, and `ShellAsync` is three lines.
-6. **Docs.** `docs/plans/assistant-shell.md` is this plan (DEC-09: a plan is written before a large change and kept). `docs/decisions.md` gains DEC-226 (the applet architecture: a command is a type carrying its own usage, syntax and behaviour; the kernel lexes, parses and expands once; help is rendered from the registry), and DEC-227 (the `find` subset); DEC-224's POSIX rule is cited by both. `docs/assistant.md` gets one sentence on applets; `docs/pages.md` needs nothing.
+6. **Docs.** `docs/plans/assistant-shell.md` is this plan (`product-plan-before-building`: a plan is written before a large change and kept). `docs/decisions.md` gains `assistant-the-shell-is-applets` (the applet architecture: a command is a type carrying its own usage, syntax and behaviour; the kernel lexes, parses and expands once; help is rendered from the registry), and `assistant-the-shell-is-posix` (the `find` subset); `assistant-the-shell-is-posix`'s POSIX rule is cited by both. `docs/assistant.md` gets one sentence on applets; `docs/pages.md` needs nothing.
 
 ## Verification
 
@@ -173,7 +173,7 @@ New and moved tests:
 ## Risks and non-goals
 
 - **Behaviour regresses while it moves.** The guard is that the existing suite moves applet by applet inside the same commits, and the gate runs each time.
-- **`Core` must stay pure** (DEC-10): the lexer, syntax, glob and pattern live there; the applets read storage, so they live in `Web` behind `IPageStoreView`.
+- **`Core` must stay pure** (`code-functional-core-imperative-shell`): the lexer, syntax, glob and pattern live there; the applets read storage, so they live in `Web` behind `IPageStoreView`.
 - **What stays in `PageToolExecutor`:** the page tools (`list_pages`, `read_page`, `edit_page`, `write_page`, `delete_page`, `search_pages`, `check_script`, `check_script_text`, `fetch`, the memory tools, `diff_page`) and the helpers they use — `EntriesAsync`/`Entry`, `FindMatchesAsync` for `search_pages`, `Mode(PagePath)`, `ShellRoutes`' records, `RefuseBeforeApproval`. The shell stops borrowing them; where both want one (the ordinal key scan for `search_pages` and `grep`), the shell's copy goes behind `PageStoreView` and `search_pages` keeps its own.
 - **Not in this plan:** process execution, a host filesystem, `cd`/relative paths, `**`, brace expansion, and POSIX commands we have not got (`sed`, `awk`, `sort`, `uniq`). `find`'s expression is a subset by design, and an unsupported predicate is refused by name.
 - **Cost:** ~10 new applet files, ~8 new Core/kernel types, ~10 deleted or emptied, 6 commits. The tool's JSON surface is unchanged except that `diff` loses `identical` in favour of `ok` and empty output.

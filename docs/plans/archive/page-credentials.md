@@ -9,16 +9,16 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Status | Implemented 2026-11-11 |
 | Size | Small — one SDK property, one options parser, one injection path, and their tests |
-| Decisions | DEC-230, recorded in [decisions](../../decisions.md#page-contract-and-threat-model) |
+| Decisions | `pages-fetch-credentials`, recorded in [decisions](../../decisions.md#page-contract-and-threat-model) |
 
-Implementation notes, where the code differs from the plan: the proposed DEC-212 number had already
-been used by the bucket-scale decision, so this is DEC-230. The prompt moved from `page-author-v18`
+Implementation notes, where the code differs from the plan: the proposed `metrics-one-panel-per-instrument` number had already
+been used by the bucket-scale decision, so this is `pages-fetch-credentials`. The prompt moved from `page-author-v18`
 to `page-author-v19`; the plan's `v14` was written before the intervening prompts landed.
 `PageFetcher` gained `ILogger<PageFetcher>` for credential refusals, and the host and scheme check
 sits in `OutboundFetcher` beside the URL validation and redirect loop that already decide where a
 request goes; `PageFetcher` resolves the name and enforces the page binding before delegating.
 
-> **Update 2026-11-10:** DEC-216 removed the `Pages:Fetch:AllowedHosts` allow-list this plan assumed.
+> **Update 2026-11-10:** `pages-outbound-fetch` removed the `Pages:Fetch:AllowedHosts` allow-list this plan assumed.
 > A credential's `Host` is now its own scope, and a credential is not widened by a host list because
 > there is none. The parts below that say a host "must appear in `AllowedHosts`" no longer apply.
 
@@ -71,7 +71,7 @@ it to the assistant.
   sharing one setting after the subsystem goes away.
 - **Encryption at rest inside the site.** Nothing is stored at rest by this design; the value lives
   in the environment file that already holds `Assistant__ApiKey`.
-- **Import and export participation.** The archive carries page source and page state (DEC-139), and
+- **Import and export participation.** The archive carries page source and page state (`pages-an-archive-is-a-database`), and
   a credential is neither. The value never enters the archive because it never enters SQLite.
 
 ## What exists today
@@ -207,7 +207,7 @@ source, and use a credential name only when the owner supplies it.
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | One paragraph in "Outbound fetch"; `page-author-v19` |
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | Teach `Credential` in the fetch section |
 | `docs/pages.md` | `IHttpFetch` bullet: operator config, host-injected, page never reads the value |
-| `docs/decisions.md` | DEC-230 records the choice and the rejected alternatives |
+| `docs/decisions.md` | `pages-fetch-credentials` records the choice and the rejected alternatives |
 | `deploy/README.md` | Operator example for `Pages__Fetch__Credentials__*` |
 | `test/uk.osric.asp.Web.Tests/PageFetcherTests.cs` | Injection, binding, refusal, redirect, plaintext, config validation, redaction |
 | `test/uk.osric.asp.Web.Tests/PageFetchRenderTests.cs` | A compiled page sets `Credential` and the fetcher sees it |
@@ -261,4 +261,4 @@ configuration once at startup and registers it as a singleton.
 
 Add to `docs/decisions.md` when implementing:
 
-> **DEC-230** — A page names an operator-configured credential, never its value. `HttpFetchRequest.Credential` is a key into `Pages:Fetch:Credentials`, whose entries hold the host, header, optional scheme and value, and are bound to one canonical page key. The host attaches the header only to that host, only from that page, only over HTTPS unless loopback, and drops it on a redirect to another host or to plaintext. The value is never in page source, page state, a revision, an export archive or the assistant transcript, and a page that names an unknown credential gets an `InvalidRequest` rather than an exception. | [pages](../../pages.md#page-contract), [PageFetcher](../../../src/uk.osric.asp.Web/Pages/PageFetcher.cs) |
+> **`pages-fetch-credentials`** — A page names an operator-configured credential, never its value. `HttpFetchRequest.Credential` is a key into `Pages:Fetch:Credentials`, whose entries hold the host, header, optional scheme and value, and are bound to one canonical page key. The host attaches the header only to that host, only from that page, only over HTTPS unless loopback, and drops it on a redirect to another host or to plaintext. The value is never in page source, page state, a revision, an export archive or the assistant transcript, and a page that names an unknown credential gets an `InvalidRequest` rather than an exception. | [pages](../../pages.md#page-contract), [PageFetcher](../../../src/uk.osric.asp.Web/Pages/PageFetcher.cs) |

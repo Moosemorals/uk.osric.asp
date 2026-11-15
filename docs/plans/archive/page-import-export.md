@@ -15,7 +15,7 @@ names, so there is no traversal, no duplicate-name trick and no `__MACOSX` noise
 The SQLite provider already underneath `Microsoft.Data.Sqlite` can serialize an in-memory database to
 bytes and deserialize an uploaded one back, so neither direction needs a temporary file.
 
-**Status:** implemented (DEC-139).
+**Status:** implemented (`pages-an-archive-is-a-database`).
 
 ## The short version
 
@@ -185,7 +185,7 @@ editor for a page called `import`. The editor's command query (`/edit/foo?cmd=hi
 it, but a site-wide operation hidden in a per-page query string reads wrong, and the import needs
 two more routes of its own. `/admin` is the honest prefix.
 
-DEC-174 removed `/admin` from the reserved list when the seed-restore admin surface went away. This
+`pages-delete-install-and-restore` removed `/admin` from the reserved list when the seed-restore admin surface went away. This
 plan puts the prefix back, which is a deliberate reversal: the shell now answers `/admin/*` again.
 `ReservedPaths.Default` and `Pages:ReservedPaths` in `appsettings.json` both gain `/admin`; the
 configured list wins, so changing only the default would do nothing in a running deployment.
@@ -575,7 +575,7 @@ already have tests.
 
 ## Documentation and decisions
 
-- New decision **DEC-138** recording: the archive is a SQLite database (in-memory serialize /
+- New decision **`shell-security-headers-are-one-set`** recording: the archive is a SQLite database (in-memory serialize /
   deserialize, `application_id` and `user_version` as the format identity), source and state only,
   import as normal revisions through a single-worker compile-then-commit queue, one transaction for
   the whole batch, compile failures tolerated, import is additive, `/admin` reserved again.

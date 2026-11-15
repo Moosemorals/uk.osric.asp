@@ -17,7 +17,7 @@ using uk.osric.asp.Sdk;
 /// </para>
 /// <para>
 /// There is no allow-list: any absolute <c>http</c> or <c>https</c> URL is reachable, and the caller
-/// decides whether that is acceptable for its audience (DEC-216). The remaining guards are about
+/// decides whether that is acceptable for its audience (`pages-outbound-fetch`). The remaining guards are about
 /// shape rather than destination — no credentials in the URL, no fragment, no cookies, no automatic
 /// redirects, and a redirect hop is held to the same scheme rule before any connection is made.
 /// </para>

@@ -9,7 +9,7 @@ namespace uk.osric.asp.Sdk;
 /// This is the page's copy of the compiler's diagnostic: severity, a position in the template the
 /// author typed, the code the logs and the editor quote, and the text. <c>Core.Compilation</c> keeps
 /// its own <c>PageDiagnostic</c>, because moving it here would make the generator depend on the page
-/// contract; the page's save maps between them (DEC-193).
+/// contract; the page's save maps between them (`pages-a-page-may-save-itself`).
 /// </para>
 /// <para>
 /// A position is 1-based template space, and an unknown position is both members <see langword="null"/>

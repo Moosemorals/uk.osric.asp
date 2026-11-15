@@ -111,7 +111,7 @@ and applies them.
   the build dirties the tree; run it before a release, or from any machine that is asked to prove the
   tree. Neither needs a CI service, an account or a secret, and nothing runs them behind a `git push`.
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
-- **Page assistant:** the host requires a provider key at startup (DEC-301). `make deploy` keeps a mode `0600`
+- **Page assistant:** the host requires a provider key at startup (`assistant-always-on`). `make deploy` keeps a mode `0600`
   `~/.config/uk.osric.asp/assistant.env` for the `deploy` user, because the container cannot start
   without that file — podman's env file, which is what the quadlet's `EnvironmentFile=` becomes, has
   no optional form. Put `Assistant__ApiKey=<provider-key>` in it, and optionally `Assistant__Model`
@@ -148,7 +148,7 @@ and applies them.
   using `curl -N`, not only against the Kestrel port. A run continues if its browser is closed; the
   `Stop` form cancels it. During graceful shutdown the host records unfinished runs as interrupted;
   the 300-second default run timeout is independent of the container's 35-second graceful stop.
-- **Outbound fetch:** any `http` or `https` host is reachable, with no allow-list (DEC-216).
+- **Outbound fetch:** any `http` or `https` host is reachable, with no allow-list (`pages-outbound-fetch`).
   `Pages__Fetch__TimeoutSeconds` defaults to 4, deliberately below the 5-second render budget;
   `MaxResponseBytes`, `MaxRequestsPerRender` and `MaxRedirects` bound the rest. The container's egress
   and internal network are not otherwise restricted, and the assistant's `fetch` tool uses the same

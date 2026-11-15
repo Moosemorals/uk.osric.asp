@@ -6,8 +6,8 @@ SPDX-License-Identifier: MIT
 # Checking the JavaScript the assistant writes
 
 Status: **implemented 2026-11-08**. Written 2026-11-08 as the implementation plan for
-[IDEA-021](../../jobs/README.md), with that job's open questions answered. The decisions are DEC-145
-and DEC-146, and the behaviour is recorded in [architecture](../../architecture.md). The backlog
+[IDEA-021](../../jobs/README.md), with that job's open questions answered. The decisions are `assistant-script-checks`
+and `assistant-script-checks`, and the behaviour is recorded in [architecture](../../architecture.md). The backlog
 follow-up it promised — Language Server Protocol support for the human editor — is recorded as
 [WHIM-01](../../jobs/WHIMS.md), not built here.
 
@@ -289,14 +289,14 @@ editor is [WHIM-01](../../jobs/WHIMS.md).
 
 When implemented, record two decisions:
 
-- **DEC-145 — the tool contract.** `check_script` and `check_script_text` are read-only assistant
+- **`assistant-script-checks` — the tool contract.** `check_script` and `check_script_text` are read-only assistant
   tools sharing one ES-module validator. `check_script` takes a stored page's path; `check_script_text`
   takes a complete page template. Both return `valid` plus `{ line, column, message }`. They are
   JavaScript only, do not consult the content-type map, do not resolve imports and are not a save
   gate.
-- **DEC-146 — the mechanism.** Acornima 1.9.1 is referenced by `Runtime`; `Core` exposes a
+- **`assistant-script-checks` — the mechanism.** Acornima 1.9.1 is referenced by `Runtime`; `Core` exposes a
   position-preserving `TemplateScriptSkeleton`; parser errors are `SCRIPT001` and unclosed-opener
-  hints are `SCRIPT002`. The `Core` change recompiles every stored image once (DEC-26).
+  hints are `SCRIPT002`. The `Core` change recompiles every stored image once (`pages-compile-on-save`).
 
 ## The change
 
@@ -449,7 +449,7 @@ Bump `PageAuthorPrompt.Version` from `page-author-v7` to `page-author-v8`. Cover
 | `test/uk.osric.asp.Web.Tests/PageToolExecutorTests.cs` | Tool behaviour tests |
 | `test/uk.osric.asp.Web.Tests/PageAuthorPromptTests.cs` | Prompt assertion |
 | `docs/architecture.md` | `Runtime`'s dependency sentence and the assistant tool list |
-| `docs/decisions.md` | Record DEC-145 and DEC-146 when implemented |
+| `docs/decisions.md` | Record `assistant-script-checks` and `assistant-script-checks` when implemented |
 | `LICENSES/BSD-3-Clause.txt` | New licence text for the pinned package |
 | `THIRD-PARTY-NOTICES.md` | New Acornima copyright and licence notice |
 | `docs/jobs/WHIMS.md`, `docs/jobs/README.md`, `docs/jobs/IDEA-021.md` | Backlog follow-up, done alongside this plan |
@@ -468,7 +468,7 @@ Each phase leaves the build green and is testable on its own.
    the validator.
 3. **Web tools and prompt.** Add both tool entries, handlers and tests; add the prompt guidance and
    version bump.
-4. **Docs and gate.** Update `architecture.md`, record DEC-145 and DEC-146 in `decisions.md`, run
+4. **Docs and gate.** Update `architecture.md`, record `assistant-script-checks` and `assistant-script-checks` in `decisions.md`, run
    `make format`, `make license-check`, the three focused suites and `make check`.
 
 ## Tests
@@ -597,6 +597,6 @@ script runs when the host serves it.
   [WHIM-01](../../jobs/WHIMS.md); this plan deliberately does not change the editor.
 - [SEC-03](../../jobs/SEC-03.md) is not a prerequisite. Acornima parses and does not execute, so there
   is no new process boundary to argue about.
-- DEC-15 requires the dependency justification and pin; this plan and DEC-145/DEC-146 supply them.
-- DEC-26 means the `Core` change recompiles every stored image on its next request once. That is the
+- `code-system-first` requires the dependency justification and pin; this plan and `assistant-script-checks`/`assistant-script-checks` supply them.
+- `pages-compile-on-save` means the `Core` change recompiles every stored image on its next request once. That is the
   normal cost of changing `Core`, not a surprise.

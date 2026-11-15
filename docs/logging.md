@@ -91,7 +91,7 @@ other scope key.
 `Path` scope, never under a category per path: `ILoggerFactory` caches a logger for each distinct
 category for the life of the process and never evicts one, and a not-found request chooses its own
 URL, so a category per path would let an anonymous client grow that cache one unique path at a time
-(DEC-24). `appsettings.json` turns on `IncludeScopes` for the console formatter so the path still
+(`pages-one-log-category`). `appsettings.json` turns on `IncludeScopes` for the console formatter so the path still
 shows in the line.
 
 **Work scopes.** Background work is not a request and has no `RequestId`; it pushes its own scope for

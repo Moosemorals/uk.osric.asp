@@ -25,7 +25,7 @@ using uk.osric.asp.Web.Editor;
 /// <para>
 /// A save is conditional on the head hash the form carried, and a save that has begun is not
 /// abandoned: the render's deadline bounds the wait for a compile slot, not the author's edit
-/// (DEC-191).
+/// (`pages-a-page-may-save-itself`).
 /// </para>
 /// </remarks>
 internal sealed class PageEditorScope(
@@ -162,7 +162,7 @@ internal sealed class PageEditorScope(
         }
 
         // The render's token is deliberately not the save's token: the deadline bounds the wait for
-        // a compile slot, not the author's edit (DEC-191).
+        // a compile slot, not the author's edit (`pages-a-page-may-save-itself`).
         ConditionalPageSaveResult saved = await pages.SaveIfRevisionAsync(
             target, template, expectedHash, CancellationToken.None, Deadline);
 

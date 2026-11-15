@@ -205,7 +205,7 @@ internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths) : 
     }
 
     // The state is the listing's state, judged against the running build and with the revision's own
-    // verdict on whether it had anything to compile (DEC-258). A read that judged it differently would
+    // verdict on whether it had anything to compile (`pages-a-page-has-a-state`). A read that judged it differently would
     // describe one page two ways.
     private PageImageState Describe(PageTemplate page) => PageImageStatus.Describe(
         page.Image?.RuntimeId,

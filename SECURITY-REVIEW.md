@@ -100,7 +100,7 @@ The cache now holds exactly one category however many URLs are requested. The sc
 filterable — the JSON formatter writes it as a `Path` field, so the same per-page alerting works —
 while making the operator-facing category a constant and removing the request path from anything
 that is cached. `TheCategoryDoesNotVaryWithThePath` in `SimpleContextTests` pins the property.
-Recorded as DEC-24 in [the decisions](./docs/decisions.md) and updated in
+Recorded as `pages-one-log-category` in [the decisions](./docs/decisions.md) and updated in
 [pages](./docs/pages.md#page-contract); `IContext`'s doc comment says the same.
 
 ### 3. Page code can blank the shell's `X-` security headers — Low — *fixed*

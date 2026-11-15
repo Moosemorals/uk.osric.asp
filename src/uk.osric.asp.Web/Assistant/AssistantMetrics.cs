@@ -33,18 +33,18 @@ internal sealed class AssistantMetrics : IDisposable {
     /// <summary>Buckets for <c>assistant.run.steps</c>, in steps.</summary>
     /// <remarks>
     /// A run cannot take more steps than <c>Assistant:MaxSteps</c>, and the top boundary is past it, so
-    /// the run that exhausted its steps is drawn rather than counted under `+Inf` (DEC-214).
+    /// the run that exhausted its steps is drawn rather than counted under `+Inf` (`metrics-one-panel-per-instrument`).
     /// </remarks>
     public static readonly double[] StepBuckets = [1, 2, 3, 5, 8, 12, 16, 24, 32, 48, 64, 96, 128, 160, 192];
 
     /// <summary>Buckets for <c>assistant.run.tool_calls</c>, in calls.</summary>
-    /// <remarks>The top boundary is past <c>Assistant:MaxToolCalls</c> for the same reason (DEC-214).</remarks>
+    /// <remarks>The top boundary is past <c>Assistant:MaxToolCalls</c> for the same reason (`metrics-one-panel-per-instrument`).</remarks>
     public static readonly double[] ToolCallBuckets = [0, 1, 2, 4, 8, 16, 32, 64, 128, 192];
 
     /// <summary>Buckets for <c>assistant.run.duration</c>, in seconds.</summary>
     /// <remarks>
     /// A run's length has no cap: <c>Assistant:RunTimeoutSeconds</c> bounds the provider going quiet,
-    /// not the run (DEC-119), so this scale is sized for the work — minutes, up to an hour. The page
+    /// not the run (`assistant-deadlines-bound-silence`), so this scale is sized for the work — minutes, up to an hour. The page
     /// scale stops at ten seconds, which is why every run used to land in `+Inf`.
     /// </remarks>
     public static readonly double[] RunDurationBuckets =
@@ -53,7 +53,7 @@ internal sealed class AssistantMetrics : IDisposable {
     /// <summary>Buckets for the provider waits, in seconds: the first token and the whole request.</summary>
     /// <remarks>
     /// Both waits are bounded by the same silence timeout, <c>Assistant:RequestTimeoutSeconds</c>, so
-    /// they share one scale whose top boundary is past it (DEC-214): a wait that reached the deadline
+    /// they share one scale whose top boundary is past it (`metrics-one-panel-per-instrument`): a wait that reached the deadline
     /// is a real bucket, and the row that says so is the one worth reading.
     /// </remarks>
     public static readonly double[] ProviderBuckets =
@@ -63,7 +63,7 @@ internal sealed class AssistantMetrics : IDisposable {
     /// <remarks>
     /// A tool call is usually a few milliseconds of our own work, and bounded by
     /// <c>Assistant:ToolTimeoutSeconds</c> when it is not; the top boundary is past that cap
-    /// (DEC-214).
+    /// (`metrics-one-panel-per-instrument`).
     /// </remarks>
     public static readonly double[] ToolDurationBuckets =
         [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20];

@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Implemented 2026-11-10 |
 | Size | Medium — a pure line diff, one capability, one renderer, one assistant tool, one editor view, and the tests for each |
 | Spike | None. The BCL has no diff, and the algorithm is a page of code rather than a dependency to measure |
-| Decisions | DEC-218–DEC-220, recorded in [decisions](../../decisions.md#page-contract-and-threat-model) |
+| Decisions | `pages-diff`, recorded in [decisions](../../decisions.md#page-contract-and-threat-model) |
 | Backlog | [WHIM-02](../../jobs/WHIMS.md) — the diff viewer; the whim was removed when this landed |
 
 Implementation notes, where the code differs from the plan: the compare form sits **below** the
@@ -18,8 +18,8 @@ history table, so the table stays newest first; `DiffRenderer` exposes `Compare`
 `ToUnifiedDiff(DiffDocument)` overload as well as `ToUnifiedDiff(string, string)`, so the assistant
 tool computes the comparison once for its counts and its text; and the page-author prompt moved to
 `page-author-v17` with the Diff section. Trunk folded `/layout.css` into `/site.css` before this
-merged, so `.diff-scroll`'s overflow and focus rules live in `site.css`; trunk also took DEC-217, so
-the diff decisions are DEC-218–DEC-220.
+merged, so `.diff-scroll`'s overflow and focus rules live in `site.css`; trunk also took `pages-one-base-sheet`, so
+the diff decisions are `pages-diff`.
 
 ## The short version
 
@@ -30,7 +30,7 @@ with three readers, all of them the same implementation:
   with common prefix and suffix trimming, three lines of context per hunk, and a whole-block
   fallback when two documents differ too much to align. `UnifiedDiff.Format` writes the same result
   as unified text. There is no package and no process: .NET's BCL has no diff, and the repository's
-  package rule (DEC-15) would need a stronger reason than a page of code.
+  package rule (`code-system-first`) would need a stronger reason than a page of code.
 - **A page capability.** `IDiffRenderer.ToHtml(before, after)` is offered through `ctx.Features`,
   exactly as `IMarkdownRenderer` is. It writes a `table.diff` and escapes every source line, so a
   page may pass visitor or fetched text to it. It is the Markdown renderer's shape with the opposite
@@ -60,7 +60,7 @@ The BCL has no diff algorithm, and the two alternatives are worse than writing o
   that varies by implementation. The host already avoids a process boundary for pages (SEC-03), and
   a diff is not the place to introduce one.
 - **A NuGet package** is a dependency for an algorithm that is small, well understood and easy to
-  test. DEC-15 asks a package to earn its place; a line diff does not have the native, I/O or
+  test. `code-system-first` asks a package to earn its place; a line diff does not have the native, I/O or
   complexity justification Markdig had.
 
 A line diff is also the right unit for page source. A page is a template of lines; a word or
@@ -76,7 +76,7 @@ budget.
 
 ### A capability, not more `IContext`
 
-DEC-142 and DEC-148 settled the seam: something a render may offer is read from `ctx.Features`, and
+`pages-capabilities-are-one-seam` and `pages-a-layout-is-a-capability` settled the seam: something a render may offer is read from `ctx.Features`, and
 `IContext` grows only for what every page always has. Diffing is a pure renderer like Markdown, so it
 belongs in the same place, is registered for every layer by `PageChain`, and is absent for a page
 that never asks for it. A page that wants to compare its own history can do so with `IPageCatalog`
@@ -216,7 +216,7 @@ following, with every source line encoded by `WebUtility.HtmlEncode`:
 The details that matter:
 
 - **The table is a table.** It has a head row and every `th` has `scope="col"`, so the shared
-  accessibility rules apply without an exception (DEC-164's table rule, extended to this renderer).
+  accessibility rules apply without an exception (`pages-markdown`'s table rule, extended to this renderer).
   The `div.diff-scroll` is the keyboard-reachable sideways scroll container the source view already
   uses; `site.css` gives it `overflow-x: auto` and a focus ring.
 - **The marker is not the colour.** Added and removed rows carry `+` and `-` and a
@@ -280,7 +280,7 @@ Wiring follows Markdown exactly:
   the same value in their constructions.
 
 Adding the interface to `Sdk` changes the Sdk module id, so every stored image is stale and
-recompiles lazily. That is the existing `RuntimeId` rule (DEC-26), not a migration or a special
+recompiles lazily. That is the existing `RuntimeId` rule (`pages-compile-on-save`), not a migration or a special
 case.
 
 ### D4 — The assistant tool
@@ -436,7 +436,7 @@ needed for a pure function.
 | `test/uk.osric.asp.Web.Tests/PageHarness.cs`, `PageEndpointTests.cs`, `PageLayoutChainTests.cs` | The `Diff` value in their environments |
 | `test/uk.osric.asp.Web.BrowserTests/EditorFlowTests.cs` | Save twice, compare, see the removed and added lines |
 | `docs/pages.md`, `docs/assistant.md`, `docs/storage.md`, `docs/glossary.md`, `docs/testing.md` | The capability, the tool, the derived nature, the term and the suites |
-| `docs/decisions.md` | DEC-218–DEC-220 |
+| `docs/decisions.md` | `pages-diff` |
 
 No database migration, no new setting and no change to `appsettings.json`. The caps are constants in
 `Core` until a measurement argues for a setting; a diff is pure and the page render already has a
@@ -447,14 +447,14 @@ deadline and a body cap.
 | Option | Why not |
 | --- | --- |
 | `diff` as a child process | A runtime dependency the container does not promise, source on a pipe, and a parser per platform. It is also the one thing this change was asked not to do |
-| A diff NuGet package | The algorithm is small and testable; DEC-15 wants a justification a dependency does not have here |
+| A diff NuGet package | The algorithm is small and testable; `code-system-first` wants a justification a dependency does not have here |
 | Character- or word-level diff | More markup, more accessibility rules and a second renderer for a change the line markers already convey |
 | A side-by-side view | Two tables or a wider grid for the same data; unified is the compact form and the one the assistant can read as text |
 | A `diff_text` tool | It would let the model diff arbitrary strings, including its own output, and double the argument budget for no page-history question it cannot answer today |
 | Rendering the diff as HTML in the transcript | Tool results are untrusted data shown in a `<pre>`; a second markup sink would need its own escaping and would make model-adjacent content renderable |
 | A stored page for the viewer | History browsing is the editor's; a page would need the same storage reads and would be outside the assistant's reach, which is the ownership problem WHIM-02 names. The renderer is the reusable part |
 | A route that pages fetch to get a diff | A page can already read both revisions with `IPageCatalog` and render them; a route would be a second contract with its own URL and access rules |
-| Adding `Diff` to `IContext` | It is not something every page has to use; `Features` is the seam for a renderer the host may offer (DEC-142, DEC-148) |
+| Adding `Diff` to `IContext` | It is not something every page has to use; `Features` is the seam for a renderer the host may offer (`pages-capabilities-are-one-seam`, `pages-a-layout-is-a-capability`) |
 | A configurable context or work cap | The defaults are constants with a clear bound; a setting would be a knob nobody needs until a measurement says otherwise |
 | Storing a computed diff beside a revision | A diff is derived from two templates and would go stale or disagree with them; the templates are the authority, and the only stored copy is the assistant's ordinary tool result |
 
@@ -530,7 +530,7 @@ Each phase ends with a green `make check` and its tests written first.
 
 ### Phase 0 — decisions and the pure diff (half a day)
 
-- Record DEC-218–DEC-220 in [decisions](../../decisions.md).
+- Record `pages-diff` in [decisions](../../decisions.md).
 - Write `DiffLineKind`, `DiffLine`, `DiffHunk`, `DiffDocument`, `LineDiff` and `UnifiedDiff` against
   their failing tests.
 - Add the Core public-API entries with the analyzer, as the build requires.
@@ -578,15 +578,15 @@ tool changes nothing.
 
 ## Documentation and decisions
 
-- **DEC-218** — The diff is the site's own line-based implementation. `Core.Diff.LineDiff` trims the
+- **`pages-diff`** — The diff is the site's own line-based implementation. `Core.Diff.LineDiff` trims the
   common prefix and suffix, runs a bounded Myers diff with three lines of context, normalises line
   endings, and past its work cap shows the middle as one removed block and one added block rather
   than failing or calling a process. `UnifiedDiff` writes the same result as text.
-- **DEC-219** — `IDiffRenderer` is a pure page capability like `IMarkdownRenderer`, reached through
+- **`pages-diff`** — `IDiffRenderer` is a pure page capability like `IMarkdownRenderer`, reached through
   `ctx.Features`; it escapes every source line and writes semantic, inline-style-free markup, so a
   page may pass visitor or fetched text. The assistant gets the renderer's `ToUnifiedDiff` form as a
   read-only `diff_page` tool returning unified text and the editor link, not HTML in the transcript.
-- **DEC-220** — The editor compares two retained revisions on a GET
+- **`pages-diff`** — The editor compares two retained revisions on a GET
   (`cmd=diff&from=<hash>&to=<hash>`); both hashes are validated as 64 hex characters and must belong
   to the page, the view compiles and writes nothing, and a malformed link is a 400 while an unknown
   revision is a 404.
@@ -597,7 +597,7 @@ transcript paragraph; `storage.md` says a computed diff is not its own row or re
 result is a transcript message; `glossary.md` gains **Diff**; `testing.md` names the new suites and
 the browser test; the seeded `/help` teaches the capability; the prompt moves to
 `page-author-v17`. WHIM-02's line is removed when the work lands, because the plan is the shape it
-grew. If another branch takes DEC-218–DEC-220 before this lands, the block moves to the next free
+grew. If another branch takes `pages-diff` before this lands, the block moves to the next free
 numbers and every citation follows, as the repository's merge rule requires.
 
 ## Risks
@@ -627,4 +627,4 @@ numbers and every citation follows, as the repository's merge rule requires.
 - `Core.Tests`, `Runtime.Tests`, `Web.Tests` and the one browser test cover the algorithm, the
   escaping, the wiring, the tool and the view; `make check` passes.
 - `docs/pages.md`, `docs/assistant.md`, `docs/storage.md`, `docs/glossary.md` and `docs/testing.md`
-  describe what the code does, and DEC-218–DEC-220 are in `docs/decisions.md`.
+  describe what the code does, and `pages-diff` are in `docs/decisions.md`.

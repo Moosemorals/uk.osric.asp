@@ -7,9 +7,9 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waiting for the owner. The record and the policy are drafted; nothing cites the new file yet |
-| Size | Large as a reading task, small as a change: one new document of 151 entries, a banner on the old one, and the policy restated in three places. No code, no migration of existing citations |
-| Spike | None. The numbers below were counted on `trunk`: 297 body entries and 31 superseded rows in `docs/decisions.md`, 24,362 words; 3,179 `DEC-` citations across 112 files |
+| Status | Proposed 2026-11-15 — waiting for the owner. The record, the policy, the second pass and the rewritten citations are on the branch; nothing is merged |
+| Size | Large as a reading task, mechanical as a change: one new document of 144 entries, a banner on the old one, the policy restated in three places, and 1,135 citations rewritten to names across 111 files. No code |
+| Spike | None. The numbers below were counted on `trunk`: 297 body entries and 31 superseded rows in `docs/decisions.md`, 24,362 words, and 1,135 citations of a `DEC-` id in 111 files once the frozen file and this map are set aside |
 | Decisions | The policy itself is the decision this plan records, and it is not numbered: it is `product-decisions-have-names` in the new record, and it replaces the numbering rule it was written under |
 | Backlog | A `make decisions` check — unique names, names inside the area list, citations that name an entry — is the obvious next step and is not in this one |
 
@@ -31,7 +31,7 @@ rename is free.
 
 While the list is being rewritten, it is also being condensed: entries describing one mechanism become
 one entry, 31 superseded rows are dropped rather than carried, and the arguments that were repeated in
-each row now sit once. 297 entries become 151, and 24,362 words become 19,003. The old file stays, with
+each row now sit once. 297 entries become 144, and 24,362 words become 18,989. The old file stays, with
 a banner saying it is frozen — its numbers keep their meaning, so no citation written before today
 breaks.
 
@@ -41,7 +41,7 @@ breaks.
 | --- | --- |
 | Two branches took 184 on 2026-11-15, for the assistant's memory and for a self-contained chart; the chart pair moved to 319 and 320, and four documents were edited in the merge | DEC-319, DEC-320 and the last row of the Superseded table |
 | Nine numbers are cited but have no row of their own — 36, 55, 89, 109, 113, 117, 128, 211, 221 — removed as superseded and cited 33 times outside the file between them | `comm` of the body's ids against every id the repository mentions |
-| A reader who meets `DEC-190` in a doc comment must open the file and scan for it; the number is not the decision | 3,179 citations in 112 files |
+| A reader who meets `DEC-190` in a doc comment must open the file and scan for it; the number is not the decision | 1,135 citations in 111 files |
 | The Superseded table is a second copy of facts the plans and git already hold, and a third of it describes numbers no longer in the body | the table's own rows |
 | "Take the next number from trunk" is a merge-time race by construction: the rule's defence is that a human notices | the policy paragraph DEC-232 recorded |
 
@@ -107,6 +107,13 @@ that were superseded before today are not listed, because they were not in the b
 plan's, not the record's: it is how a reviewer checks that nothing was lost in the rewriting, and it is
 not a numbering scheme creeping back in.
 
+Ids that were cited but had no row of their own when the old file was frozen map to the entry that
+replaced them: **36** to `pages-a-page-may-declare-types`; **89** and **113** to `pages-names-follow-the-pipeline`;
+**55** to `auth-sign-in-is-rate-limited-per-client`; **109** and **116** to `pages-one-base-sheet`; **117** to
+`pages-delete-install-and-restore`; **128** to `pages-outbound-fetch`; **211** to
+`assistant-memory-belongs-to-the-assistant`; **221** to `assistant-the-shell-is-applets`; **301** to
+`assistant-always-on`.
+
 ### Product
 
 | Name | Old rows |
@@ -152,10 +159,9 @@ not a numbering scheme creeping back in.
 | pages-a-key-is-a-path | DEC-17, DEC-18, DEC-91 |
 | pages-root-is-a-page | DEC-06 |
 | pages-compile-on-save | DEC-19, DEC-25, DEC-26 |
-| pages-diagnostics-speak-template-space | DEC-22 |
 | pages-a-warning-never-stops-a-page | DEC-23, DEC-178 |
+| pages-what-a-diagnostic-is | DEC-21, DEC-22 |
 | pages-a-compiler-fault-is-ours | DEC-20 |
-| pages-diagnostic-codes-are-permanent | DEC-21 |
 | pages-one-log-category | DEC-24 |
 | pages-a-page-is-nullable | DEC-177 |
 | pages-a-page-has-a-state | DEC-165, DEC-258, DEC-276 |
@@ -179,9 +185,7 @@ not a numbering scheme creeping back in.
 | pages-public-by-default | DEC-02, DEC-132 |
 | pages-identity-is-a-plain-value | DEC-133 |
 | pages-redirect-to-login | DEC-134 |
-| pages-a-signed-in-post-is-checked | DEC-135 |
 | pages-content-types | DEC-144, DEC-197 |
-| pages-scripts-are-same-origin-modules | DEC-138, DEC-248, the script half of DEC-93 |
 | pages-an-asset-is-a-page-with-no-code | DEC-239, DEC-240, DEC-244 |
 | pages-a-versioned-url-promises-immutable | DEC-238, DEC-241, DEC-242, DEC-243, DEC-245, DEC-246, DEC-247 |
 | pages-one-base-sheet | DEC-155, DEC-217 (DEC-116 superseded) |
@@ -199,8 +203,7 @@ not a numbering scheme creeping back in.
 | pages-scratch-saves-itself | DEC-196 |
 | pages-the-editor-is-a-page | DEC-259, DEC-265, DEC-266, DEC-268 |
 | pages-the-editor-capability | DEC-260, DEC-261, DEC-262 |
-| pages-delete-is-a-tombstone | DEC-263 |
-| pages-install-and-restore | DEC-174, DEC-249, DEC-250, DEC-251, DEC-267 |
+| pages-delete-install-and-restore | DEC-174, DEC-249, DEC-250, DEC-251, DEC-263, DEC-267 |
 | pages-scrubbing-is-not-editing | DEC-264 |
 | pages-the-session | DEC-233, DEC-234, DEC-235 |
 | pages-build-info | DEC-199 |
@@ -209,12 +212,10 @@ not a numbering scheme creeping back in.
 | pages-a-page-is-one-of-three-kinds | DEC-283 |
 | pages-a-library-is-named-by-a-using | DEC-284, DEC-285, DEC-286, DEC-287, DEC-289 |
 | pages-a-worker-is-a-kind | DEC-310, DEC-311, DEC-318 |
-| pages-jobs-run-a-worker-for-the-page | DEC-312, DEC-313 |
+| pages-jobs-run-a-worker-for-the-page | DEC-312, DEC-313, DEC-316 |
 | pages-a-job-is-not-durable | DEC-314, DEC-315 |
-| pages-a-viewer-waits-on-a-job | DEC-316 |
 | pages-a-worker-gets-no-response | DEC-317 |
-| pages-a-stream-is-served-alone | DEC-294 |
-| pages-the-first-flush-commits | DEC-295, DEC-296, DEC-298, DEC-299 |
+| pages-the-first-flush-commits | DEC-294, DEC-295, DEC-296, DEC-298, DEC-299 |
 | pages-a-stream-is-bounded | DEC-303, DEC-304, DEC-305 |
 | pages-a-stream-reports-its-own-end | DEC-300, DEC-306, DEC-309 |
 
@@ -224,7 +225,7 @@ not a numbering scheme creeping back in.
 | --- | --- |
 | shell-redirect-is-one-helper | DEC-28 |
 | shell-nobody-is-handed-a-blank-failure | DEC-131 |
-| shell-security-headers-are-one-set | DEC-93 |
+| shell-security-headers-are-one-set | DEC-93, DEC-138, DEC-248 |
 | shell-the-markup-is-semantic | DEC-108, DEC-115 |
 | shell-accessibility-is-asserted | DEC-110 |
 | shell-the-menu-is-written-twice | DEC-151 |
@@ -236,15 +237,16 @@ not a numbering scheme creeping back in.
 | auth-cookie-not-identity | DEC-47 |
 | auth-passwords | DEC-48, DEC-49, DEC-50, DEC-51 |
 | auth-sign-in-is-long-lived-and-revocable | DEC-52, DEC-53, DEC-54 |
-| auth-antiforgery | DEC-56 |
 | auth-the-key-ring-is-persisted | DEC-57 |
-| auth-sign-in-is-rate-limited-per-client | DEC-118 |
+| auth-a-state-changing-form-carries-a-token | DEC-56, DEC-135 |
+| auth-sign-in-is-rate-limited-per-client | DEC-118, DEC-55 |
 
 ### Assistant
 
 | Name | Old rows |
 | --- | --- |
 | assistant-always-on | DEC-111 (optional half), DEC-301 |
+| assistant-memory-belongs-to-the-assistant | DEC-291, DEC-211 |
 | assistant-writes-are-revisions | DEC-111 |
 | assistant-a-run-is-not-resumed | DEC-111 |
 | assistant-knows-the-guard | DEC-137 |
@@ -255,8 +257,7 @@ not a numbering scheme creeping back in.
 | assistant-old-tool-results-are-masked | DEC-201, DEC-202 |
 | assistant-usage-is-accumulated | DEC-203 |
 | assistant-memory-belongs-to-the-assistant | DEC-291 |
-| assistant-memory-is-the-owners | DEC-184, DEC-187, DEC-188 |
-| assistant-memory-is-written-by-tools | DEC-185 |
+| assistant-memory-is-the-owners | DEC-184, DEC-185, DEC-187, DEC-188 |
 | assistant-memory-recall-is-fts5 | DEC-186 |
 | assistant-memory-page | DEC-205, DEC-206, DEC-207, DEC-208, DEC-209 |
 | assistant-a-tool-is-one-type | DEC-231 |
@@ -301,25 +302,47 @@ not a numbering scheme creeping back in.
   was recording an argument with a design nobody proposed again.
 - **Every entry still names where it is recorded**, so the chain from rule to detail survives the
   rewrite. The links were copied from the old rows and are relative to `docs/`, as before.
+- **The fragments were folded on a second pass**, after the first draft was read end to end. Seven
+  entries were still two halves of one rule: a diagnostic's position and its codes; the commit point and
+  the page a flush serves alone; a job handle and the viewer that waits on it; the token in a shell form
+  and in a page's; the header set and the script policy; a memory's ownership and how it is written; a
+  delete and the two "put it back" actions. 151 entries became 144, and the words that survived the
+  merge are the rules, not a second telling of them.
 
 ## The old file
 
 `docs/decisions.md` gets one edit: a banner under its heading saying it is frozen, that its numbers keep
 their meaning, and that new decisions are recorded in `decided.md`. Nothing else changes, so every
-existing `DEC-` citation and every `#anchor` link into it still resolves. That is deliberate: the
-alternative — migrating 3,179 citations in 112 files, dozens of them inside archived plans that describe
-what was true at the time — would rewrite history to no reader's benefit.
+`#anchor` link into it still resolves and its history stays readable as it was written.
 
-Citations are migrated opportunistically instead: a file touched for another reason may have its `DEC-`
-numbers replaced with names, and the change that does it says so. `docs/plans/archive/` is never
-migrated.
+## The citations
+
+The map is the table above. A name replaces each id, a range expands to the names of the ids inside it,
+and a link to a decision's row becomes the name in backticks — so `DEC-269–DEC-273` becomes
+`assistant-edit-page-is-safe`, `pages-template-shape-check`, and `(DEC-257)` becomes
+`(`pages-the-api-policy`)`. 1,135 citations in 111 files were rewritten that way, archived plans
+included: a plan that names the decision it recorded is more useful with a name that still points at a
+rule than with a number that only points at a frozen file.
+
+Three things were not mechanical, and were done by hand:
+
+- **The story of the collision** in an archived status-page plan is *about* two numbers meeting, so it
+  keeps them.
+- **Four sentences that said one decision superseded or amended another** now said one name twice,
+  because the two rows had become one entry: the API policy's `Task` amendment, the document shell's
+  skip link, the capability alias, and the page-authentication range. Each was reworded to the rule it
+  meant.
+- **Prose that argued about a withdrawn decision** which never had a name got the withdrawal named
+  instead.
+
+What is left saying `DEC-` is deliberate: the frozen file, this plan's map, the collision paragraph, and
+the paragraph in `decided.md` that explains what it replaced.
 
 ## What this step does not do
 
 - **No check.** A `make decisions` target or a small tool that fails on a duplicate name, a name outside
   the area list, or a citation that names no entry would make the clash rule mechanical instead of
   remembered. It is the next step, and this one is the record to check.
-- **No migration of existing citations**, for the reason above.
 - **No deletion of the old file.** It is frozen, not removed.
 
 ## Open questions for the owner
@@ -328,8 +351,8 @@ migrated.
    a rule book. It is permanent once merged, so this is the one decision that is worth a minute.
 2. **The area list.** Nine areas: `product`, `code`, `pages`, `shell`, `auth`, `assistant`, `deploy`,
    `metrics` — and no `storage`, whose decisions are all a page's or the assistant's. Is that the right
-   grain, or is `pages` (70 of the 151) doing too much work?
-3. **The condensation.** 297 entries to 151, and 24,362 words to 19,003. Every entry is now a heading
+   grain, or is `pages` (69 of the 144) doing too much work?
+3. **The condensation.** 297 entries to 144, and 24,362 words to 18,989. Every entry is now a heading
    with a rule under it rather than a row with a paragraph in a cell. If that is not far enough, the
    next pass is to drop the entries whose rule is stated in full by the linked document and pinned by a
    test; say so and it is a different, shorter record.

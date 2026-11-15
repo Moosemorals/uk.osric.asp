@@ -12,7 +12,7 @@ using SdkSeverity = uk.osric.asp.Sdk.PageDiagnosticSeverity;
 /// <remarks>
 /// Every author-facing message is "{code}: {text}" in the one form every producer writes — Roslyn's
 /// "CS1002: ; expected" and the host's own "PAGE001: ..." alike — so the code is the prefix of the
-/// message rather than a field of its own (DEC-193). One mapping serves a self-save and the editor.
+/// message rather than a field of its own (`pages-a-page-may-save-itself`). One mapping serves a self-save and the editor.
 /// </remarks>
 internal static class PageDiagnostics {
 

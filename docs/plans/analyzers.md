@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Done — DEC-290. The full set is on, the build is clean, and every exception carries its reason |
+| Status | Done — `code-analyzers-are-strict`. The full set is on, the build is clean, and every exception carries its reason |
 | Size | Medium — a build policy, an exception list, about ninety fixes in `src` and the tests, and a documentation file per product assembly |
 | Spike | None. The survey below is the measurement: the rules are already in the SDK, and turning them on is one property |
-| Decisions | DEC-290: the full `CA` rule set is on, and every exception is named in `.editorconfig` with its reason |
+| Decisions | `code-analyzers-are-strict`: the full `CA` rule set is on, and every exception is named in `.editorconfig` with its reason |
 | Backlog | — |
 
 ## The short version
@@ -139,5 +139,5 @@ public surface of `Core` is documented" into something the build holds.
 - **Rule churn.** Enabling `All` also enables rules a future SDK may add. The exception list is the
   place to argue with them, and the default stays strict.
 - **Test churn.** The scoped exceptions mean a genuinely unguarded test helper will not be reported.
-  That is the same trade the repo already makes for page code (DEC-02's spirit): tests are evidence,
+  That is the same trade the repo already makes for page code (`pages-public-by-default`'s spirit): tests are evidence,
   not product surface.

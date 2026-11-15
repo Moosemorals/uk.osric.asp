@@ -492,7 +492,7 @@ internal static class PageToolData {
     /// <remarks>
     /// <para>
     /// `read_page` and `read_revision` read source through this one function, so a revision a tool
-    /// quotes is numbered and windowed exactly as the live page is (DEC-112).
+    /// quotes is numbered and windowed exactly as the live page is (`assistant-line-numbers-are-physical`).
     /// </para>
     /// <para>
     /// Every line carries its number because the result is read as escaped JSON: counting lines in

@@ -33,7 +33,7 @@ internal sealed class PageImageBuilder(
     //
     // A wait for a slot is abandoned at the render's deadline too when there is one: nothing has been
     // compiled, so nothing is lost and the next request tries again. The compile itself is left to
-    // finish and store its image (DEC-43).
+    // finish and store its image (`pages-the-execution-budget`).
     public PageImage Build(
         PagePath path,
         string template,

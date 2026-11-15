@@ -11,7 +11,7 @@ using uk.osric.asp.Sdk;
 /// <remarks>
 /// The request itself belongs to <see cref="OutboundFetcher"/>; this is the page-shaped edge that
 /// names the page in the metric and holds the page's key to the same value contract as the SDK. A
-/// page may fetch any <c>http</c> or <c>https</c> host (DEC-216). A named credential is resolved and
+/// page may fetch any <c>http</c> or <c>https</c> host (`pages-outbound-fetch`). A named credential is resolved and
 /// bound to this page here, before <see cref="OutboundFetcher"/> opens a socket.
 /// </remarks>
 internal sealed class PageFetcher(

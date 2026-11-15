@@ -11,8 +11,8 @@ SPDX-License-Identifier: MIT
 | Size | Large — a new Sdk capability and its values, a read-contract extension, a scoped authority, the seeded `/pages` editor and its module, retiring `/edit`, a shell scrub route, and the tests and documents for each |
 | Area | Sdk, Web (pages, editor, admin, routing, navigation), seeds, docs |
 | Backlog | IDEA-017 — closed by this plan. [IDEA-028](../../jobs/README.md#closed) — the prerequisite recovery path, landed |
-| Decisions | DEC-259–DEC-268, with DEC-258 (the read state) and DEC-256 (the recovery route) from the phases that landed earlier |
-| Prerequisite | [IDEA-028](../../jobs/README.md#closed) landed 2026-11-13: `/admin/restore` is the way back from a broken editor (DEC-256) |
+| Decisions | `pages-the-editor-is-a-page`, `pages-the-editor-capability`, `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`, with `pages-a-page-has-a-state` (the read state) and `shell-the-admin-tools` (the recovery route) from the phases that landed earlier |
+| Prerequisite | [IDEA-028](../../jobs/README.md#closed) landed 2026-11-13: `/admin/restore` is the way back from a broken editor (`shell-the-admin-tools`) |
 
 ## The short version
 
@@ -23,7 +23,7 @@ stored page, under a narrower seam than the assistant's, and lets the shell edit
 
 - **The editor becomes `/pages`.** The seeded page already lists the store and shows a page's
   history and source through `IPageCatalog`; `?page=/about` keeps that read, `?edit=/about` adds the
-  form. A page key stays an exact path (DEC-18), so the edited path travels as a query value the
+  form. A page key stays an exact path (`pages-a-key-is-a-path`), so the edited path travels as a query value the
   page validates through the host.
 - **The write is a capability, and a narrow one.** A new `IPageEditor` offers a conditional save, a
   tombstone delete, a revision restore and a seed install. It is registered only for the content
@@ -41,7 +41,7 @@ stored page, under a narrower seam than the assistant's, and lets the shell edit
 - **IDEA-028 has landed.** `/admin/restore` is the brutal one-button restore of every seed to its
   bundled source, and it draws a plain document with no stylesheet or script, so a broken
   `/site.css` cannot hide it. It is what makes removing the shell editor safe, and it is the answer
-  to a broken `/pages`, `/_layout`, `/editor.css` or `/editor.js` (DEC-256).
+  to a broken `/pages`, `/_layout`, `/editor.css` or `/editor.js` (`shell-the-admin-tools`).
 - **One writer remains.** `PageSaver` grows the conditional save on its own context, so a started
   edit is not lost when the render ends; the capability and the seed helper both use it. No second
   insert path, no second query language, no second saver.
@@ -80,7 +80,7 @@ before the shell view can go.
   with a typed confirmation, and it is not editing. It moves to its own shell route unchanged; a
   later decision can move it once the page editor has proved itself.
 - **A catch-all that hands a subtree to one page.** `/pages?edit=` keeps one page equals one key
-  (DEC-18). A routing change that lets one page answer `/about` and `/about/anything` is a change to
+  (`pages-a-key-is-a-path`). A routing change that lets one page answer `/about` and `/about/anything` is a change to
   what a page key means for every page, and it is not needed for this view.
 - **A writable prefix for the owner.** That is an assistant rule. The owner edits what the editor
   offers.
@@ -108,7 +108,7 @@ before the shell view can go.
 | Piece | Today | Used here for |
 | --- | --- | --- |
 | `IPageCatalog` / `PageCatalogScope` | Four reads: list heads, read a live page, list history and read a revision; public by default; bounded by the shared read budget | The listing, the history, the source view and the diff; the page needs no new read |
-| `IPageWriter` / `PageWriterScope` | A self-save bound to `ctx.Path`; signed-in, no `HEAD`, one save per render, a started save finishes (DEC-189–DEC-196) | The authority rules the named-key capability inherits, and the tests they already pin |
+| `IPageWriter` / `PageWriterScope` | A self-save bound to `ctx.Path`; signed-in, no `HEAD`, one save per render, a started save finishes (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`) | The authority rules the named-key capability inherits, and the tests they already pin |
 | `PageEditor.SaveIfRevisionAsync` | Compile-then-store only while the head hash matches; the assistant's conditional save, on the request's scoped store | The stale-save rule, moved to the singleton save path so a started save survives the render |
 | `PageEditor.SaveAsync` / `PageSaver` | The one compile-then-store path; diagnostics are returned, a compiler fault still stores the source | Every write the new capability makes, including seed install |
 | `EditorEndpoint` | Listing, editor form, history, revision, diff, delete, scrub, seed install and revision restore; `/edit` is behind the `Editor` policy | The views, wording, confirmations and tests to port; its scrub code moves and the rest is deleted |
@@ -123,7 +123,7 @@ before the shell view can go.
 
 ## Decisions
 
-### D1 (DEC-259) — The editor is `/pages?edit=<key>`
+### D1 (`pages-the-editor-is-a-page`) — The editor is `/pages?edit=<key>`
 
 `/pages` is already the stored page that lists the store and shows source and history. Adding
 `?edit=/about` keeps one page equals one key and makes the edited path a query value. The page
@@ -135,9 +135,9 @@ Rejected: `/editor?path=` as a new seeded page, because it duplicates the listin
 already is and adds a seed to restore. Rejected: a catch-all subtree for one page, because it changes
 the meaning of every page key.
 
-### D2 (DEC-260) — A new `IPageEditor` capability, not `IPageWriter` widened
+### D2 (`pages-the-editor-capability`) — A new `IPageEditor` capability, not `IPageWriter` widened
 
-`IPageWriter` is safe because the handle itself has no key: a page can only save itself (DEC-189).
+`IPageWriter` is safe because the handle itself has no key: a page can only save itself (`pages-a-page-may-save-itself`).
 Giving it a `path` parameter would turn every stored page into a handle on the whole store. The
 named-key authority gets its own interface, `IPageEditor`, with its own registration rule and its own
 tests.
@@ -160,7 +160,7 @@ carries `Saved`, `Stale`, the hash and the diagnostics, so a matching seed can s
 without a write; `PageDeleteResult` carries whether the head was live. A missing revision or a key
 that is not a seed returns `null`, because that is an answer the page shows rather than an exception.
 
-### D3 (DEC-261) — Authority is structural, then checked
+### D3 (`pages-the-editor-capability`) — Authority is structural, then checked
 
 `IPageEditor` is registered only for the content layer whose key is the configured editor key. A
 layout never sees it, another stored page never gets it even if its code asks, and a `HEAD` gets the
@@ -168,7 +168,7 @@ read members (`Resolve`, `SeedPaths`) with every write refused, so the form stil
 validator.
 The scope then checks what the handle cannot:
 
-- an anonymous render is a `UserFacingException` before anything is compiled or stored (DEC-190);
+- an anonymous render is a `UserFacingException` before anything is compiled or stored (`pages-a-page-may-save-itself`);
 - an ended or timed-out render, a write during a `HEAD` and a second action in one render are
   `InvalidOperationException`s, because they are page bugs;
 - a key that cannot name a page is an `ArgumentException`; a reserved key is refused before any read
@@ -185,7 +185,7 @@ which is why the self-delete guard protects whatever key is configured rather th
 The assistant's `PagePathPolicy` is not reused for the owner: its writable prefix and its shell-file
 rule exist to stop the assistant, and the owner edits exactly those pages.
 
-### D4 (DEC-262) — A save is conditional, and stale text is preserved
+### D4 (`pages-the-editor-capability`) — A save is conditional, and stale text is preserved
 
 The editor form carries the hash it was rendered from. `SaveAsync` calls a new
 `PageSaver.SaveIfRevisionAsync`, which compiles before it stores only while the head still matches.
@@ -205,17 +205,17 @@ the same reason: three callers, one rule, and each keeps its own words for the r
 The conditional save moves from the request-scoped `PageEditor`/`IPageStore` to `PageSaver` and
 `IPageRevisionStore`, which own a context per write. That matters because a page's save can outlive
 the request that started it: the render's deadline bounds the wait for a compile slot, not the
-author's edit (DEC-191). `PageEditor.SaveIfRevisionAsync` becomes a delegation to the same method, so
+author's edit (`pages-a-page-may-save-itself`). `PageEditor.SaveIfRevisionAsync` becomes a delegation to the same method, so
 the assistant and the page still share one algorithm. `SqlitePageStore.TrySavePageAsync` and the
 singleton store share the conditional head update; the revision insert remains
-`SqlitePageStore.WriteRevisionAsync`. This is a narrowing, not a reversal, of DEC-192: the
+`SqlitePageStore.WriteRevisionAsync`. This is a narrowing, not a reversal, of `pages-a-page-may-save-itself`: the
 conditional save is offered to the one editor page, through the one capability, and the ability to
 write any key is still not offered to every page.
 
 Rejected: last-write-wins, which is what the shell editor does today and what two tabs make unsafe.
 Rejected: a redirect with a flash, which loses the text and needs IDEA-027.
 
-### D5 (DEC-263) — Delete is a tombstone, restore is a save, install is a save
+### D5 (`pages-delete-install-and-restore`) — Delete is a tombstone, restore is a save, install is a save
 
 - `DeleteAsync` uses `PageEditor.DeleteAsync`; the head becomes a tombstone and the history stays.
   A missing page is `Deleted = false`, not an error.
@@ -232,7 +232,7 @@ tombstone; the ordinary save path already upserts the head. The page does not re
 not edit a revision and does not recompile an old revision under an old runtime. Everything is a new
 save, exactly as the revision-restore work says.
 
-### D6 (DEC-258) — The read contract grows the state the listing already shows
+### D6 (`pages-a-page-has-a-state`) — The read contract grows the state the listing already shows
 
 The shell listing shows compile state; `PageEntry` does not. Dropping the column would make the page
 editor a smaller view than the one it replaces. `PageReadHead` grows the image columns the store
@@ -250,7 +250,7 @@ Rejected: a second capability read just for state, which adds a read where the l
 the answer. Rejected: a public `PageImageState` enum, which duplicates a Core/Web vocabulary in Sdk
 for one property.
 
-### D7 (DEC-264) — Scrub stays a shell route
+### D7 (`pages-scrubbing-is-not-editing`) — Scrub stays a shell route
 
 Permanently removing history is not editing. `/edit/{**path}?cmd=scrub` becomes
 `/admin/scrub/{**path}`: the same GET confirmation, the same typed key, the same POST, behind the
@@ -260,7 +260,7 @@ without changing what it does, except that its POST answers with its own result 
 `/pages` instead of writing a `/edit` flash no view will read. A later job can decide whether the
 page should own it.
 
-### D8 (DEC-265) — `/edit` is retired, not redirected
+### D8 (`pages-the-editor-is-a-page`) — `/edit` is retired, not redirected
 
 The `/edit` and `/edit/{**path}` mappings go. `/edit` also leaves `ReservedPaths.Default` and
 `ShellRoutes.All`, so it is no longer a shell file, a route policy or an assistant-protected key.
@@ -277,7 +277,7 @@ trade every other stored page already has (ARCH-15).
 The destructive scrub action is not left to a missing key: it moves to `/admin/scrub/{**path}` before
 the editor maps are removed, and the deleted-page row on `/pages` links it.
 
-### D9 (DEC-266) — The page answers in place
+### D9 (`pages-the-editor-is-a-page`) — The page answers in place
 
 - A save renders the editor again with diagnostics, the new hash and the text the author submitted.
 - A stale save is `409` with the editor, the submitted text and the current source.
@@ -290,18 +290,18 @@ the editor maps are removed, and the deleted-page row on `/pages` links it.
 `PageEndpoint` already refuses an authenticated `POST` without a valid antiforgery pair before the
 page runs, so the page's forms carry `ctx.AntiforgeryField` and rely on the host check.
 
-### D10 (DEC-256) — IDEA-028 is the recovery path, and it is live
+### D10 (`shell-the-admin-tools`) — IDEA-028 is the recovery path, and it is live
 
 `/admin/restore` installs every seed, including `/pages`, `/editor.js`, `/editor.css` and
 `/_layout`, from the bundled source. It is reserved, behind the `Editor` policy, and linked from
 `/admin` and `/status`. It does not delete non-seed pages and does not scrub history. The page draws
 its own document and loads no stylesheet or script, because the shell's document always links
-`/site.css` and one rule there would hide the page that can repair it (DEC-256).
+`/site.css` and one rule there would hide the page that can repair it (`shell-the-admin-tools`).
 
 It landed on 2026-11-13, so Phase 4 no longer waits for it and there is no redirect fallback once
 `/edit` goes.
 
-### D11 (DEC-267) — One seed helper, one saver
+### D11 (`pages-delete-install-and-restore`) — One seed helper, one saver
 
 `PageAssetSeeder` knows how to read a bundled seed, and `/admin/restore` already owns the rest of
 the rule: `RestoreEndpoint.PlanAsync` compares every seed with the live head, so the preview can say
@@ -315,7 +315,7 @@ There is no batch store in the emergency path and no new insert path in the capa
 saves through `PageSaver` are the correct scale for the seeds the site ships, and a partial result is
 easier to report than a rolled-back recovery.
 
-### D12 (DEC-268) — The editor page is seeded, editable and recoverable
+### D12 (`pages-the-editor-is-a-page`) — The editor page is seeded, editable and recoverable
 
 `/pages` is a seed like `/help` and `/about`. The owner can edit the editor with the editor, which is
 the point of the site; a bad save that breaks it is exactly what `/admin/restore` exists for. The
@@ -354,7 +354,7 @@ abandonment, deadline and the one-action flag.
 | Missing revision or non-seed | `null`, no write |
 | Missing page on delete | `PageDeleteResult(Deleted: false, WasLive: false)` |
 
-The `UserFacingException` is the visitor's state, as `PageWriterScope` already decides (DEC-190). The
+The `UserFacingException` is the visitor's state, as `PageWriterScope` already decides (`pages-a-page-may-save-itself`). The
 rest are page bugs and are `InvalidOperationException`, not a second user-facing gate.
 
 ### The write sequence
@@ -369,7 +369,7 @@ rest are page bugs and are `InvalidOperationException`, not a second user-facing
    sees the same `{code}: {text}` form as a self-save and the assistant.
 
 The save's token is `CancellationToken.None` with the render's deadline, as `PageWriterScope` does:
-the deadline bounds the wait for a compile slot, not the author's edit (DEC-191). Delete, restore
+the deadline bounds the wait for a compile slot, not the author's edit (`pages-a-page-may-save-itself`). Delete, restore
 and install are quick enough to use the render's deadline as their token.
 
 ## The page
@@ -473,7 +473,7 @@ behaviour, and on one piece of its code:
 - It can repair a `/pages` that no longer compiles, a `/_layout` that was deleted, and a broken
   `/editor.js` or `/editor.css`.
 - Its `PlanAsync` and its state/outcome records are the seed comparison this plan extracts into
-  `PageSeedInstaller` (D11, DEC-267). Phase 2 does that extraction; Phase 4 no longer waits for anything.
+  `PageSeedInstaller` (D11, `pages-delete-install-and-restore`). Phase 2 does that extraction; Phase 4 no longer waits for anything.
 
 ## What this touches
 
@@ -525,7 +525,7 @@ behaviour, and on one piece of its code:
 | `docs/pages.md` | A tenth capability, the read state, the editor page and its URL |
 | `docs/shell.md` | The editor section, the routes, the nav, the recovery links and the retired `/edit` key |
 | `docs/testing.md` | The capability, page, shell and browser suites |
-| `docs/decisions.md` | DEC-259–DEC-268, taken at the merge (DEC-09) |
+| `docs/decisions.md` | `pages-the-editor-is-a-page`, `pages-the-editor-capability`, `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`, taken at the merge (`product-plan-before-building`) |
 | `docs/jobs/IDEA-017.md`, `docs/jobs/README.md` | Close IDEA-017 and remove it from the table; IDEA-028 closes on its own |
 | `docs/plans/archive/page-editor.md` | Move this plan here when it lands |
 
@@ -535,7 +535,7 @@ behaviour, and on one piece of its code:
 
 The emergency restore is live: `/admin/restore`, its reserved and shell-route record, the `/status`
 and `/admin` links, and its unit and integration tests. Its comparison and outcome records are the
-seed rule Phase 2 extracts (D11, DEC-267).
+seed rule Phase 2 extracts (D11, `pages-delete-install-and-restore`).
 
 ### Phase 1 — the read state (landed 2026-11-13)
 
@@ -621,7 +621,7 @@ is not one of them; `/help` has taught `IPageEditor`, `?edit=`, the confirmation
 `/admin/restore` since phase 3; [pages](../pages.md) gains the tenth capability and `EditorPath`;
 [the shell](../shell.md) says there is no editor in the shell and what the capability replaces;
 [testing](../testing.md) names `PageEditorScopeTests`, `PageEditorPageTests` and the browser suite.
-IDEA-017 is closed. The decision numbers are taken when this merges (DEC-09), not here.
+IDEA-017 is closed. The decision numbers are taken when this merges (`product-plan-before-building`), not here.
 
 Update `/help`, `PageAuthorPrompt` (including its version), `docs/pages.md`, `docs/shell.md`,
 `docs/testing.md` and the decision rows; close IDEA-017 and remove the retired key from the
@@ -690,8 +690,8 @@ proved by behaviour, not by a browser test that restates the markup.
 - `docs/shell.md` describes the new routes, the retired `/edit` key, the navigation and the recovery
   links.
 - `docs/testing.md` names the new suites and what each proves.
-- `docs/decisions.md` carries the numbered rows, DEC-259–DEC-268, taken at the merge; D6 and D10
-  were numbered earlier with the phases that landed them (DEC-258 and DEC-256).
+- `docs/decisions.md` carries the numbered rows, `pages-the-editor-is-a-page`, `pages-the-editor-capability`, `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`, taken at the merge; D6 and D10
+  were numbered earlier with the phases that landed them (`pages-a-page-has-a-state` and `shell-the-admin-tools`).
 - `docs/jobs/IDEA-017.md` is removed from the job list when the work lands; IDEA-028 closes with its
   own change. The plan moves to `docs/plans/archive/`.
 
@@ -708,7 +708,7 @@ proved by behaviour, not by a browser test that restates the markup.
 | The page editor loses the compile-state column | `PageEntry.State` is part of the read contract; the listing test proves the same words |
 | Scrub is lost with the shell editor | It moves unchanged to `/admin/scrub/{**path}` and is linked from tombstones |
 | Two save paths drift | The conditional algorithm moves to `PageSaver`, `PageEditor` delegates to it, and the seed helper shares the comparison and save rule with the emergency page |
-| The Sdk change recompiles every stored image | That is the normal cost of an Sdk change (DEC-26); one deliberate release, with the new public API updated and the seed tests passing |
+| The Sdk change recompiles every stored image | That is the normal cost of an Sdk change (`pages-compile-on-save`); one deliberate release, with the new public API updated and the seed tests passing |
 | A shell route and its reserved key drift | `ShellRoutesTests` pins both directions; `/admin/restore` and `/admin/scrub` land with their records |
 | The page editor becomes a second assistant path | The assistant keeps `PageToolExecutor` and `PagePathPolicy`; the page capability is not offered to tools |
 

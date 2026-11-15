@@ -95,7 +95,7 @@ separately. Runtime-change cleanup of obsolete images and symbols is future work
 revision identity are retained unless explicitly scrubbed.
 
 A stored page may read the same store through `ctx.Capabilities.GetRequired<IPageCatalog>()`
-(DEC-168–DEC-175). The read is a capability of its own rather than `IPageStore` because the latter
+(`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`). The read is a capability of its own rather than `IPageStore` because the latter
 is scoped to the request's context and a page's task can outlive the request: `IPageReadStore` is a
 read-only singleton over the context factory, it answers with small `Web` records and never with a
 `PagePath`, and `PageCatalogScope` maps them to the three `Sdk` values. A listing returns every head
@@ -108,18 +108,18 @@ read is as public as the page that calls it: the host adds no gate, a page that 
 the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that
 page.
 
-A page may save its own template through `ctx.Capabilities.GetRequired<IPageWriter>()` (DEC-189–DEC-196).
+A page may save its own template through `ctx.Capabilities.GetRequired<IPageWriter>()` (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`).
 The write is the shell's save reached from inside a render: `PageSaver` compiles the template and
 `IPageRevisionStore` opens its own context for the insert, because a page's task can outlive the
 request, and both call the same `StoreRevisionAsync` the editor and the import batch use, so there is
 still one writer. Unlike the read, the write requires a signed-in visitor and refuses an anonymous
 render before anything is compiled or stored; a save that has started finishes even if the render
 times out, because losing the author's edit is the worse failure. Delete, scrub, install a seed,
-import and export stay the shell's alone (DEC-175).
+import and export stay the shell's alone (`pages-page-first`).
 
 ### Assistant memory
 
-The assistant's memory is three tables in the same database, added by one migration (DEC-184–DEC-187).
+The assistant's memory is three tables in the same database, added by one migration (`assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`).
 `AssistantMemories` is one row per memory — the owner, one of four kinds, the content, a version, the
 owner's `Pinned` flag, the conversation and run that wrote it, and the usage columns recall updates.
 `AssistantMemoryEdits` is the history: the key is the memory and the version that was replaced, and
@@ -148,11 +148,11 @@ backups and snapshots are the operator's.
 normalises and checks the content exactly as the tools do, appends the version it replaces to
 `AssistantMemoryEdits`, bumps the head and — the one thing no tool can do — sets `Pinned`. It keeps the
 head's provenance, because an owner's edit does not make the conversation that wrote the memory
-untrue, and a stale `expectedVersion` is refused with the content that is stored now (DEC-206,
-DEC-207).
+untrue, and a stale `expectedVersion` is refused with the content that is stored now (`assistant-memory-page`,
+`assistant-memory-page`).
 
 Nothing in `Sdk`, `Runtime` or the page contract reaches memory: a stored page is public to whoever
-can reach it, and a memory belongs to one owner (DEC-184).
+can reach it, and a memory belongs to one owner (`assistant-memory-is-the-owners`).
 
 ### Import and export
 
@@ -161,7 +161,7 @@ and not reserved, and a `POST` returns a `.sqlite` file as a download; `/admin/i
 same file back behind the `Editor` policy. The archive is a SQLite database — `Pages(Path, Source)`
 and `PageState(PagePath, Key, Value)`, identified by `PRAGMA application_id` and `user_version` —
 built in memory with `sqlite3_serialize` and read by deserializing an upload read-only with
-`sqlite3_deserialize`, so neither direction needs a temporary file (DEC-139).
+`sqlite3_deserialize`, so neither direction needs a temporary file (`pages-an-archive-is-a-database`).
 
 The archive carries source and state and nothing else: revision history, tombstones, users, page
 sessions and configuration belong to the site that made them — a session is a visitor's scratch

@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Approved 2026-11-15 — the owner accepted the plan and asked for it on `trunk`. Nothing below is built; the four questions at the end are still open |
 | Size | Large — a migration with two columns, one save-path fact, one pure verdict function and its words, one field on the page contract and one member removed, one shell action, an archive format version, a `seeds` command with two make targets, and the prose and tests for each. Slices 0 and 1 are small and independent; slice 2 is the bulk |
 | Spike | None. Every number and every claim below was measured on `trunk` at `1badddd`; the two places the design could fail are the revision hash (settled: it is an identity, see D1) and the archive reader (settled by the format's own version column) |
-| Decisions | None recorded yet. They are numbered from `trunk` at the merge (DEC-09); this branch refers to them by name |
+| Decisions | None recorded yet. They are named at the merge (`product-plan-before-building`); this branch states the names it intends |
 | Backlog | [IDEA-036](../jobs/IDEA-036.md). Relates to [IDEA-024](../jobs/IDEA-024.md) (an archive is not a form) and [IDEA-030](../jobs/IDEA-030.md) (every view writes its own navigation) |
 
 ## The short version
@@ -48,7 +48,7 @@ that a harvested pack is the *second* automatic case rather than an optional rep
 | --- | --- | --- |
 | The install at start | A seed's page when the key has no head row, so a local edit survives a restart. Reported nowhere. It also *replaces* a stored seed whose source names `PageDocument` — a silent overwrite of the author's page, and junk (D10) | [`PageAssetSeeder.SeedAsync`](../../src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs:16), [`Program.cs`](../../src/uk.osric.asp.Web/Program.cs:312) |
 | `SeedPaths()`, `SeedSourceAsync`, `InstallSeedAsync` | The pack's keys, one seed's source, and a conditional install against the head hash. Offered to the editor page only | [`IPageEditor`](../../src/uk.osric.asp.Sdk/IPageEditor.cs:38), [`PageEditorScope`](../../src/uk.osric.asp.Web/Pages/PageEditorScope.cs:123) |
-| `/admin/restore` | Every shipped key with `current`, `changed`, `missing` or `deleted`, and one POST that writes each of them and reports every outcome (DEC-256) | [`RestoreEndpoint`](../../src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs:54) |
+| `/admin/restore` | Every shipped key with `current`, `changed`, `missing` or `deleted`, and one POST that writes each of them and reports every outcome (`shell-the-admin-tools`) | [`RestoreEndpoint`](../../src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs:54) |
 | The page list's byte compare | Live source against seed source as strings: differ, or do not. Two reads per live seeded row | [`pages`](../../src/uk.osric.asp.Web/Pages/Seeds/pages:460) |
 
 The facts that shape the design, each checked in the code:
@@ -63,7 +63,7 @@ The facts that shape the design, each checked in the code:
 | `SeedSourceAsync` resolves a key by enumerating the whole pack (`FindSeedFile` → `SeedFiles()` → `Directory.GetFiles(...AllDirectories)`) | The list does 1 + one directory enumeration per seeded row per render. One in-memory pack map removes the scans as well as the reads (D7) |
 | The pack is 19 files, 163,869 bytes; the listing charges each live seeded row's source to `Pages:Read:MaxSourceCharsPerRender` (524,288) | The bit costs ~31% of the render's allowance (D7) |
 | A tombstone is a `PageHeads` row with `IsDeleted = 1`; `ScrubPageAsync` deletes the head and its revisions | R on the head row survives a delete and dies with a scrub (D5) |
-| `/admin/restore` writes a tombstoned seed by decision (DEC-256); the start install leaves it alone | The two paths disagree on purpose, and both behaviours stay: the verdict says which is which (D5) |
+| `/admin/restore` writes a tombstoned seed by decision (`shell-the-admin-tools`); the start install leaves it alone | The two paths disagree on purpose, and both behaviours stay: the verdict says which is which (D5) |
 | `Editor:Key` is `/pages`, so the page list holds `IPageEditor` and can write any key | "A page cannot write a key it does not own" is false here. The real limit is one action per render (D8) |
 | The archive is a versioned SQLite database whose column list is validated exactly, and it carries `Path` and `Source` only | "R belongs in the export" is a format change, not an additive one (D9) |
 | `users` is a user command that runs before the host, and `make` has `remote-user-*` targets over `ssh` + `podman exec` | The shape for a `seeds` command and its two remote targets already exists (D11) |
@@ -190,7 +190,7 @@ decided before it:
   first install: there is no H to compare. A create writes the seed and records R = S, and it is safe
   because there is nothing to overwrite.
 - **A tombstone is never automatic.** The start install leaves it alone (there is a head row), and
-  `/admin/restore` writes it by decision (DEC-256). Both stay; the verdict is `deleted`, and the only
+  `/admin/restore` writes it by decision (`shell-the-admin-tools`). Both stay; the verdict is `deleted`, and the only
   action is the restore the owner already has.
 - **A retired key is never written.** A key that leaves the pack is left alone, and it is not offered
   an install.
@@ -209,7 +209,7 @@ Two writers, two behaviours, on purpose:
   adopts every `store newer` row — `H = S` is a fact the store can verify, so the provenance write is
   not a guess — and **stops at the first row it may not write**, naming it. An unattended run should
   produce one thing for the operator to read, not a half-applied site with a page of outcomes.
-- **The emergency restore** keeps reporting every outcome and continues past a failure (DEC-256). It is
+- **The emergency restore** keeps reporting every outcome and continues past a failure (`shell-the-admin-tools`). It is
   the way back when the editor or its layout will not load; a run that stopped at the first broken seed
   would be useless exactly when it is needed.
 
@@ -334,7 +334,7 @@ the rest.
 | [`Makefile`](../../Makefile) | `seeds-list`, `seeds-pull`, `remote-seeds-list`, `remote-seeds-pull`, in the shapes `user-list` and `remote-user-list` use |
 | [`docs/storage.md`](../storage.md) | Two columns and what writes them; the archive's column list and its version |
 | [`docs/pages.md`](../pages.md), [`docs/shell.md`](../shell.md) | The listing's seed summary; the apply route |
-| [`docs/jobs/README.md`](../jobs/README.md), [`docs/decisions.md`](../decisions.md) | The job moves to Closed with its summary; one decision entry, numbered at the merge |
+| [`docs/jobs/README.md`](../jobs/README.md), [`docs/decisions.md`](../decisions.md) | The job moves to Closed with its summary; one decision entry, named at the merge |
 | `/seed-plan` (the store page) | Superseded: update it to point at this plan, or retire it — it is not in the repository, so it is also the first thing a harvest would find |
 
 ## Slices
@@ -415,7 +415,7 @@ gains the verdicts and keeps its report-everything behaviour.
 ## Risks
 
 - **A legacy row reads `unknown` until its next save.** R and H are null on every existing row and
-  there is no backfill (the DEC-240 precedent). Safe, and noisy for exactly one release; the owner's
+  there is no backfill (the `pages-an-asset-is-a-page-with-no-code` precedent). Safe, and noisy for exactly one release; the owner's
   site has ~20 such rows. A backfill is possible (H is computable from stored source) and is
   deliberately not in this plan: it would be the one place the two hashes are computed apart.
 - **The verdict could still drift.** Three readers, one `Core` function, and test 12 — but the words

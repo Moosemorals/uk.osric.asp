@@ -26,11 +26,11 @@ internal sealed record ConditionalPageSaveResult(
 /// its own source all end up here. A save compiles before it stores, so the page never sits in the
 /// database without the result of compiling it, and a compiler fault is the one case where the
 /// template is stored without an image — losing the author's edit to report our bug would be the
-/// worse failure (DEC-20, DEC-23, DEC-178).
+/// worse failure (`pages-a-compiler-fault-is-ours`, `pages-a-warning-never-stops-a-page`).
 /// </para>
 /// <para>
 /// It is a singleton because a page's save runs after the request that started it may have gone, and
-/// it writes through <see cref="IPageRevisionStore"/> for the same reason (DEC-172, DEC-192). A
+/// it writes through <see cref="IPageRevisionStore"/> for the same reason (`pages-the-store-is-read-through-one-seam`, `pages-a-page-may-save-itself`). A
 /// caller that owns a request's context still reads through <see cref="IPageStore"/>; only the write
 /// is shared.
 /// </para>
@@ -55,7 +55,7 @@ internal sealed class PageSaver(
     /// <param name="renderDeadline">
     /// The render's deadline when the save was made from inside a render. It bounds the wait for a
     /// compile slot and nothing else: the compile itself and the insert are left to finish, because
-    /// losing the author's edit is the one loss this site refuses (DEC-191).
+    /// losing the author's edit is the one loss this site refuses (`pages-a-page-may-save-itself`).
     /// </param>
     /// <returns>The revision the save stored and the compiler's author-facing diagnostics.</returns>
     public async Task<SavedRevision> SaveAsync(
@@ -109,7 +109,7 @@ internal sealed class PageSaver(
             image = images.Build(path, template, PageMetrics.ReasonSave, available, cancellationToken, renderDeadline);
         } catch (InvalidOperationException) {
             // A compiler fault still stores the source: losing the author's edit to report our bug
-            // is the worse failure (DEC-20, DEC-23, DEC-178).
+            // is the worse failure (`pages-a-compiler-fault-is-ours`, `pages-a-warning-never-stops-a-page`).
             _ = await store.TrySaveAsync(
                 PageTemplate.NewRevision(path, template, null, images.RuntimeId), expectedRevisionHash, cancellationToken);
             RecordSaveFailed(path, start);

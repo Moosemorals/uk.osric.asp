@@ -74,7 +74,7 @@ public sealed class AssistantMetricsTests {
     }
 
 
-    /// <summary>DEC-214: a sample that reached its cap is the one the panel was opened for.</summary>
+    /// <summary>`metrics-one-panel-per-instrument`: a sample that reached its cap is the one the panel was opened for.</summary>
     [Test]
     public void EveryScaleReachesPastTheCapTheSiteShips() {
         IConfiguration shipped = ShippedConfiguration.Read();
@@ -96,7 +96,7 @@ public sealed class AssistantMetricsTests {
 
     [Test]
     public void TheRunDurationScaleCoversAnHourOfWork() {
-        // A run's length has no cap: its timeout bounds the provider going quiet, not the run (DEC-119).
+        // A run's length has no cap: its timeout bounds the provider going quiet, not the run (`assistant-deadlines-bound-silence`).
         Assert.That(AssistantMetrics.RunDurationBuckets, Is.Ordered);
         Assert.That(AssistantMetrics.RunDurationBuckets[^1], Is.GreaterThanOrEqualTo(3600));
     }

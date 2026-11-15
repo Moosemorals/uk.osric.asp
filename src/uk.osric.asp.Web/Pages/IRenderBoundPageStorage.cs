@@ -8,6 +8,6 @@ using uk.osric.asp.Sdk;
 /// <summary>Page storage the render can stop.</summary>
 /// <remarks>
 /// The handle a page holds is only <see cref="IPageStorage"/>; this is the shell's view of the same
-/// object, with the deadline and abandonment the SDK deliberately does not expose (DEC-123).
+/// object, with the deadline and abandonment the SDK deliberately does not expose (`pages-page-io-is-async`).
 /// </remarks>
 internal interface IRenderBoundPageStorage : IPageStorage, IRenderBoundCapability;

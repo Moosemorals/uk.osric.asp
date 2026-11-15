@@ -7,8 +7,8 @@ SPDX-License-Identifier: MIT
 
 Status: **implemented 2026-11-08**. Written as a design and an implementation plan, and now the
 record of that work. It changed the page contract, so every stored image is recompiled on its next
-request (DEC-26); it did not change the template language, the generator, the page store schema or
-the API policy. The decisions are DEC-142 and DEC-143, and the behaviour is recorded in
+request (`pages-compile-on-save`); it did not change the template language, the generator, the page store schema or
+the API policy. The decision is `pages-capabilities-are-one-seam`, and the behaviour is recorded in
 [pages](../../pages.md#page-contract).
 
 ## The short version
@@ -69,7 +69,7 @@ change.
 - `FetchAsync` is a member on `IContext` that checks abandonment, refuses a `POST` during a `HEAD`,
   spends one of `MaxRequestsPerRender` and then delegates to `IPageFetcher`. Its failures are
   values (`PageFetchResponse`/`PageFetchFailure`), not exceptions, and the status is `0` when no
-  response was received (DEC-129).
+  response was received (`pages-outbound-fetch`).
 - `PageApiPolicy` allows every type in `uk.osric.asp.Sdk` wholesale and already collects
   `GenericNameSyntax` and `TypeOfExpressionSyntax`, so a generic lookup in page code needs no policy
   change.
@@ -211,7 +211,7 @@ not have become features".
 
 `IPageStorage` is already the right shape and needs no wrapper: the host registers the per-page
 `PageStorageScope` it already builds. `IHttpFetch` mirrors the capability it replaces — one
-`SendAsync` that spends the render's fetch budget, `Task`-returning and tokenless (DEC-123) — so no
+`SendAsync` that spends the render's fetch budget, `Task`-returning and tokenless (`pages-page-io-is-async`) — so no
 page needs to learn a new calling convention.
 
 The general form is `SendAsync(HttpFetchRequest)` and the two ordinary cases are default interface
@@ -274,7 +274,7 @@ breaks the rule that a page always has a request and a response.
 
 The compiler options, the reference set and the way the handler is invoked are unchanged, and
 `PageApiPolicy` is unchanged; the SDK's module version id in `RuntimeId` already covers the contract
-change, so every stored image is recompiled by the existing rule (DEC-26).
+change, so every stored image is recompiled by the existing rule (`pages-compile-on-save`).
 
 ## What changes
 

@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 Status: **implemented 2026-11-08**. Written 2026-11-08 as a design and an implementation plan; this
 is now the record of what was built. It began as a feasibility question — whether the conversation
 page's budget list could move while a run is running — and settles on pushing the figures over the
-run journal that the page already listens to. The decisions are DEC-159, DEC-160 and DEC-161: site
+run journal that the page already listens to. The decisions are `assistant-budgets-are-one-snapshot` and `assistant-budgets-are-one-snapshot`: site
 navigation has since claimed 148–158, so this plan takes the numbers after it rather than the three
 it first reserved.
 
@@ -32,7 +32,7 @@ it first reserved.
 ## Goals
 
 - A reader watching a run sees steps, tool calls, arguments, results, context and output advance as
-  the run spends them, rather than learning after the fact that it stopped on one (DEC-141's stated
+  the run spends them, rather than learning after the fact that it stopped on one (`assistant-budgets-are-one-snapshot`'s stated
   purpose).
 - One measurement of a budget, used by the page and by the stream.
 - No new dependency, no new route, no new background timer, and no change to what a run enforces.
@@ -51,7 +51,7 @@ it first reserved.
 - **A live region over the list.** Every count moving several times a run would be read aloud
   repeatedly; the numbers and the exceeded class are enough (see D7).
 - **Alerting on a budget.** A run that stops on one already fails with its own code and message
-  (DEC-141); this plan only shows the approach.
+  (`assistant-budgets-are-one-snapshot`); this plan only shows the approach.
 - **Live figures between runs.** Nothing is spent between runs, so the stored value that the reload
   shows is the correct one.
 
@@ -88,7 +88,7 @@ Checked against the code on 2026-11-08.
   ([AssistantOptions.cs](../../../src/uk.osric.asp.Web/Assistant/AssistantOptions.cs)), so the provider
   reports usage per step — but nothing publishes it while the run is live.
 - **The meter is a picture, not the reading.** `WriteBudgetAsync` clamps the meter and lets only the
-  number exceed, and the meter is `aria-hidden` (DEC-141).
+  number exceed, and the meter is `aria-hidden` (`assistant-budgets-are-one-snapshot`).
 - **One renderer, one note.** The hint under the list already says which rows count the current (or
   most recent) run and which count the conversation, so a row that falls between steps is already
   explained in the page.
@@ -97,9 +97,9 @@ Checked against the code on 2026-11-08.
 
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
-| DEC-141 | Every budget that can stop a run is shown as a used/available pair with a `<meter>`, "so a run that stops on one names it before it stops" | Completes the intent: the figure moves while the run does, so the reader watches it approach the limit |
-| DEC-141 | The meter is a picture and the number beside it is the reading | Kept: the number text changes, the meter's `value` follows, and the meter stays `aria-hidden` |
-| DEC-123, [the assistant](../../assistant.md#ai-page-assistant) | The run deadline measures the provider going quiet, and is re-armed by real events | Unchanged, and not reused: the update is published when the loop learns something, never by a timer |
+| `assistant-budgets-are-one-snapshot` | Every budget that can stop a run is shown as a used/available pair with a `<meter>`, "so a run that stops on one names it before it stops" | Completes the intent: the figure moves while the run does, so the reader watches it approach the limit |
+| `assistant-budgets-are-one-snapshot` | The meter is a picture and the number beside it is the reading | Kept: the number text changes, the meter's `value` follows, and the meter stays `aria-hidden` |
+| `pages-page-io-is-async`, [the assistant](../../assistant.md#ai-page-assistant) | The run deadline measures the provider going quiet, and is re-armed by real events | Unchanged, and not reused: the update is published when the loop learns something, never by a timer |
 | [ARCH-13](../page-streaming.md) | A page cannot stream its response | Unaffected — this is the assistant's host-owned stream, not a stored page's |
 | [assistant.js](../../../src/uk.osric.asp.Web/Pages/Seeds/assistant.js) | Native ES module, side-effect only, ends `export {};` | Gains one listener and one small lookup table; no globals, no bundler |
 | [assistant.css](../../../src/uk.osric.asp.Web/Pages/Seeds/assistant.css) | `.assistant-budget-exceeded` colours the count | Unchanged — the class is toggled, not added |
@@ -268,7 +268,7 @@ figures in order and the last one wins.
 
 - **No live region.** The count is ordinary text inside the definition list; a screen reader that
   reads the section later gets the current numbers. Announcing six counts several times a run is
-  noise, and the meter stays `aria-hidden` so nothing is read twice (DEC-141).
+  noise, and the meter stays `aria-hidden` so nothing is read twice (`assistant-budgets-are-one-snapshot`).
 - **The exceeded state is the one thing worth noticing**, and it is the existing colour and weight
   rule, now reachable while the run is still going.
 - **Formatting is unchanged**: `N0` invariant on the server, `Intl.NumberFormat('en-GB')` in the
@@ -294,7 +294,7 @@ figures in order and the last one wins.
 - **htmx or an out-of-band swap.** No dependency is wanted, and the response is a stream, not a
   request/response pair.
 - **Publish on a timer.** The value changes when the loop learns something; a timer would publish
-  the same snapshot repeatedly and blur what "live" means (compare DEC-123's refusal to measure
+  the same snapshot repeatedly and blur what "live" means (compare `pages-page-io-is-async`'s refusal to measure
   duration rather than progress).
 
 ## Components
@@ -371,17 +371,17 @@ the write-up can land without any visible change.
 
 [Site navigation](site-navigation.md) reserves 148–158, so this plan takes the numbers after it.
 
-- **DEC-159**: every assistant budget figure is one pure `BudgetSnapshot` in
+- **`assistant-budgets-are-one-snapshot`**: every assistant budget figure is one pure `BudgetSnapshot` in
   `Core.Assistant`, measured by `ContextTrimmer.MeasureChars` and the transcript's own tool calls and
   results, and read by both the page render and the run stream. The context row counts the untrimmed
   conversation, as the trimmer counts it; the output row counts the most recent step's completion
   tokens, as `RecordStepAsync` stores them.
-- **DEC-160**: the conversation page's budgets are updated live over the existing run journal as
+- **`assistant-budgets-are-one-snapshot`**: the conversation page's budgets are updated live over the existing run journal as
   `budget.updated`, published when the loop learns something and never on a timer. There is no
   budgets endpoint; a terminal event still reloads the page, and the reload is authoritative.
-- **DEC-161**: a budget update changes the count text, the meter's `value` and the exceeded class,
+- **`assistant-budgets-are-one-snapshot`**: a budget update changes the count text, the meter's `value` and the exceeded class,
   and nothing else — the meter stays `aria-hidden` and the list is not a live region (extends
-  DEC-141).
+  `assistant-budgets-are-one-snapshot`).
 - `docs/architecture.md`: "AI page assistant" gains a sentence that the budgets the page shows are
   the same snapshot the run publishes, and that the context figure is the conversation's rather than
   the trimmed request's.
@@ -419,7 +419,7 @@ the write-up can land without any visible change.
 2. **Should `message` be published as zero for a uniform payload?** Recommended no — it has no
    server-side value, and publishing `0` would fight the textarea on every step.
 3. **Should a row announce itself when it is exceeded?** Recommended no to `aria-live`; the status
-   line already speaks when a run stops, and DEC-141's reason is in the transcript on reload. If the
+   line already speaks when a run stops, and `assistant-budgets-are-one-snapshot`'s reason is in the transcript on reload. If the
    review wants more, the narrow version is one `role="status"` sentence when a budget is first
    crossed, not a live list.
 4. **Context per step, or only when it changes shape?** Recommended per step: it is one

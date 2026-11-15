@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 Status: **implemented 2026-11-09**. Written 2026-11-09; checked against the code on the same day.
 
-> **Unit superseded.** The masking and trimming design below is what was built, but DEC-204 replaced
+> **Unit superseded.** The masking and trimming design below is what was built, but `assistant-the-request-budget-is-tokens` replaced
 > its byte budget with estimated tokens: `Assistant:MaxRequestBytes` is now
 > `Assistant:MaxContextTokens`, `ContextPlan.SentBytes` is now `ContextPlan.EstimatedTokens`, and
 > `ChatRequestJson.MeasureBytes` is the input to `TokenEstimator` rather than the budget itself. Read
@@ -83,9 +83,9 @@ Checked against the code on 2026-11-09.
 - **The context row counts the untrimmed conversation.**
   [`BudgetSnapshot.Measure`](../../../src/uk.osric.asp.Core/Assistant/BudgetSnapshot.cs) takes the
   system prompt plus every stored message and measures them with `ContextTrimmer.MeasureChars`.
-  [DEC-159](../../decisions.md) made that deliberate: the page render and the run stream measure the
-  stored transcript so they cannot disagree. [DEC-141](../../decisions.md) and
-  [DEC-162](../../decisions.md) describe the row and its compact presentation.
+  `assistant-budgets-are-one-snapshot` made that deliberate: the page render and the run stream measure the
+  stored transcript so they cannot disagree. `assistant-budgets-are-one-snapshot` and
+  `assistant-budgets-are-one-snapshot` describe the row and its compact presentation.
 - **The page builds the same snapshot without the tools.** `AssistantEndpoint` calls
   `BudgetSnapshot.Measure([system, .. messages], ...)`; the tool definitions are in the request the
   run sends but not in the page's figure.
@@ -383,7 +383,7 @@ one measure.
   bytes without reducing the context. The budget is not a transfer budget.
 - **Masking the tool definitions.** They are the contract the model needs to call a tool, they are
   constant, and a model without them cannot act.
-- **Keeping the meter on the untrimmed transcript.** DEC-159 made the page and the run agree, but
+- **Keeping the meter on the untrimmed transcript.** `assistant-budgets-are-one-snapshot` made the page and the run agree, but
   they agree on the wrong number. The request is the thing that fails.
 
 ## Components
@@ -535,17 +535,17 @@ Phase 2 depends on phase 1. Phase 3 depends on both. Phase 1 alone is a complete
 
 New decisions:
 
-- **DEC-200** — The context row measures the provider request as sent: the UTF-8 bytes of the body
+- **`assistant-the-request-budget-is-tokens`** — The context row measures the provider request as sent: the UTF-8 bytes of the body
   from the one serializer the client uses, including the system prompt, tool definitions and the
-  messages after masking and trimming. It supersedes DEC-159's untrimmed-transcript rule and
-  DEC-141's "context" wording; the row key stays `context`, the label becomes "Request", the unit
+  messages after masking and trimming. It supersedes `assistant-budgets-are-one-snapshot`'s untrimmed-transcript rule and
+  `assistant-budgets-are-one-snapshot`'s "context" wording; the row key stays `context`, the label becomes "Request", the unit
   becomes "bytes", and `MaxContextChars` becomes `MaxRequestBytes`.
-- **DEC-201** — Before any whole turn is dropped, `ObservationMasker` replaces old tool results and
+- **`assistant-old-tool-results-are-masked`** — Before any whole turn is dropped, `ObservationMasker` replaces old tool results and
   long tool-call argument strings with deterministic placeholders, keeping the newest eight tool
   results, the last two tool-call messages, and every user or assistant word. The mask is derived
   per request, never stored, so the transcript stays complete and the changed-pages card still reads
   real results.
-- **DEC-202** — Masking is attempted one old message at a time, oldest first, and only when the
+- **`assistant-old-tool-results-are-masked`** — Masking is attempted one old message at a time, oldest first, and only when the
   request is over budget; a tool result or an assistant message's long arguments are masked as one
   payload, and `ContextTrimmer` drops whole user turns only after masking is exhausted. The newest
   turn is never dropped, and a request that still does not fit fails with `context_too_long` naming

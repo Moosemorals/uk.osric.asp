@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Done — DEC-291. The rule and the audit landed; the memory capability this plan first proposed was withdrawn before it was built, and the gap it was meant to fill is [IDEA-033](../jobs/IDEA-033.md) |
+| Status | Done — `assistant-memory-belongs-to-the-assistant`. The rule and the audit landed; the memory capability this plan first proposed was withdrawn before it was built, and the gap it was meant to fill is [IDEA-033](../jobs/IDEA-033.md) |
 | Size | Small — a rule and its audit in two documents, one withdrawn decision, one new job and the cross-references that pointed at it. No product code |
 | Spike | None. Nothing is built: the step records where a view lives and what a page still cannot do |
-| Decisions | DEC-210 (the rule) stands; DEC-211 is withdrawn; DEC-291 records the re-scope |
+| Decisions | `pages-page-first` (the rule) stands; `assistant-memory-belongs-to-the-assistant` is withdrawn; `assistant-memory-belongs-to-the-assistant` records the re-scope |
 | Backlog | [IDEA-025](../jobs/IDEA-025.md) (the assistant page, which now includes the memory view), [IDEA-024](../jobs/IDEA-024.md) (an archive is not a form), [IDEA-033](../jobs/IDEA-033.md) (a page has no persistent per-account store); streaming landed in [the streaming plan](page-streaming.md) |
 
 ## The short version
@@ -25,7 +25,7 @@ The first version of this plan applied it to the owner's memory page by adding `
 assistant becoming a page: once the conversation page exists, the memory view is one of its routes,
 served by the same owner-bound capability, and a memory-shaped capability would be a second thing that
 page has to be written against. Memory is the assistant's — its tools write it during a run, with FTS5
-recall, versions, pins and provenance — so it does not become a page capability at all. DEC-211 is
+recall, versions, pins and provenance — so it does not become a page capability at all. `assistant-memory-belongs-to-the-assistant` is
 withdrawn.
 
 What a page actually lacks is **persistent per-account storage**: `IPageStorage` is shared by every
@@ -35,7 +35,7 @@ put it. That is a job of its own — SQL-shaped, one namespace per account, with
 the page — and it needs a plan and a named first customer before it is built.
 
 So this plan delivered three things and no code: the rule written into
-[architecture](../architecture.md#where-a-view-lives) with the audit beside it, DEC-211 withdrawn and
+[architecture](../architecture.md#where-a-view-lives) with the audit beside it, `assistant-memory-belongs-to-the-assistant` withdrawn and
 the reasoning recorded below, and IDEA-033 written with every document that pointed at the old
 capability re-pointed at the right one.
 
@@ -71,10 +71,10 @@ recovery routes the first version left out are named.
 
 | Route | Why it is not a page | Where that is recorded |
 | --- | --- | --- |
-| `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | DEC-210 |
-| `/status`, `/status/chart`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load starts here, and the changelist is a file the image carries, which a page cannot read | DEC-210, DEC-255 |
-| `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | DEC-210, DEC-256 |
-| `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | DEC-210 |
+| `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | `pages-page-first` |
+| `/status`, `/status/chart`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load starts here, and the changelist is a file the image carries, which a page cannot read | `pages-page-first`, `shell-the-admin-tools` |
+| `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | `pages-page-first`, `shell-the-admin-tools` |
+| `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | `pages-page-first` |
 | `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The live stream is now something a page can do ([the streaming plan](page-streaming.md)); the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [IDEA-025](../jobs/IDEA-025.md) |
 | `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](../jobs/IDEA-024.md) |
 
@@ -92,8 +92,8 @@ what stays the same.
 | `IPageCatalog` / `IPageWriter` | the page store itself | forever | `Pages`, `PageRevisions` |
 | **missing** | **one signed-in account** | **until the account or the page goes** | — |
 
-The gap is deliberate today: DEC-125's open-policy note says per-user state is "a later job with its
-own migration and decision", and the identity hook it needed has existed since DEC-132–DEC-137. This
+The gap is deliberate today: `pages-page-storage`'s open-policy note says per-user state is "a later job with its
+own migration and decision", and the identity hook it needed has existed since `pages-public-by-default`, `pages-identity-is-a-plain-value`, `pages-redirect-to-login`, `auth-a-state-changing-form-carries-a-token`, `pages-a-stored-page-is-never-cached`, `assistant-knows-the-guard`. This
 plan opens that job rather than building it.
 
 [IDEA-033](../jobs/IDEA-033.md) — a page has no persistent per-account store — carries the analysis:
@@ -110,31 +110,31 @@ plan opens that job rather than building it.
   quota per (account, page), a statement sandbox, a structural owner filter rather than a predicate a
   page remembers to write, and a privacy sentence for a store that outlives sign-out.
 - **A customer first.** The owner names the page that will use it before it is built. A capability no
-  page uses is speculative work (DEC-08), and this site takes the obvious thing at small `n` (DEC-14).
+  page uses is speculative work (`product-work-is-jobs`), and this site takes the obvious thing at small `n` (`code-n-is-small`).
 
 ## Non-goals
 
 - **Building per-account storage now.** It needs a plan of its own, a migration, a sandbox and a first
   customer. This step records it.
-- **A memory capability in `Sdk`.** Withdrawn (DEC-211). Memory's view arrives with the assistant page.
+- **A memory capability in `Sdk`.** Withdrawn (`assistant-memory-belongs-to-the-assistant`). Memory's view arrives with the assistant page.
 - **Deleting `/assistant/memory`.** It is the owner's only view of their memory until the assistant
-  page exists. IDEA-025 takes it, and DEC-205 stands until then.
+  page exists. IDEA-025 takes it, and `assistant-memory-page` stands until then.
 - **Making any other view a page at once.** Each remaining shell route names its blocker; none of them
   needs this step.
 - **A route policy for pages, team memory, or sharing.** Unchanged: the guard is the page's
-  `ctx.User` check, and authority that lives in configuration is authority a page cannot see (DEC-02,
-  DEC-169).
+  `ctx.User` check, and authority that lives in configuration is authority a page cannot see (`pages-public-by-default`,
+  `pages-reading-the-store-is-public`).
 
 ## What this touches
 
 | File | Change |
 | --- | --- |
-| `docs/plans/page-first.md` | This plan, rewritten in place. The rule section and its `#the-rule` anchor are kept so DEC-210's citation still resolves; the memory capability, its phases and its tests are replaced by "what changed, and why", the audit and the pointer to IDEA-033 |
+| `docs/plans/page-first.md` | This plan, rewritten in place. The rule section and its `#the-rule` anchor are kept so `pages-page-first`'s citation still resolves; the memory capability, its phases and its tests are replaced by "what changed, and why", the audit and the pointer to IDEA-033 |
 | `docs/architecture.md` | "Where a view lives" under "Where does code go?": the rule, the audit table and the sentence that the list is expected to shrink |
-| `docs/decisions.md` | DEC-211 moved to Superseded, dated, marked never built, with IDEA-025 and IDEA-033 named; DEC-291 records the re-scope; DEC-125's open-policy note points at IDEA-033 |
+| `docs/decisions.md` | `assistant-memory-belongs-to-the-assistant` moved to Superseded, dated, marked never built, with IDEA-025 and IDEA-033 named; `assistant-memory-belongs-to-the-assistant` records the re-scope; `pages-page-storage`'s open-policy note points at IDEA-033 |
 | `docs/jobs/IDEA-033.md` | New: the per-account store, its shape, its open questions, its cost and the trigger that would make documents enough |
 | `docs/jobs/IDEA-025.md` | The assistant page gains the memory view |
-| `docs/jobs/IDEA-024.md` | The citation "exactly as the memory writer does (DEC-211's rule)" becomes DEC-190, the rule it meant |
+| `docs/jobs/IDEA-024.md` | The citation "exactly as the memory writer does (`assistant-memory-belongs-to-the-assistant`'s rule)" becomes `pages-a-page-may-save-itself`, the rule it meant |
 | `docs/jobs/README.md` | IDEA-033 in the open table; programme step 9 re-worded to what this step is; the note under the programme corrected |
 | `docs/glossary.md` | **Bootstrap route** added, because the audit uses the word; **Memory page** gains the sentence about where the view moves |
 | `docs/assistant.md` | One sentence in the memory section: the view stays shell until the assistant is a page |
@@ -152,17 +152,17 @@ the two sentences that make it a rule rather than a list.
 it is part of the assistant, and the assistant is one row. That also keeps the table honest: its rows
 are routes the shell answers, not views inside a route.
 
-### D2 — DEC-211 is withdrawn, explicitly
+### D2 — `assistant-memory-belongs-to-the-assistant` is withdrawn, explicitly
 
-DEC-211 was recorded with the first version and never built, so it is not a decision that drifted — it
+`assistant-memory-belongs-to-the-assistant` was recorded with the first version and never built, so it is not a decision that drifted — it
 is a decision that stopped being right before its code existed. It is in
-[Superseded](../decisions.md#superseded) with the date, the words "never built", and where the question
+[Retired](../decided.md#retired) with the date, the words "never built", and where the question
 went: IDEA-025 for the view, IDEA-033 for the capability a page actually lacks.
 
 It is not deleted and it is not silently edited. A reader who finds `IMemoryCatalog` in a branch or a
 note needs to find out why it is not in `Sdk`, and a Superseded row answers that. For the same reason
 the first version's design sections are described in "What changed, and why" rather than erased:
-DEC-09 makes a plan the record of the reasoning, including what was rejected.
+`product-plan-before-building` makes a plan the record of the reasoning, including what was rejected.
 
 ### D3 — Memory's view belongs to the assistant page
 
@@ -173,13 +173,13 @@ memory view is page-shaped too:
 - it is one of that page's routes rather than a page of its own;
 - the capability the assistant page is offered answers for memory as it does for conversations — the
   owner comes from `ctx.User`, never from an argument, and an anonymous render is refused by the
-  capability (DEC-190's shape);
-- the pin stays the owner's alone (DEC-206), a stale version is still refused with the stored content
-  (DEC-207), a refusal still keeps the text (DEC-208), and a forget is still a delete that asks first
-  (DEC-209). DEC-205 is superseded when that route goes, not before.
+  capability (`pages-a-page-may-save-itself`'s shape);
+- the pin stays the owner's alone (`assistant-memory-page`), a stale version is still refused with the stored content
+  (`assistant-memory-page`), a refusal still keeps the text (`assistant-memory-page`), and a forget is still a delete that asks first
+  (`assistant-memory-page`). The route is superseded when the assistant page carries it, not before.
 
-IDEA-024's reference to "the memory writer (DEC-211's rule)" was corrected in the same change: the rule
-it means is DEC-190, `IPageWriter`'s refusal of an anonymous render.
+IDEA-024's reference to "the memory writer's rule" was corrected in the same change: the rule
+it means is `pages-a-page-may-save-itself`, `IPageWriter`'s refusal of an anonymous render.
 
 ### D4 — IDEA-033 is written, not built
 
@@ -198,7 +198,7 @@ starts from a brief:
   are where the assumptions start: the library is not defended against hostile SQL, so the host has to
   be.
 - **The quotas** — tables per page, columns per table, rows and bytes per (account, page), in a
-  `Pages:UserStore` section with every value required (DEC-282).
+  `Pages:UserStore` section with every value required (`code-policy-values-are-configuration`).
 - **The lifecycle** — a column added is fine, a column removed is refused or confirmed, a page deleted
   takes its tables with it, `users remove` clears the account's rows, and an archive never carries any
   of it, because it is personal data rather than content.
@@ -209,7 +209,7 @@ starts from a brief:
 
 The documents that pointed at the withdrawn capability were re-pointed, because a plan that leaves
 them pointing at nothing is how a rule erodes. The corrections are one line each and are listed in
-"What this touches": IDEA-025 gains the memory view, IDEA-024's citation becomes DEC-190, the
+"What this touches": IDEA-025 gains the memory view, IDEA-024's citation becomes `pages-a-page-may-save-itself`, the
 memory-page plan's **Superseded** row points at IDEA-025, and [assistant](../assistant.md) says the
 view stays shell until the assistant is a page. The [glossary](../glossary.md) gains **Bootstrap
 route**, because the audit is unreadable without it, and **Memory page** gains the sentence about where
@@ -237,7 +237,7 @@ it.
 - **One store per (account, page).** Isolation is tidier, but the data is the account's: a page that
   shows a profile another page keeps, and the assistant page reading what a memory view wrote, are one
   account's rows. Per account matches `IPageSession`'s read rule and is what the owner chose.
-- **Deleting DEC-211.** Deleting a decision loses the record of a question someone will ask again. It
+- **Deleting `assistant-memory-belongs-to-the-assistant`.** Deleting a decision loses the record of a question someone will ask again. It
   moved to Superseded with the date and the destination.
 - **Doing the audit's remaining routes now.** Each needs a capability the contract does not have, and
   each is a job. The rule is worth having before the work, not after it.
@@ -249,8 +249,8 @@ it.
 | --- | --- | --- |
 | The rule and its audit | Where a view lives, and why each shell route is where it is | `docs/architecture.md` |
 | This plan | The re-scope, the rejected options and the destination of the withdrawn capability | `docs/plans/page-first.md` |
-| DEC-211, superseded | Why there is no memory capability in `Sdk` | `docs/decisions.md#superseded` |
-| DEC-291 | Memory is the assistant's; the gap is per-account storage | `docs/decisions.md` |
+| The withdrawn memory capability | Why there is no memory capability in `Sdk` | `docs/decisions.md#superseded` |
+| `assistant-memory-belongs-to-the-assistant` | Memory is the assistant's; the gap is per-account storage | `docs/decided.md` |
 | IDEA-033 | The per-account store: shape, questions, cost, trigger | `docs/jobs/IDEA-033.md` |
 | IDEA-025 | The assistant page, memory view included | `docs/jobs/IDEA-025.md` |
 | The programme's step 9 | What this step is, and what it is not | `docs/jobs/README.md` |
@@ -264,10 +264,10 @@ link-or-anchor suite to extend, and inventing one is a different job.
 the new job file carries an SPDX header like every other file, plus a manual pass over the relative
 links and anchors the change touched:
 
-- `docs/plans/page-first.md#the-rule` still resolves from DEC-210;
+- `docs/plans/page-first.md#the-rule` still resolves from `pages-page-first`;
 - every new `../jobs/IDEA-033.md` link resolves from the plan and from the jobs table;
 - the Superseded anchor from `docs/decisions.md` resolves;
-- the audit table's citations all name records that exist (DEC-210, DEC-255, DEC-256, the streaming
+- the audit table's citations all name records that exist (`pages-page-first`, `shell-the-admin-tools`, the streaming
   plan, IDEA-024, IDEA-025).
 
 ## Phases
@@ -285,8 +285,8 @@ would move it.
 
 ### Phase 1 — decisions
 
-- DEC-211 in Superseded: dated, "never built", with IDEA-025 and IDEA-033 named.
-- DEC-291 recorded, and DEC-125's open-policy note pointed at IDEA-033.
+- `assistant-memory-belongs-to-the-assistant` in Superseded: dated, "never built", with IDEA-025 and IDEA-033 named.
+- `assistant-memory-belongs-to-the-assistant` recorded, and `pages-page-storage`'s open-policy note pointed at IDEA-033.
 
 **Done when** nothing in `docs/` describes a memory capability that does not exist, and the reason it
 does not is one link away.
@@ -295,7 +295,7 @@ does not is one link away.
 
 - This plan, in place of the first version.
 - [IDEA-033](../jobs/IDEA-033.md) written.
-- The memory view in IDEA-025; IDEA-024's citation corrected to DEC-190.
+- The memory view in IDEA-025; IDEA-024's citation corrected to `pages-a-page-may-save-itself`.
 - The jobs README: open table, programme step 9 and the note under the programme.
 - The memory-page plan's **Superseded** row pointed at IDEA-025; the sentence added to
   [assistant](../assistant.md).
@@ -310,19 +310,19 @@ document that mentioned the withdrawn capability points at where the question we
 | **A withdrawn decision is read as a deleted one.** Someone re-proposes `IMemoryCatalog` in three months. | The Superseded row carries the date, the reason and the destination, and this plan keeps "what changed, and why" including the option that was rejected. |
 | **The audit rots.** A new shell route is added without a reason. | The rule and the table sit in the section a contributor reads before adding a view, and the table names the record for each row, so a missing row is visible. |
 | **IDEA-033 becomes a licence to build a database engine.** A page-declared schema with SQL access is the largest thing the page contract would ever have. | The job says what it costs, names the sandbox and the caps, and requires a named first customer. It is a job, not a plan, until the owner schedules it. |
-| **Per-account storage is never scheduled, so the gap stays.** | The gap is written down in three places — this plan, the job and DEC-125's note — and the trigger that would justify it early is in the job. |
+| **Per-account storage is never scheduled, so the gap stays.** | The gap is written down in three places — this plan, the job and `pages-page-storage`'s note — and the trigger that would justify it early is in the job. |
 | **The job number was claimed elsewhere.** IDEA-032 is on `origin/idea-032`, which is unmerged. | IDEA-033 was the next free number on trunk and on that branch; a later branch that takes it renumbers this one. |
-| **The assistant page never happens, so `/assistant/memory` stays shell forever.** | That is an honest resting place: it is bootstrap-adjacent shell code with its own decision (DEC-205), and the audit names IDEA-025 as the way out. |
+| **The assistant page never happens, so `/assistant/memory` stays shell forever.** | That is an honest resting place: it is bootstrap-adjacent shell code with its own decision (`assistant-memory-page`), and the audit names IDEA-025 as the way out. |
 
 ## Documentation and decisions
 
-- **DEC-210** stands: the rule and its three reasons. Its list of examples loses `/edit`, which became
+- **`pages-page-first`** stands: the rule and its three reasons. Its list of examples loses `/edit`, which became
   a page when the editor did, and names the recovery routes the audit covers.
-- **DEC-211** is in [Superseded](../decisions.md#superseded) — never built; the view is IDEA-025's and
+- **The withdrawn memory capability** is in [Superseded](../decisions.md#superseded) — never built; the view is IDEA-025's and
   the capability is IDEA-033's.
-- **DEC-291** records the re-scope: memory is the assistant's and its view arrives with the assistant
+- **`assistant-memory-belongs-to-the-assistant`** records the re-scope: memory is the assistant's and its view arrives with the assistant
   page; the page contract's missing capability is per-account storage.
-- **DEC-205–DEC-209** stand: the shell memory page is what exists today, and every rule it keeps moves
+- **`assistant-memory-page`** stand: the shell memory page is what exists today, and every rule it keeps moves
   with the view when IDEA-025 replaces it.
 - Written by this step: [architecture](../architecture.md#where-a-view-lives) (the rule and the audit),
   this plan, [IDEA-033](../jobs/IDEA-033.md), [the jobs](../jobs/README.md), the
@@ -333,10 +333,10 @@ document that mentioned the withdrawn capability points at where the question we
 
 - `docs/architecture.md` states the rule and carries the audit, and the glossary defines **Bootstrap
   route**.
-- DEC-211 is in Superseded, dated and explained, and DEC-291 is recorded.
+- `assistant-memory-belongs-to-the-assistant` is in Superseded, dated and explained, and `assistant-memory-belongs-to-the-assistant` is recorded.
 - This plan says what it did and did not build, and why the first version was wrong.
 - `docs/jobs/IDEA-033.md` exists, with the per-account SQL shape, the open questions, the cost, the
   privacy work and the trigger that would make documents enough, and it is in the open jobs table.
-- `docs/jobs/IDEA-025.md` carries the memory view, and IDEA-024 cites DEC-190 rather than DEC-211.
+- `docs/jobs/IDEA-025.md` carries the memory view, and IDEA-024 cites `pages-a-page-may-save-itself` rather than `assistant-memory-belongs-to-the-assistant`.
 - Nothing in `docs/` describes `IMemoryCatalog`, `IMemoryWriter` or a `/memory` seed as work in hand.
 - `make check` passes.

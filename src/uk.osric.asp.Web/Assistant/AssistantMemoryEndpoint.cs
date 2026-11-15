@@ -19,7 +19,7 @@ using uk.osric.asp.Web.Pages;
 /// The page is shell code and one document per response, like the editor and <c>/status</c>: no
 /// script, every mutating form carrying the antiforgery pair, and every write going through
 /// <see cref="IMemoryStore.EditAsync"/> or <see cref="IMemoryStore.ForgetAsync"/> rather than through
-/// a second set of rules (DEC-205). The owner is always the signed-in account, so a wrong owner and a
+/// a second set of rules (`assistant-memory-page`). The owner is always the signed-in account, so a wrong owner and a
 /// missing memory answer the same way.
 /// </remarks>
 internal static class AssistantMemoryEndpoint {
@@ -52,7 +52,7 @@ internal static class AssistantMemoryEndpoint {
     /// <remarks>
     /// A refusal re-renders the list rather than answering with a bare error page, because the
     /// textarea is the only copy of what the owner typed: a `400` keeps the submitted text and a
-    /// `409` shows the content the assistant left behind (DEC-208).
+    /// `409` shows the content the assistant left behind (`assistant-memory-page`).
     /// </remarks>
     /// <param name="context">The response being written.</param>
     /// <param name="id">The memory being saved.</param>
@@ -291,7 +291,7 @@ internal static class AssistantMemoryEndpoint {
     }
 
     // Provenance is a link while the conversation exists and the sentence the plan named after it is
-    // deleted: the delete nulls the column rather than the memory (DEC-184).
+    // deleted: the delete nulls the column rather than the memory (`assistant-memory-is-the-owners`).
     private static string Provenance(MemoryCandidate memory) => memory.SourceConversationId is { } conversation
         ? $" From <a href=\"/assistant/{conversation.ToString(CultureInfo.InvariantCulture)}\">conversation {conversation.ToString(CultureInfo.InvariantCulture)}</a>."
         : " From a deleted conversation.";

@@ -30,7 +30,7 @@ Status: **implemented**. Written and built 2026-11-09.
 
 ### Markdig in Runtime
 
-DEC-15 asks a third-party package to earn its place. Markdig is a parser with no native asset and no
+`code-system-first` asks a third-party package to earn its place. Markdig is a parser with no native asset and no
 I/O; it does not execute anything. `Runtime` already holds the host's other parser and is where
 "parse this text into a value" belongs, so the package is referenced there and nowhere else. `Core`
 stays reference-free; the rule that the restricted renderer needs is a pure string rule and lives in
@@ -38,7 +38,7 @@ stays reference-free; the rule that the restricted renderer needs is a pure stri
 
 ### A capability, not more IContext
 
-DEC-142 and DEC-148 settled the seam: something a render may offer is read from
+`pages-capabilities-are-one-seam` and `pages-a-layout-is-a-capability` settled the seam: something a render may offer is read from
 `ctx.Features`, and `IContext` grows only for what every page always has. Markdown is offered by
 every render today, but it is still a capability rather than a context member; a page that never
 wants it never meets it, and the page contract stays small. The same handle reaches a layout layer,
@@ -102,4 +102,4 @@ Rejected:
 
 What a string cannot show — the table's reading order, the rendered code block's contrast, the
 change of a live message from plain text to formatted HTML with a screen reader — is the hand pass
-recorded with the accessibility work (DEC-110), not a claim made here.
+recorded with the accessibility work (`shell-accessibility-is-asserted`), not a claim made here.

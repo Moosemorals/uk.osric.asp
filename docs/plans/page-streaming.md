@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Implemented 2026-11-14; `make check` is green. Awaiting the owner's merge |
 | Size | Medium — one contract member, one response sink, a commit rule, a disconnect guard and their tests |
 | Spike | None. `SimpleContext` already buffers through one writer, the endpoint already shapes the whole response in one place, and the render already owns a deadline and an abandonment switch |
-| Decisions | Named in prose below; numbers are taken from `trunk` when the work merges (`DEC-09`, DEC-281) |
+| Decisions | Named in prose below; the names are taken when the work merges (`product-plan-before-building`, `product-steps-wait-for-the-owner`) |
 | Backlog | ARCH-13 — a page cannot stream (now [closed](../jobs/README.md#closed)) — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
 
 ## The short version
@@ -104,14 +104,14 @@ Checked against the code on 2026-11-14.
   [pages.md](../pages.md#page-execution-budget)).
 - **One contract rule for I/O.** Every I/O member on `IContext` and every capability returns a `Task`
   and takes no cancellation token; the render owns `Aborted` and the deadline and links them per call
-  (DEC-123). ARCH-13's sketch of `FlushAsync(CancellationToken)` predates that rule.
+  (`pages-page-io-is-async`). ARCH-13's sketch of `FlushAsync(CancellationToken)` predates that rule.
 - **One loose end from BUG-17.** The assistant's server-sent-event write can still throw
   `NotSupportedException` when the browser has gone, and the framework's exception handler logs that
   as an unhandled exception. Nothing user-visible breaks, but the journal gains a failed request for a
   run that is still working (ARCH-13, BUG-17).
 - **One public contract surface.** `Sdk` is API-analysed, so the new member is an explicit edit to
   `PublicAPI.Unshipped.txt`; adding it changes the `Sdk` module version id, so every stored image is
-  recompiled on its next request (DEC-26).
+  recompiled on its next request (`pages-compile-on-save`).
 
 ## The design
 
@@ -123,7 +123,7 @@ Checked against the code on 2026-11-14.
 public Task FlushAsync();
 ```
 
-It takes no cancellation token, because DEC-123 makes the render the owner of `Aborted` and the
+It takes no cancellation token, because `pages-page-io-is-async` makes the render the owner of `Aborted` and the
 deadline. The implementation links both per call, exactly as `IPageStorage` and `IHttpFetch` do. The
 alternative — ARCH-13's `FlushAsync(CancellationToken)` — would be the only member on the contract
 that asks a page to supply half of the render's own lifetime, and two token conventions is worse than
@@ -271,10 +271,10 @@ the same bug in a second place.
 
 ## Decisions this plan proposes
 
-Numbered DEC-292 to DEC-300 when the work merged (DEC-09, DEC-281).
+Numbered `pages-page-io-is-async` to `pages-a-stream-reports-its-own-end` when the work merged (`product-plan-before-building`, `product-steps-wait-for-the-owner`).
 
-**D1 — `FlushAsync` takes no cancellation token.** The render owns the lifetime, as DEC-123 says.
-ARCH-13's sketch predates DEC-123 and is not followed. Rejected: a token parameter that no other
+**D1 — `FlushAsync` takes no cancellation token.** The render owns the lifetime, as `pages-page-io-is-async` says.
+ARCH-13's sketch predates `pages-page-io-is-async` and is not followed. Rejected: a token parameter that no other
 contract member has.
 
 **D2 — streaming is opt-in at the first flush.** A page that never flushes keeps the buffered,
@@ -320,7 +320,7 @@ reads and a catalogue change for every future streaming detail.
 ## Phases
 
 Each phase is test-first. The branch is `page-streaming`; this plan is written on `arch-13` and waits
-for the owner before any code is written (DEC-281).
+for the owner before any code is written (`product-steps-wait-for-the-owner`).
 
 ### Phase 0 — pin today's behaviour
 
@@ -379,7 +379,7 @@ status, headers, `Content-Length`, clean error page and clean `504`; `HEAD` reta
   session/antiforgery caveat.
 - `docs/jobs/ARCH-13.md`: deleted; its row leaves the index, joins "Closed" with a pointer here, and
   the programme marks step 7 done. BUG-17's closed row loses its "one thing left" sentence.
-- `docs/decisions.md`: the D1–D9 entries, numbered from `trunk` at merge.
+- `docs/decided.md`: the D1–D9 entries, named at the merge.
 
 ## Tests
 
@@ -460,7 +460,7 @@ whose body throws, as `SecurityHeadersTests` builds its feature.
   test proves `StartAsync` is called and the bytes are written early; the gate's manual check should
   use `curl -N` against `make run` if the owner wants socket-level evidence.
 - **A contract bump recompiles every stored page.** Adding a member changes `Sdk`'s module version id,
-  so every stored image is stale on its next request (DEC-26). Expected, and the same cost the last
+  so every stored image is stale on its next request (`pages-compile-on-save`). Expected, and the same cost the last
   contract changes paid.
 - **Two ways to be a response.** There are now three response shapes — buffered, asset, streamed — and
   `docs/shell.md` must say which is which. The code keeps one shaping helper so the shapes cannot
@@ -487,5 +487,5 @@ committed failure truncates, the body cap stops at the first flush, and `Disconn
 BUG-17's failed-request line. `make check` passes: formatting, licences, the package audit, the seeded
 pages, all four suites and a Release publish. `ARCH-13` left the job index and joined "Closed".
 
-The decisions above were numbered DEC-292 to DEC-300 at the merge, and every citation was updated with
-them (DEC-281). Merged; the branch is gone and the work is in `trunk`.
+The decisions above were numbered `pages-page-io-is-async` to `pages-a-stream-reports-its-own-end` at the merge, and every citation was updated with
+them (`product-steps-wait-for-the-owner`). Merged; the branch is gone and the work is in `trunk`.

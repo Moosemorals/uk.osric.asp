@@ -18,8 +18,8 @@ closed table in [the job index](../../jobs/README.md#closed), and the revisions 
 [fetch and storage](page-fetch-and-storage.md) before its Phase 1 started, so the synchronous
 members it described are never written.
 
-The decisions are DEC-123 (the asynchronous contract and its tokenless members) and DEC-124 (the
-`Task` admission and the member-level denial, amending DEC-35).
+The decisions are `pages-page-io-is-async` (the asynchronous contract and its tokenless members) and `pages-the-api-policy` (the
+`Task` admission and the member-level denial, amending `pages-the-api-policy`).
 
 ## The short version
 
@@ -425,7 +425,7 @@ convention applied to a surface where the caller has nothing better to pass than
 already holds.
 
 This is a deliberate exception to the convention, so both the SDK doc comments and
-[DEC-123](../../decisions.md) say so in as many words.
+`pages-page-io-is-async` say so in as many words.
 
 ## Runtime
 
@@ -545,7 +545,7 @@ Three details of that emit are load-bearing and unchanged from today:
 | `docs/architecture.md` — page contract | `Handle` → `HandleAsync` where the return is described; the sentence "status, content type and headers are applied after `Handle` returns"; the `IContext` member list keeps `Aborted` and gains one line that the handler is asynchronous and `await` is available |
 | `docs/architecture.md` — page execution budget | "the thread it is using is lost" → the render; the handler "runs on a worker" gains "and may suspend, returning its thread while it waits" |
 | `docs/architecture.md` — page API policy | the policy paragraph names the `Task` admission and the member denial |
-| `docs/decisions.md` | DEC-123 (async contract, tokenless members) and DEC-124 (member-level denial, amends DEC-35); DEC-31's "after `Handle` returns" becomes `HandleAsync`; two lines under "Open policy questions" |
+| `docs/decisions.md` | `pages-page-io-is-async` (async contract, tokenless members) and `pages-the-api-policy` (member-level denial, amends the policy); `pages-the-response-is-buffered-until-a-flush`'s "after `Handle` returns" becomes `HandleAsync`; two lines under "Open policy questions" |
 | `docs/jobs/IDEA-012.md` | deleted into git history; its row moved to the closed table |
 | `docs/jobs/README.md` | the IDEA-012 row moved to the closed table, and the rough order dropped its step |
 | `docs/plans/page-fetch-and-storage.md` | only on acceptance, and only as listed below |
@@ -555,8 +555,8 @@ Proposed entries for `docs/decisions.md`:
 
 | ID | Decision | Recorded in |
 | --- | --- | --- |
-| DEC-123 | The page handler is asynchronous: `IHandler.HandleAsync` returns `Task`, the generated handler is always `async`, and the I/O members `IContext` gains are `Task`-returning and take no cancellation token — the context owns `Aborted` and the render deadline and links them per call. A synchronous twin is never added. | [async page contract](async-page-contract.md) |
-| DEC-124 | `System.Threading.Tasks.Task` is admitted to the page API policy as a type, and ten of its members are denied by name — `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`, `Yield` — because each starts work the render deadline cannot stop or turns an `await` back into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`, `Parallel` and `ValueTask` remain `PAGE001`. | [async page contract](async-page-contract.md), amends DEC-35 |
+| `pages-page-io-is-async` | The page handler is asynchronous: `IHandler.HandleAsync` returns `Task`, the generated handler is always `async`, and the I/O members `IContext` gains are `Task`-returning and take no cancellation token — the context owns `Aborted` and the render deadline and links them per call. A synchronous twin is never added. | [async page contract](async-page-contract.md) |
+| `pages-the-api-policy` | `System.Threading.Tasks.Task` is admitted to the page API policy as a type, and ten of its members are denied by name — `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`, `Yield` — because each starts work the render deadline cannot stop or turns an `await` back into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`, `Parallel` and `ValueTask` remain `PAGE001`. | [async page contract](async-page-contract.md), amends the policy |
 
 ## What fetch and storage must change
 

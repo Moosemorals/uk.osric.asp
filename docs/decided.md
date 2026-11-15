@@ -384,12 +384,15 @@ or a changed generator invalidates every stored image instead of running code it
 
 *Recorded in [pages](pages.md#compiled-pages), [TemplateFingerprint](../src/uk.osric.asp.Core/Compilation/TemplateFingerprint.cs), [PageCompiler](../src/uk.osric.asp.Runtime/PageCompiler.cs).*
 
-### pages-diagnostics-speak-template-space
+### pages-what-a-diagnostic-is
 
-Positions are template space: the line and column the author typed. Generated-source coordinates never
-leave Roslyn, and an unknown position is `null`, never `(0, 0)`.
+A diagnostic is a severity, a position, a code and its text. The position is template space — the line
+and column the author typed — generated-source coordinates never leave Roslyn, and an unknown position
+is `null`, never `(0, 0)`. Codes (`TEMPLATE001`, `PAGE001` … `PAGE006`, `SCRIPT001`, `SCRIPT002`) are
+allocated once and never reused, because the editor and the logs quote them, and a retired code stays
+retired: `PAGE005` left with the capability alias and is not reissued.
 
-*Recorded in [compiler diagnostics](plans/archive/compiler-diagnostics.md#decisions).*
+*Recorded in [architecture](architecture.md#functional-core-imperative-shell), [compiler diagnostics](plans/archive/compiler-diagnostics.md#decisions).*
 
 ### pages-a-warning-never-stops-a-page
 
@@ -405,14 +408,6 @@ failure.
 A diagnostic Roslyn reports in *generated* code, with none explaining it in *author* code, is a
 compiler fault: the compiler throws, the source is preserved and the host answers `500`. It is never
 shown to the author as a page error.
-
-*Recorded in [architecture](architecture.md#functional-core-imperative-shell).*
-
-### pages-diagnostic-codes-are-permanent
-
-Author-facing diagnostic codes (`TEMPLATE001`, `PAGE001` … `PAGE006`, `SCRIPT001`, `SCRIPT002`) are
-allocated once and never reused, because the editor and the logs quote them. A retired code stays
-retired: `PAGE005` left with the capability alias and is not reissued.
 
 *Recorded in [architecture](architecture.md#functional-core-imperative-shell).*
 
@@ -697,15 +692,6 @@ because the browser never sends one.
 
 *Recorded in [page authentication](plans/archive/page-authentication.md#d3--redirect-to-the-existing-sign-in-with-a-validated-local-return).*
 
-### pages-a-signed-in-post-is-checked
-
-An authenticated page `POST` is antiforgery-checked by the host, before page code runs, and answered
-`400` with `no-store` on failure. It is deliberately not opt-in: the sign-in cookie is what turns a
-cross-site post into an owner's action. `ctx.AntiforgeryField` is the one-line way to satisfy it, and an
-anonymous `POST` is unchanged — so an authenticated post to a public page now needs the field too.
-
-*Recorded in [page authentication](plans/archive/page-authentication.md#d4--authenticated-page-posts-are-csrf-checked-by-the-host).*
-
 ### pages-content-types
 
 A stored page's default response type is the media type its key's last extension names.
@@ -721,19 +707,6 @@ is — same owner-only authoring, same buffered response, same document policy, 
 a page asks for it. The seeded `/rocket.svg` keeps its explicit type.
 
 *Recorded in [content types](plans/archive/page-content-types.md), [PageContentTypes](../src/uk.osric.asp.Core/Pages/PageContentTypes.cs).*
-
-### pages-scripts-are-same-origin-modules
-
-A page cannot write a script into its own response and cannot use an inline `style=` attribute or a
-`<style>` block: `style-src 'self'` carries no `'unsafe-inline'`, and a page that wants a script is a
-policy change rather than a header it may set. A stored page opts in with `ctx.AllowScripts()`, which
-widens `script-src` from `'none'` to `'self'` on the response and only on a successful buffered render,
-never on a redirect or an error; inline scripts and event-handler attributes stay blocked, so the
-script is a same-origin external module. Because a page with no code cannot call `AllowScripts`, the
-extension row carries a `ScriptPolicy` of `none` or `self` instead: it follows the key's extension,
-applies before the page runs, and a page with code may widen `none` to `self` and never narrow `self`.
-
-*Recorded in [the shell](shell.md#authentication-and-the-editor), [pages](pages.md#assets-and-versioned-urls).*
 
 ### pages-an-asset-is-a-page-with-no-code
 
@@ -1027,16 +1000,12 @@ started save outlives the request that began it.
 
 *Recorded in [page editor](plans/archive/page-editor.md), [PageEditorScope](../src/uk.osric.asp.Web/Pages/PageEditorScope.cs).*
 
-### pages-delete-is-a-tombstone
+### pages-delete-install-and-restore
 
 Delete is a tombstone, and restore and install are ordinary saves: a retained revision or a bundled seed
 is written as a new revision under the running build, a seed that already matches is not written, a
 tombstoned seed comes back with its history, and nothing is ever rewound or recompiled under an old
 runtime.
-
-*Recorded in [page editor](plans/archive/page-editor.md), D5.*
-
-### pages-install-and-restore
 
 The editor has two different "put it back" actions and two different words: **install** saves a bundled
 seed into its page (`cmd=install`, from the page list) and **restore** saves a retained revision's
@@ -1044,16 +1013,15 @@ source as a new revision (`cmd=restore&hash=`, from the history table). Both are
 diff against the live source and a `POST` that writes, and both refuse the case that would add nothing —
 a restore whose source is what the page already holds, an install whose seed the page already has — with
 one `409` document naming the history and the editor rather than a silent write. An install lands on the
-page list and a restore on the editor, where its diagnostics are legible. A restore appends, so nothing
-is rewound, and the outcome names the revision it came from; the seed action on a page row is disabled
-when the seed matches and stays enabled for a deleted seeded page, and there is no confirmation step and
-no restore-all action.
+page list and a restore on the editor, where its diagnostics are legible; the seed action on a page row
+is disabled when the seed matches and stays enabled for a deleted seeded page, and there is no
+confirmation step and no restore-all action.
 
 One seed rule serves both the page and the recovery route: `PageSeedInstaller` owns "does this seed
 differ" and "what happened", so `/admin/restore` keeps its preview and summary while the capability
 installs a single seed, and there is no second comparison and no batch store in either.
 
-*Recorded in [revision restore](plans/archive/revision-restore.md), [PageSeedInstaller](../src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs).*
+*Recorded in [page editor](plans/archive/page-editor.md), [revision restore](plans/archive/revision-restore.md), [PageSeedInstaller](../src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs).*
 
 ### pages-scrubbing-is-not-editing
 
@@ -1191,7 +1159,14 @@ start it once per page it wraps; a `HEAD` is offered the reads and not the three
 an owner: the handle is bound to the render's visitor, so another account's job reads as an unknown one
 rather than as a refusal that admits it exists.
 
-*Recorded in [pages](pages.md#jobs), [PageJobs](../src/uk.osric.asp.Web/Work/PageJobs.cs).*
+A viewer waits, it does not sleep: `ReadEventsAsync(jobId, after, waitSeconds)` returns when there are
+events, when the job ends or when the wait elapses, whichever is first, with `Events`, `Next`, `Reset`,
+`State` and `Failure`, capped by `Pages:Jobs:MaxWaitSeconds` and by the render's own budget; a page
+streams the batches as server-sent events and writes a comment when one is empty. Allowing `Task.Delay`
+was rejected — a general fairness hole the page policy denies — as was a poll per reload, a whole
+document per event.
+
+*Recorded in [pages](pages.md#jobs), [PageJobs](../src/uk.osric.asp.Web/Work/PageJobs.cs), [IPageJobs](../src/uk.osric.asp.Sdk/IPageJobs.cs).*
 
 ### pages-a-job-is-not-durable
 
@@ -1214,17 +1189,6 @@ past a clock is reported as cut rather than completed.
 
 *Recorded in [pages](pages.md#jobs), [PageJobJournal](../src/uk.osric.asp.Web/Work/PageJobJournal.cs), [JobLifetime](../src/uk.osric.asp.Web/Work/JobLifetime.cs).*
 
-### pages-a-viewer-waits-on-a-job
-
-A viewer waits, it does not sleep. `ReadEventsAsync(jobId, after, waitSeconds)` returns when there are
-events, when the job ends or when the wait elapses, whichever is first, with `Events`, `Next`, `Reset`,
-`State` and `Failure`; the wait is capped by `Pages:Jobs:MaxWaitSeconds` and by the render's own budget.
-A page streams the batches as server-sent events and writes a comment when one is empty. Allowing
-`Task.Delay` was rejected — a general fairness hole that stays denied by the page policy — as was a poll
-per reload, which is a whole document per event.
-
-*Recorded in [pages](pages.md#jobs), [IPageJobs](../src/uk.osric.asp.Sdk/IPageJobs.cs).*
-
 ### pages-a-worker-gets-no-response
 
 A job's capabilities split data from code, and there is no second route to them. `IWorkerContext` has no
@@ -1238,15 +1202,12 @@ worker is refused, because it would be a second, silent route to the same four c
 
 *Recorded in [pages](pages.md#jobs), [IWorkerContext](../src/uk.osric.asp.Sdk/IWorkerContext.cs).*
 
-### pages-a-stream-is-served-alone
-
-A flushing page is served alone. The first flush is refused while the page would be wrapped, naming the
-layout and the `Layout = null` remedy, because a layout needs the whole body before it can run; a layout
-layer may never flush. A committed page that names a layout afterwards is served alone with a warning.
-
-*Recorded in [pages](pages.md#streaming), [PageChain](../src/uk.osric.asp.Web/Pages/PageChain.cs).*
-
 ### pages-the-first-flush-commits
+
+**A flushing page is served alone.** The first flush is refused while the page would be wrapped, naming
+the layout and the `Layout = null` remedy, because a layout needs the whole body before it can run; a
+layout layer may never flush, and a committed page that names a layout afterwards is served alone with a
+warning.
 
 The first flush is the commit point. Status, content type, headers, the script policy and any already
 minted session or antiforgery cookie are applied before the response starts; `SetStatus`, `SetContentType`,
@@ -1261,7 +1222,7 @@ client that leaves mid-write is not an unhandled exception: `DisconnectGuard` tr
 body-write failure or an aborted cancellation as a Debug-level end and aborts, and the page sink and the
 assistant's event stream share the rule.
 
-*Recorded in [pages](pages.md#streaming), [PageResponseWriter](../src/uk.osric.asp.Web/Pages/PageResponseWriter.cs), [DisconnectGuard](../src/uk.osric.asp.Web/Http/DisconnectGuard.cs).*
+*Recorded in [pages](pages.md#streaming), [PageResponseWriter](../src/uk.osric.asp.Web/Pages/PageResponseWriter.cs), [PageChain](../src/uk.osric.asp.Web/Pages/PageChain.cs), [DisconnectGuard](../src/uk.osric.asp.Web/Http/DisconnectGuard.cs).*
 
 ### pages-a-stream-is-bounded
 
@@ -1321,11 +1282,17 @@ compile stays on the editor with its diagnostics.
 ### shell-security-headers-are-one-set
 
 Every response carries one security-header set, written by middleware when the response starts and only
-where the header is still absent; the editor and assistant views widen `Content-Security-Policy` from
-`script-src 'none'` to `script-src 'self'` for their own modules, and a stored page asks with
-`ctx.AllowScripts()`.
+where the header is still absent. `style-src 'self'` carries no `'unsafe-inline'`, so a page can use
+neither an inline `style=` attribute nor a `<style>` block, and a page cannot write a script into its own
+response: the editor and assistant views widen `Content-Security-Policy` from `script-src 'none'` to
+`script-src 'self'` for their own modules, and a stored page asks with `ctx.AllowScripts()`, which
+applies only to a successful buffered render and never to a redirect or an error. Inline scripts and
+event-handler attributes stay blocked either way, so a script is a same-origin external module. Because a
+page with no code cannot call `AllowScripts`, its extension row carries a `ScriptPolicy` of `none` or
+`self` instead: it follows the key's extension, applies before the page runs, and a page with code may
+widen `none` to `self` and never narrow `self`.
 
-*Recorded in [editor-line-gutter](plans/archive/editor-line-gutter.md#7-one-middleware-sets-the-security-headers-only-the-editor-allows-script).*
+*Recorded in [editor-line-gutter](plans/archive/editor-line-gutter.md#7-one-middleware-sets-the-security-headers-only-the-editor-allows-script), [pages](pages.md#assets-and-versioned-urls).*
 
 ### shell-the-markup-is-semantic
 
@@ -1448,13 +1415,17 @@ does not, so several devices can hold a valid session at once.
 
 *Recorded in [editor authentication](plans/archive/editor-authentication.md#4-long-term-sign-in-revocable-by-a-security-stamp).*
 
-### auth-antiforgery
+### auth-a-state-changing-form-carries-a-token
 
-Login, logout and editor `POST`s require an antiforgery token, refused `400` before reading the form or
-touching storage. A successful save answers `303`, and the save message lives in the session rather than
-in a cookie.
+An antiforgery token is required for every form that changes state, and the host refuses `400` before
+reading the form or touching storage: sign-in, sign-out, the editor's `POST`s, and an authenticated page
+`POST`, which is checked before any page code runs and answered `no-store` on failure. The page half is
+deliberately not opt-in — the sign-in cookie is what turns a cross-site post into an owner's action —
+and `ctx.AntiforgeryField` is the one-line way to satisfy it, so an authenticated post to a public page
+needs the field too, while an anonymous `POST` is unchanged. A successful save answers `303`, and the
+message lives in the session rather than in a cookie.
 
-*Recorded in [the shell](shell.md#authentication-and-the-editor).*
+*Recorded in [the shell](shell.md#authentication-and-the-editor), [page authentication](plans/archive/page-authentication.md#d4--authenticated-page-posts-are-csrf-checked-by-the-host).*
 
 ### auth-the-key-ring-is-persisted
 
@@ -1638,14 +1609,10 @@ never written to a log line or a metric tag. A write that looks like a secret �
 `password=` or `token=` assignment, a provider key — is refused by rule as well as by the prompt, because
 a memory persists an injection into every later conversation.
 
-*Recorded in [assistant memory](plans/archive/assistant-memory.md), [spike](spikes/assistant-memory.md).*
-
-### assistant-memory-is-written-by-tools
-
 Memory is written only by an explicit tool call the transcript records — `remember`, `update_memory`,
 `forget_memory` — and never by a pass that reads the conversation afterwards. The three writes are
 approval-gated under `RequireApproval` and run immediately under the default, where they are still
-visible as a tool call and as a row. A derived profile is rejected because it produces memory nobody
+visible as a tool call and as a row; a derived profile is rejected because it produces memory nobody
 asked for and cannot be attributed to a turn.
 
 *Recorded in [assistant memory](plans/archive/assistant-memory.md), [spike](spikes/assistant-memory.md).*
@@ -2010,6 +1977,3 @@ Not decisions yet — recorded so they are not rediscovered:
   is last-write-wins, not atomic. The identity hook a per-user store needs exists, and that store is
   [IDEA-033](jobs/IDEA-033.md) — a job with its own plan, migration and decision rather than a blocked
   one. An atomic increment would still be a different storage primitive.
-
-
-

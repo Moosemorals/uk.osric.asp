@@ -9,15 +9,15 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Status | Implemented 2026-11-11; phases 1–3 landed, and the name-taking `PageWrites.Written` was removed rather than kept, because nothing in the solution is packaged |
 | Size | Medium — a tool type and its registry, three shared helpers, fifteen tools moved into five files by family, and the tests that pin the new wiring. No tool changes what it does |
-| Spike | None. The shape is the shell's, proved in DEC-226, and the tool surface is already a table with one row per tool |
-| Decisions | DEC-231 (a tool is one type and the registry is the only table), recorded with this plan. DEC-228 belongs to [capability naming](capability-naming.md) and is not claimed here |
+| Spike | None. The shape is the shell's, proved in `assistant-the-shell-is-applets`, and the tool surface is already a table with one row per tool |
+| Decisions | `assistant-a-tool-is-one-type` (a tool is one type and the registry is the only table), recorded with this plan. `pages-capabilities-are-one-seam` belongs to [capability naming](capability-naming.md) and is not claimed here |
 | Backlog | Nothing waits on this. [ARCH-15](../../jobs/ARCH-15.md) rewrites the same pre-approval refusal and should land first, or phase 2 absorbs it |
 
 ## The short version
 
 The assistant's fifteen tools live in one 939-line class,
 [PageToolExecutor](../../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs). The virtual shell had the
-same shape until this week's rewrite (DEC-226): a command became one type carrying its name, its
+same shape until this week's rewrite (`assistant-the-shell-is-applets`): a command became one type carrying its name, its
 usage, its syntax and its behaviour, and the kernel did the once-only work. This plan applies the
 part of that idea that fits, and says why the rest does not.
 
@@ -232,7 +232,7 @@ beside the code they describe, which is the one real gain over the table.
 
 ## What this plan decides
 
-> **DEC-231.** An assistant tool is one type: it carries its name, its description, its
+> **`assistant-a-tool-is-one-type`.** An assistant tool is one type: it carries its name, its description, its
 > argument schema, its approval flag, the verb its refusals use, whether a successful call changes a
 > stored page, the argument the path policy refuses before a prompt, and the code that runs it. The
 > registry is the only list — the model's `Definitions`, the dispatcher, the approval gate and the
@@ -241,7 +241,7 @@ beside the code they describe, which is the one real gain over the table.
 > behaviour is unreachable only if it is unregistered, which is a compile error.
 
 That sentence is what phases 1–3 make true. It is recorded with this plan rather than before it, as
-DEC-09 asks.
+`product-plan-before-building` asks.
 
 ## What each phase proves
 
@@ -279,7 +279,7 @@ own so a bisect can tell the wiring change from the helper change.
 
 | Risk | Why it matters | Handling |
 | --- | --- | --- |
-| The model's tool order changes | It is part of the request body, and DEC-200's context row measures the request as sent; a reordering invalidates the provider's cache key for every run | The registry keeps declaration order and a contract test pins it. No `OrderBy` |
+| The model's tool order changes | It is part of the request body, and `assistant-the-request-budget-is-tokens`'s context row measures the request as sent; a reordering invalidates the provider's cache key for every run | The registry keeps declaration order and a contract test pins it. No `OrderBy` |
 | A refusal's wording drifts | The model was taught the wording; the tests assert fragments like "changed since read_page" | Every wording string moves unchanged; the suites are the guard |
 | `PageWrites` is shipped API | A signature change is a public surface change with an Unshipped entry | Prefer the overload; keep the name-taking member |
 | The two line-splitting rules get "unified" | `read_page` line numbers and POSIX line counts are different questions | Renamed, documented in the plan and in the tool's own doc comment; no shared helper |
@@ -294,7 +294,7 @@ own so a bisect can tell the wiring change from the helper change.
 2. Phase 2 in one commit per helper, each converting the call sites it touches.
 3. Phase 3 one family per commit — memory, fetch, shell, script, diff, page — so the page family,
    which is where the line-number and store logic lives, lands last and alone.
-4. When the work lands, record DEC-231 in [decisions.md](../../decisions.md) with the plan archived, and
+4. When the work lands, record `assistant-a-tool-is-one-type` in [decisions.md](../../decisions.md) with the plan archived, and
    add one paragraph to [assistant.md](../../assistant.md) where it currently says the tools "reach the
    page store through `PageEditor`" — the paragraph gains the registry sentence, not a rewrite.
 

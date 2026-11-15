@@ -23,10 +23,10 @@ A page can reach three stores, and none of them belongs to an account:
 | **nothing** | **one signed-in account** | — |
 
 So a page cannot keep a personal list, a preference or a record for the person signed in. A page that
-wants one has to be shell code that owns a table, which is the third reason in DEC-210's rule and the
-reason such views do not get written at all. The gap has been named since page state landed: DEC-125's
+wants one has to be shell code that owns a table, which is the third reason in `pages-page-first`'s rule and the
+reason such views do not get written at all. The gap has been named since page state landed: `pages-page-storage`'s
 open-policy note says per-user state is "a later job with its own migration and decision", and the
-identity hook it needs has existed since DEC-132–DEC-137. This is that job.
+identity hook it needs has existed since `pages-public-by-default`, `pages-identity-is-a-plain-value`, `pages-redirect-to-login`, `auth-a-state-changing-form-carries-a-token`, `pages-a-stored-page-is-never-cached`, `assistant-knows-the-guard`. This is that job.
 
 **The shape the owner chose is SQL, one namespace per account.** A page declares its tables and its
 columns; the host creates them, filters every statement to the signed-in account, and bounds what a
@@ -49,7 +49,7 @@ Why one namespace per account:
 - **It is the rule `IPageSession`'s reads already follow**: a page may read another page's value for
   the same visitor, because the visitor is the person the data is about.
 - **The consequence is written down, not discovered.** A page the assistant edits can read what another
-  page stored for the owner. That is the site's model — every account is an owner (DEC-03) and pages are
+  page stored for the owner. That is the site's model — every account is an owner (`product-one-owner`) and pages are
   the owner's code — but it is a fact the plan states.
 
 ## Sketch
@@ -59,13 +59,13 @@ Why one namespace per account:
    returns bounded rows, `ExecuteAsync(statement, parameters)` answers how many rows changed. The first
    keyword of each statement is checked against an allow-list (`SELECT` for a query;
    `INSERT`, `UPDATE`, `DELETE` for an execute), so a write call cannot smuggle DDL. An anonymous render
-   is refused by the capability with the sign-in sentence (DEC-190's rule); a layout and a `HEAD` are
+   is refused by the capability with the sign-in sentence (`pages-a-page-may-save-itself`'s rule); a layout and a `HEAD` are
    offered the read and never the write; a second write in one render is a page bug. The name is to
    settle — `IPageAccountStorage` reads beside `PageUser`, `IPageUserStore` beside `IPageStorage` — and
    the split between one type and a read/write pair is one of the questions below.
 
 2. **The schema is declared by the page.** The starting point is a declaration that generation already
-   sees, like a library's shape rule (DEC-283): a table is a type the page declares, with its columns as
+   sees, like a library's shape rule (`pages-a-page-is-one-of-three-kinds`): a table is a type the page declares, with its columns as
    properties, so the schema comes from the source and a restore restores it.
 
    ```csharp
@@ -92,14 +92,14 @@ Why one namespace per account:
 4. **The sandbox.** One statement per call, parameters rather than literals, a command timeout and a
    cap on returned rows and bytes, from configuration. `trusted_schema = OFF`, no `ATTACH`, no `PRAGMA`,
    no DDL, no `VACUUM`; an authorizer refuses what the allow-list misses. The page API already denies
-   `Microsoft.Data.Sqlite` (DEC-35), so a page cannot open a database of its own.
+   `Microsoft.Data.Sqlite` (`pages-the-api-policy`), so a page cannot open a database of its own.
    [SQLite's security notes](https://www.sqlite.org/security.html) are where the assumptions start: the
    library is not defended against hostile SQL, so the host must be — nothing a page supplies may
    escape its declared tables and the four verbs.
 
 5. **The quotas.** Tables per page, columns per table, rows and bytes per (account, page), and the
    result cap. A new `Pages:UserStore` section, every value required and a missing or out-of-range one
-   stopping the site at startup (DEC-282). Each write enforces its quota in the same statement, the way
+   stopping the site at startup (`code-policy-values-are-configuration`). Each write enforces its quota in the same statement, the way
    `SqlitePageStateStore.UpsertAsync` does.
 
 6. **The lifecycle.** A declaration on save adds tables and columns; a column that disappears from the
@@ -109,12 +109,12 @@ Why one namespace per account:
    the page was deleted is refused rather than recreating anything.
 
 7. **Personal data has its own rules.** An archive never carries it — the export is pages and page
-   state, and a session is deliberately not in one either (DEC-139). `/privacy` gains a paragraph for a
+   state, and a session is deliberately not in one either (`pages-an-archive-is-a-database`). `/privacy` gains a paragraph for a
    store that survives sign-out, and says what a delete cannot reach: backups, snapshots and the
    operator's copies, exactly as a scrub does.
 
 8. **The documentation.** A capability a page author can use is one of the things `/help` must cover in
-   the same change (DEC-173): the declaration, the two calls, the quotas, the refusals and the
+   the same change (`product-manual-is-a-page`): the declaration, the two calls, the quotas, the refusals and the
    lifetime. `PageAuthorPrompt` gains its section and `Version` bumps; [pages](../pages.md) counts an
    eleventh capability; [storage](../storage.md) gains a section for the new tables; the
    [glossary](../glossary.md) defines the term.
@@ -136,7 +136,7 @@ Each is a decision for the plan this job wants.
    page's queries against a removed column fail, and something has to say so — the editor, `/status`, or
    the render's error page.
 4. **Whether a write is one statement or a bounded transaction.** One statement is simple and enough for
-   a list; two inserts that must both land are a different primitive (DEC-125 says the same about an
+   a list; two inserts that must both land are a different primitive (`pages-page-storage` says the same about an
    atomic increment).
 5. **Whether per-account really means cross-page readable.** The chosen namespace says yes; the plan
    should confirm it against the case of a page the assistant wrote reading another page's rows.
@@ -152,14 +152,14 @@ searches or counts them, JSON documents keyed by account would do at a fraction 
 no sandbox, no migration of a declaration. The trigger to revisit that is a page whose data fits in one
 document; the trigger to want this job is a page that wants an owner's rows ordered, filtered or
 aggregated. If the only per-account data the site ever needs is the assistant's memory, nothing is
-needed at all: memory is the assistant's own, with its own store (DEC-291).
+needed at all: memory is the assistant's own, with its own store (`assistant-memory-belongs-to-the-assistant`).
 
 ## Not in scope
 
-- **Memory.** It stays the assistant's and its view arrives with the assistant page (DEC-291,
+- **Memory.** It stays the assistant's and its view arrives with the assistant page (`assistant-memory-belongs-to-the-assistant`,
   [IDEA-025](IDEA-025.md)).
 - **Sharing, public rows and roles.** One owner per row, no sharing between accounts, no roles
-  (DEC-02, DEC-03).
+  (`pages-public-by-default`, `product-one-owner`).
 - **Migration of existing tables** into the new store. Nothing exists to migrate.
 - **Moving the data between sites.** An archive is pages and page state.
 
@@ -178,6 +178,6 @@ needed at all: memory is the assistant's own, with its own store (DEC-291).
   arrives with the view that needs it, and this one needs a plan, a migration and a named first
   customer first.
 
-**Origin:** [the page-first re-scope](../plans/page-first.md) of 2026-11-14, recorded as DEC-291. The
-gap was first named in DEC-125's open-policy note; the per-account SQL shape, the notice that a page the
+**Origin:** [the page-first re-scope](../plans/page-first.md) of 2026-11-14, recorded as `assistant-memory-belongs-to-the-assistant`. The
+gap was first named in `pages-page-storage`'s open-policy note; the per-account SQL shape, the notice that a page the
 assistant edits can read another page's rows, and the choice against JSON documents are this job's.

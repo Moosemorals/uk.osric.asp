@@ -78,7 +78,7 @@ automatic pruning is performed.
 ## The panels
 
 The dashboard is built from the instruments rather than written beside them: one panel per
-instrument, and the instrument's type decides the chart (DEC-180).
+instrument, and the instrument's type decides the chart (`metrics-one-panel-per-instrument`).
 
 | Instrument | Chart | Why |
 | --- | --- | --- |
@@ -122,7 +122,7 @@ every emitted assembly to a compile, so `renders/s` and `compiles/s` say more th
 a property of the panel rather than a constant of the renderer.
 
 The page is a grid of `<figure>`s under three headings, and each drawing carries its own title and
-legend inside its SVG (DEC-181). The page adds nothing to a figure: the drawing's own title is the
+legend inside its SVG (`metrics-a-series-is-identified-without-colour`). The page adds nothing to a figure: the drawing's own title is the
 link that opens that chart on its own, and hovering it shows the catalogue's sentence explaining what
 the chart means — the same sentence is the drawing's `desc`, so a mouse and a screen reader get one
 answer. A panel whose answer was empty still draws its axes and its
@@ -141,7 +141,7 @@ the volume-capacity axis is titled `bytes` and reads `70G` to `90G`, because a t
 **The inventory is the catalogue.** Each meter publishes its instruments, every instrument has
 exactly one owning panel, and tests fail when either side gains an entry the other lacks, when a type
 disagrees with the chart, or when a query names a family that is neither an instrument nor a known
-runtime one (DEC-183). The render chain is the exception that proves the rule: it is an extra panel
+runtime one (`metrics-one-panel-per-instrument`). The render chain is the exception that proves the rule: it is an extra panel
 that names the instruments it composes and owns none. `MetricNamesTests` records every instrument and
 reads the live `/metrics` body, so a renamed instrument or a changed unit fails a test rather than
 emptying a panel.
@@ -157,20 +157,20 @@ Each series gets a colour from the Okabe–Ito palette, a dash pattern, and a la
 its line; the legend repeats both inside the drawing, and each series' legend entry sits inside that
 series' own anchor, so hovering or clicking the entry does what hovering or clicking the line does.
 Hovering or focusing a series dims the others, and clicking it pins that highlight by SVG fragment
-target (DEC-182). A heatmap behaves the same way with rows instead of series: hovering a row dims the
+target (`metrics-a-series-is-identified-without-colour`). A heatmap behaves the same way with rows instead of series: hovering a row dims the
 rest and clicking pins it, and every run names its shade, its total and its time span on hover.
-The interaction is CSS only, because `/status` is script-free (DEC-81), and the at-rest cues — the
+The interaction is CSS only, because `/status` is script-free (`metrics-prometheus-only`), and the at-rest cues — the
 end-of-line label, the dash and the legend — are the accessible ones. The series and row anchors are
 pointer-only; a keyboard or screen-reader reader gets the label, the legend and the drawing's own
 `<title>`.
 
 The palette and the dashes are presentation attributes written by `Core.Charting`, not stylesheet
-rules, so a chart served on its own is legible with no stylesheet at all (DEC-319). `/status.css`
+rules, so a chart served on its own is legible with no stylesheet at all (`metrics-a-series-is-identified-without-colour`). `/status.css`
 holds only the grid, the caption and the hover and pinned states.
 
 ## One chart on its own
 
-Any panel can be linked directly (DEC-320):
+Any panel can be linked directly (`metrics-a-chart-stands-alone`):
 
 ```
 GET /status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration=1h
@@ -212,17 +212,17 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   and legends use the underscore.
 - **The buckets are ours, and they reach past the cap.** Each scale's top boundary is larger than the
   cap its series measures, so a sample recorded at its deadline is a real bucket rather than `+Inf`
-  (DEC-214) — the sample a panel is opened for. The page durations share one scale to 10 s, past the
+  (`metrics-one-panel-per-instrument`) — the sample a panel is opened for. The page durations share one scale to 10 s, past the
   five-second compile deadline a save keeps too; a stream's committed lifetime has its own scale, from
   a second to the day a `Pages:Stream:MaxSeconds` ceiling may reach; a tool call has one to 20 s, past
   `Assistant:ToolTimeoutSeconds`; the two provider waits one to 240 s, past
   `Assistant:RequestTimeoutSeconds`; and the run's step and tool-call counts one each to 192,
   past `Assistant:MaxSteps` (160) and `Assistant:MaxToolCalls` (128). A run's own length has no
-  cap — its timeout bounds silence, not duration (DEC-119) — so that scale is sized for the work,
+  cap — its timeout bounds silence, not duration (`assistant-deadlines-bound-silence`) — so that scale is sized for the work,
   up to an hour.
   `page.image.size` has its own byte scale. The SDK's default starts at 0–5 s for a seconds
   instrument, which would make every render one column and every percentile meaningless.
-- **Two gates on `/metrics`.** The app publishes on the loopback only (DEC-61), and Caddy answers
+- **Two gates on `/metrics`.** The app publishes on the loopback only (`deploy-loopback-and-caddy`), and Caddy answers
   `404` for the path on the public origin. Prometheus scrapes `app:8080` over the shared rootless
   network; see [deployment](../deploy/operations.md#metrics-and-the-status-page).
 - **`/status` is a shell endpoint.** It writes body markup inside `ShellDocument`, so its head, sheet
@@ -241,7 +241,7 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   `Metrics:MaxCachedWindows` windows, and the URL and time zone come from the same section. Every
   value is required ([configuration](architecture.md#configuration)).
 - **The image carries tzdata.** Only the axis labels are local; the positions, queries and samples are
-  UTC. The base is `aspnet:11.0-alpine-extra` (DEC-82) because plain alpine has no
+  UTC. The base is `aspnet:11.0-alpine-extra` (`deploy-the-image`) because plain alpine has no
   `/usr/share/zoneinfo` and resolving `Europe/London` inside it throws.
 
 `/status.css` is a seeded page like every other sheet, so an installation that already has it keeps

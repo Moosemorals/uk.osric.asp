@@ -9,7 +9,7 @@ A Playwright suite for the shell pages and the assistant, written to answer one 
 an answer stop mid-sentence when the model thinks for a while — and kept because it found three
 defects the four NUnit suites could not.
 
-**Type names predate DEC-122.** Where this names `AssistantRunStream` or `AssistantConversation`, the
+**Type names predate `code-names-say-what-they-are`.** Where this names `AssistantRunStream` or `AssistantConversation`, the
 types are now `RunStream` and `Conversation`. The mapping in
 [naming consistency](naming-consistency.md#the-mapping) is the translation.
 
@@ -17,7 +17,7 @@ types are now `RunStream` and `Conversation`. The mapping in
 
 `test/uk.osric.asp.Web.BrowserTests`: NUnit and `Microsoft.Playwright.NUnit`, pinned in
 `Directory.Packages.props`, driven in Firefox. Opt-in, with its own make targets, and deliberately not
-part of `make check` (DEC-120).
+part of `make check` (`code-browser-suite-is-opt-in`).
 
 - **The real host, not a test server.** `BrowserHost` runs the built app as a child process on a
   loopback port with a throwaway SQLite file, seeds one account through the real `users` command, and
@@ -54,7 +54,7 @@ three-second silence deadline so a stall is provable in seconds rather than minu
 1. **BUG-17** — `Assistant:RequestTimeoutSeconds` was a total deadline, so a healthy long think was
    cut off mid-answer, and neither the page nor the transcript said why. The conversation page now
    renders the run's own reason after the reload, a stall is `provider_timeout`, and a message that
-   stops at the token limit is stored as `truncated` (DEC-119).
+   stops at the token limit is stored as `truncated` (`assistant-deadlines-bound-silence`).
 2. **The seeded icon was a black silhouette.** `/rocket.svg` is a stored page served under
    `style-src 'self'`, and Firefox refused its inline `<style>` element and `style=` attributes. The
    colours are presentation attributes now, and `RocketTests` pins the computed fill. Nothing in the
@@ -72,5 +72,5 @@ make test-browser-live   # 2 tests against the provider in deploy/deepseek.token
 ```
 
 What the suite still does not cover, and belongs to a hand pass: focus visibility, zoom and reflow,
-contrast, and how the charts are read aloud (DEC-110). `HEADFUL=1` runs the browser with a window for
+contrast, and how the charts are read aloud (`shell-accessibility-is-asserted`). `HEADFUL=1` runs the browser with a window for
 that kind of looking.

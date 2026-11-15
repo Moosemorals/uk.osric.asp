@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Implemented 2026-11-09 |
 | Size | Large — a migration, a store, four tools, recall in the run, and the tests for each |
 | Spike | [Memory for the page assistant](../../spikes/assistant-memory.md), which measures the store and surveys what other systems do |
-| Decisions | DEC-184–DEC-188, recorded in [decisions](../../decisions.md#architecture-and-code-placement) |
+| Decisions | `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, recorded in [decisions](../../decisions.md#architecture-and-code-placement) |
 | Backlog | [IDEA-023](../../jobs/README.md#closed) — the page that shows, edits and pins memory, now built by [its own plan](assistant-memory-page.md) |
 
 ## The short version
@@ -75,7 +75,7 @@ every write, and `forget_memory` is how a memory is removed.
 - **Team or shared memory.** The owner filter is the security model; sharing needs scopes and grants
   the site does not have.
 - **Export and import.** The archive carries page source and page state and nothing else
-  (DEC-139); memory is neither, and the backup story is the SQLite file.
+  (`pages-an-archive-is-a-database`); memory is neither, and the backup story is the SQLite file.
 
 ## What exists today
 
@@ -124,7 +124,7 @@ Two facts about the ground this stands on, both measured in the spike:
 | `src/uk.osric.asp.Core/Assistant/MemoryContent.cs`, `MemorySecrets.cs` | Normalisation and the best-effort secret refusal |
 | `src/uk.osric.asp.Web/appsettings.json` | The six settings, beside the other assistant limits |
 | `docs/assistant.md`, `docs/storage.md`, `docs/glossary.md`, `docs/testing.md` | The feature, the tables, two terms, the suites |
-| `docs/decisions.md` | DEC-184–DEC-188 |
+| `docs/decisions.md` | `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5` |
 
 Nothing in `Sdk`, `Runtime` or the page contract changes: a stored page cannot reach memory, and
 that is deliberate — a page is public to whoever can reach it, and a memory is one owner's.
@@ -551,7 +551,7 @@ Each phase ends with a green `make check` and its tests written first.
 
 ### Phase 0 — decisions and scaffolding (half a day)
 
-- Record DEC-184–DEC-188 in [decisions](../../decisions.md); they land with this plan, so the numbers
+- Record `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5` in [decisions](../../decisions.md); they land with this plan, so the numbers
   are fixed before any code.
 - Create the `Core.Assistant` value types and the empty rules with their tests failing.
 - Add the six settings, the validator rules and `appsettings.json`, with the options tests.
@@ -602,26 +602,26 @@ what the code does, and `make check` passes.
 
 ## Documentation and decisions
 
-- **DEC-184** — A memory is owner-scoped and outlives its conversation: every statement filters on
+- **`assistant-memory-is-the-owners`** — A memory is owner-scoped and outlives its conversation: every statement filters on
   the owner in SQL, provenance is nullable and cleared when its conversation is deleted, and the one
   foreign key is history to its head.
-- **DEC-185** — Memory is written only by an explicit tool call that the transcript records. There is
+- **`assistant-memory-is-the-owners`** — Memory is written only by an explicit tool call that the transcript records. There is
   no extraction pass and no derived profile, and the three write tools are approval-gated under
   `RequireApproval`.
-- **DEC-186** — Recall is FTS5 keyword search with porter stemming, ranked by BM25 and mixed with
+- **`assistant-memory-recall-is-fts5`** — Recall is FTS5 keyword search with porter stemming, ranked by BM25 and mixed with
   pinned and already-used memories by a pure rule into a fixed character budget. There are no
   embeddings and no vector store, the index is external-content and triggers keep it, and recall
   happens once per run.
-- **DEC-187** — A memory has an id and a version; an update keeps the previous content as history; a
+- **`assistant-memory-is-the-owners`** — A memory has an id and a version; an update keeps the previous content as history; a
   forget deletes the memory and its history in one transaction; removing an account removes its
   memories.
-- **DEC-188** — Memory content enters the system prompt inside a labelled block that declares it data
+- **`assistant-memory-is-the-owners`** — Memory content enters the system prompt inside a labelled block that declares it data
   rather than instructions, is capped and normalised, and never reaches a log line or a metric tag; a
   write that looks like a secret is refused.
 
-The decisions were recorded when the plan landed, and the numbers moved once: DEC-179 and DEC-180
+The decisions were recorded when the plan landed, and the numbers moved once: `code-browser-suite-is-opt-in` and `metrics-one-panel-per-instrument`
 were claimed by the status-page rebuild and the assistant's own budget work, so the memory decisions
-are DEC-184–DEC-188. The prompt version is `page-author-v13` rather than the v12 this plan names,
+are `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`. The prompt version is `page-author-v13` rather than the v12 this plan names,
 because v12 was taken by the context-masking change that merged ahead of this one.
 
 Docs changes: a paragraph in [assistant](../../assistant.md) after the tools and approvals paragraph; an
@@ -656,5 +656,5 @@ the six settings in `appsettings.json`; and [IDEA-023](../../jobs/README.md#clos
 - A store failure leaves the run working, with a warning in the transcript and no memory block.
 - The three instruments are on `/metrics` with their documented tags and no content.
 - `docs/assistant.md`, `docs/storage.md`, `docs/glossary.md` and `docs/testing.md` describe what the
-  code does; DEC-184–DEC-188 are in `docs/decisions.md`; IDEA-023 records the page.
+  code does; `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5` are in `docs/decisions.md`; IDEA-023 records the page.
 - `make check` passes.

@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Pages;
 /// <remarks>
 /// A GET only: the tool has no method or header arguments. The URL rules, redirects, text decoding and
 /// response cap are <see cref="OutboundFetcher"/>'s, so the assistant cannot reach a connection a page
-/// cannot (DEC-216).
+/// cannot (`pages-outbound-fetch`).
 /// </remarks>
 internal sealed class AssistantFetcher(OutboundFetcher fetcher) : IAssistantFetcher {
 

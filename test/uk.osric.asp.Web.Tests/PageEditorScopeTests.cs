@@ -83,7 +83,7 @@ public sealed class PageEditorScopeTests {
         scope.AttachDeadline(render.Token);
 
         // The render ends while the save is in flight: a write that carried the render's deadline
-        // would already be cancelled by the time the store saw it (DEC-191).
+        // would already be cancelled by the time the store saw it (`pages-a-page-may-save-itself`).
         pages.Revisions.OnSave = _ => render.Cancel();
         PageEditResult result = await scope.SaveAsync("/page", "second", first.Revision.Hash);
 

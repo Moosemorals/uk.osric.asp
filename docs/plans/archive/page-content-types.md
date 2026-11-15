@@ -7,9 +7,9 @@ SPDX-License-Identifier: MIT
 
 Status: **implemented 2026-11-08**. Written 2026-11-07; revised 2026-11-08 so that the map and
 the fallback are configuration rather than a table in code, and so that caching is one default with
-a per-page opt-out. This is now the record of that work: the decision is DEC-144 and the behaviour is
+a per-page opt-out. This is now the record of that work: the decision is `pages-content-types` and the behaviour is
 recorded in [pages](../../pages.md#page-contract). It changed the page contract, so
-every stored image is recompiled on its next request (DEC-26); it did not change the page SDK, the
+every stored image is recompiled on its next request (`pages-compile-on-save`); it did not change the page SDK, the
 template language, the compiler or the page store schema. One thing here was not built: nothing
 consumes the source-language kind decision 4 proposed, so `ForPath` returns the media type string and
 the kind arrives with the validator that needs it (IDEA-021).
@@ -254,7 +254,7 @@ with no settings at all, and one render cannot see two versions of it. No SDK ch
 
 `SimpleContext.ToResponse` adds `Cache-Control: no-cache` when the page has not set a `Cache-Control`
 header of its own. A page opts out with `ctx.SetHeader("Cache-Control", "max-age=3600")`, which
-already works because `Cache-Control` is on the page header allow-list (DEC-32) and the page's value
+already works because `Cache-Control` is on the page header allow-list (`pages-headers-are-an-allow-list`) and the page's value
 is what gets written.
 
 This replaces the narrower rule the first draft had, where a mapped type other than the fallback got
@@ -473,7 +473,7 @@ Seed tests:
 ## Risks and open questions
 
 - **Core module version.** Adding `PageContentTypes` to `Core` changes `Core`'s MVID, so
-  `RuntimeId` changes and every stored image is recompiled on its next request (DEC-26). That is a
+  `RuntimeId` changes and every stored image is recompiled on its next request (`pages-compile-on-save`). That is a
   one-time cost, and it is the last one this feature causes: the map is not compiled in, so editing
   it later changes no page's identity.
 - **A valid but wrong map.** Validation catches a malformed row, not a `.js` row that points at

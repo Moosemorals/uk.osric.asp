@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Configuration;
 /// <remarks>
 /// <para>
 /// There is no host allow-list: any absolute <c>http</c> or <c>https</c> URL is reachable, and the
-/// guards here are about shape and size rather than destination (DEC-216). The container's egress
+/// guards here are about shape and size rather than destination (`pages-outbound-fetch`). The container's egress
 /// is not otherwise restricted, so this is a footgun guard, not a sandbox.
 /// </para>
 /// <para>

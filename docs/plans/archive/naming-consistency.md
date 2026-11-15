@@ -10,7 +10,7 @@ to be worth more than the prefix. This plan applies it to the verticals that rew
 it does not apply, and carries the same idea down to members so that a reader six months cold can
 predict a name instead of grepping for it.
 
-**Status:** implemented on 2026-11-06, in eight commits — see [DEC-122](../../decisions.md#build-test-and-house-style).
+**Status:** implemented on 2026-11-06, in eight commits — see `code-names-say-what-they-are`.
 
 ## The short version
 
@@ -455,7 +455,7 @@ until the previous one is green.
 | 5 | Rename the test suites named after a renamed type | 9 | `make test` |
 | 6 | Metrics: one meter, two instruments, and their `AddView` keys | — | `make test`, then read the `/metrics` scrape by eye |
 | 7 | Members: the remaining booleans, `IsSuccess`, the two endpoint entry points | — | `make test` |
-| 8 | Docs, DEC-122, the deployment note, and OPS-06 | — | `make check` |
+| 8 | Docs, `code-names-say-what-they-are`, the deployment note, and OPS-06 | — | `make check` |
 
 Phase 2 excludes the entities so that the migration work happens in exactly one place, after the rest
 of the vertical has settled.
@@ -485,10 +485,10 @@ one row per judgement, and it is easier to argue about once the type names have 
 
 - [architecture.md](../../architecture.md) — the "where does code go?" table names
   `SqliteAssistantConversationStore`; it becomes `SqliteConversationStore`.
-- [decisions.md](../../decisions.md) — DEC-122, recording the rule, the subsystem/domain line, and the
+- [decisions.md](../../decisions.md) — `code-names-say-what-they-are`, recording the rule, the subsystem/domain line, and the
   old→new mapping, so that someone grepping for `AssistantRun` after the change finds the answer:
 
-  > **DEC-122** — A type name does not repeat its namespace, at the start, in the middle or at the
+  > **`code-names-say-what-they-are`** — A type name does not repeat its namespace, at the start, in the middle or at the
   > end. A namespace names either where code lives or what code is about: a subsystem (`Assistant`,
   > `Metrics`, `Storage`, `Authentication`, `Health`, `Admin`) can lose its name; a domain (`Pages`,
   > `Users`, `Charting`, `Text`, `Editor`) cannot, because there the qualifier is the subject. Where
@@ -502,7 +502,7 @@ one row per judgement, and it is easier to argue about once the type names have 
   plan.)
 - [ai-page-assistant.md](ai-page-assistant.md) and [assistant-browser-tests.md](assistant-browser-tests.md)
   and [the assistant](../../assistant.md#ai-page-assistant) name types too. These describe work that is already finished, so
-  they get one line under their status saying the type names predate DEC-122, rather than a rewrite
+  they get one line under their status saying the type names predate `code-names-say-what-they-are`, rather than a rewrite
   that would misrepresent what was implemented.
 - [deploy/README.md](../../../deploy/operations.md#storage-and-migrations) — the once-only removal of both
   volumes and the account recreation after the squash.
@@ -520,7 +520,7 @@ one row per judgement, and it is easier to argue about once the type names have 
 | `HasGeneratedTitle` drifts from the raw SQL copy of the column name | One phase, one commit, and `AssistantConversationStoreTests` covers the title-upgrade path |
 | `IsSuccess` touches five `public` Core types | It is a property rename in one commit; the compiler finds every call site |
 | `Message` and `ChatMessage` read alike where both appear | Only `RunProcessor` uses both, and only in `ToChatMessage(Message message)`, where the mapping is the point |
-| Findability: `AssistantRun` stops matching anything in code | DEC-122 carries the mapping; `AssistantRuns` (the table) still greps |
+| Findability: `AssistantRun` stops matching anything in code | `code-names-say-what-they-are` carries the mapping; `AssistantRuns` (the table) still greps |
 | Blame and history churn across 68 source files and 5 documents | One commit per phase, so `git log --follow` needs at most one hop per file |
 | A rename leaks into a wire string | The "what must not change" table, plus `rg -w` before and after, plus `make test-integration` and `make test-browser` |
 | The member phase becomes a style debate | Its table is closed: four boolean renames and two endpoint names. Everything else is recorded as deliberately unchanged |

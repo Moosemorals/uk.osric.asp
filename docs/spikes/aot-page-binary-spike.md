@@ -223,7 +223,7 @@ libicu 78, because a static musl executable cannot `dlopen`. A page binary there
 - H5 still fails, but only as a latency number. The architecture now works as an *asynchronous*
   build with the previous binary serving: per-page Ready/Building/Failed/Stale state, a rebuild at
   boot and after a `Core` deploy, and ~5.5 s/page throughput.
-- Nothing here changes DEC-40/DEC-41: the process boundary is still deliberately unbuilt while the
+- Nothing here changes `pages-there-is-no-sandbox`: the process boundary is still deliberately unbuilt while the
   owner is the only page author. If that boundary is wanted, the build half is now affordable; it is
   still not fast enough to make saving a page synchronous.
 

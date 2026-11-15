@@ -24,20 +24,20 @@ reports "no vulnerable or deprecated packages".
 Four later pieces of work changed the shell this plan draws. Each was decided on its own terms, and
 they are listed here so that a reader does not take a sentence below for the current code:
 
-- **DEC-115** (`c8317f0`) made every form's fields a `dl` of `dt`/`dd` pairs in a two-column grid,
+- **`shell-the-markup-is-semantic`** (`c8317f0`) made every form's fields a `dl` of `dt`/`dd` pairs in a two-column grid,
   with a shared rule to keep it that way, so a label is no longer a bare `<label for>` in a form.
-- **DEC-116** (`695f4c0`) links `/layout.css` **first**, then `/site.css` and the view's own sheet,
+- **`pages-one-base-sheet`** (`695f4c0`) links `/layout.css` **first**, then `/site.css` and the view's own sheet,
   reversing D7's order and the stale-seed risk that order was chosen to avoid; the gutter's colour
   moved into `editor.css` with it, since `/layout.css` no longer gets the last word.
-- **DEC-121** (`7701085`) removed the skip link: `main` is the body's only element, so the link
+- **`pages-the-document-is-the-shells`** (`7701085`) removed the skip link: `main` is the body's only element, so the link
   targeted the element immediately after it and passed nothing. The `main` of D1 stands; the link
   waits for the chrome it would skip.
-- **DEC-120** (`c099c67`) added an opt-in browser suite, so "no browser test" here means "none in
+- **`code-browser-suite-is-opt-in`** (`c099c67`) added an opt-in browser suite, so "no browser test" here means "none in
   the shell's own suites". The page assistant's views also joined the shell after BUG-16 closed, and
   `AccessibilityTests` covers them too.
 
 The decisions D1–D14 are kept as they were argued. Those four are the substantial corrections; the
-smaller drift — a name that followed the pipeline (DEC-114, so the editor's field is `template` and
+smaller drift — a name that followed the pipeline (`pages-names-follow-the-pipeline`, so the editor's field is `template` and
 not `content`), views that did not exist yet — is visible in the code and not repeated here.
 
 ## Goal and constraints
@@ -443,7 +443,7 @@ database, driven in the VS Code integrated browser (Chromium) at `127.0.0.1:5199
   320px requirement — `/edit` and `/edit/site.css` keep the document from scrolling sideways: the
   listing wraps to three-line rows and the editor's textarea shrinks to 106px and scrolls its own
   content. The history table does not, at 1110px, and that is the known follow-up above.
-- **The skip link.** None, as DEC-121 decided, and no positive `tabindex` anywhere.
+- **The skip link.** None, as `pages-the-document-is-the-shells` decided, and no positive `tabindex` anywhere.
 - **`/status` was not walked.** Its charts need Prometheus at `localhost:9090`, which this run did
   not have, so the chart half of the earlier table still rests on the markup and the sheets.
 

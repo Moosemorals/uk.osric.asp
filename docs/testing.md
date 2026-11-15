@@ -186,7 +186,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   one `main`. In the integration suite, `SiteChromeTests` compares the document shape the shell
   writes with the one the seeded layout writes, so the two cannot drift apart silently.
   **What a string cannot show** — the accessibility tree, tab order, focus visibility, zoom and
-  reflow, contrast, and how a chart is read aloud — is a written hand pass (DEC-110), with its
+  reflow, contrast, and how a chart is read aloud — is a written hand pass (`shell-accessibility-is-asserted`), with its
   findings recorded beside the plan.
 - **The execution budget** is tested in `Web.Tests` (`PageRendererTests` for the render deadline, the
   render queue, the abandoned context and the body cap; `PageImageBuilderTests` for the compile queue
@@ -272,7 +272,7 @@ there.
 
 `test/uk.osric.asp.Web.BrowserTests` is out of `make check`, for the same reason `image-check` is: it
 needs a downloaded browser, it takes a couple of minutes, and a suite that can flake is a suite people
-stop running. `make deploy` runs it before the image is built (DEC-179), because a deploy is where two
+stop running. `make deploy` runs it before the image is built (`code-browser-suite-is-opt-in`), because a deploy is where two
 minutes is cheap and where "the site serves a page in a browser" has to be true. It references neither
 the app nor the test doubles the other suites use. Instead it starts the built app as a child process
 on a loopback port, with a throwaway SQLite file and a scripted provider, and drives the pages it
@@ -340,7 +340,7 @@ local tool, so a fresh checkout needs `dotnet tool restore` (the targets do it).
 
 There is no CI service in this repository: `make check` is the gate, run on demand. `make deploy` runs
 it before the image is built, plus the browser suite, which is the one check too slow for the gate a
-change is run against all day (DEC-179). `make ci` adds a clean tree at both ends — nothing left over
+change is run against all day (`code-browser-suite-is-opt-in`). `make ci` adds a clean tree at both ends — nothing left over
 from an earlier run may hide a missing input, and a build that rewrites a tracked file fails rather
 than being noticed weeks later (BUG-11).
 

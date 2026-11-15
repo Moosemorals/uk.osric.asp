@@ -13,17 +13,17 @@ SPDX-License-Identifier: MIT
 
 ## Idea
 
-[Configuration](../architecture.md#configuration) is now the only source of a policy value (DEC-282): a
+[Configuration](../architecture.md#configuration) is now the only source of a policy value (`code-policy-values-are-configuration`): a
 missing or unusable one stops the site at startup. What is left in code is deliberate, and listed here so the
 exception does not become silent.
 
 | Value | Where | Why it stays |
 | --- | --- | --- |
-| Password length 12–1024 | `PasswordPolicy` | DEC-48 fixes it. A shorter password is a weaker one, so the only direction configuration could move it is down |
+| Password length 12–1024 | `PasswordPolicy` | `auth-passwords` fixes it. A shorter password is a weaker one, so the only direction configuration could move it is down |
 | User name length 64 | `UserName` | The same number is a column length and four EF models' `HasMaxLength`; it is a schema constraint before it is a policy |
-| The header set and the CSP | `SecurityHeaders` | DEC-34 and the frame, referrer and permissions rules. A wider policy is the only thing a setting could ask for |
-| The page API allow-list | `PageApiPolicy` | DEC-35 makes it default-deny data in `Core`; a page that could change it would be granting itself APIs |
-| The 1 MiB form body, and the parser's count and header limits | `PageEndpoint`, `Program` | DEC-34. The upload cap that is policy is already `Pages:Archive:MaxUploadBytes` |
+| The header set and the CSP | `SecurityHeaders` | `pages-the-response-is-buffered-until-a-flush` and the frame, referrer and permissions rules. A wider policy is the only thing a setting could ask for |
+| The page API allow-list | `PageApiPolicy` | `pages-the-api-policy` makes it default-deny data in `Core`; a page that could change it would be granting itself APIs |
+| The 1 MiB form body, and the parser's count and header limits | `PageEndpoint`, `Program` | `pages-the-response-is-buffered-until-a-flush`. The upload cap that is policy is already `Pages:Archive:MaxUploadBytes` |
 | Compile attempts, SQLite retries | `PageRenderer`, `SqliteErrors` | Internal recovery behaviour: a different number is a different algorithm, not an operator preference |
 | Cleanup and sample periods | the background services | Implementation detail with no observable policy behind it |
 

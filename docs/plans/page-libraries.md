@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Done — phases 0–4 landed in DEC-283–DEC-289; see [Status](#status) |
+| Status | Done — phases 0–4 landed in `pages-a-page-is-one-of-three-kinds`, `pages-a-library-is-named-by-a-using`, `pages-the-document-is-the-shells`; see [Status](#status) |
 | Size | Large — a kind in the compiler, a column and its migration, an index and a closure, a per-tree policy, a source on every diagnostic, and the end of `PageDocument` in `Sdk` |
 | Spike | None. The tokenizer already reports the declarations, `TemplateHasCode` already proves a verdict can come from generation, and Roslyn already compiles more than one tree |
-| Decisions | DEC-283–DEC-289: the three kinds, the `using` closure, the per-tree policy, the fingerprint, a library's storage, the shell's document, and the shared assembly not built. DEC-240's rule is kept and its column replaced, DEC-151's comparison test is extended to the document, and DEC-156's `Sdk` half is superseded |
+| Decisions | `pages-a-page-is-one-of-three-kinds`, `pages-a-library-is-named-by-a-using`, `pages-the-document-is-the-shells`: the three kinds, the `using` closure, the per-tree policy, the fingerprint, a library's storage, the shell's document, and the shared assembly not built. `pages-an-asset-is-a-page-with-no-code`'s rule is kept and its column replaced, `shell-the-menu-is-written-twice`'s comparison test is extended to the document, and `pages-the-document-is-the-shells`'s `Sdk` half is superseded |
 | Backlog | [IDEA-005](../jobs/README.md#closed) — the layout half landed; this is the shared-code half, and the job closes with it |
 
 ## The short version
@@ -70,20 +70,20 @@ The document builder then has somewhere else to live. It merges into `ShellDocum
 | Library | only `<%! %>` blocks, and text that is whitespace | `404` | checked, never invoked | never | the API policy, its own types, the libraries it names |
 
 The last line is the whole of what "pure C#" means: the page has nothing to render, so the render
-mechanisms are not offered to it. It is the mirror of DEC-239's no-code page, which is a complete
+mechanisms are not offered to it. It is the mirror of `pages-an-asset-is-a-page-with-no-code`'s no-code page, which is a complete
 representation and so gets no chrome.
 
 ## Decisions
 
 ### D1 — the verdict is one kind, not a second flag
 
-`TemplateGenerationResult` already answers `HasCode` from the tokens (DEC-240). It grows a **kind**,
+`TemplateGenerationResult` already answers `HasCode` from the tokens (`pages-an-asset-is-a-page-with-no-code`). It grows a **kind**,
 and the column becomes `PageRevisions.TemplateKind` (nullable; `0` text, `1` code, `2` library). The
 migration derives it from `TemplateHasCode` and then drops that column: `0 → text`, `1 → code`,
 `NULL → NULL`. A second nullable bool would let "library" and "has code" disagree, and the state words
 and the asset rule would each have to remember the invariant.
 
-DEC-240's rule is kept — the verdict comes from generation, is stored beside the source, and a
+`pages-an-asset-is-a-page-with-no-code`'s rule is kept — the verdict comes from generation, is stored beside the source, and a
 `NULL` means never judged — and its column is replaced in the same change. `PageAssetPolicy.IsAsset`
 becomes `kind is PageKind.Text`; `PageEntry.IsAsset` keeps its meaning and gains `IsLibrary`.
 
@@ -213,10 +213,10 @@ Once a library can write one, the page side does not need the shell's copy.
 
 It moves into `src/uk.osric.asp.Web/Html/` and into `ShellDocument` itself; the public type leaves
 `Sdk` and `PublicAPI.Shipped.txt`. The shell keeps writing its own document, because the error,
-sign-in and status routes must answer when the page pipeline is broken (DEC-151) — that is the drift
+sign-in and status routes must answer when the page pipeline is broken (`shell-the-menu-is-written-twice`) — that is the drift
 being accepted, deliberately.
 
-The mitigation is the test DEC-151 already uses for the menu: an integration test that renders a shell
+The mitigation is the test `shell-the-menu-is-written-twice` already uses for the menu: an integration test that renders a shell
 view and the seeded layout and compares the document shape, so the skip link, the one `main`, the
 sheet order and the icon cannot drift apart silently.
 
@@ -250,7 +250,7 @@ then a library fix takes effect only as each page is recompiled later; that is a
 own, and it is not what this plan does.
 
 **Versioned URLs are not at risk.** `?v=` on a revision with code renders it rather than promising a
-byte sequence — the `immutable` promise belongs to a no-code asset (DEC-239, DEC-241) — so a moved
+byte sequence — the `immutable` promise belongs to a no-code asset (`pages-an-asset-is-a-page-with-no-code`, `pages-a-versioned-url-promises-immutable`) — so a moved
 library makes that revision stale and it recompiles from its own source. Only a design that pins
 library revisions would need a retention rule, and nothing here pins them.
 
@@ -371,7 +371,7 @@ phase 2 is the migration; phase 3 is the mechanism; phase 4 is the seed and the 
 - `/help`: the library kind end to end, with the static-state caveat and the `WebUtility` example of
   what the policy still denies.
 - `PageDocument` merges into `ShellDocument` (D10), the seed calls the library (D11), the drift test
-  lands, DEC-156's `Sdk` half is superseded and IDEA-018 closes with it.
+  lands, `pages-the-document-is-the-shells`'s `Sdk` half is superseded and IDEA-018 closes with it.
 - The second numbers: `/_layout`'s compile duration and image size before and after it calls the
   library document, recorded beside phase 3's.
 - The documents: [pages](../pages.md) (three kinds, the closure), [shell](../shell.md) (the layout is
@@ -467,7 +467,7 @@ instrument is `page.cache.staleness{reason="library-changed"}`.
   `/pages` that names `PageDocument` no longer compiles, so seeding replaces that seed with the shipped
   version once, logs the key it rewrote, and leaves the revision it replaced in the page's history.
   `/admin/restore` shows the pair, and everything else the owner wrote is untouched.
-- **Decisions recorded at the merge:** DEC-283–DEC-289, listed above.
+- **Decisions recorded at the merge:** `pages-a-page-is-one-of-three-kinds`, `pages-a-library-is-named-by-a-using`, `pages-the-document-is-the-shells`, listed above.
 - [`docs/decisions.md`](../decisions.md), [shell](../shell.md), [pages](../pages.md), [testing](../testing.md),
   [jobs](../jobs/README.md) (IDEA-005 and IDEA-018 close), and the seeded `/help` are updated on the
   branch.

@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started — waiting on the owner's yes (DEC-281) |
+| Status | Planned, not started — waiting on the owner's yes (`product-steps-wait-for-the-owner`) |
 | Size | Small — one pure parse, one value on the client's answer, one sampler, one gauge, one panel and one key, with the tests for each |
 | Area | Core (assistant), Web (assistant, metrics, configuration) |
 | Spike | None. `/user/balance` is already read on every conversation page view, its JSON is already parsed, and the observability shape is the one `PageStorageSampler` already uses |
 | Backlog | [IDEA-032](../jobs/IDEA-032.md) |
-| Decisions | D1–D6 below; numbered from [decisions](../decisions.md) when the work merges |
+| Decisions | D1–D6 below; named from [decided](../decided.md) when the work merges |
 
 ## The short version
 
@@ -21,7 +21,7 @@ This change gives it history:
 
 - **One instrument.** `assistant.balance`, a gauge in `uk.osric.asp.Assistant`, unit `{credit}`, tagged
   `currency`. One line per currency on `/status`, and the panel is a line chart because a gauge is a
-  level already (DEC-180, DEC-183).
+  level already (`metrics-one-panel-per-instrument`).
 - **One sample on a clock.** A sampler reads the balance at startup and then every
   `Assistant:BalanceSampleSeconds`; the gauge reports the last snapshot, so a scrape never causes an
   outbound call and a slow provider never holds one.
@@ -89,7 +89,7 @@ The panel is a line chart, titled "Account credit", its value axis `credit`, and
 currency: `max by (currency) (assistant_balance)`. `StatusCatalogue.Line` grows a `by:` argument,
 used only when the instrument is a gauge, so `max by (currency)` replaces the bare `max` that would
 otherwise merge two currencies into one line. Each currency is then a series, labelled at the end of
-its line, which is how every other chart in the catalogue names its series without colour (DEC-182).
+its line, which is how every other chart in the catalogue names its series without colour (`metrics-a-series-is-identified-without-colour`).
 
 Why a label rather than a currency in the name: the provider decides which currencies it reports, and
 it reports the ones the account is held in — one or two, never visitor input — so the label is
@@ -173,7 +173,7 @@ code, never the body.
 `Assistant:BalanceSampleSeconds`, read with `reader.Number("BalanceSampleSeconds", recommended: 60,
 minimum: 30, maximum: 3600)`, added to `appsettings.json` beside `BalanceTimeoutSeconds`.
 
-It is policy and not an invariant: a cadence for an outbound call is a quota (DEC-282), it is what
+It is policy and not an invariant: a cadence for an outbound call is a quota (`code-policy-values-are-configuration`), it is what
 decides how much history a day has and how much the provider is asked, and the owner may reasonably
 want a quieter site. The range is a safety net rather than a ration: thirty seconds is as often as is
 polite to a provider, an hour is the widest interval that still shows a day's shape, and the shipped
@@ -272,7 +272,7 @@ tests are green.
   effective price.
 - `docs/assistant.md` — one sentence where the balance panel is described: the conversation page
   reads it afresh for its own display, and the sampler reads it on its own clock for the chart.
-- `docs/decisions.md` — D1–D6 numbered on merge (DEC-281).
+- `docs/decisions.md` — D1–D6 numbered on merge (`product-steps-wait-for-the-owner`).
 
 ## Risks
 

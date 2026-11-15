@@ -7,7 +7,7 @@ namespace uk.osric.asp.Web.Pages;
 /// <remarks>
 /// Two things end a capability call early: the render's deadline, and the render being given up on.
 /// Both come from the shell, never from the page, because the SDK has no abandonment member
-/// (DEC-123).
+/// (`pages-page-io-is-async`).
 /// </remarks>
 internal interface IRenderBoundCapability {
 

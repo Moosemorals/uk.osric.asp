@@ -7,62 +7,62 @@ SPDX-License-Identifier: MIT
 
 Status: **implemented** 2026-11-09, in the order the phases below set out. Written 2026-11-09, now
 that IDEA-015 has landed: review chose a capability reached through `ctx.Features` with nothing added
-to `IContext` for the read ([page store read](page-store-read.md), DEC-168–DEC-175), and the same
+to `IContext` for the read ([page store read](page-store-read.md), `pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`), and the same
 shape is used here. The authority is deliberately **not** symmetric with the read: the read is as
-public as the page that calls it (DEC-169), and this write requires a signed-in visitor (DEC-190). The
+public as the page that calls it (`pages-reading-the-store-is-public`), and this write requires a signed-in visitor (`pages-a-page-may-save-itself`). The
 job was [IDEA-016](../../jobs/README.md#closed).
 
 ## The short version
 
 - **IDEA-016 lands as one capability.** `ctx.Features.GetRequired<IPageWriter>().SaveAsync(template)`
-  saves the calling page's own source. **`IContext` gains nothing** (DEC-168, DEC-189).
+  saves the calling page's own source. **`IContext` gains nothing** (`pages-the-store-is-read-through-one-seam`, `pages-a-page-may-save-itself`).
 - **One write and no key.** The handle is bound to `ctx.Path`, exactly as `IPageStorage` is
-  (DEC-125): isolation is structural, and a page cannot name another page. A page that needs to write
+  (`pages-page-storage`): isolation is structural, and a page cannot name another page. A page that needs to write
   a *named* key is [IDEA-017](../../jobs/IDEA-017.md).
 - **Authority is asymmetric, on purpose.** The read is permissive because a page's output is already
   public; a write changes the site, so it is authority, and authority is the shell's. `SaveAsync`
   refuses an anonymous render **before it compiles or stores anything**, and says so in words the
-  visitor can act on (DEC-190). A page that would rather send the visitor to sign in guards its own
+  visitor can act on (`pages-a-page-may-save-itself`). A page that would rather send the visitor to sign in guards its own
   form, and the demo page does.
 - **A save belongs to the next request.** The running image is already loaded; the write is a
   revision. The response in hand is still the old page unless the page shows the result it just got,
-  which is exactly what the demo page does (DEC-195).
+  which is exactly what the demo page does (`pages-a-page-may-save-itself`).
 - **One saver, one insert.** The page's save is the shell's save: `PageEditor.SaveAsync`'s body moves
   into a singleton `PageSaver`, and the insert becomes one context per save over the context factory,
   calling the *same* statement the editor, the seed restore and the import batch already call. There
-  is no second writer (DEC-175, DEC-192).
+  is no second writer (`pages-page-first`, `pages-a-page-may-save-itself`).
 - **A started save is never abandoned.** The wait for a compile slot ends at the render's deadline, but
   a compile that has begun runs to its own timeout and the revision is stored, because losing the
-  author's edit is the one loss this site already refuses (DEC-20, DEC-23, DEC-43, DEC-191).
+  author's edit is the one loss this site already refuses (`pages-a-compiler-fault-is-ours`, `pages-a-warning-never-stops-a-page`, `pages-the-execution-budget`, `pages-a-page-may-save-itself`).
 - **The diagnostics are `Sdk` values**: severity, 1-based template line and column, the author-facing
-  code and its text. `Core` keeps its own type and the capability maps (DEC-88, DEC-193).
+  code and its text. `Core` keeps its own type and the capability maps (`pages-the-contract-is-the-seam`, `pages-a-page-may-save-itself`).
 - **One seeded demo page.** `/scratch` is a page that shows its own source in a textarea and saves
   itself, with the next-request rule and the stale-form courtesy check visible in its source
-  (DEC-196).
+  (`pages-scratch-saves-itself`).
 
 ## Goals
 
-- A page can be its own editor, which is what DEC-01 says the product is: the 1999 textarea-and-save
+- A page can be its own editor, which is what `product-a-page-that-edits-itself` says the product is: the 1999 textarea-and-save
   experience, with the compile and the diagnostics the shell already gives the owner.
 - The write is as safe as the shell's save and no safer-looking than it is: same compile, same
-  insert, same revision, same `page.save.duration`, same image state on the page list (DEC-165).
+  insert, same revision, same `page.save.duration`, same image state on the page list (`pages-a-page-has-a-state`).
 - The authority question is answered once, in the capability, in the direction the site already
-  answers it: a write needs an identity, a read does not (DEC-190).
+  answers it: a write needs an identity, a read does not (`pages-a-page-may-save-itself`).
 - A page that saves can render its own answer — clean, warnings, or errors with positions — without
   a second render and without a per-visitor message (that is [IDEA-014](../../jobs/README.md)).
-- Nothing a page can name comes from `Core` or `Web` (DEC-88).
+- Nothing a page can name comes from `Core` or `Web` (`pages-the-contract-is-the-seam`).
 
 ## Non-goals
 
 - **A named key.** `SaveAsync` takes no path; a page writes itself and nothing else. Widening it is
   [IDEA-017](../../jobs/IDEA-017.md), which is also where the editor becomes a page.
-- **Delete, scrub, restore a seed, import, export.** The shell keeps every one of them (DEC-175).
+- **Delete, scrub, restore a seed, import, export.** The shell keeps every one of them (`pages-page-first`).
 - **A rename.** A save appends a revision at the page's own key; moving a key is not a write.
 - **Conditional saves in the contract.** The editor's `SaveIfRevisionAsync` stays the shell's. A page
   that wants a "somebody else saved this" message compares the hash it read with the head it reads
   again, using the read it already has (D1, D8).
 - **A second render after the save.** A page saves, then answers; the next request serves the new
-  revision (DEC-195). Streaming is [ARCH-13](../../jobs/README.md)'s.
+  revision (`pages-a-page-may-save-itself`). Streaming is [ARCH-13](../../jobs/README.md)'s.
 - **A preview, an autosave, or scripted editing.** [IDEA-001](../../jobs/IDEA-001.md) covers the
   editor's client side.
 - **New caps or a `Pages:Write` section.** A save is bounded by limits the site already has (D5).
@@ -75,14 +75,14 @@ Checked against the code on 2026-11-09.
 - **The contract is `IContext` plus `Features`, and five capabilities are registered**: `IPageStorage`,
   `IHttpFetch`, `IPageCatalog`, `IPageLayout` and `IMarkdownRenderer`
   ([IContext.cs](../../../src/uk.osric.asp.Sdk/IContext.cs), [pages](../../pages.md#page-contract),
-  DEC-142). Nothing has been added to `IContext` since the capabilities moved there, and the read did
-  not add anything either (DEC-168).
+  `pages-capabilities-are-one-seam`). Nothing has been added to `IContext` since the capabilities moved there, and the read did
+  not add anything either (`pages-the-store-is-read-through-one-seam`).
 - **A capability is offered by the host and cannot be added to by a page**, and it is registered or
-  absent, never `null` ([IPageFeatures.cs](../../../src/uk.osric.asp.Sdk/IPageFeatures.cs), DEC-143).
+  absent, never `null` ([IPageFeatures.cs](../../../src/uk.osric.asp.Sdk/IPageFeatures.cs), `pages-capabilities-are-one-seam`).
 - **A capability that does I/O is bound to the render.** `PageStorageScope` is the model: bound to the
   page's key, refuses a write on a `HEAD`, throws when the render was abandoned, and passes the
   render's deadline into the store call ([PageStorageScope.cs](../../../src/uk.osric.asp.Web/Pages/PageStorageScope.cs),
-  DEC-123, DEC-125, DEC-126).
+  `pages-page-io-is-async`, `pages-page-storage`).
 - **`ctx.Path` is canonical and a reserved key never renders.** `PageEndpoint` answers `404` for a key
   `Pages:ReservedPaths` claims, and `PageChain` refuses to use one as a layout, so "a page cannot save
   a reserved key" is structural rather than a check that could drift
@@ -102,7 +102,7 @@ Checked against the code on 2026-11-09.
   itself faults. `/edit`, seed restore and every assistant save tool reach the store through it
   ([PageEditor.cs](../../../src/uk.osric.asp.Web/Editor/PageEditor.cs),
   [EditorEndpoint.cs](../../../src/uk.osric.asp.Web/Editor/EditorEndpoint.cs),
-  [PageToolExecutor.cs](../../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs), DEC-175).
+  [PageToolExecutor.cs](../../../src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs), `pages-page-first`).
 - **The one insert statement is `SqlitePageStore.WriteRevisionAsync`**: the revision row, then the
   head upsert, in one transaction, used by the single save and by the import batch alike
   ([SqlitePageStore.cs](../../../src/uk.osric.asp.Web/Pages/SqlitePageStore.cs),
@@ -113,27 +113,27 @@ Checked against the code on 2026-11-09.
   singletons over `IDbContextFactory<StorageDbContext>` precisely because "a render that was abandoned
   can outlive the request scope, and a page's task must never touch a disposed one"
   ([Program.cs](../../../src/uk.osric.asp.Web/Program.cs),
-  [SqlitePageStateStore.cs](../../../src/uk.osric.asp.Web/Pages/SqlitePageStateStore.cs), DEC-172).
+  [SqlitePageStateStore.cs](../../../src/uk.osric.asp.Web/Pages/SqlitePageStateStore.cs), `pages-the-store-is-read-through-one-seam`).
 - **A render's deadline does not cancel a compile.** The wait for a compile slot is abandoned at the
   deadline because nothing has been compiled; a compile that has started runs to
   `Pages:Compile:TimeoutSeconds` (10 s) and stores its image, while `Pages:Render:TimeoutSeconds` is
   5 ([PageImageBuilder.cs](../../../src/uk.osric.asp.Web/Pages/PageImageBuilder.cs),
-  [appsettings.json](../../../src/uk.osric.asp.Web/appsettings.json), DEC-43).
+  [appsettings.json](../../../src/uk.osric.asp.Web/appsettings.json), `pages-the-execution-budget`).
 - **A save stores what it compiled.** An error is stored and reported, a warning keeps its image, and
-  a compiler fault stores the template and rethrows (DEC-20, DEC-23, DEC-178).
+  a compiler fault stores the template and rethrows (`pages-a-compiler-fault-is-ours`, `pages-a-warning-never-stops-a-page`).
 - **`Core.Compilation.PageDiagnostic` is `(Severity, TemplatePosition?, Message)`**, positions are
   1-based template space with unknown as `null`, and the message is `{code}: {text}` — `PAGE001: …`,
   `TEMPLATE001: …`, `SCRIPT002: …`, and Roslyn's `CS####: …`
-  ([PageDiagnostic.cs](../../../src/uk.osric.asp.Core/Compilation/PageDiagnostic.cs), DEC-22, DEC-21).
+  ([PageDiagnostic.cs](../../../src/uk.osric.asp.Core/Compilation/PageDiagnostic.cs), `pages-what-a-diagnostic-is`).
   The code is therefore not a field; it is the prefix of the message, in one form every producer
   writes. The editor shows `PageDiagnostic.ToString()` as a single line.
 - **A page may name only `Sdk` and the allow-listed base types**, and a type in `uk.osric.asp.Sdk` is
   admitted by the namespace rule, so new contract values need no policy change
-  ([PageApiPolicy.cs](../../../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs), DEC-88).
+  ([PageApiPolicy.cs](../../../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs), `pages-the-contract-is-the-seam`).
 - **`Sdk` declares what it publishes**, so four new types — and every member of them — are a
-  deliberate edit to `PublicAPI.Unshipped.txt` (DEC-166).
+  deliberate edit to `PublicAPI.Unshipped.txt` (`code-nothing-public-without-a-caller`).
 - **`/help` is the author manual and a seed**, and a change to what a page may do updates it in the
-  same change ([help](../../../src/uk.osric.asp.Web/Pages/Seeds/help), DEC-173). The author prompt is
+  same change ([help](../../../src/uk.osric.asp.Web/Pages/Seeds/help), `product-manual-is-a-page`). The author prompt is
   `page-author-v11`.
 - **`/scratch` is free**: no seed claims it, and it is not reserved ([Seeds](../../../src/uk.osric.asp.Web/Pages/Seeds),
   [ReservedPaths.cs](../../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs)).
@@ -142,23 +142,23 @@ Checked against the code on 2026-11-09.
 
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
-| [IDEA-016](../../jobs/README.md#closed) | A page cannot save its own source; no write member and no `Sdk` diagnostic; a save bound to `ctx.Path`, compiled before it is stored, answering with diagnostics and the hash; authority stays with the shell | **Implements it**, as a capability rather than an `IContext` member, with the check in the capability rather than in `SimpleContext` (DEC-189, DEC-190) |
-| [IDEA-015](../../jobs/README.md) (closed) | The read is a capability, public by default, and the shell keeps every write (DEC-168–DEC-175) | Follows the shape and reverses the authority for the write, on purpose: a disclosure and a change are not the same act (DEC-190) |
-| [IDEA-017](../../jobs/IDEA-017.md) | A page cannot edit another page; the full editor is the last of the capability jobs | Hands it the saver and the capability; what it adds is a key (DEC-192) |
-| [IDEA-014](../../jobs/README.md) | A page cannot keep per-visitor state, so a form cannot redirect and say why | Untouched, and the reason the demo page answers the save in the response it is already writing (DEC-195) |
-| DEC-168, DEC-169 | The store read is a capability and is public | The pattern, applied with the opposite answer for authority |
-| DEC-175 | The shell keeps every write; IDEA-016 reuses `PageEditor.SaveAsync` rather than opening a second writer | Kept literally: the saver and the insert move, they are not copied (DEC-192) |
-| DEC-125, DEC-126 | `IPageStorage` is bound to the page's key; a `HEAD` reads but never writes | Followed in shape: this handle is bound to `ctx.Path` and refuses a `HEAD` |
-| DEC-123 | I/O on a capability is a `Task`, takes no token, and is linked to the render's deadline | Followed, with one stated exception: a save that has begun finishes (DEC-191) |
-| DEC-43, DEC-20, DEC-23 | A compile is not cancelled by a deadline; a compiler fault keeps the source; a warning keeps its image | Extended to the save: the revision is stored even when the response has already given up (DEC-191) |
-| DEC-02, DEC-03, DEC-132 | Pages are public by default; any account is an owner; only the editor is behind a route policy | The write requires that owner and there is still no role: one signed-in visitor, no ownership of a page (DEC-190) |
-| DEC-142, DEC-143 | A capability is registered or absent, never `null`; the host decides what a render offers | A sixth capability, registered for every content render and refused per call rather than withheld |
-| DEC-158 | A layout is pure markup and may not set the response | The writer is offered to the content layer only, so a layout cannot rewrite itself on every request (DEC-194) |
-| DEC-165, DEC-178 | A page has an image state that the page list, history and assistant all read | Unchanged: a page's save is a save, so the state is the one the editor already shows |
-| DEC-26 | `RuntimeId` includes the Sdk module version id | One deliberate bump: new contract types invalidate every stored image, which recompiles on its next request |
-| DEC-166 | `Sdk` declares every public symbol | Four new types, declared member by member in `PublicAPI.Unshipped.txt` |
-| DEC-173 | `/help` is the manual and is updated with the capability | A new section, and the demo page named in it |
-| DEC-110 | Every shell view is asserted for accessibility | `/scratch` is a stored page, so its markup is asserted through `MarkupReader` in the integration suite instead |
+| [IDEA-016](../../jobs/README.md#closed) | A page cannot save its own source; no write member and no `Sdk` diagnostic; a save bound to `ctx.Path`, compiled before it is stored, answering with diagnostics and the hash; authority stays with the shell | **Implements it**, as a capability rather than an `IContext` member, with the check in the capability rather than in `SimpleContext` (`pages-a-page-may-save-itself`) |
+| [IDEA-015](../../jobs/README.md) (closed) | The read is a capability, public by default, and the shell keeps every write (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`) | Follows the shape and reverses the authority for the write, on purpose: a disclosure and a change are not the same act (`pages-a-page-may-save-itself`) |
+| [IDEA-017](../../jobs/IDEA-017.md) | A page cannot edit another page; the full editor is the last of the capability jobs | Hands it the saver and the capability; what it adds is a key (`pages-a-page-may-save-itself`) |
+| [IDEA-014](../../jobs/README.md) | A page cannot keep per-visitor state, so a form cannot redirect and say why | Untouched, and the reason the demo page answers the save in the response it is already writing (`pages-a-page-may-save-itself`) |
+| `pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public` | The store read is a capability and is public | The pattern, applied with the opposite answer for authority |
+| `pages-page-first` | The shell keeps every write; IDEA-016 reuses `PageEditor.SaveAsync` rather than opening a second writer | Kept literally: the saver and the insert move, they are not copied (`pages-a-page-may-save-itself`) |
+| `pages-page-storage` | `IPageStorage` is bound to the page's key; a `HEAD` reads but never writes | Followed in shape: this handle is bound to `ctx.Path` and refuses a `HEAD` |
+| `pages-page-io-is-async` | I/O on a capability is a `Task`, takes no token, and is linked to the render's deadline | Followed, with one stated exception: a save that has begun finishes (`pages-a-page-may-save-itself`) |
+| `pages-the-execution-budget`, `pages-a-compiler-fault-is-ours`, `pages-a-warning-never-stops-a-page` | A compile is not cancelled by a deadline; a compiler fault keeps the source; a warning keeps its image | Extended to the save: the revision is stored even when the response has already given up (`pages-a-page-may-save-itself`) |
+| `pages-public-by-default`, `product-one-owner` | Pages are public by default; any account is an owner; only the editor is behind a route policy | The write requires that owner and there is still no role: one signed-in visitor, no ownership of a page (`pages-a-page-may-save-itself`) |
+| `pages-capabilities-are-one-seam` | A capability is registered or absent, never `null`; the host decides what a render offers | A sixth capability, registered for every content render and refused per call rather than withheld |
+| `pages-layouts-are-markup` | A layout is pure markup and may not set the response | The writer is offered to the content layer only, so a layout cannot rewrite itself on every request |
+| `pages-a-page-has-a-state`, `pages-a-warning-never-stops-a-page` | A page has an image state that the page list, history and assistant all read | Unchanged: a page's save is a save, so the state is the one the editor already shows |
+| `pages-compile-on-save` | `RuntimeId` includes the Sdk module version id | One deliberate bump: new contract types invalidate every stored image, which recompiles on its next request |
+| `code-nothing-public-without-a-caller` | `Sdk` declares every public symbol | Four new types, declared member by member in `PublicAPI.Unshipped.txt` |
+| `product-manual-is-a-page` | `/help` is the manual and is updated with the capability | A new section, and the demo page named in it |
+| `shell-accessibility-is-asserted` | Every shell view is asserted for accessibility | `/scratch` is a stored page, so its markup is asserted through `MarkupReader` in the integration suite instead |
 
 ## Design
 
@@ -172,7 +172,7 @@ public interface IPageWriter {
 }
 ```
 
-Four `Sdk` types, because a page may name neither `Core` nor `Web` (DEC-88):
+Four `Sdk` types, because a page may name neither `Core` nor `Web` (`pages-the-contract-is-the-seam`):
 
 ```csharp
 public sealed record PageSaveResult(string Hash, IReadOnlyList<PageDiagnostic> Diagnostics) {
@@ -187,22 +187,22 @@ public enum PageDiagnosticSeverity { Warning, Error }
 ```
 
 - **No key argument.** The handle is the isolation, exactly as `IPageStorage` is bound to
-  `IContext.Path` (DEC-125, DEC-126). A page cannot reach another page because it cannot name one,
+  `IContext.Path` (`pages-page-storage`). A page cannot reach another page because it cannot name one,
   and a reserved key cannot be reached because a reserved key never renders.
 - **No read member.** A page that wants its own source reads it with
-  `IPageCatalog.ReadAsync(ctx.Path)`, which is already there and already public (DEC-168). The pair is
+  `IPageCatalog.ReadAsync(ctx.Path)`, which is already there and already public (`pages-the-store-is-read-through-one-seam`). The pair is
   one line apart in the demo page, and it is why the writer needs nothing but a save.
-- **No conditional save.** `IPageStorage` is last-write-wins (DEC-125) and so is this: two tabs on one
+- **No conditional save.** `IPageStorage` is last-write-wins (`pages-page-storage`) and so is this: two tabs on one
   page, the later save wins. A page that wants a conflict message reads the head again before it
   saves — the demo page shows the six lines that costs — rather than widening the contract with the
   editor's `SaveIfRevisionAsync`. That belongs with [IDEA-017](../../jobs/IDEA-017.md)'s editor.
 - **No dedupe.** Saving the template that is already the head appends a revision, as the editor's save
   does. A save is a revision, and the history is the record.
-- **`Task`, no token** (DEC-123). A `null` template is an `ArgumentNullException` at the door
-  (DEC-167); the empty template is legal, because an empty page is a page.
+- **`Task`, no token** (`pages-page-io-is-async`). A `null` template is an `ArgumentNullException` at the door
+  (`code-validation-at-the-boundary`); the empty template is legal, because an empty page is a page.
 - `PageSaveResult.HasErrors` and `HasWarnings` exist because the answer a page must render is the
   editor's own switch — "Saved successfully", "Saved with warnings", "Saved with errors" — and
-  DEC-23's rule that a warning never stops a page should be read once in the contract, not re-derived
+  `pages-a-warning-never-stops-a-page`'s rule that a warning never stops a page should be read once in the contract, not re-derived
   by every page that saves itself.
 - `PageDiagnostic` is a `readonly record struct` of flat values; `PageSaveResult` is a class, like
   `PageSource`, because it carries a list.
@@ -211,10 +211,10 @@ public enum PageDiagnosticSeverity { Warning, Error }
 
 The read was made public by review, and the argument still holds for a read: a page's rendered output
 is already public, so publishing a template it could have rendered is a way to publish something by
-accident rather than a new boundary (DEC-169). **A write is a different act.** It does not disclose
+accident rather than a new boundary (`pages-reading-the-store-is-public`). **A write is a different act.** It does not disclose
 the site, it changes it: it appends a revision to the page every visitor is served. There is no
 "careless page" defence for that, and the site's whole authority model is one line long — a signed-in
-account is an owner, and nothing else is (DEC-02, DEC-03). So:
+account is an owner, and nothing else is (`pages-public-by-default`, `product-one-owner`). So:
 
 - **`SaveAsync` refuses when `ctx.User` is `null`.** Nothing is compiled, nothing is stored, and the
   refusal names the reason in words the visitor can act on: *"Sign in to save a page. Nothing was
@@ -224,7 +224,7 @@ account is an owner, and nothing else is (DEC-02, DEC-03). So:
   not a programming error. The page that wants a redirect instead writes the ordinary guard over its
   own `POST`, and the demo page does. `/help` shows both and says which is nicer.
 - **The check lives in the capability, not in `SimpleContext` and not in page code.** IDEA-016 point 3
-  said "in `SimpleContext`"; the capability is where a capability's rules live now (DEC-168), and it is
+  said "in `SimpleContext`"; the capability is where a capability's rules live now (`pages-the-store-is-read-through-one-seam`), and it is
   the only place that can refuse before a compile is spent. A page's own guard is a courtesy that runs
   *before* the save, never the enforcement.
 - **The shell's antiforgery rule is already the other half.** An authenticated `POST` without a valid
@@ -238,11 +238,11 @@ account is an owner, and nothing else is (DEC-02, DEC-03). So:
 ### D3 — One saver, one insert: the page's save is the shell's save
 
 A page's task can outlive the request, so the save cannot use the scoped `IPageStore` chain. And
-DEC-175 says there is no second writer. So the save is **moved**, not copied:
+`pages-page-first` says there is no second writer. So the save is **moved**, not copied:
 
 - **`PageSaver`** (new, singleton) is today's `PageEditor.SaveAsync` body: build the image with
   `PageMetrics.ReasonSave`, store the revision, record `page.save.duration`, log the outcome, and keep
-  the source when the compiler faults (DEC-20). It returns the revision it stored and the diagnostics,
+  the source when the compiler faults (`pages-a-compiler-fault-is-ours`). It returns the revision it stored and the diagnostics,
   so a caller that needs the new hash has it and the editor that does not can ignore it.
 - **`IPageRevisionStore`/`SqlitePageRevisionStore`** (new, singleton over
   `IDbContextFactory<StorageDbContext>`) is one context per save and one transaction around the same
@@ -301,8 +301,8 @@ Three consequences, all of which the plan states rather than smooths over:
 
 A deadline that cancels a write the author asked for loses their text, and this site already refuses
 that loss twice: a compile is not cancelled by a deadline, because throwing it away leaves the page
-unservable (DEC-43), and a compiler fault still stores the source, because losing the edit to report
-our bug would be worse (DEC-20). A save is the same kind of work, so:
+unservable (`pages-the-execution-budget`), and a compiler fault still stores the source, because losing the edit to report
+our bug would be worse (`pages-a-compiler-fault-is-ours`). A save is the same kind of work, so:
 
 - **Before it starts**, the save is refused when the render has ended, when there is no signed-in
   visitor, and on a `HEAD` — all three cost nothing and lose nothing.
@@ -311,7 +311,7 @@ our bug would be worse (DEC-20). A save is the same kind of work, so:
   (`SimpleContext.Abandon`), and what survives is the edit.
 - **The seam is what makes that safe.** A scoped `DbContext` would be disposed under an abandoned
   render; the singleton seam opens its own context per save, for `SqlitePageStateStore`'s reason
-  (DEC-172).
+  (`pages-the-store-is-read-through-one-seam`).
 - **What the visitor sees** is a `504` and a page that has changed. The next request serves the new
   revision, which is the honest end state: the work happened, the answer was late. The demo page keeps
   the submitted template in the textarea of the response it does send, so nobody is sent to fix
@@ -319,7 +319,7 @@ our bug would be worse (DEC-20). A save is the same kind of work, so:
 
 ### D7 — The writer is offered to the content layer, not to a layout
 
-A layout is markup and nothing else (DEC-158). A layout that saved itself would append a revision on
+A layout is markup and nothing else (`pages-layouts-are-markup`). A layout that saved itself would append a revision on
 every render of every page it wraps, and would race the owner's editor every time somebody looked at
 the site — a revision flood, and a lost update nobody asked for. So `PageChain.CreateLayer` registers
 the writer only when the layer is the content, and a layout that asks gets `GetRequired`'s exception
@@ -335,7 +335,7 @@ One seed, a fragment the default layout wraps:
 - **It guards its whole view** with the ordinary line —
   `if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }` — so an anonymous visitor meets a
   sign-in page rather than the capability's refusal. The refusal stays the backstop for pages that do
-  not guard, which is exactly the relationship DEC-169 gave the read's guard.
+  not guard, which is exactly the relationship `pages-reading-the-store-is-public` gave the read's guard.
 - **It reads itself** with `IPageCatalog.ReadAsync(ctx.Path)`, which gives the source and the head's
   hash, and writes the source into a `<textarea>` with `<%= %>` so the escaping rules are the demo's
   own lesson.
@@ -363,13 +363,13 @@ One seed, a fragment the default layout wraps:
 Why a page rather than only tests: the interesting failures only appear with a real layout, a real
 form, a real antiforgery field and a real store — a save that compiled but cannot be rendered, a
 textarea that ran someone's source, a form that expired. `/scratch` makes those ordinary, and it is
-the product of DEC-01 running on the site that claims it.
+the product of `product-a-page-that-edits-itself` running on the site that claims it.
 
 ## Considered and rejected
 
 **`SaveAsync` on `IContext`.** IDEA-016's original sketch. Rejected by the same review that settled
 the read: `IContext` is the contract every stored page compiles against, and a page that never saves
-itself should never meet a write (DEC-142, DEC-168).
+itself should never meet a write (`pages-capabilities-are-one-seam`, `pages-the-store-is-read-through-one-seam`).
 
 **Gating the write with the page's own guard.** Rejected: the page is the thing being defaced. A
 page that forgot its guard would be rewritable by anyone, and the model would put the site's authority
@@ -394,11 +394,11 @@ contract member that only one page uses is a contract to maintain for everybody.
 
 **Cancelling a started save at the render deadline**, the shape `PageStorageScope` and
 `PageHttpFetch` use. Rejected: those calls can be retried and lose nothing; a save loses the text the
-author typed. The site already refuses that loss for compiles (DEC-43) and for compiler faults
-(DEC-20), and it is worth the one exception to "the render bounds every call" to keep it (DEC-191).
+author typed. The site already refuses that loss for compiles (`pages-the-execution-budget`) and for compiler faults
+(`pages-a-compiler-fault-is-ours`), and it is worth the one exception to "the render bounds every call" to keep it (`pages-a-page-may-save-itself`).
 
 **Offering the writer to every layer, as the read is.** Rejected: a layout writing itself once per
-render is a revision flood, and a layout is markup (DEC-158).
+render is a revision flood, and a layout is markup (`pages-layouts-are-markup`).
 
 **Turning the editor's views into the demo page.** Rejected: that is
 [IDEA-017](../../jobs/IDEA-017.md). `/scratch` is 60 lines and proves the capability; the editor is a
@@ -408,8 +408,8 @@ different job with its own markup, accessibility and browser tests.
 template can arrive, and a page that builds one is bounded like any other page (D5).
 
 **Splitting the diagnostic into `Core`'s type moved into `Sdk`.** Rejected: the generator would then
-depend on the page contract, and `Core` would lose the value its own compiler tests use (DEC-10,
-DEC-88, IDEA-016 point 1).
+depend on the page contract, and `Core` would lose the value its own compiler tests use (`code-functional-core-imperative-shell`,
+`pages-the-contract-is-the-seam`, IDEA-016 point 1).
 
 ## Components
 
@@ -446,12 +446,12 @@ DEC-88, IDEA-016 point 1).
 - `ASaveOnHeadIsRefused`, `AnAbandonedRenderCannotSave`, `ASaveAfterTheDeadlineIsRefused`
 - `ASecondSaveInOneRenderIsRefused`
 - `ACleanTemplateAnswersWithItsRevisionAndNoDiagnostics`
-- `AWarningIsAnsweredAndThePageIsStillStored` (DEC-23)
-- `AnErrorIsAnsweredWithItsPositionAndStoredWithoutAnImage` (DEC-23)
+- `AWarningIsAnsweredAndThePageIsStillStored` (`pages-a-warning-never-stops-a-page`)
+- `AnErrorIsAnsweredWithItsPositionAndStoredWithoutAnImage` (`pages-a-warning-never-stops-a-page`)
 - `ADiagnosticCarriesItsCodeAndItsTextApart`
-- `ADiagnosticWithNoPositionHasNoLineOrColumn` (DEC-22)
+- `ADiagnosticWithNoPositionHasNoLineOrColumn` (`pages-what-a-diagnostic-is`)
 - `TheDiagnosticsAreOrderedForDisplay`
-- `ACompilerFaultStoresTheSourceAndThrows` (DEC-20)
+- `ACompilerFaultStoresTheSourceAndThrows` (`pages-a-compiler-fault-is-ours`)
 - `TheSlotWaitEndsAtTheRenderDeadlineButTheCompileDoesNot` (D6)
 
 **`Web.Tests` — `PageSaverTests`** (new; the moved algorithm, with `FakePageRevisionStore`)
@@ -483,7 +483,7 @@ delegating `PageEditor`.
 - `TheDraftShowsItsOwnSourceInATextareaWhenSignedIn`
 - `ASignedInOwnerSavesTheDraftAndTheNextRequestServesIt`
 - `ASaveWithErrorsIsAnsweredWithItsDiagnostics` — and the next request answers `500` with the same ones
-- `ASaveWithWarningsIsServedOnTheNextRequest` (DEC-178)
+- `ASaveWithWarningsIsServedOnTheNextRequest` (`pages-a-warning-never-stops-a-page`)
 - `AnAuthenticatedPostWithoutTheFieldIsRefusedBeforeThePageRuns`, `TheDraftIsUnchangedThen`
 - `AStaleFormIsRefusedAndTheNewerSaveStands` — the demo's courtesy check
 - `AHeadRequestNeverSaves`
@@ -527,37 +527,37 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 
 ## Documentation and decisions
 
-- **DEC-189**: saving a page's own source is a capability, `IPageWriter.SaveAsync(template)`, reached
+- **`pages-a-page-may-save-itself`**: saving a page's own source is a capability, `IPageWriter.SaveAsync(template)`, reached
   through `IContext.Features`, with `PageSaveResult`, `PageDiagnostic` and `PageDiagnosticSeverity` as
   the values a page may name. The handle is bound to `ctx.Path` and takes no key, there is no read
   member and no conditional save, and `IContext` and `PageResponse` are unchanged.
-- **DEC-190**: authority is asymmetric. The read is public (DEC-169) and the write requires a
+- **`pages-a-page-may-save-itself`**: authority is asymmetric. The read is public (`pages-reading-the-store-is-public`) and the write requires a
   signed-in visitor, because a write changes what the site serves and the site has one authority rule
-  (DEC-02, DEC-03). The check is the capability's, not the page's and not `SimpleContext`'s, and it
+  (`pages-public-by-default`, `product-one-owner`). The check is the capability's, not the page's and not `SimpleContext`'s, and it
   runs before anything is compiled or stored; an anonymous save is refused with a `UserFacingException`
   naming signing in, while `HEAD`, an ended render and a second save are page bugs and
   `InvalidOperationException`. This overrules IDEA-016 point 3 only in *where* the check lives.
-- **DEC-191**: a started save is never abandoned. An ended render, `HEAD` or a missing identity
-  refuses before the save starts; once it has started the compile keeps its own timeout (DEC-43) and
+- **`pages-a-page-may-save-itself`**: a started save is never abandoned. An ended render, `HEAD` or a missing identity
+  refuses before the save starts; once it has started the compile keeps its own timeout (`pages-the-execution-budget`) and
   the revision is stored even when the response has already answered `504`, because losing the
-  author's edit is the loss DEC-20 and DEC-23 already refuse. The wait for a compile slot is abandoned
+  author's edit is the loss `pages-a-compiler-fault-is-ours` and `pages-a-warning-never-stops-a-page` already refuse. The wait for a compile slot is abandoned
   at the render's deadline.
-- **DEC-192**: there is still one writer. `PageSaver` is `PageEditor.SaveAsync`'s algorithm as a
+- **`pages-a-page-may-save-itself`**: there is still one writer. `PageSaver` is `PageEditor.SaveAsync`'s algorithm as a
   singleton and `PageEditor` delegates to it; `IPageRevisionStore` is a singleton over the context
   factory that calls the same `WriteRevisionAsync` statement as the single save and the import batch,
-  which is what makes a page's write safe after its request has gone (DEC-172). DEC-175 stays true: the
+  which is what makes a page's write safe after its request has gone (`pages-the-store-is-read-through-one-seam`). `pages-page-first` stays true: the
   page's save *is* the shell's save, and delete, scrub, restore, import and export stay the shell's.
-- **DEC-193**: the author-facing diagnostic is an `Sdk` value with severity, a 1-based line and column
-  (both `null` when the position is unknown, DEC-22), the code and its text; the code is split from the
+- **`pages-a-page-may-save-itself`**: the author-facing diagnostic is an `Sdk` value with severity, a 1-based line and column
+  (both `null` when the position is unknown, `pages-what-a-diagnostic-is`), the code and its text; the code is split from the
   message's `{code}: {text}` form, which every producer already writes, in the capability's mapping.
   `Core.Compilation.PageDiagnostic` is unchanged, because moving it would make the generator depend on
-  the page contract (DEC-88).
-- **DEC-194**: the writer is offered to the content layer and not to a layout, because a layout is
-  markup (DEC-158) and would otherwise append a revision on every render it wraps.
-- **DEC-195**: a save belongs to the next request. The running image is not re-read, the response in
+  the page contract (`pages-the-contract-is-the-seam`).
+- **`pages-layouts-are-markup`**: the writer is offered to the content layer and not to a layout, because a layout is
+  markup (`pages-layouts-are-markup`) and would otherwise append a revision on every render it wraps.
+- **`pages-a-page-may-save-itself`**: a save belongs to the next request. The running image is not re-read, the response in
   hand is the old page unless the page shows the result it just got, the save is committed before the
   rest of the render, and one render makes at most one save.
-- **DEC-196**: the demonstration is one seeded page, `/scratch`, which guards its own view, reads its
+- **`pages-scratch-saves-itself`**: the demonstration is one seeded page, `/scratch`, which guards its own view, reads its
   own source through `IPageCatalog`, saves through `IPageWriter`, answers the save in the response it
   is already writing, and refuses a stale form by comparing the hash it read with the head.
 - `docs/pages.md`: "Page contract" lists six capabilities and carries the `IPageWriter` bullet with the
@@ -575,16 +575,16 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 - `docs/glossary.md`: no new term. Page, template, revision and save are already defined, and neither
   "writer" nor "saver" is vocabulary rather than a type name.
 - `deploy/README.md`: nothing to deploy; the demo page is a seed and there is no new setting.
-- **Decision numbering**: the plan was drafted against DEC-189–DEC-196, but other branches held
+- **Decision numbering**: the plan was drafted against `pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`, but other branches held
   179–188 by the time the work landed (browser-tests 179, ops-06 180–185, assistant-memory-spike
-  186–188), so the eight entries are **DEC-189–DEC-196**: the capability, the authority, the started
+  186–188), so the eight entries are **`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`**: the capability, the authority, the started
   save, the one writer, the diagnostic, the layout rule, the next request and the demo page.
 
 ## Risks
 
 - **The owner can break a page that edits itself.** `/scratch` can be saved with a template full of
   errors, and it then answers `500` with its own diagnostics until somebody fixes it. That is the
-  product working (DEC-01), `/edit` has the restore button, and the diagnostics are the same ones the
+  product working (`product-a-page-that-edits-itself`), `/edit` has the restore button, and the diagnostics are the same ones the
   editor shows.
 - **An edit can be lost.** A save that has not started when the render ends is refused, so a page that
   does a slow fetch before saving can lose the post; a template over the 1 MiB request cap never
@@ -606,7 +606,7 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
   `POST` sends an anonymous visitor to a `500` that says to sign in, rather than to `/login`. The
   backstop is the capability's; the nicety is the page's, and `/help` shows the line.
 - **One more contract bump.** Four new `Sdk` types change the module version id, so every stored
-  image recompiles on its next request (DEC-26). Expected, and the same cost the layout and the read
+  image recompiles on its next request (`pages-compile-on-save`). Expected, and the same cost the layout and the read
   paid.
 - **The refactor touches the save everything uses.** `/edit`, seed restore and the assistant's save
   tool all reach the store through `PageEditor.SaveAsync`. Phase 1 is deliberately separate, keeps
@@ -619,11 +619,11 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 
 | Question | Answer |
 | --- | --- |
-| A capability or more `IContext` | A capability, `IPageWriter`, through `ctx.Features`; `IContext` unchanged (DEC-189) |
-| Is the write gated | Yes, and it is the one place authority is asymmetric: the read stays public (DEC-169) and the write requires a signed-in visitor, refused inside the capability (DEC-190) |
+| A capability or more `IContext` | A capability, `IPageWriter`, through `ctx.Features`; `IContext` unchanged (`pages-a-page-may-save-itself`) |
+| Is the write gated | Yes, and it is the one place authority is asymmetric: the read stays public (`pages-reading-the-store-is-public`) and the write requires a signed-in visitor, refused inside the capability (`pages-a-page-may-save-itself`) |
 | Where the gate lives | In the capability, not in `SimpleContext` and not in page code; the page's own `ctx.User` guard is a nicer redirect in front of it |
-| Is a started save cancelled at the deadline | No. The queue for a compile slot ends at the deadline; the compile and the insert finish (DEC-191) |
-| Is there a second writer | No. `PageSaver` and `IPageRevisionStore` move the editor's save and call the same insert the import batch calls (DEC-192) |
-| Layouts | Offered the read and not the write (DEC-194) |
-| A conditional save in the contract | No: the page compares the hash it read with the head, and the demo does (DEC-196) |
-| How it is proven | Unit tests for the capability, the saver and the insert, and the seeded `/scratch` driven through the real host (DEC-196) |
+| Is a started save cancelled at the deadline | No. The queue for a compile slot ends at the deadline; the compile and the insert finish (`pages-a-page-may-save-itself`) |
+| Is there a second writer | No. `PageSaver` and `IPageRevisionStore` move the editor's save and call the same insert the import batch calls (`pages-a-page-may-save-itself`) |
+| Layouts | Offered the read and not the write (`pages-layouts-are-markup`) |
+| A conditional save in the contract | No: the page compares the hash it read with the head, and the demo does (`pages-scratch-saves-itself`) |
+| How it is proven | Unit tests for the capability, the saver and the insert, and the seeded `/scratch` driven through the real host (`pages-scratch-saves-itself`) |

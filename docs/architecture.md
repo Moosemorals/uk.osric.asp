@@ -92,9 +92,9 @@ and the logs quote them:
 | `SCRIPT001` | `JavaScriptValidator` | the assistant's script check found a syntax error |
 | `SCRIPT002` | `JavaScriptValidator` | the assistant's script check found an opener the failed parse never closed |
 
-`PAGE005` is retired with the alias it named and is never reused for a different meaning (DEC-254).
+`PAGE005` is retired with the alias it named and is never reused for a different meaning (`pages-capabilities-are-one-seam`).
 `TEMPLATE003`–`TEMPLATE005` are warnings: they are stored beside the compiler's diagnostics, so a
-clean compile does not hide them, and they never stop a page being served (DEC-273).
+clean compile does not hide them, and they never stop a page being served (`pages-the-shape-check`).
 
 ## Where does code go?
 
@@ -105,7 +105,7 @@ clean compile does not hide them, and they never stop a page being served (DEC-2
 | A view a visitor reads, or a form they submit | A stored page, and `Pages/Seeds` when it ships with the site |
 | Emitting a page assembly, loading it and invoking the handler | `Runtime` |
 | Deciding when to compile, store and run a page | `Web`, in `PageImageBuilder`, `PageRenderer` and `PageEditor` |
-| Reading the page store for a tool or the virtual shell | `Web`, in `PageStoreReader`, over `PageEditor` and `PagePathPolicy`; the tree and the scope are `Core`'s `PageTree` and `PageScope` (DEC-274, DEC-277) |
+| Reading the page store for a tool or the virtual shell | `Web`, in `PageStoreReader`, over `PageEditor` and `PagePathPolicy`; the tree and the scope are `Core`'s `PageTree` and `PageScope` (`pages-the-store-is-read-through-one-seam`, `pages-the-store-is-a-tree`) |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core; configuration is read once at startup by `ConfigurationReader` |
 | Source storage: the EF Core context and its migrations | `Web`, under `Storage` |
@@ -141,11 +141,11 @@ is the worked example: it is the seeded `/pages`, which is offered `IPageEditor`
 
 | Route | Why it is not a page | Where that is recorded |
 | --- | --- | --- |
-| `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | DEC-210 |
-| `/status`, `/status/chart` | **Bootstrap.** Diagnosing why a page did not load starts here | DEC-210 |
-| `/admin/changes`, `/admin/reference` | **The build's own facts.** Both read a file the image carries — the changelist and the XML documentation — which a page cannot read | DEC-255, DEC-302 |
-| `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | DEC-210, DEC-256 |
-| `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | DEC-210 |
+| `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | `pages-page-first` |
+| `/status`, `/status/chart` | **Bootstrap.** Diagnosing why a page did not load starts here | `pages-page-first` |
+| `/admin/changes`, `/admin/reference` | **The build's own facts.** Both read a file the image carries — the changelist and the XML documentation — which a page cannot read | `shell-the-admin-tools`, `shell-the-reference` |
+| `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | `pages-page-first`, `shell-the-admin-tools` |
+| `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | `pages-page-first` |
 | `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The stream, the worker kind and jobs now exist, so the view and the run are page code; what blocks the port is an account-scoped store for the transcript and memory ([IDEA-033](jobs/IDEA-033.md)), the page-store write authority the tools need, and a restricted Markdown profile a page can reach | [IDEA-025](jobs/IDEA-025.md) |
 | `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](jobs/IDEA-024.md) |
 
@@ -159,7 +159,7 @@ there is the store, the write authority and the renderer profile — each record
 
 ## Configuration
 
-Configuration is the only source of a policy value (DEC-282). There is no fallback in code, so the
+Configuration is the only source of a policy value (`code-policy-values-are-configuration`). There is no fallback in code, so the
 value the site runs with is the one an operator can see and change in `appsettings.json`, an
 environment variable or a deployment's own settings file.
 
@@ -266,7 +266,7 @@ fact that is only useful in the context of one request, run or import is a log l
 
 `Web` is the only layer that logs. `Program` configures one sink — `Microsoft.Extensions.Logging.Console`'s
 JSON formatter, scopes included, one single-line object per entry — because podman hands the
-container's stdout to systemd a line at a time (DEC-140). `Core`, `Runtime` and `Sdk` have no logger at
+container's stdout to systemd a line at a time (`metrics-logs-are-one-json-line`). `Core`, `Runtime` and `Sdk` have no logger at
 all: a compile fault and a page fault are logged where they are answered, so an exception is written
 once, with its stack and its inner exception, at the boundary that handles it.
 

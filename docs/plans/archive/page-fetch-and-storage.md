@@ -15,7 +15,7 @@ both need the render's deadline, and both must keep the page contract free of AS
 ## Status
 
 Implemented 2026-11-06, in four commits after [the async page contract](async-page-contract.md).
-Every phase below shipped; the decisions are DEC-125 to DEC-130 and the behaviour is recorded in
+Every phase below shipped; the decisions are `pages-page-storage` to `pages-the-api-policy` and the behaviour is recorded in
 [pages](../../pages.md#page-contract) and [decisions](../../decisions.md).
 
 Revised 2026-11-06 against [the async page contract](async-page-contract.md): the handler is
@@ -706,7 +706,7 @@ On implementation, update:
 
 - `docs/architecture.md`: the page contract list, a storage section, an outbound fetch section,
   the page API policy note, the source storage note, and the instrumentation table.
-- `docs/decisions.md`: add DEC-125 onwards for the page-scope/JSON contract, the `PageState`
+- `docs/decisions.md`: add `pages-page-storage` onwards for the page-scope/JSON contract, the `PageState`
   lifecycle, the asynchronous deadline-bound design, the default-off allow-listed fetch, the
   failure-as-value shape, and the `System.Text.Json` widening.
 - `deploy/README.md`: the database now carries page state, so backups include it; the fetch

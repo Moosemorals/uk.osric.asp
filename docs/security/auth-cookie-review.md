@@ -35,7 +35,7 @@ this review keeps the long name it saw.
 | 6 | Low | `AuthTickets` holds live bearer keys; database read access is session takeover, and restoring an old database plus the key-ring volume revives old sessions. | Accepted: inherent to server-side sessions. Mitigate operationally with file permissions, restricted backups and treating restore as session revival. |
 | 7 | Low | The hourly sweep had no exception handling, so a SQLite error stopped the host (`BackgroundServiceExceptionBehavior.StopHost`). | Fixed: the sweep logs and retries on the next tick. |
 | 8 | Low | A generated key collision fails the insert rather than retrying. | Accepted: about 2^-128 per insert, and it fails closed. |
-| 9 | Low | The assistant defaults to `AlwaysApprove`, so model-driven page writes execute unapproved. | Accepted: every account is an owner and the tools are owner-scoped, so the approval default does not widen who can write; changing it is a product decision. Since DEC-301 the assistant always runs, so this exposure no longer depends on a feature being switched off. |
+| 9 | Low | The assistant defaults to `AlwaysApprove`, so model-driven page writes execute unapproved. | Accepted: every account is an owner and the tools are owner-scoped, so the approval default does not widen who can write; changing it is a product decision. Since `assistant-always-on` the assistant always runs, so this exposure no longer depends on a feature being switched off. |
 
 ## How an attacker would try to slip by
 
@@ -72,9 +72,9 @@ they had.
 - `SameSite=Lax` is safe because every mutating endpoint uses
   `RequireAntiforgeryTokenAttribute(true)` and checks `IAntiforgeryValidationFeature`, and a stored
   page is not an endpoint with metadata: `PageEndpoint` validates an authenticated page `POST`
-  itself, before the page runs (DEC-135). The antiforgery and session cookies are `Strict`.
+  itself, before the page runs (`auth-a-state-changing-form-carries-a-token`). The antiforgery and session cookies are `Strict`.
 - Page authentication adds no cookie, key or secret. The new surface is cacheability and request
-  forgery: an authenticated page response is `no-store` without an `ETag` (DEC-136), and an
+  forgery: an authenticated page response is `no-store` without an `ETag` (`pages-a-stored-page-is-never-cached`), and an
   anonymous page response is unchanged. A page still sees only the shell-supplied `PageUser`.
 - `/metrics` is loopback-only and Caddy answers 404 for it; `/heath` is public but returns fixed
   strings. Reserved paths keep stored pages from shadowing either.
