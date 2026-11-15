@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Implemented 2026-11-15; `make check` is green. Awaiting the owner's merge |
+| Status | Merged 2026-11-15. The branch was fast-forwarded into `trunk` after `make check` was green |
 | Size | Small — six list entries, one grouping rule in `Check`, one sentence in the message, three descriptions that say what a page may name, and their tests |
 | Spike | None. Every claim was measured on `trunk` on 2026-11-15 by compiling templates through `PageCompiler`, and by counting the reference set's public types over `TRUSTED_PLATFORM_ASSEMBLIES` |
-| Decisions | Intends **pages-admit-what-adds-no-capability**; it refines `pages-the-api-policy` rather than replacing it. The merge writes the entry (`product-plan-before-building`, `product-steps-wait-for-the-owner`) |
+| Decisions | `pages-admit-what-adds-no-capability`, recorded at the merge; it refines `pages-the-api-policy` rather than replacing it (`product-plan-before-building`, `product-steps-wait-for-the-owner`) |
 | Backlog | None. The threat model it sits inside is [SEC-03](../jobs/SEC-03.md), unchanged |
 
 ## The short version
@@ -33,9 +33,6 @@ admits:
 
 So `StringComparer` goes in, `Environment` stays out (`NewLine` arrives attached to `Exit`), and a
 refusal names both the member the author wrote and the type that would have to be admitted.
-
-The name this plan intends is bold rather than in backticks, because `make decisions` reads every
-markdown file for a citation and fails on one that is not in the record yet.
 
 ## What was measured
 
@@ -212,16 +209,17 @@ behaviour is added, so no new test.
 - One `TestCase` per entry in D2, allowed, beside the existing refusals.
 - `System.Environment`, `System.TimeZoneInfo` and `System.Text.RegularExpressions.Regex` refused — D3
   as a test, so a later widening has to argue with it.
-- `ANamingMemberIsNotRefusedTwice`: the member and type reference for one type yields one diagnostic.
-- `ARefusalOfAMemberNamesItsType`: the exact D5 sentence.
+- `ANamingMemberIsRefusedOnce`: the member and the type reference for one type yield one diagnostic.
+- `TwoMembersOfOneRefusedTypeAreReportedSeparately`: the fold is per type, and two members of one
+  refused type stay two refusals.
 
 `Runtime.Tests/PageApiPolicyTests`:
 
-- `APageMayUseTheOrdinaryBaseTypes`: one template that constructs a case-insensitive dictionary, calls
-  `HashCode.Combine`, `new Random(1)`, sets `JsonNamingPolicy.CamelCase` and parses a `JsonNode`,
-  compiles. This is the behaviour that fails without the change; it is one test because it is one
-  behaviour — the author's ordinary vocabulary.
-- The existing refusals, unchanged.
+- `APageMayUseTheOrdinaryBaseTypes` and `AJsonBodyCanBeBuiltAndItsNamesShaped`: templates that
+  construct a case-insensitive dictionary, combine hashes, take a `Random`, parse a `JsonNode` and set
+  `JsonNamingPolicy.CamelCase` compile. These are the behaviour that fails without the change.
+- `ADeniedTypeIsReportedOnce`: `System.IO.File` reaches the author as one `PAGE001`, not two.
+- `EnvironmentIsStillRejected`, beside the existing refusals.
 
 ## What proves it
 
@@ -239,10 +237,9 @@ behaviour is added, so no new test.
 
 ## Status
 
-Implemented 2026-11-15 on this branch; `make check` is green (format, licence, audit, decisions,
-`check-pages`, 789 Core, 174 Runtime, 1801 Web, 232 integration, publish). The merge is the owner's,
-and the merge writes **pages-admit-what-adds-no-capability** into [the record](../decisions.md) and
-points this plan at it.
+Merged into `trunk` on 2026-11-15 after `make check` came back green (format, licence, audit,
+decisions, `check-pages`, 789 Core, 174 Runtime, 1801 Web, 232 integration, publish). The entry is
+`pages-admit-what-adds-no-capability` in [the record](../decisions.md).
 
 Two things the build added that the phases did not name:
 
