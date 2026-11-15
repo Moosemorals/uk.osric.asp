@@ -71,7 +71,9 @@ builds the IDE itself — and [their plan](../plans/ide-host.md) orders them, re
 were in the way, and scopes each one to its wider class of caller rather than to the editor. IDEA-044 and IDEA-045 came out
 of the owner's follow-up of the same day: the assistant does not ask for a browser in so many words,
 but keeps reaching for a way to see what it wrote, and the parts worth seeing are behind the sign-in
-guard — so a browser and an identity are two jobs, and neither is part of the IDE plan.
+guard — so a browser and an identity are two jobs, and neither is part of the IDE plan. IDEA-046 came
+out of the same day's note that the assistant keeps writing `<%# %>` as a comment and the page then
+fails to compile: the template language has an opener for everything except a note to nobody.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -99,6 +101,7 @@ guard — so a browser and an identity are two jobs, and neither is part of the 
 | [IDEA-043](IDEA-043.md) | — | L | The authority to edit the store belongs to one page and to one save: any page may write, and a render may write a batch under a policy |
 | [IDEA-044](IDEA-044.md) | — | L | A page cannot render a page in a browser: the assistant's own scripts are never run, though the server's HTML is already one `fetch` away, and a screenshot has nowhere to be read, served or kept |
 | [IDEA-045](IDEA-045.md) | — | M | A page, a fetch and the assistant only ever see the anonymous view, so every guarded page renders as a sign-in redirect, and the carrier for a token already exists |
+| [IDEA-046](IDEA-046.md) | — | S | The template has no comment, so `<%# %>` — the form an author reaches for — is a compile error, and the workaround that compiles costs a no-code page its kind |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
@@ -194,7 +197,8 @@ empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
 destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7
 touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page;
 [IDEA-032](IDEA-032.md) is a sitting's work whenever a cost line is wanted, and does not touch the
-files the programme is working through; and
+files the programme is working through; [IDEA-046](IDEA-046.md) is the same kind of sitting — the
+template's comment — and touches `Core/Compilation`, the text page's body and no page contract; and
 [IDEA-033](IDEA-033.md) wants a plan and a named first customer before it is a step.
 
 ## Closed
