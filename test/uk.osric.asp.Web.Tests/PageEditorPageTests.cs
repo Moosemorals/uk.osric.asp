@@ -40,10 +40,10 @@ public sealed class PageEditorPageTests {
     }
 
     private static Task<string?> SeedAsync(string path) =>
-        PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
+        Task.FromResult(TestOptions.SeedSource(PagePath.Normalize(path)));
 
     [Test]
-    public async Task TheListingGroupsLiveSeededAndDeletedPagesAsync() {
+    public async Task TheListingShowsLiveAndDeletedPagesAsync() {
         Store("/about", (await SeedAsync("/about"))!);
         Store("/notes", "mine");
         Delete("/notes");
@@ -51,7 +51,7 @@ public sealed class PageEditorPageTests {
         Rendered rendered = await RenderAsync();
 
         Assert.Multiple(() => {
-            Assert.That(rendered.Body, Does.Contain("Live pages").And.Contain("Seeded pages").And.Contain("Deleted pages"));
+            Assert.That(rendered.Body, Does.Contain("<h2>Pages</h2>").And.Contain("<h2>Deleted pages</h2>"));
             Assert.That(rendered.Body, Does.Contain("/notes"), "a tombstone keeps its row");
             Assert.That(rendered.Body, Does.Contain("action=\"/pages?cmd=new\""), "the listing creates a page");
             Assert.That(rendered.Body, Does.Contain("/about"), "a seeded page is listed");

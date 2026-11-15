@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Editor;
@@ -191,26 +192,22 @@ public sealed class PageEditorScopeTests {
     }
 
     [Test]
-    public void TheSeedPathsAreTheShippedFiles() {
-        using PageHarness pages = new(new FakePageStore());
-
-        Assert.That(Scope(pages).SeedPaths(),
-            Is.EqualTo(PageAssetSeeder.SeedPaths().Select(seed => seed.Key)));
-    }
-
-    [Test]
-    public async Task InstallingASeedThatDiffersSavesItAsync() {
+    public async Task InstallingASeedTheReleaseMovedSavesItAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        string seed = (await PageAssetSeeder.ReadSeedTemplateAsync(PageHarness.Key("/about")))!;
-        SavedRevision changed = await pages.Editor.SaveAsync(PageHarness.Key("/about"), "changed");
+        PagePath key = PageHarness.Key("/about");
+        string seed = (TestOptions.SeedSource(key))!;
+        storage["/about"] = new PageTemplate(key, "old") { SeedHash = TemplateFingerprint.Of("old") };
+        string live = PageHarness.Stored(storage, "/about").Hash;
         PageEditorScope scope = Scope(pages);
 
-        PageEditResult? result = await scope.InstallSeedAsync("/about", changed.Revision.Hash);
+        PageEditResult? result = await scope.InstallSeedAsync("/about", live);
 
         Assert.Multiple(() => {
             Assert.That(result?.Outcome, Is.EqualTo(PageEditOutcome.Saved));
             Assert.That(PageHarness.Stored(storage, "/about").Template, Is.EqualTo(seed));
+            Assert.That(storage["/about"]?.SeedHash, Is.EqualTo(TestOptions.Seeds.Find(key)?.Hash),
+                "the install records the seed it installed");
         });
     }
 
@@ -218,8 +215,9 @@ public sealed class PageEditorScopeTests {
     public async Task InstallingASeedThatMatchesWritesNothingAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        string seed = (await PageAssetSeeder.ReadSeedTemplateAsync(PageHarness.Key("/about")))!;
-        _ = await pages.Editor.SaveAsync(PageHarness.Key("/about"), seed);
+        PagePath key = PageHarness.Key("/about");
+        string seed = (TestOptions.SeedSource(key))!;
+        storage["/about"] = new PageTemplate(key, seed) { SeedHash = TestOptions.Seeds.Find(key)?.Hash };
         int writes = storage.WriteCount;
         PageEditorScope scope = Scope(pages);
 
@@ -229,6 +227,52 @@ public sealed class PageEditorScopeTests {
             Assert.That(result?.Outcome, Is.EqualTo(PageEditOutcome.Unchanged));
             Assert.That(storage.WriteCount, Is.EqualTo(writes), "a matching seed is not written");
         });
+    }
+
+    [Test]
+    public void InstallingASeedOverAnEditedPageIsRefused() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PagePath key = PageHarness.Key("/about");
+        string seed = (TestOptions.SeedSource(key))!;
+        storage["/about"] = new PageTemplate(key, seed) { SeedHash = TestOptions.Seeds.Find(key)?.Hash };
+        storage["/about"] = new PageTemplate(key, "mine");
+
+        Assert.That(
+            async () => await Scope(pages).InstallSeedAsync("/about", "hash"),
+            Throws.TypeOf<InvalidOperationException>().With.Message.Contains("edited"));
+    }
+
+    [Test]
+    public async Task AdoptingASeedThatMatchesRecordsItWithoutARevisionAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PagePath key = PageHarness.Key("/about");
+        string seed = (TestOptions.SeedSource(key))!;
+        string shipped = TestOptions.Seeds.Find(key)!.Hash;
+        storage["/about"] = new PageTemplate(key, seed) { SeedHash = TemplateFingerprint.Of("other") };
+        int writes = storage.WriteCount;
+
+        PageEditResult? result = await Scope(pages).AdoptSeedAsync("/about");
+        PageHeadSummary? head = await storage.GetHeadAsync(key);
+
+        Assert.Multiple(() => {
+            Assert.That(result?.Outcome, Is.EqualTo(PageEditOutcome.Saved));
+            Assert.That(storage.WriteCount, Is.EqualTo(writes), "adoption stores no revision");
+            Assert.That(head?.SeedHash, Is.EqualTo(shipped));
+        });
+    }
+
+    [Test]
+    public void AdoptingAPageThatIsNotTheSeedIsRefused() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PagePath key = PageHarness.Key("/about");
+        storage["/about"] = new PageTemplate(key, "mine") { SeedHash = TemplateFingerprint.Of("other") };
+
+        Assert.That(
+            async () => await Scope(pages).AdoptSeedAsync("/about"),
+            Throws.TypeOf<InvalidOperationException>().With.Message.Contains("conflict"));
     }
 
     [Test]
@@ -309,5 +353,6 @@ public sealed class PageEditorScopeTests {
         editorPath,
         signedIn ? user ?? Owner : null,
         writable,
-        new ReservedPaths(ReservedPaths.Default));
+        new ReservedPaths(ReservedPaths.Default),
+        TestOptions.Seeds);
 }

@@ -70,6 +70,16 @@ internal sealed class PageEditor(
         return revision is not null && revision.Path == path ? revision : null;
     }
 
+    /// <summary>Records a seed as installed when the page already holds exactly its bytes.</summary>
+    /// <param name="path">The canonical key.</param>
+    /// <param name="seedHash">The hash of the seed the page's content equals.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    public Task<bool> AdoptAsync(PagePath path, string seedHash, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(seedHash);
+
+        return storage.AdoptSeedAsync(path, seedHash, cancellationToken);
+    }
+
     public Task<bool> DeleteAsync(PagePath path, CancellationToken cancellationToken = default) {
         return storage.DeletePageAsync(path, cancellationToken);
     }

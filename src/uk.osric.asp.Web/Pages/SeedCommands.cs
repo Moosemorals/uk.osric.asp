@@ -103,11 +103,32 @@ internal static class SeedCommands {
         CancellationToken cancellationToken) {
         ThrowIfOptions(args);
 
-        await using StreamWriter table = new(output, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), leaveOpen: true);
+        Dictionary<string, string> verdicts = [];
 
         foreach (SeedFile seed in seeds.Files) {
-            string state = await DescribeAsync(seed, pages, cancellationToken);
-            await table.WriteLineAsync($"{seed.Path.Key}\t{state}");
+            PageReadHead? head = await pages.GetHeadAsync(seed.Path.Key, cancellationToken);
+            verdicts[seed.Path.Key] = head is null
+                ? "new"
+                : head.IsDeleted
+                    ? "deleted"
+                    : SeedVerdictWords.Describe(
+                        SeedComparison.Of(head.SeedHash, seed.Hash, head.ContentHash), seed.Hash).Verdict;
+        }
+
+        // A page whose seed this release no longer ships still has an anchor, and saying so is how
+        // the owner sees that the pack moved on without them.
+        IReadOnlyList<PageReadHead> heads = await pages.ListAsync("/", int.MaxValue, cancellationToken);
+        foreach (PageReadHead head in heads) {
+            if (head.SeedHash is not null && !verdicts.ContainsKey(head.Key)) {
+                verdicts[head.Key] = SeedVerdictWords.Describe(
+                    SeedComparison.Of(head.SeedHash, null, head.ContentHash), null).Verdict;
+            }
+        }
+
+        await using StreamWriter table = new(output, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), leaveOpen: true);
+
+        foreach ((string key, string verdict) in verdicts.OrderBy(item => item.Key, StringComparer.Ordinal)) {
+            await table.WriteLineAsync($"{key}\t{verdict}");
         }
 
         await table.FlushAsync(cancellationToken);
@@ -180,23 +201,6 @@ internal static class SeedCommands {
         await error.WriteLineAsync(
             $"{written} {(written == 1 ? "page" : "pages")} written to the archive.", cancellationToken);
         return 0;
-    }
-
-    private static async Task<string> DescribeAsync(SeedFile seed, IPageReadStore pages, CancellationToken cancellationToken) {
-        PageReadHead? head = await pages.GetHeadAsync(seed.Path.Key, cancellationToken);
-        if (head is null) {
-            return "missing";
-        }
-
-        if (head.IsDeleted) {
-            return "deleted";
-        }
-
-        PageReadSource? source = await pages.GetSourceAsync(seed.Path.Key, cancellationToken);
-
-        return source is not null && string.Equals(source.Template, seed.Source, StringComparison.Ordinal)
-            ? "same"
-            : "differs";
     }
 
     private static void WriteEntry(TarWriter tar, string name, string source) {

@@ -25,17 +25,17 @@ internal sealed class ExportEndpoint {
     /// <param name="context">The request being answered.</param>
     /// <param name="pages">The page store.</param>
     /// <param name="reserved">The keys the site's own routes answer for.</param>
+    /// <param name="seeds">The pack this release ships, so the selection can group by it.</param>
     /// <param name="antiforgery">Mints the form's token.</param>
-    public static async Task ListAsync(HttpContext context, IPageStore pages, ReservedPaths reserved, IAntiforgery antiforgery) {
+    public static async Task ListAsync(HttpContext context, IPageStore pages, ReservedPaths reserved, PageSeeds seeds, IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
 
         IReadOnlyList<PageListing> heads = await pages.ListPagesAsync(context.RequestAborted);
         PageListing[] reachable = [.. heads
             .Where(head => IsExportable(head, reserved))
             .OrderBy(head => head.Path.Key, StringComparer.Ordinal)];
-        HashSet<string> seeds = new(PageAssetSeeder.SeedPaths().Select(seed => seed.Key), StringComparer.Ordinal);
-        PageListing[] ownPages = [.. reachable.Where(head => !seeds.Contains(head.Path.Key))];
-        PageListing[] seededPages = [.. reachable.Where(head => seeds.Contains(head.Path.Key))];
+        PageListing[] ownPages = [.. reachable.Where(head => seeds.Find(head.Path) is null)];
+        PageListing[] seededPages = [.. reachable.Where(head => seeds.Find(head.Path) is not null)];
 
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         SecurityHeaders.AllowScripts(context);

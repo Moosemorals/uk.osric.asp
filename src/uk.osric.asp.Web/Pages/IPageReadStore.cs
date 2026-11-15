@@ -16,6 +16,8 @@ using uk.osric.asp.Core.Pages;
 /// <param name="RuntimeId">The build that compiled the head, or <see langword="null"/> when it has no image.</param>
 /// <param name="HasImage">Whether the head has a stored image.</param>
 /// <param name="HasDiagnostics">Whether the head's stored compile has diagnostics.</param>
+/// <param name="SeedHash">The seed the page's content is anchored to, or null when unknown.</param>
+/// <param name="ContentHash">The content hash of the head's stored source.</param>
 internal sealed record PageReadHead(
     string Key,
     DateTimeOffset SavedAt,
@@ -24,7 +26,9 @@ internal sealed record PageReadHead(
     PageKind? TemplateKind = null,
     string? RuntimeId = null,
     bool HasImage = false,
-    bool HasDiagnostics = false);
+    bool HasDiagnostics = false,
+    string? SeedHash = null,
+    string? ContentHash = null);
 
 /// <summary>One template the read store retrieved.</summary>
 /// <param name="Key">The page's canonical key.</param>

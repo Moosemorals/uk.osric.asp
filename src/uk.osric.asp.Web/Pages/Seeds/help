@@ -53,13 +53,18 @@ confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a se
     the site's own route rather than an action here, because it cannot be undone: the page's row
     links to <code>/admin/scrub</code>, which asks you to type the page's key to confirm, and refuses
     a page that has not been deleted first.</li>
-    <li><strong>Install from seed</strong> is offered for the pages the site ships with, such as
-    <code>/_layout</code>, <code>/help</code> and the stylesheets, and only while the page differs
-    from its seed. It opens the same kind of confirmation as a restore and saves the bundled source
-    as a new revision. A seed is installed; a saved revision is restored.</li>
-    <li><strong>Restore every seed</strong> on <a href="/admin/restore">/admin/restore</a> is the
-    emergency way back when the editor itself will not load: it saves the bundled source of every
-    page the site ships with, never touches a page you made, and skips a seed that already matches.</li>
+    <li><strong>Install from seed</strong> is offered only when the release has moved a seed and the
+    page still holds the seed it was installed from — the row says <em>release newer</em>. It opens
+    the same kind of confirmation as a restore and saves the bundled source as a new revision. A page
+    you have changed since its seed set it, or one whose seed the release moved as well, is shown
+    with the diff and no install: the row says why. A seed is installed; a saved revision is
+    restored.</li>
+    <li><strong>Apply seed updates</strong> on <a href="/admin/seed-apply">/admin/seed-apply</a> is the
+    routine way a release moves a page: it writes what the release moved, records what already
+    matches and stops at the first page that has drifted. <strong>Restore every seed</strong> on
+    <a href="/admin/restore">/admin/restore</a> is the emergency way back when the editor itself will
+    not load: it saves the bundled source of every page the site ships with, never touches a page you
+    made, and skips a seed that already matches.</li>
     <li>The assistant is available from the editor to a signed-in owner.</li>
 </ul>
 <p>Paths are canonical: <code>/About</code>, <code>/about/</code> and <code>/about</code> are the
@@ -651,12 +656,19 @@ and the seeded layout. A static page's own <code>src</code> cannot be versioned 
 an unversioned asset, or write the hash by hand once.</p>
 <p>The pages the site ships with are called seeds. They live under <code>Pages/Seeds</code> and are
 created only when the page does not already exist, so editing a seed changes the site without being
-overwritten on the next start. The page list offers <strong>Install from seed</strong> on a seeded
-row, which saves the bundled source as a new revision; that is how you recover
-<code>/_layout</code>, <code>/site.css</code> or this page after a bad edit. To go back to an earlier
-save of the page instead, restore it from the page's history. A revision saved before
-this feature has no verdict yet, so it stays unversioned until it is next saved, restored or first
-generated; there is no backfill.</p>
+overwritten on the next start. Every page the store holds carries a <strong>seed verdict</strong> in
+the page list: <em>in sync</em> when it holds the shipped seed, <em>release newer</em> when the release
+moved the seed and the page still holds the one it was installed from, <em>edited</em> when the page
+changed and the seed did not, <em>conflict</em> when both changed, <em>store newer</em> when the
+page holds the shipped bytes but has no record of installing them, and <em>unknown</em> when there is
+no record at all. A page whose seed this release no longer ships is <em>retired</em>, and is an
+ordinary live page. Only <em>release newer</em> offers an install; <em>store newer</em> and an
+<em>unknown</em> page whose content already matches offer <em>record as installed</em> instead. The
+row's button records one page; <a href="/admin/seed-apply">/admin/seed-apply</a> records and installs
+every safe row in one run and stops at the first page that has drifted, naming it. To go
+back to an earlier save of the page, restore it from the page's history. A page written before this
+feature has no record, so it stays <em>unknown</em> until something establishes where it came from;
+there is no backfill of that record.</p>
 <p>Deleting a page leaves a tombstone and its history. Saving the path again continues that history:
 name the key in <strong>Create or open</strong> on the page list, and the editor says the page was
 deleted and that saving brings it back. A deleted page has no current revision, so every row of its

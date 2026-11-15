@@ -187,7 +187,6 @@ uk.osric.asp.Sdk.IPageEditor.InstallSeedAsync(string! key, string? expectedHash)
 uk.osric.asp.Sdk.IPageEditor.Resolve(string! key) -> uk.osric.asp.Sdk.PageKeyResolution!
 uk.osric.asp.Sdk.IPageEditor.RestoreRevisionAsync(string! key, string! hash, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
 uk.osric.asp.Sdk.IPageEditor.SaveAsync(string! key, string! template, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult!>!
-uk.osric.asp.Sdk.IPageEditor.SeedPaths() -> System.Collections.Generic.IReadOnlyList<string!>!
 uk.osric.asp.Sdk.IPageEditor.SeedSourceAsync(string! key) -> System.Threading.Tasks.Task<string?>!
 uk.osric.asp.Sdk.PageDeleteResult
 uk.osric.asp.Sdk.PageDeleteResult.<Clone>$() -> uk.osric.asp.Sdk.PageDeleteResult!
@@ -370,3 +369,24 @@ uk.osric.asp.Sdk.PageJobState.Running = 1 -> uk.osric.asp.Sdk.PageJobState
 ~override uk.osric.asp.Sdk.PageJobSendResult.ToString() -> string
 ~override uk.osric.asp.Sdk.PageJobStart.Equals(object obj) -> bool
 ~override uk.osric.asp.Sdk.PageJobStart.ToString() -> string
+uk.osric.asp.Sdk.PageEntry.Seed.get -> uk.osric.asp.Sdk.PageSeedSummary?
+uk.osric.asp.Sdk.PageEntry.Seed.init -> void
+uk.osric.asp.Sdk.PageSeedSummary
+uk.osric.asp.Sdk.PageSeedSummary.CanAdopt.get -> bool
+uk.osric.asp.Sdk.PageSeedSummary.CanAdopt.init -> void
+uk.osric.asp.Sdk.PageSeedSummary.CanApply.get -> bool
+uk.osric.asp.Sdk.PageSeedSummary.CanApply.init -> void
+uk.osric.asp.Sdk.PageSeedSummary.Deconstruct(out string! Verdict, out string! Sentence, out bool CanApply, out bool CanAdopt) -> void
+uk.osric.asp.Sdk.PageSeedSummary.Equals(uk.osric.asp.Sdk.PageSeedSummary? other) -> bool
+uk.osric.asp.Sdk.PageSeedSummary.PageSeedSummary(string! Verdict, string! Sentence, bool CanApply, bool CanAdopt) -> void
+uk.osric.asp.Sdk.PageSeedSummary.Sentence.get -> string!
+uk.osric.asp.Sdk.PageSeedSummary.Sentence.init -> void
+uk.osric.asp.Sdk.PageSeedSummary.Verdict.get -> string!
+uk.osric.asp.Sdk.PageSeedSummary.Verdict.init -> void
+override uk.osric.asp.Sdk.PageSeedSummary.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageSeedSummary.ToString() -> string!
+static uk.osric.asp.Sdk.PageSeedSummary.operator !=(uk.osric.asp.Sdk.PageSeedSummary? left, uk.osric.asp.Sdk.PageSeedSummary? right) -> bool
+static uk.osric.asp.Sdk.PageSeedSummary.operator ==(uk.osric.asp.Sdk.PageSeedSummary? left, uk.osric.asp.Sdk.PageSeedSummary? right) -> bool
+override uk.osric.asp.Sdk.PageSeedSummary.GetHashCode() -> int
+uk.osric.asp.Sdk.PageSeedSummary.<Clone>$() -> uk.osric.asp.Sdk.PageSeedSummary!
+uk.osric.asp.Sdk.IPageEditor.AdoptSeedAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!

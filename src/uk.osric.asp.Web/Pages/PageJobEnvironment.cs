@@ -18,6 +18,7 @@ using uk.osric.asp.Web.Work;
 /// <param name="Storage">The caps on that state.</param>
 /// <param name="Fetcher">Where a worker's outbound request goes.</param>
 /// <param name="Fetch">The outbound fetch caps.</param>
+/// <param name="Seeds">The pack this release ships, so a worker's catalog can describe it.</param>
 /// <param name="ReadStore">Where a worker's catalog reads the page store.</param>
 /// <param name="Read">The caps on that read.</param>
 /// <param name="Reserved">The keys the site's own routes answer for.</param>
@@ -34,6 +35,7 @@ internal sealed record PageJobEnvironment(
     IPageFetcher Fetcher,
     PageFetchOptions Fetch,
     IPageReadStore ReadStore,
+    PageSeeds Seeds,
     PageReadOptions Read,
     ReservedPaths Reserved,
     PageContentTypes ContentTypes,

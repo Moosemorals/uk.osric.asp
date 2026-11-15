@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
@@ -41,7 +42,9 @@ internal sealed class FakePageReadStore : IPageReadStore {
         string? runtimeId = null,
         bool hasImage = false,
         bool hasDiagnostics = false,
-        string? hash = null) {
+        string? hash = null,
+        string? seedHash = null,
+        string? contentHash = null) {
         DateTimeOffset when = savedAt ?? _clock.AddMinutes(1);
         _clock = when > _clock ? when : _clock;
 
@@ -50,7 +53,8 @@ internal sealed class FakePageReadStore : IPageReadStore {
         }
 
         hash ??= "hash-" + revisions.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-" + key;
-        revisions.Add(new FakeRevision(hash, when, template, templateKind, runtimeId, hasImage, hasDiagnostics));
+        contentHash ??= TemplateFingerprint.Of(template);
+        revisions.Add(new FakeRevision(hash, when, template, templateKind, runtimeId, hasImage, hasDiagnostics, seedHash, contentHash));
 
         return hash;
     }
@@ -71,7 +75,8 @@ internal sealed class FakePageReadStore : IPageReadStore {
                 .Select(item => new PageReadHead(
                     item.Key, item.Revision.SavedAt, item.Revision.Hash, IsDeleted: false,
                     item.Revision.TemplateKind, item.Revision.RuntimeId,
-                    item.Revision.HasImage, item.Revision.HasDiagnostics)),
+                    item.Revision.HasImage, item.Revision.HasDiagnostics,
+                    item.Revision.SeedHash, item.Revision.ContentHash)),
         ]);
     }
 
@@ -89,7 +94,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
                 FakeRevision latest = item.Value[^1];
                 return new PageReadHead(
                     item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key), latest.TemplateKind,
-                    latest.RuntimeId, latest.HasImage, latest.HasDiagnostics);
+                    latest.RuntimeId, latest.HasImage, latest.HasDiagnostics, latest.SeedHash, latest.ContentHash);
             })];
     }
 
@@ -107,7 +112,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
 
         return new PageReadHead(
             key, latest.SavedAt, latest.Hash, _deleted.Contains(key), latest.TemplateKind,
-            latest.RuntimeId, latest.HasImage, latest.HasDiagnostics);
+            latest.RuntimeId, latest.HasImage, latest.HasDiagnostics, latest.SeedHash, latest.ContentHash);
     }
 
     /// <inheritdoc/>
@@ -168,5 +173,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
         PageKind? TemplateKind,
         string? RuntimeId,
         bool HasImage,
-        bool HasDiagnostics);
+        bool HasDiagnostics,
+        string? SeedHash,
+        string? ContentHash);
 }

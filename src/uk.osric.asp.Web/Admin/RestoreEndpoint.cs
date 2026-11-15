@@ -36,13 +36,15 @@ internal static class RestoreEndpoint {
     /// <summary>Shows every seed and what restoring it would change.</summary>
     /// <param name="context">The request being answered.</param>
     /// <param name="pages">The page store, through the saver every write uses.</param>
+    /// <param name="seeds">The pack this release ships.</param>
     /// <param name="antiforgery">Mints the form's token.</param>
-    public static async Task PreviewAsync(HttpContext context, PageEditor pages, IAntiforgery antiforgery) {
+    public static async Task PreviewAsync(HttpContext context, PageEditor pages, PageSeeds seeds, IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(pages);
+        ArgumentNullException.ThrowIfNull(seeds);
 
-        IReadOnlyList<SeedPlan> plan = await PlanAsync(pages, context.RequestAborted);
-        int work = plan.Count(seed => seed.State != SeedState.Current);
+        IReadOnlyList<SeedPlan> plan = await PlanAsync(pages, seeds, context.RequestAborted);
+        int work = plan.Count(seed => !seed.HoldsSeed);
 
         // Minted before the first byte. Storing the antiforgery cookie is a header write, and the
         // table has gone out by the time the button is written, so a visitor who arrives without one
@@ -80,10 +82,12 @@ internal static class RestoreEndpoint {
     /// <summary>Restores every seed that differs, reporting each one rather than stopping at a failure.</summary>
     /// <param name="context">The request being answered.</param>
     /// <param name="pages">The page store, through the saver every write uses.</param>
+    /// <param name="seeds">The pack this release ships.</param>
     /// <param name="loggers">Names a seed that failed.</param>
-    public static async Task RestoreAsync(HttpContext context, PageEditor pages, ILoggerFactory loggers) {
+    public static async Task RestoreAsync(HttpContext context, PageEditor pages, PageSeeds seeds, ILoggerFactory loggers) {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(pages);
+        ArgumentNullException.ThrowIfNull(seeds);
         ArgumentNullException.ThrowIfNull(loggers);
 
         if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) {
@@ -96,12 +100,12 @@ internal static class RestoreEndpoint {
         }
 
         ILogger logger = loggers.CreateLogger(typeof(RestoreEndpoint).FullName!);
-        IReadOnlyList<SeedPlan> plan = await PlanAsync(pages, context.RequestAborted);
+        IReadOnlyList<SeedPlan> plan = await PlanAsync(pages, seeds, context.RequestAborted);
         List<SeedResult> results = [];
 
         foreach (SeedPlan seed in plan) {
-            if (seed.State == SeedState.Current) {
-                results.Add(new SeedResult(seed.Path, seed.State, SeedOutcome.Unchanged));
+            if (seed.HoldsSeed) {
+                results.Add(new SeedResult(seed.Path, seed.Summary, SeedOutcome.Unchanged));
                 continue;
             }
 
@@ -116,7 +120,7 @@ internal static class RestoreEndpoint {
                 }
             } catch (Exception exception) when (exception is not OperationCanceledException) {
                 logger.LogError(exception, "Restoring the seed of {Path} failed", seed.Path.Key);
-                results.Add(new SeedResult(seed.Path, seed.State, SeedOutcome.Failed));
+                results.Add(new SeedResult(seed.Path, seed.Summary, SeedOutcome.Failed));
             }
         }
 
@@ -128,7 +132,7 @@ internal static class RestoreEndpoint {
             <table>
                 <caption>Every page this release ships with</caption>
                 <thead>
-                    <tr><th scope="col">Page</th><th scope="col">State</th></tr>
+                    <tr><th scope="col">Page</th><th scope="col">Verdict</th><th scope="col">What it means</th></tr>
                 </thead>
                 <tbody>
             """);
@@ -136,7 +140,7 @@ internal static class RestoreEndpoint {
         foreach (SeedPlan seed in plan) {
             string key = WebUtility.HtmlEncode(seed.Path.Key);
             await context.Response.WriteAsync(
-                $"<tr><th scope=\"row\"><a href=\"{WebUtility.HtmlEncode(PageUrls.Editor(seed.Path, EditorPaths.Of(context.RequestServices)))}\">{key}</a></th><td>{Describe(seed.State)}</td></tr>");
+                $"<tr><th scope=\"row\"><a href=\"{WebUtility.HtmlEncode(PageUrls.Editor(seed.Path, EditorPaths.Of(context.RequestServices)))}\">{key}</a></th><td>{WebUtility.HtmlEncode(seed.Summary.Verdict)}</td><td>{WebUtility.HtmlEncode(seed.Summary.Sentence)}</td></tr>");
         }
 
         await context.Response.WriteAsync("</tbody></table>");
@@ -169,7 +173,7 @@ internal static class RestoreEndpoint {
         foreach (SeedResult result in results) {
             string key = WebUtility.HtmlEncode(result.Path.Key);
             await context.Response.WriteAsync(
-                $"<tr><th scope=\"row\"><a href=\"{WebUtility.HtmlEncode(PageUrls.Editor(result.Path, EditorPaths.Of(context.RequestServices)))}\">{key}</a></th><td>{Describe(result.Was)}</td><td>{Describe(result.Outcome)}</td></tr>");
+                $"<tr><th scope=\"row\"><a href=\"{WebUtility.HtmlEncode(PageUrls.Editor(result.Path, EditorPaths.Of(context.RequestServices)))}\">{key}</a></th><td>{WebUtility.HtmlEncode(result.Was.Verdict)}</td><td>{Describe(result.Outcome)}</td></tr>");
         }
 
         await context.Response.WriteAsync("</tbody></table>");
@@ -206,14 +210,6 @@ internal static class RestoreEndpoint {
     private static string ButtonText(int work) => work == 1
         ? "Restore the seed"
         : $"Restore {work.ToString(CultureInfo.InvariantCulture)} seeds";
-
-    private static string Describe(SeedState state) => state switch {
-        SeedState.Current => "current",
-        SeedState.Changed => "changed",
-        SeedState.Missing => "missing",
-        SeedState.Deleted => "deleted",
-        _ => "unknown",
-    };
 
     private static string Describe(SeedOutcome outcome) => outcome switch {
         SeedOutcome.Unchanged => "unchanged",

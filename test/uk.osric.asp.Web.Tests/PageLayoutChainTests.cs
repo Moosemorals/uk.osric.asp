@@ -684,6 +684,7 @@ public sealed class PageLayoutChainTests {
             read ?? TestOptions.Read,
             _state,
             _readStore,
+            TestOptions.Seeds,
             saver,
             _fetcher,
             _metrics,

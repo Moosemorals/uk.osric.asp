@@ -19,6 +19,7 @@ using Site.Document;
     string RevisionUrl(string name, string hash) => ReadUrl(name) + "&rev=" + System.Uri.EscapeDataString(hash);
     string DeleteUrl(string name) => EditUrl(name) + "&cmd=delete";
     string InstallUrl(string name) => EditUrl(name) + "&cmd=install";
+    string AdoptAction(string name) => self + "?edit=" + System.Uri.EscapeDataString(name) + "&cmd=adopt";
     string RestoreUrl(string name, string hash) => RevisionUrl(name, hash) + "&cmd=restore";
     // Scrub is the shell's route: the page has no capability for it, and it is destructive enough
     // that the typed confirmation stays in a view the page store cannot shadow.
@@ -195,6 +196,22 @@ using Site.Document;
             if (installed.Outcome == PageEditOutcome.Stale) {
                 status = 409;
             }
+            return;
+        }
+
+        if (command == "adopt") {
+            PageEditResult? adopted = await editor.AdoptSeedAsync(key);
+            if (adopted is null) {
+                Problem(404, "That is not a seeded page", key + " is not one of the pages this release ships, so there is no seed to record.");
+                return;
+            }
+
+            stage = "listing";
+            notice = adopted.Outcome switch {
+                PageEditOutcome.Stale => "The page changed while this request was made, so nothing was recorded.",
+                PageEditOutcome.Unchanged => "Nothing to record: " + key + " already names the shipped seed.",
+                _ => "Recorded " + key + " as installed from its seed. Its content is unchanged.",
+            };
             return;
         }
 
@@ -406,12 +423,10 @@ using Site.Document;
         Menu("Editor navigation", [new(self, "Page list")]);
     } else if (stage == "listing") {
         layout.Title = "Pages";
-        HashSet<string> seeds = [.. editor.SeedPaths()];
-        string[] headings = ["Live pages", "Seeded pages", "Deleted pages"];
-        string[] empties = ["No live pages.", "No seeded pages.", "No deleted pages."];
+        string[] headings = ["Pages", "Deleted pages"];
+        string[] empties = ["No pages.", "No deleted pages."];
         PageEntry[][] groups = [
-            [.. entries.Where(entry => !entry.IsDeleted && !seeds.Contains(entry.Key))],
-            [.. entries.Where(entry => !entry.IsDeleted && seeds.Contains(entry.Key))],
+            [.. entries.Where(entry => !entry.IsDeleted)],
             [.. entries.Where(entry => entry.IsDeleted)],
         ];
         %><h1>Pages</h1><%
@@ -431,7 +446,7 @@ run.</p>
 </form><%
         for (int index = 0; index < groups.Length; index++) {
             PageEntry[] rows = groups[index];
-            bool groupDeleted = index == 2;
+            bool groupDeleted = index == 1;
             %><h2><%= headings[index] %></h2><%
             if (rows.Length == 0) {
                 %><p><%= empties[index] %></p><%
@@ -439,7 +454,7 @@ run.</p>
                 %><table class="pages">
     <caption><%= headings[index] %></caption>
     <thead>
-        <tr><th scope="col">Page</th><th scope="col">State</th><th scope="col">Actions</th></tr>
+        <tr><th scope="col">Page</th><th scope="col">State</th><th scope="col">Seed</th><th scope="col">Actions</th></tr>
     </thead>
     <tbody><%
                 foreach (PageEntry entry in rows) {
@@ -450,6 +465,11 @@ run.</p>
                         %><th scope="row"><a href="<%= entry.Key %>" aria-label="View <%= entry.Key %>"><%= entry.Key %></a></th><%
                     }
                     %><td class="page-state <%= StateClass(entry.State) %>"><%= entry.State %></td>
+<td class="page-seed"><%
+                    if (entry.Seed is not null) {
+                        %><strong><%= entry.Seed.Verdict %></strong> <span><%= entry.Seed.Sentence %></span><%
+                    }
+                    %></td>
 <td class="page-actions"><%
                     if (entry.IsReserved) {
                         %><span>unavailable</span><%
@@ -457,15 +477,16 @@ run.</p>
                         %><a href="<%= ReadUrl(entry.Key) %>" aria-label="History of <%= entry.Key %>">History</a>
 <a href="<%= ScrubUrl(entry.Key) %>" aria-label="Scrub history of <%= entry.Key %>">Scrub history</a><%
                     } else {
-                        string? seed = seeds.Contains(entry.Key) ? await editor.SeedSourceAsync(entry.Key) : null;
-                        PageSource? source = seed is null ? null : await catalog.ReadAsync(entry.Key);
                         %><a href="<%= EditUrl(entry.Key) %>" aria-label="Edit <%= entry.Key %>">Edit</a>
 <a href="<%= ReadUrl(entry.Key) %>" aria-label="History of <%= entry.Key %>">History</a><%
                         if (!string.Equals(entry.Key, ctx.Path, System.StringComparison.Ordinal)) {
                             %><a href="<%= DeleteUrl(entry.Key) %>" aria-label="Delete <%= entry.Key %>">Delete</a><%
                         }
-                        if (seed is not null && !string.Equals(source?.Source, seed, System.StringComparison.Ordinal)) {
+                        if (entry.Seed?.CanApply == true) {
                             %><a href="<%= InstallUrl(entry.Key) %>" aria-label="Install <%= entry.Key %> from its seed">Install from seed</a><%
+                        }
+                        if (entry.Seed?.CanAdopt == true) {
+                            %><form method="post" action="<%= AdoptAction(entry.Key) %>" class="inline"><%== ctx.AntiforgeryField %><button type="submit" aria-label="Record <%= entry.Key %> as installed from its seed">Record as installed</button></form><%
                         }
                     }
                     %></td>
@@ -482,7 +503,8 @@ run.</p>
         if (!isEditorItself) {
             menu.Add(new(DeleteUrl(key), "Delete"));
         }
-        if ((await editor.SeedSourceAsync(key)) is not null) {
+        PageEntry? row = (await catalog.ListAsync(key)).FirstOrDefault(item => string.Equals(item.Key, key, System.StringComparison.Ordinal));
+        if (row?.Seed?.CanApply == true) {
             menu.Add(new(InstallUrl(key), "Install from seed"));
         }
         menu.Add(new("/help", "Help"));

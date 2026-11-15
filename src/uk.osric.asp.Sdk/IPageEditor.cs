@@ -34,9 +34,6 @@ public interface IPageEditor {
     /// <returns>The canonical key, or why the text names no page.</returns>
     PageKeyResolution Resolve(string key);
 
-    /// <summary>The pages the release ships with, as keys.</summary>
-    IReadOnlyList<string> SeedPaths();
-
     /// <summary>Reads the source this release ships for a seed.</summary>
     /// <param name="key">The page's key; normalised before it is read.</param>
     /// <returns>The bundled source, or <see langword="null"/> when the release ships no seed for that key.</returns>
@@ -75,6 +72,21 @@ public interface IPageEditor {
     /// <exception cref="UserFacingException">This render has no signed-in visitor.</exception>
     /// <exception cref="InvalidOperationException">A reserved key, a <c>HEAD</c>, an ended render or a second action.</exception>
     Task<PageEditResult?> RestoreRevisionAsync(string key, string hash, string? expectedHash);
+
+    /// <summary>Records a seed as installed without storing a revision.</summary>
+    /// <param name="key">The page's key; normalised and checked.</param>
+    /// <returns>
+    /// Null when the key is not a seed; the outcome is <see cref="PageEditOutcome.Unchanged"/> when
+    /// the record already names the shipped seed.
+    /// </returns>
+    /// <remarks>
+    /// This is the answer to <see cref="PageSeedSummary.CanAdopt"/>: the page already holds the bytes
+    /// this release ships, so recording it as installed changes the record and nothing else. A page
+    /// whose content no longer matches the seed is a page bug, and throws.
+    /// </remarks>
+    /// <exception cref="UserFacingException">This render has no signed-in visitor.</exception>
+    /// <exception cref="InvalidOperationException">A reserved key, a <c>HEAD</c>, an ended render, a second action, or content that is not the seed.</exception>
+    Task<PageEditResult?> AdoptSeedAsync(string key);
 
     /// <summary>Saves a page the release ships with from its bundled source.</summary>
     /// <param name="key">The page's key; normalised and checked.</param>

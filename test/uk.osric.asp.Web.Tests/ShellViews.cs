@@ -189,7 +189,7 @@ internal static class ShellViews {
         foreach (string seed in new[] { "/_layout", path }) {
             pages[seed] = new PageTemplate(
                 PageHarness.Key(seed),
-                await PageAssetSeeder.ReadSeedTemplateAsync(PageHarness.Key(seed)) ?? string.Empty);
+                TestOptions.SeedSource(PageHarness.Key(seed)) ?? string.Empty);
         }
 
         DefaultHttpContext context = TestHttp.CreateContext(path.TrimStart('/'), "GET", path);
@@ -221,6 +221,7 @@ internal static class ShellViews {
                 TestOptions.Read,
                 new FakePageStateStore(),
                 readStore ?? new FakePageReadStore(),
+                TestOptions.Seeds,
                 harness.Saver,
                 new FakePageFetcher(),
                 metrics,
@@ -325,6 +326,7 @@ internal static class ShellViews {
                 TestOptions.Read,
                 new FakePageStateStore(),
                 new FakePageReadStore(),
+                TestOptions.Seeds,
                 pages.Saver,
                 new FakePageFetcher(),
                 new PageMetrics(),
@@ -426,7 +428,7 @@ internal static class ShellViews {
         using PageHarness pages = await RestoreHarnessAsync();
         DefaultHttpContext context = AuthenticatedContext("/admin/restore");
 
-        await RestoreEndpoint.PreviewAsync(context, pages.Editor, new TestAntiforgery());
+        await RestoreEndpoint.PreviewAsync(context, pages.Editor, TestOptions.Seeds, new TestAntiforgery());
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -435,7 +437,7 @@ internal static class ShellViews {
         using PageHarness pages = await RestoreHarnessAsync();
         DefaultHttpContext context = AuthenticatedContext("/admin/restore");
 
-        await RestoreEndpoint.RestoreAsync(context, pages.Editor, NullLoggerFactory.Instance);
+        await RestoreEndpoint.RestoreAsync(context, pages.Editor, TestOptions.Seeds, NullLoggerFactory.Instance);
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -444,8 +446,8 @@ internal static class ShellViews {
     // has something it actually wrote.
     private static async Task<PageHarness> RestoreHarnessAsync() {
         FakePageStore store = new();
-        foreach (PagePath path in PageAssetSeeder.SeedPaths()) {
-            store[path.Key] = new PageTemplate(path, (await PageAssetSeeder.ReadSeedTemplateAsync(path))!);
+        foreach (PagePath path in TestOptions.Seeds.Paths) {
+            store[path.Key] = new PageTemplate(path, (TestOptions.SeedSource(path))!);
         }
 
         store["/about"] = new PageTemplate(PageHarness.Key("/about"), "changed by the owner");
@@ -459,7 +461,7 @@ internal static class ShellViews {
             ["/notes"] = new PageTemplate(PageHarness.Key("/notes"), Source),
         };
 
-        await ExportEndpoint.ListAsync(context, store, Reserved, new TestAntiforgery());
+        await ExportEndpoint.ListAsync(context, store, Reserved, TestOptions.Seeds, new TestAntiforgery());
 
         return await TestHttp.ReadBodyAsync(context);
     }

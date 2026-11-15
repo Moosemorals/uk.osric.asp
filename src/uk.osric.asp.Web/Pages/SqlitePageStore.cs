@@ -240,6 +240,18 @@ internal sealed class SqlitePageStore(
         };
     }
 
+    public async Task<bool> AdoptSeedAsync(PagePath path, string seedHash, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(seedHash);
+
+        int adopted = await database.Database.ExecuteSqlAsync($"""
+            UPDATE "PageHeads" SET "SeedHash" = {seedHash}
+            WHERE "Path" = {path.Key} AND "IsDeleted" = 0 AND "ContentHash" = {seedHash}
+            """, cancellationToken);
+
+        return adopted > 0;
+    }
+
     public Task<bool> TrySavePageAsync(PageTemplate template, string expectedHash, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);

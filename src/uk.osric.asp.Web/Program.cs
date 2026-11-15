@@ -211,6 +211,7 @@ internal class Program {
               services.GetRequiredService<PageReadOptions>(),
               services.GetRequiredService<IPageStateStore>(),
               services.GetRequiredService<IPageReadStore>(),
+              services.GetRequiredService<PageSeeds>(),
               services.GetRequiredService<PageSaver>(),
               services.GetRequiredService<IPageFetcher>(),
               services.GetRequiredService<PageMetrics>(),
@@ -253,6 +254,7 @@ internal class Program {
             services.GetRequiredService<IPageFetcher>(),
             services.GetRequiredService<PageFetchOptions>(),
             services.GetRequiredService<IPageReadStore>(),
+            services.GetRequiredService<PageSeeds>(),
             services.GetRequiredService<PageReadOptions>(),
             services.GetRequiredService<ReservedPaths>(),
             services.GetRequiredService<PageContentTypes>(),
@@ -462,6 +464,11 @@ internal class Program {
         app.MapGet("/admin/restore", RestoreEndpoint.PreviewAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/admin/restore", RestoreEndpoint.RestoreAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/admin/seed-apply", ApplySeedsEndpoint.PreviewAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/admin/seed-apply", ApplySeedsEndpoint.ApplyAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         app.MapGet("/admin/export", ExportEndpoint.ListAsync)

@@ -25,6 +25,7 @@ using uk.osric.asp.Web.Work;
 /// <param name="Read">The caps on a page's read of the page store.</param>
 /// <param name="StateStore">Where a page's state is read and written.</param>
 /// <param name="ReadStore">Where a page's catalog reads the page store.</param>
+/// <param name="Seeds">The pack this release ships, read once.</param>
 /// <param name="Saver">Where a page's save, and the editor's, compiles and stores a revision.</param>
 /// <param name="Fetcher">Where a page's outbound request goes.</param>
 /// <param name="Metrics">Where the endpoint's own refusals are recorded.</param>
@@ -49,6 +50,7 @@ internal sealed record PageEnvironment(
     PageReadOptions Read,
     IPageStateStore StateStore,
     IPageReadStore ReadStore,
+    PageSeeds Seeds,
     PageSaver Saver,
     IPageFetcher Fetcher,
     PageMetrics Metrics,

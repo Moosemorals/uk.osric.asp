@@ -6,8 +6,10 @@ namespace uk.osric.asp.Web.Pages;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 
-/// <summary>Seeds the pages the shell ships with, and reads them back for a restore.</summary>
+/// <summary>Installs the pages the shell ships with into a store that is missing them.</summary>
 internal static class PageAssetSeeder {
+
+    private static readonly PageSeeds s_pack = new(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
 
     /// <summary>Installs the seeds a store is missing.</summary>
     /// <param name="pages">The store to seed.</param>
@@ -29,19 +31,17 @@ internal static class PageAssetSeeder {
         }
     }
 
-    public static async Task<string?> ReadSeedTemplateAsync(PagePath path, CancellationToken cancellationToken = default) {
-        ArgumentNullException.ThrowIfNull(path);
+    /// <summary>The page keys of the pack this build carries, in seeding order.</summary>
+    public static IReadOnlyList<PagePath> SeedPaths() => s_pack.Paths;
 
-        string? seed = FindSeedFile(path);
-        return seed is null ? null : await File.ReadAllTextAsync(seed, cancellationToken);
+    /// <summary>The source this build ships for a key, or null when it ships none.</summary>
+    /// <param name="path">The canonical key.</param>
+    /// <param name="cancellationToken">Unused: the pack is in memory.</param>
+    public static Task<string?> ReadSeedTemplateAsync(PagePath path, CancellationToken cancellationToken = default) {
+        _ = cancellationToken;
+
+        return Task.FromResult(s_pack.Source(path));
     }
-
-    /// <summary>The page keys of the assets bundled with this release, in seeding order.</summary>
-    public static IReadOnlyList<PagePath> SeedPaths() {
-        return [.. SeedFiles().Select(KeyOf)];
-    }
-
-    private static string SeedsDirectory => Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds");
 
     // The kind is generated here rather than derived from a compile: a seeded library has to be known
     // as one before any page that names it is compiled, and only the tokens say so.
@@ -50,31 +50,4 @@ internal static class PageAssetSeeder {
             Kind = TemplateSourceGenerator.Generate(seed.Source).Kind,
             SeedHash = seed.Hash,
         };
-
-    // Every file under the seed folder, so a library can be seeded in a subtree of its own rather
-    // than in the site's root key space.
-    private static string[] SeedFiles() {
-        string[] seeds = Directory.GetFiles(SeedsDirectory, "*", SearchOption.AllDirectories);
-        Array.Sort(seeds, StringComparer.Ordinal);
-        return seeds;
-    }
-
-    // A seed is served at the key its path under the seed folder names: `_layout` is `/_layout`, and
-    // `_lib/document` is `/_lib/document`.
-    private static PagePath KeyOf(string seedFile) =>
-        PagePath.Normalize("/" + Path.GetRelativePath(SeedsDirectory, seedFile).Replace('\\', '/'));
-
-    private static string? FindSeedFile(PagePath path) {
-        if (path.Key.Length <= 1) {
-            return null;
-        }
-
-        foreach (string seed in SeedFiles()) {
-            if (string.Equals(KeyOf(seed).Key, path.Key, StringComparison.Ordinal)) {
-                return seed;
-            }
-        }
-
-        return null;
-    }
 }

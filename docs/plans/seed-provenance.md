@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Approved 2026-11-15 on `trunk`; revised the same day after the owner answered the seven open questions. Nothing below is built. This is the final plan, and it waits for the owner's go to build |
+| Status | Implemented 2026-11-15; `make check` is green. Awaiting the owner's merge. The plan was approved on `trunk` and revised the same day after the owner answered the seven open questions |
 | Size | Large — a migration with two columns and a one-off repair, one write-path fact, one pure comparison and its words, one field on the page contract and one member removed, one shell route, an archive format version, a `seeds` command with four make targets, two seeded pages, and the prose and tests for each. Slices 0 and 1 are small and independent; 2–4 are the bulk |
 | Spike | None. Every number and claim below was measured on `trunk` at `f369bcc`; the first version of this plan was measured at `1badddd`, and the pack has grown by 7,972 bytes since. The two places the design could fail are the revision hash (settled: it is an identity, D1) and the archive reader (settled by the format's own version column, D9) |
 | Decisions | **pages-a-seed-write-records-its-hash**, **pages-a-seed-verdict-is-the-hosts**, **shell-the-pack-comes-home**, **shell-the-seed-apply-is-a-route**, **pages-an-archive-carries-provenance**. Named at the merge (`product-plan-before-building`); this branch states the names it intends |

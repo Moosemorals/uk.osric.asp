@@ -35,6 +35,32 @@ public sealed class PageCatalogScopeTests {
     }
 
     [Test]
+    public async Task AListingSaysWhatTheRowIsRelativeToTheSeedAsync() {
+        SeedFile about = TestOptions.Seeds.Find(PagePath.Normalize("/about"))!;
+        FakePageReadStore store = new();
+        store.Save("/about", about.Source, seedHash: about.Hash);
+
+        IReadOnlyList<PageEntry> entries = await Scope(store).ListAsync("/");
+
+        PageEntry entry = entries.Single(item => item.Key == "/about");
+        Assert.Multiple(() => {
+            Assert.That(entry.Seed?.Verdict, Is.EqualTo("in sync"));
+            Assert.That(entry.Seed?.CanApply, Is.False);
+            Assert.That(entry.Seed?.CanAdopt, Is.False);
+        });
+    }
+
+    [Test]
+    public async Task APageWithNoSeedEitherSideCarriesNoSummaryAsync() {
+        FakePageReadStore store = new();
+        store.Save("/mine", "mine");
+
+        IReadOnlyList<PageEntry> entries = await Scope(store).ListAsync("/");
+
+        Assert.That(entries.Single(item => item.Key == "/mine").Seed, Is.Null);
+    }
+
+    [Test]
     public async Task ALivePageIsReadWithItsHashAndItsSavedTimeAsync() {
         DateTimeOffset savedAt = new(2026, 11, 1, 8, 30, 0, TimeSpan.Zero);
         FakePageReadStore store = new();
@@ -355,6 +381,7 @@ public sealed class PageCatalogScopeTests {
             budget ?? new ReadBudget(read.MaxSourceCharsPerRender),
             new ReservedPaths(ReservedPaths.Default),
             TestContentTypes.Shipped,
+            TestOptions.Seeds,
             CurrentRuntimeId);
     }
 

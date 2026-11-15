@@ -193,15 +193,26 @@ the shell still owns the things a page must not: routing, the session, the recov
 typed confirmation a scrub needs. Pages stay public unless their own code checks `ctx.User` (see
 "Page authentication" below).
 
-A seeded page is installed from its row in the editor's listing: the action opens a confirmation
-that shows the diff against the seed, and its button saves the bundled source through the ordinary
-revision path, so a page comes back without discarding its earlier revisions. A seed is *installed* and a saved revision is *restored*:
-`?edit=<key>&cmd=install` on the seed, `?rev=<hash>&cmd=restore` from the page's history, both confirmed the same way
-and both refusing the change that would leave the live source as it is. The page's history offers a
-restore link on every revision except the current one; the editor says when a key was deleted and
-that saving brings it back. A deleted page's history is scrubbed from `/admin/scrub/<key>`, which is
-the shell's route because it is irreversible: the owner types the page's key to confirm, and a live
-page has to be deleted before it can be scrubbed.
+A seeded page is installed from its row only when the release moved the seed and the page still holds
+the seed it was installed from — the row says *release newer*. The action opens a confirmation that
+shows the diff against the seed, and its button saves the bundled source through the ordinary
+revision path, so a page comes back without discarding its earlier revisions. A row whose content
+already is the shipped seed but whose record says otherwise offers *Record as installed*, a POST that
+writes the anchor and nothing else. A page that drifted is shown with the diff and no action: the
+capability refuses an install on it, so a hand-made form cannot do what the page will not offer. A
+seed is *installed* and a saved revision is *restored*: `?edit=<key>&cmd=install` on the seed,
+`?rev=<hash>&cmd=restore` from the page's history, both confirmed the same way and both refusing the
+change that would leave the live source as it is. The page's history offers a restore link on every
+revision except the current one; the editor says when a key was deleted and that saving brings it
+back. A deleted page's history is scrubbed from `/admin/scrub/<key>`, which is the shell's route
+because it is irreversible: the owner types the page's key to confirm, and a live page has to be
+deleted before it can be scrubbed.
+
+The routine apply is `/admin/seed-apply`: it walks the pack in key order, writes every *release newer*
+and *new* row, records every row whose content already is the shipped seed, skips the rows that are
+not its business and stops at the first row that drifted, naming it. `/admin/restore` remains the
+emergency path — every seed, every outcome, past a failure — because it is what the owner reaches for
+when the editor or its sheet will not load.
 
 - Accounts live in the `Users` table in the same SQLite database. There is no registration endpoint
   and no account UI: the `users` command in the Web app creates, lists, resets and removes accounts
@@ -290,7 +301,7 @@ A page keeps per-visitor state through `ctx.Capabilities.GetRequired<IPageSessio
 
 The shell keeps no flash message of its own. The editor page's notices are written into the render
 that produced them: it answers a save in place, so a message that a redirect would have to carry is
-not needed. `/admin/restore` and `/admin/scrub` answer with their own documents for the same reason.
+not needed. `/admin/restore`, `/admin/seed-apply` and `/admin/scrub` answer with their own documents for the same reason.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
   starts (`shell-security-headers-are-one-set`). The assistant and admin views widen the policy to `script-src 'self'` for their
   own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` — which is how

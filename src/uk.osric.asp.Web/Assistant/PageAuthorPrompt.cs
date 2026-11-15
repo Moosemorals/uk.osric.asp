@@ -440,7 +440,7 @@ internal static class PageAuthorPrompt {
 
         ## Shell files
         The site's shell files are its own routes: `/admin/changes`,
-        `/admin/export`, `/admin/import`, `/admin/reference`, `/admin/restore`,
+        `/admin/export`, `/admin/import`, `/admin/reference`, `/admin/restore`, `/admin/seed-apply`,
         `/admin/scrub`, `/assistant`, `/favicon.ico`, `/heath`, `/login`,
         `/logout`, `/metrics` and `/status`, plus whatever the host adds to
         `Pages:ReservedPaths`. The editor is not one of them: it is a stored

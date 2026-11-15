@@ -15,7 +15,7 @@ public sealed class PageAssetSeederTests {
 
     [Test]
     public void SeedPathsAreTheShippedFiles() {
-        Assert.That(PageAssetSeeder.SeedPaths().Select(path => path.Key), Is.EquivalentTo(SeedPaths));
+        Assert.That(TestOptions.Seeds.Paths.Select(path => path.Key), Is.EquivalentTo(SeedPaths));
     }
 
     // A library has to be known as one the moment it is seeded, or the layout that names it cannot
@@ -64,7 +64,7 @@ public sealed class PageAssetSeederTests {
 
     [TestCaseSource(nameof(SeedPaths))]
     public async Task ShippedSeedCanBeReadByItsPagePathAsync(string path) {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
+        string? template = TestOptions.SeedSource(PagePath.Normalize(path));
 
         Assert.That(template, Is.EqualTo(ShippedSeed(path)));
     }
@@ -73,7 +73,7 @@ public sealed class PageAssetSeederTests {
     [TestCase("/assistant.js")]
     [TestCase("/editor.js")]
     public async Task ShippedScriptsAreNativeModulesAsync(string path) {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
+        string? template = TestOptions.SeedSource(PagePath.Normalize(path));
 
         Assert.That(template, Does.Match(@"(?m)^(?:export|import)\b"));
     }
@@ -87,7 +87,7 @@ public sealed class PageAssetSeederTests {
     [TestCase("/site.css")]
     [TestCase("/status.css")]
     public async Task StylesheetsAndScriptsCarryNoTemplateDirectiveAsync(string path) {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
+        string? template = TestOptions.SeedSource(PagePath.Normalize(path));
 
         Assert.That(template, Does.Not.Contain("<%"));
     }
@@ -98,7 +98,7 @@ public sealed class PageAssetSeederTests {
     public async Task EveryShippedSeedIsStoredWithoutDiagnosticsAsync(string path) {
         using PageHarness pages = new(new FakePageStore());
         await pages.SeedAsync();
-        string template = (await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path)))!;
+        string template = (TestOptions.SeedSource(PagePath.Normalize(path)))!;
         IReadOnlyList<PageLibrary> libraries = await pages.Libraries.LiveAsync();
 
         PageImage image = pages.Images.Build(
@@ -111,7 +111,7 @@ public sealed class PageAssetSeederTests {
 
     [Test]
     public async Task TheAdminIndexIsAReachableFragment() {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/admin"));
+        string? template = TestOptions.SeedSource(PagePath.Normalize("/admin"));
 
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
@@ -121,7 +121,7 @@ public sealed class PageAssetSeederTests {
 
     [Test]
     public async Task TheHelpPageIsAReachableFragment() {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/help"));
+        string? template = TestOptions.SeedSource(PagePath.Normalize("/help"));
 
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
@@ -133,7 +133,7 @@ public sealed class PageAssetSeederTests {
 
     [Test]
     public async Task TheAboutPageIsAReachableFragment() {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/about"));
+        string? template = TestOptions.SeedSource(PagePath.Normalize("/about"));
 
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
@@ -149,7 +149,7 @@ public sealed class PageAssetSeederTests {
 
     [Test]
     public async Task ThePrivacyPageIsAPublicFragmentAsync() {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/privacy"));
+        string? template = TestOptions.SeedSource(PagePath.Normalize("/privacy"));
 
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
@@ -161,7 +161,7 @@ public sealed class PageAssetSeederTests {
 
     [Test]
     public async Task ThePublicListingIsAReachableFragment() {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/recent"));
+        string? template = TestOptions.SeedSource(PagePath.Normalize("/recent"));
 
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
@@ -173,7 +173,7 @@ public sealed class PageAssetSeederTests {
 
     [Test]
     public async Task TheGuardedPageGuardsItself() {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/pages"));
+        string? template = TestOptions.SeedSource(PagePath.Normalize("/pages"));
 
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
@@ -186,7 +186,7 @@ public sealed class PageAssetSeederTests {
 
     [Test]
     public async Task TheDraftShowsItsOwnSourceAndSavesItself() {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/scratch"));
+        string? template = TestOptions.SeedSource(PagePath.Normalize("/scratch"));
 
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
@@ -201,7 +201,7 @@ public sealed class PageAssetSeederTests {
 
     [Test]
     public async Task TheLayoutSeedIsAPageTheOwnerCanEdit() {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/_layout"));
+        string? template = TestOptions.SeedSource(PagePath.Normalize("/_layout"));
 
         Assert.That(template, Does.Contain("Document.Head"));
         Assert.That(template, Does.Contain("layout.Body"));
@@ -210,7 +210,7 @@ public sealed class PageAssetSeederTests {
 
     [Test]
     public async Task TheSvgSeedReliesOnItsExtensionForItsContentTypeAsync() {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize("/rocket.svg"));
+        string? template = TestOptions.SeedSource(PagePath.Normalize("/rocket.svg"));
 
         Assert.That(template, Does.Not.Contain("ctx.SetContentType"));
         Assert.That(template, Does.Not.Contain("<%"), "the icon has no code, so it is an asset");
@@ -220,7 +220,7 @@ public sealed class PageAssetSeederTests {
     [TestCase("/not-a-seed")]
     [TestCase("/admin/restore")]
     public async Task UnknownAndNestedPagesHaveNoShippedSeedAsync(string path) {
-        string? template = await PageAssetSeeder.ReadSeedTemplateAsync(PagePath.Normalize(path));
+        string? template = TestOptions.SeedSource(PagePath.Normalize(path));
 
         Assert.That(template, Is.Null);
     }

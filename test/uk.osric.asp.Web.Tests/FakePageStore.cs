@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
@@ -11,6 +12,7 @@ internal sealed class FakePageStore : IPageStore {
     private readonly Dictionary<string, PageTemplate> _pages = [];
     private readonly Dictionary<string, bool> _heads = [];
     private readonly Dictionary<string, PageTemplate> _revisions = [];
+    private readonly Dictionary<string, string> _anchors = [];
 
     public Exception? Failure { get; init; }
 
@@ -50,6 +52,9 @@ internal sealed class FakePageStore : IPageStore {
             _pages[PagePath.Normalize(path).Key] = page;
             _heads[PagePath.Normalize(path).Key] = false;
             _revisions[page.Hash] = page;
+            if (page.SeedHash is not null) {
+                _anchors[PagePath.Normalize(path).Key] = page.SeedHash;
+            }
         }
     }
 
@@ -89,9 +94,16 @@ internal sealed class FakePageStore : IPageStore {
 
     public Task<PageHeadSummary?> GetHeadAsync(PagePath path, CancellationToken cancellationToken = default) {
         Check(cancellationToken);
-        return Task.FromResult(_heads.TryGetValue(path.Key, out bool isDeleted)
-            ? new PageHeadSummary(path, isDeleted)
-            : null);
+        if (!_heads.TryGetValue(path.Key, out bool isDeleted)) {
+            return Task.FromResult<PageHeadSummary?>(null);
+        }
+
+        string? contentHash = _pages.TryGetValue(path.Key, out PageTemplate? page)
+            ? TemplateFingerprint.Of(page.Template)
+            : null;
+
+        return Task.FromResult<PageHeadSummary?>(
+            new PageHeadSummary(path, isDeleted, _anchors.GetValueOrDefault(path.Key), contentHash));
     }
 
     public Task<PageTemplate?> GetRevisionByHashAsync(string hash, CancellationToken cancellationToken = default) {
@@ -134,6 +146,9 @@ internal sealed class FakePageStore : IPageStore {
         _pages[page.Path.Key] = page;
         _heads[page.Path.Key] = false;
         _revisions[page.Hash] = page;
+        if (page.SeedHash is not null) {
+            _anchors[page.Path.Key] = page.SeedHash;
+        }
 
         return Task.CompletedTask;
     }
@@ -148,6 +163,9 @@ internal sealed class FakePageStore : IPageStore {
             _pages[page.Path.Key] = raced;
             _heads[page.Path.Key] = false;
             _revisions[raced.Hash] = raced;
+            if (raced.SeedHash is not null) {
+                _anchors[page.Path.Key] = raced.SeedHash;
+            }
         }
 
         if (_heads.GetValueOrDefault(page.Path.Key)
@@ -181,6 +199,10 @@ internal sealed class FakePageStore : IPageStore {
             _pages[path.Key] = replacement;
             _heads[path.Key] = false;
             _revisions[replacement.Hash] = replacement;
+            if (replacement.SeedHash is not null) {
+                _anchors[path.Key] = replacement.SeedHash;
+            }
+
             return Task.FromResult(false);
         }
 
@@ -198,6 +220,20 @@ internal sealed class FakePageStore : IPageStore {
         if (_pages.GetValueOrDefault(path.Key)?.RevisionId == revisionId) {
             _pages[path.Key] = compiled;
         }
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> AdoptSeedAsync(PagePath path, string seedHash, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(seedHash);
+        Check(cancellationToken);
+
+        if (_heads.GetValueOrDefault(path.Key)
+            || !_pages.TryGetValue(path.Key, out PageTemplate? page)
+            || !string.Equals(TemplateFingerprint.Of(page.Template), seedHash, StringComparison.Ordinal)) {
+            return Task.FromResult(false);
+        }
+
+        _anchors[path.Key] = seedHash;
         return Task.FromResult(true);
     }
 
@@ -219,6 +255,7 @@ internal sealed class FakePageStore : IPageStore {
 
         _heads.Remove(path.Key);
         _pages.Remove(path.Key);
+        _anchors.Remove(path.Key);
         bool removed = true;
         foreach (string hash in _revisions.Where(item => item.Value.Path == path).Select(item => item.Key).ToArray()) {
             removed |= _revisions.Remove(hash);

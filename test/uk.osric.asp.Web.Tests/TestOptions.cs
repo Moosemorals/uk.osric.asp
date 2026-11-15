@@ -82,6 +82,12 @@ internal static class TestOptions {
     /// <summary>The keys the site's own routes answer.</summary>
     public static ReservedPaths Reserved { get; } = new(ReservedKeys());
 
+    /// <summary>The pack this release ships, read from beside the test assembly.</summary>
+    public static PageSeeds Seeds { get; } = new(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
+
+    /// <summary>The source this release ships for a key, or null when it ships none.</summary>
+    public static string? SeedSource(PagePath path) => Seeds.Source(path);
+
     /// <summary>The assistant's limits.</summary>
     /// <remarks>
     /// The key is a test value: the shipped file carries none, and the host refuses to start without

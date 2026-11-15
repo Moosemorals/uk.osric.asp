@@ -85,7 +85,7 @@ internal sealed class PageHarness : IDisposable {
             JobQueue,
             Jobs,
             new PageJobEnvironment(
-                JobOptions, WorkerStore, State, StorageOptions, Fetch, FetchOptions, ReadStore, ReadOptions,
+                JobOptions, WorkerStore, State, StorageOptions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
                 Reserved, ContentTypes, Images, Libraries, Compiler, Metrics),
             NullLoggerFactory.Instance,
             NullLogger<PageJobRunner>.Instance);
@@ -193,15 +193,12 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>Makes the shipped libraries resolvable, for a test that stores its own templates.</summary>
     public async Task MirrorSeededLibrariesAsync() {
-        foreach (PagePath seed in PageAssetSeeder.SeedPaths()) {
-            string? template = await PageAssetSeeder.ReadSeedTemplateAsync(seed, CancellationToken.None);
-            if (template is null) {
-                continue;
-            }
+        foreach (SeedFile seed in Seeds.Files) {
+            string template = seed.Source;
 
             PageKind kind = uk.osric.asp.Core.Compilation.TemplateSourceGenerator.Generate(template).Kind;
             if (kind is PageKind.Library) {
-                ReadStore.Save(seed.Key, template, templateKind: PageKind.Library);
+                ReadStore.Save(seed.Path.Key, template, templateKind: PageKind.Library);
             }
         }
     }
@@ -282,6 +279,7 @@ internal sealed class PageHarness : IDisposable {
                 readBudget ?? new ReadBudget(ReadOptions.MaxSourceCharsPerRender),
                 new ReservedPaths(ReservedPaths.Default),
                 ContentTypes,
+                Seeds,
                 Images.RuntimeId);
             capabilities.Add<IPageCatalog>(catalog);
         }
@@ -325,6 +323,7 @@ internal sealed class PageHarness : IDisposable {
             ReadOptions,
             State,
             ReadStore,
+            Seeds,
             Saver,
             Fetch,
             Metrics,

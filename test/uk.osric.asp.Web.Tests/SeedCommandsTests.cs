@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using System.Formats.Tar;
 using System.Text;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
@@ -14,20 +15,36 @@ public sealed class SeedCommandsTests {
     private static readonly (string Name, string Source)[] EveryLive = [("about", "same"), ("edited", "mine")];
 
     [Test]
-    public async Task ListSaysWhatTheStoreHoldsForEachSeedAsync() {
-        using SeedFolder folder = new(("about", "same"), ("edited", "seed"), ("gone", "gone"));
+    public async Task ListSaysWhatEachSeedIsRelativeToTheReleaseAsync() {
+        using SeedFolder folder = new(("about", "same"), ("edited", "seed"), ("gone", "gone"), ("missing", "x"));
         PageSeeds seeds = new(folder.Directory);
         FakePageReadStore store = new();
-        store.Save("/about", "same");
-        store.Save("/edited", "mine");
-        store.Save("/gone", "gone");
+        store.Save("/about", "same", seedHash: TemplateFingerprint.Of("same"));
+        store.Save("/edited", "mine", seedHash: TemplateFingerprint.Of("seed"));
+        store.Save("/gone", "gone", seedHash: TemplateFingerprint.Of("gone"));
         store.Delete("/gone");
 
         (byte[] output, string error, int code) = await RunAsync(seeds, store, ["list"]);
 
         Assert.That(code, Is.Zero);
-        Assert.That(Encoding.UTF8.GetString(output), Is.EqualTo("/about\tsame\n/edited\tdiffers\n/gone\tdeleted\n"));
+        Assert.That(Encoding.UTF8.GetString(output),
+            Is.EqualTo("/about\tin sync\n/edited\tedited\n/gone\tdeleted\n/missing\tnew\n"));
         Assert.That(error, Is.Empty);
+    }
+
+    [Test]
+    public async Task ListReportsAPageWhoseSeedTheReleaseDroppedAsync() {
+        using SeedFolder folder = new(("about", "same"));
+        PageSeeds seeds = new(folder.Directory);
+        FakePageReadStore store = new();
+        store.Save("/about", "same", seedHash: TemplateFingerprint.Of("same"));
+        string dropped = TemplateFingerprint.Of("old-shape");
+        store.Save("/old", "old-shape", seedHash: dropped);
+
+        (byte[] output, _, int code) = await RunAsync(seeds, store, ["list"]);
+
+        Assert.That(code, Is.Zero);
+        Assert.That(Encoding.UTF8.GetString(output), Does.Contain("/old\tretired"));
     }
 
     [Test]
