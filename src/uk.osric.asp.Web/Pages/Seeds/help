@@ -60,7 +60,7 @@ confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a se
     <li><strong>Restore every seed</strong> on <a href="/admin/restore">/admin/restore</a> is the
     emergency way back when the editor itself will not load: it saves the bundled source of every
     page the site ships with, never touches a page you made, and skips a seed that already matches.</li>
-    <li>The assistant is available from the editor only when the host enables it.</li>
+    <li>The assistant is available from the editor to a signed-in owner.</li>
 </ul>
 <p>Paths are canonical: <code>/About</code>, <code>/about/</code> and <code>/about</code> are the
 same page. A path the site's own routes already answer for, such as <code>/admin/import</code> or
@@ -119,8 +119,8 @@ with no code are not wrapped. A page whose key has a content type of its own, su
 wrapped.</p>
 
 <h2 id="layout">Layout and title</h2>
-<p>The layout slots are reached through the page's capabilities, so a page that never wants a layout
-never meets one:</p>
+<p>The layout is <a href="/admin/reference/sdk#t-IPageLayout"><code>IPageLayout</code></a>, and its slots are reached through the page's
+capabilities, so a page that never wants a layout never meets one:</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageLayout layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
    layout.Title = "About";
    layout.AddStylesheet("/about.css"); %&gt;
@@ -130,10 +130,10 @@ never meets one:</p>
 it throws, and the host refuses the chain before the layout runs, so the error names the page that
 forgot rather than the layout that noticed. A layout may read the title so far and compose its own:
 <code>layout.Title = $"{layout.Title} — Site";</code>.</p>
-<p><code>AddStylesheet("/about.css")</code> links one sheet. Call it zero, one or many times. The
+<p><a href="/admin/reference/sdk#m-IPageLayout.AddStylesheet-string"><code>AddStylesheet("/about.css")</code></a> links one sheet. Call it zero, one or many times. The
 document's base sheets come first, then each layout's from the outermost in, then the page's in the
 order it asked. A sheet must be a site-relative URL, and an exact duplicate is linked once.</p>
-<p><code>AddHead("&lt;meta name=&quot;robots&quot; content=&quot;noindex&quot;&gt;")</code> adds raw markup to the
+<p><a href="/admin/reference/sdk#m-IPageLayout.AddHead-string"><code>AddHead("&lt;meta name=&quot;robots&quot; content=&quot;noindex&quot;&gt;")</code></a> adds raw markup to the
 document's <code>head</code>. Use it for a meta tag or another document-level link, not for a
 stylesheet; <code>AddStylesheet</code> owns those.</p>
 <p><code>layout.Layout</code> names another stored page to wrap this one. The host pre-fills it with
@@ -376,53 +376,53 @@ sealed class Amount {
 <code>&lt;fieldset&gt;</code> whose <code>&lt;legend&gt;</code> contains its label.</p>
 
 <h2 id="context">Context and capabilities</h2>
-<p>The variable <code>ctx</code> implements <code>IContext</code>. It carries the request and the
+<p>The variable <code>ctx</code> implements <a href="/admin/reference/sdk#t-IContext"><code>IContext</code></a>. It carries the request and the
 response, and nothing else:</p>
 <ul>
-    <li><code>ctx.Request</code> is a <code>PageRequest</code> with read-only <code>Query</code>,
+    <li><a href="/admin/reference/sdk#m-IContext.Request"><code>ctx.Request</code></a> is a <a href="/admin/reference/sdk#t-PageRequest"><code>PageRequest</code></a> with read-only <code>Query</code>,
     <code>Form</code>, <code>Headers</code> and <code>Cookies</code> dictionaries. <code>Query</code>
     and <code>Form</code> keep one value per name; <code>QueryValues</code> and
     <code>FormValues</code> keep every value in the order sent, so a multi-select or
     <code>?tag=a&amp;tag=b</code> loses nothing. The shell's own cookies &mdash; the sign-in ticket,
     the antiforgery pair and the page session id &mdash; are not in <code>Cookies</code>, because they
     are the shell's identity rather than the page's.</li>
-    <li><code>ctx.Path</code> is the page's canonical key; <code>ctx.User</code> is the signed-in
-    <code>PageUser</code> or <code>null</code>; <code>ctx.Aborted</code> is cancelled when the
+    <li><a href="/admin/reference/sdk#m-IContext.Path"><code>ctx.Path</code></a> is the page's canonical key; <a href="/admin/reference/sdk#m-IContext.User"><code>ctx.User</code></a> is the signed-in
+    <a href="/admin/reference/sdk#t-PageUser"><code>PageUser</code></a> or <code>null</code>; <a href="/admin/reference/sdk#m-IContext.Aborted"><code>ctx.Aborted</code></a> is cancelled when the
     visitor abandons the request.</li>
-    <li><code>ctx.EditorPath</code> is the editor page's key, which the owner can move
+    <li><a href="/admin/reference/sdk#m-IContext.EditorPath"><code>ctx.EditorPath</code></a> is the editor page's key, which the owner can move
     (<code>Pages:Editor:Key</code>). Link to the editor with <code>ctx.EditorPath</code> rather than
     naming it, and <code>ctx.EditorPath + "?edit=" + System.Uri.EscapeDataString(ctx.Path)</code> is
     the URL that opens <em>this</em> page in it.</li>
-    <li><code>ctx.Log</code>, <code>ctx.LogWarning</code> and <code>ctx.LogError</code> write to the
+    <li><a href="/admin/reference/sdk#m-IContext.Log-string"><code>ctx.Log</code></a>, <a href="/admin/reference/sdk#m-IContext.LogWarning-string"><code>ctx.LogWarning</code></a> and <a href="/admin/reference/sdk#m-IContext.LogError-string"><code>ctx.LogError</code></a> write to the
     page log, tagged with this page's key.</li>
-    <li><code>ctx.SetStatus</code>, <code>ctx.SetContentType</code>, <code>ctx.SetHeader</code>,
-    <code>ctx.Redirect</code> and <code>ctx.RedirectToLogin</code> shape the response.
-    <code>ctx.FlushAsync()</code> commits the response and sends what has been written; see
+    <li><a href="/admin/reference/sdk#m-IContext.SetStatus-int"><code>ctx.SetStatus</code></a>, <a href="/admin/reference/sdk#m-IContext.SetContentType-string"><code>ctx.SetContentType</code></a>, <a href="/admin/reference/sdk#m-IContext.SetHeader-string-string"><code>ctx.SetHeader</code></a>,
+    <a href="/admin/reference/sdk#m-IContext.Redirect-string-int"><code>ctx.Redirect</code></a> and <a href="/admin/reference/sdk#m-IContext.RedirectToLogin"><code>ctx.RedirectToLogin</code></a> shape the response.
+    <a href="/admin/reference/sdk#m-IContext.FlushAsync"><code>ctx.FlushAsync()</code></a> commits the response and sends what has been written; see
     <a href="#streaming">Streaming a response</a>.</li>
-    <li><code>ctx.AllowScripts</code> permits same-origin external scripts;
-    <code>ctx.AntiforgeryField</code> carries the hidden input a form must include.</li>
-    <li><code>ctx.AssetUrl(href)</code> versions a bare site-relative link when its target is a live
+    <li><a href="/admin/reference/sdk#m-IContext.AllowScripts"><code>ctx.AllowScripts</code></a> permits same-origin external scripts;
+    <a href="/admin/reference/sdk#m-IContext.AntiforgeryField"><code>ctx.AntiforgeryField</code></a> carries the hidden input a form must include.</li>
+    <li><a href="/admin/reference/sdk#m-IContext.AssetUrl-string"><code>ctx.AssetUrl(href)</code></a> versions a bare site-relative link when its target is a live
     asset, and returns the href unchanged otherwise.</li>
 </ul>
-<p><code>ctx.Capabilities</code> is how a page asks for an optional capability.
+<p><a href="/admin/reference/sdk#m-IContext.Capabilities"><code>ctx.Capabilities</code></a> is how a page asks for an optional capability.
 <code>TryGet&lt;T&gt;(out T?)</code> reports whether it is there, <code>Get&lt;T&gt;()</code> returns
 <code>null</code> when it is not, and <code>GetRequired&lt;T&gt;()</code> throws naming the
 interface. The host decides what is offered.</p>
 <p>A capability is not a feature the product has, nor an extension someone else adds: it is what this
 one render offers this page, and the next render may offer something else.</p>
-<p><code>IBuildInfo</code> says which build is answering. <code>Commit</code> is the full git commit
+<p><a href="/admin/reference/sdk#t-IBuildInfo"><code>IBuildInfo</code></a> says which build is answering. <a href="/admin/reference/sdk#m-IBuildInfo.Commit"><code>Commit</code></a> is the full git commit
 hash, or <code>null</code> when the build did not come from a checkout:</p>
 <pre class="source" tabindex="0"><code>&lt;% if (ctx.Capabilities.GetRequired&lt;IBuildInfo&gt;().Commit is { } commit) { %&gt;
 &lt;a href="https://github.com/Moosemorals/uk.osric.asp/commit/&lt;%= commit %&gt;"&gt;&lt;%= commit %&gt;&lt;/a&gt;
 &lt;% } %&gt;</code></pre>
-<p><code>IPageStorage</code> is the page's own key/value store. Every visitor shares it, a write is
+<p><a href="/admin/reference/sdk#t-IPageStorage"><code>IPageStorage</code></a> is the page's own key/value store. Every visitor shares it, a write is
 last-write-wins, and a page cannot reach another page's keys:</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageStorage storage = ctx.Capabilities.GetRequired&lt;IPageStorage&gt;();
    PageValue&lt;int&gt; stored = await storage.TryGetValueAsync&lt;int&gt;("visits");
    int visits = (stored.Found ? stored.Value : 0) + 1;
    await storage.SetAsync("visits", visits); %&gt;
 &lt;p&gt;Visited &lt;%= visits.ToString() %&gt; times.&lt;/p&gt;</code></pre>
-<p><code>IHttpFetch</code> makes one bounded HTTP request from the host, not the browser, to any
+<p><a href="/admin/reference/sdk#t-IHttpFetch"><code>IHttpFetch</code></a> makes one bounded HTTP request from the host, not the browser, to any
 <code>http</code> or <code>https</code> host the URL names. Failures are values rather than
 exceptions:</p>
 <pre class="source" tabindex="0"><code>&lt;% IHttpFetch fetch = ctx.Capabilities.GetRequired&lt;IHttpFetch&gt;();
@@ -449,12 +449,14 @@ LINQ helpers, the explicit base types the contract uses, and the system exceptio
 catch. <code>System.IO</code>, <code>System.Net</code>, <code>System.Reflection</code>,
 <code>System.Diagnostics</code>, regular expressions, expression trees, interop, threading beyond
 <code>CancellationToken</code>, <code>Microsoft.*</code> and host namespaces are not available.</p>
+<p>The <a href="/admin/reference">reference</a> lists every type and member this build documents; the
+<a href="/admin/reference/sdk">page contract</a> is the half a page may use.</p>
 
 <h2 id="catalog">Reading the page store</h2>
-<p><code>IPageCatalog</code> is a read-only view of the site's page store: list the heads under a
+<p><a href="/admin/reference/sdk#t-IPageCatalog"><code>IPageCatalog</code></a> is a read-only view of the site's page store: list the heads under a
 prefix, read a live page's template, list a page's history, and read one retained revision by its
 key and hash. It never meets an image, a symbol or a write; saving is
-<code>IPageWriter</code>, below.</p>
+<a href="/admin/reference/sdk#t-IPageWriter"><code>IPageWriter</code></a>, below.</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageCatalog catalog = ctx.Capabilities.GetRequired&lt;IPageCatalog&gt;();
    System.Collections.Generic.IReadOnlyList&lt;PageEntry&gt; pages = await catalog.ListAsync("/blog");
    PageSource? page = await catalog.ReadAsync("/blog");
@@ -494,13 +496,13 @@ can write out of them. Both limits are set under <code>Pages:Read</code>, and a 
 value stops the site at startup rather than being quietly replaced.</p>
 
 <h2 id="writing">Saving the page you are</h2>
-<p><code>IPageWriter</code> saves the source of the page that calls it. It is bound to
+<p><a href="/admin/reference/sdk#t-IPageWriter"><code>IPageWriter</code></a> saves the source of the page that calls it. It is bound to
 <code>ctx.Path</code> and takes no key, so a page writes itself and nothing else:</p>
 <pre class="source" tabindex="0"><code>&lt;% PageSaveResult saved = await ctx.Capabilities.GetRequired&lt;IPageWriter&gt;()
         .SaveAsync(ctx.Request.Form["template"]); %&gt;
 &lt;p&gt;Saved &lt;code&gt;&lt;%= saved.Hash %&gt;&lt;/code&gt;.&lt;/p&gt;</code></pre>
-<p>The answer is a <code>PageSaveResult</code>: the new revision's hash, and the compiler's
-diagnostics as <code>PageDiagnostic</code> values — severity, the template line and column when there
+<p>The answer is a <a href="/admin/reference/sdk#t-PageSaveResult"><code>PageSaveResult</code></a>: the new revision's hash, and the compiler's
+diagnostics as <a href="/admin/reference/sdk#t-PageDiagnostic"><code>PageDiagnostic</code></a> values — severity, the template line and column when there
 is one, the code (<code>PAGE001</code>, <code>CS1002</code>) and its text. A save compiles before it
 stores, exactly as the editor's does, so a template with an error is still saved and reported, and a
 warning still serves. A page that saves itself reads its own current source with
@@ -520,7 +522,7 @@ the page runs out of time the revision is still stored, and the next request ser
 add a revision to every page it wraps. The seeded <a href="/scratch">/scratch</a> is the worked
 example — a page that shows its own source, saves it, reports the diagnostics and refuses a form whose
 revision hash has been overtaken.</p>
-<p>A page writes only itself. <code>IPageEditor</code> is the one capability that names another key:
+<p>A page writes only itself. <a href="/admin/reference/sdk#t-IPageEditor"><code>IPageEditor</code></a> is the one capability that names another key:
 it resolves a key, saves conditionally, tombstones a page, restores a revision and installs a seed.
 The host offers it to a single page &mdash; the editor, at <code>/pages</code> &mdash; so
 <code>ctx.Capabilities.Get&lt;IPageEditor&gt;()</code> is <code>null</code> everywhere else and no
@@ -528,7 +530,7 @@ stored page can make itself an editor. Treat it as the answer to "how is the edi
 something your own page may ask for.</p>
 
 <h2 id="markdown">Markdown</h2>
-<p><code>IMarkdownRenderer</code> renders Markdown to HTML. Write its result raw:</p>
+<p><a href="/admin/reference/sdk#t-IMarkdownRenderer"><code>IMarkdownRenderer</code></a> renders Markdown to HTML. Write its result raw:</p>
 <pre class="source" tabindex="0"><code>&lt;% IMarkdownRenderer markdown = ctx.Capabilities.GetRequired&lt;IMarkdownRenderer&gt;(); %&gt;
 &lt;%== markdown.ToHtml("## Today\n\n- one\n- two") %&gt;</code></pre>
 <p>It understands CommonMark, pipe tables, auto-links, links and images. Raw HTML in the
@@ -539,7 +541,7 @@ only from the same origin. A table's header cells are written with <code>scope="
 column alignment markers are ignored because the site's policy forbids inline styles.</p>
 
 <h2 id="diff">Diff</h2>
-<p><code>IDiffRenderer</code> renders the line changes between two strings as HTML. Write its
+<p><a href="/admin/reference/sdk#t-IDiffRenderer"><code>IDiffRenderer</code></a> renders the line changes between two strings as HTML. Write its
 result raw:</p>
 <pre class="source" tabindex="0"><code>&lt;% IDiffRenderer diff = ctx.Capabilities.GetRequired&lt;IDiffRenderer&gt;(); %&gt;
 &lt;%== diff.ToHtml(before, after) %&gt;</code></pre>
@@ -548,12 +550,12 @@ fetched body or page state. The result is a <code>table.diff</code> with one row
 context line and its line numbers; added and removed rows carry a <code>+</code> or <code>-</code>
 as well as their class, and the table scrolls sideways. An unchanged pair says so, and a pair too
 different to align line by line says that the changed middle is shown as replacement blocks. A page
-that compares two revisions reads them with <code>IPageCatalog.ReadRevisionAsync</code>; the
+that compares two revisions reads them with <a href="/admin/reference/sdk#m-IPageCatalog.ReadRevisionAsync-string-string"><code>IPageCatalog.ReadRevisionAsync</code></a>; the
 editor's history page compares two revisions for you.</p>
 
 <h2 id="session">Per-visitor state</h2>
-<p><code>IPageSession</code> is a store of this visitor's own, separate from
-<code>IPageStorage</code>: a page storage value is shared by everyone, and a session value belongs to
+<p><a href="/admin/reference/sdk#t-IPageSession"><code>IPageSession</code></a> is a store of this visitor's own, separate from
+<a href="/admin/reference/sdk#t-IPageStorage"><code>IPageStorage</code></a>: a page storage value is shared by everyone, and a session value belongs to
 one browser. That is what a form needs when it answers with a <code>303</code> and the next render has
 to say what happened.</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageSession session = ctx.Capabilities.GetRequired&lt;IPageSession&gt;();
@@ -567,11 +569,11 @@ to say what happened.</p>
        await session.DeleteAsync("notice");
        ctx.Write("&lt;p&gt;" + notice.Value! + "&lt;/p&gt;");
    } %&gt;</code></pre>
-<p>A page writes, deletes and lists only its own keys: <code>SetAsync</code>,
-<code>DeleteAsync</code> and <code>KeysAsync</code> are bound to this page's path. Reading is open, so
-a page can show what another page left for it — <code>TryGetValueAsync&lt;T&gt;(pagePath, key)</code>
-takes the other page's path, normalised before use. <code>AllKeysAsync()</code> lists every
-<code>PageSessionKey</code> (a <code>Page</code> and a <code>Key</code>) this visitor holds, because a
+<p>A page writes, deletes and lists only its own keys: <a href="/admin/reference/sdk#m-IPageSession.SetAsync-g1-string-T"><code>SetAsync</code></a>,
+<a href="/admin/reference/sdk#m-IPageSession.DeleteAsync-string"><code>DeleteAsync</code></a> and <a href="/admin/reference/sdk#m-IPageSession.KeysAsync"><code>KeysAsync</code></a> are bound to this page's path. Reading is open, so
+a page can show what another page left for it — <a href="/admin/reference/sdk#m-IPageSession.TryGetValueAsync-g1-string-string"><code>TryGetValueAsync<T>(pagePath, key)</code></a>
+takes the other page's path, normalised before use. <a href="/admin/reference/sdk#m-IPageSession.AllKeysAsync"><code>AllKeysAsync()</code></a> lists every
+<a href="/admin/reference/sdk#t-PageSessionKey"><code>PageSessionKey</code></a> (a <code>Page</code> and a <code>Key</code>) this visitor holds, because a
 bare key cannot be read without knowing which page wrote it.</p>
 <p>The store is JSON like page storage, keys follow the same rule, and the caps are per visitor
 rather than per page: 8 keys and 16 KiB in total for an anonymous visitor, 32 keys and 64 KiB signed
@@ -585,7 +587,7 @@ layout is offered the read and not the write. The seeded <a href="/privacy">/pri
 what the session cookie is for.</p>
 
 <h2 id="private">Private pages and forms</h2>
-<p>Pages are public unless their own code checks <code>ctx.User</code>. Put the guard at the top and
+<p>Pages are public unless their own code checks <a href="/admin/reference/sdk#m-IContext.User"><code>ctx.User</code></a>. Put the guard at the top and
 return after redirecting:</p>
 <pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;
 &lt;h1&gt;Draft&lt;/h1&gt;
@@ -662,6 +664,6 @@ asset held a secret, rotate the secret and clean the external copies separately.
 <code>src/uk.osric.asp.Web/Pages/Seeds/help</code>; use <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataString(ctx.Path) %>"><%= ctx.EditorPath %>?edit=<%= ctx.Path %></a> to change
 it.</p>
 <p>A change that adds or alters what a page author can do should update this page in the same change:
-a new <code>IContext</code> member, capability, layout slot, editor action, content type or response
+a new <a href="/admin/reference/sdk#t-IContext"><code>IContext</code></a> member, capability, layout slot, editor action, content type or response
 rule belongs here, next to the tests and the architecture notes. The plan for the change should say
 so.</p>

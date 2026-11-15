@@ -111,14 +111,14 @@ and applies them.
   the build dirties the tree; run it before a release, or from any machine that is asked to prove the
   tree. Neither needs a CI service, an account or a secret, and nothing runs them behind a `git push`.
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
-- **Page assistant:** disabled by default. `make deploy` keeps an empty, mode `0600`
+- **Page assistant:** the host requires a provider key at startup (DEC-301). `make deploy` keeps a mode `0600`
   `~/.config/uk.osric.asp/assistant.env` for the `deploy` user, because the container cannot start
   without that file — podman's env file, which is what the quadlet's `EnvironmentFile=` becomes, has
-  no optional form. Fill it in and redeploy to enable the assistant: `Assistant__Enabled=true`,
-  `Assistant__ApiKey=<provider-key>`, and optionally `Assistant__Model` or `Assistant__BaseUrl`. The deploy never
-  overwrites an existing file. The configured provider must speak OpenAI-compatible streaming chat
-  completions with tool calls. Local HTTP is allowed only for a loopback provider or when explicitly
-  enabled.
+  no optional form. Put `Assistant__ApiKey=<provider-key>` in it, and optionally `Assistant__Model`
+  or `Assistant__BaseUrl`, then redeploy. A missing key stops the host at startup with
+  `Assistant:ApiKey is not set.`, and the deploy never overwrites an existing file. The configured
+  provider must speak OpenAI-compatible streaming chat completions with tool calls. Local HTTP is
+  allowed only for a loopback provider or when explicitly enabled.
   **Upgrading the context budget:** `Assistant__MaxContextChars` and `Assistant__MaxRequestBytes` are
   both now `Assistant__MaxContextTokens`, and the old keys are not aliased. The shipped 500,000 tokens
   plus the 393,216 output limit fits the default `Assistant__ModelContextTokens` of 1,048,576, which is
@@ -130,10 +130,11 @@ and applies them.
   compatible services and local Ollama can be selected by configuration. Restart the app after
   changing the environment file.
   **Upgrading from `Agent`:** the file and its keys were renamed when the feature was, so `make deploy`
-  seeds a new, empty `assistant.env` beside the old `agent.env` and the assistant comes up disabled.
-  Move the file and rename each key (`Agent__Enabled` → `Assistant__Enabled`, and so on) rather than
-  copying the contents; the old file is ignored from that release on. The storage tables are renamed
-  by a migration on first start, which keeps every conversation.
+  seeds a new, empty `assistant.env` beside the old `agent.env`, and the host will not start until the
+  key is moved. Move the file and rename each key you still need (`Agent__ApiKey` →
+  `Assistant__ApiKey`, and so on) rather than copying the contents; there is no `Enabled` key any
+  more, so leave `Agent__Enabled` behind. The old file is ignored from that release on. The storage
+  tables are renamed by a migration on first start, which keeps every conversation.
 - **Streaming through Caddy:** a page that sends `text/event-stream` needs nothing from this proxy.
   The pinned Caddy flushes such a response as it is written — it sends the headers without waiting for
   its 512-byte minimum — and `flush_interval -1` stops it waiting for the app either, so events arrive

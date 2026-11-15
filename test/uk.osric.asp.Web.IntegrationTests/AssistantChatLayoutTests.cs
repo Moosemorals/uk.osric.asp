@@ -20,7 +20,7 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
 
     private readonly ToolCallingClient _provider = new(Arguments);
 
-    internal override AspApplication CreateApplication() => new(assistantEnabled: true, chatCompletionClient: _provider);
+    internal override AspApplication CreateApplication() => new(chatCompletionClient: _provider);
 
     [Test]
     public async Task ChatGroupsControlsInOrderedFieldsetsAndHidesToolDetailBehindASummaryAsync() {

@@ -468,7 +468,6 @@ public sealed class RunProcessorTests {
     [Test]
     public async Task AnOverBudgetRunFailsBeforeTheProviderIsCalled() {
         AssistantOptions options = TestOptions.Assistant with {
-            Enabled = true,
             ApiKey = "configured",
             RunTimeoutSeconds = 5,
             RequestTimeoutSeconds = 3,

@@ -17,6 +17,7 @@ using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
+using uk.osric.asp.Web.Documentation;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Http;
@@ -62,6 +63,8 @@ internal static class ShellViews {
         "admin-import-review",
         "admin-import-progress",
         "admin",
+        "reference",
+        "reference-assembly",
         "help",
     ];
 
@@ -94,6 +97,8 @@ internal static class ShellViews {
         "admin-import-review" => RenderAsync(name, AdminImportReviewAsync),
         "admin-import-progress" => RenderAsync(name, AdminImportProgressAsync),
         "admin" => RenderAsync(name, AdminAsync),
+        "reference" => RenderAsync(name, ReferenceAsync),
+        "reference-assembly" => RenderAsync(name, ReferenceAssemblyAsync),
         "help" => RenderAsync(name, HelpAsync),
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, "No such shell view."),
     };
@@ -139,6 +144,21 @@ internal static class ShellViews {
     private static Task<string> AdminAsync() => StoredPageAsync("/admin");
 
     private static Task<string> HelpAsync() => StoredPageAsync("/help");
+
+    private static readonly ReferenceLibrary s_reference =
+        new(AppContext.BaseDirectory, NullLogger<ReferenceLibrary>.Instance);
+
+    private static async Task<string> ReferenceAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin/reference");
+        await ReferenceEndpoint.IndexAsync(context, s_reference, CancellationToken.None);
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> ReferenceAssemblyAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin/reference/sdk");
+        await ReferenceEndpoint.AssemblyAsync(context, "sdk", s_reference, CancellationToken.None);
+        return await TestHttp.ReadBodyAsync(context);
+    }
 
     // The editor page is a stored page too, so the listing and the editor are rendered through the
     // page pipeline. It needs pages to list and a page to edit, in both stores: the page reads the
@@ -320,8 +340,7 @@ internal static class ShellViews {
 
     private static async Task<string> AssistantListAsync() {
         DefaultHttpContext context = AuthenticatedContext("/assistant");
-        await AssistantEndpoint.ListAsync(context, new ShellConversationStore(), new TestAntiforgery(),
-            TestOptions.Assistant with { Enabled = true });
+        await AssistantEndpoint.ListAsync(context, new ShellConversationStore(), new TestAntiforgery());
         return await TestHttp.ReadBodyAsync(context);
     }
 

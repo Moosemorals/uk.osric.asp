@@ -15,7 +15,7 @@ using uk.osric.asp.Web.Assistant;
 public sealed class AssistantMemoryApprovalTests : IntegrationTest {
     private readonly GuardedClient _provider = new();
 
-    internal override AspApplication CreateApplication() => new(assistantEnabled: true, chatCompletionClient: _provider);
+    internal override AspApplication CreateApplication() => new(chatCompletionClient: _provider);
 
     [Test]
     public async Task ARequiredApprovalPausesTheWriteAndADenialStoresNothingAsync() {

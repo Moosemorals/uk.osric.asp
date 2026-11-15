@@ -23,7 +23,7 @@ public sealed class AssistantContextMaskingTests : IntegrationTest {
     private readonly ReadingClient _provider = new(ToolCalls);
 
     internal override AspApplication CreateApplication() =>
-        new(assistantEnabled: true, chatCompletionClient: _provider, maxContextTokens: Budget, maxOutputTokens: 4_096);
+        new(chatCompletionClient: _provider, maxContextTokens: Budget, maxOutputTokens: 4_096);
 
     [Test]
     public async Task AnOldToolResultIsMaskedInTheRequestButNotInTheTranscript() {
@@ -105,7 +105,7 @@ public sealed class AssistantOverBudgetTests : IntegrationTest {
     private readonly CountingClient _provider = new();
 
     internal override AspApplication CreateApplication() =>
-        new(assistantEnabled: true, chatCompletionClient: _provider, maxContextTokens: 16_384);
+        new(chatCompletionClient: _provider, maxContextTokens: 16_384);
 
     [Test]
     public async Task ARunThatCannotFitFailsWithContextTooLong() {

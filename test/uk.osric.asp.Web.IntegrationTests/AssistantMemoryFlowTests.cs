@@ -15,7 +15,7 @@ using uk.osric.asp.Web.Storage;
 public sealed class AssistantMemoryFlowTests : IntegrationTest {
     private readonly ScriptedMemoryClient _provider = new();
 
-    internal override AspApplication CreateApplication() => new(assistantEnabled: true, chatCompletionClient: _provider);
+    internal override AspApplication CreateApplication() => new(chatCompletionClient: _provider);
 
     [Test]
     public async Task AMemoryWrittenInOneConversationReachesTheNextAndNeverAnotherOwnerAsync() {

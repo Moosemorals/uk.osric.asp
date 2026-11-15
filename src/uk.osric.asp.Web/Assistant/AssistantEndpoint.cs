@@ -28,8 +28,7 @@ internal static class AssistantEndpoint {
     public static async Task ListAsync(
         HttpContext context,
         IConversationStore conversations,
-        IAntiforgery antiforgery,
-        AssistantOptions options) {
+        IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
 
         string? owner = Owner(context);
@@ -86,9 +85,6 @@ internal static class AssistantEndpoint {
                     """);
             }
             await context.Response.WriteAsync("</ul>");
-        }
-        if (!options.Enabled) {
-            await context.Response.WriteAsync("<p>The assistant is disabled.</p>");
         }
         await ShellDocument.EndAsync(context);
     }

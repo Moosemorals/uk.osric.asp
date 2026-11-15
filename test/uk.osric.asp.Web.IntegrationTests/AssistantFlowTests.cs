@@ -16,7 +16,7 @@ public sealed class AssistantFlowTests : IntegrationTest {
         new Finished("stop"),
     ]);
 
-    internal override AspApplication CreateApplication() => new(assistantEnabled: true, chatCompletionClient: _provider);
+    internal override AspApplication CreateApplication() => new(chatCompletionClient: _provider);
 
     [Test]
     public async Task SignedInOwnerCanCreateSendStreamAndReloadAConversationAsync() {

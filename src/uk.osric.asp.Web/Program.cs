@@ -19,6 +19,7 @@ using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Configuration;
+using uk.osric.asp.Web.Documentation;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Health;
@@ -84,26 +85,27 @@ internal class Program {
             Directory.CreateDirectory(Path.GetDirectoryName(connection.DataSource)
                 ?? throw new InvalidOperationException("The storage database must have a parent directory."));
         }
+
+        AdminOptions admin = AdminOptions.FromConfiguration(settings.At("Admin"));
+        ArchiveOptions archive = ArchiveOptions.FromConfiguration(settings.At("Pages:Archive"));
         AssistantOptions assistant = AssistantOptions.FromConfiguration(settings.At("Assistant"));
         AuthenticationOptions authentication = AuthenticationOptions.FromConfiguration(settings.At("Authentication"));
-        ArchiveOptions archive = ArchiveOptions.FromConfiguration(settings.At("Pages:Archive"));
-        AdminOptions admin = AdminOptions.FromConfiguration(settings.At("Admin"));
         CompileOptions compile = CompileOptions.FromConfiguration(settings.At("Pages:Compile"));
-        PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(settings.At("Pages:Layout"));
+        MetricsOptions metrics = MetricsOptions.FromConfiguration(settings.At("Metrics"));
+        PageContentTypes contentTypes = PageContentTypesConfiguration.FromConfiguration(settings.At("Pages:ContentTypes"));
         PageEditorOptions editor = PageEditorOptions.FromConfiguration(settings.At("Pages:Editor"));
+        PageFetchOptions fetch = PageFetchOptions.FromConfiguration(settings.At("Pages:Fetch"));
+        PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(settings.At("Pages:Layout"));
+        PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
+        PageJobOptions jobOptions = PageJobOptions.FromConfiguration(settings.At("Pages:Jobs"));
+        PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
+        PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
         RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
         StreamOptions stream = StreamOptions.FromConfiguration(settings.At("Pages:Stream"));
-        PageJobOptions jobOptions = PageJobOptions.FromConfiguration(settings.At("Pages:Jobs"));
-        PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
-        PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
-        PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
-        PageFetchOptions fetch = PageFetchOptions.FromConfiguration(settings.At("Pages:Fetch"));
-        PageContentTypes contentTypes = PageContentTypesConfiguration.FromConfiguration(settings.At("Pages:ContentTypes"));
-        MetricsOptions metrics = MetricsOptions.FromConfiguration(settings.At("Metrics"));
+
         string[] reservedKeys = [.. settings.At("Pages").List("ReservedPaths", "page keys", minimum: 1)];
         settings.Complete();
         ReservedPaths reserved = new(reservedKeys);
-        bool assistantEnabled = assistant.Enabled;
 
         // Configuration: the database, its options, and the proxy trust the host depends on.
         // The scoped context is what the stores on the request inject; the factory is what lets a
@@ -115,17 +117,13 @@ internal class Program {
             optionsLifetime: ServiceLifetime.Singleton);
         builder.Services.AddDbContextFactory<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
 
-        // Registered whether or not the assistant is switched on: the memory store reads its caps from
-        // it, and an account removal sweeps memory even when the assistant is disabled.
-        builder.Services.AddSingleton(assistant);
-
         // The upload limits and the framework's form parser come from the same cap, so an oversized
         // body is refused rather than buffered, and a normal one never spills to a temporary file.
         builder.Services.Configure<FormOptions>(options => {
-            options.MultipartBodyLengthLimit = archive.MaxUploadBytes + (64 * 1024);
             options.MemoryBufferThreshold = archive.MaxUploadBytes + (64 * 1024);
-            options.ValueCountLimit = 1024;
+            options.MultipartBodyLengthLimit = archive.MaxUploadBytes + (64 * 1024);
             options.MultipartHeadersLengthLimit = 16 * 1024;
+            options.ValueCountLimit = 1024;
         });
 
         builder.Services.Configure<ForwardedHeadersOptions>(options => {
@@ -142,41 +140,19 @@ internal class Program {
             options.KnownIPNetworks.Clear();
         });
 
+        // Hosted services
         builder.Services.AddHostedService<PageStorageSampler>();
-
-        builder.Services.AddSingleton(compile);
-        builder.Services.AddSingleton(services => new PageHealth(
-            services.GetRequiredService<RenderOptions>().AbandonedLimit));
-        builder.Services.AddSingleton(layout);
-        builder.Services.AddSingleton(reserved);
-        builder.Services.AddSingleton(editor);
-        builder.Services.AddSingleton(TimeProvider.System);
-
-        builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
-        builder.Services.AddSingleton<MarkdownRenderer>();
-        builder.Services.AddSingleton<DiffRenderer>();
-        builder.Services.AddSingleton<IPasswordService, PasswordService>();
-        builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
-        builder.Services.AddSingleton<PageBudget>();
-        builder.Services.AddSingleton<PageMetrics>();
-        builder.Services.AddSingleton<PageStorageRefresh>();
-        builder.Services.AddSingleton(render);
-        builder.Services.AddSingleton(stream);
-        builder.Services.AddSingleton(jobOptions);
-        builder.Services.AddSingleton(contentTypes);
-        builder.Services.AddSingleton(storage);
-        builder.Services.AddSingleton(session);
-        builder.Services.AddSingleton(PageSessionCookieOptions.For(builder.Environment));
-        builder.Services.AddSingleton<IPageSessionStore, SqlitePageSessionStore>();
         builder.Services.AddHostedService<PageSessionCleanupService>();
-        builder.Services.AddSingleton(archive);
-        builder.Services.AddSingleton(read);
-        builder.Services.AddSingleton(admin);
-        builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
-        builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
-        builder.Services.AddSingleton<PageLibraries>();
-        builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
-        builder.Services.AddSingleton(fetch);
+        builder.Services.AddHostedService<ImportWorker>();
+        builder.Services.AddHostedService<PageJobRunner>();
+        builder.Services.AddHostedService<RunJournalCleanupService>();
+        builder.Services.AddHostedService<RunWorker>();
+
+        // Stuff with their own registration extensions
+        builder.Services.AddEditorAuthentication(builder.Environment, authentication);
+        builder.Services.AddHealthChecks()
+            .AddCheck<StorageHealthCheck>("storage")
+            .AddCheck<AbandonedRenderHealthCheck>("pages");
         builder.Services.AddHttpClient(OutboundFetcher.ClientName)
             .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
@@ -185,58 +161,77 @@ internal class Program {
                 AutomaticDecompression = DecompressionMethods.All,
                 PooledConnectionLifetime = TimeSpan.FromMinutes(2),
             });
-        builder.Services.AddSingleton<OutboundFetcher>();
-        builder.Services.AddSingleton<IPageFetcher, PageFetcher>();
+        builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        builder.Services.AddHttpClient<IAccountBalanceClient, AccountBalanceClient>(client => {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+
+        // Options types, sort alphabetically so the list is easy to scan.
+        builder.Services.AddSingleton(admin);
+        builder.Services.AddSingleton(archive);
+        builder.Services.AddSingleton(assistant);
+        builder.Services.AddSingleton(authentication);
+        builder.Services.AddSingleton(compile);
+        builder.Services.AddSingleton(contentTypes);
+        builder.Services.AddSingleton(editor);
+        builder.Services.AddSingleton(jobOptions);
+        builder.Services.AddSingleton(layout);
+        builder.Services.AddSingleton(metrics);
+        builder.Services.AddSingleton(read);
+        builder.Services.AddSingleton(render);
+        builder.Services.AddSingleton(reserved);
+        builder.Services.AddSingleton(session);
+        builder.Services.AddSingleton(storage);
+        builder.Services.AddSingleton(stream);
+        builder.Services.AddSingleton(fetch);
+
+        // Singletons, sort alphabetically so the list is easy to scan.
+        builder.Services.AddSingleton(PageSessionCookieOptions.For(builder.Environment));
+        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(services => new PageEnvironment(
-            services.GetRequiredService<ReservedPaths>(),
-            services.GetRequiredService<PageEditorOptions>(),
-            services.GetRequiredService<PageLayoutConfiguration>(),
-            services.GetRequiredService<RenderOptions>(),
-            services.GetRequiredService<PageContentTypes>(),
-            services.GetRequiredService<PageStorageOptions>(),
-            services.GetRequiredService<PageFetchOptions>(),
-            services.GetRequiredService<PageReadOptions>(),
-            services.GetRequiredService<IPageStateStore>(),
-            services.GetRequiredService<IPageReadStore>(),
-            services.GetRequiredService<PageSaver>(),
-            services.GetRequiredService<IPageFetcher>(),
-            services.GetRequiredService<PageMetrics>(),
-            services.GetRequiredService<IAntiforgery>(),
-            services.GetRequiredService<MarkdownRenderer>(),
-            services.GetRequiredService<DiffRenderer>(),
-            services.GetRequiredService<PageSessionOptions>(),
-            services.GetRequiredService<IPageSessionStore>(),
-            services.GetRequiredService<PageSessionCookieOptions>(),
-            services.GetRequiredService<PageJobs>()));
+              services.GetRequiredService<ReservedPaths>(),
+              services.GetRequiredService<PageEditorOptions>(),
+              services.GetRequiredService<PageLayoutConfiguration>(),
+              services.GetRequiredService<RenderOptions>(),
+              services.GetRequiredService<PageContentTypes>(),
+              services.GetRequiredService<PageStorageOptions>(),
+              services.GetRequiredService<PageFetchOptions>(),
+              services.GetRequiredService<PageReadOptions>(),
+              services.GetRequiredService<IPageStateStore>(),
+              services.GetRequiredService<IPageReadStore>(),
+              services.GetRequiredService<PageSaver>(),
+              services.GetRequiredService<IPageFetcher>(),
+              services.GetRequiredService<PageMetrics>(),
+              services.GetRequiredService<IAntiforgery>(),
+              services.GetRequiredService<MarkdownRenderer>(),
+              services.GetRequiredService<DiffRenderer>(),
+              services.GetRequiredService<PageSessionOptions>(),
+              services.GetRequiredService<IPageSessionStore>(),
+              services.GetRequiredService<PageSessionCookieOptions>(),
+              services.GetRequiredService<PageJobs>()));
+        builder.Services.AddSingleton(services => new PageHealth(services.GetRequiredService<RenderOptions>().AbandonedLimit));
 
-        builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
-        // Registered whether or not the assistant is enabled: the tables are migrated either way, and
-        // `users remove` sweeps an account's memories even when the assistant is switched off.
-        builder.Services.AddScoped<IMemoryStore, SqliteMemoryStore>();
-        // The listing judges an image's state against the running build, so the store is told which
-        // one that is; a page whose image came from an earlier build says Stale until it is requested.
-        builder.Services.AddScoped<IPageStore>(services => new SqlitePageStore(
-            services.GetRequiredService<StorageDbContext>(),
-            services.GetRequiredService<ILogger<SqlitePageStore>>(),
-            services.GetRequiredService<PageStorageRefresh>(),
-            services.GetRequiredService<IPageCompiler>().RuntimeId));
-        builder.Services.AddScoped<IPageBatchStore, SqlitePageBatchStore>();
-        builder.Services.AddScoped<PageArchiveReader>();
-        builder.Services.AddScoped<ImportProcessor>();
-        builder.Services.AddSingleton<ImportStageStore>();
+        builder.Services.AddSingleton<AssistantMetrics>();
+        builder.Services.AddSingleton<ChartRenderer>();
+        builder.Services.AddSingleton<Dashboard>();
+        builder.Services.AddSingleton<DiffRenderer>();
+        builder.Services.AddSingleton<IAssistantFetcher, AssistantFetcher>();
+        builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
+        builder.Services.AddSingleton<IPageFetcher, PageFetcher>();
+        builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
+        builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
+        builder.Services.AddSingleton<IPageSessionStore, SqlitePageSessionStore>();
+        builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
+        builder.Services.AddSingleton<IPasswordService, PasswordService>();
+        builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
         builder.Services.AddSingleton<ImportQueue>();
-        builder.Services.AddHostedService<ImportWorker>();
-        builder.Services.AddScoped<IUserStore, SqliteUserStore>();
-        builder.Services.AddScoped<PageEditor>();
-        // The save is a singleton because a page's save can outlive the request that started it, and
-        // the image builder has no per-request state: a compiler, the compile budget and the meters,
-        // all singletons already.
-        builder.Services.AddSingleton<PageSaver>();
+        builder.Services.AddSingleton<ImportStageStore>();
+        builder.Services.AddSingleton<MarkdownRenderer>();
+        builder.Services.AddSingleton<OutboundFetcher>();
+        builder.Services.AddSingleton<PageBudget>();
         builder.Services.AddSingleton<PageImageBuilder>();
-        builder.Services.AddScoped<PageRenderer>();
-
-        // The jobs: a queue a start is written to, a registry in memory, and a runner that gives each
-        // one a scope of its own and unloads its assembly when it ends.
         builder.Services.AddSingleton<PageJobQueue>();
         builder.Services.AddSingleton<PageJobs>();
         builder.Services.AddSingleton<IWorkerStore, ScopedWorkerStore>();
@@ -255,43 +250,41 @@ internal class Program {
             services.GetRequiredService<PageLibraries>(),
             services.GetRequiredService<IPageCompiler>(),
             services.GetRequiredService<PageMetrics>()));
-        builder.Services.AddHostedService<PageJobRunner>();
+        builder.Services.AddSingleton<PageLibraries>();
+        builder.Services.AddSingleton<PageMetrics>();
+        builder.Services.AddSingleton<PagePathPolicy>();
+        builder.Services.AddSingleton<PageSaver>();
+        builder.Services.AddSingleton<PageStorageRefresh>();
+        builder.Services.AddSingleton<PageToolExecutor>();
+        // Reads the XML documentation this build carries, once, when a page or the tool first asks.
+        builder.Services.AddSingleton(services => new ReferenceLibrary(
+            AppContext.BaseDirectory,
+            services.GetRequiredService<ILogger<ReferenceLibrary>>()));
+        builder.Services.AddSingleton<RunContinuationCoordinator>();
+        builder.Services.AddSingleton<RunQueue>();
+        builder.Services.AddSingleton<RunRegistry>();
+        builder.Services.AddSingleton<ToolApprovalCoordinator>();
 
-        if (assistantEnabled) {
-            builder.Services.AddHostedService<RunWorker>();
-            builder.Services.AddHostedService<RunJournalCleanupService>();
+        builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
+        // Registered as a scoped store so `users remove` can sweep an account's memories with the
+        // rest of its rows.
+        builder.Services.AddScoped<IMemoryStore, SqliteMemoryStore>();
+        // The listing judges an image's state against the running build, so the store is told which
+        // one that is; a page whose image came from an earlier build says Stale until it is requested.
+        builder.Services.AddScoped<IPageStore>(services => new SqlitePageStore(
+            services.GetRequiredService<StorageDbContext>(),
+            services.GetRequiredService<ILogger<SqlitePageStore>>(),
+            services.GetRequiredService<PageStorageRefresh>(),
+            services.GetRequiredService<IPageCompiler>().RuntimeId));
 
-            builder.Services.AddSingleton<AssistantMetrics>();
-            builder.Services.AddSingleton<IAssistantFetcher, AssistantFetcher>();
-            builder.Services.AddSingleton<PageToolExecutor>();
-            builder.Services.AddSingleton<PagePathPolicy>();
-            builder.Services.AddSingleton<RunQueue>();
-            builder.Services.AddSingleton<RunRegistry>();
-            builder.Services.AddSingleton<ToolApprovalCoordinator>();
-            builder.Services.AddSingleton<RunContinuationCoordinator>();
+        builder.Services.AddScoped<IPageBatchStore, SqlitePageBatchStore>();
+        builder.Services.AddScoped<IUserStore, SqliteUserStore>();
+        builder.Services.AddScoped<ImportProcessor>();
+        builder.Services.AddScoped<PageArchiveReader>();
+        builder.Services.AddScoped<PageEditor>();
+        builder.Services.AddScoped<PageRenderer>();
+        builder.Services.AddScoped<RunProcessor>();
 
-            builder.Services.AddScoped<RunProcessor>();
-
-            builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
-                client.Timeout = Timeout.InfiniteTimeSpan;
-            }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-
-            builder.Services.AddHttpClient<IAccountBalanceClient, AccountBalanceClient>(client => {
-                client.Timeout = Timeout.InfiniteTimeSpan;
-            }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-
-        }
-
-        // The sign-in policy is built above with the other options, and the registration keeps it for
-        // the rate limiter and the cookie it configures.
-        builder.Services.AddSingleton(authentication);
-        builder.Services.AddEditorAuthentication(builder.Environment, authentication);
-
-        builder.Services.AddHealthChecks()
-            .AddCheck<StorageHealthCheck>("storage")
-            .AddCheck<AbandonedRenderHealthCheck>("pages");
-
-        builder.Services.AddSingleton(metrics);
         builder.Services.AddSingleton<IMetricsSource>(services => {
             // The per-query deadline belongs to the source: one slow query must not hold the page.
             return new PrometheusSource(
@@ -302,46 +295,45 @@ internal class Program {
                 services.GetRequiredService<ILogger<PrometheusSource>>(),
                 metrics.QueryTimeout);
         });
-        builder.Services.AddSingleton<ChartRenderer>();
-        builder.Services.AddSingleton<Dashboard>();
-
         // Metrics only: registering no instrumentation package means no tracer or logger provider.
         // The exporter serves /metrics on this listener; Caddy refuses that path publicly.
         builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics
-            .AddMeter(PageMetrics.MeterName)
-            .AddMeter(AssistantMetrics.MeterName)
+            // Try to keep these sorted alpha
             .AddMeter("Microsoft.AspNetCore.Hosting")
             .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
             .AddMeter("System.Runtime")
-            .AddView("page.render.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.render.wait", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.stream.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.StreamBuckets })
-            .AddView("page.compile.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.load.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.invoke.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.import.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.fetch.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
-            .AddView("page.image.size", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.ImageBuckets })
-            .AddView("assistant.run.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.RunDurationBuckets })
+            .AddMeter(AssistantMetrics.MeterName)
+            .AddMeter(PageMetrics.MeterName)
+            .AddView("assistant.memory.chars", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCharBuckets })
+            .AddView("assistant.memory.recalled", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCountBuckets })
             .AddView("assistant.provider.first_token.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ProviderBuckets })
             .AddView("assistant.provider.request.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ProviderBuckets })
-            .AddView("assistant.tool.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ToolDurationBuckets })
+            .AddView("assistant.run.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.RunDurationBuckets })
             .AddView("assistant.run.steps", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.StepBuckets })
             .AddView("assistant.run.tool_calls", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ToolCallBuckets })
-            .AddView("assistant.memory.recalled", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCountBuckets })
-            .AddView("assistant.memory.chars", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCharBuckets })
+            .AddView("assistant.tool.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ToolDurationBuckets })
+            .AddView("page.compile.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.fetch.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.image.size", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.ImageBuckets })
+            .AddView("page.import.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.invoke.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.load.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.render.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.render.wait", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.stream.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.StreamBuckets })
             .AddPrometheusExporter());
 
         WebApplication app = builder.Build();
 
+        // run pending database migrations
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
-            if (assistantEnabled) {
-                IConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IConversationStore>();
-                await assistantConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
-            }
+            // A restart interrupts a provider request rather than resuming it, so the runs that were
+            // in flight are closed out before anything can answer for them.
+            IConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+            await assistantConversations.RecoverInterruptedRunsAsync(app.Lifetime.ApplicationStopping);
             IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
             IReadOnlyList<PagePath> replaced = await PageAssetSeeder.SeedAsync(pages, app.Lifetime.ApplicationStopping);
             foreach (PagePath key in replaced) {
@@ -443,6 +435,10 @@ internal class Program {
 
         app.MapGet("/admin/changes", ChangesEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
+        // Public despite the key: the reference describes the build serving the request, as /about
+        // does, and the repository is published to be read.
+        app.MapGet("/admin/reference", ReferenceEndpoint.IndexAsync);
+        app.MapGet("/admin/reference/{slug}", ReferenceEndpoint.AssemblyAsync);
         app.MapGet("/admin/restore", RestoreEndpoint.PreviewAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/admin/restore", RestoreEndpoint.RestoreAsync)
@@ -480,54 +476,49 @@ internal class Program {
             ResponseWriter = ReportWriter.WriteAsync,
         });
 
-        if (assistantEnabled) {
-            app.MapGet("/assistant", AssistantEndpoint.ListAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant", AssistantEndpoint.ListAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapGet("/assistant/{id:long}", AssistantEndpoint.ConversationAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant/{id:long}/messages", AssistantEndpoint.MessagesAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapGet("/assistant/{id:long}/messages/{messageId:long}/content", AssistantEndpoint.MessageContentAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapGet("/assistant/{id:long}/events", AssistantEndpoint.EventsAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant/{id:long}/stop", AssistantEndpoint.StopAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapPost("/assistant/{id:long}/runs/{runId}/tool-calls/{toolCallId}/approval", AssistantEndpoint.ApprovalAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapPost("/assistant/{id:long}/runs/{runId}/continue", AssistantEndpoint.ContinueAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapPost("/assistant/{id:long}/options", AssistantEndpoint.OptionsAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapGet("/assistant/{id:long}/delete", AssistantEndpoint.DeleteConfirmationAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant/{id:long}/delete", AssistantEndpoint.DeleteAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            // The owner's memory: a page of its own beside the conversations. `{id:long}` binds digits,
-            // so `/assistant/memory` never competes with `/assistant/{id:long}`.
-            app.MapGet(AssistantMemoryEndpoint.Path, AssistantMemoryEndpoint.ListAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant/memory/{id:long}", AssistantMemoryEndpoint.SaveAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-            app.MapGet("/assistant/memory/{id:long}/forget", AssistantMemoryEndpoint.ForgetConfirmationAsync)
-                .RequireAuthorization(EditorPolicy.Name);
-            app.MapPost("/assistant/memory/{id:long}/forget", AssistantMemoryEndpoint.ForgetAsync)
-                .RequireAuthorization(EditorPolicy.Name)
-                .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        } else {
-            app.MapMethods("/assistant", ["GET", "POST", "HEAD"], AssistantDisabled);
-            app.MapMethods("/assistant/{**path}", ["GET", "POST", "HEAD"], AssistantDisabled);
-        }
+        app.MapGet("/assistant", AssistantEndpoint.ListAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant", AssistantEndpoint.ListAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/assistant/{id:long}", AssistantEndpoint.ConversationAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant/{id:long}/messages", AssistantEndpoint.MessagesAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/assistant/{id:long}/messages/{messageId:long}/content", AssistantEndpoint.MessageContentAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapGet("/assistant/{id:long}/events", AssistantEndpoint.EventsAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant/{id:long}/stop", AssistantEndpoint.StopAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapPost("/assistant/{id:long}/runs/{runId}/tool-calls/{toolCallId}/approval", AssistantEndpoint.ApprovalAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapPost("/assistant/{id:long}/runs/{runId}/continue", AssistantEndpoint.ContinueAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapPost("/assistant/{id:long}/options", AssistantEndpoint.OptionsAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/assistant/{id:long}/delete", AssistantEndpoint.DeleteConfirmationAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant/{id:long}/delete", AssistantEndpoint.DeleteAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        // The owner's memory: a page of its own beside the conversations. `{id:long}` binds digits,
+        // so `/assistant/memory` never competes with `/assistant/{id:long}`.
+        app.MapGet(AssistantMemoryEndpoint.Path, AssistantMemoryEndpoint.ListAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant/memory/{id:long}", AssistantMemoryEndpoint.SaveAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        app.MapGet("/assistant/memory/{id:long}/forget", AssistantMemoryEndpoint.ForgetConfirmationAsync)
+            .RequireAuthorization(EditorPolicy.Name);
+        app.MapPost("/assistant/memory/{id:long}/forget", AssistantMemoryEndpoint.ForgetAsync)
+            .RequireAuthorization(EditorPolicy.Name)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         // The scrape target is Prometheus inside the podman network; /metrics is reserved so a page
         // cannot claim the key, and Caddy answers 404 for it on the public origin.
         app.MapPrometheusScrapingEndpoint("/metrics");
@@ -535,26 +526,11 @@ internal class Program {
         // by page code that never expected it.
         app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.HandleAsync);
 
-        // One line so a restart is visible without reading the framework's startup chatter, and so a
-        // host that came up with the assistant switched off says so.
+        // One line so a restart is visible without reading the framework's startup chatter.
         app.Services.GetRequiredService<ILoggerFactory>()
             .CreateLogger<Program>()
-            .LogInformation("uk.osric.asp starting in {EnvironmentName} with the assistant {AssistantState}",
-                app.Environment.EnvironmentName, assistantEnabled ? "enabled" : "disabled");
+            .LogInformation("uk.osric.asp starting in {EnvironmentName}", app.Environment.EnvironmentName);
 
         await app.RunAsync();
-    }
-
-    private static Task AssistantDisabled(HttpContext context) {
-        bool isAuthenticated = context.User.Identity?.IsAuthenticated == true;
-        ErrorMessage message = new(
-            "assistant.disabled",
-            "The assistant is not available",
-            isAuthenticated
-                ? "The assistant is turned off on this site. Turn it on with Assistant:Enabled in configuration, then restart."
-                : "The assistant is turned off on this site.",
-            ErrorMessage.DefaultRemedies(isAuthenticated, EditorPaths.Of(context.RequestServices)));
-
-        return ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, message);
     }
 }

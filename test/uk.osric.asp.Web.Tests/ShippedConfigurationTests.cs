@@ -7,13 +7,15 @@ using Microsoft.Extensions.Configuration;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
-/// <summary>Proves the file the site ships with is one the site could start from.</summary>
+/// <summary>Proves the file the site ships with, plus the one secret a deployment supplies, is one
+/// the site could start from.</summary>
 [TestFixture]
 public sealed class ShippedConfigurationTests {
 
     [Test]
     public void EveryFactoryReadsTheShippedFile() {
-        IConfiguration configuration = ShippedConfiguration.Read();
+        // The provider key is the one value a deployment has to add; it never belongs in the file.
+        IConfiguration configuration = ShippedConfiguration.Read(("Assistant:ApiKey", "test-key"));
 
         Assert.Multiple(() => {
             Assert.That(() => RenderOptions.FromConfiguration(configuration), Throws.Nothing);

@@ -6,14 +6,13 @@ namespace uk.osric.asp.Web.Assistant;
 using Microsoft.Extensions.Options;
 using uk.osric.asp.Web.Configuration;
 
-/// <summary>The assistant's configuration: provider, model, limits and the enabled switch.</summary>
+/// <summary>The assistant's configuration: provider, model and limits.</summary>
 /// <remarks>
 /// Every value comes from <c>Assistant</c> and none has a fallback: a missing or unusable one stops
-/// the site at startup. <c>ApiKey</c> is the one optional value, and only while the assistant is off
-/// or the provider does not need one.
+/// the site at startup. <c>ApiKey</c> is required unless the provider does not need one, which
+/// <see cref="RequireApiKey"/> says.
 /// </remarks>
 internal sealed record AssistantOptions {
-    public required bool Enabled { get; init; }
     public required string BaseUrl { get; init; }
     public required string ChatCompletionsPath { get; init; }
     public required string Model { get; init; }
@@ -115,12 +114,10 @@ internal sealed record AssistantOptions {
     internal static AssistantOptions FromConfiguration(ConfigurationReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
 
-        bool enabled = reader.Switch("Enabled", recommended: false);
         bool requireApiKey = reader.Switch("RequireApiKey", recommended: true);
         string? apiKey = reader.OptionalText("ApiKey");
 
         AssistantOptions options = new() {
-            Enabled = enabled,
             BaseUrl = reader.Text("BaseUrl", "an absolute URL such as https://api.deepseek.com"),
             ChatCompletionsPath = reader.Text("ChatCompletionsPath", "a path such as /chat/completions"),
             Model = reader.Text("Model", "the provider's model name, such as deepseek-flash"),
@@ -166,7 +163,7 @@ internal sealed record AssistantOptions {
             ShellDefaultLines = reader.Number("ShellDefaultLines", recommended: 10, minimum: 1, maximum: 1_000),
         };
 
-        reader.FailIf(enabled && requireApiKey && options.ApiKey is null, "ApiKey",
+        reader.FailIf(requireApiKey && options.ApiKey is null, "ApiKey",
             "is not set. Set it to the provider's key, or set Assistant:RequireApiKey to false for a provider that needs none");
         reader.FailIf(options.DefaultListLimit > options.MaxListLimit, "DefaultListLimit",
             $"is {options.DefaultListLimit}, which is larger than MaxListLimit ({options.MaxListLimit})");

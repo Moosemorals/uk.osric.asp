@@ -29,7 +29,6 @@ using uk.osric.asp.Web.Users;
 /// is about signing in sets this; the rest sign in only to reach the page they prove.
 /// </param>
 /// <param name="metricsSource">Stands in for Prometheus, which no fixture can reach.</param>
-/// <param name="assistantEnabled">Enables the assistant for the assistant integration fixtures.</param>
 /// <param name="chatCompletionClient">Stands in for the configured provider.</param>
 /// <param name="accountBalanceClient">Stands in for the provider's balance endpoint.</param>
 /// <param name="pageFetcher">Stands in for the page fetcher, so no fixture needs a socket.</param>
@@ -46,7 +45,6 @@ internal sealed class AspApplication(
     int renderTimeoutSeconds = 15,
     bool realPasswordHasher = false,
     IMetricsSource? metricsSource = null,
-    bool assistantEnabled = false,
     IChatCompletionClient? chatCompletionClient = null,
     IAccountBalanceClient? accountBalanceClient = null,
     int? assistantMaxSteps = null,
@@ -76,11 +74,9 @@ internal sealed class AspApplication(
         // Applied when the host is built, which is after Program cleared the default providers.
         builder.ConfigureLogging(logging => logging.AddProvider(Logs));
         builder.UseSetting("Pages:Render:TimeoutSeconds", renderTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
-        builder.UseSetting("Assistant:Enabled", assistantEnabled.ToString(CultureInfo.InvariantCulture));
         builder.UseSetting("Pages:Layout", pageLayout ?? string.Empty);
-        if (assistantEnabled) {
-            builder.UseSetting("Assistant:ApiKey", "integration-test-key");
-        }
+        // The shipped file carries no key, and the host refuses to start without one.
+        builder.UseSetting("Assistant:ApiKey", "integration-test-key");
         if (assistantMaxSteps is { } maxSteps) {
             builder.UseSetting("Assistant:MaxSteps", maxSteps.ToString(CultureInfo.InvariantCulture));
         }
@@ -122,11 +118,9 @@ internal sealed class AspApplication(
                 services.AddSingleton(chatCompletionClient);
             }
 
-            if (assistantEnabled) {
-                // The page asks the provider for the account balance; no fixture may reach a socket
-                // for it, so the last registration wins over the typed HTTP client the host added.
-                services.AddSingleton<IAccountBalanceClient>(accountBalanceClient ?? new StubAccountBalanceClient());
-            }
+            // The page asks the provider for the account balance; no fixture may reach a socket for
+            // it, so the last registration wins over the typed HTTP client the host added.
+            services.AddSingleton<IAccountBalanceClient>(accountBalanceClient ?? new StubAccountBalanceClient());
 
             if (pageFetcher is not null) {
                 services.AddSingleton(pageFetcher);

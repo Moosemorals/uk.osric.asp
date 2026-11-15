@@ -38,6 +38,10 @@ SPDX-License-Identifier: MIT
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The reference page's presentation, embedded so it cannot drift from the assembly that
+         writes the attributes it reads. -->
+    <None Remove="Documentation/reference.xslt" />
+    <EmbeddedResource Include="Documentation/reference.xslt" />
     <!-- Page templates seeded into storage on first run; read from disk, never served directly. -->
     <Content Remove="Pages/Seeds/**" />
     <None Remove="Pages/Seeds/**" />
