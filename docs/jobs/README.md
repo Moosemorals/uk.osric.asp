@@ -47,8 +47,10 @@ of that plan's fourth phase: retiring `/edit` and moving the editor's key into c
 that a dozen views each assemble their own navigation. IDEA-029 came out of the [VS Code
 template-language spike](../spikes/vscode-template-language.md) of the same day: highlighting and
 `make check-pages` landed in `tools/`, and the live half — a language server for the repository's
-editor — is what is left. IDEA-033 came out of the
-[page-first re-scope](../plans/page-first.md) of 2026-11-14 (DEC-291): the memory page the plan first
+editor — is what is left. IDEA-032 came out of the balance work of 2026-11-14: the conversation page
+already reads the provider's credit, which makes it the one figure the site spends and the one thing
+it measures without an instrument. IDEA-033 came out of the [page-first re-scope](../plans/page-first.md)
+of 2026-11-14 (DEC-291): the memory page the plan first
 moved needs the assistant's own store, so the capability a page actually lacks is somewhere to keep
 something for a signed-in account. IDEA-034 came out of the owner's question of 2026-11-14: the
 analyzers work turned the XML documentation on and the image carries it, and nothing reads it; it
@@ -77,6 +79,7 @@ repository. Its plan is [seed provenance](../plans/seed-provenance.md).
 | [IDEA-029](IDEA-029.md) | — | L | VS Code cannot check a page as it is typed: highlighting and clickable diagnostics are static |
 | [IDEA-030](IDEA-030.md) | — | M | Every view writes its own navigation: the shell, the admin, the assistant and the seeds each assemble the same links |
 | [IDEA-031](IDEA-031.md) | — | S | Some policy is still a constant in code: password and user-name length, the security headers, the page API allow-list, and the internal retry and sweep periods |
+| [IDEA-032](IDEA-032.md) | — | S | The provider's credit is shown on the conversation page but has no history, so the one figure the site spends has no instrument |
 | [IDEA-033](IDEA-033.md) | — | L | A page has no persistent per-account store: `IPageStorage` is shared by every visitor, `IPageSession` goes when the visitor signs out, and nothing keeps anything for a signed-in account |
 | [IDEA-036](IDEA-036.md) | — | L | A seed keeps no record of where it came from, so a deploy cannot say what it would change, the page list compares two strings to answer one bit, and nothing brings an edited seed back to the repository |
 
@@ -172,7 +175,9 @@ Not in this programme: [OPS-03](OPS-03.md) is the obvious next candidate once th
 empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
 [IDEA-001](IDEA-001.md) wants a third-party editor; [IDEA-020](IDEA-020.md) records why a
 destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7
-touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page; [BUG-19](BUG-19.md) is a
+touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page;
+[IDEA-032](IDEA-032.md) is a sitting's work whenever a cost line is wanted, and does not touch the
+files the programme is working through; [BUG-19](BUG-19.md) is a
 chart that misplaces its samples when its window is wider than its data; and
 [IDEA-033](IDEA-033.md) wants a plan and a named first customer before it is a step.
 
