@@ -69,7 +69,7 @@ Supporting changes:
   this commit and nothing else, the Caddyfile is not still the placeholder), then `check`, then
   `image`: it refuses an uncommitted tree (an image that cannot be rebuilt from the commit its tag
   names is a rollback waiting to fail; `ALLOW_DIRTY=1` is the deliberate exception), deploys by
-  commit tag rather than `latest` so the host can say what it is running, and curls `/heath` after
+  commit tag rather than `latest` so the host can say what it is running, and curls `/health` after
   the restart instead of reporting success blindly.
 
 Still open: the gate runs when someone runs it, so a commit pushed without `make check` is

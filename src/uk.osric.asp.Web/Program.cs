@@ -472,7 +472,7 @@ internal class Program {
         app.MapPost("/logout", LoginEndpoint.LogoutAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
-        app.MapHealthChecks("/heath", new HealthCheckOptions {
+        app.MapHealthChecks("/health", new HealthCheckOptions {
             ResponseWriter = ReportWriter.WriteAsync,
         });
 

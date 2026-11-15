@@ -63,9 +63,9 @@ PodmanArgs=--cpus=3
 # Longer than the host's 30 s graceful-shutdown budget, so a normal stop finishes cleanly and only a
 # genuinely stuck page is SIGKILLed.
 StopTimeout=35
-# The liveness signal the app cannot give itself: when a page has wedged thread-pool threads, /heath
+# The liveness signal the app cannot give itself: when a page has wedged thread-pool threads, /health
 # fails and podman restarts the container. Detection plus restart is about 35 s.
-HealthCmd=wget -q -O /dev/null -T 3 http://127.0.0.1:8080/heath
+HealthCmd=wget -q -O /dev/null -T 3 http://127.0.0.1:8080/health
 HealthInterval=10s
 HealthTimeout=5s
 HealthRetries=3

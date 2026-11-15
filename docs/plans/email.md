@@ -704,7 +704,7 @@ The plan is done when all of these are true on the deployed host, not just in a 
 8. `podman pod ps` shows the pod running; each container's healthcheck is healthy; `ufw status`
    allows 25, 587 and 993 and nothing else new.
 9. No process listens on 110, 143, 465 or 995 on the host.
-10. The website still deploys and answers `/heath` after the mail pod is added: the mail work has
+10. The website still deploys and answers `/health` after the mail pod is added: the mail work has
     not touched the app's units, network or volumes.
 
 ## Open questions

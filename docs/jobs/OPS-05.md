@@ -31,7 +31,7 @@ happens to look. There is no outbound mail, so systemd's failure notifications h
 4. Point systemd at it:
    - `OnFailure=` (and `OnUnitInactiveSec=`) on the `uk.osric.asp` user unit and the `caddy` system
      unit;
-   - a small timer that curls `/heath` and alerts when it returns 503, tying the health check to a
+   - a small timer that curls `/health` and alerts when it returns 503, tying the health check to a
      human.
 5. Keep credentials out of the repository: ship the MTA configuration through cloud-init and
    `make deploy`, exactly as the quadlets are shipped today.

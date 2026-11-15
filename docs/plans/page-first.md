@@ -74,7 +74,7 @@ recovery routes the first version left out are named.
 | `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | `pages-page-first` |
 | `/status`, `/status/chart`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load starts here, and the changelist is a file the image carries, which a page cannot read | `pages-page-first`, `shell-the-admin-tools` |
 | `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | `pages-page-first`, `shell-the-admin-tools` |
-| `{**path}`, `/favicon.ico`, `/heath`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | `pages-page-first` |
+| `{**path}`, `/favicon.ico`, `/health`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | `pages-page-first` |
 | `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The live stream is now something a page can do ([the streaming plan](page-streaming.md)); the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [IDEA-025](../jobs/IDEA-025.md) |
 | `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](../jobs/IDEA-024.md) |
 

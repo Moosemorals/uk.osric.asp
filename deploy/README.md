@@ -95,7 +95,7 @@ and applies them.
    its commit and that tag is only meaningful if the commit is the tree (`ALLOW_DIRTY=1` overrides,
    for a deliberate one-off). It runs the gate and the browser suite before the image is built, pushes
    the commit tag alongside `IMAGE_TAG`, and it does not report success until
-   `http://127.0.0.1:8080/heath` answers: a restart that leaves the unit failed is a failed deploy,
+   `http://127.0.0.1:8080/health` answers: a restart that leaves the unit failed is a failed deploy,
    not a quiet one.
 
    The quadlet's `Image=` names the commit, so the host answers "what is running?" without anyone
@@ -104,7 +104,7 @@ and applies them.
 ## Day-to-day
 
 - **New code:** commit it, then back up storage, then `make deploy HOST=deploy@<server-ip>`
-  (guards, checks, runs the browser suite, builds, pushes, pulls, restarts, waits for `/heath`, then
+  (guards, checks, runs the browser suite, builds, pushes, pulls, restarts, waits for `/health`, then
   says so if the commit it deployed is not on the remote yet).
 - **The gate:** `make check`, run by hand when you want it — `make deploy` runs it anyway, with the
   browser suite after it. `make ci` is the slower version that starts from `make clean` and fails if
@@ -181,7 +181,7 @@ and applies them.
 - **Reserved page keys:** `Pages:ReservedPaths` (environment form
   `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
   covers `/admin/changes`, `/admin/export`, `/admin/import`, `/admin/restore`, `/assistant`, `/edit`,
-  `/favicon.ico`, `/heath`, `/login`, `/logout`, `/metrics` and `/status`. `/admin` itself is a seeded page, so only
+  `/favicon.ico`, `/health`, `/login`, `/logout`, `/metrics` and `/status`. `/admin` itself is a seeded page, so only
   the tools beneath it are reserved. Change the list only when the route table changes.
 - **Layout:** `Pages:Layout` (environment form `Pages__Layout`) names the page every HTML page is
   wrapped in; it is seeded as `/_layout` and is edited and restored from the page list like any other
@@ -194,7 +194,7 @@ and applies them.
   `MaxPages`, `MaxCompiledBytes`, `StageTtlMinutes`, `MaxStagedImports`); a reviewed archive is held
   in memory only and expires, so raising `MaxUploadBytes` is the answer for a site whose export is
   larger than 16 MiB.
-- **Health:** `ssh deploy@<server-ip> curl -s http://127.0.0.1:8080/heath` returns detailed JSON —
+- **Health:** `ssh deploy@<server-ip> curl -s http://127.0.0.1:8080/health` returns detailed JSON —
   200 when the app can reach its database and no page renders have been abandoned, 503 otherwise. The
   same probe runs inside the container as podman's health check, so a failing check restarts it; see
   [resource limits and restarts](operations.md#resource-limits-and-restarts).

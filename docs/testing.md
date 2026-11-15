@@ -278,7 +278,7 @@ the app nor the test doubles the other suites use. Instead it starts the built a
 on a loopback port, with a throwaway SQLite file and a scripted provider, and drives the pages it
 serves with Playwright and Firefox — the browser the site is read in.
 
-- `BrowserHost` starts the app, reads the port it bound, waits for `/heath` and seeds one account
+- `BrowserHost` starts the app, reads the port it bound, waits for `/health` and seeds one account
   through the real `users` command. It runs the host as `Staging`: not `Production`, so the auth and
   antiforgery cookies are accepted over plain HTTP, and not `Development`, so a failure is answered by
   the error page the public site would show. Every host gets a watcher beside it (`HostReaper`): a

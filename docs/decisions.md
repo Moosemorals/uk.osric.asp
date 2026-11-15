@@ -526,10 +526,13 @@ without starting the page.
 
 ### pages-health-and-restarts
 
-The health endpoint is `/heath` — deliberately not `/healthz` — returning detailed JSON, pinging
-storage and reporting abandoned renders, not CPU or memory, which belong to the container. The
-supervisor is the kill switch: the budget cannot reclaim a thread, so podman restarts a wedged
-container and `StartLimitBurst` stops a crash loop. That is the whole "hard boundary" in this design.
+The health endpoint is `/health` — deliberately not `/healthz` — returning detailed JSON, pinging
+storage and reporting abandoned renders, not CPU or memory, which belong to the container. It was
+`/heath` until the misspelling was fixed, and the old path is not aliased: the probe, the deploy
+check and the documentation are all in this repository and move together, so nothing outside it
+calls the old one. The supervisor is the kill switch: the budget cannot reclaim a thread, so podman
+restarts a wedged container and `StartLimitBurst` stops a crash loop. That is the whole "hard
+boundary" in this design.
 
 *Recorded in [deploy](../deploy/operations.md#resource-limits-and-restarts), [pages](pages.md#health-and-restarts).*
 
@@ -1070,7 +1073,7 @@ build time.
 
 Anything a page can serve is a page. A route stays in the shell only because it bootstraps a broken site
 — `/login` and `/logout`, and the admin routes the owner reads or uses when a page did not load or no
-longer compiles — because it is the page runtime itself (`{**path}`, `/favicon.ico`, `/heath`,
+longer compiles — because it is the page runtime itself (`{**path}`, `/favicon.ico`, `/health`,
 `/metrics`), or because a page cannot do it yet, and each of those has a job. The page column is the
 default and the audit is expected to shrink.
 
