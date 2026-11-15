@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed, built and merged 2026-11-15. The six names it proposed are in [the record](../decisions.md) |
+| Status | Proposed, built and merged 2026-11-15. The six names it proposed are in [the record](../../decisions.md) |
 | Size | M — four files in `Authentication`, one options record, one tool, a credential rule stated once, and the tests, the prompt and the docs for each. The idea's `L` was for an account of the assistant's own; this design needs no account, no secret and no schema, so it stays an `M` |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `AuthenticationExtensions`, `PageCredential`, `PageFetchOptions`, `OutboundFetcher`, `AssistantFetcher`, `FetchTool`, `PageEndpoint`, `RunProcessor`, `PageAuthorPrompt` |
 | Decisions | Six, taken at the merge and listed at the bottom of this file; no existing entry is revised |
-| Backlog | IDEA-045, closed by this merge ([the job index](../jobs/README.md#closed)) |
+| Backlog | IDEA-045, closed by this merge ([the job index](../../jobs/README.md#closed)) |
 
 ## The short version
 
@@ -33,7 +33,7 @@ run cannot afford.
 
 That choice answers the idea's expensive question — *whose identity* — for free. There is nothing to
 create with `users add`, nothing to rotate, nothing to leak, and nothing a browser can use: the token
-is not a sign-in and cannot become one, so [IDEA-044](IDEA-044.md) is neither helped nor made riskier
+is not a sign-in and cannot become one, so [IDEA-044](../../jobs/IDEA-044.md) is neither helped nor made riskier
 by it.
 
 ## What the assistant sees today
@@ -331,7 +331,7 @@ change to that pipeline is tested by it for free.
   page with a token that has been revoked and asserts the `302 → /login?returnUrl=…` hop is in the
   result rather than an indistinguishable 200. This is the whole chain — token, scheme, guard, routing,
   page — with no socket and inside `make check`. If the test-server handler proves awkward, this fixture
-  degrades to the inbound half above and the gap is written down in [testing](../testing.md) rather than
+  degrades to the inbound half above and the gap is written down in [testing](../../testing.md) rather than
   left implied.
 
 No browser test: nothing here is a browser's behaviour, and the one thing a browser adds — the cookie
@@ -339,21 +339,21 @@ jar — is the one thing this design does not use.
 
 ## Docs
 
-- [the shell](../shell.md#authentication-and-the-editor) — a `### A run's view` beside the cookies: the
+- [the shell](../../shell.md#authentication-and-the-editor) — a `### A run's view` beside the cookies: the
   scheme, the two refusals, the claim, and the fact that this is not a sign-in.
-- [assistant](../assistant.md) — `view` beside `fetch`: the path/URL split, no approval, the session
+- [assistant](../../assistant.md) — `view` beside `fetch`: the path/URL split, no approval, the session
   and scheme caveats.
-- [glossary](../glossary.md) — **View**: the rendered site as an owner sees it, which a run may read
+- [glossary](../../glossary.md) — **View**: the rendered site as an owner sees it, which a run may read
   through its own token.
-- [deployment](../../deploy/README.md) — one line in the outbound-fetch note: the view is a loopback
+- [deployment](../../../deploy/README.md) — one line in the outbound-fetch note: the view is a loopback
   request to the container's own `127.0.0.1:8080`, so it does not pass through Caddy and carries no
   `X-Forwarded-*`; and nothing new is needed in the environment file.
-- the seeded `/help` ([Pages/Seeds/help](../../src/uk.osric.asp.Web/Pages/Seeds/help)) — one sentence
+- the seeded `/help` ([Pages/Seeds/help](../../../src/uk.osric.asp.Web/Pages/Seeds/help)) — one sentence
   beside "the assistant is available from the editor to a signed-in owner": the assistant can now view
   the site as its owner, read-only. Nothing a page author *can do* changes, so the author manual grows no
   section.
 - the prompt itself
-  ([PageAuthorPrompt](../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs)) teaches the tool, so a
+  ([PageAuthorPrompt](../../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs)) teaches the tool, so a
   run knows it exists before the owner has to say so.
 
 ## Deployment
@@ -421,11 +421,11 @@ The idea's six open questions are answered here rather than carried:
 | A second scheme, or the cookie | A second scheme; the cookie is untouched and stays the challenge scheme |
 | Where the token is stored and rotated | Nowhere: in memory, dead with the run, nothing to rotate |
 | Whether a page may name it | It cannot, because there is no name — it is not in `Pages:Fetch:Credentials` and not in configuration |
-| What it does to the browser | Nothing: it is not a sign-in, so [IDEA-044](IDEA-044.md) gets no identity from this |
+| What it does to the browser | Nothing: it is not a sign-in, so [IDEA-044](../../jobs/IDEA-044.md) gets no identity from this |
 
 Three the plan puts back, each with a recommendation it will follow unless the owner says otherwise:
 
-1. **The tool's name.** `view`, beside `fetch`. `browse` was rejected because [IDEA-044](IDEA-044.md)
+1. **The tool's name.** `view`, beside `fetch`. `browse` was rejected because [IDEA-044](../../jobs/IDEA-044.md)
    will want that word for the real thing.
 2. **No approval on `view`.** Recommended: a read of this site as the run's owner is `read_page`'s
    standing, not `fetch`'s.
@@ -439,21 +439,21 @@ Three the plan puts back, each with a recommendation it will follow unless the o
 
 Written at the merge, all six of them:
 
-- [auth-a-view-token-names-its-run](../decisions.md#auth-a-view-token-names-its-run) — the token is
+- [auth-a-view-token-names-its-run](../../decisions.md#auth-a-view-token-names-its-run) — the token is
   minted per run, for the run's owner, and is dead when the run is; it is never stored, configured or
   persisted, and it is not a sign-in.
-- [auth-a-view-token-reads-only](../decisions.md#auth-a-view-token-reads-only) — `GET` and `HEAD`, on
+- [auth-a-view-token-reads-only](../../decisions.md#auth-a-view-token-reads-only) — `GET` and `HEAD`, on
   the site's own origin, refused `405` with `Allow` for anything else, before authorisation and before
   antiforgery.
-- [auth-a-view-that-does-not-verify-is-refused](../decisions.md#auth-a-view-that-does-not-verify-is-refused)
+- [auth-a-view-that-does-not-verify-is-refused](../../decisions.md#auth-a-view-that-does-not-verify-is-refused)
   — a bearer header that does not authenticate is `401`, never a silent anonymous view.
-- [shell-the-site-knows-its-own-origin](../decisions.md#shell-the-site-knows-its-own-origin) —
+- [shell-the-site-knows-its-own-origin](../../decisions.md#shell-the-site-knows-its-own-origin) —
   `Site:Origin` is a required policy value, the one place a credential is offered, and an origin with no
   path, query, fragment or user info; plaintext only to loopback.
-- [assistant-a-view-is-a-read](../decisions.md#assistant-a-view-is-a-read) — `view` names a path on this
+- [assistant-a-view-is-a-read](../../decisions.md#assistant-a-view-is-a-read) — `view` names a path on this
   site, is signed in as the run's owner, and needs no approval, where `fetch` names any URL, is
   anonymous and does.
-- [assistant-a-view-is-the-response](../decisions.md#assistant-a-view-is-the-response) — a view answers
+- [assistant-a-view-is-the-response](../../decisions.md#assistant-a-view-is-the-response) — a view answers
   what the server produced: every header, the body's own bytes read as UTF-8, the redirect hops, and the
   length of the bytes it returned when a cap cut them. `fetch`'s allow-listed headers and
   declared-charset text stay what a *page's* fetch is, and do not leak into the view.
@@ -475,5 +475,5 @@ different failures with different tests.
   argument would let a run walk a big page in pieces, and it is not asked for: the same-page questions
   are about shape and a few lines, and `read_page` already addresses source by line. If a big page's
   tail turn out to matter, that is a change to the tool and its own tests.
-- **Any identity a browser can use.** That is [IDEA-044](IDEA-044.md), and this makes it neither easier
+- **Any identity a browser can use.** That is [IDEA-044](../../jobs/IDEA-044.md), and this makes it neither easier
   nor harder.

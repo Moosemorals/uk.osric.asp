@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Medium — one contract member, one response sink, a commit rule, a disconnect guard and their tests |
 | Spike | None. `SimpleContext` already buffers through one writer, the endpoint already shapes the whole response in one place, and the render already owns a deadline and an abandonment switch |
 | Decisions | Named in prose below; the names are taken when the work merges (`product-plan-before-building`, `product-steps-wait-for-the-owner`) |
-| Backlog | ARCH-13 — a page cannot stream (now [closed](../jobs/README.md#closed)) — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
+| Backlog | ARCH-13 — a page cannot stream (now [closed](../../jobs/README.md#closed)) — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
 
 ## The short version
 
@@ -35,7 +35,7 @@ Four consequences follow, and each is deliberate:
 - A failure after the commit — an exception, or the render deadline — truncates the response and
   aborts the connection. It cannot become an error page or a `504`.
 - A streamed page still holds its render slot and its deadline. This change makes the shape right; it
-  does not make a long-lived server-sent-event stream safe. That is [IDEA-025](../jobs/IDEA-025.md)'s
+  does not make a long-lived server-sent-event stream safe. That is [IDEA-025](../../jobs/IDEA-025.md)'s
   plan, which is the first customer.
 
 BUG-17's loose end closes here because it is the same write path. A response that is already
@@ -66,7 +66,7 @@ at Debug and aborts quietly; a genuine failure on a live response is still an Er
   and its slot. The deadline is what makes the "truncate, do not `504`" rule meaningful.
 - **Releasing the render slot after the commit.** The page is still running and still holding a
   deadline; pretending the render is over would let a public SSE page exhaust the site. This is
-  [IDEA-025](../jobs/IDEA-025.md)'s problem.
+  [IDEA-025](../../jobs/IDEA-025.md)'s problem.
 - **A demo page or a seeded example.** No stored page wants to stream yet, and an example that sleeps
   between flushes would need a delay primitive the page API deliberately does not offer. The tests and
   `/help` are the worked example.
@@ -86,8 +86,8 @@ Checked against the code on 2026-11-14.
 - **One buffered context.** `SimpleContext` collects the page's writes in a `StringWriter`, its status,
   content type, headers and redirect, and applies them only in `PageEndpoint.WritePageAsync` after
   `IHandler.HandleAsync` returns. Every write is under one lock and charged to a shared `BodyBudget`
-  ([SimpleContext.cs](../../src/uk.osric.asp.Web/Pages/SimpleContext.cs),
-  [PageEndpoint.cs](../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs)).
+  ([SimpleContext.cs](../../../src/uk.osric.asp.Web/Pages/SimpleContext.cs),
+  [PageEndpoint.cs](../../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs)).
 - **One response-shaped path.** `WritePageAsync` sets the status, content type, page headers,
   `no-store`, removes `ETag`, writes the session cookie, applies `AllowScripts` and then writes the
   encoded body once. A redirect is written instead of a body, and `HEAD` keeps the length but writes
@@ -95,13 +95,13 @@ Checked against the code on 2026-11-14.
 - **One chain.** The content renders first into a buffer; `PageChain.WrapAsync` then renders each
   layout with the previous layer's body as `IPageLayout.Body`. A redirect, a non-HTML response, a
   cleared layout or a page with no code is served alone
-  ([PageChain.cs](../../src/uk.osric.asp.Web/Pages/PageChain.cs),
-  [shell.md](../shell.md#the-response-shapes)).
+  ([PageChain.cs](../../../src/uk.osric.asp.Web/Pages/PageChain.cs),
+  [shell.md](../../shell.md#the-response-shapes)).
 - **One budget.** `PageRenderer.OpenSessionAsync` takes one slot and one deadline per request and every
   layer renders under it. A page that outruns the deadline is abandoned: `SimpleContext.Abandon` stops
   its writes, the renderer logs and counts it, and the endpoint answers `504`
-  ([PageRenderer.cs](../../src/uk.osric.asp.Web/Pages/PageRenderer.cs),
-  [pages.md](../pages.md#page-execution-budget)).
+  ([PageRenderer.cs](../../../src/uk.osric.asp.Web/Pages/PageRenderer.cs),
+  [pages.md](../../pages.md#page-execution-budget)).
 - **One contract rule for I/O.** Every I/O member on `IContext` and every capability returns a `Task`
   and takes no cancellation token; the render owns `Aborted` and the deadline and links them per call
   (`pages-page-io-is-async`). ARCH-13's sketch of `FlushAsync(CancellationToken)` predates that rule.

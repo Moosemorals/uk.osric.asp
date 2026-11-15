@@ -85,7 +85,7 @@ browser work).
    address space a rendered page's script can probe.
 5. **Anonymous, always.** The context carries no cookie and no session. A rendered page is the public
    visitor's view, which is the honest view for a public site. The assistant's own view of the pages
-   behind a guard is [the run's view](../plans/assistant-view.md), which is a token rather than a
+   behind a guard is [the run's view](../plans/archive/assistant-view.md), which is a token rather than a
    browser, and it is merged.
 6. **CDP over `ClientWebSocket`, or Playwright as a dependency.** The host may use `ClientWebSocket`;
    Playwright in a product assembly is a new third-party dependency with a browser-binary install and
@@ -118,7 +118,7 @@ than the app, and running the page's own scripts.
   every rendered page — including one the assistant wrote — signed in as the owner, with
   `AllowScripts()` on. If identity is ever wanted, it is a decision of its own, and it should be a
   token whose scope says what it may see, not a cookie borrowed from a person — which is the shape
-  [the run's view](../plans/assistant-view.md) took, and that token is memory-only, per run, dead
+  [the run's view](../plans/archive/assistant-view.md) took, and that token is memory-only, per run, dead
   when the run ends, and unable to become a sign-in.
 - **A browser without its sandbox.** `DropCapability=all` and `NoNewPrivileges=true` are right for the
   app and almost certainly force `--no-sandbox` in the browser, which means the container *is* the
@@ -178,7 +178,7 @@ Each is a decision for the plan this job wants.
   space.
 - **Replacing the Playwright test suite.** The suite checks the site the release shipped; this is a page
   checking the site the owner just saved.
-- **Identity.** A token a run mints for itself, which is [the run's view](../plans/assistant-view.md):
+- **Identity.** A token a run mints for itself, which is [the run's view](../plans/archive/assistant-view.md):
   memory-only, dead with the run, read-only, and unavailable to a browser.
 
 ## Considered and rejected

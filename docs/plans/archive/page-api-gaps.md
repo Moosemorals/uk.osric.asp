@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Small — six list entries, one grouping rule in `Check`, one sentence in the message, three descriptions that say what a page may name, and their tests |
 | Spike | None. Every claim was measured on `trunk` on 2026-11-15 by compiling templates through `PageCompiler`, and by counting the reference set's public types over `TRUSTED_PLATFORM_ASSEMBLIES` |
 | Decisions | `pages-admit-what-adds-no-capability`, recorded at the merge; it refines `pages-the-api-policy` rather than replacing it (`product-plan-before-building`, `product-steps-wait-for-the-owner`) |
-| Backlog | None. The threat model it sits inside is [SEC-03](../jobs/SEC-03.md), unchanged |
+| Backlog | None. The threat model it sits inside is [SEC-03](../../jobs/SEC-03.md), unchanged |
 
 ## The short version
 
@@ -54,13 +54,13 @@ Three things follow from the table.
   may declare `Dictionary<string, int>` and implement `IEqualityComparer<string>` by hand, but may not
   use the comparer the base library ships for exactly that. `System.Globalization` is admitted too, so
   a page **can** set `CultureInfo.DefaultThreadCurrentCulture` — process-wide mutable state, accepted
-  as residual risk in [SEC-03](../jobs/SEC-03.md) — while a readonly comparer over `string` is
+  as residual risk in [SEC-03](../../jobs/SEC-03.md) — while a readonly comparer over `string` is
   refused. Membership is not being decided by capability; it is being decided by whether a feature
   needed it.
 - **Every refusal is a redeploy.** The author is in the editor. The fix for `StringComparer` is a
   source edit in `Core`, a version bump, a build and a deploy, for a type that adds nothing.
 - **Each refusal costs two diagnostics, and neither names the entry to add.**
-  [docs/pages.md](../pages.md#page-api-policy) says the diagnostic "names the exact API to add"; it
+  [docs/pages.md](../../pages.md#page-api-policy) says the diagnostic "names the exact API to add"; it
   names `System.StringComparer.OrdinalIgnoreCase`, and the entry is `System.StringComparer`.
 
 ## Goals
@@ -71,7 +71,7 @@ Three things follow from the table.
    about taste.
 3. A refusal is one diagnostic per refused type, naming the member the author wrote and the type that
    is not admitted.
-4. The three descriptions of the policy — [docs/pages.md](../pages.md#page-api-policy), the seeded
+4. The three descriptions of the policy — [docs/pages.md](../../pages.md#page-api-policy), the seeded
    `/help` manual and `PageAuthorPrompt` — agree with the list, in this change.
 5. `make check` green, with the stored-image rule unchanged: a widened list moves the policy version.
 
@@ -96,8 +96,8 @@ Three things follow from the table.
 ### D1 — default deny stays, and membership is decided by capability
 
 `s_allowedTypes` keeps its shape and its position in `Core`; what changes is the test a candidate has
-to pass, stated in the remarks of [`PageApiPolicy`](../../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs)
-and in [docs/pages.md](../pages.md#page-api-policy). The test is the one quoted in the short version:
+to pass, stated in the remarks of [`PageApiPolicy`](../../../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs)
+and in [docs/pages.md](../../pages.md#page-api-policy). The test is the one quoted in the short version:
 it computes over what the page already holds, or it shapes what the page already returns.
 
 Two corollaries, both already true of the code and neither written down:
@@ -131,7 +131,7 @@ No entry here needs a member deny: none of them binds a way to reach a resource 
 - **`System.Collections.Immutable`, `System.Collections.ObjectModel`.** Copies of abstractions already
   admitted; no page has asked.
 - **`System.Text.RegularExpressions`.** Unchanged: a CPU amplification path inside a deadline that
-  cannot reclaim its thread ([SEC-03](../jobs/SEC-03.md)). A page that needs matching gets a
+  cannot reclaim its thread ([SEC-03](../../jobs/SEC-03.md)). A page that needs matching gets a
   capability.
 
 ### D4 — one diagnostic per refused type
@@ -165,14 +165,14 @@ whoever saved the page, and the list is a source file rather than a setting.
 
 ### D6 — the policy version moves
 
-`PolicyVersion` in [`PageCompiler`](../../src/uk.osric.asp.Runtime/PageCompiler.cs) goes from 4 to 5,
+`PolicyVersion` in [`PageCompiler`](../../../src/uk.osric.asp.Runtime/PageCompiler.cs) goes from 4 to 5,
 as its comment asks. A widened list does not make an existing image wrong, but the rule is that a
 change to the policy rechecks every stored page on its next request, and keeping to it is cheaper
 than reasoning about which changes are safe.
 
 ### D7 — the three descriptions move with it
 
-- [docs/pages.md](../pages.md#page-api-policy): the bullet that enumerates the list gains the batch,
+- [docs/pages.md](../../pages.md#page-api-policy): the bullet that enumerates the list gains the batch,
   the `Environment` reason, and the membership rule as the paragraph that introduces the list.
 - The seeded `/help` manual: a short subsection where the diagnostics are explained, saying what
   `PAGE001` means, that the list is `PageApiPolicy`, and the three substitutes an author reaches for
@@ -239,7 +239,7 @@ behaviour is added, so no new test.
 
 Merged into `trunk` on 2026-11-15 after `make check` came back green (format, licence, audit,
 decisions, `check-pages`, 827 Core, 174 Runtime, 1805 Web, 232 integration, publish). The entry is
-`pages-admit-what-adds-no-capability` in [the record](../decisions.md).
+`pages-admit-what-adds-no-capability` in [the record](../../decisions.md).
 
 Two things the build added that the phases did not name:
 

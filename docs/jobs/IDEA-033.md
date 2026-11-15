@@ -178,6 +178,6 @@ needed at all: memory is the assistant's own, with its own store (`assistant-mem
   arrives with the view that needs it, and this one needs a plan, a migration and a named first
   customer first.
 
-**Origin:** [the page-first re-scope](../plans/page-first.md) of 2026-11-14, recorded as `assistant-memory-belongs-to-the-assistant`. The
+**Origin:** [the page-first re-scope](../plans/archive/page-first.md) of 2026-11-14, recorded as `assistant-memory-belongs-to-the-assistant`. The
 gap was first named in `pages-page-storage`'s open-policy note; the per-account SQL shape, the notice that a page the
 assistant edits can read another page's rows, and the choice against JSON documents are this job's.
