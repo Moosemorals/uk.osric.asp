@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Implemented 2026-11-15; `make check` is green. Awaiting the owner's merge. The plan was approved on `trunk` and revised the same day after the owner answered the seven open questions |
+| Status | Merged 2026-11-15, and this plan is frozen with the work: the migration, the `seeds` command, the verdict, the apply route, the harvested pack and `make check` are on `trunk`. A statement here that the code has since overtaken is expected rather than a defect. The plan was approved on `trunk` and revised the same day after the owner answered the seven open questions |
 | Size | Large — a migration with two columns and a one-off repair, one write-path fact, one pure comparison and its words, one field on the page contract and one member removed, one shell route, an archive format version, a `seeds` command with four make targets, two seeded pages, and the prose and tests for each. Slices 0 and 1 are small and independent; 2–4 are the bulk |
 | Spike | None. Every number and claim below was measured on `trunk` at `f369bcc`; the first version of this plan was measured at `1badddd`, and the pack has grown by 7,972 bytes since. The two places the design could fail are the revision hash (settled: it is an identity, D1) and the archive reader (settled by the format's own version column, D9) |
-| Decisions | **pages-a-seed-write-records-its-hash**, **pages-a-seed-verdict-is-the-hosts**, **shell-the-pack-comes-home**, **shell-the-seed-apply-is-a-route**, **pages-an-archive-carries-provenance**. Named at the merge (`product-plan-before-building`); this branch states the names it intends |
-| Backlog | [IDEA-036](../jobs/IDEA-036.md). Relates to [IDEA-024](../jobs/IDEA-024.md) (an archive is not a form), [IDEA-030](../jobs/IDEA-030.md) (every view writes its own navigation), and [IDEA-043](../jobs/IDEA-043.md) (the widened write authority; the batch is split out of it, unnumbered for now — see *Risks*) |
+| Decisions | `pages-a-seed-write-records-its-hash`, `pages-a-seed-verdict-is-the-hosts`, `shell-the-pack-comes-home`, `shell-the-seed-apply-is-a-route`, `pages-an-archive-carries-provenance` |
+| Backlog | [IDEA-036](../../jobs/README.md#closed) — closed by this plan. Relates to [IDEA-024](../../jobs/IDEA-024.md) (an archive is not a form), [IDEA-030](../../jobs/IDEA-030.md) (every view writes its own navigation), and [IDEA-043](../../jobs/IDEA-043.md) (the widened write authority; the batch is split out of it, unnumbered for now — see *Risks*) |
 
 ## The short version
 
@@ -49,7 +49,7 @@ sections below are written to them.
 
 | Question | Answer |
 | --- | --- |
-| How the pack comes home | `seeds pull` emits a tar on stdout and `make` extracts it. No page serves a pack: an archive is not a form ([IDEA-024](../jobs/IDEA-024.md)) |
+| How the pack comes home | `seeds pull` emits a tar on stdout and `make` extracts it. No page serves a pack: an archive is not a form ([IDEA-024](../../jobs/IDEA-024.md)) |
 | Does the bulk apply adopt? | Yes. `H = S` is a fact the store verifies, so `store newer` is recorded as installed in the same run |
 | A manual install on an `edited` or `conflict` row | No. The row offers the diff, not a button. `/admin/restore` stays the deliberate overwrite-everything path |
 | Headings in `/pages` | Live and seeded are one list, as the production page already has them; a `retired` page is an ordinary live page. Two tables: *Pages* and *Deleted pages* |
@@ -61,10 +61,10 @@ sections below are written to them.
 
 | Path | What it knows | Where |
 | --- | --- | --- |
-| The install at start | A seed's page when the key has no head row, so a local edit survives a restart. Reported nowhere. It also *replaces* a stored seed whose source names `PageDocument` — a silent overwrite of the author's page, and junk (D10) | [`PageAssetSeeder.SeedAsync`](../../src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs:16), [`Program.cs`](../../src/uk.osric.asp.Web/Program.cs:338) |
-| `SeedPaths()`, `SeedSourceAsync`, `InstallSeedAsync` | The pack's keys, one seed's source, and a conditional install against the head hash. Offered to the editor page only | [`IPageEditor`](../../src/uk.osric.asp.Sdk/IPageEditor.cs:38), [`PageEditorScope`](../../src/uk.osric.asp.Web/Pages/PageEditorScope.cs:123) |
-| `/admin/restore` | Every shipped key with `current`, `changed`, `missing` or `deleted`, and one POST that writes each of them and reports every outcome (`shell-the-admin-tools`) | [`RestoreEndpoint`](../../src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs:40) |
-| The page list's byte compare | Live source against seed source as strings: differ, or do not. Two reads per live seeded row | [`pages`](../../src/uk.osric.asp.Web/Pages/Seeds/pages:460) |
+| The install at start | A seed's page when the key has no head row, so a local edit survives a restart. Reported nowhere. It also *replaces* a stored seed whose source names `PageDocument` — a silent overwrite of the author's page, and junk (D10) | [`PageAssetSeeder.SeedAsync`](../../../../src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs:16), [`Program.cs`](../../../../src/uk.osric.asp.Web/Program.cs:338) |
+| `SeedPaths()`, `SeedSourceAsync`, `InstallSeedAsync` | The pack's keys, one seed's source, and a conditional install against the head hash. Offered to the editor page only | [`IPageEditor`](../../../../src/uk.osric.asp.Sdk/IPageEditor.cs:38), [`PageEditorScope`](../../../../src/uk.osric.asp.Web/Pages/PageEditorScope.cs:123) |
+| `/admin/restore` | Every shipped key with `current`, `changed`, `missing` or `deleted`, and one POST that writes each of them and reports every outcome (`shell-the-admin-tools`) | [`RestoreEndpoint`](../../../../src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs:40) |
+| The page list's byte compare | Live source against seed source as strings: differ, or do not. Two reads per live seeded row | [`pages`](../../../../src/uk.osric.asp.Web/Pages/Seeds/pages:460) |
 
 The facts that shape the design, each checked in the code:
 
@@ -424,35 +424,35 @@ the rest.
 | Area | Change |
 | --- | --- |
 | `src/uk.osric.asp.Core/Pages/SeedComparison.cs` | New: the pure comparison over R, S and H, and the two permissions it implies |
-| [`uk.osric.asp.Sdk/PageEntry.cs`](../../src/uk.osric.asp.Sdk/PageEntry.cs) | One new property, `Seed`, of a new `PageSeedSummary` value (strings and flags; `Sdk` references nothing) |
-| [`uk.osric.asp.Sdk/IPageEditor.cs`](../../src/uk.osric.asp.Sdk/IPageEditor.cs) | `SeedPaths()` removed; `InstallSeedAsync` refuses a row the gate does not allow; `AdoptSeedAsync` added; `SeedSourceAsync` unchanged |
+| [`uk.osric.asp.Sdk/PageEntry.cs`](../../../../src/uk.osric.asp.Sdk/PageEntry.cs) | One new property, `Seed`, of a new `PageSeedSummary` value (strings and flags; `Sdk` references nothing) |
+| [`uk.osric.asp.Sdk/IPageEditor.cs`](../../../../src/uk.osric.asp.Sdk/IPageEditor.cs) | `SeedPaths()` removed; `InstallSeedAsync` refuses a row the gate does not allow; `AdoptSeedAsync` added; `SeedSourceAsync` unchanged |
 | `src/uk.osric.asp.Sdk/PublicAPI.Shipped.txt`, `PublicAPI.Unshipped.txt` | The new type and members declared; the removed one moved to `*REMOVED*` |
-| [`Pages/PageHead.cs`](../../src/uk.osric.asp.Web/Pages/PageHead.cs) | `SeedHash`, `ContentHash` on the entity, with the model snapshot and a migration |
-| [`Pages/SqlitePageStore.cs`](../../src/uk.osric.asp.Web/Pages/SqlitePageStore.cs) | `WriteHeadAsync` and `TryStoreRevisionAsync` write both, `COALESCE`d; an adopt that writes R only under `H = S`; `GetHeadAsync` reports both |
-| [`Pages/PageHeadSummary.cs`](../../src/uk.osric.asp.Web/Pages/PageHeadSummary.cs) | Carries R and H to the shell's seed plan |
-| [`Pages/PageAssetSeeder.cs`](../../src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs) | Reads the pack through `PageSeeds`, records R = S on a create, and loses the `PageDocument` branch |
-| [`Pages/PageTemplate.cs`](../../src/uk.osric.asp.Web/Pages/PageTemplate.cs) | The seed hash the write anchors to, so no write path can reach the store without deciding |
-| [`Editor/PageSaver.cs`](../../src/uk.osric.asp.Web/Editor/PageSaver.cs), [`Editor/PageEditor.cs`](../../src/uk.osric.asp.Web/Editor/PageEditor.cs) | The saver carries the seed hash onto the revision it builds, including the compiler-fault revision; the editor exposes the adopt the shell calls |
+| [`Pages/PageHead.cs`](../../../../src/uk.osric.asp.Web/Pages/PageHead.cs) | `SeedHash`, `ContentHash` on the entity, with the model snapshot and a migration |
+| [`Pages/SqlitePageStore.cs`](../../../../src/uk.osric.asp.Web/Pages/SqlitePageStore.cs) | `WriteHeadAsync` and `TryStoreRevisionAsync` write both, `COALESCE`d; an adopt that writes R only under `H = S`; `GetHeadAsync` reports both |
+| [`Pages/PageHeadSummary.cs`](../../../../src/uk.osric.asp.Web/Pages/PageHeadSummary.cs) | Carries R and H to the shell's seed plan |
+| [`Pages/PageAssetSeeder.cs`](../../../../src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs) | Reads the pack through `PageSeeds`, records R = S on a create, and loses the `PageDocument` branch |
+| [`Pages/PageTemplate.cs`](../../../../src/uk.osric.asp.Web/Pages/PageTemplate.cs) | The seed hash the write anchors to, so no write path can reach the store without deciding |
+| [`Editor/PageSaver.cs`](../../../../src/uk.osric.asp.Web/Editor/PageSaver.cs), [`Editor/PageEditor.cs`](../../../../src/uk.osric.asp.Web/Editor/PageEditor.cs) | The saver carries the seed hash onto the revision it builds, including the compiler-fault revision; the editor exposes the adopt the shell calls |
 | `src/uk.osric.asp.Web/Pages/PageContentHashRepair.cs` | New: the one-off content-only backfill, run after the migration and before the seeder |
 | `src/uk.osric.asp.Web/Storage/Migrations/` | One migration: two nullable columns and a snapshot update, no backfill |
 | `src/uk.osric.asp.Web/Pages/PageSeeds.cs` | New: the pack read once per process — keys, sources and hashes |
-| [`Pages/PageSeedInstaller.cs`](../../src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs) | The plan carries the verdict and the two permissions; `SeedState` becomes the Core comparison, and `SeedOutcome` stays what the write did |
-| [`Pages/PageCatalogScope.cs`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs) | Builds `PageEntry.Seed` from the head row and the pack map |
-| [`Pages/IPageReadStore.cs`](../../src/uk.osric.asp.Web/Pages/IPageReadStore.cs), [`SqlitePageReadStore.cs`](../../src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs) | `PageReadHead` carries R and H, from all three listing queries |
+| [`Pages/PageSeedInstaller.cs`](../../../../src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs) | The plan carries the verdict and the two permissions; `SeedState` becomes the Core comparison, and `SeedOutcome` stays what the write did |
+| [`Pages/PageCatalogScope.cs`](../../../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs) | Builds `PageEntry.Seed` from the head row and the pack map |
+| [`Pages/IPageReadStore.cs`](../../../../src/uk.osric.asp.Web/Pages/IPageReadStore.cs), [`SqlitePageReadStore.cs`](../../../../src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs) | `PageReadHead` carries R and H, from all three listing queries |
 | `src/uk.osric.asp.Web/Pages/SeedVerdictWords.cs` | New: the labels and sentences, beside `PageImageStatus` |
-| [`Pages/Seeds/pages`](../../src/uk.osric.asp.Web/Pages/Seeds/pages) | The listing renders the verdict and the verdict's action; the blanket *Install from seed* link goes; two tables |
-| [`Pages/Seeds/help`](../../src/uk.osric.asp.Web/Pages/Seeds/help) | *Assets and recovery* and the editor's action list: what a verdict is, the two "we do not know" sentences, which rows offer an action, and the routine apply route beside the emergency restore |
+| [`Pages/Seeds/pages`](../../../../src/uk.osric.asp.Web/Pages/Seeds/pages) | The listing renders the verdict and the verdict's action; the blanket *Install from seed* link goes; two tables |
+| [`Pages/Seeds/help`](../../../../src/uk.osric.asp.Web/Pages/Seeds/help) | *Assets and recovery* and the editor's action list: what a verdict is, the two "we do not know" sentences, which rows offer an action, and the routine apply route beside the emergency restore |
 | `src/uk.osric.asp.Web/Admin/ApplySeedsEndpoint.cs` | New: the routine apply, its preview and its POST |
-| [`Admin/RestoreEndpoint.cs`](../../src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs) | Reports verdicts instead of `current`/`changed`/`missing`/`deleted`; keeps continuing past a failure and writing every differing seed |
-| [`Admin/PageArchiveFormat.cs`](../../src/uk.osric.asp.Web/Admin/PageArchiveFormat.cs), `PageArchiveReader/Writer`, [`PageArchiveEntry.cs`](../../src/uk.osric.asp.Web/Admin/PageArchiveEntry.cs), [`ImportProcessor.cs`](../../src/uk.osric.asp.Web/Admin/ImportProcessor.cs) | Version 2, one column, reader accepts 1 and 2; the import carries R into the revision it builds |
-| `src/uk.osric.asp.Web/Pages/SeedCommands.cs`, [`Program.cs`](../../src/uk.osric.asp.Web/Program.cs) | The `seeds` command and its dispatch; the startup block runs the repair before the dispatch; the `PageDocument` logging loop goes |
-| [`ReservedPaths.cs`](../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), `appsettings.json` | `/admin/seed-apply` joins both lists (a test holds them together) |
-| [`Admin/AdminNavigation.cs`](../../src/uk.osric.asp.Web/Admin/AdminNavigation.cs), [`Assistant/ShellRoutes.cs`](../../src/uk.osric.asp.Web/Assistant/ShellRoutes.cs), [`Assistant/PageAuthorPrompt.cs`](../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs) | The new route described where the other admin routes are, in both directions the tests pin |
-| [`Makefile`](../../Makefile) | `seeds-list`, `seeds-pull`, `remote-seeds-list`, `remote-seeds-pull`, in the shapes `user-list` and `remote-user-list` use, plus the dirty-directory guard |
-| [`docs/storage.md`](../storage.md) | Two columns and what writes them; the repair; the archive's column list and its version |
-| [`docs/pages.md`](../pages.md), [`docs/shell.md`](../shell.md) | The listing's seed summary; `AdoptSeedAsync`; the gate's refusal; the apply route; the two tables |
-| [`docs/glossary.md`](../glossary.md) | *Seed*, *seed hash* and *verdict* — the anchor, and what an install records that a save does not |
-| [`docs/jobs/README.md`](../jobs/README.md), [`docs/decisions.md`](../decisions.md) | The job moves to Closed with its summary and a programme row; five decision entries, named at the merge |
+| [`Admin/RestoreEndpoint.cs`](../../../../src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs) | Reports verdicts instead of `current`/`changed`/`missing`/`deleted`; keeps continuing past a failure and writing every differing seed |
+| [`Admin/PageArchiveFormat.cs`](../../../../src/uk.osric.asp.Web/Admin/PageArchiveFormat.cs), `PageArchiveReader/Writer`, [`PageArchiveEntry.cs`](../../../../src/uk.osric.asp.Web/Admin/PageArchiveEntry.cs), [`ImportProcessor.cs`](../../../../src/uk.osric.asp.Web/Admin/ImportProcessor.cs) | Version 2, one column, reader accepts 1 and 2; the import carries R into the revision it builds |
+| `src/uk.osric.asp.Web/Pages/SeedCommands.cs`, [`Program.cs`](../../../../src/uk.osric.asp.Web/Program.cs) | The `seeds` command and its dispatch; the startup block runs the repair before the dispatch; the `PageDocument` logging loop goes |
+| [`ReservedPaths.cs`](../../../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), `appsettings.json` | `/admin/seed-apply` joins both lists (a test holds them together) |
+| [`Admin/AdminNavigation.cs`](../../../../src/uk.osric.asp.Web/Admin/AdminNavigation.cs), [`Assistant/ShellRoutes.cs`](../../../../src/uk.osric.asp.Web/Assistant/ShellRoutes.cs), [`Assistant/PageAuthorPrompt.cs`](../../../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs) | The new route described where the other admin routes are, in both directions the tests pin |
+| [`Makefile`](../../../../Makefile) | `seeds-list`, `seeds-pull`, `remote-seeds-list`, `remote-seeds-pull`, in the shapes `user-list` and `remote-user-list` use, plus the dirty-directory guard |
+| [`docs/storage.md`](../../storage.md) | Two columns and what writes them; the repair; the archive's column list and its version |
+| [`docs/pages.md`](../../pages.md), [`docs/shell.md`](../../shell.md) | The listing's seed summary; `AdoptSeedAsync`; the gate's refusal; the apply route; the two tables |
+| [`docs/glossary.md`](../../glossary.md) | *Seed*, *seed hash* and *verdict* — the anchor, and what an install records that a save does not |
+| [`docs/jobs/README.md`](../../jobs/README.md), [`docs/decisions.md`](../../decisions.md) | The job moves to Closed with its summary and a programme row; five decision entries, named at the merge |
 | `/seed-plan` (the store page) | Superseded: update it to point at this plan, or retire it — it is not in the repository, so it is also the first thing a harvest would find |
 
 ## Slices
@@ -463,9 +463,9 @@ are sequential.
 ### 0 — The junk goes
 
 Delete the `PageDocument` replacement: the branch and `replaced` list in
-[`PageAssetSeeder.SeedAsync`](../../src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs:16), the logging loop
-in [`Program.cs`](../../src/uk.osric.asp.Web/Program.cs:340), and the four tests in
-[`PageAssetSeederTests`](../../test/uk.osric.asp.Web.Tests/PageAssetSeederTests.cs:243), keeping
+[`PageAssetSeeder.SeedAsync`](../../../../src/uk.osric.asp.Web/Pages/PageAssetSeeder.cs:16), the logging loop
+in [`Program.cs`](../../../../src/uk.osric.asp.Web/Program.cs:340), and the four tests in
+[`PageAssetSeederTests`](../../../../test/uk.osric.asp.Web.Tests/PageAssetSeederTests.cs:243), keeping
 *an edited seed that does not name it is left alone* as an assertion on the existing write-count test.
 `SeedAsync` returns `Task`. GREEN at the end.
 
@@ -601,7 +601,7 @@ same change, as the author-manual rule asks.
 ## Not in scope
 
 - **A page that serves the pack.** The owner asked for the command and make, not a download page; an
-  archive is not a form ([IDEA-024](../jobs/IDEA-024.md)), and the owner is at a terminal when they
+  archive is not a form ([IDEA-024](../../jobs/IDEA-024.md)), and the owner is at a terminal when they
   mean to commit.
 - **A pipeline that emits an importable database when seeds change.** Wrong shape: the archive is
   all-or-nothing over the store, so importing one clobbers local edits, discards revisions and bypasses
@@ -623,7 +623,7 @@ same change, as the author-manual rule asks.
   verdict whenever the pack is big enough to need it, and it is not that big.
 
 **Origin:** the owner's note at `/seed-plan`, a stored page that is not part of this repository,
-reviewed against `trunk` on 2026-11-15 and recorded as [IDEA-036](../jobs/IDEA-036.md). The review
+reviewed against `trunk` on 2026-11-15 and recorded as [IDEA-036](../../jobs/README.md#closed). The review
 changed three things: the revision hash is an identity, so the content hash has to be a second column
 (D1); the verdict is the host's answer rather than three hashes handed to the page (D3); and a
 harvested pack makes `store newer` an ordinary row rather than an optional repair (D4, D11). The owner

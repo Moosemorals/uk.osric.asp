@@ -30,7 +30,7 @@ What that costs:
   library and its dependents must write the library first, and today it has no way to know which are
   the dependents.
 - **Seed provenance cannot tell a moved library from an edited one**, because the fingerprint is
-  written but not read back ([IDEA-036](IDEA-036.md)).
+  written but not read back ([IDEA-036](../plans/archive/seed-provenance.md)).
 
 The wider class is "what does this change invalidate" — a question every writer wants and no reader
 answers.

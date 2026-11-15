@@ -1083,6 +1083,54 @@ installs a single seed, and there is no second comparison and no batch store in 
 
 *Recorded in [page editor](plans/archive/page-editor.md), [revision restore](plans/archive/revision-restore.md), [PageSeedInstaller](../src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs).*
 
+### pages-a-seed-write-records-its-hash
+
+A page's row carries the hash of the seed its content is anchored to (**R**), written in the same
+transaction as the revision and by nothing else: an ordinary save, a restore, an import and the
+assistant all leave it where they found it. With **S**, the hash this release ships at that key, and
+**H**, the hash of the live source, the whole seed rule is one sentence — **an automatic write
+requires H = R and S ≠ R** — so "the release moved this page" and "the author edited this page" stop
+being the same observation. A write with no anchor of its own to keep is the only one that sets R: a
+seed installed on create, an install, or a restore of a seed.
+
+H is stored too, because a listing that had to hash sources to show a bit would spend the render's
+source allowance on it. H is recoverable and a startup repair fills it in for every head written
+before the column existed, from the revision that head points at, in one transaction and idempotently.
+R is not recoverable and is never invented: a page from before the column stays *unknown* until
+something establishes where it came from, and the two are not the same migration step. The repair is
+deliberately not an EF migration, because SQLite has no SHA-256 and a migration gets no context, so
+the alternative would be a frozen second copy of the algorithm.
+
+*Recorded in [seed provenance](plans/archive/seed-provenance.md), [pages](pages.md), [SeedComparison](../src/uk.osric.asp.Core/Pages/SeedComparison.cs), [PageContentHashRepair](../src/uk.osric.asp.Web/Pages/PageContentHashRepair.cs).*
+
+### pages-a-seed-verdict-is-the-hosts
+
+What a seeded row is, is the host's answer: `Core` compares the three hashes to one verdict and the
+shell puts it on `PageEntry.Seed` as a `PageSeedSummary` — the verdict's word, the sentence that says
+why, and the two things the row may do — so a page renders one row's state without reading the seed
+source at all. The list used to read two sources per seeded row to produce one bit and charge a third
+of the render's source allowance for it; the read is now the row it was already reading.
+
+The words are the host's because a page that restated the rule would state a second copy of it. The
+seven comparisons — *in sync*, *release newer*, *edited*, *conflict*, *store newer*, *unknown*,
+*retired* — are all `SeedVerdict`, and the two row states that are not comparisons, a key with no head
+row and a tombstone, stay in `Web` with the words for them, because there is nothing to compare and
+only the caller knows whether the key is shipped.
+
+*Recorded in [seed provenance](plans/archive/seed-provenance.md), [pages](pages.md), [SeedComparison](../src/uk.osric.asp.Core/Pages/SeedComparison.cs), [SeedVerdictWords](../src/uk.osric.asp.Web/Pages/SeedVerdictWords.cs), [PageSeedSummary](../src/uk.osric.asp.Sdk/PageSeedSummary.cs).*
+
+### pages-an-archive-carries-provenance
+
+An archive's format version 2 puts the page's anchor in its `Pages` table beside the source, so an
+export from one site and an import into another keep what the page came from. A version 1 archive is
+still read, with no anchor on any key — the import carries R when the file has it and never invents
+one — and a version 2 file is refused by a build that knows only version 1, which is the right way
+round: a build that dropped the anchor silently would be worse than one that will not open the file.
+The value is validated as a canonical hash on the way in, and a malformed one refuses the archive
+rather than landing a row that no comparison can use.
+
+*Recorded in [seed provenance](plans/archive/seed-provenance.md), [storage](storage.md), [PageArchiveFormat](../src/uk.osric.asp.Web/Admin/PageArchiveFormat.cs).*
+
 ### pages-scrubbing-is-not-editing
 
 Scrubbing stays in the shell at `/admin/scrub/{**path}`, because permanently removing history is not
@@ -1438,6 +1486,42 @@ and a single rule there would hide the page that can repair it. It is the recove
 editor stop being shell.
 
 *Recorded in [the shell](shell.md), [ChangesEndpoint](../src/uk.osric.asp.Web/Admin/ChangesEndpoint.cs), [RestoreEndpoint](../src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs).*
+
+### shell-the-pack-comes-home
+
+The pack is edited in production — that is what the site is for — and the repository has to be able to
+follow it, so the app carries a `seeds` command that runs before the web host starts: `seeds list`
+prints every seed and what the store holds for it, and `seeds pull` writes the stored source of every
+key the store has moved into a tar on standard output, with everything said about the run on standard
+error and `--all` and `--missing` to widen or to report what a pull cannot fix. `make seeds-pull`
+extracts that into `Pages/Seeds`, so the change arrives as a diff: git is the merge tool and
+`git diff` is the review, and nothing is deleted on the site's word.
+
+It is a command and not a page for the reason the shell exists: it reads the store under the running
+build's own schema, writes to a working tree, and has to be usable when the site is not answering.
+The make target refuses a seed folder with uncommitted changes unless `FORCE=1`, because extracting
+over an edit is the one thing the command can destroy. `make remote-seeds-list` and
+`make remote-seeds-pull` run the same command in the container on `HOST`.
+
+*Recorded in [seed provenance](plans/archive/seed-provenance.md), [the shell](shell.md), [SeedCommands](../src/uk.osric.asp.Web/Pages/SeedCommands.cs), [Makefile](../Makefile).*
+
+### shell-the-seed-apply-is-a-route
+
+A release that moves a seed needs a way to write it that is not the emergency route, so
+`/admin/seed-apply` is its own shell page: a `GET` lists the pack in ordinal key order with each row's
+verdict and what would stop the run, and one `POST` writes every *release newer* row, creates every
+*new* one, records every row whose content already is the shipped seed, and skips *in sync*,
+*deleted* and *retired*, which are not its business.
+
+It stops at the first row that has drifted — *edited*, *conflict*, or *unknown* with content that is
+not the seed — and writes nothing after it, because a half-applied pack that the operator believes is
+applied is worse than a stopped run. `/admin/restore` keeps its job as the way back when the site is
+broken: it writes everything the release ships and reports every outcome. The capability is gated the
+same way: `InstallSeedAsync` refuses unless the verdict says the release moved the seed and the page
+still holds the one it came from, and a page that already holds the shipped bytes is adopted — the
+anchor recorded, no revision written — rather than installed.
+
+*Recorded in [seed provenance](plans/archive/seed-provenance.md), [the shell](shell.md), [ApplySeedsEndpoint](../src/uk.osric.asp.Web/Admin/ApplySeedsEndpoint.cs), [PageEditorScope](../src/uk.osric.asp.Web/Pages/PageEditorScope.cs).*
 
 ### shell-sign-out-is-a-post
 

@@ -65,7 +65,9 @@ rendered Markdown heading had no anchor, and a page could not switch the rendere
 closed (`pages-markdown-options-are-per-call`). IDEA-036 came out of the owner's seed-provenance note
 of the same day: a seed is identified by nothing, so a deploy cannot tell a page the release moved
 from a page the author edited, and nothing brings an edited seed back from the running site to the
-repository. Its plan is [seed provenance](../plans/seed-provenance.md). IDEA-037 to IDEA-043 came out of the
+repository. It is closed by [its plan](../plans/archive/seed-provenance.md)
+(`pages-a-seed-write-records-its-hash`, `pages-a-seed-verdict-is-the-hosts`,
+`shell-the-pack-comes-home`, `shell-the-seed-apply-is-a-route`, `pages-an-archive-carries-provenance`). IDEA-037 to IDEA-043 came out of the
 owner's note of 2026-11-15 comparing the site's IDE plan (`/ide-plan`, a stored page that is not in this
 repository) with this list: of its twelve wishes, two were already here (IDEA-033 and IDEA-001), one was
 not the host's, and seven had nothing behind them. They are the host's part of the IDE — the assistant
@@ -94,7 +96,6 @@ fails to compile: the template language has an opener for everything except a no
 | [IDEA-031](IDEA-031.md) | — | S | Some policy is still a constant in code: password and user-name length, the security headers, the page API allow-list, and the internal retry and sweep periods |
 | [IDEA-032](IDEA-032.md) | — | S | The provider's credit is shown on the conversation page but has no history, so the one figure the site spends has no instrument |
 | [IDEA-033](IDEA-033.md) | — | L | A page has no persistent per-account store: `IPageStorage` is shared by every visitor, `IPageSession` goes when the visitor signs out, and nothing keeps anything for a signed-in account |
-| [IDEA-036](IDEA-036.md) | — | L | A seed keeps no record of where it came from, so a deploy cannot say what it would change, the page list compares two strings to answer one bit, and nothing brings an edited seed back to the repository |
 | [IDEA-037](IDEA-037.md) | — | M | A page cannot check a template without saving it, so "check my work" is "add a revision to the history" |
 | [IDEA-038](IDEA-038.md) | — | M | A page cannot search the store's source: `search_pages` and `grep` walk it, and no page can |
 | [IDEA-039](IDEA-039.md) | — | S | A page cannot ask a listing for the next page: `ListAsync` refuses past the row cap, though `list_pages` has had a cursor since the store reader landed |
@@ -158,6 +159,7 @@ approval.
 | 8 | [IDEA-025](IDEA-025.md) — the shell an app needs ([the plan](../plans/page-apps.md)): a long stream, an outbound stream, a worker kind and jobs; the assistant port is later | L | 6, 7 | the plan, then every phase | done |
 | 9 | [Page first](../plans/page-first.md) — the rule and its audit; the memory capability it first proposed is withdrawn, and the gap a page actually has is IDEA-033 | S | — | merge | done |
 | 10 | [#closed](#closed) — page libraries: IDEA-005's shared-code half — a library page kind named by a `using`, and `PageDocument` out of `Sdk` | L | 5, 6 | the plan, then every phase | done |
+| 11 | [Seed provenance](../plans/archive/seed-provenance.md) — IDEA-036: a seed write records its hash, the host answers the verdict, `seeds` brings the pack home and `/admin/seed-apply` moves a release's seeds | L | 5 | the plan, then every slice | done |
 
 The [assistant edit-safety plan](../plans/archive/assistant-edit-safety.md) landed between steps 5 and
 6 and is not a numbered job: it gives the edit tool its diff and line assertions, numbers the reads,
@@ -207,6 +209,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [IDEA-036](../plans/archive/seed-provenance.md) | A seed remembers where it came from: a seed write records the hash it installed, and with the recorded anchor, the shipped seed's hash and the live content's hash the host answers one verdict per row — so a deploy can say what it would change, an automatic write is allowed only where the page still holds the seed it came from, and the page list stops reading two sources to produce one bit. `seeds` brings the running store's bytes home into `Pages/Seeds`, `/admin/seed-apply` writes what a release moved and stops at the first page that has drifted, and an archive carries the anchor. `pages-a-seed-write-records-its-hash`, `pages-a-seed-verdict-is-the-hosts`, `shell-the-pack-comes-home`, `shell-the-seed-apply-is-a-route`, `pages-an-archive-carries-provenance`. See [the plan](../plans/archive/seed-provenance.md) |
 | [IDEA-045](../plans/assistant-view.md) | A run sees the site it is serving: `view` GETs a path on `Site:Origin` as the owner the run belongs to, and answers the response as the server produced it — every header, the body's own bytes read as UTF-8, the redirects it followed — where `fetch` stays anonymous and keeps its text projection. The token is minted per run, held in memory and dead when the run ends; it reads and never writes, and a page cannot name it. `auth-a-view-token-names-its-run`, `auth-a-view-token-reads-only`, `auth-a-view-that-does-not-verify-is-refused`, `shell-the-site-knows-its-own-origin`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`. See [the plan](../plans/assistant-view.md) |
 | [IDEA-046](../decisions.md) | The template has a comment: `<%# %>` is a token of its own that is neither code nor text — it writes nothing, is emitted into no generated source, leaves a no-code page a text page and a library a library, its braces are not the page's, the script skeleton blanks it, and a text page is served with every comment removed. `pages-a-comment-is-not-code` |
 | [IDEA-035](../decisions.md) | The assistant always runs: `Assistant:Enabled`, the disabled note, the `404` fallback and the key exemption are gone, and `Assistant:ApiKey` is required at startup. `assistant-always-on` |
