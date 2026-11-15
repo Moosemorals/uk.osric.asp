@@ -63,7 +63,15 @@ window wider than the data left the line at the left edge; it is closed
 (`metrics-a-chart-counts-from-its-window`). IDEA-036 came out of the owner's seed-provenance note of
 the same day: a seed is identified by nothing, so a deploy cannot tell a page the release moved from a
 page the author edited, and nothing brings an edited seed back from the running site to the
-repository. Its plan is [seed provenance](../plans/seed-provenance.md).
+repository. Its plan is [seed provenance](../plans/seed-provenance.md). IDEA-037 to IDEA-043 came out of the
+owner's note of 2026-11-15 comparing the site's IDE plan (`/ide-plan`, a stored page that is not in this
+repository) with this list: of its twelve wishes, two were already here (IDEA-033 and IDEA-001), one was
+not the host's, and seven had nothing behind them. They are the host's part of the IDE — the assistant
+builds the IDE itself — and [their plan](../plans/ide-host.md) orders them, revises the two rules that
+were in the way, and scopes each one to its wider class of caller rather than to the editor. IDEA-044 and IDEA-045 came out
+of the owner's follow-up of the same day: the assistant does not ask for a browser in so many words,
+but keeps reaching for a way to see what it wrote, and the parts worth seeing are behind the sign-in
+guard — so a browser and an identity are two jobs, and neither is part of the IDE plan.
 
 | ID | Severity | Size | Job |
 | --- | --- | --- | --- |
@@ -82,6 +90,15 @@ repository. Its plan is [seed provenance](../plans/seed-provenance.md).
 | [IDEA-032](IDEA-032.md) | — | S | The provider's credit is shown on the conversation page but has no history, so the one figure the site spends has no instrument |
 | [IDEA-033](IDEA-033.md) | — | L | A page has no persistent per-account store: `IPageStorage` is shared by every visitor, `IPageSession` goes when the visitor signs out, and nothing keeps anything for a signed-in account |
 | [IDEA-036](IDEA-036.md) | — | L | A seed keeps no record of where it came from, so a deploy cannot say what it would change, the page list compares two strings to answer one bit, and nothing brings an edited seed back to the repository |
+| [IDEA-037](IDEA-037.md) | — | M | A page cannot check a template without saving it, so "check my work" is "add a revision to the history" |
+| [IDEA-038](IDEA-038.md) | — | M | A page cannot search the store's source: `search_pages` and `grep` walk it, and no page can |
+| [IDEA-039](IDEA-039.md) | — | S | A page cannot ask a listing for the next page: `ListAsync` refuses past the row cap, though `list_pages` has had a cursor since the store reader landed |
+| [IDEA-040](IDEA-040.md) | — | S | Nothing says which pages a library edit will recompile, though the closure is written with every image |
+| [IDEA-041](IDEA-041.md) | — | S | A diagnostic is a point in an unnamed source: the extent is thrown away and a library's key does not reach the page |
+| [IDEA-042](IDEA-042.md) | — | M | A page cannot move a page, so a rename is two histories, an orphaned seed anchor and every inbound link broken silently |
+| [IDEA-043](IDEA-043.md) | — | L | The authority to edit the store belongs to one page and to one save: any page may write, and a render may write a batch under a policy |
+| [IDEA-044](IDEA-044.md) | — | L | A page cannot render a page in a browser: the assistant's own scripts are never run, though the server's HTML is already one `fetch` away, and a screenshot has nowhere to be read, served or kept |
+| [IDEA-045](IDEA-045.md) | — | M | A page, a fetch and the assistant only ever see the anonymous view, so every guarded page renders as a sign-in redirect, and the carrier for a token already exists |
 
 An `IDEA-` file says `## Idea` and `## Sketch` where a defect says `## Problem` and
 `## Fix outline`; both carry the same table under the title, with `Size` in place of `Severity`.
