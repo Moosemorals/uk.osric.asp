@@ -303,7 +303,7 @@ surface to what is written down. The set stays strict because turning it on foun
 cancellation source, culture-dependent generated source, calls that blocked inside async methods — not
 noise to be muted.
 
-*Recorded in [analyzers](plans/analyzers.md), [testing](testing.md#the-gate).*
+*Recorded in [analyzers](plans/archive/analyzers.md), [testing](testing.md#the-gate).*
 
 ### code-fixtures-hold-no-deadline
 
@@ -540,7 +540,7 @@ A refusal is one diagnostic per type. The checker reports a node's symbol and it
 member of a refused type was once refused twice; the member is kept, and it names the type beside it,
 because the entry that would change the answer is the container and not the member.
 
-*Recorded in [pages](pages.md#page-api-policy), [page api gaps](plans/page-api-gaps.md), [PageApiPolicy](../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs).*
+*Recorded in [pages](pages.md#page-api-policy), [page api gaps](plans/archive/page-api-gaps.md), [PageApiPolicy](../src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs).*
 
 ### pages-load-isolation
 
@@ -874,7 +874,7 @@ pipeline is broken. A stored page is served in a document the seeded layout writ
 library: `/_lib/document` declares `Site.Document` for the layout to call, and a test compares the
 document shape the two write.
 
-*Recorded in [the shell](shell.md#the-document-shell), [page libraries](plans/page-libraries.md#d11--the-seeded-layout-calls-a-library-document).*
+*Recorded in [the shell](shell.md#the-document-shell), [page libraries](plans/archive/page-libraries.md#d11--the-seeded-layout-calls-a-library-document).*
 
 ### pages-markdown
 
@@ -1194,7 +1194,7 @@ default and the audit is expected to shrink.
 Every write of the page store stays with the shell — save, delete, scrub, restore, import and export, and
 the assistant's bounded tools — and a page gets a bounded read; there is no second writer.
 
-*Recorded in [page first](plans/page-first.md#the-rule).*
+*Recorded in [page first](plans/archive/page-first.md#the-rule).*
 
 ### pages-an-archive-is-a-database
 
@@ -1226,7 +1226,7 @@ and there is no configuration for it.
 This entry is the set. What each kind is and may do is the entry named for it, so a new kind adds an
 entry beside them rather than a count changed here.
 
-*Recorded in [page libraries](plans/page-libraries.md#d1--the-verdict-is-one-kind-not-a-second-flag), [PageKind](../src/uk.osric.asp.Core/Pages/PageKind.cs).*
+*Recorded in [page libraries](plans/archive/page-libraries.md#d1--the-verdict-is-one-kind-not-a-second-flag), [PageKind](../src/uk.osric.asp.Core/Pages/PageKind.cs).*
 
 ### pages-a-library-is-named-by-a-using
 
@@ -1252,7 +1252,7 @@ and not built: content inclusion and a compiled-into-every-dependent tree are bo
 and a process-wide assembly would be a channel between visitors. The trigger to revisit is a render that
 spends more time compiling than running, or an image that is mostly library.
 
-*Recorded in [page libraries](plans/page-libraries.md), [PageImageBuilder](../src/uk.osric.asp.Web/Pages/PageImageBuilder.cs).*
+*Recorded in [page libraries](plans/archive/page-libraries.md), [PageImageBuilder](../src/uk.osric.asp.Web/Pages/PageImageBuilder.cs).*
 
 ### pages-a-worker-is-a-kind
 
@@ -1558,7 +1558,7 @@ stylesheet; anchors are stable slugs derived from the member id, and an `<inheri
 source's text down when the source is one of ours. The audit gains a fourth reason for the build's own
 facts, and `/admin/changes` moves under it.
 
-*Recorded in [the shell](shell.md#the-reference), [xml reference](plans/xml-reference.md).*
+*Recorded in [the shell](shell.md#the-reference), [xml reference](plans/archive/xml-reference.md).*
 
 ### shell-the-site-knows-its-own-origin
 
@@ -1813,7 +1813,7 @@ session belongs to one browser and goes when it signs out. That gap is [IDEA-033
 shaped as a per-account SQL store whose tables the page declares, and a capability arrives with the view
 that needs it, so the job names its first customer before it is built.
 
-*Recorded in [page first](plans/page-first.md), [where a view lives](architecture.md#where-a-view-lives).*
+*Recorded in [page first](plans/archive/page-first.md), [where a view lives](architecture.md#where-a-view-lives).*
 
 ### assistant-memory-is-the-owners
 
