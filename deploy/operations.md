@@ -268,8 +268,8 @@ scp backuphost:/srv/backup/uk.osric.asp/2026-11-16/storage.db.gz /tmp/
 ssh deploy@<server-ip> systemctl --user stop uk.osric.asp.service
 gunzip -c /tmp/storage.db.gz > /tmp/storage-restore.db
 mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' uk.osric.asp-storage)
-podman unshare rm -f "$mountpoint/_data/storage.db-wal" "$mountpoint/_data/storage.db-shm"
-podman unshare install -o 1654 -g 1654 -m 0640 /tmp/storage-restore.db "$mountpoint/_data/storage.db"
+podman unshare rm -f "$mountpoint/storage.db-wal" "$mountpoint/storage.db-shm"
+podman unshare install -o 1654 -g 1654 -m 0640 /tmp/storage-restore.db "$mountpoint/storage.db"
 rm /tmp/storage-restore.db
 systemctl --user start uk.osric.asp.service
 until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do sleep 2; done

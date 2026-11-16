@@ -27,9 +27,12 @@ for file in assistant.env appsettings.Production.json; do
     fi
 done
 
+# Podman's mountpoint is the directory mounted at /data, so storage.db sits directly in it — do not
+# append `_data`, which is the volume's own directory name inside the store.
 mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$volume")
-if [ -z "$mountpoint" ] || [ ! -d "$mountpoint/_data" ]; then
-    echo "volume $volume has no mountpoint: has the app ever started?" >&2
+db=$mountpoint/storage.db
+if [ ! -f "$db" ]; then
+    echo "no storage.db in $volume ($mountpoint): has the app started yet?" >&2
     exit 1
 fi
 
@@ -43,7 +46,7 @@ trap 'rm -f "$tmp" "$tmp.gz" "$current.new"' EXIT
 # read-only: a container killed mid-write leaves a hot journal, and rolling it back is what a
 # read-write open does before the copy starts. The timeout is for a write that lands at the same
 # moment — the shell's default wait is far shorter than this.
-podman unshare sqlite3 "$mountpoint/_data/storage.db" '.timeout 5000' ".backup '$tmp'"
+podman unshare sqlite3 "$db" '.timeout 5000' ".backup '$tmp'"
 podman unshare sqlite3 "$tmp" 'PRAGMA integrity_check;' | grep -qx ok
 
 gzip -f "$tmp"

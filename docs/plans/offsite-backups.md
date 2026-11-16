@@ -80,7 +80,8 @@ It does four things, then tidies one scratch case:
 
 1. Copies `assistant.env` and `appsettings.Production.json` into `~/backups/conf` — the only host files
    the repository does not carry.
-2. Asks podman for the volume's mountpoint, then runs `sqlite3 <volume>/_data/storage.db ".backup
+2. Asks podman for the volume's mountpoint — which is the directory mounted at `/data`, so
+   `storage.db` sits directly in it — then runs `sqlite3 <mountpoint>/storage.db ".backup
    <tmp>"` through `podman unshare`. The files are owned by a mapped subordinate id, so the copy has to
    be made in the same user namespace; `.backup` is SQLite's online API and is safe while the app
    writes. `-readonly` is deliberately not passed: a container killed mid-write leaves a hot journal
@@ -164,8 +165,8 @@ On the host, as `deploy`, after copying the newest good `storage.db.gz` across:
 systemctl --user stop uk.osric.asp.service
 gunzip -c /tmp/storage.db.gz > /tmp/storage-restore.db
 mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' uk.osric.asp-storage)
-podman unshare rm -f "$mountpoint/_data/storage.db-wal" "$mountpoint/_data/storage.db-shm"
-podman unshare install -o 1654 -g 1654 -m 0640 /tmp/storage-restore.db "$mountpoint/_data/storage.db"
+podman unshare rm -f "$mountpoint/storage.db-wal" "$mountpoint/storage.db-shm"
+podman unshare install -o 1654 -g 1654 -m 0640 /tmp/storage-restore.db "$mountpoint/storage.db"
 rm /tmp/storage-restore.db
 systemctl --user start uk.osric.asp.service
 until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do sleep 2; done
@@ -236,6 +237,10 @@ on demand; the file passes `integrity_check` and carries `0600`; a pull from the
 
 ## What changed while building
 
+- The volume's mountpoint is the directory mounted at `/data`, so `storage.db` sits directly in it and
+  `_data` must not be appended. The first deploy found this: the installed snapshot service stopped with
+  "volume uk.osric.asp-storage has no mountpoint". The script and the restore steps now use the
+  mountpoint as the directory.
 - The restricted key changes what the site may serve: `rrsync -ro` refuses `--copy-links`, so the
   snapshot leaves `storage.db.gz` as a hard link to the day's file instead of a `latest` symlink. The
   pull was then run through a real `rrsync -ro` forced command, with a stand-in `ssh`, rather than only
